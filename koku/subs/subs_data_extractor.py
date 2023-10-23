@@ -58,7 +58,11 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             for rid, latest_time in SubsLastProcessed.objects.filter(
                 source_uuid=self.provider_uuid, year=year, month=month
             ).values_list("resource_id", "latest_processed_time"):
-                lpt_dict[rid] = latest_time
+                # the stored timestamp is the latest timestamp data was gathered for
+                # and we want to gather new data we have not processed yet
+                # so we add one second to the last timestamp to ensure the time range processed
+                # is all new data
+                lpt_dict[rid] = latest_time + timedelta(seconds=1)
         return lpt_dict
 
     def determine_latest_processed_time_for_provider(self, rid, year, month):
