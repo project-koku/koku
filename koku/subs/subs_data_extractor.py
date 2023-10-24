@@ -268,7 +268,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
                 )
                 continue
             batch = []
-            batches = math.ceil(len(resource_ids) / 500)
+            batches = math.ceil(len(resource_ids) / 100)
             batch_num = 0
             LOG.info(
                 log_json(
@@ -280,7 +280,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             for rid, end_time in resource_ids:
                 start_time = max(last_processed_dict.get(rid, month_start), self.creation_processing_time)
                 batch.append((rid, start_time, end_time))
-                if len(batch) >= 500:
+                if len(batch) >= 100:
                     upload_keys.extend(
                         self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")
                     )
