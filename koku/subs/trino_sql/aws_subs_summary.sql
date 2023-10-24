@@ -17,8 +17,8 @@ SELECT
     ELSE 'Premium'
   END as subs_sla,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel'))
-    WHEN 'rhel 7 eus' THEN '69-70'
-    WHEN 'rhel 8 eus' THEN '479-70'
+    WHEN 'rhel 7 els' THEN '69-204'
+    WHEN 'rhel 8 els' THEN '479-204'
     ELSE '479'
   END as subs_product_ids
 FROM
