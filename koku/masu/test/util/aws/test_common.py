@@ -33,6 +33,7 @@ from masu.test.external.downloader.aws import fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
+from reporting.models import AWSAccountAlias
 from reporting.models import AWSCostEntryBill
 
 # the cn endpoints aren't supported by moto, so filter them out
@@ -253,6 +254,66 @@ class TestAWSUtils(MasuTestCase):
 
         accounts = utils.get_account_names_by_organization(arn)
         self.assertEqual(accounts, [])
+
+    def test_update_account_aliases_no_aliases(self):
+        with schema_context(self.schema):
+            orig_count = AWSAccountAlias.objects.all().count()
+
+            mock_account_id = self.account_id
+            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+            credentials = {"role_arn": role_arn}
+
+            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
+                "masu.util.aws.common.get_account_names_by_organization"
+            ):
+                mock_get.return_value = (mock_account_id, mock_account_id)
+                utils.update_account_aliases(self.schema, credentials)
+
+            after_count = AWSAccountAlias.objects.all().count()
+            self.assertEqual(orig_count + 1, after_count)
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id, account_alias=mock_account_id))
+
+    def test_update_account_aliases_with_aliases(self):
+        with schema_context(self.schema):
+            orig_count = AWSAccountAlias.objects.all().count()
+
+            mock_account_id = self.account_id
+            mock_alias = "mock_alias"
+            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+            credentials = {"role_arn": role_arn}
+
+            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
+                "masu.util.aws.common.get_account_names_by_organization"
+            ):
+                mock_get.return_value = (mock_account_id, mock_alias)
+                utils.update_account_aliases(self.schema, credentials)
+
+            after_count = AWSAccountAlias.objects.all().count()
+            self.assertEqual(orig_count + 1, after_count)
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id, account_alias=mock_alias))
+
+    def test_update_account_aliases_with_aliases_and_orgs(self):
+        with schema_context(self.schema):
+            orig_count = AWSAccountAlias.objects.all().count()
+
+            mock_account_id = self.account_id
+            mock_account_id2 = fake_aws_account_id()
+            mock_alias = "mock_alias"
+            mock_alias2 = "mock_alias2"
+            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
+            credentials = {"role_arn": role_arn}
+
+            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
+                "masu.util.aws.common.get_account_names_by_organization"
+            ) as mock_get_orgs:
+                mock_get.return_value = (mock_account_id, mock_alias)
+                mock_get_orgs.return_value = [{"id": mock_account_id2, "name": mock_alias2}]
+                utils.update_account_aliases(self.schema, credentials)
+
+            after_count = AWSAccountAlias.objects.all().count()
+            self.assertEqual(orig_count + 2, after_count)
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id, account_alias=mock_alias))
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id2, account_alias=mock_alias2))
 
     def test_get_assembly_id_from_cur_key(self):
         """Test get_assembly_id_from_cur_key is successful."""

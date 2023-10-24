@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import ProhibitNullCharactersValidator
 from django.db.models import QuerySet
 from django_filters import MultipleChoiceFilter
 from django_filters.fields import MultipleChoiceField
@@ -27,8 +28,16 @@ from reporting.user_settings.models import UserSettings
 
 
 class NonValidatingMultipleChoiceField(MultipleChoiceField):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validators.append(ProhibitNullCharactersValidator())
+
     def validate(self, value):
-        pass
+        if isinstance(value, str):
+            self.run_validators(value)
+        else:
+            for val in value:
+                self.run_validators(val)
 
 
 class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
@@ -148,9 +157,12 @@ class SettingsFilter(FilterSet):
             # values and update the cleaned_data, which is used for filtering.
             for name, value in filter_params.items():
                 try:
+                    self.filters[name].field.validate(value)
                     self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
                 except DjangoValidationError as vexc:
-                    raise ValidationError(vexc.message % vexc.params)
+                    message = vexc.error_list[0].message
+                    params = vexc.error_list[0].params
+                    raise ValidationError(message % params)
 
             order_by = self._get_order_by(self._translate_fields(query_params.get("order_by")))
 

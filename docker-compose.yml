@@ -449,7 +449,7 @@ services:
 
   db:
     container_name: koku-db
-    image: koku-db:13
+    image: koku-db:14
     build:
       context: dev/containers/postgresql
       args:

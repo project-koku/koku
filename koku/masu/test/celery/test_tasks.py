@@ -6,10 +6,13 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import faker
+import requests_mock
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from celery.exceptions import Retry
+from django.conf import settings
 from django.test import override_settings
+from requests.exceptions import HTTPError
 
 from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest as APIExportRequest
@@ -127,6 +130,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_sync.return_value.sync_bucket.side_effect = SyncedFileInColdStorageError()
         with self.assertRaises(Retry):
             tasks.sync_data_to_customer(data_export_object.uuid)
+
         self.assertEqual(data_export_object.status, APIExportRequest.WAITING)
 
     @patch("masu.celery.tasks.sync_data_to_customer.retry", side_effect=MaxRetriesExceededError())
@@ -148,36 +152,46 @@ class TestCeleryTasks(MasuTestCase):
     def test_get_currency_conversion_rates(self):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.get_daily_currency_rates()
-            self.assertIn("Creating the exchange rate" or "Updating currency", str(captured_logs))
 
-    # Check to see if Error is raised on wrong URL
-    @patch("masu.celery.tasks.requests")
-    def test_error_get_currency_conversion_rates(self, mock_requests):
-        mock_requests.get.side_effect = Exception("error")
-        with self.assertRaises(Exception) as e:
-            tasks.get_daily_currency_rates()
-            self.assertIn("Couldn't pull latest conversion rates", str(e.exception))
+        self.assertIn("Creating the exchange rate" or "Updating currency", str(captured_logs))
 
-    @patch("masu.celery.tasks.requests")
-    def test_get_currency_conversion_rates_successful(self, mock_requests):
+    def test_error_get_currency_conversion_rates(self):
+        with self.assertLogs("masu.celery.tasks", "ERROR") as captured_logs:
+            with requests_mock.Mocker() as reqmock:
+                reqmock.register_uri("GET", settings.CURRENCY_URL, exc=HTTPError("Raised intentionally"))
+                result = tasks.get_daily_currency_rates()
+
+        self.assertEqual({}, result)
+        self.assertIn("Couldn't pull latest conversion rates", captured_logs.output[0])
+        self.assertIn("Raised intentionally", captured_logs.output[1])
+
+    def test_get_currency_conversion_rates_successful(self):
         beforeRows = ExchangeRates.objects.count()
         self.assertEqual(beforeRows, 2)
-        mock_requests.get.return_value = Mock(
-            status_code=201, json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928}}
-        )
-        tasks.get_daily_currency_rates()
+
+        result = {
+            "result": "success",
+            "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928},
+        }
+        with requests_mock.Mocker() as reqmock:
+            reqmock.register_uri("GET", settings.CURRENCY_URL, status_code=201, json=result)
+            tasks.get_daily_currency_rates()
+
         afterRows = ExchangeRates.objects.count()
         self.assertEqual(afterRows, 5)
 
-    @patch("masu.celery.tasks.requests")
-    def test_get_currency_conversion_rates_unsupported_currency(self, mock_requests):
+    def test_get_currency_conversion_rates_unsupported_currency(self):
         beforeRows = ExchangeRates.objects.count()
         self.assertEqual(beforeRows, 2)
-        mock_requests.get.return_value = Mock(
-            status_code=201,
-            json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928, "FOO": 12.34}},
-        )
-        tasks.get_daily_currency_rates()
+
+        result = {
+            "result": "success",
+            "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928, "FOO": 12.34},
+        }
+        with requests_mock.Mocker() as reqmock:
+            reqmock.register_uri("GET", settings.CURRENCY_URL, status_code=201, json=result)
+            tasks.get_daily_currency_rates()
+
         afterRows = ExchangeRates.objects.count()
         self.assertEqual(afterRows, 5)
 
@@ -186,6 +200,7 @@ class TestCeleryTasks(MasuTestCase):
         schema_name, provider_type, provider_uuid = "", "", ""
         with self.assertRaises(TypeError) as e:
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+
         self.assertIn("schema_name", str(e.exception))
         self.assertIn("provider_type", str(e.exception))
         self.assertIn("provider_uuid", str(e.exception))
@@ -231,7 +246,8 @@ class TestCeleryTasks(MasuTestCase):
 
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
-            self.assertIn("Skipping delete_archived_data. MinIO in use.", captured_logs.output[0])
+
+        self.assertIn("Skipping delete_archived_data. MinIO in use.", captured_logs.output[0])
 
     @patch("masu.celery.tasks.OCPReportDBAccessor.delete_hive_partitions_by_source")
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
@@ -255,7 +271,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy(self.aws_test_provider_uuid)
             expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % ("1")
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
     def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
@@ -269,7 +286,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
             expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
     def test_cost_model_status_check_with_provider_uuid(self, mock_cost_check):
@@ -287,7 +305,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status(self.gcp_test_provider_uuid)
             expected_log_msg = f"Source {self.gcp_test_provider_uuid} is not an openshift source."
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
     def test_cost_model_status_check_without_provider_uuid(self, mock_cost_check):
@@ -312,7 +331,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source()
             expected_log_msg = "Openshfit stale cluster check found %s clusters to scan" % (len(manifests))
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.celery_app")
     def test_collect_queue_len(self, mock_celery_app):
@@ -321,7 +341,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "DEBUG") as captured_logs:
             print(f"\n\n{tasks.collect_queue_metrics()}\n\n")
             expected_log_msg = "Celery queue backlog info: "
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_delete_provider_async_not_found(self):
@@ -330,7 +351,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
             tasks.delete_provider_async("fake name", provider_uuid, "fake_schema")
             expected_log_msg = "does not exist"
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_out_of_order_source_delete_async_not_found(self):
@@ -339,7 +361,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
             tasks.out_of_order_source_delete_async(source_id)
             expected_log_msg = "does not exist"
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_missing_source_delete_async_not_found(self):
@@ -348,7 +371,8 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
             tasks.missing_source_delete_async(source_id)
             expected_log_msg = "does not exist"
-            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+        self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.is_purge_trino_files_enabled", return_value=False)
     def test_purge_s3_files_failed_unleash(self, _):
