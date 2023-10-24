@@ -74,7 +74,7 @@ class OrchestratorTest(MasuTestCase):
             },
         ]
 
-    @patch("masu.processor.orchestrator.update_account_alias")
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
     def test_prepare_no_accounts(self, mock_downloader, mock_inspect, mock_account_alias_updater):
@@ -138,7 +138,7 @@ class OrchestratorTest(MasuTestCase):
         self.assertEqual(results, [])
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.update_account_alias")
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=ReportDownloaderError)
     def test_prepare_w_downloader_error(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() handles downloader errors."""
@@ -149,7 +149,7 @@ class OrchestratorTest(MasuTestCase):
         mock_account_alias_updater.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.update_account_alias")
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=Exception)
     def test_prepare_w_exception(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() handles broad exceptions."""
@@ -160,7 +160,7 @@ class OrchestratorTest(MasuTestCase):
         mock_account_alias_updater.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.update_account_alias")
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
     def test_prepare_w_manifest_processing_successful(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
@@ -171,7 +171,7 @@ class OrchestratorTest(MasuTestCase):
         mock_account_alias_updater.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.update_account_alias")
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
     def test_prepare_w_ingress_reports_processing_successful(
         self, mock_task, mock_account_alias_updater, mock_inspect
@@ -185,7 +185,7 @@ class OrchestratorTest(MasuTestCase):
         mock_account_alias_updater.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.update_account_alias")
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
     def test_prepare_w_no_manifest_found(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() is skipped when no manifest is found."""
