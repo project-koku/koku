@@ -31,7 +31,7 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
-from masu.util.aws.common import update_account_alias
+from masu.util.aws.common import update_account_aliases
 from masu.util.common import check_setup_complete
 from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
@@ -354,7 +354,7 @@ class Orchestrator:
                             provider_uuid=provider_uuid,
                         )
                     )
-                    update_account_alias(account.get("schema_name"), account.get("credentials"))
+                    update_account_aliases(account.get("schema_name"), account.get("credentials"))
                     LOG.info(
                         log_json(
                             tracing_id,

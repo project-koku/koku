@@ -455,7 +455,7 @@ def get_account_names_by_organization(arn, session=None):
     return all_accounts
 
 
-def update_account_alias(schema, credentials):
+def update_account_aliases(schema, credentials):
     """Update the account aliases."""
     _arn = AwsArn(credentials)
     account_id, account_alias = get_account_alias_from_role_arn(_arn)
