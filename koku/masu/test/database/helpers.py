@@ -24,7 +24,6 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.external.date_accessor import DateAccessor
@@ -219,35 +218,6 @@ class ReportObjectCreator:
         data = {"provider_uuid": provider_obj.uuid, "cost_model_id": cost_model_obj.uuid}
         self.create_db_object(cost_model_map, data)
         return cost_model_obj
-
-    def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
-        """Create an ocpawscostlineitem_project_daily_summary object for test."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-        model = get_model(table_name)
-        with AccountAliasAccessor(account_id, schema) as accessor:
-            account_alias = accessor._get_db_obj_query().first()
-            data = {
-                "account_alias_id": account_alias.id,
-                "cost_entry_bill": self.create_cost_entry_bill(str(uuid.uuid4())),
-                "usage_start": self.make_datetime_aware(self.fake.past_datetime()),
-                "usage_end": self.make_datetime_aware(self.fake.past_datetime()),
-            }
-        with schema_context(self.schema):
-            return baker.make(model, **data, _fill_optional=True)
-
-    def create_awscostentrylineitem_daily_summary(self, account_id, schema, cost_entry_bill, usage_date=None):
-        """Create reporting_awscostentrylineitem_daily_summary object for test."""
-        table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-        model = get_model(table_name)
-        with AccountAliasAccessor(account_id, schema) as accessor:
-            account_alias = accessor._get_db_obj_query().first()
-            data = {
-                "account_alias_id": account_alias.id,
-                "cost_entry_bill": cost_entry_bill,
-                "usage_start": self.make_datetime_aware(usage_date or self.fake.past_datetime()),
-            }
-        with schema_context(self.schema):
-            return baker.make(model, **data, _fill_optional=True)
 
     def create_azure_cost_entry_bill(self, provider_uuid, bill_date=None):
         """Create an Azure cost entry bill database object for test."""
