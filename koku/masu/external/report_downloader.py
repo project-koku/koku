@@ -187,9 +187,7 @@ class ReportDownloader:
             LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
             return {}
 
-        stats_recorder, _ = CostUsageReportStatus.objects.get_or_create(
-            report_name=local_file_name, manifest_id=manifest_id
-        )
+        stats_recorder = CostUsageReportStatus.objects.get(report_name=local_file_name, manifest_id=manifest_id)
         try:
             file_name, etag, _, split_files, date_range = self._downloader.download_file(
                 report, stats_recorder.etag, manifest_id=manifest_id, start_date=date_time
