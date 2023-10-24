@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -34,6 +35,7 @@ from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from masu.util.aws import common as utils
 from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -254,6 +256,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         fake_session.return_value.__enter__ = Mock()
         fake_report_date = self.fake.date_time().replace(day=1)
         fake_report_date_str = fake_report_date.strftime("%Y%m%dT000000.000Z")
+        manifest_id = 1
         expected_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         input_key = f"/koku/20180701-20180801/{expected_assembly_id}/koku-1.csv.gz"
         mock_manifest = {
@@ -261,6 +264,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             "billingPeriod": {"start": fake_report_date_str},
             "reportKeys": [input_key],
         }
+        baker.make(CostUsageReportStatus, manifest_id=manifest_id, report_name="file")
 
         with patch.object(AWSReportDownloader, "_get_manifest", return_value=("", mock_manifest)):
             with self.assertRaises(AWSReportDownloaderError):
@@ -273,7 +277,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 )
                 report_context = {
                     "date": fake_report_date.date(),
-                    "manifest_id": 1,
+                    "manifest_id": manifest_id,
                     "comporession": "GZIP",
                     "current_file": "/my/file",
                 }

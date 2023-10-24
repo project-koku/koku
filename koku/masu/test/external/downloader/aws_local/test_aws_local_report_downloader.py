@@ -14,6 +14,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
 from masu.config import Config
@@ -24,6 +25,7 @@ from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLo
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -174,12 +176,14 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar.extractall(fake_bucket)
         test_report_date = datetime(year=2018, month=8, day=7)
         fake_data_source = {"bucket": fake_bucket}
+        filename = "test_local_bucket.tar.gz"
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             with patch("masu.external.downloader.aws.aws_report_downloader.open"):
                 with patch(
                     "masu.external.downloader.aws_local.aws_local_report_downloader.create_daily_archives",
                     return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
                 ):
+                    baker.make(CostUsageReportStatus, manifest_id=1, report_name=filename)
                     report_downloader = ReportDownloader(
                         self.fake_customer_name,
                         self.credentials,
@@ -192,7 +196,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                         "date": test_report_date.date(),
                         "manifest_id": 1,
                         "comporession": "GZIP",
-                        "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
+                        "current_file": f"./koku/masu/test/data/{filename}",
                     }
                     report_downloader.download_report(report_context)
         expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
