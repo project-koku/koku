@@ -232,6 +232,9 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
                 last_processed_obj.latest_processed_time = latest_timestamp
                 bulk_resources.append(last_processed_obj)
             SubsLastProcessed.objects.bulk_update(bulk_resources, fields=["latest_processed_time"])
+            LOG.info(
+                log_json(self.tracing_id, msg="finished last processed update for resources.", context=self.context)
+            )
 
     def extract_data_to_s3(self, month_start):
         """Process new subs related line items from reports to S3."""
