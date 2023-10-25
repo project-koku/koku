@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS utility functions."""
+import contextlib
 import datetime
 import logging
 import re
@@ -18,6 +19,7 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db import IntegrityError
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -29,7 +31,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util import common as utils
 from masu.util.common import get_path_prefix
 from masu.util.ocp.common import match_openshift_labels
-from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.models import AWSAccountAlias
+from reporting.models import AWSCostEntryBill
 
 LOG = logging.getLogger(__name__)
 
@@ -450,6 +453,22 @@ def get_account_names_by_organization(arn, session=None):
             LOG.info("Unable to list accounts using organization API.  Reason: %s", str(err))
 
     return all_accounts
+
+
+def update_account_aliases(schema, credentials):
+    """Update the account aliases."""
+    _arn = AwsArn(credentials)
+    account_id, account_alias = get_account_alias_from_role_arn(_arn)
+    with contextlib.suppress(IntegrityError), schema_context(schema):
+        AWSAccountAlias.objects.get_or_create(account_id=account_id, account_alias=account_alias)
+
+    accounts = get_account_names_by_organization(_arn)
+    for account in accounts:
+        acct_id = account.get("id")
+        acct_alias = account.get("name")
+        if acct_id and acct_alias:
+            with contextlib.suppress(IntegrityError), schema_context(schema):
+                AWSAccountAlias.objects.get_or_create(account_id=acct_id, account_alias=acct_alias)
 
 
 def get_bills_from_provider(

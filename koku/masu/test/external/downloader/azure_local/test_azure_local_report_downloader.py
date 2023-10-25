@@ -10,6 +10,7 @@ import tempfile
 from unittest.mock import patch
 
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
 from masu.config import Config
@@ -17,6 +18,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -92,12 +94,16 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         """Test the top level Azure-Local download_report."""
         test_report_date = datetime.datetime(year=2019, month=8, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
+            filename = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
+            manifest_id = 1
             report_context = {
                 "date": test_report_date,
-                "manifest_id": 1,
+                "manifest_id": manifest_id,
                 "comporession": "GZIP",
-                "current_file": "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv",
+                "current_file": f"./koku/masu/test/data/azure/{filename}",
             }
+            baker.make(CostUsageReportStatus, manifest_id=manifest_id, report_name=filename)
+
             with patch("masu.external.downloader.azure.azure_report_downloader.open"):
                 with patch(
                     "masu.external.downloader.azure_local.azure_local_report_downloader.create_daily_archives",
