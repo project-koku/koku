@@ -311,7 +311,7 @@ def populate_enabled_tag_rows_with_false(schema: str, tags: set[str, ...], provi
     """
     Creates enabled tag records always as false.
     """
-    ctx = {"schema": schema, "provider_type": provider_type}
+    ctx = {"schema": schema, "tags": tags, "provider_type": provider_type}
     LOG.info(log_json(msg="checking tag enabled population with false", context=ctx))
     if not tags:
         LOG.info(log_json(msg="skipping tag enablement no tags found", context=ctx))
@@ -339,7 +339,7 @@ def populate_enabled_tag_rows_with_limit(schema: str, tags: set[str, ...], provi
     """
     Creates enabled tag records checking limit.
     """
-    ctx = {"schema": schema, "provider_type": provider_type}
+    ctx = {"schema": schema, "tags": tags, "provider_type": provider_type}
     LOG.info(log_json(msg="checking tag enabled population with limit", context=ctx))
     if not tags:
         LOG.info(log_json(msg="skipping tag enablement no tags found", context=ctx))
