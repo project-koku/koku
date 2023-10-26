@@ -40,7 +40,8 @@ help() {
 DEV_SCRIPTS_PATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # nise specifics
-NISE="$(which nise)"
+# NISE="$(which nise)"
+NISE="/Users/mskarbek/projects/nise/.venv/bin/nise"
 NISE_DATA_PATH="${DEV_SCRIPTS_PATH}/../../testing"
 
 # import common functions
@@ -71,6 +72,11 @@ export PGPORT="${POSTGRES_SQL_SERVICE_PORT}"
 export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
 export PGUSER="${DATABASE_USER}"
 export OS="$(uname)"
+
+export S3_ACCESS_KEY="${S3_ACCESS_KEY}"
+export S3_SECRET_KEY="${S3_SECRET}"
+export S3_BUCKET_NAME="ocp-ingress"
+
 
 log-info "Calculating dates..."
 if [[ $OS = "Darwin" ]]; then
@@ -170,6 +176,31 @@ trigger_download() {
   done
 }
 
+trigger_ocp_ingest() {
+  #
+  # Args:
+  #   1 - array of api_provider.name(s); this needs to match the source_name in test_customer.yaml
+  #   2 - array of payload names to be ingested. Array is 1:1 with the provider names
+  #
+  UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$1'" | head -1 | sed -e 's/^[ \t]*//')
+  if [[ ! -z $UUID ]]; then
+      log-info "Triggering ingest for, source_name: $1, uuid: $UUID"
+      RESPONSE=$(curl -s -w "%{http_code}\n" ${MASU_URL_PREFIX}/v1/ingest_ocp_payload/?payload_name=$2.tar.gz)
+      STATUS_CODE=${RESPONSE: -3}
+      DATA=${RESPONSE:: -3}
+
+      log-debug "status: $STATUS_CODE"
+      log-debug "body: $DATA"
+
+      if [[ $STATUS_CODE != 200 ]];then
+        log-err $DATA
+      fi
+
+  else
+      log-info "SKIPPED - ocp ingest, source_name: $1"
+  fi
+}
+
 render_yaml_files() {
   local _yaml_files=("$@")
   RENDERED_YAML=()
@@ -221,13 +252,15 @@ build_aws_data() {
   local _rendered_yaml_files=("$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml"
                               "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml")
 
-  local _download_types=("Test OCP on AWS" "Test AWS Source" )
+  local _download_types=("Test AWS Source")
+  local _ocp_ingest_name="Test OCP on AWS"
+  local _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$NISE_DATA_PATH/data/insights_local"
+  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
   nise_report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
@@ -239,6 +272,7 @@ build_aws_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
+  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
 }
 
 # Azure customer data
@@ -252,13 +286,15 @@ build_azure_data() {
                               "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml"
                               "$YAML_PATH/rendered_azure_v2.yml")
 
-  local _download_types=("Test OCP on Azure" "Test Azure Source" "Test Azure v2 Source")
+  local _download_types=("Test Azure Source" "Test Azure v2 Source")
+  local _ocp_ingest_name="Test OCP on Azure"
+  local _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$NISE_DATA_PATH/data/insights_local"
+  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
   nise_report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
   nise_report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report-v2 --version-two
 
@@ -270,6 +306,7 @@ build_azure_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
+  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
 }
 
 # GCP customer data
@@ -283,13 +320,15 @@ build_gcp_data() {
                               "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml"
                               "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml")
 
-  local _download_types=("Test OCP on GCP" "Test GCP Source" "Test OCPGCP Source")
+  local _download_types=("Test GCP Source" "Test OCPGCP Source")
+  local _ocp_ingest_name="Test OCP on GCP"
+  local _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --insights-upload "$NISE_DATA_PATH/data/insights_local"
+  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
   nise_report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local"
   nise_report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0 -r"
 
@@ -301,6 +340,7 @@ build_gcp_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
+  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
 }
 
 # ONPREM customer data
@@ -308,13 +348,14 @@ build_onprem_data() {
   local _source_name="ON-PREM"
   local _yaml_files=("ocp/ocp_on_premise.yml")
   local _rendered_yaml_files=("$YAML_PATH/ocp/rendered_ocp_on_premise.yml")
-  local _download_types=("Test OCP on Premises")
+  local _ocp_ingest_name="Test OCP on Premises"
+  local _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$NISE_DATA_PATH/data/insights_local"
+  nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
@@ -324,6 +365,7 @@ build_onprem_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
+  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
 }
 
 # OCI customer data
