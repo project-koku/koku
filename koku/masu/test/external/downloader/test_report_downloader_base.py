@@ -11,7 +11,6 @@ from faker import Faker
 from model_bakery import baker
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
@@ -63,10 +62,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def tearDown(self):
         """Tear down each test case."""
         super().tearDown()
-        with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
-            files = file_accessor._get_db_obj_query().all()
-            for file in files:
-                file_accessor.delete(file)
+        CostUsageReportStatus.objects.filter(report_name=self.report_name, manifest_id=self.manifest_id).delete()
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifests = manifest_accessor._get_db_obj_query().all()
