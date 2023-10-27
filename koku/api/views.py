@@ -8,6 +8,7 @@ from api.cloud_accounts.views import cloud_accounts
 from api.currency.view import get_currency
 from api.currency.view import get_exchange_rates
 from api.dataexport.views import DataExportRequestViewSet
+from api.deprecated_settings.view import SettingsView
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
 from api.forecast.views import GCPCostForecastView
@@ -73,7 +74,11 @@ from api.resource_types.view import ResourceTypeView
 from api.settings.aws_category_keys.view import SettingsAWSCategoryKeyView
 from api.settings.aws_category_keys.view import SettingsDisableAWSCategoryKeyView
 from api.settings.aws_category_keys.view import SettingsEnableAWSCategoryKeyView
-from api.settings.view import SettingsView
+from api.settings.tags.view import SettingsDisableTagView
+from api.settings.tags.view import SettingsEnableTagView
+from api.settings.tags.view import SettingsTagView
+from api.settings.views import AccountSettings
+from api.settings.views import UserCostTypeSettings
 from api.status.views import StatusView
 from api.tags.all.openshift.view import OCPAllTagView
 from api.tags.aws.openshift.view import OCPAWSTagView
@@ -85,5 +90,3 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.oci.view import OCITagView
 from api.tags.ocp.view import OCPTagView
 from api.user_access.view import UserAccessView
-from api.user_settings.views import AccountSettings
-from api.user_settings.views import UserCostTypeSettings

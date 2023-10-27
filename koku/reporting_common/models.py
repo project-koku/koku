@@ -25,17 +25,22 @@ class CostUsageReportManifest(models.Model):
     billing_period_start_datetime = models.DateTimeField()
     num_total_files = models.IntegerField()
     s3_csv_cleared = models.BooleanField(default=False, null=True)
-    s3_parquet_cleared = models.BooleanField(default=False, null=True)
+    # New daily archives for AWS/Azure set this to False when finalizing a bill
+    s3_parquet_cleared = models.BooleanField(default=True, null=True)
+    # Indicates what initial date to start at for daily processing
+    daily_archive_start_date = models.DateTimeField(null=True)
     operator_version = models.TextField(null=True)
     cluster_channel = models.TextField(null=True)
     operator_certified = models.BooleanField(null=True)
     operator_airgapped = models.BooleanField(null=True)
     operator_errors = models.JSONField(default=dict, null=True)
+    operator_daily_reports = models.BooleanField(null=True, default=False)
     cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
     export_time = models.DateTimeField(null=True)
     last_reports = models.JSONField(default=dict, null=True)
     report_tracker = models.JSONField(default=dict, null=True)
+    s3_parquet_cleared_tracker = models.JSONField(default=dict, null=True)
 
 
 class CostUsageReportStatus(models.Model):
@@ -51,6 +56,27 @@ class CostUsageReportStatus(models.Model):
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
+
+    def update_last_started_datetime(self):
+        """
+        Update the last_started_datetime field to the current date and time.
+        """
+        self.last_started_datetime = timezone.now()
+        self.save(update_fields=["last_started_datetime"])
+
+    def clear_last_started_datetime(self):
+        """
+        Clear the last_started_datetime field to the current date and time.
+        """
+        self.last_started_datetime = None
+        self.save(update_fields=["last_started_datetime"])
+
+    def set_last_completed_datetime(self):
+        """
+        Set the last_completed_datetime field to the current date and time.
+        """
+        self.last_completed_datetime = timezone.now()
+        self.save(update_fields=["last_completed_datetime"])
 
 
 class RegionMapping(models.Model):

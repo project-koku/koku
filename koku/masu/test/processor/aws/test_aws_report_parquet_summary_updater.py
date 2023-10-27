@@ -6,7 +6,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from dateutil.relativedelta import relativedelta
+import ciso8601
 from django.conf import settings
 from django_tenants.utils import schema_context
 
@@ -31,15 +31,16 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
             self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         self.updater = AWSReportParquetSummaryUpdater(self.schema_name, self.aws_provider, self.manifest)
 
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
-    def test_get_sql_inputs(self, _):
+    def test_get_sql_inputs(self):
         """Test that dates are returned."""
         # Previous month
         start_str = (self.dh.last_month_end - timedelta(days=3)).isoformat()
         end_str = self.dh.last_month_end.isoformat()
+        expected_start = ciso8601.parse_datetime(start_str).date()
+        expected_end = ciso8601.parse_datetime(end_str).date()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
-        self.assertEqual(start, self.dh.last_month_start.date())
-        self.assertEqual(end, self.dh.last_month_end.date())
+        self.assertEqual(start, expected_start)
+        self.assertEqual(end, expected_end)
 
         # Current month
         with ReportManifestDBAccessor() as manifest_accessor:
@@ -60,50 +61,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
-    def test_check_for_finalized_report(self, mock_invoice_check):
-        """Test that we properly adjust start date for non-finalized reports."""
-        dh = DateHelper()
-
-        # Test current month
-        mock_invoice_check.return_value = []
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
-        bill_date = dh.this_month_start
-        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
-            bill_date, start_date, end_date
-        )
-        self.assertEqual(result_start_date, start_date)
-        self.assertEqual(result_end_date, end_date)
-
-        mock_invoice_check.reset_mock()
-        # Test previous month IS finalized
-        mock_invoice_check.return_value = ["1"]
-        start_date = dh.last_month_start
-        end_date = dh.last_month_end
-        bill_date = dh.last_month_start
-        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
-            bill_date, start_date, end_date
-        )
-        self.assertEqual(result_start_date, start_date)
-        self.assertEqual(result_end_date, end_date)
-
-        mock_invoice_check.reset_mock()
-        # Test previous month NOT finalized
-        mock_invoice_check.return_value = []
-        start_date = dh.last_month_start
-        end_date = dh.last_month_end
-        bill_date = dh.last_month_start
-        expected_start_date = end_date - relativedelta(days=2)
-        result_start_date, result_end_date = self.updater._adjust_start_date_if_finalized(
-            bill_date, start_date, end_date
-        )
-        self.assertNotEqual(result_start_date, start_date)
-        self.assertEqual(result_start_date, expected_start_date)
-        self.assertEqual(result_end_date, end_date)
-
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_category_summary_table")
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
@@ -111,7 +69,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, _, mock_category_update):
+    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, mock_category_update):
         """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
@@ -144,7 +102,6 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
 
-    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.check_for_invoice_id_trino")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
@@ -161,7 +118,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         ):
             with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logs:
                 start_return, end_return = self.updater.update_summary_tables(start_str, end_str)
-                expected_log_msg = f"No bill was found for {start_return}. Skipping summarization"
+                expected_log_msg = "no bill was found, skipping summarization"
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)

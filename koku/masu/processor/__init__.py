@@ -6,6 +6,8 @@
 import logging
 from uuid import UUID
 
+from django.conf import settings
+
 from api.common import log_json
 from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
@@ -71,22 +73,18 @@ def is_gcp_resource_matching_disabled(account):  # pragma: no cover
     return res
 
 
-def is_summarize_ocp_on_gcp_by_node_enabled(account):  # pragma: no cover
-    """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
-    account = convert_account(account)
-    context = {"schema": account}
-    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.summarize-ocp-on-gcp-by-node", context)
-    if res:
-        LOG.info(log_json(msg="OCP on GCP summarize by node is enabled", context=context))
-
-    return res
-
-
 def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large."""
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
+
+
+def is_rate_limit_customer_large(account):  # pragma: no cover
+    """Flag the customer as large and to be rate limited."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
 
 
 def is_ocp_savings_plan_cost_enabled(account):  # pragma: no cover
@@ -103,15 +101,6 @@ def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
-
-
-def is_aws_category_settings_enabled(account):  # pragma: no cover
-    """Enable aws category settings."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.enable_aws_category_settings", context, fallback_development_true
-    )
 
 
 def is_source_disabled(source_uuid):  # pragma: no cover
@@ -136,3 +125,29 @@ def is_ingress_rate_limiting_disabled():  # pragma: no cover
     if res:
         LOG.info(log_json(msg="ingress rate limiting disabled"))
     return res
+
+
+def get_customer_group_by_limit(account: str) -> int:  # pragma: no cover
+    """Get the group_by limit for an account."""
+    limit = 2
+    account = convert_account(account)
+    context = {"schema": account}
+    if UNLEASH_CLIENT.is_enabled("cost-management.backend.override_customer_group_by_limit", context):
+        limit = settings.MAX_GROUP_BY
+
+    return limit
+
+
+def check_ingress_columns(account):  # pragma: no cover
+    """Should check ingress columns."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
+
+
+def is_feature_cost_3083_all_labels_enabled(account):
+    """Should all labels column be enabled."""
+    unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)

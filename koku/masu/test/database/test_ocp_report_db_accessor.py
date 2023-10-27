@@ -22,6 +22,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakeTrinoConn
+from api.provider.models import Provider
 from api.utils import DateHelper
 from koku import trino_database as trino_db
 from masu.database import AWS_CUR_TABLE_MAP
@@ -31,10 +32,10 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -520,9 +521,9 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             OCPUsagePodLabelSummary.objects.all().delete()
             OCPStorageVolumeLabelSummary.objects.all().delete()
-            key_to_keep = OCPEnabledTagKeys.objects.filter(key="app").first()
-            OCPEnabledTagKeys.objects.all().update(enabled=False)
-            OCPEnabledTagKeys.objects.filter(key="app").update(enabled=True)
+            key_to_keep = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").first()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).update(enabled=False)
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").update(enabled=True)
             report_period_ids = [report_period.id]
             self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
             tags = (
@@ -600,16 +601,12 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
         expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
-        with patch(
-            "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
-            Mock(return_value={"table_id": "resource"}),
-        ):
-            with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-                self.accessor.get_ocp_infrastructure_map_trino(
-                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
-                )
-                mock_trino.assert_called()
-                self.assertIn(expected_log, logger.output)
+        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+            self.accessor.get_ocp_infrastructure_map_trino(
+                start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+            )
+            mock_trino.assert_called()
+            self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_trino):
@@ -787,7 +784,8 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = str(uuid.uuid4())
         cluster_alias = "cluster_alias"
         new_cluster_alias = "new_cluster_alias"
-        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+
         with schema_context(self.schema):
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, cluster_alias)
@@ -1071,8 +1069,8 @@ select * from eek where val1 in {{report_period_id}} ;
             [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
         ]
         mock_jinja = Mock()
-        mock_jinja.prepare_query.side_effect = side_effect
-        accessor.jinja_sql = mock_jinja
+        mock_jinja.side_effect = side_effect
+        accessor.prepare_query = mock_jinja
         accessor.populate_platform_and_worker_distributed_cost_sql(
             start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True}
         )

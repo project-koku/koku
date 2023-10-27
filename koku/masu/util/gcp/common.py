@@ -12,7 +12,6 @@ from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.accounts_accessor import AccountsAccessor
 from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -61,7 +60,8 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.filter(billing_period_start__gte=start_date)
         if end_date:
             bills = bills.filter(billing_period_start__lte=end_date)
-        bills = bills.all()
+
+        bills = list(bills.all())
 
     return bills
 
@@ -77,13 +77,16 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         match_col_name = f"ocp_matched_{i}"
         cluster_id = cluster_topology.get("cluster_id", "")
         cluster_alias = cluster_topology.get("cluster_alias", "")
-        nodes = cluster_topology.get("nodes", [])
-        volumes = cluster_topology.get("persistent_volumes", [])
+        nodes = list(filter(None, cluster_topology.get("nodes", [])))
+        volumes = list(filter(None, cluster_topology.get("persistent_volumes", [])))
         matchable_resources = nodes + volumes
 
         if resource_id_df.any():
             LOG.info("Matching OpenShift on GCP by resource ID.")
-            ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
+            matching_check = "|".join(matchable_resources)
+            if not matching_check:
+                continue
+            ocp_matched = resource_id_df.str.contains(matching_check)
         else:
             LOG.info("Matching OpenShift on GCP by labels.")
             cluster_strings = [
@@ -198,10 +201,10 @@ def deduplicate_reports_for_gcp(report_list):
 
 def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
-    account = AccountsAccessor().get_accounts(gcp_provider_uuid)
-    if account != []:
-        if is_gcp_resource_matching_disabled(account[0].get("schema_name")):
-            LOG.info(f"GCP resource matching disabled for {account[0].get('schema_name')}")
+    if provider := Provider.objects.filter(uuid=gcp_provider_uuid).first():
+        account = provider.account
+        if is_gcp_resource_matching_disabled(account.get("schema_name")):
+            LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
             return False
     else:
         LOG.info("Account not returned, source likely has processing suspended.")

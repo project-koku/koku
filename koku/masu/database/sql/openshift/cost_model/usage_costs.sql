@@ -46,7 +46,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_model_memory_cost,
     cost_model_volume_cost,
     monthly_cost_type,
-    cost_category_id
+    cost_category_id,
+    all_labels
 )
 SELECT uuid_generate_v4(),
     max(report_period_id) as report_period_id,
@@ -95,7 +96,8 @@ SELECT uuid_generate_v4(),
         + sum(coalesce(volume_request_storage_gigabyte_months, 0)) * {{volume_request_rate}}
         as cost_model_volume_cost,
     NULL as monthly_cost_type,
-    cost_category_id
+    cost_category_id,
+    all_labels
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
@@ -110,5 +112,6 @@ GROUP BY usage_start,
     persistentvolumeclaim,
     pod_labels,
     volume_labels,
-    cost_category_id
+    cost_category_id,
+    all_labels
 ;

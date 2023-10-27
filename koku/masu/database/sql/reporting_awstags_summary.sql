@@ -7,13 +7,9 @@ WITH cte_tag_value AS (
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
-        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys WHERE enabled=true)
+        AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_enabledtagkeys WHERE enabled=true AND provider_type='AWS')
     {% if bill_ids %}
-        AND li.cost_entry_bill_id IN (
-        {%- for bill_id in bill_ids -%}
-        {{bill_id}}{% if not loop.last %},{% endif %}
-        {%- endfor -%}
-    )
+        AND li.cost_entry_bill_id IN {{ bill_ids | inclause }}
     {% endif %}
     GROUP BY key, value, li.cost_entry_bill_id, li.usage_account_id
 ),
@@ -24,11 +20,12 @@ cte_values_agg AS (
         usage_account_id,
         aa.id as account_alias_id
     FROM cte_tag_value AS tv
-    JOIN {{schema | sqlsafe}}.reporting_awsenabledtagkeys AS etk
+    JOIN {{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
         ON tv.key = etk.key
     LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON tv.usage_account_id = aa.account_id
     WHERE etk.enabled = true
+        AND etk.provider_type = 'AWS'
     GROUP BY tv.key, cost_entry_bill_id, usage_account_id, aa.id
 ),
 cte_distinct_values_agg AS (
@@ -79,8 +76,9 @@ ON CONFLICT (key, value) DO UPDATE SET usage_account_ids=EXCLUDED.usage_account_
 DELETE FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts
 WHERE EXISTS (
     SELECT 1
-    FROM {{schema | sqlsafe}}.reporting_awsenabledtagkeys AS etk
+    FROM {{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
     WHERE etk.enabled = false
+        AND etk.provider_type = 'AWS'
         AND ts.key = etk.key
 )
 ;

@@ -48,6 +48,8 @@
           value: ${API_PATH_PREFIX}
         - name: APP_DOMAIN
           value: ${APP_DOMAIN}
+        - name: MAX_GROUP_BY_OVERRIDE
+          value: ${MAX_GROUP_BY_OVERRIDE}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: GUNICORN_LOG_LEVEL
@@ -134,6 +136,8 @@
           value: ${RBAC_CACHE_TIMEOUT}
         - name: CACHE_TIMEOUT
           value: ${CACHE_TIMEOUT}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
@@ -213,14 +217,14 @@
     displayName: CPU Request
     name: KOKU_CPU_REQUEST
     required: true
-    value: 300m
+    value: 250m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: KOKU_CPU_LIMIT
     required: true
-    value: 600m
+    value: 500m
 - op: add
   path: /parameters/-
   value:

@@ -4,6 +4,7 @@
 #
 """Test the Report Queries."""
 from collections import defaultdict
+from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
@@ -128,6 +129,56 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 total = query_data.get("total")
                 self.assertIsNotNone(total.get(order_by))
 
+    def test_storage_class_order_bys(self):
+        """Test that we can order by the pvc values."""
+        url = "?group_by[project]=*&group_by[persistentvolumeclaim]=*&order_by[storage_class]=desc"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+        self.assertIsNotNone(query_data.get("data"))
+        self.assertIsNotNone(query_data.get("total"))
+        self.assertIsNotNone(query_data["total"].get("storage_class"))
+        first_date = query_data["data"][0]
+        tested = False
+        for cluster in first_date.get("projects", []):
+            pvc_list = cluster.get("persistentvolumeclaims")
+            storage_class_order_result = []
+            expected = None
+            for pvc in pvc_list:
+                for pvc_value in pvc.get("values", []):
+                    storage_class_order_result.append(pvc_value.get("storage_class"))
+            if not expected:
+                expected = deepcopy(storage_class_order_result)
+                expected.sort(reverse=True)
+            self.assertEqual(storage_class_order_result, expected)
+            tested = True
+        self.assertTrue(tested)
+
+    def test_persistentvolumeclaim_order_by(self):
+        """Test that we can order by the pvc values."""
+        url = "?group_by[project]=*&group_by[persistentvolumeclaim]=*&order_by[persistentvolumeclaim]=desc"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+        self.assertIsNotNone(query_data.get("data"))
+        self.assertIsNotNone(query_data.get("total"))
+        self.assertIsNotNone(query_data["total"].get("persistent_volume_claim"))
+        first_date = query_data["data"][0]
+        tested = False
+        for cluster in first_date.get("projects", []):
+            pvc_list = cluster.get("persistentvolumeclaims")
+            pvc_order_result = []
+            expected = None
+            for pvc in pvc_list:
+                pvc_name = pvc.get("persistentvolumeclaim")
+                pvc_order_result.append(pvc_name)
+            if not expected:
+                expected = deepcopy(pvc_order_result)
+                expected.sort(reverse=True)
+            self.assertEqual(pvc_order_result, expected)
+            tested = True
+        self.assertTrue(tested)
+
     def test_execute_sum_query_costs(self):
         """Test that the sum query runs properly for the costs endpoint."""
         url = "?"
@@ -204,7 +255,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test the volume capacities of a daily volume report with various group bys matches expected"""
         base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         group_bys = [["cluster"], ["project"], ["cluster", "project"]]
-        GB_MAP = {"project": "namespace", "cluster": "cluster_id", "node": "node"}
+        GB_MAP = {"project": "namespace", "cluster": "cluster_id"}
         with tenant_context(self.tenant):
             for group_by in group_bys:
                 url_group_by = "".join([f"&group_by[{gb}]=*" for gb in group_by])
@@ -769,7 +820,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         results = handler.get_tag_group_by_keys()
         self.assertEqual(results, ["tag:" + group_by_key])
 
-    def test__build_prefix_filters(self):
+    def test_build_prefix_filters(self):
         """Test that tag filters are created properly."""
         filter_collection = QueryFilterCollection()
 
@@ -942,17 +993,17 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test the apply_group_by handles different grouping scenerios."""
         mock_is_openshift.return_value = True
         group_by_list = [
-            ("project", "cluster", "node"),
-            ("project", "node", "cluster"),
-            ("cluster", "project", "node"),
-            ("cluster", "node", "project"),
-            ("node", "cluster", "project"),
-            ("node", "project", "cluster"),
+            ("project", "cluster"),
+            ("project", "node"),
+            ("cluster", "project"),
+            ("cluster", "node"),
+            ("node", "cluster"),
+            ("node", "project"),
         ]
         base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
         tolerance = 1
         for group_by in group_by_list:
-            sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
+            sub_url = "&group_by[%s]=*&group_by[%s]=*" % group_by
             url = base_url + sub_url
             query_params = self.mocked_query_params(url, OCPCpuView)
             handler = OCPReportQueryHandler(query_params)
@@ -1115,7 +1166,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that order of every other date matches the order of the `order_by` date."""
         tested = False
         yesterday = self.dh.yesterday.date()
-        url = f"?filter[limit]=10&filter[offset]=0&order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1185,11 +1236,53 @@ class OCPReportQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
         self.assertIsNotNone(data)
 
+    def test_exclude_persistentvolumeclaim(self):
+        """Test that the exclude persistentvolumeclaim works for volume endpoints."""
+        url = "?group_by[persistentvolumeclaim]=*"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        overall_output = handler.execute_query()
+        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        opt_value = None
+        for date_dict in overall_output.get("data", [{}]):
+            for element in date_dict.get("persistentvolumeclaims"):
+                if "No-persistentvolumeclaim" != element.get("persistentvolumeclaim"):
+                    opt_value = element.get("persistentvolumeclaim")
+                    break
+            if opt_value:
+                break
+        # Grab filtered value
+        filtered_url = f"?group_by[persistentvolumeclaim]=*&filter[persistentvolumeclaim]={opt_value}"
+        query_params = self.mocked_query_params(filtered_url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        handler.execute_query()
+        filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        expected_total = overall_total - filtered_total
+        # Test exclude
+        exclude_url = f"?group_by[persistentvolumeclaim]=*&exclude[persistentvolumeclaim]={opt_value}"
+        query_params = self.mocked_query_params(exclude_url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        self.assertIsNotNone(handler.query_exclusions)
+        excluded_output = handler.execute_query()
+        excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        excluded_data = excluded_output.get("data")
+        # Check to make sure the value is not in the return
+        for date_dict in excluded_data:
+            grouping_list = date_dict.get("persistentvolumeclaims", [])
+            self.assertIsNotNone(grouping_list)
+            for group_dict in grouping_list:
+                if "No-persistentvolumeclaim" != opt_value:
+                    self.assertNotEqual(opt_value, group_dict.get("persistentvolumeclaim"))
+        self.assertAlmostEqual(expected_total, excluded_total, 6)
+        self.assertNotEqual(overall_total, excluded_total)
+
     def test_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(OCPExcludeSerializer._opfields)
-        exclude_opts.remove("infrastructures")  # Tested separately
-        exclude_opts.remove("category")
+        # This is a base test, if functionality is tested separately
+        # or does not apply to all ocp endpoints, then it can be added
+        # here:
+        remove_from_test = {"infrastructures", "category", "persistentvolumeclaim"}
+        exclude_opts = set(OCPExcludeSerializer._opfields).difference(remove_from_test)
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
                 with self.subTest(exclude_opt):
@@ -1305,11 +1398,44 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertLess(current_total, previous_total)
             previous_total = current_total
 
+    def test_multi_exclude_persistentvolumeclaim_functionality(self):
+        """Test that the exclude feature works for all options."""
+        base_url = "?group_by[persistentvolumeclaim]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
+        query_params = self.mocked_query_params(base_url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        overall_output = handler.execute_query()
+        opt_dict = overall_output.get("data", [{}])[0]
+        opt_list = opt_dict.get("persistentvolumeclaims")
+        exclude_one = None
+        exclude_two = None
+        for exclude_option in opt_list:
+            if "No-" not in exclude_option.get("persistentvolumeclaim"):
+                if not exclude_one:
+                    exclude_one = exclude_option.get("persistentvolumeclaim")
+                elif not exclude_two:
+                    exclude_two = exclude_option.get("persistentvolumeclaim")
+                else:
+                    continue
+        self.assertIsNotNone(exclude_one)
+        self.assertIsNotNone(exclude_two)
+
+        url = base_url + f"&exclude[persistentvolumeclaim]={exclude_one}&exclude[persistentvolumeclaim]={exclude_two}"
+        query_params = self.mocked_query_params(url, OCPVolumeView)
+        handler = OCPReportQueryHandler(query_params)
+        self.assertIsNotNone(handler.query_exclusions)
+        excluded_output = handler.execute_query()
+        excluded_data = excluded_output.get("data")
+        self.assertIsNotNone(excluded_data)
+        for date_dict in excluded_data:
+            grouping_list = date_dict.get("persistentvolumeclaims", [])
+            self.assertIsNotNone(grouping_list)
+            for group_dict in grouping_list:
+                self.assertNotIn(group_dict.get("persistentvolumeclaim"), [exclude_one, exclude_two])
+
     def test_multi_exclude_functionality(self):
         """Test that the exclude feature works for all options."""
-        exclude_opts = list(OCPExcludeSerializer._opfields)
-        exclude_opts.remove("infrastructures")
-        exclude_opts.remove("category")
+        remove_from_test = {"infrastructures", "category", "persistentvolumeclaim"}
+        exclude_opts = set(OCPExcludeSerializer._opfields).difference(remove_from_test)
         for ex_opt in exclude_opts:
             base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
             for view in [OCPVolumeView, OCPCostView, OCPCpuView, OCPMemoryView]:

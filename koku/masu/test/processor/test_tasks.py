@@ -41,7 +41,6 @@ from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
@@ -185,10 +184,10 @@ class ProcessReportFileTests(MasuTestCase):
 
     @patch("masu.processor._tasks.process.ProviderDBAccessor")
     @patch("masu.processor._tasks.process.ReportProcessor")
-    @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     @patch("masu.processor._tasks.process.ReportManifestDBAccessor")
     def test_process_file_initial_ingest(
-        self, mock_manifest_accessor, mock_stats_accessor, mock_processor, mock_provider_accessor
+        self, mock_manifest_accessor, mock_stats, mock_processor, mock_provider_accessor
     ):
         """Test the process_report_file functionality on initial ingest."""
         report_dir = tempfile.mkdtemp()
@@ -204,7 +203,7 @@ class ProcessReportFileTests(MasuTestCase):
         }
 
         mock_proc = mock_processor()
-        mock_stats_acc = mock_stats_accessor().__enter__()
+        mock_stats.get.return_value = mock_stats
         mock_manifest_acc = mock_manifest_accessor().__enter__()
         mock_provider_acc = mock_provider_accessor().__enter__()
         mock_provider_acc.get_setup_complete.return_value = False
@@ -212,18 +211,18 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats_acc.log_last_started_datetime.assert_called()
-        mock_stats_acc.log_last_completed_datetime.assert_called()
+        mock_stats.update_last_started_datetime.assert_called()
+        mock_stats.set_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
         mock_provider_acc.setup_complete.assert_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ProviderDBAccessor")
     @patch("masu.processor._tasks.process.ReportProcessor")
-    @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     @patch("masu.processor._tasks.process.ReportManifestDBAccessor")
     def test_process_file_non_initial_ingest(
-        self, mock_manifest_accessor, mock_stats_accessor, mock_processor, mock_provider_accessor
+        self, mock_manifest_accessor, mock_stats, mock_processor, mock_provider_accessor
     ):
         """Test the process_report_file functionality on non-initial ingest."""
         report_dir = tempfile.mkdtemp()
@@ -239,7 +238,7 @@ class ProcessReportFileTests(MasuTestCase):
         }
 
         mock_proc = mock_processor()
-        mock_stats_acc = mock_stats_accessor().__enter__()
+        mock_stats.get.return_value = mock_stats
         mock_manifest_acc = mock_manifest_accessor().__enter__()
         mock_provider_acc = mock_provider_accessor().__enter__()
         mock_provider_acc.get_setup_complete.return_value = True
@@ -247,15 +246,15 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats_acc.log_last_started_datetime.assert_called()
-        mock_stats_acc.log_last_completed_datetime.assert_called()
+        mock_stats.update_last_started_datetime.assert_called()
+        mock_stats.set_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
         mock_provider_acc.setup_complete.assert_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
-    @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
-    def test_process_file_exception(self, mock_stats_accessor, mock_processor):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_process_file_exception(self, mock_stats, mock_processor):
         """Test the process_report_file functionality when exception is thrown."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
@@ -270,18 +269,18 @@ class ProcessReportFileTests(MasuTestCase):
         }
 
         mock_processor.side_effect = ReportProcessorError("mock error")
-        mock_stats_acc = mock_stats_accessor().__enter__()
+        mock_stats.get.return_value = mock_stats
 
         with self.assertRaises(ReportProcessorError):
             _process_report_file(schema_name, provider, report_dict)
 
-        mock_stats_acc.log_last_started_datetime.assert_called()
-        mock_stats_acc.log_last_completed_datetime.assert_not_called()
+        mock_stats.update_last_started_datetime.assert_called()
+        mock_stats.set_last_completed_datetime.assert_not_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
-    @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
-    def test_process_file_not_implemented_exception(self, mock_stats_accessor, mock_processor):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_process_file_not_implemented_exception(self, mock_stats, mock_processor):
         """Test the process_report_file functionality when exception is thrown."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
@@ -296,19 +295,19 @@ class ProcessReportFileTests(MasuTestCase):
         }
 
         mock_processor.side_effect = NotImplementedError("mock error")
-        mock_stats_acc = mock_stats_accessor().__enter__()
+        mock_stats.get.return_value = mock_stats
 
         with self.assertRaises(NotImplementedError):
             _process_report_file(schema_name, provider, report_dict)
 
-        mock_stats_acc.log_last_started_datetime.assert_called()
-        mock_stats_acc.log_last_completed_datetime.assert_called()
+        mock_stats.update_last_started_datetime.assert_called()
+        mock_stats.set_last_completed_datetime.assert_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
-    @patch("masu.processor._tasks.process.ReportStatsDBAccessor")
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     @patch("masu.database.report_manifest_db_accessor.ReportManifestDBAccessor")
-    def test_process_file_missing_manifest(self, mock_manifest_accessor, mock_stats_accessor, mock_processor):
+    def test_process_file_missing_manifest(self, mock_manifest_accessor, mock_stats, mock_processor):
         """Test the process_report_file functionality when manifest is missing."""
         mock_manifest_accessor.get_manifest_by_id.return_value = None
         report_dir = tempfile.mkdtemp()
@@ -324,14 +323,14 @@ class ProcessReportFileTests(MasuTestCase):
         }
 
         mock_proc = mock_processor()
-        mock_stats_acc = mock_stats_accessor().__enter__()
+        mock_stats.get.return_value = mock_stats
         mock_manifest_acc = mock_manifest_accessor().__enter__()
 
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats_acc.log_last_started_datetime.assert_called()
-        mock_stats_acc.log_last_completed_datetime.assert_called()
+        mock_stats.update_last_started_datetime.assert_called()
+        mock_stats.set_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_not_called()
         shutil.rmtree(report_dir)
 
@@ -412,19 +411,19 @@ class ProcessReportFileTests(MasuTestCase):
         """Test that the summarize_reports task is called when a processing list with a None provided."""
         mock_update_summary.s = Mock()
 
-        test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
-        report_meta = {}
-        report_meta["start"] = test_date.strftime("%Y-%m-%d")
-        report_meta["end"] = test_date.strftime("%Y-%m-%d")
-        report_meta["schema_name"] = self.schema
-        report_meta["provider_type"] = Provider.PROVIDER_OCP
-        report_meta["provider_uuid"] = self.ocp_test_provider_uuid
-        report_meta["manifest_id"] = 1
+        report_meta = {
+            "start": str(DateHelper().today),
+            "end": str(DateHelper().today),
+            "schema_name": self.schema,
+            "provider_type": Provider.PROVIDER_OCP,
+            "provider_uuid": self.ocp_test_provider_uuid,
+            "manifest_id": 1,
+        }
         reports_to_summarize = [report_meta, None]
 
         summarize_reports(reports_to_summarize)
 
-        mock_update_summary.s.assert_called_once()
+        mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_only_none(self, mock_update_summary):
@@ -1121,21 +1120,22 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         for test in test_matrix:
             self.assertEqual(normalize_table_options(test.get("table_options")), test.get("expected"))
 
-    @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
-    def test_record_report_status(self, mock_accessor):
-        mock_accessor.return_value = True
+    @patch("masu.processor.tasks.CostUsageReportStatus.objects")
+    def test_record_report_status(self, mock_stats):
+        mock_stats.filter.return_value.first.return_value = mock_stats
+        mock_stats.last_completed_datetime = True
         manifest_id = 1
         file_name = "testfile.csv"
         request_id = 3
         already_processed = record_report_status(manifest_id, file_name, request_id)
         self.assertTrue(already_processed)
 
-        mock_accessor.return_value = False
+        mock_stats.last_completed_datetime = False
         already_processed = record_report_status(manifest_id, file_name, request_id)
         self.assertFalse(already_processed)
 
     def test_record_all_manifest_files(self):
-        """Test that file list is saved in ReportStatsDBAccessor."""
+        """Test that file list is saved in CostUsageReportStatus."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
         tracing_id = "1234"
@@ -1145,17 +1145,18 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
 
     def test_record_all_manifest_files_concurrent_writes(self):
-        """Test that file list is saved in ReportStatsDBAccessor race condition."""
+        """Test that file list is saved in CostUsageReportStatus race condition."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
         tracing_id = "1234"
         record_all_manifest_files(manifest_id, files_list, tracing_id)
-        with patch.object(ReportStatsDBAccessor, "does_db_entry_exist", return_value=False):
-            with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
-                record_all_manifest_files(manifest_id, files_list, tracing_id)
+        with patch("masu.processor.tasks.CostUsageReportStatus.objects") as mock_stats:
+            mock_stats.get_or_create.side_effect = IntegrityError
+            record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
+            self.assertEqual(CostUsageReportStatus.objects.filter(report_name=report_file).count(), 1)
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     def test_update_openshift_on_cloud(self, mock_updater):
@@ -1470,9 +1471,34 @@ class TestWorkerCacheThrottling(MasuTestCase):
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
-        expected = "Processing for this provier will halt."
+        expected = "halting processing"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
+            statement_found = any(expected in log for log in logger.output)
+            self.assertTrue(statement_found)
+
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_openshift_on_cloud_provider_not_found_error(
+        self,
+        mock_inspect,
+        *args,
+    ):
+        """Test that the update_summary_table provider not found exception is caught."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        expected = "halting processing"
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_openshift_on_cloud(
+                self.schema,
+                str(uuid4()),
+                str(uuid4()),
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+            )
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 

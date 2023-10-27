@@ -6,14 +6,14 @@
 import copy
 
 from dateutil.relativedelta import relativedelta
-from django_tenants.utils import schema_context
+from django.utils import timezone
 from faker import Faker
 from model_bakery import baker
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.utils import DateHelper
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -39,10 +39,9 @@ class ReportManifestDBAccessorTest(IamTestCase):
     def tearDown(self):
         """Tear down the test class."""
         super().tearDown()
-        with schema_context(self.schema):
-            manifests = self.manifest_accessor._get_db_obj_query().all()
-            for manifest in manifests:
-                self.manifest_accessor.delete(manifest)
+        manifests = self.manifest_accessor._get_db_obj_query().all()
+        for manifest in manifests:
+            self.manifest_accessor.delete(manifest)
 
     def test_initializer(self):
         """Test the initializer."""
@@ -51,12 +50,11 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_manifest(self):
         """Test that the right manifest is returned."""
-        with schema_context(self.schema):
-            added_manifest = self.manifest_accessor.add(**self.manifest_dict)
+        added_manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-            assembly_id = self.manifest_dict.get("assembly_id")
-            provider_uuid = self.manifest_dict.get("provider_uuid")
-            manifest = self.manifest_accessor.get_manifest(assembly_id, provider_uuid)
+        assembly_id = self.manifest_dict.get("assembly_id")
+        provider_uuid = self.manifest_dict.get("provider_uuid")
+        manifest = self.manifest_accessor.get_manifest(assembly_id, provider_uuid)
 
         self.assertIsNotNone(manifest)
         self.assertEqual(added_manifest, manifest)
@@ -66,9 +64,8 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_manifest_by_id(self):
         """Test that the right manifest is returned by id."""
-        with schema_context(self.schema):
-            added_manifest = self.manifest_accessor.add(**self.manifest_dict)
-            manifest = self.manifest_accessor.get_manifest_by_id(added_manifest.id)
+        added_manifest = self.manifest_accessor.add(**self.manifest_dict)
+        manifest = self.manifest_accessor.get_manifest_by_id(added_manifest.id)
         self.assertIsNotNone(manifest)
         self.assertEqual(added_manifest, manifest)
 
@@ -91,11 +88,10 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""
-        with schema_context(self.schema):
-            manifest = self.manifest_accessor.add(**self.manifest_dict)
-            now = DateAccessor().today_with_timezone("UTC")
-            self.manifest_accessor.mark_manifest_as_updated(manifest)
-            self.assertGreater(manifest.manifest_updated_datetime, now)
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        now = DateAccessor().today_with_timezone("UTC")
+        self.manifest_accessor.mark_manifest_as_updated(manifest)
+        self.assertGreater(manifest.manifest_updated_datetime, now)
 
     def test_mark_manifest_as_updated_none_manifest(self):
         """Test that a none manifest doesn't update failure."""
@@ -144,12 +140,12 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.assertEqual(assembly_ids, [manifest.assembly_id, manifest2.assembly_id])
 
         # test that when the manifest's files have been processed - it is no longer returned
-        manifest2_helper = ManifestCreationHelper(
-            manifest2.id, manifest_dict2.get("num_total_files"), manifest_dict2.get("assembly_id")
+        baker.make(
+            "CostUsageReportStatus",
+            _quantity=manifest_dict2.get("num_total_files"),
+            manifest_id=manifest2.id,
+            last_completed_datetime=timezone.now(),
         )
-
-        manifest2_helper.generate_test_report_files()
-        manifest2_helper.process_all_files()
 
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [manifest.assembly_id])
@@ -188,47 +184,123 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def test_get_s3_csv_cleared(self):
         """Test that s3 CSV clear status is reported."""
-        with schema_context(self.schema):
-            manifest = self.manifest_accessor.add(**self.manifest_dict)
-            status = self.manifest_accessor.get_s3_csv_cleared(manifest)
-            self.assertFalse(status)
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        status = self.manifest_accessor.get_s3_csv_cleared(manifest)
+        self.assertFalse(status)
 
-            self.manifest_accessor.mark_s3_csv_cleared(manifest)
+        self.manifest_accessor.mark_s3_csv_cleared(manifest)
 
-            status = self.manifest_accessor.get_s3_csv_cleared(manifest)
-            self.assertTrue(status)
+        status = self.manifest_accessor.get_s3_csv_cleared(manifest)
+        self.assertTrue(status)
 
-    def test_get_s3_parquet_cleared(self):
+    def test_get_s3_parquet_cleared_no_manifest(self):
         """Test that s3 CSV clear status is reported."""
-        with schema_context(self.schema):
-            manifest = self.manifest_accessor.add(**self.manifest_dict)
-            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-            self.assertFalse(status)
+        status = self.manifest_accessor.get_s3_parquet_cleared(None)
+        self.assertFalse(status)
 
-            self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+    def test_get_s3_parquet_cleared_non_ocp(self):
+        """Test that s3 CSV clear status is reported."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+        self.assertTrue(status)
 
-            status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
-            self.assertTrue(status)
+        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest.id)
+        fetch_manifest = self.manifest_accessor.get_manifest_by_id(manifest.id)
+
+        status = self.manifest_accessor.get_s3_parquet_cleared(fetch_manifest)
+        self.assertFalse(status)
+
+    def test_get_s3_parquet_cleared_ocp_no_key(self):
+        """Test that s3 CSV clear status is reported."""
+        self.manifest_dict["cluster_id"] = "cluster_id"
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
+        self.assertTrue(status)
+
+        self.manifest_accessor.mark_s3_parquet_to_be_cleared(manifest.id)
+        fetch_manifest = self.manifest_accessor.get_manifest_by_id(manifest.id)
+
+        self.assertDictEqual(fetch_manifest.s3_parquet_cleared_tracker, {})
+        self.assertFalse(fetch_manifest.s3_parquet_cleared)
+
+        status = self.manifest_accessor.get_s3_parquet_cleared(fetch_manifest)
+        self.assertFalse(status)
+
+    def test_get_s3_parquet_cleared_ocp_with_key(self):
+        """Test that s3 CSV clear status is reported."""
+        key = "my-made-up-report"
+        self.manifest_dict["cluster_id"] = "cluster_id"
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        status = self.manifest_accessor.get_s3_parquet_cleared(manifest, key)
+        self.assertFalse(status)
+
+        self.manifest_accessor.mark_s3_parquet_cleared(manifest, key)
+
+        self.assertDictEqual(manifest.s3_parquet_cleared_tracker, {key: True})
+        self.assertTrue(manifest.s3_parquet_cleared)
+
+        status = self.manifest_accessor.get_s3_parquet_cleared(manifest, key)
+        self.assertTrue(status)
+
+    def test_mark_s3_parquet_cleared_no_manifest(self):
+        """Test mark_s3_parquet_cleared without manifest does not error."""
+        self.assertIsNone(self.manifest_accessor.mark_s3_parquet_cleared(None))
+
+    def test_mark_s3_parquet_cleared(self):
+        """Test mark_s3_parquet_cleared without manifest does not error."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_accessor.mark_s3_parquet_cleared(manifest)
+        self.assertTrue(self.manifest_accessor.get_s3_parquet_cleared(manifest))
+
+    def test_set_and_get_manifest_daily_archive_start_date(self):
+        """Test marking manifest daily archive start date."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        start_date = DateHelper().this_month_start.replace(year=2019, month=7).replace(tzinfo=None)
+        manifest_start = self.manifest_accessor.set_manifest_daily_start_date(manifest.id, start_date)
+        self.assertEqual(manifest_start, start_date)
+
+    def test_should_s3_parquet_be_cleared_no_manifest(self):
+        """Test that is parquet s3 should be cleared for non-ocp manifest."""
+        # no manifest returns False:
+        self.assertFalse(self.manifest_accessor.should_s3_parquet_be_cleared(None))
+
+    def test_should_s3_parquet_be_cleared_non_ocp(self):
+        """Test that is parquet s3 should be cleared for non-ocp manifest."""
+        # non-ocp manifest returns True:
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.assertTrue(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
+
+    def test_should_s3_parquet_be_cleared_ocp_not_daily(self):
+        """Test that is parquet s3 should be cleared for ocp manifest, not daily."""
+        # ocp manifest, not daily returns False:
+        manifest = self.manifest_accessor.add(**self.manifest_dict, cluster_id="cluster-id")
+        self.assertFalse(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
+
+    def test_should_s3_parquet_be_cleared_ocp_is_daily(self):
+        """Test that is parquet s3 should be cleared for ocp manifest, is daily."""
+        # ocp manifest, daily files returns True:
+        manifest = self.manifest_accessor.add(
+            **self.manifest_dict, cluster_id="cluster-id", operator_daily_reports=True
+        )
+        self.assertTrue(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
 
     def test_bulk_delete_manifests(self):
         """Test bulk delete of manifests."""
-        with schema_context(self.schema):
-            manifest_list = []
-            for fake_assembly_id in ["1234", "12345", "123456"]:
-                self.manifest_dict["assembly_id"] = fake_assembly_id
-                manifest = self.manifest_accessor.add(**self.manifest_dict)
-                manifest_list.append(manifest.id)
-            self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
-            current_manifests = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-                self.provider_uuid, self.billing_start
-            )
-            current_manifests = [manifest.id for manifest in current_manifests]
+        manifest_list = []
+        for fake_assembly_id in ["1234", "12345", "123456"]:
+            self.manifest_dict["assembly_id"] = fake_assembly_id
+            manifest = self.manifest_accessor.add(**self.manifest_dict)
+            manifest_list.append(manifest.id)
+        self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
+        current_manifests = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            self.provider_uuid, self.billing_start
+        )
+        current_manifests = [manifest.id for manifest in current_manifests]
         for deleted_manifest in manifest_list:
             self.assertNotIn(deleted_manifest, current_manifests)
 
     def test_bulk_delete_manifests_empty_list(self):
         """Test bulk delete with an empty manifest list."""
-        with schema_context(self.schema):
-            manifest_list = []
-            value = self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
-            self.assertIsNone(value)
+        manifest_list = []
+        value = self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
+        self.assertIsNone(value)

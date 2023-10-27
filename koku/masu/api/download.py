@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for temporary force download endpoint."""
+import logging
+
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -12,6 +14,8 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.celery.tasks import check_report_updates
+
+LOG = logging.getLogger(__name__)
 
 
 @never_cache

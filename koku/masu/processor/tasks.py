@@ -33,15 +33,13 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_customer_large
 from masu.processor import is_ocp_on_cloud_summary_disabled
+from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
 from masu.processor import is_summary_processing_disabled
 from masu.processor._tasks.download import _get_report_files
@@ -63,6 +61,7 @@ from masu.util.common import execute_trino_query
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -113,8 +112,8 @@ def record_all_manifest_files(manifest_id, report_files, tracing_id):
     """Store all report file names for manifest ID."""
     for report in report_files:
         try:
-            with ReportStatsDBAccessor(report, manifest_id):
-                LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}"))
+            _, created = CostUsageReportStatus.objects.get_or_create(report_name=report, manifest_id=manifest_id)
+            LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}, created: {created}"))
         except IntegrityError:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
@@ -144,8 +143,8 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
 
     """
     already_processed = False
-    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
-        already_processed = db_accessor.get_last_completed_datetime()
+    if stats := CostUsageReportStatus.objects.filter(report_name=file_name, manifest_id=manifest_id).first():
+        already_processed = stats.last_completed_datetime
         if already_processed:
             msg = f"Report {file_name} has already been processed."
         else:
@@ -242,6 +241,8 @@ def get_report_files(  # noqa: C901
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
             "invoice_month": report_dict.get("invoice_month"),
+            "metadata_start_date": report_dict.get("metadata_start_date"),
+            "metadata_end_date": report_dict.get("metadata_end_date"),
         }
 
         try:
@@ -342,8 +343,8 @@ def summarize_reports(  # noqa: C901
                 if report.get("start") and report.get("end"):
                     starts.append(report.get("start"))
                     ends.append(report.get("end"))
-                start = min(starts) if starts != [] else None
-                end = max(ends) if ends != [] else None
+            start = min(starts) if starts != [] else None
+            end = max(ends) if ends != [] else None
             reports_deduplicated.append(
                 {
                     "manifest_id": report.get("manifest_id"),
@@ -443,23 +444,24 @@ def update_summary_tables(  # noqa: C901
     cache_args = [schema, provider_type, provider_uuid, cache_arg_date]
     ocp_on_cloud_infra_map = {}
     is_large_customer = is_customer_large(schema)
+    is_large_customer_rate_limited = is_rate_limit_customer_large(schema)
     fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE
     fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE
     fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE
     fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE
+    timeout = settings.WORKER_CACHE_TIMEOUT
     if is_large_customer:
         fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
         fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE_XL
         fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
         fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE_XL
+        timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
     if not synchronous:
         worker_cache = WorkerCache()
-        timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        if is_large_customer:
+        if is_large_customer_rate_limited:
             rate_limited = rate_limit_tasks(task_name, schema)
-            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
@@ -503,15 +505,14 @@ def update_summary_tables(  # noqa: C901
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
 
-    except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
             log_json(
                 tracing_id,
-                msg=(
-                    f"{pnf_ex} Possible source/provider delete during processing. "
-                    + "Processing for this provier will halt."
-                ),
-            )
+                msg="possible source/provider delete during processing - halting processing",
+                context=context,
+            ),
+            exc_info=ex,
         )
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -638,7 +639,7 @@ def delete_openshift_on_cloud_data(
     max_retries=settings.MAX_UPDATE_RETRIES,
     queue=UPDATE_SUMMARY_TABLES_QUEUE,
 )
-def update_openshift_on_cloud(
+def update_openshift_on_cloud(  # noqa: C901
     self,
     schema_name,
     openshift_provider_uuid,
@@ -667,10 +668,11 @@ def update_openshift_on_cloud(
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
         fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
-        if is_customer_large(schema_name):
+        if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
-            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if is_customer_large(schema_name):
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
@@ -722,7 +724,14 @@ def update_openshift_on_cloud(
             ),
             exc_info=ex,
         )
-        raise ReportSummaryUpdaterCloudError
+        raise ReportSummaryUpdaterCloudError from ex
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
+        LOG.warning(
+            log_json(
+                tracing_id, msg="possible source/provider delete during processing - halting processing", context=ctx
+            ),
+            exc_info=ex,
+        )
     finally:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -741,31 +750,27 @@ def update_all_summary_tables(start_date, end_date=None):
 
     """
     # Get all providers for all schemas
-    all_accounts = []
-    try:
-        all_accounts = AccountsAccessor().get_accounts()
-        for account in all_accounts:
-            log_statement = (
-                f"Gathering data for for\n"
-                f' schema_name: {account.get("schema_name")}\n'
-                f' provider: {account.get("provider_type")}\n'
-                f' account (provider uuid): {account.get("provider_uuid")}'
-            )
-            LOG.info(log_statement)
-            schema_name = account.get("schema_name")
-            provider = account.get("provider_type")
-            provider_uuid = account.get("provider_uuid")
-            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
-            ocp_process_queue = OCP_QUEUE
-            if is_customer_large(schema_name):
-                fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
-                ocp_process_queue = OCP_QUEUE_XL
-            queue_name = ocp_process_queue if provider and provider.lower() == "ocp" else None
-            update_summary_tables.s(
-                schema_name, provider, provider_uuid, str(start_date), end_date, queue_name=queue_name
-            ).apply_async(queue=queue_name or fallback_queue)
-    except AccountsAccessorError as error:
-        LOG.error("Unable to get accounts. Error: %s", str(error))
+    all_accounts = Provider.objects.get_accounts()
+    for account in all_accounts:
+        log_statement = (
+            f"Gathering data for for\n"
+            f' schema_name: {account.get("schema_name")}\n'
+            f' provider: {account.get("provider_type")}\n'
+            f' account (provider uuid): {account.get("provider_uuid")}'
+        )
+        LOG.info(log_statement)
+        schema_name = account.get("schema_name")
+        provider_type = account.get("provider_type")
+        provider_uuid = account.get("provider_uuid")
+        fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
+        ocp_process_queue = OCP_QUEUE
+        if is_customer_large(schema_name):
+            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+            ocp_process_queue = OCP_QUEUE_XL
+        queue_name = ocp_process_queue if provider_type and provider_type.lower() == "ocp" else None
+        update_summary_tables.s(
+            schema_name, provider_type, provider_uuid, str(start_date), end_date, queue_name=queue_name
+        ).apply_async(queue=queue_name or fallback_queue)
 
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)

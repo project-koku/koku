@@ -15,7 +15,6 @@ from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
-from django.http import JsonResponse
 from django.test.utils import modify_settings
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -26,12 +25,10 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.common import RH_IDENTITY_HEADER
-from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
-from api.user_access.view import UserAccessView
 from koku import middleware as MD
 from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
@@ -587,36 +584,3 @@ class AccountEnhancedMiddlewareTest(IamTestCase):
         for metric in registry:
             if metric.name in EXTENDED_METRICS:
                 self.assertIn("account", metric.samples[0].labels)
-
-
-class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
-    def setUp(self):
-        """Set up middleware tests."""
-        super().setUp()
-        self.request = self.request_context["request"]
-        self.request.path = "/api/v1/tags/aws/"
-        self.request.META["QUERY_STRING"] = ""
-
-    def test_tenant_without_schema(self):
-        test_schema = "acct00000"
-        customer = {"account_id": "00000", "org_id": "0000000", "schema_name": test_schema}
-        user_data = self._create_user_data()
-        request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
-
-        client = APIClient()
-        url = reverse("aws-tags")
-        result = client.get(url, **request_context["request"].META)
-        expected = EmptyResultsSetPagination([], request_context.get("request")).get_paginated_response()
-        self.assertEqual(result.get("data"), expected.get("data"))
-        self.assertIsInstance(result, JsonResponse)
-
-    def test_tenant_without_schema_user_access(self):
-        test_schema = "acct00000"
-        customer = {"account_id": "00000", "org_id": "0000000", "schema_name": test_schema}
-        user_data = self._create_user_data()
-        request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
-
-        client = APIClient()
-        url = reverse("user-access")
-        result = client.get(url, **request_context["request"].META)
-        self.assertEqual(len(result.json().get("data")), len(UserAccessView._source_types))

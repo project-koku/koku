@@ -20,6 +20,34 @@ from koku.rbac import _process_acls
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
+
+def create_expected_access(access_dict=None, default_write=None, default_read=None):
+    """Helper function for defaulting access permissions."""
+    if access_dict is None:
+        access_dict = {}
+
+    if default_write is None:
+        default_write = {"write": [], "read": []}
+    if default_read is None:
+        default_read = {"read": []}
+
+    default = {
+        "cost_model": default_write,
+        "settings": default_write,
+        "aws.account": default_read,
+        "aws.organizational_unit": default_read,
+        "azure.subscription_guid": default_read,
+        "gcp.account": default_read,
+        "gcp.project": default_read,
+        "openshift.cluster": default_read,
+        "openshift.node": default_read,
+        "openshift.project": default_read,
+        "ibm.account": default_read,
+        "oci.payer_tenant_id": default_read,
+    }
+    return default | access_dict
+
+
 LIMITED_AWS_ACCESS = {
     "permission": "cost-management:aws.account:read",
     "resourceDefinitions": [
@@ -289,42 +317,14 @@ class RbacServiceTest(TestCase):
         """Test handling exception _get_operation used in apply access method."""
         processed_acls = {"*": [{"operation": "*", "resources": ["1", "3"]}]}
         res_access = _apply_access(processed_acls)
-        rw_access = {"write": [], "read": []}
-        read_access = {"read": []}
-        expected = {
-            "cost_model": rw_access,
-            "aws.account": read_access,
-            "aws.organizational_unit": read_access,
-            "gcp.account": read_access,
-            "gcp.project": read_access,
-            "azure.subscription_guid": read_access,
-            "openshift.cluster": read_access,
-            "openshift.node": read_access,
-            "openshift.project": read_access,
-            "ibm.account": read_access,
-            "oci.payer_tenant_id": read_access,
-        }
+        expected = create_expected_access()
         self.assertEqual(res_access, expected)
         mock_get_operation.assert_called()
 
     def test_apply_access_none(self):
         """Test handling none input for apply access method."""
         res_access = _apply_access(None)
-        rw_access = {"write": [], "read": []}
-        read_access = {"read": []}
-        expected = {
-            "cost_model": rw_access,
-            "aws.account": read_access,
-            "aws.organizational_unit": read_access,
-            "gcp.account": read_access,
-            "gcp.project": read_access,
-            "azure.subscription_guid": read_access,
-            "openshift.cluster": read_access,
-            "openshift.node": read_access,
-            "openshift.project": read_access,
-            "ibm.account": read_access,
-            "oci.payer_tenant_id": read_access,
-        }
+        expected = create_expected_access()
         self.assertEqual(res_access, expected)
 
     def test_apply_access_all_wildcard(self):
@@ -333,19 +333,7 @@ class RbacServiceTest(TestCase):
         res_access = _apply_access(processed_acls)
         rw_access = {"write": ["1", "3"], "read": ["1", "3"]}
         read_access = {"read": ["1", "3"]}
-        expected = {
-            "cost_model": rw_access,
-            "aws.account": read_access,
-            "aws.organizational_unit": read_access,
-            "gcp.account": read_access,
-            "gcp.project": read_access,
-            "azure.subscription_guid": read_access,
-            "openshift.cluster": read_access,
-            "openshift.node": read_access,
-            "openshift.project": read_access,
-            "ibm.account": read_access,
-            "oci.payer_tenant_id": read_access,
-        }
+        expected = create_expected_access(default_write=rw_access, default_read=read_access)
         self.assertEqual(res_access, expected)
 
     def test_apply_access_wildcard(self):
@@ -356,19 +344,7 @@ class RbacServiceTest(TestCase):
         res_access = _apply_access(processed_acls)
         rw_access = {"write": ["1", "3"], "read": ["1", "3", "2"]}
         read_access = {"read": ["2"]}
-        expected = {
-            "cost_model": rw_access,
-            "aws.account": read_access,
-            "aws.organizational_unit": read_access,
-            "gcp.account": read_access,
-            "gcp.project": read_access,
-            "azure.subscription_guid": read_access,
-            "openshift.cluster": read_access,
-            "openshift.node": read_access,
-            "openshift.project": read_access,
-            "ibm.account": read_access,
-            "oci.payer_tenant_id": read_access,
-        }
+        expected = create_expected_access(default_write=rw_access, default_read=read_access)
         self.assertEqual(res_access, expected)
 
     def test_apply_access_limited(self):
@@ -377,42 +353,14 @@ class RbacServiceTest(TestCase):
             "cost_model": [{"operation": "write", "resources": ["1", "3"]}, {"operation": "read", "resources": ["2"]}]
         }
         res_access = _apply_access(processed_acls)
-        op_access = {"write": ["1", "3"], "read": ["1", "3", "2"]}
-        no_access = {"read": []}
-        expected = {
-            "cost_model": op_access,
-            "aws.account": no_access,
-            "aws.organizational_unit": no_access,
-            "gcp.account": no_access,
-            "gcp.project": no_access,
-            "azure.subscription_guid": no_access,
-            "openshift.cluster": no_access,
-            "openshift.node": no_access,
-            "openshift.project": no_access,
-            "ibm.account": no_access,
-            "oci.payer_tenant_id": no_access,
-        }
+        expected = create_expected_access({"cost_model": {"write": ["1", "3"], "read": ["1", "3", "2"]}})
         self.assertEqual(res_access, expected)
 
     def test_apply_access_limited_no_read_write(self):
         """Test handling of limited resource access data for apply access method."""
         processed_acls = {}
         res_access = _apply_access(processed_acls)
-        no_rw_access = {"write": [], "read": []}
-        no_access = {"read": []}
-        expected = {
-            "cost_model": no_rw_access,
-            "aws.account": no_access,
-            "aws.organizational_unit": no_access,
-            "gcp.account": no_access,
-            "gcp.project": no_access,
-            "azure.subscription_guid": no_access,
-            "openshift.cluster": no_access,
-            "openshift.node": no_access,
-            "openshift.project": no_access,
-            "ibm.account": no_access,
-            "oci.payer_tenant_id": no_access,
-        }
+        expected = create_expected_access()
         self.assertEqual(res_access, expected)
 
     def test_apply_case(self):
@@ -422,22 +370,9 @@ class RbacServiceTest(TestCase):
             "aws.account": [{"operation": "read", "resources": ["myaccount"]}],
         }
         res_access = _apply_access(processed_acls)
-        op_access = {"read": ["myaccount"]}
-        rw_access = {"write": ["*"], "read": ["*"]}
-        no_access = {"read": []}
-        expected = {
-            "cost_model": rw_access,
-            "aws.account": op_access,
-            "aws.organizational_unit": no_access,
-            "azure.subscription_guid": no_access,
-            "gcp.account": no_access,
-            "gcp.project": no_access,
-            "openshift.cluster": no_access,
-            "openshift.node": no_access,
-            "openshift.project": no_access,
-            "ibm.account": no_access,
-            "oci.payer_tenant_id": no_access,
-        }
+        expected = create_expected_access(
+            {"cost_model": {"write": ["*"], "read": ["*"]}, "aws.account": {"read": ["myaccount"]}}
+        )
         self.assertEqual(res_access, expected)
 
     @patch("koku.rbac.requests.get", side_effect=mocked_requests_get_200_except)
@@ -457,19 +392,7 @@ class RbacServiceTest(TestCase):
         mock_user = Mock()
         mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
         access = rbac.get_access_for_user(mock_user)
-        expected = {
-            "cost_model": {"write": [], "read": []},
-            "aws.account": {"read": ["123456"]},
-            "aws.organizational_unit": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "ibm.account": {"read": []},
-            "oci.payer_tenant_id": {"read": []},
-        }
+        expected = create_expected_access({"aws.account": {"read": ["123456"]}})
         self.assertEqual(access, expected)
         mock_get.assert_called()
 
@@ -480,19 +403,7 @@ class RbacServiceTest(TestCase):
         mock_user = Mock()
         mock_user.identity_header = {"encoded": "dGVzdCBoZWFkZXIgZGF0YQ=="}
         access = rbac.get_access_for_user(mock_user)
-        expected = {
-            "cost_model": {"write": [], "read": []},
-            "aws.account": {"read": []},
-            "aws.organizational_unit": {"read": []},
-            "azure.subscription_guid": {"read": []},
-            "gcp.account": {"read": []},
-            "gcp.project": {"read": []},
-            "openshift.cluster": {"read": []},
-            "openshift.node": {"read": []},
-            "openshift.project": {"read": []},
-            "ibm.account": {"read": ["*"]},
-            "oci.payer_tenant_id": {"read": []},
-        }
+        expected = create_expected_access({"ibm.account": {"read": ["*"]}})
         self.assertEqual(access, expected)
         mock_get.assert_called()
 

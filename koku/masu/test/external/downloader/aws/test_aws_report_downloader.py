@@ -3,18 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWS S3 utility functions."""
+import copy
 import io
 import logging
 import os.path
 import random
 import shutil
+import tempfile
 from unittest.mock import Mock
 from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
@@ -24,9 +28,14 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
+from masu.external.downloader.aws.aws_report_downloader import create_daily_archives
+from masu.external.downloader.aws.aws_report_downloader import get_processing_date
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
+from masu.util.aws import common as utils
+from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -59,7 +68,7 @@ class FakeSession:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with a report."""
         fake_report = {
             "ReportDefinitions": [
@@ -70,7 +79,7 @@ class FakeSession:
                     "Compression": random.choice(["ZIP", "GZIP"]),
                     "S3Bucket": BUCKET,
                     "S3Prefix": PREFIX,
-                    "S3Region": REGION,
+                    "S3Region": region_name or REGION,
                 }
             ]
         }
@@ -90,7 +99,7 @@ class FakeSessionNoReport:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with no report."""
         fake_report = {"ReportDefinitions": []}
 
@@ -110,7 +119,7 @@ class FakeSessionDownloadError:
     """
 
     @staticmethod
-    def client(service):
+    def client(service, region_name=None):
         """Return a fake AWS Client with an error."""
         fake_report = {
             "ReportDefinitions": [
@@ -121,7 +130,7 @@ class FakeSessionDownloadError:
                     "Compression": random.choice(["ZIP", "GZIP"]),
                     "S3Bucket": BUCKET,
                     "S3Prefix": PREFIX,
-                    "S3Region": REGION,
+                    "S3Region": region_name or REGION,
                 }
             ]
         }
@@ -198,61 +207,56 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "ingress_reports": self.ingress_reports,
             }
         )
+        self.aws_manifest = CostUsageReportManifest.objects.filter(provider_id=self.aws_provider_uuid).first()
+        self.aws_manifest_id = self.aws_manifest.id
 
     def tearDown(self):
         """Remove test generated data."""
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
+    @patch("masu.external.downloader.aws.aws_report_downloader.create_daily_archives")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
-    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.mark_s3_csv_cleared")
-    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.get_s3_csv_cleared")
     @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
-    @patch("masu.external.downloader.aws.aws_report_downloader.utils.copy_local_report_file_to_s3_bucket")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_download_file(
-        self, fake_session, mock_copy, mock_remove, mock_check_csvs, mock_mark_csvs, mock_check_size
-    ):
+    def test_download_file(self, fake_session, mock_remove, mock_check_size, mock_daily_archives):
         """Test the download file method."""
-        mock_check_csvs.return_value = False
         mock_check_size.return_value = True
+        mock_daily_archives.return_value = [], {}
         downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
-        downloader.download_file(self.fake.file_path(), manifest_id=1)
-        mock_check_csvs.assert_called()
-        mock_copy.assert_called()
-        mock_remove.assert_called()
-        mock_mark_csvs.assert_called()
+        with patch("masu.external.downloader.aws.aws_report_downloader.pd.read_csv"):
+            downloader.download_file(self.fake.file_path(), manifest_id=1)
+            mock_check_size.assert_called()
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._check_size")
-    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.mark_s3_csv_cleared")
-    @patch("masu.external.downloader.aws.aws_report_downloader.ReportManifestDBAccessor.get_s3_csv_cleared")
-    @patch("masu.external.downloader.aws.aws_report_downloader.utils.remove_files_not_in_set_from_s3_bucket")
-    @patch("masu.external.downloader.aws.aws_report_downloader.utils.copy_local_report_file_to_s3_bucket")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
-    def test_download_ingress_report_file(
-        self, fake_session, mock_copy, mock_remove, mock_check_csvs, mock_mark_csvs, mock_check_size
-    ):
+    def test_download_ingress_report_file(self, fake_session, mock_check_size):
         """Test the download file method."""
-        mock_check_csvs.return_value = False
         mock_check_size.return_value = True
+        customer_name = self.fake_customer_name
+        expected_full_path = "{}/{}/aws/{}".format(
+            Config.TMP_DIR, customer_name.replace(" ", "_"), self.ingress_reports[0]
+        )
         downloader = AWSReportDownloader(
-            self.fake_customer_name,
+            customer_name,
             self.credentials,
             self.storage_only_data_source,
             ingress_reports=self.ingress_reports,
         )
-        downloader.download_file(self.fake.file_path(), manifest_id=1)
-        mock_check_csvs.assert_called()
-        mock_copy.assert_called()
-        mock_remove.assert_called()
-        mock_mark_csvs.assert_called()
+        with patch("masu.external.downloader.aws.aws_report_downloader.open"):
+            with patch(
+                "masu.external.downloader.aws.aws_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                full_file_path, etag, _, __, ___ = downloader.download_file(self.ingress_reports[0])
+                self.assertEqual(full_file_path, expected_full_path)
 
-    @patch("masu.external.report_downloader.ReportStatsDBAccessor")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSessionDownloadError)
-    def test_download_report_missing_bucket(self, mock_stats, fake_session):
+    def test_download_report_missing_bucket(self, fake_session):
         """Test download fails when bucket is missing."""
-        mock_stats.return_value.__enter__ = Mock()
+        fake_session.return_value.__enter__ = Mock()
         fake_report_date = self.fake.date_time().replace(day=1)
         fake_report_date_str = fake_report_date.strftime("%Y%m%dT000000.000Z")
+        manifest_id = 1
         expected_assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         input_key = f"/koku/20180701-20180801/{expected_assembly_id}/koku-1.csv.gz"
         mock_manifest = {
@@ -260,6 +264,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             "billingPeriod": {"start": fake_report_date_str},
             "reportKeys": [input_key],
         }
+        baker.make(CostUsageReportStatus, manifest_id=manifest_id, report_name="file")
 
         with patch.object(AWSReportDownloader, "_get_manifest", return_value=("", mock_manifest)):
             with self.assertRaises(AWSReportDownloaderError):
@@ -272,7 +277,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 )
                 report_context = {
                     "date": fake_report_date.date(),
-                    "manifest_id": 1,
+                    "manifest_id": manifest_id,
                     "comporession": "GZIP",
                     "current_file": "/my/file",
                 }
@@ -640,3 +645,126 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         result_manifest = self.aws_ingress_report_downloader._generate_monthly_pseudo_manifest(mock_datetime)
         self.assertEqual(result_manifest, expected_manifest_data)
+
+    def test_get_processing_date(self):
+        """Test getting dataframe with date for processing."""
+        file_name = "2023-06-01-not-final.csv"
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_interval = "identity/TimeInterval"
+        expected_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS) | copy.deepcopy(utils.OPTIONAL_COLS)
+        expected_cols |= {"costCategory/qe_source", "costCategory/name", "costCategory/cost_env"}
+        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
+        expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
+        with patch("masu.util.common.check_setup_complete", return_Value=True):
+            with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
+                with patch(
+                    "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+                    return_value=expected_date,
+                ):
+                    use_cols, time_interval, process_date = get_processing_date(
+                        temp_path, None, 1, self.aws_provider_uuid, start_date, end_date, None, "tracing_id"
+                    )
+                    self.assertEqual(use_cols, expected_cols)
+                    self.assertEqual(time_interval, expected_interval)
+                    self.assertEqual(process_date, expected_date)
+                    os.remove(temp_path)
+
+    @patch("masu.util.aws.common.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives(self, mock_copy):
+        """Test that we correctly create daily archive files."""
+        file = "2023-06-01"
+        file_name = f"{file}.csv"
+        manifest_id = self.aws_manifest_id
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/2023-06-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
+        ]
+        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
+        ):
+            daily_file_names, date_range = create_daily_archives(
+                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+            )
+            expected_date_range = {"start": "2023-06-01", "end": "2023-06-01", "invoice_month": None}
+            mock_copy.assert_called()
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)
+
+    def test_create_daily_archives_dates_out_of_range(self):
+        """Test that we correctly create daily archive files."""
+        file = "2023-06-01"
+        file_name = f"{file}.csv"
+        manifest_id = self.aws_manifest_id
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+        )
+        self.assertEqual(date_range, {})
+        self.assertEqual(daily_file_names, [])
+
+    def test_create_daily_archives_empty_frame(self):
+        """Test that we correctly create daily archive files."""
+        file = "empty_frame"
+        file_name = f"{file}.csv"
+        manifest_id = self.aws_manifest_id
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        daily_file_names, date_range = create_daily_archives(
+            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+        )
+        self.assertEqual(date_range, {})
+        self.assertIsInstance(daily_file_names, list)
+        self.assertEqual(daily_file_names, [])
+
+    @patch("masu.util.aws.common.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_alt_columns(self, mock_copy):
+        """Test that we correctly create daily archive files with alt columns."""
+        file = "2022-07-01-alt-columns"
+        file_name = f"{file}.csv"
+        manifest_id = self.aws_manifest_id
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/2022-07-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
+        ]
+        start_date = DateHelper().this_month_start.replace(year=2022, month=7, tzinfo=None)
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
+        ):
+            daily_file_names, date_range = create_daily_archives(
+                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+            )
+            expected_date_range = {"start": "2022-07-01", "end": "2022-07-01", "invoice_month": None}
+            mock_copy.assert_called()
+            self.assertEqual(date_range, expected_date_range)
+            self.assertIsInstance(daily_file_names, list)
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
+            os.remove(temp_path)

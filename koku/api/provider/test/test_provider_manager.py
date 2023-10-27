@@ -336,7 +336,7 @@ class ProviderManagerTest(IamTestCase):
 
     def test_remove_all_ocp_providers(self):
         """Remove all OCP providers."""
-        provider_query = Provider.objects.all().filter(type="OCP")
+        provider_query = Provider.objects.all().filter(type=Provider.PROVIDER_OCP)
 
         customer = None
         for provider in provider_query:

@@ -319,16 +319,18 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
-        # TODO: find a better name for ou_or_operator and ou_or_filter
-        ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
-        if ou_or_operator:
-            ou_or_filters = filters.compose()
+
+        aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
+        if aws_use_or_operator:
+            aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
+
         if self._category:
             category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
         composed_exclusions = None
+
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -386,12 +388,12 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = composed_filters & composed_category_filters
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
-        if ou_or_operator and ou_or_filters:
-            composed_filters = ou_or_filters & composed_filters
+        if aws_use_or_operator and aws_or_filter_collections:
+            composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
-            if ou_or_operator:
+            if aws_use_or_operator:
                 composed_access_filters = access_filters.compose(logical_operator="or")
-                composed_filters = ou_or_filters & composed_access_filters
+                composed_filters = aws_or_filter_collections & composed_access_filters
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
@@ -634,6 +636,7 @@ class ReportQueryHandler(QueryHandler):
             if not group_data:
                 group_data = self.parameters.get_group_by("or:" + item)
             if group_data:
+                group_pos = None
                 try:
                     group_pos = self.parameters.url_data.index(item)
                 except ValueError:
@@ -1000,6 +1003,7 @@ class ReportQueryHandler(QueryHandler):
             "infra_total",
             "cost_total",
             "cost_total_distributed",
+            "storage_class",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
@@ -1106,6 +1110,9 @@ class ReportQueryHandler(QueryHandler):
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
 
+        if self.order_field == "subscription_name":
+            group_by_value.append("subscription_name")
+
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
             query.annotate(**self.annotations)
@@ -1128,7 +1135,7 @@ class ReportQueryHandler(QueryHandler):
                 distinct_ranks.append(rank)
         return self._ranked_list(data, distinct_ranks, set(rank_annotations))
 
-    def _ranked_list(self, data_list, ranks, rank_fields=None):
+    def _ranked_list(self, data_list, ranks, rank_fields=None):  # noqa C901
         """Get list of ranked items less than top.
 
         Args:
@@ -1188,8 +1195,17 @@ class ReportQueryHandler(QueryHandler):
 
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
+        account_aliases = None
+        merge_on = group_by + ["date"]
+        if self.is_aws and "account" in group_by:
+            account_aliases = data_frame[["account", "account_alias"]]
+            account_aliases = account_aliases.drop_duplicates(subset="account")
         data_frame.drop(columns=drop_columns, inplace=True, errors="ignore")
-        data_frame = data_frame.merge(ranks_by_day, how="right", on=(group_by + ["date"]))
+        data_frame = data_frame.merge(ranks_by_day, how="right", on=merge_on)
+
+        if self.is_aws and "account" in group_by:
+            data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
+            data_frame = data_frame.merge(account_aliases, on="account", how="left")
 
         if is_offset:
             data_frame = data_frame[

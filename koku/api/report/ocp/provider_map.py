@@ -19,6 +19,7 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from masu.processor import is_feature_cost_3083_all_labels_enabled
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
@@ -32,6 +33,12 @@ from reporting.provider.ocp.models import OCPVolumeSummaryP
 
 class OCPProviderMap(ProviderMap):
     """OCP Provider Map."""
+
+    @cached_property
+    def check_unleash_for_tag_column_cost_3038(self):
+        if is_feature_cost_3083_all_labels_enabled(self._schema_name):
+            return "all_labels"
+        return "pod_labels"
 
     def __cost_model_cost(self, cost_model_rate_type=None):
         """Return ORM term for cost model cost"""
@@ -135,8 +142,9 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, schema_name):
         """Constructor."""
+        self._schema_name = schema_name
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_OCP,
@@ -149,6 +157,8 @@ class OCPProviderMap(ProviderMap):
                         {"field": "cluster_alias", "operation": "icontains", "composition_key": "cluster_filter"},
                         {"field": "cluster_id", "operation": "icontains", "composition_key": "cluster_filter"},
                     ],
+                    "persistentvolumeclaim": {"field": "persistentvolumeclaim", "operation": "icontains"},
+                    "storageclass": {"field": "storageclass", "operation": "icontains"},
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
                     "infrastructures": {
@@ -157,10 +167,11 @@ class OCPProviderMap(ProviderMap):
                         "custom": ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list,
                     },
                 },
-                "group_by_options": ["cluster", "project", "node"],
-                "tag_column": "pod_labels",
+                "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
+                "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
                 "report_type": {
                     "costs": {
+                        "tag_column": self.check_unleash_for_tag_column_cost_3038,
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -210,6 +221,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "costs_by_project": {
+                        "tag_column": self.check_unleash_for_tag_column_cost_3038,
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -281,6 +293,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "cpu": {
+                        "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_cpu_supplementary_cost,
@@ -303,14 +316,15 @@ class OCPProviderMap(ProviderMap):
                         "capacity_aggregate": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_cpu_core_hours"),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "cluster_instance_counts": {
                                 "capacity_count": Max("node_capacity_cpu_cores"),
-                                "capacity_count_units": Value("Core", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
                                 "capacity": Max("node_capacity_cpu_core_hours"),
                                 "capacity_count": Max("node_capacity_cpu_cores"),
-                                "capacity_count_units": Value("Core", output_field=CharField()),
                             },
                         },
                         "default_ordering": {"usage": "desc"},
@@ -369,9 +383,11 @@ class OCPProviderMap(ProviderMap):
                         },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
+                        "count_units_key": "Core",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "memory": {
+                        "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_memory_supplementary_cost,
@@ -396,14 +412,15 @@ class OCPProviderMap(ProviderMap):
                         "capacity_aggregate": {
                             "cluster": {
                                 "capacity": Max("cluster_capacity_memory_gigabyte_hours"),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "cluster_instance_counts": {
                                 "capacity_count": Max("node_capacity_memory_gigabytes"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
                                 "capacity": Max("node_capacity_memory_gigabyte_hours"),
                                 "capacity_count": Max("node_capacity_memory_gigabytes"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
                             },
                         },
                         "default_ordering": {"usage": "desc"},
@@ -464,6 +481,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Hours",
+                        "count_units_key": "GB",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
                     "volume": {
@@ -485,21 +503,54 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_volume_cost,
-                            "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
-                            "request": Sum("volume_request_storage_gigabyte_months"),
-                            "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
+                            "usage": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_usage_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "request": Sum(
+                                Coalesce(
+                                    F("volume_request_storage_gigabyte_months"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "capacity": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "persistent_volume_claim": ArrayAgg(
+                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                            ),
+                            "storage_class": ArrayAgg(
+                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
+                            ),
                         },
                         "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
-                            "cluster": {
-                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
+                            "cluster_instance_counts": {
+                                "capacity_count": Sum(
+                                    Coalesce(
+                                        F("persistentvolumeclaim_capacity_gigabyte"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                ),
                                 "cluster": Coalesce("cluster_alias", "cluster_id"),
                             },
                             "node": {
-                                "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
-                                "capacity_count": Sum("persistentvolumeclaim_capacity_gigabyte"),
-                                "capacity_count_units": Value("GB", output_field=CharField()),
+                                "capacity": Sum(
+                                    Coalesce(
+                                        F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                ),
+                                "capacity_count": Sum(
+                                    Coalesce(
+                                        F("persistentvolumeclaim_capacity_gigabyte"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                ),
                             },
                         },
                         "annotations": {
@@ -519,9 +570,23 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_volume_cost,
-                            "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
-                            "request": Sum("volume_request_storage_gigabyte_months"),
-                            "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
+                            "usage": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_usage_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "request": Sum(
+                                Coalesce(
+                                    F("volume_request_storage_gigabyte_months"), Value(0, output_field=DecimalField())
+                                )
+                            ),
+                            "capacity": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("GB-Mo", output_field=CharField()),
@@ -529,10 +594,25 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
+                            "persistent_volume_claim": ArrayAgg(
+                                "persistentvolumeclaim", filter=Q(persistentvolumeclaim__isnull=False), distinct=True
+                            ),
+                            "storage_class": ArrayAgg(
+                                "storageclass", filter=Q(storageclass__isnull=False), distinct=True
+                            ),
                         },
                         "delta_key": {
-                            "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
-                            "request": Sum("volume_request_storage_gigabyte_months"),
+                            "usage": Sum(
+                                Coalesce(
+                                    F("persistentvolumeclaim_usage_gigabyte_months"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "request": Sum(
+                                Coalesce(
+                                    F("volume_request_storage_gigabyte_months"), Value(0, output_field=DecimalField())
+                                )
+                            ),
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_volume_cost,
@@ -540,6 +620,7 @@ class OCPProviderMap(ProviderMap):
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Mo",
+                        "count_units_key": "GB",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
@@ -578,9 +659,13 @@ class OCPProviderMap(ProviderMap):
                 ("cluster",): OCPVolumeSummaryP,
                 ("project",): OCPVolumeSummaryByProjectP,
                 ("cluster", "project"): OCPVolumeSummaryByProjectP,
+                ("persistentvolumeclaim",): OCPVolumeSummaryP,
+                ("cluster", "persistentvolumeclaim"): OCPVolumeSummaryP,
+                ("persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
+                ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(provider, report_type, schema_name)
 
     @cached_property
     def cost_model_supplementary_cost(self):

@@ -3,10 +3,10 @@ import json
 import ciso8601
 import pandas as pd
 
-from masu.util.common import create_enabled_keys
+from api.models import Provider
+from masu.util.common import populate_enabled_tag_rows_with_limit
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 
@@ -92,7 +92,7 @@ class OCIPostProcessor:
         resource_tags_dict = tag_df.apply(
             lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
         )
-        resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}], inplace=True)
+        resource_tags_dict = resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}])
 
         data_frame["tags"] = resource_tags_dict.apply(json.dumps)
         # Make sure we have entries for our required columns
@@ -114,4 +114,4 @@ class OCIPostProcessor:
         """
         Uses information gather in the post processing to update the cost models.
         """
-        create_enabled_keys(self.schema, OCIEnabledTagKeys, self.enabled_tag_keys)
+        populate_enabled_tag_rows_with_limit(self.schema, self.enabled_tag_keys, Provider.PROVIDER_OCI)

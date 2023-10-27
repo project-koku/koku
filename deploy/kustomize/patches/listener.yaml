@@ -51,6 +51,8 @@
           value: ${S3_BUCKET_NAME}
         - name: REQUESTED_ROS_BUCKET
           value: ${S3_ROS_BUCKET_NAME}
+        - name: ROS_URL_EXPIRATION
+          value: ${ROS_URL_EXPIRATION}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -169,14 +171,14 @@
     displayName: Memory Request
     name: LISTENER_MEMORY_REQUEST
     required: true
-    value: 500Mi
+    value: 300Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: LISTENER_MEMORY_LIMIT
     required: true
-    value: 750Mi
+    value: 600Mi
 - op: add
   path: /parameters/-
   value:

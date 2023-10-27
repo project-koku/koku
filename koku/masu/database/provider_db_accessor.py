@@ -7,6 +7,7 @@ import logging
 
 from django.db import transaction
 
+from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
@@ -312,11 +313,21 @@ class ProviderDBAccessor(KokuDBAccess):
         """Set the data updated timestamp to the current time."""
         if self.provider:
             updated_datetime = self.date_accessor.today_with_timezone("UTC")
-            msg = f"Marking provider {self.provider.uuid} data_updated_timestamp: {updated_datetime}."
-            LOG.info(msg)
+            LOG.info(
+                log_json(
+                    msg="marking provider updated",
+                    provider_uuid=self.provider.uuid,
+                    data_updated_timestamp=updated_datetime,
+                )
+            )
             self.provider.data_updated_timestamp = updated_datetime
             self.provider.save()
             invalidate_view_cache_for_tenant_and_cache_key(self.schema)
+
+    def get_data_updated_timestamp(self):
+        """get the data updated timestamp."""
+        if self.provider:
+            return self.provider.data_updated_timestamp
 
     def set_additional_context(self, new_value):
         """Sets the additional context value."""

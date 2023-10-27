@@ -28,6 +28,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws.common import clear_s3_files
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import add_label_columns
@@ -49,11 +50,6 @@ class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
 
 
-def get_ingress_manifest(manifest_id):
-    with ReportManifestDBAccessor() as manifest_accessor:
-        return manifest_accessor.get_manifest_by_id(manifest_id)
-
-
 def pd_read_csv(local_file_path):
     try:
         return pd.read_csv(local_file_path)
@@ -69,7 +65,7 @@ def create_daily_archives(
     local_file_paths,
     manifest_id,
     start_date,
-    context={},
+    context,
     ingress_reports=None,
 ):
     """
@@ -109,17 +105,26 @@ def create_daily_archives(
                 )
                 day_file = f"{invoice_month}_{partition_date}_{file_name}"
                 if ingress_reports:
-                    manifest = get_ingress_manifest(manifest_id)
-                    if not manifest.report_tracker.get(partition_date):
-                        manifest.report_tracker[partition_date] = 0
-                    counter = manifest.report_tracker[partition_date]
-                    day_file = f"{invoice_month}_{partition_date}_{counter}.csv"
-                    manifest.report_tracker[partition_date] = counter + 1
-                    manifest.save()
+                    # Ingress flow needs to clear s3 files prior to processing
+                    date_time = datetime.datetime.strptime(partition_date, "%Y-%m-%d")
+                    clear_s3_files(
+                        s3_csv_path,
+                        provider_uuid,
+                        date_time,
+                        "manifestid",
+                        manifest_id,
+                        context,
+                        tracing_id,
+                        invoice_month,
+                    )
+                    partition_filename = ReportManifestDBAccessor().update_and_get_day_file(
+                        partition_date, manifest_id
+                    )
+                    day_file = f"{invoice_month}_{partition_filename}"
                 day_filepath = f"{directory}/{day_file}"
                 invoice_partition_data.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
                 )
                 daily_file_names.append(day_filepath)
     return daily_file_names, date_range

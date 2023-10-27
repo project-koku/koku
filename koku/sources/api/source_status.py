@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.views.decorators.cache import never_cache
+from rest_framework import serializers
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -18,9 +19,11 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.settings import api_settings
 
+from api.common import error_obj as error_object
 from api.provider.models import Provider
 from api.provider.models import Sources
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import ProviderErrors
 from providers.provider_errors import SkipStatusPush
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
@@ -37,7 +40,7 @@ class SourceStatus:
     def __init__(self, source_id):
         """Initialize source id."""
         self.source_id = source_id
-        self.source = Sources.objects.get(source_id=source_id)
+        self.source: Sources = Sources.objects.get(source_id=source_id)
         if not source_settings_complete(self.source) or self.source.pending_delete:
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
@@ -49,12 +52,15 @@ class SourceStatus:
     def _set_provider_active_status(self, active_status):
         """Set provider active status."""
         if self.source.koku_uuid:
+            prov_exists = True
             try:
                 provider = Provider.objects.get(uuid=self.source.koku_uuid)
                 provider.active = active_status
                 provider.save()
             except Provider.DoesNotExist:
                 LOG.info(f"No provider found for Source ID: {self.source.source_id}")
+                prov_exists = False
+            return prov_exists
 
     def determine_status(self, provider_type, source_authentication, source_billing_source):
         """Check cloud configuration status."""
@@ -63,10 +69,15 @@ class SourceStatus:
         try:
             if self.source.account_id not in settings.DEMO_ACCOUNTS:
                 interface.cost_usage_source_ready(source_authentication, source_billing_source)
-            self._set_provider_active_status(True)
+            prov_exists = self._set_provider_active_status(True)
         except ValidationError as validation_error:
-            self._set_provider_active_status(False)
+            prov_exists = self._set_provider_active_status(False)
             error_obj = validation_error
+        if not error_obj and not prov_exists:
+            key = ProviderErrors.PROVIDER_NOT_FOUND
+            msg = "Something went wrong creating your source, please try again."
+            error_obj = serializers.ValidationError(error_object(key, msg))
+
         self.source.refresh_from_db()
         return error_obj
 
@@ -84,7 +95,9 @@ class SourceStatus:
         if source_details.get("name") != self.source.name:
             self.source.name = source_details.get("name")
             self.source.save()
-            builder = SourcesProviderCoordinator(self.source_id, self.source.auth_header)
+            builder = SourcesProviderCoordinator(
+                self.source_id, self.source.auth_header, self.source.account_id, self.source.org_id
+            )
             builder.update_account(self.source)
 
     def push_status(self):
@@ -92,7 +105,9 @@ class SourceStatus:
         try:
             status_obj = self.status()
             if self.source.source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                builder = SourcesProviderCoordinator(self.source.source_id, self.source.auth_header)
+                builder = SourcesProviderCoordinator(
+                    self.source.source_id, self.source.auth_header, self.source.account_id, self.source.org_id
+                )
                 if not status_obj:
                     if self.source.koku_uuid:
                         status_obj = self.try_catch_validation_error(status_obj, builder.update_account)

@@ -4,16 +4,17 @@
 #
 """Asynchronous tasks."""
 import logging
+from pathlib import Path
 
 import psutil
 
 from api.common import log_json
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
 
@@ -31,7 +32,6 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         None
 
     """
-    start_date = report_dict.get("start_date")
     report_path = report_dict.get("file")
     compression = report_dict.get("compression")
     manifest_id = report_dict.get("manifest_id")
@@ -41,18 +41,18 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         "schema": schema_name,
         "provider_type": provider,
         "provider_uuid": provider_uuid,
-        "start_date": start_date,
         "compression": compression,
         "file": report_path,
+        "ocp_files_to_process": report_dict.get("ocp_files_to_process"),
     }
     LOG.info(log_json(tracing_id, msg="processing report", context=context))
     mem = psutil.virtual_memory()
     mem_msg = f"Avaiable memory: {mem.free} bytes ({mem.percent}%)"
     LOG.debug(log_json(tracing_id, msg=mem_msg, context=context))
 
-    file_name = report_path.split("/")[-1]
-    with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
-        stats_recorder.log_last_started_datetime()
+    file_name = Path(report_path).name
+    report_stats = CostUsageReportStatus.objects.get(report_name=file_name, manifest_id=manifest_id)
+    report_stats.update_last_started_datetime()
 
     try:
         processor = ReportProcessor(
@@ -69,16 +69,13 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
 
         result = processor.process()
     except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-        with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
-            stats_recorder.clear_last_started_datetime()
+        report_stats.clear_last_started_datetime()
         raise processing_error
     except NotImplementedError as err:
-        with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
-            stats_recorder.log_last_completed_datetime()
+        report_stats.set_last_completed_datetime()
         raise err
 
-    with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
-        stats_recorder.log_last_completed_datetime()
+    report_stats.set_last_completed_datetime()
 
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)

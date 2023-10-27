@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
+    "subs",
 ]
 
 SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
@@ -163,6 +164,9 @@ UNLEASH_PREFIX = "https" if str(UNLEASH_PORT) == "443" else "http"
 UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
 UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
 UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
+
+# Set max group by options
+MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 
 ### Currency URL
 CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
@@ -359,7 +363,7 @@ VERBOSE_FORMATTING = (
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(message)s"
+SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
@@ -441,6 +445,7 @@ LOGGING = {
         "reporting_common": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "masu": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
         "sources": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
+        "subs": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         # The following set the log level for the UnleashClient and Unleash cache refresh jobs.
         # Setting to WARNING will prevent the INFO level spam.
         "UnleashClient": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
@@ -472,6 +477,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "test" and DISABLE_LOGGING:
 # AWS S3 Bucket Settings
 REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-report")
 REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value("REQUESTED_ROS_BUCKET", default="ros-report")
+REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value("REQUESTED_SUBS_BUCKET", default="subs-report")
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
 S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
@@ -483,10 +489,15 @@ S3_ROS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_ROS_BUCKET)
 S3_ROS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_ROS_BUCKET)
 S3_ROS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_ROS_BUCKET)
 S3_ROS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_ROS_BUCKET)
+S3_SUBS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_SUBS_BUCKET)
+S3_SUBS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_SUBS_BUCKET)
+S3_SUBS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_SUBS_BUCKET)
+S3_SUBS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_SUBS_BUCKET)
 SKIP_MINIO_DATA_DELETION = ENVIRONMENT.bool("SKIP_MINIO_DATA_DELETION", default=False)
 
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
+PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
 OCI_CONFIG = {
     "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
@@ -516,6 +527,8 @@ PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default
 
 # Flag for automatic data ingest on Provider create
 AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
+POLLING_BATCH_SIZE = ENVIRONMENT.int("POLLING_BATCH_SIZE", default=100)
+POLLING_TIMER = ENVIRONMENT.int("POLLING_TIMER", default=86400)
 QE_SCHEMA = ENVIRONMENT.get_value("QE_SCHEMA", default=None)
 
 # Flag for maximum retries for source delete before proceeding
@@ -550,3 +563,6 @@ CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
 
 # HCS debugging
 ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)
+
+# SUBS Data Extraction debugging
+ENABLE_SUBS_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_DEBUG", default=False)

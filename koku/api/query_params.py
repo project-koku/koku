@@ -31,6 +31,7 @@ from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
 from reporting.models import OCPAllCostLineItemDailySummaryP
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -86,7 +87,7 @@ class QueryParameters:
         self.report_type = caller.report
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
-        self.tag_handler = caller.tag_handler
+        self.tag_providers = caller.tag_providers
         self.aws_category_keys = set()
 
         try:
@@ -115,7 +116,7 @@ class QueryParameters:
     def __repr__(self):
         """Unambiguous representation."""
         out = {}
-        fields = ["parameters", "query_handler", "report_type", "request", "serializer", "tag_handler", "tag_keys"]
+        fields = ["parameters", "query_handler", "report_type", "request", "serializer", "tag_providers", "tag_keys"]
         for item in fields:
             try:
                 out[item] = getattr(self, item)
@@ -277,7 +278,7 @@ class QueryParameters:
                 # the hierarchy for later checks regarding filtering.
                 access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
 
-            elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
+            elif "org_unit_id" in filters and not access_list and self.parameters.get("aws_use_or_operator", False):
                 org_unit_filter = filters.get("org_unit_id")
                 access_list = set(
                     AWSOrganizationalUnit.objects.filter(
@@ -362,9 +363,11 @@ class QueryParameters:
             # we do not need to fetch the tags for tags report type.
             # we also do not need to fetch the tags if a tag prefix is not in the URL
             return
-        for tag_model in self.tag_handler:
-            with tenant_context(self.tenant):
-                self.tag_keys.update(tag_model.objects.values_list("key", flat=True).distinct())
+        with tenant_context(self.tenant):
+            for prov in self.tag_providers:
+                self.tag_keys.update(
+                    EnabledTagKeys.objects.filter(provider_type=prov).values_list("key", flat=True).distinct()
+                )
         if not self.tag_keys:
             # in case there are no tag keys in the models.
             return

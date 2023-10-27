@@ -10,6 +10,7 @@ import tempfile
 from unittest.mock import patch
 
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
 from masu.config import Config
@@ -17,6 +18,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -87,35 +89,29 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         """Test the Azure-Local initializer."""
         self.assertIsNotNone(self.report_downloader)
 
-    def test_download_file(self):
-        """Test Azure-Local report download."""
-        expected_full_path = "{}/{}/azure/{}/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.container_name, self.csv_file_name
-        )
-        full_file_path, etag, _, __, ___ = self.azure_local_report_downloader.download_file(self.csv_key)
-        self.assertEqual(full_file_path, expected_full_path)
-        self.assertIsNotNone(etag)
-
-        # Download a second time, verify etag is returned
-        full_file_path, second_run_etag, _, __, ___ = self.azure_local_report_downloader.download_file(self.csv_key)
-        self.assertEqual(etag, second_run_etag)
-        self.assertEqual(full_file_path, expected_full_path)
-
-    @patch("masu.external.downloader.azure_local.azure_local_report_downloader.remove_files_not_in_set_from_s3_bucket")
     @patch("masu.util.aws.common.copy_data_to_s3_bucket")
     def test_download_report(self, *args):
         """Test the top level Azure-Local download_report."""
         test_report_date = datetime.datetime(year=2019, month=8, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
+            filename = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
+            manifest_id = 1
             report_context = {
-                "date": test_report_date.date(),
-                "manifest_id": 1,
+                "date": test_report_date,
+                "manifest_id": manifest_id,
                 "comporession": "GZIP",
-                "current_file": "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv",
+                "current_file": f"./koku/masu/test/data/azure/{filename}",
             }
-            self.report_downloader.download_report(report_context)
-            expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")
-            self.assertTrue(os.path.isdir(expected_path))
+            baker.make(CostUsageReportStatus, manifest_id=manifest_id, report_name=filename)
+
+            with patch("masu.external.downloader.azure.azure_report_downloader.open"):
+                with patch(
+                    "masu.external.downloader.azure_local.azure_local_report_downloader.create_daily_archives",
+                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                ):
+                    self.report_downloader.download_report(report_context)
+                    expected_path = "{}/{}/{}".format(DATA_DIR, self.customer_name, "azure")
+                    self.assertTrue(os.path.isdir(expected_path))
 
     def test_get_manifest(self):
         """Test _get_manifest method."""

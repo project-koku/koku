@@ -11,11 +11,7 @@ from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.test import MasuTestCase
-from reporting.models import AWSEnabledTagKeys
-from reporting.models import AzureEnabledTagKeys
-from reporting.models import GCPEnabledTagKeys
-from reporting.models import OCIEnabledTagKeys
-from reporting.models import OCPEnabledTagKeys
+from reporting.provider.all.models import EnabledTagKeys
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -26,11 +22,11 @@ class EnabledTagsTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         cls.provider_type_to_table = {
-            Provider.PROVIDER_AWS.lower(): AWSEnabledTagKeys,
-            Provider.PROVIDER_AZURE.lower(): AzureEnabledTagKeys,
-            Provider.PROVIDER_GCP.lower(): GCPEnabledTagKeys,
-            Provider.PROVIDER_OCI.lower(): OCIEnabledTagKeys,
-            Provider.PROVIDER_OCP.lower(): OCPEnabledTagKeys,
+            Provider.PROVIDER_AWS.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS),
+            Provider.PROVIDER_AZURE.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE),
+            Provider.PROVIDER_GCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP),
+            Provider.PROVIDER_OCI.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI),
+            Provider.PROVIDER_OCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP),
         }
 
         cls.provider_type_options = set(cls.provider_type_to_table.keys())
@@ -41,9 +37,11 @@ class EnabledTagsTest(MasuTestCase):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_class = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
-                    expected_keys = enabled_table_class.objects.filter(enabled=True).values_list("key")
+                    enabled_table_objects = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    )
+                    expected_keys = enabled_table_objects.filter(enabled=True).values_list("key")
                     expected_keys = [key[0] for key in expected_keys]
 
                 response = self.client.get(
@@ -72,9 +70,11 @@ class EnabledTagsTest(MasuTestCase):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_class = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
-                    enabled_table_class.objects.all().delete()
+                    enabled_table_objects = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    )
+                    enabled_table_objects.delete()
 
                 post_data = {
                     "schema": "org1234567",
@@ -94,9 +94,11 @@ class EnabledTagsTest(MasuTestCase):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_class = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
-                    keys = enabled_table_class.objects.values_list("key")
+                    enabled_table_objects = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    )
+                    keys = enabled_table_objects.values_list("key")
                     keys = [key[0] for key in keys]
                     print(keys)
 
@@ -115,16 +117,17 @@ class EnabledTagsTest(MasuTestCase):
                     self.assertIn(key, body.get("tag_keys"))
 
                 with schema_context(self.schema):
-                    self.assertEqual(enabled_table_class.objects.filter(enabled=True).count(), 0)
+                    self.assertEqual(enabled_table_objects.filter(enabled=True).count(), 0)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_post_enabled_tags_remove_stale(self, _):
         """Test the GET enabled_tags endpoint."""
         for provider_type in self.provider_type_options:
             with self.subTest(provider_type=provider_type):
-                enabled_table_class = self.provider_type_to_table.get(provider_type)
                 with schema_context(self.schema):
-                    keys = enabled_table_class.objects.values_list("key")
+                    keys = EnabledTagKeys.objects.filter(
+                        provider_type=Provider.PROVIDER_CASE_MAPPING[provider_type]
+                    ).values_list("key")
                     keys = [key[0] for key in keys]
                     print(keys)
 
@@ -143,9 +146,9 @@ class EnabledTagsTest(MasuTestCase):
     def test_post_enabled_tags_no_schema(self, _):
         """Test the GET enabled_tags endpoint."""
         with schema_context(self.schema):
-            OCPEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).delete()
 
-        post_data = {"action": "create", "tag_keys": ["tag1", "tag2"], "provider_type": "aws"}
+        post_data = {"action": "create", "tag_keys": ["tag1", "tag2"], "provider_type": Provider.PROVIDER_AWS}
         response = self.client.post(reverse("enabled_tags"), post_data)
         self.assertEqual(response.status_code, 400)
 
@@ -153,9 +156,9 @@ class EnabledTagsTest(MasuTestCase):
     def test_post_enabled_tags_no_action(self, _):
         """Test the GET enabled_tags endpoint."""
         with schema_context(self.schema):
-            OCPEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).delete()
 
-        post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"], "provider_type": "aws"}
+        post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"], "provider_type": Provider.PROVIDER_AWS}
         response = self.client.post(reverse("enabled_tags"), post_data)
         self.assertEqual(response.status_code, 400)
 
@@ -163,7 +166,7 @@ class EnabledTagsTest(MasuTestCase):
     def test_post_enabled_tags_no_provider_type(self, _):
         """Test the GET enabled_tags endpoint."""
         with schema_context(self.schema):
-            OCPEnabledTagKeys.objects.all().delete()
+            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).delete()
 
         post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"], "action": "create"}
         response = self.client.post(reverse("enabled_tags"), post_data)
