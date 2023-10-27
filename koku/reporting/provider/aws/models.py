@@ -45,6 +45,8 @@ TRINO_REQUIRED_COLUMNS = (
     "lineItem/AvailabilityZone",
     "product/region",
     "product/instanceType",
+    "product/physicalCores",
+    "product/vcpu",
     "pricing/unit",
     "lineItem/UsageAmount",
     "lineItem/NormalizationFactor",

@@ -24,14 +24,10 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util import common as azure_utils
-from reporting_common.models import CostUsageReportManifest
-from reporting_common.models import CostUsageReportStatus
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = ["Storage", "Compute Instance", "Database Storage", "Database Instance"]
@@ -223,35 +219,6 @@ class ReportObjectCreator:
         self.create_db_object(cost_model_map, data)
         return cost_model_obj
 
-    def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
-        """Create an ocpawscostlineitem_project_daily_summary object for test."""
-        table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-        model = get_model(table_name)
-        with AccountAliasAccessor(account_id, schema) as accessor:
-            account_alias = accessor._get_db_obj_query().first()
-            data = {
-                "account_alias_id": account_alias.id,
-                "cost_entry_bill": self.create_cost_entry_bill(str(uuid.uuid4())),
-                "usage_start": self.make_datetime_aware(self.fake.past_datetime()),
-                "usage_end": self.make_datetime_aware(self.fake.past_datetime()),
-            }
-        with schema_context(self.schema):
-            return baker.make(model, **data, _fill_optional=True)
-
-    def create_awscostentrylineitem_daily_summary(self, account_id, schema, cost_entry_bill, usage_date=None):
-        """Create reporting_awscostentrylineitem_daily_summary object for test."""
-        table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-        model = get_model(table_name)
-        with AccountAliasAccessor(account_id, schema) as accessor:
-            account_alias = accessor._get_db_obj_query().first()
-            data = {
-                "account_alias_id": account_alias.id,
-                "cost_entry_bill": cost_entry_bill,
-                "usage_start": self.make_datetime_aware(usage_date or self.fake.past_datetime()),
-            }
-        with schema_context(self.schema):
-            return baker.make(model, **data, _fill_optional=True)
-
     def create_azure_cost_entry_bill(self, provider_uuid, bill_date=None):
         """Create an Azure cost entry bill database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP["bill"]
@@ -271,63 +238,3 @@ class ReportObjectCreator:
 
         with schema_context(self.schema):
             return baker.make(model, provider_id=provider_uuid, **data, _fill_optional=True)
-
-
-class ManifestCreationHelper:
-    """Helper to setup number of processed files."""
-
-    def __init__(self, manifest_id, num_total_files, assembly_id):
-        self._manifest_id = manifest_id
-        self._assembly_id = assembly_id
-        self._num_total_files = num_total_files
-        self._report_files = []
-
-    def __del__(self):
-        CostUsageReportStatus.objects.filter(manifest_id=self._manifest_id).delete()
-        CostUsageReportManifest.objects.filter(assembly_id=self._assembly_id).delete()
-
-    def generate_one_test_file(self):
-        file_cnt = len(self._report_files)
-        file_name = f"file_{file_cnt}"
-        with ReportStatsDBAccessor(file_name, self._manifest_id):
-            print(f"Generating file entry ({file_name}) for manifest {self._manifest_id}")
-            self._report_files.append(file_name)
-            return file_name
-        return None
-
-    def generate_test_report_files(self):
-        for file_cnt in range(self._num_total_files):
-            file_name = f"file_{file_cnt}"
-            with ReportStatsDBAccessor(file_name, self._manifest_id):
-                print(f"Generating file entry ({file_name}) for manifest {self._manifest_id}")
-                self._report_files.append(file_name)
-                return file_name
-
-    def get_report_filenames(self):
-        return self._report_files
-
-    def mark_report_file_as_completed(self, report_file):
-        with ReportStatsDBAccessor(report_file, self._manifest_id) as stats_accessor:
-            stats_accessor.log_last_completed_datetime()
-
-    def process_all_files(self):
-        for report_file in self._report_files:
-            self.mark_report_file_as_completed(report_file)
-
-
-def map_django_field_type_to_python_type(field):
-    """Map a Django field to its corresponding python type."""
-    # This catches several different types of IntegerFields such as:
-    # PositiveIntegerField, BigIntegerField,
-    if "IntegerField" in field:
-        return int
-    elif field == "FloatField":
-        return float
-    elif field == "JSONField":
-        return dict
-    elif field == "DateTimeField":
-        return datetime.datetime
-    elif field == "DecimalField":
-        return Decimal
-    else:
-        return str

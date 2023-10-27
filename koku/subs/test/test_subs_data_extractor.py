@@ -87,68 +87,52 @@ class TestSUBSDataExtractor(SUBSTestCase):
         """Test resulting where clause and params matches expected values"""
         year = "2023"
         month = "07"
-        latest_processed_time = self.today
-        end_time = self.today + timedelta(days=2)
-        rid = "45678"
         expected_sql_params = {
-            "provider_uuid": self.aws_provider.uuid,
+            "source_uuid": self.aws_provider.uuid,
             "year": year,
             "month": month,
-            "latest_processed_time": latest_processed_time,
-            "end_time": end_time,
-            "rid": rid,
         }
         expected_clause = (
-            "WHERE source={{provider_uuid}} AND year={{year}} AND month={{month}} AND"
+            "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
             " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu IS NOT NULL AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND"
-            " lineitem_usagestartdate > {{latest_processed_time}} AND"
-            " lineitem_usagestartdate <= {{end_time}} AND lineitem_resourceid = {{rid}}"
+            " product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
         )
-        actual_clause, actual_params = self.extractor.determine_where_clause_and_params(
-            latest_processed_time, end_time, year, month, rid
-        )
+        actual_clause, actual_params = self.extractor.determine_where_clause_and_params(year, month)
         self.assertEqual(expected_clause, actual_clause)
         self.assertEqual(expected_sql_params, actual_params)
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor.bulk_update_latest_processed_time")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_start_time_for_resource")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource_batch")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.get_resource_ids_for_usage_account")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_ids_for_provider")
     def test_extract_data_to_s3(
         self,
         mock_ids,
         mock_resources,
-        mock_start_time,
         mock_gather,
         mock_bulk_update,
     ):
         """Test the flow of extracting data to S3 calls the right functions"""
         expected_key = "fake_key"
         mock_gather.return_value = [expected_key]
-        # there should be two calls to the gather function that returns a list of keys to be appended
-        expected_upload_keys = [expected_key, expected_key]
+        expected_upload_keys = [expected_key]
         mock_ids.return_value = ["12345"]
         mock_resources.return_value = [("23456", MagicMock()), ("34567", MagicMock())]
         upload_keys = self.extractor.extract_data_to_s3(self.dh.month_start(self.yesterday))
         mock_ids.assert_called_once()
         mock_resources.assert_called_once()
-        self.assertEqual(2, len(mock_start_time.mock_calls))
-        self.assertEqual(2, len(mock_gather.mock_calls))
+        mock_gather.assert_called_once()
         mock_bulk_update.assert_called()
         self.assertEqual(expected_upload_keys, upload_keys)
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor.bulk_update_latest_processed_time")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_start_time_for_resource")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource_batch")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.get_resource_ids_for_usage_account")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_ids_for_provider")
     def test_extract_data_to_s3_no_usage_ids_found(
         self,
         mock_ids,
         mock_resources,
-        mock_start_time,
         mock_gather,
         mock_bulk_update,
     ):
@@ -157,21 +141,18 @@ class TestSUBSDataExtractor(SUBSTestCase):
         upload_keys = self.extractor.extract_data_to_s3(self.dh.month_start(self.yesterday))
         mock_ids.assert_called_once()
         mock_resources.assert_not_called()
-        mock_start_time.assert_not_called()
         mock_gather.assert_not_called()
         mock_bulk_update.assert_not_called()
         self.assertEqual([], upload_keys)
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor.bulk_update_latest_processed_time")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource")
-    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_start_time_for_resource")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource_batch")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.get_resource_ids_for_usage_account")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_ids_for_provider")
     def test_extract_data_to_s3_no_resource_ids_found(
         self,
         mock_ids,
         mock_resources,
-        mock_start_time,
         mock_gather,
         mock_bulk_update,
     ):
@@ -183,7 +164,6 @@ class TestSUBSDataExtractor(SUBSTestCase):
         upload_keys = self.extractor.extract_data_to_s3(self.dh.month_start(self.yesterday))
         mock_ids.assert_called_once()
         mock_resources.assert_called_once()
-        mock_start_time.assert_not_called()
         mock_gather.assert_not_called()
         mock_bulk_update.assert_not_called()
         self.assertEqual([], upload_keys)
@@ -192,25 +172,58 @@ class TestSUBSDataExtractor(SUBSTestCase):
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query_with_description")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_line_item_count")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause_and_params")
-    def test_gather_and_upload_for_resource(self, mock_where_clause, mock_li_count, mock_trino, mock_copy):
+    def test_gather_and_upload_for_resource_batch(self, mock_where_clause, mock_li_count, mock_trino, mock_copy):
         """Test gathering data and uploading it to S3 calls the right functions and returns the right value."""
         self.dh.month_start(self.yesterday)
         rid = "12345"
         year = "2023"
         month = "04"
+        rid_2 = "23456"
         start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.timezone.utc)
         end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.timezone.utc)
+        batch = [(rid, start_time, end_time), (rid_2, start_time, end_time)]
         mock_li_count.return_value = 10
         expected_key = "fake_key"
+        base_filename = "fake_filename"
         mock_copy.return_value = expected_key
         mock_trino.return_value = (MagicMock(), MagicMock())
         mock_where_clause.return_value = (MagicMock(), MagicMock())
-        upload_keys = self.extractor.gather_and_upload_for_resource(rid, year, month, start_time, end_time)
+        upload_keys = self.extractor.gather_and_upload_for_resource_batch(year, month, batch, base_filename)
         mock_where_clause.assert_called_once()
         mock_li_count.assert_called_once()
         mock_trino.assert_called_once()
         mock_copy.assert_called_once()
-        self.assertEqual([expected_key], upload_keys)
+        expected_result = [expected_key]
+        self.assertEqual(expected_result, upload_keys)
+
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.copy_data_to_subs_s3_bucket")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query_with_description")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_line_item_count")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_where_clause_and_params")
+    def test_gather_and_upload_for_resource_batch_no_result(
+        self, mock_where_clause, mock_li_count, mock_trino, mock_copy
+    ):
+        """Test uploading does not attempt with empty values from trino query."""
+        self.dh.month_start(self.yesterday)
+        rid = "12345"
+        year = "2023"
+        month = "04"
+        rid_2 = "23456"
+        start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.timezone.utc)
+        end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.timezone.utc)
+        batch = [(rid, start_time, end_time), (rid_2, start_time, end_time)]
+        mock_li_count.return_value = 10
+        expected_key = "fake_key"
+        base_filename = "fake_filename"
+        mock_copy.return_value = expected_key
+        mock_trino.return_value = ([], [("fake_col1",), ("fake_col2",)])
+        mock_where_clause.return_value = (MagicMock(), MagicMock())
+        upload_keys = self.extractor.gather_and_upload_for_resource_batch(year, month, batch, base_filename)
+        mock_where_clause.assert_called_once()
+        mock_li_count.assert_called_once()
+        mock_trino.assert_called_once()
+        mock_copy.assert_not_called()
+        self.assertEqual(upload_keys, [])
 
     def test_copy_data_to_subs_s3_bucket(self):
         """Test copy_data_to_subs_s3_bucket."""
@@ -268,40 +281,3 @@ class TestSUBSDataExtractor(SUBSTestCase):
             )
             self.assertEqual(subs_record_1.latest_processed_time, expected_time)
             self.assertEqual(subs_record_2.latest_processed_time, expected_time)
-
-    def test_determine_start_time_for_resource(self):
-        """Test that determing the start time for different scenarios evaluates correctly."""
-        test_table = {
-            "no_base_prov_created_same_month": {
-                "latest": None,
-                "prov_created": datetime.datetime(2023, 8, 7),
-                "expected_return": datetime.datetime(2023, 8, 6, 0),
-            },
-            "no_base_prov_created_prev_month": {
-                "latest": None,
-                "prov_created": datetime.datetime(2023, 7, 7),
-                "expected_return": datetime.datetime(2023, 8, 1, 0),
-            },
-            "base_prov_created_before": {
-                "latest": datetime.datetime(2023, 8, 10, 12),
-                "prov_created": datetime.datetime(2023, 8, 7),
-                "expected_return": datetime.datetime(2023, 8, 10, 12),
-            },
-            "base_prov_created_after": {
-                "latest": datetime.datetime(2023, 8, 10, 12),
-                "prov_created": datetime.datetime(2023, 8, 15),
-                "expected_return": datetime.datetime(2023, 8, 14, 0),
-            },
-        }
-        for test_case, expected in test_table.items():
-            with self.subTest(case=test_case):
-                with patch(
-                    "subs.subs_data_extractor.SUBSDataExtractor.determine_latest_processed_time_for_provider"
-                ) as mock_latest:
-                    with patch("subs.subs_data_extractor.Provider.objects") as mock_prov:
-                        mock_prov.get.return_value.created_timestamp = expected["prov_created"]
-                        mock_latest.return_value = expected["latest"]
-                        actual = self.extractor.determine_start_time_for_resource(
-                            rid="123456", year="2023", month="08", month_start=datetime.datetime(2023, 8, 1)
-                        )
-                        self.assertEqual(expected["expected_return"], actual)
