@@ -189,6 +189,8 @@ class ReportDownloaderTest(MasuTestCase):
         manifest_id = 99
         baker.make(CostUsageReportManifest, id=manifest_id)
         assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        filename = "koku-1.csv.gz"
+        baker.make(CostUsageReportStatus, report_name=f"{assembly_id}-{filename}", manifest_id=manifest_id)
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
@@ -199,7 +201,7 @@ class ReportDownloaderTest(MasuTestCase):
             "manifest_id": manifest_id,
             "compression": compression,
             "assembly_id": assembly_id,
-            "current_file": f"/my/{assembly_id}/koku-1.csv.gz",
+            "current_file": f"/my/{assembly_id}/{filename}",
         }
 
         with patch("masu.external.report_downloader.ReportDownloader.is_report_processed", return_value=False):
@@ -254,6 +256,8 @@ class ReportDownloaderTest(MasuTestCase):
         manifest_id = 99
         baker.make(CostUsageReportManifest, id=manifest_id)
         assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        filename = "koku-1.csv.gz"
+        baker.make(CostUsageReportStatus, report_name=f"{assembly_id}-{filename}", manifest_id=manifest_id)
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
@@ -264,7 +268,7 @@ class ReportDownloaderTest(MasuTestCase):
             "manifest_id": manifest_id,
             "compression": compression,
             "assembly_id": assembly_id,
-            "current_file": f"/my/{assembly_id}/koku-1.csv.gz",
+            "current_file": f"/my/{assembly_id}/{filename}",
         }
 
         with patch(

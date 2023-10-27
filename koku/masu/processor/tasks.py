@@ -33,7 +33,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
@@ -62,6 +61,7 @@ from masu.util.common import execute_trino_query
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -112,8 +112,8 @@ def record_all_manifest_files(manifest_id, report_files, tracing_id):
     """Store all report file names for manifest ID."""
     for report in report_files:
         try:
-            with ReportStatsDBAccessor(report, manifest_id):
-                LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}"))
+            _, created = CostUsageReportStatus.objects.get_or_create(report_name=report, manifest_id=manifest_id)
+            LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}, created: {created}"))
         except IntegrityError:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
@@ -143,8 +143,8 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
 
     """
     already_processed = False
-    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
-        already_processed = db_accessor.get_last_completed_datetime()
+    if stats := CostUsageReportStatus.objects.filter(report_name=file_name, manifest_id=manifest_id).first():
+        already_processed = stats.last_completed_datetime
         if already_processed:
             msg = f"Report {file_name} has already been processed."
         else:
@@ -449,19 +449,19 @@ def update_summary_tables(  # noqa: C901
     fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE
     fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE
     fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE
+    timeout = settings.WORKER_CACHE_TIMEOUT
     if is_large_customer:
         fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
         fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE_XL
         fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
         fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE_XL
+        timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
     if not synchronous:
         worker_cache = WorkerCache()
-        timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
         if is_large_customer_rate_limited:
             rate_limited = rate_limit_tasks(task_name, schema)
-            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
@@ -670,9 +670,9 @@ def update_openshift_on_cloud(  # noqa: C901
         fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
-            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if is_customer_large(schema_name):
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:

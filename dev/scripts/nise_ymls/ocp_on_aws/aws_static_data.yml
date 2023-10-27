@@ -32,7 +32,7 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
         resourceTags/user:dashed-key-on-aws: dashed-value
-        resourceTags/user:com_REDHAT_rhel: RHEL 8 EUS
+        resourceTags/user:com_REDHAT_rhel: RHEL 8 ELS
         resourceTags/user:com_redhat_rhel_sla: self-support
         resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
         resourceTags/user:com_redhat_rhel_usage: disaster Recovery
@@ -58,7 +58,7 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: gamma
         resourceTags/user:dashed-key-on-aws: dashed-value
-        resourceTags/user:com_REDHAT_rhel: RHEL 7 EUS
+        resourceTags/user:com_REDHAT_rhel: RHEL 7 ELS
         resourceTags/user:com_redhat_rhel_sla: Standard
         resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
       cost_category:

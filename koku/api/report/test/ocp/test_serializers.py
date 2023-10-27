@@ -300,10 +300,9 @@ class OCPQueryParamSerializerTest(IamTestCase):
                 "resource_scope": [],
             },
         }
-        self.request_path = "/api/cost-management/v1/reports/openshift/volume/"
+        self.request_path = "/api/cost-management/v1/reports/openshift/volume/?filter[storage_class]=*"
         serializer = OCPQueryParamSerializer(data=query_params, context=self.ctx_w_path)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        self.assertTrue(serializer.is_valid())
 
     def test_query_params_valid_multiple_group_bys_with_pvc(self):
         """Test parse of query params for invalid fields."""

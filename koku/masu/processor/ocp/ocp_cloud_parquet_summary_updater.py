@@ -119,7 +119,27 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
         ):
             infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
-        return infra_map
+
+        summary_infra_map = {}
+        with OCPReportDBAccessor(self._schema) as accessor:
+            # Only include OCP providers for OCP on Cloud summary if we have a matching report period
+            for ocp_provider_uuid in infra_map:
+                if accessor.report_periods_for_provider_uuid(ocp_provider_uuid, start_date):
+                    summary_infra_map[ocp_provider_uuid] = infra_map[ocp_provider_uuid]
+                else:
+                    ctx = {
+                        "schema": self._schema,
+                        "ocp_provider_uuid": ocp_provider_uuid,
+                        "provider_uuid": infra_map[ocp_provider_uuid][0],
+                        "provider_type": infra_map[ocp_provider_uuid][1],
+                    }
+                    LOG.info(
+                        log_json(
+                            msg=f"no matching report periods available for cluster - removing from OCP on {infra_map[ocp_provider_uuid][1]} summary list",  # noqa: E501
+                            context=ctx,
+                        )
+                    )
+        return summary_infra_map
 
     def determine_truncates_and_deletes(self, start_date, end_date):
         """Clear out existing data in summary tables."""
@@ -283,6 +303,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with self.db_accessor(self._schema) as accessor:
             context = accessor.extract_context_from_sql_params(sql_params)
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                context["start_date"] = start
+                context["end_date"] = end
                 LOG.info(log_json(msg="updating OpenShift on AWS summary table", **context))
                 accessor.populate_ocp_on_aws_cost_daily_summary_trino(
                     start,
@@ -411,6 +433,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with self.db_accessor(self._schema) as accessor:
             context = accessor.extract_context_from_sql_params(sql_params)
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                context["start_date"] = start
+                context["end_date"] = end
                 LOG.info(
                     log_json(
                         msg="updating OpenShift on Azure summary table",
@@ -531,6 +555,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with self.db_accessor(self._schema) as accessor:
             context = accessor.extract_context_from_sql_params(sql_params)
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                context["start_date"] = start
+                context["end_date"] = end
                 LOG.info(log_json(msg="updating OpenShift on GCP summary table", **context))
                 accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
                     start,

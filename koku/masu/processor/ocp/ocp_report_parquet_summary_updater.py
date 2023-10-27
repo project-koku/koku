@@ -36,7 +36,18 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
+
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
+        if not self._cluster_id:
+            msg = f"Missing cluster_id for provider: {self._provider.uuid}"
+            LOG.error(
+                log_json(
+                    msg=msg,
+                    provider_uuid=provider.uuid,
+                )
+            )
+            raise ValueError(msg)
+
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         self._date_accessor = DateAccessor()
         self._context = {
