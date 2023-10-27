@@ -7,6 +7,7 @@ This document outlines the workflow to deprecate an endpoint within koku. Deprec
 ## Workflow
 
 ### Step 1: Impact Analysis
+
 - **Objective:** Understand the impact of deprecating the endpoint on users, applications, and systems.
 - **Actions:**
     - Identify users or services currently using the endpoint.
@@ -26,49 +27,48 @@ This document outlines the workflow to deprecate an endpoint within koku. Deprec
 
 - **Objective:** Prepare the codedate for deprecation
 - **Actions:**
-    -
-    - Announce the deprecation to users through the chosen communication channels.
-    - Disable further development, updates, or bug fixes for the deprecated endpoint.
-    - Monitor and track user feedback and issues during the deprecation period.
+1. Renamed the api folder to have the `deprecated_` to clearly identify no changes should be made in this directory moving forward.
+2. Check for unleash flags within the folder and remove any unnecessary flags
+3. Moved any common functions that were no longer necessary into the deprecated_ folder. [Example](https://github.com/project-koku/koku/pull/4670/files#diff-9a4ece704604756b549b41d1e4b72e154ba290f2ba90cb032d270e5a9e190418L390-L440)
+4. Create `deprecated_` versions of any common functions till being used in the `deprecated_` folder, this prevents the need for backwards compatability moving forward. [Example](https://github.com/project-koku/koku/pull/4670/files#diff-3f27604615bb126d6ad77ab747562f4fb028d4975a8cc2ab28a3967ea8f82a88R242-R266)
+5. Add the deprecation wrapper
+    - First update the view to include the `deprecation_datetime` & `sunset_datetime` datetime. [Example](https://github.com/project-koku/koku/blob/9f46c8c3db6d856558ffdc9cf823ab6116590c67/koku/api/deprecated_settings/view.py#L20-L28)
+    - Then import the `deprecate_view` wrapper, and wrap the view in the url definition to have the end of life headers added to the response.
 
-### Step : Communication Plan
-
-- **Objective:** Develop a plan to communicate the deprecation to affected users and stakeholders.
+### Step 4: Prepare the Sunset PR
+- **Objective:** Prepare the codedate for removal of the endpoint
+- [Example](https://github.com/project-koku/koku/pull/4726)
 - **Actions:**
-    - Prepare a clear and concise deprecation notice that explains the reason, timeline, and action steps for users.
-    - Determine the communication channels (e.g., email, website, documentation) to reach users and stakeholders.
-    - Establish a timeline for announcing the deprecation.
+    - After the deprecation PR is merge create a PR to remove the dead code. If you did the deprecation step correctly, all you should have to do is:
+        1. Remove the `deprecate_` folder you created for the api
+        2. Replace the `deprecate_view` wrapper with the `SunsetView`
+        3. Update `koku/api/views.py` to remove old view `SettingsView`
+    - Include the sunset date in the title to indicate we are waiting, add a hold label to the pr as well.
+    - Create a reminder on the team calendar for when the PR needs to be moved into main.
 
-### Step : Alternative Solutions
-
-- **Objective:** Provide users with alternatives to replace the deprecated endpoint.
+## Step 5: Deprecation Notice
+- **Objective** Create a notification for deprecating the endpoint.
+- [Example](https://github.com/project-koku/koku/releases/tag/r.2023.10.06.0)
 - **Actions:**
+    - When the deprecation pull request goes to production create a deprecation notice for the release notes.
     - Identify and document alternative endpoints, methods, or solutions.
     - Create documentation and resources to guide users through the transition.
 
-### Step : Documentation Update
+### Step 6: Documentation Update
 
 - **Objective:** Update documentation and code to reflect the deprecation.
 - **Actions:**
     - Review and update API documentation, user guides, and code examples.
     - Ensure that deprecated endpoint references are removed or replaced with alternatives.
 
-### Step : Deprecation Implementation
-
-- **Objective:** Begin the deprecation process as per the defined timeline.
+### Step 7: Communication Plan
+- **Objective:** Develop a plan to communicate the deprecation to affected users and stakeholders.
 - **Actions:**
-    - Announce the deprecation to users through the chosen communication channels.
-    - Disable further development, updates, or bug fixes for the deprecated endpoint.
-    - Monitor and track user feedback and issues during the deprecation period.
+    - Prepare a clear and concise deprecation notice that explains the reason, timeline, and action steps for users.
+    - Determine the communication channels (e.g., email, website, documentation) to reach users and stakeholders. This usually includes sending a email to `costmanagement-announce@redhat.com`
+    - Establish a timeline for announcing the deprecation.
 
-### Step : Support and Assistance
-
-- **Objective:** Offer support and assistance to users during the transition.
-- **Actions:**
-    - Establish a support channel for users who have questions or encounter issues.
-    - Provide assistance with migration and implementation of alternative solutions.
-
-### Step : Deprecation Completion
+### Step 8: Deprecation Completion
 
 - **Objective:** Officially complete the deprecation process.
 - **Actions:**
@@ -79,7 +79,3 @@ This document outlines the workflow to deprecate an endpoint within koku. Deprec
 ## Conclusion
 
 Deprecating an endpoint is a strategic decision that requires careful planning, communication, and support for affected users. Following this workflow will help ensure a successful and smooth deprecation process.
-
-For questions or further assistance related to endpoint deprecation, please contact [Support Contact].
-
-[Your Company Name]
