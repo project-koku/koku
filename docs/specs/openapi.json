@@ -56,10 +56,6 @@
         {
             "name": "Status",
             "description": "Operations about status"
-        },
-        {
-            "name": "Optimizations",
-            "description": "Resource Optimization for Openshift"
         }
     ],
     "paths": {
@@ -5733,13 +5729,7 @@
                         "basic_auth": []
                     }]
                 }
-            },
-        "/recommendations/openshift": {
-            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift"
-        },
-        "/recommendations/openshift/{recommendation-id}": {
-            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift~1{recommendation-id}"
-        }
+            }
         },
     "externalDocs": {
         "description": "Find out more about Cost Management",
