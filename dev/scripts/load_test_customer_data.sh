@@ -40,8 +40,7 @@ help() {
 DEV_SCRIPTS_PATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # nise specifics
-# NISE="$(which nise)"
-NISE="/Users/mskarbek/projects/nise/.venv/bin/nise"
+NISE="$(which nise)"
 NISE_DATA_PATH="${DEV_SCRIPTS_PATH}/../../testing"
 
 # import common functions
@@ -179,13 +178,17 @@ trigger_download() {
 trigger_ocp_ingest() {
   #
   # Args:
-  #   1 - array of api_provider.name(s); this needs to match the source_name in test_customer.yaml
-  #   2 - array of payload names to be ingested. Array is 1:1 with the provider names
+  #   1 - the source name. If the source does not exist, ingestion is skipped.
+  #   2 - payload name to be ingested.
   #
   UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$1'" | head -1 | sed -e 's/^[ \t]*//')
   if [[ ! -z $UUID ]]; then
-      log-info "Triggering ingest for, source_name: $1, uuid: $UUID"
-      RESPONSE=$(curl -s -w "%{http_code}\n" ${MASU_URL_PREFIX}/v1/ingest_ocp_payload/?payload_name=$2.tar.gz)
+    local formatted_start_date=$(date -j -f "%Y-%m-%d" "$START_DATE" +'%Y_%m')
+    local formatted_end_date=$(date -j -f "%Y-%m-%d" "$END_DATE" +'%Y_%m')
+    while [ ! "$formatted_start_date" \> "$formatted_end_date" ]; do
+      local payload_name="$2.$formatted_start_date.tar.gz"
+      log-info "Triggering ingest for, source_name: $1, uuid: $UUID, payload_name: $payload_name"
+      RESPONSE=$(curl -s -w "%{http_code}\n" ${MASU_URL_PREFIX}/v1/ingest_ocp_payload/?payload_name=$payload_name)
       STATUS_CODE=${RESPONSE: -3}
       DATA=${RESPONSE:: -3}
 
@@ -195,6 +198,8 @@ trigger_ocp_ingest() {
       if [[ $STATUS_CODE != 200 ]];then
         log-err $DATA
       fi
+      formatted_start_date=$(date -j -v+1m -f "%Y_%m" "$formatted_start_date" +'%Y_%m')
+    done
 
   else
       log-info "SKIPPED - ocp ingest, source_name: $1"

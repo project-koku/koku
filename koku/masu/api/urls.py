@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Describes the urls and patterns for the API application."""
+from django.conf import settings
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
@@ -49,7 +50,6 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
-    path("ingest_ocp_payload/", ingest_ocp_payload, name="local ocp ingress"),
     path("ingress_reports/", ingress_reports, name="ingress_reports"),
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
@@ -107,5 +107,10 @@ urlpatterns = [
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
 ]
+
+if settings.DEBUG:
+    urlpatterns += [
+        path("ingest_ocp_payload/", ingest_ocp_payload, name="local ocp ingress"),
+    ]
 
 urlpatterns += ROUTER.urls

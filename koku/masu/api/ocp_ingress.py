@@ -4,6 +4,7 @@ from threading import Thread
 from uuid import uuid4
 
 import boto3
+import requests
 from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
@@ -24,7 +25,7 @@ nsiY29zdF9tYW5hZ2VtZW50Ijp7ImlzX2VudGl0bGVkIjp0cnVlfX19Cg==
 """
 
 
-def get_s3_signature(url, file_name):
+def get_s3_signature(url, file_name, method="get_object"):
     s3 = boto3.client(
         "s3",
         endpoint_url=url,
@@ -33,7 +34,7 @@ def get_s3_signature(url, file_name):
         region_name=settings.S3_REGION,
     )
     return s3.generate_presigned_url(
-        ClientMethod="get_object",
+        ClientMethod=method,
         Params={"Bucket": os.environ.get("S3_BUCKET_NAME_OCP_INGRESS"), "Key": file_name},
         ExpiresIn=86400,
     )
@@ -64,21 +65,38 @@ class MockMessage:
         return self._value
 
 
+def upload_file_to_s3(signature, data):
+    return requests.put(signature, data=data)
+
+
 @never_cache
-@api_view(http_method_names=["GET"])
+@api_view(http_method_names=["GET", "POST"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def ingest_ocp_payload(request):
     """Return download file async task ID."""
     request_id = uuid4().hex
-    params = request.query_params
-    payload_name = params.get("payload_name")
+    response_data = {"request-id": request_id}
+    if request.method == "POST":
+        if file := request.FILES.get("file"):
+            payload_name = file.name
+            s3_signature = get_s3_signature(settings.S3_ENDPOINT, payload_name, method="put_object")
+            res = upload_file_to_s3(s3_signature, data=file.file)
+            if res.status_code == 200:
+                response_data["upload"] = "success"
+            else:
+                response_data["upload"] = "failed"
+                response_data["failed-reason"] = res.reason
+                return Response(response_data, status=res.status_code)
+    else:
+        params = request.query_params
+        payload_name = params.get("payload_name")
+
     kmsg = MockMessage(request_id, filename=payload_name)
-    # async_task_id = process_messages.delay(kmsg)
-
-    # return Response({"Download Request Task ID": str(async_task_id)})
-
     t = Thread(target=process_messages, args=(kmsg,))
     t.start()
 
-    return Response({"ocp ingress started in thread, request id": str(request_id)})
+    response_data["payload-name"] = payload_name
+    response_data["ingest-started"] = True
+
+    return Response(response_data, status=202)
