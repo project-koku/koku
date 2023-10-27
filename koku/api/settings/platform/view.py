@@ -10,8 +10,14 @@ from rest_framework.views import APIView
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.deprecated_settings.settings import Settings
+from api.provider.models import Provider
 from api.report.constants import URL_ENCODED_SAFE
 from api.settings.serializers import NonEmptyListSerializer
+from api.utils import DateHelper
+from masu.processor import is_customer_large
+from masu.processor.tasks import OCP_QUEUE
+from masu.processor.tasks import OCP_QUEUE_XL
+from masu.processor.tasks import update_summary_tables
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
 SETTINGS_GENERATORS = {"settings": Settings}
@@ -78,6 +84,7 @@ class PlatformCategoriesView(APIView):
 
     permission_classes = (SettingsAccessPermission,)
     filter_class = PlatformFilter
+    _date_helper = DateHelper()
 
     @property
     def _platform_record(self):
@@ -103,8 +110,10 @@ class PlatformCategoriesView(APIView):
         platform_record.save()
 
         paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
+        response = paginator.paginated_response
+        response.data["meta"]["task_ids"] = str(self._resummarize_data(request))
 
-        return paginator.paginated_response
+        return response
 
     def delete(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
@@ -119,5 +128,33 @@ class PlatformCategoriesView(APIView):
         platform_record.save()
 
         paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
+        response = paginator.paginated_response
+        response.data["meta"]["task_ids"] = str(self._resummarize_data(request))
 
-        return paginator.paginated_response
+        return response
+
+    def _resummarize_data(self, request):
+        """Resummarize OCP data for the current month"""
+
+        ocp_queue = OCP_QUEUE
+        schema_name = request.user.customer.schema_name
+        if is_customer_large(schema_name):
+            ocp_queue = OCP_QUEUE_XL
+
+        providers = Provider.objects.filter(
+            type=Provider.PROVIDER_OCP,
+            customer_id=request.user.customer.id,
+        )
+
+        async_ids = []
+        for provider in providers:
+            async_result = update_summary_tables.s(
+                schema_name,
+                provider_type=Provider.PROVIDER_OCP,
+                provider_uuid=str(provider.uuid),
+                start_date=self._date_helper.this_month_start,
+            ).apply_async(queue=ocp_queue)
+
+            async_ids.append(str(async_result))
+
+        return async_ids
