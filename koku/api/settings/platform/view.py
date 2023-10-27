@@ -110,10 +110,10 @@ class PlatformCategoriesView(APIView):
         platform_record.save()
 
         paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
-        response = paginator.paginated_response
-        response.data["meta"]["task_ids"] = str(self._resummarize_data(request))
 
-        return response
+        self._resummarize_data(request)
+
+        return paginator.paginated_response
 
     def delete(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
@@ -127,22 +127,23 @@ class PlatformCategoriesView(APIView):
         platform_record.namespace = list(set(platform_record.namespace).difference(request_without_defaults))
         platform_record.save()
 
-        paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
-        response = paginator.paginated_response
-        response.data["meta"]["task_ids"] = str(self._resummarize_data(request))
+        self._resummarize_data(request)
 
-        return response
+        paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
+
+        return paginator.paginated_response
 
     def _resummarize_data(self, request):
         """Resummarize OCP data for the current month"""
 
         ocp_queue = OCP_QUEUE
         schema_name = request.user.customer.schema_name
+        provider_type = Provider.PROVIDER_OCP
         if is_customer_large(schema_name):
             ocp_queue = OCP_QUEUE_XL
 
         providers = Provider.objects.filter(
-            type=Provider.PROVIDER_OCP,
+            type=provider_type,
             customer_id=request.user.customer.id,
         )
 
@@ -150,7 +151,7 @@ class PlatformCategoriesView(APIView):
         for provider in providers:
             async_result = update_summary_tables.s(
                 schema_name,
-                provider_type=Provider.PROVIDER_OCP,
+                provider_type=provider_type,
                 provider_uuid=str(provider.uuid),
                 start_date=self._date_helper.this_month_start,
             ).apply_async(queue=ocp_queue)
