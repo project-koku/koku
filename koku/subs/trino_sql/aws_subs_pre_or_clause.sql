@@ -2,6 +2,9 @@ SELECT
   *,
   time_split[1] as subs_start_time,
   time_split[2] as subs_end_time,
+  product_vcpu as subs_vcpu,
+  lineitem_usageaccountid as subs_account,
+  lineitem_resourceid as subs_resource_id,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
     ELSE 'Red Hat Enterprise Linux Server'
@@ -20,7 +23,8 @@ SELECT
     WHEN 'rhel 7 els' THEN '69-204'
     WHEN 'rhel 8 els' THEN '479-204'
     ELSE '479'
-  END as subs_product_ids
+  END as subs_product_ids,
+
 FROM
   (
     SELECT *,

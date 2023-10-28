@@ -13,6 +13,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.iam.models import Customer
+from api.provider.models import Provider
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config as masu_config
@@ -22,8 +23,13 @@ from masu.util.aws.common import get_s3_resource
 LOG = logging.getLogger(__name__)
 
 
+def determine_azure_instance_id(row):
+    pass
+
+
 class SUBSDataMessenger:
     def __init__(self, context, schema_name, tracing_id):
+        self.provider_type = context["provider_type"].removesuffix("-local")
         self.context = context
         self.tracing_id = tracing_id
         self.schema_name = schema_name
@@ -53,13 +59,15 @@ class SUBSDataMessenger:
                 )
                 msg_count = 0
                 for row in reader:
+                    if self.provider_type == Provider.PROVIDER_AZURE:
+                        row["subs_resource_id"] = determine_azure_instance_id(row)
                     # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
                     msg = self.build_subs_msg(
-                        row["lineitem_resourceid"],
-                        row["lineitem_usageaccountid"],
+                        row["subs_resource_id"],
+                        row["subs_account"],
                         row["subs_start_time"],
                         row["subs_end_time"],
-                        row["product_vcpu"],
+                        row["subs_vcpu"],
                         row["subs_sla"],
                         row["subs_usage"],
                         row["subs_role"],

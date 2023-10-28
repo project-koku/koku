@@ -22,11 +22,88 @@ from masu.util.aws.common import get_s3_resource
 from reporting.models import SubsIDMap
 from reporting.models import SubsLastProcessed
 from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE as AWS_TABLE
+from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE as AZURE_TABLE
+
 
 LOG = logging.getLogger(__name__)
 
 TABLE_MAP = {
     Provider.PROVIDER_AWS: AWS_TABLE,
+    Provider.PROVIDER_AZURE: AZURE_TABLE,
+}
+
+ID_COLUMN_MAP = {
+    Provider.PROVIDER_AWS: "lineitem_usageaccountid",
+    Provider.PROVIDER_AZURE: "subscriptionid",
+}
+
+RECORD_FILTER_MAP = {
+    Provider.PROVIDER_AWS: (
+        " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') "
+        "AND product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
+    ),
+    Provider.PROVIDER_AZURE: (
+        " metercategory = 'Virtual Machines' AND chargetype = 'Usage' "
+        "AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL "
+        "AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL"
+    ),
+}
+
+RESOURCE_ID_FILTER_MAP = {
+    Provider.PROVIDER_AWS: (
+        " AND lineitem_productcode = 'AmazonEC2' "
+        "AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0 AND lineitem_usageaccountid = {{usage_account}}"
+    ),
+    Provider.PROVIDER_AZURE: (
+        " AND metercategory = 'Virtual Machines' "
+        "AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL "
+        "AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL AND subscriptionid = {{usage_account}}"
+    ),
+}
+
+RESOURCE_SELECT_MAP = {
+    Provider.PROVIDER_AWS: " SELECT lineitem_resourceid, max(lineitem_usagestartdate) ",
+    Provider.PROVIDER_AZURE: " SELECT coalesce(resourceid, instancename), max(coalesce(date, usagedatetime)) ",
+}
+
+RESOURCE_ID_GROUP_BY_MAP = {
+    Provider.PROVIDER_AWS: " GROUP BY lineitem_resourceid",
+    Provider.PROVIDER_AZURE: " GROUP BY resourceid, instancename",
+}
+
+RESOURCE_ID_EXCLUSION_CLAUSE_MAP = {
+    Provider.PROVIDER_AWS: " AND lineitem_resourceid NOT IN {{excluded_ids | inclause}} ",
+    Provider.PROVIDER_AZURE: " and coalesce(resourceid, instancename) NOT IN {{excluded_ids | inclause}} ",
+}
+
+RESOURCE_ID_SQL_CLAUSE_MAP = {
+    Provider.PROVIDER_AWS: (
+        " ( lineitem_resourceid = {{{{ rid_{0} }}}} "
+        " AND lineitem_usagestartdate >= {{{{ start_date_{0} }}}} "
+        " AND lineitem_usagestartdate <= {{{{ end_date_{0} }}}}) "
+    ),
+    Provider.PROVIDER_AZURE: (
+        " ( coalesce(resourceid, instancename) = {{{{ rid_{0} }}}} "
+        "AND coalesce(date, usagedatetime) >= {{{{ start_date_{0} }}}} "
+        "AND coalesce(date, usagedatetime) >= {{{{ end_date_{0} }}}}) "
+    ),
+}
+
+POST_OR_CLAUSE_SQL_MAP = {
+    Provider.PROVIDER_AWS: """
+OFFSET
+      {{ offset }}
+    LIMIT
+      {{ limit }}
+  )
+WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
+""",
+    Provider.PROVIDER_AZURE: """
+OFFSET
+      {{ offset }}
+    LIMIT
+      {{ limit }}
+""",
 }
 
 
@@ -40,11 +117,20 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             microsecond=0, second=0, minute=0, hour=0
         ) - timedelta(days=1)
         self.tracing_id = tracing_id
-        self.table = TABLE_MAP.get(self.provider_type)
         self.s3_resource = get_s3_resource(
             settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
         )
         self.context = context
+        # The following variables all change depending on the provider type to run the correct SQL
+        self.table = TABLE_MAP.get(self.provider_type)
+        self.id_column = ID_COLUMN_MAP.get(self.provider_type)
+        self.provider_where_clause = RECORD_FILTER_MAP.get(self.provider_type)
+        self.resource_select_sql = RESOURCE_SELECT_MAP.get(self.provider_type)
+        self.resource_id_where_clause = RESOURCE_ID_FILTER_MAP.get(self.provider_type)
+        self.resource_id_group_by = RESOURCE_ID_GROUP_BY_MAP.get(self.provider_type)
+        self.resource_id_sql_clause = RESOURCE_ID_SQL_CLAUSE_MAP.get(self.provider_type)
+        self.resource_id_exclusion_clause = RESOURCE_ID_EXCLUSION_CLAUSE_MAP.get(self.provider_type)
+        self.post_or_clause_sql = POST_OR_CLAUSE_SQL_MAP.get(self.provider_type)
 
     @cached_property
     def subs_s3_path(self):
@@ -87,17 +173,19 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 SubsIDMap.objects.exclude(source_uuid=self.provider_uuid).values_list("usage_id", flat=True)
             )
             sql = (
-                "SELECT DISTINCT lineitem_usageaccountid FROM hive.{{schema | sqlsafe}}.aws_line_items WHERE"
+                "SELECT DISTINCT {{id_column | sqlsafe}} FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}} WHERE"
                 " source={{source_uuid}} AND year={{year}} AND month={{month}}"
             )
             if excluded_ids:
-                sql += "AND lineitem_usageaccountid NOT IN {{excluded_ids | inclause}}"
+                sql += " AND {{id_column | sqlsafe}} NOT IN {{excluded_ids | inclause}}"
             sql_params = {
                 "schema": self.schema,
                 "source_uuid": self.provider_uuid,
                 "year": year,
                 "month": month,
                 "excluded_ids": excluded_ids,
+                "id_column": self.id_column,
+                "table": self.table,
             }
             ids = self._execute_trino_raw_sql_query(
                 sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_ids_for_provider"
@@ -120,11 +208,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def determine_where_clause_and_params(self, year, month):
         """Determine the where clause to use when processing subs data"""
-        where_clause = (
-            "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
-            " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
-        )
+        where_clause = "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND "
+        # different provider types have different required filters here
+        where_clause += self.provider_where_clause
         sql_params = {
             "source_uuid": self.provider_uuid,
             "year": year,
@@ -139,16 +225,14 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             excluded_ids = list(
                 SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid).values_list("resource_id", flat=True)
             )
-            sql = (
-                "SELECT lineitem_resourceid, max(lineitem_usagestartdate)"
-                " FROM hive.{{schema | sqlsafe}}.aws_line_items WHERE"
+            sql = self.resource_select_sql + (
+                " FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}} WHERE"
                 " source={{source_uuid}} AND year={{year}} AND month={{month}}"
-                " AND lineitem_productcode = 'AmazonEC2' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
-                " AND lineitem_usageaccountid = {{usage_account}}"
             )
+            sql += self.resource_id_where_clause
             if excluded_ids:
-                sql += "AND lineitem_resourceid NOT IN {{excluded_ids | inclause}}"
-            sql += " GROUP BY lineitem_resourceid"
+                sql += self.resource_id_exclusion_clause
+            sql += self.resource_id_group_by
             sql_params = {
                 "schema": self.schema,
                 "source_uuid": self.provider_uuid,
@@ -156,6 +240,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 "month": month,
                 "excluded_ids": excluded_ids,
                 "usage_account": usage_account,
+                "table": self.table,
             }
             ids = self._execute_trino_raw_sql_query(
                 sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
@@ -174,25 +259,13 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             sql_params[f"rid_{i}"] = rid
             sql_params[f"start_date_{i}"] = start_time
             sql_params[f"end_date_{i}"] = end_time
-            rid_sql_clause += (
-                "( lineitem_resourceid = {{{{ rid_{0} }}}}"
-                " AND lineitem_usagestartdate >= {{{{ start_date_{0} }}}}"
-                " AND lineitem_usagestartdate <= {{{{ end_date_{0} }}}})"
-            ).format(i)
+            rid_sql_clause += self.resource_id_sql_clause.format(i)
             if i < len(batch) - 1:
                 rid_sql_clause += " OR "
         rid_sql_clause += " )"
         where_clause += rid_sql_clause
         summary_sql += rid_sql_clause
-        summary_sql += """
-OFFSET
-      {{ offset }}
-    LIMIT
-      {{ limit }}
-  )
--- this ensures the required `com_redhat_rhel` tag exists in the set of tags since the above match is not exact
-WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
-"""
+        summary_sql += self.post_or_clause_sql
         total_count = self.determine_line_item_count(where_clause, sql_params)
         LOG.debug(
             log_json(

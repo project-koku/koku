@@ -30,6 +30,8 @@ QUEUE_LIST = [SUBS_EXTRACTION_QUEUE, SUBS_TRANSMISSION_QUEUE]
 SUBS_ACCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS,
     Provider.PROVIDER_AWS_LOCAL,
+    Provider.PROVIDER_AZURE,
+    Provider.PROVIDER_AZURE_LOCAL,
     # Add additional accepted providers here
 )
 

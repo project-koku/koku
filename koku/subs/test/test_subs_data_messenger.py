@@ -18,7 +18,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
     def setUpClass(cls):
         """Set up the class."""
         super().setUpClass()
-        cls.context = {"some": "context"}
+        cls.context = {"some": "context", "provider_type": "AWS-local"}
         cls.tracing_id = "trace_me"
         with patch("subs.subs_data_messenger.get_s3_resource"):
             cls.messenger = SUBSDataMessenger(cls.context, cls.schema, cls.tracing_id)
@@ -34,10 +34,10 @@ class TestSUBSDataMessenger(SUBSTestCase):
             {
                 "subs_start_time": "2023-07-01T01:00:00Z",
                 "subs_end_time": "2023-07-01T02:00:00Z",
-                "lineitem_resourceid": "i-55555556",
-                "lineitem_usageaccountid": "9999999999999",
+                "subs_resource_id": "i-55555556",
+                "subs_account": "9999999999999",
                 "physical_cores": "1",
-                "product_vcpu": "2",
+                "subs_vcpu": "2",
                 "variant": "Server",
                 "subs_usage": "Production",
                 "subs_sla": "Premium",
