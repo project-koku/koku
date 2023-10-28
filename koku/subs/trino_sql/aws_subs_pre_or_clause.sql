@@ -23,8 +23,7 @@ SELECT
     WHEN 'rhel 7 els' THEN '69-204'
     WHEN 'rhel 8 els' THEN '479-204'
     ELSE '479'
-  END as subs_product_ids,
-
+  END as subs_product_ids
 FROM
   (
     SELECT *,
