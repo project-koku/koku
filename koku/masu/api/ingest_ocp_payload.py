@@ -1,5 +1,30 @@
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""
+Masu API for POSTing and ingesting OCP payloads.
+
+POSTed payloads are uploaded to S3 and ingested. Multiple files may be posted simulataneously:
+
+```
+$ curl -F 'file2=@path/to/payload/payload-name-2.gz'  \
+    -F 'file1=@path/to/payload/payload-name-1.gz'  \
+    http://localhost:5042/api/cost-management/v1/ingest_ocp_payload/
+```
+
+Files already in the bucket in S3 can be ingested via a GET request. Multiple files can
+be ingested simultaneously by providing a comma separated list of payload names:
+
+```
+http://localhost:5042/api/cost-management/v1/ingest_ocp_payload/?payload_name=payload-name-1.gz,payload-name-2.gz
+```
+
+The x-rh-identity header is respected when GET/POST requests are made.
+
+"""
 import json
-import os
+from http import HTTPStatus
 from threading import Thread
 from uuid import uuid4
 
@@ -16,37 +41,18 @@ from rest_framework.settings import api_settings
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import extract_header
+from koku.env import ENVIRONMENT
 from masu.external.kafka_msg_handler import process_messages
 
 
-# header = """
-# eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjEwMDAxIiwib3JnX2lkIjoiMTIzNDU2NyIsInR
-# 5cGUiOiJVc2VyIiwidXNlciI6eyJ1c2VybmFtZSI6InVzZXJfZGV2IiwiZW1haWwiOiJ1c2VyX2Rldk
-# Bmb28uY29tIiwiaXNfb3JnX2FkbWluIjp0cnVlLCJhY2Nlc3MiOnsgfX19LCJlbnRpdGxlbWVudHMiO
-# nsiY29zdF9tYW5hZ2VtZW50Ijp7ImlzX2VudGl0bGVkIjp0cnVlfX19Cg==
-# """
-
-
-def get_s3_signature(url, file_name, method="get_object"):
-    s3 = boto3.client(
-        "s3",
-        endpoint_url=url,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET,
-        region_name=settings.S3_REGION,
-    )
-    return s3.generate_presigned_url(
-        ClientMethod=method,
-        Params={"Bucket": os.environ.get("S3_BUCKET_NAME_OCP_INGRESS"), "Key": file_name},
-        ExpiresIn=86400,
-    )
+OCP_INGRESS_BUCKET = ENVIRONMENT.get_value("S3_BUCKET_NAME_OCP_INGRESS", default="ocp-ingress")
 
 
 class MockMessage:
     """Test class for kafka msg."""
 
     def __init__(self, request, request_id, filename):
-        """Initialize Msg."""
+        """Initialize MockMessage."""
         s3_signature = get_s3_signature(settings.S3_ENDPOINT, filename)
         b64_identity, decoded_header = extract_header(request, RH_IDENTITY_HEADER)
         value_dict = {
@@ -63,11 +69,29 @@ class MockMessage:
         return self._value
 
 
-def upload_file_to_s3(signature, data):
+def get_s3_signature(url, file_name, *, bucket=OCP_INGRESS_BUCKET, method="get_object"):  # pragma: no cover
+    """Generate an s3 signature for a file in S3."""
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=url,
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET,
+        region_name=settings.S3_REGION,
+    )
+    return s3.generate_presigned_url(
+        ClientMethod=method,
+        Params={"Bucket": bucket, "Key": file_name},
+        ExpiresIn=86400,
+    )
+
+
+def upload_file_to_s3(signature, data):  # pragma: no cover
+    """Upload file to s3."""
     return requests.put(signature, data=data)
 
 
-def send_payload(request, request_id, filename):
+def send_payload(request, request_id, filename):  # pragma: no cover
+    """Create the mock Kafka message and start ingestion in a thread."""
     kmsg = MockMessage(request, request_id, filename)
     t = Thread(target=process_messages, args=(kmsg,))
     t.start()
@@ -87,7 +111,7 @@ def ingest_ocp_payload(request):
             response_data["payload-name"].append(payload_name)
             s3_signature = get_s3_signature(settings.S3_ENDPOINT, payload_name, method="put_object")
             res = upload_file_to_s3(s3_signature, data=file.file)
-            if res.status_code == 200:
+            if res.status_code == HTTPStatus.OK:
                 response_data["upload"] = "success"
             else:
                 response_data["upload"] = "failed"
@@ -103,4 +127,4 @@ def ingest_ocp_payload(request):
 
     response_data["ingest-started"] = True
 
-    return Response(response_data, status=202)
+    return Response(response_data, status=HTTPStatus.ACCEPTED)
