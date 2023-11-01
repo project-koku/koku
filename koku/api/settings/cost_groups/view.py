@@ -23,7 +23,7 @@ from reporting.provider.ocp.models import OpenshiftCostCategory
 SETTINGS_GENERATORS = {"settings": Settings}
 
 
-class PlatformFilter:
+class CostGroupsFilter:
     valid_fields = {"name", "kind", "project"}
     _default_platform_projects = ("kube-%", "openshift-%", "Platform unallocated")
 
@@ -75,7 +75,7 @@ class PlatformFilter:
         return result
 
 
-class PlatformCategoriesView(APIView):
+class CostGroupsView(APIView):
     """View to manage platform categories
 
     Projects added will be considered part of the platform cost.
@@ -83,7 +83,7 @@ class PlatformCategoriesView(APIView):
     """
 
     permission_classes = (SettingsAccessPermission,)
-    filter_class = PlatformFilter
+    filter_class = CostGroupsFilter
     _date_helper = DateHelper()
 
     @property

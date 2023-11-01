@@ -8,17 +8,17 @@ from django_tenants.utils import schema_context
 from rest_framework import status
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.settings.platform.view import PlatformCategoriesView
+from api.settings.platform.view import CostGroupsView
 
 
-class TestPlatformProjectsAPI(IamTestCase):
+class TestCostGroupsAPI(IamTestCase):
     @property
     def url(self):
-        return reverse("settings-platform")
+        return reverse("settings-cost-groups")
 
     @property
     def default_projects(self):
-        return sorted(PlatformCategoriesView._default_platform_projects)
+        return sorted(CostGroupsView._default_platform_projects)
 
     def test_get(self):
         """Get the current platform projects"""
