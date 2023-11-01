@@ -94,6 +94,9 @@ def ingest_ocp_payload(request):
     request_id = uuid4().hex
     response_data = {"request-id": request_id, "payload-name": []}
     if request.method == "POST":
+        if not request.FILES:
+            response_data["error"] = "no payload sent"
+            return Response(response_data, status=HTTPStatus.BAD_REQUEST)
         for _, file in request.FILES.items():
             payload_name = file.name
             response_data["payload-name"].append(payload_name)
@@ -108,7 +111,10 @@ def ingest_ocp_payload(request):
             send_payload(request_id, payload_name)
     else:
         params = request.query_params
-        payload_names = params.get("payload_name", "")
+        payload_names = params.get("payload_name")
+        if not payload_names:
+            response_data["error"] = "no payload sent"
+            return Response(response_data, status=HTTPStatus.BAD_REQUEST)
         for payload_name in payload_names.split(","):
             send_payload(request_id, payload_name)
             response_data["payload-name"].append(payload_name)

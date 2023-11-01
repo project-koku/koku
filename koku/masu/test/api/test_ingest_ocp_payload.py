@@ -21,13 +21,13 @@ class QueryParametersTests(TestCase):
                 {"file1": file1, "file2": file2},
                 "",
                 HTTPStatus.ACCEPTED,
-                {"upload": "success"},
+                {"upload": "success", "ingest-started": True},
                 "happy_path_post",
             ),
-            ("GET", {}, "?payload_name=file1,file2", HTTPStatus.ACCEPTED, {}, "happy_path_get"),
+            ("GET", {}, "?payload_name=file1,file2", HTTPStatus.ACCEPTED, {"ingest-started": True}, "happy_path_get"),
             # Edge cases
-            ("POST", {}, "", HTTPStatus.ACCEPTED, {}, "edge_case_no_files_post"),
-            ("GET", {}, "", HTTPStatus.ACCEPTED, {}, "edge_case_no_payload_name_get"),
+            ("POST", {}, "", HTTPStatus.BAD_REQUEST, {"error": "no payload sent"}, "edge_case_no_files_post"),
+            ("GET", {}, "", HTTPStatus.BAD_REQUEST, {"error": "no payload sent"}, "edge_case_no_payload_name_get"),
             # Error cases
             ("POST", {"file1": file1}, "", HTTPStatus.INTERNAL_SERVER_ERROR, {"upload": "failed"}, "error_case_post"),
             ("GET", {}, "?payload_name=non_existent_file", HTTPStatus.ACCEPTED, {}, "error_case_get"),
@@ -62,7 +62,5 @@ class QueryParametersTests(TestCase):
                         mock_upload_file_to_s3.assert_called()
                     if method == "GET" and "payload_name" in query_params:
                         mock_send_payload.assert_called()
-                    if expected_response.get("upload") != "failed":
-                        self.assertTrue(response.data["ingest-started"])
                     for key, value in expected_response.items():
                         self.assertEqual(response.data[key], value)
