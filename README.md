@@ -20,7 +20,7 @@ This project is developed using Python 3.9. Make sure you have at least this ver
 
 ### Prerequisites
 
-- Docker
+- Docker or Rancher Desktop
 - (macOS only) [Install Homebrew](https://brew.sh/)
 
 ## Development
@@ -75,7 +75,7 @@ do the following:
 
 ### Developing with Docker Compose
 
-This will explain how to start the server and its dependencies usin Docker, create AWS/OCP sources, and view reports. This will not cover all API or scenarios but should give you an end-to-end flow.
+This will explain how to start the server and its dependencies using Docker (or Rancher Desktop), create AWS/OCP sources, and view reports. This will not cover all API or scenarios but should give you an end-to-end flow.
 
 #### Starting Koku using Docker Compose
 
