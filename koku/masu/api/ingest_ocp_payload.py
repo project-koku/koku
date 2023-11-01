@@ -19,9 +19,6 @@ be ingested simultaneously by providing a comma separated list of payload names:
 ```
 http://localhost:5042/api/cost-management/v1/ingest_ocp_payload/?payload_name=payload-name-1.gz,payload-name-2.gz
 ```
-
-The x-rh-identity header is respected when GET/POST requests are made.
-
 """
 import json
 from http import HTTPStatus
@@ -39,8 +36,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from api.common import RH_IDENTITY_HEADER
-from api.iam.serializers import extract_header
 from koku.env import ENVIRONMENT
 from masu.external.kafka_msg_handler import process_messages
 
@@ -51,17 +46,10 @@ OCP_INGRESS_BUCKET = ENVIRONMENT.get_value("S3_BUCKET_NAME_OCP_INGRESS", default
 class MockMessage:
     """Test class for kafka msg."""
 
-    def __init__(self, request, request_id, filename):
+    def __init__(self, request_id, filename):
         """Initialize MockMessage."""
         s3_signature = get_s3_signature(settings.S3_ENDPOINT, filename)
-        b64_identity, decoded_header = extract_header(request, RH_IDENTITY_HEADER)
-        value_dict = {
-            "url": s3_signature,
-            "b64_identity": b64_identity,
-            "request_id": request_id,
-            "account": decoded_header.get("identity", {}).get("account_number"),
-            "org_id": decoded_header.get("identity", {}).get("org_id"),
-        }
+        value_dict = {"url": s3_signature, "b64_identity": "", "request_id": request_id}
 
         self._value = json.dumps(value_dict).encode("utf-8")
 
@@ -90,9 +78,9 @@ def upload_file_to_s3(signature, data):  # pragma: no cover
     return requests.put(signature, data=data)
 
 
-def send_payload(request, request_id, filename):  # pragma: no cover
+def send_payload(request_id, filename):  # pragma: no cover
     """Create the mock Kafka message and start ingestion in a thread."""
-    kmsg = MockMessage(request, request_id, filename)
+    kmsg = MockMessage(request_id, filename)
     t = Thread(target=process_messages, args=(kmsg,))
     t.start()
 
@@ -117,12 +105,12 @@ def ingest_ocp_payload(request):
                 response_data["upload"] = "failed"
                 response_data["failed-reason"] = res.reason
                 return Response(response_data, status=res.status_code)
-            send_payload(request, request_id, payload_name)
+            send_payload(request_id, payload_name)
     else:
         params = request.query_params
         payload_names = params.get("payload_name", "")
         for payload_name in payload_names.split(","):
-            send_payload(request, request_id, payload_name)
+            send_payload(request_id, payload_name)
             response_data["payload-name"].append(payload_name)
 
     response_data["ingest-started"] = True
