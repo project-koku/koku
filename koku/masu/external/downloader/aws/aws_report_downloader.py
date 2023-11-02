@@ -114,7 +114,10 @@ def create_daily_archives(
     )
     LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
     with pd.read_csv(
-        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, usecols=lambda x: x in use_cols
+        local_file,
+        chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
+        usecols=lambda x: x in use_cols,
+        dtype="str",
     ) as reader:
         for i, data_frame in enumerate(reader):
             if data_frame.empty:
