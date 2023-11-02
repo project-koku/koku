@@ -329,7 +329,9 @@ def summarize_reports(  # noqa: C901
         Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
         Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
     }
-    LOG.info(log_json("summarize_reports", msg="deduplicating reports", schema_name=report.get("schema_name")))
+
+    report_schema_name = report.get("schema_name", "") if report else ""
+    LOG.info(log_json("summarize_reports", msg="deduplicating reports", schema_name=report_schema_name))
     for report_list in reports_by_source.values():
         if report and report.get("provider_type") in dedup_func_map:
             provider_type = report.get("provider_type")
