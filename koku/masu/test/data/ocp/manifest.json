@@ -1,1 +1,9 @@
-{"files": ["e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv", "e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"], "date": "2019-02-05 16:18:40.706683", "uuid": "e6b3701e-1e91-433b-b238-a31e49937558", "cluster_id": "my-ocp-cluster-1"}
+{
+    "files": [
+        "e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv",
+        "e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"
+    ],
+    "date": "2019-02-05 16:18:40.706683",
+    "uuid": "e6b3701e-1e91-433b-b238-a31e49937558",
+    "cluster_id": "my-ocp-cluster-1"
+}

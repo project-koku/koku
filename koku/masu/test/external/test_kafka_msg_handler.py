@@ -23,7 +23,6 @@ from requests.exceptions import HTTPError
 import masu.external.kafka_msg_handler as msg_handler
 from api.provider.models import Provider
 from masu.config import Config
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import OCP_QUEUE
@@ -598,7 +597,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
+                            with patch(
+                                "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                            ):
                                 with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                     msg_handler.extract_payload(
                                         payload_url,
@@ -629,7 +630,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
+                            with patch(
+                                "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                            ):
                                 with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                     msg_handler.extract_payload(
                                         payload_url,
@@ -660,7 +663,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
+                            with patch(
+                                "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                            ):
                                 with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                     mock_ros_shipper.return_value.process_manifest_reports.side_effect = Exception
                                     with self.assertLogs(
@@ -691,7 +696,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
+                            with patch(
+                                "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                            ):
                                 with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                     msg_handler.extract_payload(
                                         payload_url,
@@ -740,7 +747,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
+                            with patch(
+                                "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                            ):
                                 with patch("masu.external.kafka_msg_handler.record_report_status"):
                                     msg_handler.extract_payload(
                                         payload_url,
@@ -769,7 +778,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                                     msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
@@ -791,7 +800,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     with patch(
                         "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                                     msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
@@ -868,22 +877,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 ):
                     account = msg_handler.get_account_from_cluster_id(cluster_id, "test_request_id", context)
                     test.get("expected_fn")(account, test)
-
-    def test_create_manifest_entries(self):
-        """Test to create manifest entries."""
-        report_meta = {
-            "schema_name": "test_schema",
-            "manifest_id": "1",
-            "provider_uuid": uuid.uuid4(),
-            "provider_type": "OCP",
-            "cluster_id": "cluster-id",
-            "compression": "UNCOMPRESSED",
-            "file": "/path/to/file.csv",
-            "date": datetime.now(),
-            "uuid": uuid.uuid4(),
-        }
-        with patch.object(OCPReportDownloader, "_prepare_db_manifest_record", return_value=1):
-            self.assertEqual(1, msg_handler.create_manifest_entries(report_meta, "test_request_id"))
 
     def test_send_confirmation_error(self):
         """Set up the test for raising a kafka error during sending confirmation."""

@@ -36,8 +36,8 @@ from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
+from masu.external.downloader.ocp.ocp_report_downloader import create_cost_and_usage_report_manifest
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor import is_customer_large
 from masu.processor._tasks.process import _process_report_file
@@ -75,31 +75,6 @@ def delivery_callback(err, msg):
         LOG.error(f"Failed to deliver message: {msg}: {err}")
     else:
         LOG.info("Validation message delivered.")
-
-
-def create_manifest_entries(report_meta, request_id, context={}):
-    """
-    Creates manifest database entries for report processing tracking.
-
-    Args:
-        report_meta (dict): Report context dictionary from extract_payload.
-        request_id (String): Identifier associated with the payload
-        context (Dict): Context for logging (account, etc)
-
-    Returns:
-        manifest_id (Integer): Manifest identifier of the created db entry.
-
-    """
-
-    downloader = OCPReportDownloader(
-        report_meta.get("schema_name"),
-        report_meta.get("cluster_id"),
-        None,
-        provider_uuid=report_meta.get("provider_uuid"),
-        request_id=request_id,
-        account=context.get("account", "no_account"),
-    )
-    return downloader._prepare_db_manifest_record(report_meta)
 
 
 def get_account_from_cluster_id(cluster_id, manifest_uuid, context={}):
@@ -245,11 +220,6 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     2. *.csv - Actual usage report for the cluster.  Format is:
         Format is: <uuid>_report_name.csv
 
-    On successful completion the report and manifest will be in a directory
-    structure that the OCPReportDownloader is expecting.
-
-    Ex: /var/tmp/insights_local/my-ocp-cluster-1/20181001-20181101
-
     Once the files are extracted:
     1. Provider account is retrieved for the cluster id.  If no account is found we return.
     2. Manifest database record is created which will establish the assembly_id and number of files
@@ -335,7 +305,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
 
     # Save Manifest
-    report_meta["manifest_id"] = create_manifest_entries(report_meta, request_id, context)
+    report_meta["manifest_id"] = create_cost_and_usage_report_manifest(provider_uuid, report_meta)
 
     # Copy report payload
     report_metas = []

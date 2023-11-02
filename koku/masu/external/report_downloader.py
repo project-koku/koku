@@ -21,7 +21,6 @@ from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLo
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from reporting_common.models import CostUsageReportStatus
@@ -100,7 +99,6 @@ class ReportDownloader:
             Provider.PROVIDER_OCI: OCIReportDownloader,
             Provider.PROVIDER_OCI_LOCAL: OCILocalReportDownloader,
             Provider.PROVIDER_IBM: IBMReportDownloader,
-            Provider.PROVIDER_OCP: OCPReportDownloader,
         }
         if self.provider_type in downloader_map:
             return downloader_map[self.provider_type](
@@ -213,7 +211,4 @@ class ReportDownloader:
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
         }
-        if self.provider_type == Provider.PROVIDER_OCP:
-            report["split_files"] = list(split_files)
-            report["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
         return report

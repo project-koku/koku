@@ -3,23 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Report Downloader."""
-import hashlib
 import logging
 import os
-import shutil
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
+from django.db import IntegrityError
 from django.db import transaction
 
 from api.common import log_json
 from api.provider.models import Provider
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external import UNCOMPRESSED
-from masu.external.downloader.downloader_interface import DownloaderInterface
-from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
@@ -205,156 +199,30 @@ def process_cr(report_meta):
     return manifest_info
 
 
-class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
-    """OCP Cost and Usage Report Downloader."""
+def create_cost_and_usage_report_manifest(provider_uuid, manifest):
+    """Prepare to insert or update the manifest DB record."""
+    assembly_id = manifest.get("uuid")
+    manifest_timestamp = manifest.get("date")
 
-    def __init__(self, customer_name, credentials, data_source, report_name=None, **kwargs):
-        """
-        Initializer.
+    start = (
+        manifest.get("start") or manifest_timestamp
+    )  # old manifests may not have a 'start', so fallback to the datetime when the manifest was created  # noqa: E501
+    date_range = utils.month_date_range(start)
+    billing_str = date_range.split("-")[0]
+    billing_start = datetime.strptime(billing_str, "%Y%m%d")
 
-        Args:
-            customer_name    (String) Name of the customer
-            credentials      (Dict) Credentials containing OpenShift cluster ID
-            report_name      (String) Name of the Cost Usage Report to download (optional)
-            data_source      (Dict) Not used for OCP
+    manifest_dict = {
+        "assembly_id": assembly_id,
+        "billing_period_start_datetime": billing_start,
+        "num_total_files": len(manifest.get("files") or []),
+        "provider_uuid": provider_uuid,
+        "manifest_modified_datetime": manifest_timestamp,
+    }
+    cr_info = process_cr(manifest)
 
-        """
-        super().__init__(**kwargs)
+    try:
+        manifest, _ = CostUsageReportManifest.objects.get_or_create(**manifest_dict, **cr_info)
+    except IntegrityError:
+        manifest = CostUsageReportManifest.objects.get(provider_id=provider_uuid, assembly_id=assembly_id)
 
-        LOG.debug("Connecting to OCP service provider...")
-
-        self.customer_name = customer_name.replace(" ", "_")
-        self.report_name = report_name
-        self.temp_dir = None
-        self.data_source = data_source
-        if isinstance(credentials, dict):
-            self.cluster_id = credentials.get("cluster_id")
-        else:
-            self.cluster_id = credentials
-        self.context["cluster_id"] = self.cluster_id
-        self.manifest = None
-
-    def _get_manifest(self, date_time):
-        dates = utils.month_date_range(date_time)
-        directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
-        msg = f"Looking for manifest at {directory}"
-        LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-        report_meta = utils.get_report_details(directory)
-        return report_meta
-
-    def get_manifest_context_for_date(self, date):
-        """
-        Get the manifest context for a provided date.
-
-        Args:
-            date (Date): The starting datetime object
-
-        Returns:
-            ({}) Dictionary containing the following keys:
-                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
-                assembly_id - (String): UUID identifying report file
-                compression - (String): Report compression format
-                files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
-
-        """
-        manifest = self._get_manifest(date)
-        if not manifest:
-            return {}
-
-        manifest_id = self._prepare_db_manifest_record(manifest)
-        self._remove_manifest_file(date)
-
-        report_dict = {
-            "manifest_id": manifest_id,
-            "assembly_id": manifest.get("uuid"),
-            "compression": UNCOMPRESSED,
-            "start": manifest.get("start"),
-            "end": manifest.get("end"),
-        }
-
-        files_list = []
-        for key in manifest.get("files"):
-            key_full_path = f"{REPORTS_DIR}/{self.cluster_id}/{utils.month_date_range(date)}/{os.path.basename(key)}"
-
-            file_dict = {"key": key_full_path, "local_file": self.get_local_file_for_report(key_full_path)}
-            files_list.append(file_dict)
-
-        report_dict["files"] = files_list
-        return report_dict
-
-    def _remove_manifest_file(self, date_time):
-        """Clean up the manifest file after extracting information."""
-        dates = utils.month_date_range(date_time)
-        directory = f"{REPORTS_DIR}/{self.cluster_id}/{dates}"
-
-        manifest_path = "{}/{}".format(directory, "manifest.json")
-        try:
-            os.remove(manifest_path)
-            msg = f"Deleted manifest file at {directory}"
-            LOG.debug(log_json(self.tracing_id, msg=msg, context=self.context))
-        except OSError:
-            msg = f"Could not delete manifest file at {directory}"
-            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-
-        return None
-
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
-        """
-        Download an OCP usage file.
-
-        Args:
-            key (str): The OCP file name.
-
-        Returns:
-            (String): The path and file name of the saved file
-
-        """
-        if not self.manifest:
-            self.manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
-        local_filename = utils.get_local_file_name(key)
-
-        directory_path = Path(DATA_DIR, self.customer_name, "ocp", self.cluster_id)
-        full_file_path = directory_path.joinpath(local_filename)
-
-        # Make sure the data directory exists
-        os.makedirs(directory_path, exist_ok=True)
-        etag_hasher = hashlib.new("ripemd160")
-        etag_hasher.update(bytes(local_filename, "utf-8"))
-        ocp_etag = etag_hasher.hexdigest()
-
-        file_creation_date = None
-        if ocp_etag != stored_etag or not os.path.isfile(full_file_path):
-            msg = f"Downloading {key} to {full_file_path}"
-            LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-            shutil.move(key, full_file_path)
-            file_creation_date = datetime.fromtimestamp(os.path.getmtime(full_file_path))
-
-        file_names = create_daily_archives(
-            self.tracing_id,
-            self.account,
-            self._provider_uuid,
-            full_file_path,
-            manifest_id,
-            start_date,
-            self.context,
-        )
-
-        return full_file_path, ocp_etag, file_creation_date, file_names, {}
-
-    def get_local_file_for_report(self, report):
-        """Get full path for local report file."""
-        return utils.get_local_file_name(report)
-
-    def _prepare_db_manifest_record(self, manifest):
-        """Prepare to insert or update the manifest DB record."""
-        assembly_id = manifest.get("uuid")
-
-        date_range = utils.month_date_range(manifest.get("date"))
-        billing_str = date_range.split("-")[0]
-        billing_start = datetime.strptime(billing_str, "%Y%m%d")
-        manifest_timestamp = manifest.get("date")
-        num_of_files = len(manifest.get("files") or [])
-        manifest_info = process_cr(manifest)
-        return self._process_manifest_db_record(
-            assembly_id, billing_start, num_of_files, manifest_timestamp, **manifest_info
-        )
+    return manifest.id
