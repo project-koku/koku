@@ -318,9 +318,14 @@ def summarize_reports(  # noqa: C901
 
     """
     reports_by_source = defaultdict(list)
+    schema_name = None
     for report in reports_to_summarize:
         if report:
             reports_by_source[report.get("provider_uuid")].append(report)
+
+            if schema_name is None:
+                # Only set the schema name once
+                schema_name = report.get("schema_name")
 
     reports_deduplicated = []
     dedup_func_map = {
@@ -331,7 +336,6 @@ def summarize_reports(  # noqa: C901
     }
 
     kwargs = {}
-    schema_name = report.get("schema_name") if report else None
     if schema_name:
         kwargs["schema_name"] = schema_name
 
