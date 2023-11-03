@@ -165,19 +165,6 @@ class OCITagsSummary(models.Model):
     payer_tenant_id = models.TextField(null=True)
 
 
-class OCIEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for OCIEnabledTagKeys."""
-
-        indexes = [models.Index(fields=["key", "enabled"], name="oci_enabled_key_index")]
-        db_table = "reporting_ocienabledtagkeys"
-
-    key = models.CharField(max_length=253, primary_key=True)
-    enabled = models.BooleanField(default=True)
-
-
 class OCICostSummaryP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
 
