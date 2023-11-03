@@ -21,7 +21,8 @@ def restart_celery():
     for pid in get_pid("celery"):
         os.kill(pid, signal.SIGTERM)
     cmd = [
-        "celery" "-A",
+        "celery",
+        "-A",
         "koku",
         "worker",
         "--without-gossip",
