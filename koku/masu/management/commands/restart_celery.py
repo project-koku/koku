@@ -21,8 +21,15 @@ def get_pid(name):
 def restart_celery():
     for pid in get_pid("celery"):
         os.kill(pid, signal.SIGTERM)
-    cmd = "celery -A koku worker --without-gossip -P solo -l info -Q celery,download,hcs,ocp,priority,summary,cost_model,refresh,subs_extraction,subs_transmission"  # noqa: E501
-    subprocess.run(shlex.split(cmd))
+    cmd =  [
+        "celery"
+        "-A", "koku", "worker",
+        "--without-gossip",
+        "-P", "solo",
+        "-l", "info",
+        "-Q", "celery,download,hcs,ocp,priority,summary,cost_model,refresh,subs_extraction,subs_transmission",
+    ]
+    subprocess.run(cmd)
 
 
 class Command(BaseCommand):
