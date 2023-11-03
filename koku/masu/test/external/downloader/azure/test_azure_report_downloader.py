@@ -444,6 +444,36 @@ class AzureReportDownloaderTest(MasuTestCase):
             os.remove(temp_path)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_check_leading_zeros(self, mock_copy):
+        """Check that the leading zeros are kept when downloading."""
+        file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
+        file_name = f"{file}.csv"
+        manifest_id = self.azure_manifest_id
+        file_path = f"./koku/masu/test/data/azure/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
+        ):
+            daily_file_names, date_range = create_daily_archives(
+                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+            )
+
+        for daily_file in daily_file_names:
+            with open(daily_file) as file:
+                csv = file.readlines()
+
+            self.assertIn("0039de71-ca37-4a17-a104-17665a50e7fc", csv[1].split(","))
+            self.assertIn("0fc067a1-65d2-46da-b24b-7a9cbe2c69bd", csv[1].split(","))
+            os.remove(daily_file)
+
+        os.remove(temp_path)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_dates_out_of_range(self, mock_copy):
         """Test that we correctly create daily archive files."""
         file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
