@@ -87,11 +87,13 @@ class UIFeatureAccess:
 
         """
         self.access_key_list = list(dataclasses.asdict(ACCESS_KEY_MAPPING))
-        self.access_dict = access or {}
+        self.access_dict = access if access else {}
         self.admin_user = admin_user
 
-    def check_if_valid_param(self, query_param: str) -> bool:
-        return bool(ACCESS_KEY_MAPPING.get(query_param))
+    def check_if_valid_param(self, query_param):
+        if query_param := ACCESS_KEY_MAPPING.get(query_param):
+            return True
+        return False
 
     def set_access_key_to_query_param(self, query_param):
         """Sets the access key list to what is passed."""
