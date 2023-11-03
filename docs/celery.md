@@ -8,8 +8,6 @@ One of the issues we've encountered in our development workflow is related to Ce
 
 **Issue:** The Celery worker does not auto-reload with Rancher, leading to development challenges.
 
-**Solution:** We need to address this issue to streamline our development process.
-
 ### Remote Attach Debugging with Visual Studio Code (VSCode)
 
 Debugging Celery workers in Koku can be made more efficient by setting up remote debugging with VSCode. Here are the steps to enable remote debugging:
@@ -45,4 +43,3 @@ koku-koku-worker-1  | Waiting for debugger attach on port 5678
 **Note:** If code changes are made, the container will auto-reload and the debugger will detach! It will be necessary to re-attach the debugger to continue debugging.
 
 More info can be found here: https://github.com/project-koku/koku/pull/4732
-
