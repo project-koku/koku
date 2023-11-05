@@ -11,13 +11,13 @@ from pathlib import Path
 import pandas as pd
 from dateutil import parser
 from django.conf import settings
+from django_tenants.utils import schema_context
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
-from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor import check_ingress_columns
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
@@ -39,6 +39,7 @@ from masu.util.oci.common import detect_type as oci_detect_type
 from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
+from reporting.ingress.models import IngressReports
 
 
 LOG = logging.getLogger(__name__)
@@ -490,12 +491,12 @@ class ParquetReportProcessor:
 
     def check_required_columns_for_ingress_reports(self, post_processor, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
-        if not check_ingress_columns:
+        if not check_ingress_columns(self.schema_name):
             if missing_cols := post_processor.check_ingress_required_columns(col_names):
                 message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
-                if self.ingress_reports_uuid:
-                    with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
-                        ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
+                with schema_context(self.schema_name):
+                    report = IngressReports.objets.get(uuid=self.ingress_reports_uuid)
+                    report.set_status(message)
                 raise ValidationError(message, code="Missing_columns")
 
     def convert_csv_to_parquet(self, csv_filename: os.PathLike):  # noqa: C901

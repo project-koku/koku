@@ -30,7 +30,6 @@ from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
@@ -61,10 +60,12 @@ from masu.util.common import execute_trino_query
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
+from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
+DH = DateHelper()
 
 DEFAULT = "celery"
 GET_REPORT_FILES_QUEUE = "download"
@@ -880,9 +881,9 @@ def mark_manifest_complete(  # noqa: C901
     with ReportManifestDBAccessor() as manifest_accessor:
         manifest_accessor.mark_manifests_as_completed(manifest_list)
     if ingress_report_uuid:
-        LOG.info(log_json(tracing_id, msg="marking ingress report complete", context=context))
-        with IngressReportDBAccessor(schema) as ingressreport_accessor:
-            ingressreport_accessor.mark_ingress_report_as_completed(ingress_report_uuid)
+        with schema_context(schema):
+            report = IngressReports.objects.get(uuid=ingress_report_uuid)
+            report.mark_completed()
 
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
@@ -1132,7 +1133,7 @@ def process_daily_openshift_on_cloud(
 
     base_where_clause = f"WHERE source='{provider_uuid}' AND year='{year}' AND month='{month}'"
 
-    days = DateHelper().list_days(start_date, end_date)
+    days = DH.list_days(start_date, end_date)
     for day in days:
         today_where_clause = f"{base_where_clause} AND {provider_where_clause.format(day)}"
         table_count_sql = f"SELECT count(*) FROM {table_name} {today_where_clause}"

@@ -37,7 +37,6 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -1282,7 +1281,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
     def test_mark_ingress_report_complete(self):
         """Test that we mark ingress reports complete."""
         provider = self.aws_provider
-        start = DateHelper().this_month_start
+        start = self.dh.this_month_start
         manifest = CostUsageReportManifest(
             **{
                 "assembly_id": "1",
@@ -1312,9 +1311,9 @@ class TestMarkManifestCompleteTask(MasuTestCase):
             tracing_id=1,
         )
 
-        ingress_report_accessor = IngressReportDBAccessor(self.schema)
-        ingress_report = ingress_report_accessor.get_ingress_report_by_uuid(ingress_report_uuid=ingress_report.uuid)
-        self.assertIsNotNone(ingress_report.completed_timestamp)
+        with schema_context(self.schema):
+            ingress_report.refresh_from_db()
+            self.assertIsNotNone(ingress_report.completed_timestamp)
 
 
 @override_settings(HOSTNAME="kokuworker")

@@ -13,12 +13,10 @@ from unittest.mock import PropertyMock
 
 import faker
 import pandas as pd
-from django_tenants.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
-from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -86,9 +84,6 @@ class TestParquetReportProcessor(MasuTestCase):
             "reports_list": ["test"],
             "source": self.aws_provider,
         }
-        self.ingress_report_accessor = IngressReportDBAccessor(self.schema)
-        with schema_context(self.schema):
-            self.added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
         self.report_processor_ingress = ParquetReportProcessor(
             schema_name=self.schema,
             report_path=self.report_path,
