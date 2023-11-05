@@ -212,6 +212,8 @@ class Provider(models.Model):
             "data_source": getattr(self.billing_source, "data_source", None),
             "provider_type": self.type,
             "schema_name": getattr(self.customer, "schema_name", None),
+            "account_id": getattr(self.customer, "account_id", None),
+            "org_id": getattr(self.customer, "org_id", None),
             "provider_uuid": self.uuid,
         }
 

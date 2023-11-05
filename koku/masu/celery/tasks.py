@@ -427,12 +427,11 @@ def check_cost_model_status(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in providers:
-        account = provider.account
-        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider.uuid)
+        cost_model_map = CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid)
         if cost_model_map.cost_model:
             skipped += 1
         else:
-            NotificationService().cost_model_notification(account)
+            NotificationService().cost_model_notification(provider)
             processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
@@ -454,8 +453,8 @@ def check_for_stale_ocp_source(provider_uuid=None):
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                account = Provider.objects.get(uuid=data.get("provider_id")).account
-                NotificationService().ocp_stale_source_notification(account)
+                provider = Provider.objects.get(uuid=data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(provider)
                 processed += 1
             else:
                 skipped += 1
