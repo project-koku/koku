@@ -26,7 +26,6 @@ from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util import common as utils
 from masu.util.common import get_path_prefix
@@ -371,13 +370,12 @@ def get_local_file_name(cur_key):
 
 def get_provider_uuid_from_arn(role_arn):
     """Returns provider_uuid given the arn."""
-    query = Provider.objects.filter(authentication_id__credentials__role_arn=role_arn)
-    if query.first():
-        return query.first().uuid
+    if p := Provider.objects.filter(authentication_id__credentials__role_arn=role_arn).first():
+        return p.uuid
     return None
 
 
-def get_account_alias_from_role_arn(arn, session=None):
+def get_account_alias_from_role_arn(arn, provider_uuid, session=None):
     """
     Get account ID for given RoleARN.
 
@@ -388,7 +386,6 @@ def get_account_alias_from_role_arn(arn, session=None):
         (String): Account ID
 
     """
-    provider_uuid = get_provider_uuid_from_arn(arn.arn)
     context_key = "aws_list_account_aliases"
     if not session:
         session = get_assume_role_session(arn)
@@ -397,11 +394,12 @@ def get_account_alias_from_role_arn(arn, session=None):
     account_id = arn.arn.split(":")[-2]
     alias = account_id
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        context = provider_accessor.get_additional_context()
-        list_aliases = context.get(context_key, True)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if not provider:
+        return (account_id, alias)
 
-    if list_aliases:
+    context = provider.additional_context or {}
+    if context.get(context_key, True):
         try:
             alias_response = iam_client.list_account_aliases()
             alias_list = alias_response.get("AccountAliases", [])
@@ -411,13 +409,13 @@ def get_account_alias_from_role_arn(arn, session=None):
         except ClientError as err:
             LOG.info("Unable to list account aliases.  Reason: %s", str(err))
             context[context_key] = False
-            with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                provider_accessor.set_additional_context(context)
+            provider.additional_context = context
+            provider.save(update_fields=["additional_context"])
 
     return (account_id, alias)
 
 
-def get_account_names_by_organization(arn, session=None):
+def get_account_names_by_organization(arn, provider_uuid, session=None):
     """
     Get account ID for given RoleARN.
 
@@ -429,16 +427,16 @@ def get_account_names_by_organization(arn, session=None):
 
     """
     context_key = "crawl_hierarchy"
-    provider_uuid = get_provider_uuid_from_arn(arn.arn)
     if not session:
         session = get_assume_role_session(arn)
     all_accounts = []
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        context = provider_accessor.get_additional_context()
-        crawlable = context.get(context_key, True)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if not provider:
+        return all_accounts
 
-    if crawlable:
+    context = provider.additional_context or {}
+    if context.get(context_key, True):
         try:
             org_client = session.client("organizations")
             paginator = org_client.get_paginator("list_accounts")
@@ -455,14 +453,14 @@ def get_account_names_by_organization(arn, session=None):
     return all_accounts
 
 
-def update_account_aliases(schema, credentials):
+def update_account_aliases(schema, credentials, provider_uuid):
     """Update the account aliases."""
     _arn = AwsArn(credentials)
-    account_id, account_alias = get_account_alias_from_role_arn(_arn)
+    account_id, account_alias = get_account_alias_from_role_arn(_arn, provider_uuid)
     with contextlib.suppress(IntegrityError), schema_context(schema):
         AWSAccountAlias.objects.get_or_create(account_id=account_id, account_alias=account_alias)
 
-    accounts = get_account_names_by_organization(_arn)
+    accounts = get_account_names_by_organization(_arn, provider_uuid)
     for account in accounts:
         acct_id = account.get("id")
         acct_alias = account.get("name")
@@ -497,9 +495,7 @@ def get_bills_from_provider(
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime(DATE_FMT)
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
-
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
     if not provider:
         err_msg = "Provider UUID is not associated with a given provider."
         LOG.warning(err_msg)

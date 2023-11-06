@@ -24,7 +24,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -357,16 +356,13 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with start date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__gte=end_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
@@ -381,16 +377,13 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with end date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__lte=start_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
@@ -405,16 +398,13 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with both dates."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = (
                     bills.filter(billing_period_start__gte=start_date.date())
