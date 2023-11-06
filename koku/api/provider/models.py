@@ -25,6 +25,12 @@ from koku.database import get_model
 LOG = logging.getLogger(__name__)
 
 
+def check_provider_setup_complete(provider_uuid):
+    """Return setup complete or None if Provider does not exist."""
+    if p := Provider.objects.filter(uuid=provider_uuid).first():
+        return p.setup_complete
+
+
 class ProviderAuthentication(models.Model):
     """A Koku Provider Authentication.
 

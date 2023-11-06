@@ -10,7 +10,8 @@ from celery import group
 from django.conf import settings
 
 from api.common import log_json
-from api.models import Provider
+from api.provider.models import check_provider_setup_complete
+from api.provider.models import Provider
 from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
@@ -32,7 +33,6 @@ from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import update_account_aliases
-from masu.util.common import check_setup_complete
 from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
 
@@ -115,7 +115,7 @@ class Orchestrator:
                 return [DateAccessor().get_billing_month_start(bill_date)]
             return [DateAccessor().get_billing_month_start(self.bill_date)]
 
-        if Config.INGEST_OVERRIDE or not check_setup_complete(provider_uuid):
+        if Config.INGEST_OVERRIDE or not check_provider_setup_complete(provider_uuid):
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
         else:
             number_of_months = 2
@@ -354,7 +354,7 @@ class Orchestrator:
                             provider_uuid=provider_uuid,
                         )
                     )
-                    update_account_aliases(account.get("schema_name"), account.get("credentials"))
+                    update_account_aliases(account.get("schema_name"), account.get("credentials"), provider_uuid)
                     LOG.info(
                         log_json(
                             tracing_id,
