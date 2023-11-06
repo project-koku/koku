@@ -385,27 +385,20 @@ def crawl_account_hierarchy(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in polling_accounts:
-        account = provider.account
         crawler = None
 
         # Look for a known crawler class to handle this provider
-        if account.get("provider_type") == Provider.PROVIDER_AWS:
-            crawler = AWSOrgUnitCrawler(account)
+        if provider.type == Provider.PROVIDER_AWS:
+            crawler = AWSOrgUnitCrawler(provider)
 
         if crawler:
             LOG.info(
-                "Starting account hierarchy crawler for type {} with provider_uuid: {}".format(
-                    account.get("provider_type"), account.get("provider_uuid")
-                )
+                f"Starting account hierarchy crawler for type {provider.type} with provider_uuid: {provider.uuid}"
             )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
-            LOG.info(
-                "No known crawler for account with provider_uuid: {} of type {}".format(
-                    account.get("provider_uuid"), account.get("provider_type")
-                )
-            )
+            LOG.info(f"No known crawler for account with provider_uuid: {provider.uuid} of type {provider.type}")
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
 
