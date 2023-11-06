@@ -164,6 +164,7 @@ class UserAccessView(APIView):
 
         ui_feature_access = UIFeatureAccess(user_access, admin_user)
         if access_type := query_params.get("type"):
+            access_type = access_type.lower()
             if not ui_feature_access.check_if_valid_param(access_type):
                 return Response(
                     {f"Unknown source type: {query_params.get('type')}"}, status=status.HTTP_400_BAD_REQUEST
