@@ -19,6 +19,7 @@ from kafka_utils.utils import get_producer
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.external.downloader.ocp.ocp_report_downloader import OPERATOR_VERSIONS
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 
@@ -61,12 +62,17 @@ class ROSReportShipper:
         self.provider_uuid = str(report_meta["provider_uuid"])
         self.request_id = report_meta["request_id"]
         self.schema_name = report_meta["schema_name"]
+        version = report_meta.get("version")
         self.metadata = {
             "account": context["account"],
             "org_id": context["org_id"],
             "source_id": self.source_id,
             "provider_uuid": self.provider_uuid,
             "cluster_uuid": report_meta["cluster_id"],
+            "operator_version": OPERATOR_VERSIONS.get(
+                version,
+                version,  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
+            ),
         }
         self.s3_client = get_ros_s3_client()
         self.dh = DateHelper()

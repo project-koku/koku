@@ -191,20 +191,6 @@ class AzureTagsSummary(models.Model):
     subscription_guid = models.TextField(null=True)
 
 
-class AzureEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for AzureEnabledTagKeys."""
-
-        db_table = "reporting_azureenabledtagkeys"
-        indexes = [models.Index(name="azure_enabled_covering_ix", fields=["key", "enabled"])]
-
-    id = models.BigAutoField(primary_key=True)
-    key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=True)
-
-
 # ======================================================
 #  Partitioned Models to replace matviews
 # ======================================================
