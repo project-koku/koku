@@ -183,8 +183,14 @@ trigger_ocp_ingest() {
   #
   UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$1'" | head -1 | sed -e 's/^[ \t]*//')
   if [[ ! -z $UUID ]]; then
-    local formatted_start_date=$(date -j -f "%Y-%m-%d" "$START_DATE" +'%Y_%m')
-    local formatted_end_date=$(date -j -f "%Y-%m-%d" "$END_DATE" +'%Y_%m')
+    if [[ $OS = "Darwin" ]]; then
+        local formatted_start_date=$(date -j -f "%Y-%m-%d" "$START_DATE" +'%Y_%m')
+        local formatted_end_date=$(date -j -f "%Y-%m-%d" "$END_DATE" +'%Y_%m')
+    else
+        local tmp_start="$START_DATE"
+        local formatted_start_date=$(date -d "$START_DATE" +'%Y_%m')
+        local formatted_end_date=$(date -d "$END_DATE" +'%Y_%m')
+    fi
     while [ ! "$formatted_start_date" \> "$formatted_end_date" ]; do
       local payload_name="$2.$formatted_start_date.tar.gz"
       log-info "Triggering ingest for, source_name: $1, uuid: $UUID, payload_name: $payload_name"
@@ -198,7 +204,12 @@ trigger_ocp_ingest() {
       if [[ $STATUS_CODE != 202 ]];then
         log-err $DATA
       fi
-      formatted_start_date=$(date -j -v+1m -f "%Y_%m" "$formatted_start_date" +'%Y_%m')
+      if [[ $OS = "Darwin" ]]; then
+        formatted_start_date=$(date -j -v+1m -f "%Y_%m" "$formatted_start_date" +'%Y_%m')
+      else
+        formatted_start_date=$(date -d "${tmp_start}+1 month" +'%Y_%m')
+        tmp_start=$(date -d "${tmp_start}+1 month" '+%Y-%m-d')
+      fi
     done
 
   else
