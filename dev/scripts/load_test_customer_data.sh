@@ -208,7 +208,7 @@ trigger_ocp_ingest() {
         formatted_start_date=$(date -j -v+1m -f "%Y_%m" "$formatted_start_date" +'%Y_%m')
       else
         formatted_start_date=$(date -d "${tmp_start}+1 month" +'%Y_%m')
-        tmp_start=$(date -d "${tmp_start}+1 month" '+%Y-%m-d')
+        tmp_start=$(date -d "${tmp_start}+1 month" '+%Y-%m-%d')
       fi
     done
 
