@@ -108,7 +108,7 @@ def create_daily_archives(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
     with pd.read_csv(
-        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval]
+        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval], dtype="str"
     ) as reader:
         for i, data_frame in enumerate(reader):
             if data_frame.empty:

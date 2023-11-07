@@ -237,6 +237,13 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
     httpd.RequestHandlerClass._collector = collect_queue_metrics
 
+    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):
+        import debugpy
+
+        debugpy.listen(("0.0.0.0", 5678))
+        print("Waiting for debugger attach on port 5678")
+        debugpy.wait_for_client()
+
 
 @worker_process_init.connect
 def init_worker(**kwargs):

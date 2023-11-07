@@ -33,7 +33,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
@@ -62,6 +61,7 @@ from masu.util.common import execute_trino_query
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -112,8 +112,8 @@ def record_all_manifest_files(manifest_id, report_files, tracing_id):
     """Store all report file names for manifest ID."""
     for report in report_files:
         try:
-            with ReportStatsDBAccessor(report, manifest_id):
-                LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}"))
+            _, created = CostUsageReportStatus.objects.get_or_create(report_name=report, manifest_id=manifest_id)
+            LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}, created: {created}"))
         except IntegrityError:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
@@ -143,8 +143,8 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
 
     """
     already_processed = False
-    with ReportStatsDBAccessor(file_name, manifest_id) as db_accessor:
-        already_processed = db_accessor.get_last_completed_datetime()
+    if stats := CostUsageReportStatus.objects.filter(report_name=file_name, manifest_id=manifest_id).first():
+        already_processed = stats.last_completed_datetime
         if already_processed:
             msg = f"Report {file_name} has already been processed."
         else:
@@ -318,9 +318,14 @@ def summarize_reports(  # noqa: C901
 
     """
     reports_by_source = defaultdict(list)
+    schema_name = None
     for report in reports_to_summarize:
         if report:
             reports_by_source[report.get("provider_uuid")].append(report)
+
+            if schema_name is None:
+                # Only set the schema name once
+                schema_name = report.get("schema_name")
 
     reports_deduplicated = []
     dedup_func_map = {
@@ -329,7 +334,12 @@ def summarize_reports(  # noqa: C901
         Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
         Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
     }
-    LOG.info(log_json("summarize_reports", msg="deduplicating reports"))
+
+    kwargs = {}
+    if schema_name:
+        kwargs["schema_name"] = schema_name
+
+    LOG.info(log_json("summarize_reports", msg="deduplicating reports", **kwargs))
     for report_list in reports_by_source.values():
         if report and report.get("provider_type") in dedup_func_map:
             provider_type = report.get("provider_type")
@@ -357,7 +367,13 @@ def summarize_reports(  # noqa: C901
                 }
             )
 
-    LOG.info(log_json("summarize_reports", msg=f"deduplicated reports, num report: {len(reports_deduplicated)}"))
+    LOG.info(
+        log_json(
+            "summarize_reports",
+            msg=f"deduplicated reports, num report: {len(reports_deduplicated)}",
+            **kwargs,
+        )
+    )
     for report in reports_deduplicated:
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.

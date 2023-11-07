@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pandas as pd
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -25,6 +26,7 @@ from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownload
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
@@ -52,13 +54,12 @@ class OCPReportDownloaderTest(MasuTestCase):
         report_path = "{}/{}/{}".format(REPORTS_DIR, self.cluster_id, "20180901-20181001")
         os.makedirs(report_path, exist_ok=True)
 
-        test_file_path = (
-            "./koku/masu/test/data/ocp/e6b3701e-1e91" "-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv"
-        )
+        self.test_filename = "e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv"
+        test_file_path = f"./koku/masu/test/data/ocp/{self.test_filename}"
         self.test_file_path = os.path.join(report_path, os.path.basename(test_file_path))
         shutil.copyfile(test_file_path, os.path.join(report_path, self.test_file_path))
 
-        test_storage_file_path = "./koku/masu/test/data/ocp/e6b3701e-1e91" "-433b-b238-a31e49937558_storage.csv"
+        test_storage_file_path = "./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv"
         self.test_storage_file_path = os.path.join(report_path, os.path.basename(test_storage_file_path))
         shutil.copyfile(test_file_path, os.path.join(report_path, self.test_storage_file_path))
 
@@ -90,14 +91,18 @@ class OCPReportDownloaderTest(MasuTestCase):
         super().tearDown()
         shutil.rmtree(REPORTS_DIR, ignore_errors=True)
 
+    @patch("masu.external.report_downloader.OCPReportDownloader.get_local_file_for_report")
     @patch("masu.util.aws.common.copy_data_to_s3_bucket", return_value=None)
-    def test_download_bucket(self, mock_copys3):
+    def test_download_bucket(self, mock_copys3, mock_get_file):
         """Test to verify that basic report downloading works."""
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
+            mock_get_file.return_value = self.test_filename
+            manifest_id = 1
+            baker.make(CostUsageReportStatus, report_name=self.test_filename, manifest_id=manifest_id)
             report_context = {
                 "date": test_report_date,
-                "manifest_id": 1,
+                "manifest_id": manifest_id,
                 "comporession": "GZIP",
                 "current_file": self.test_file_path,
             }
@@ -105,22 +110,27 @@ class OCPReportDownloaderTest(MasuTestCase):
         expected_path = "{}/{}/{}".format(Config.TMP_DIR, self.fake_customer_name, "ocp")
         self.assertTrue(os.path.isdir(expected_path))
 
-    def test_download_bucket_no_csv_found(self):
+    @patch("masu.external.report_downloader.OCPReportDownloader.get_local_file_for_report")
+    def test_download_bucket_no_csv_found(self, mock_get_file):
         """Test to verify that basic report downloading with no .csv file in source directory."""
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
             os.remove(self.test_file_path)
             os.remove(self.test_storage_file_path)
             with self.assertRaises(FileNotFoundError):
+                mock_get_file.return_value = self.test_filename
+                manifest_id = 1
+                baker.make(CostUsageReportStatus, report_name=self.test_filename, manifest_id=manifest_id)
                 report_context = {
                     "date": test_report_date.date(),
-                    "manifest_id": 1,
+                    "manifest_id": manifest_id,
                     "comporession": "GZIP",
                     "current_file": self.test_file_path,
                 }
                 self.report_downloader.download_report(report_context)
 
-    def test_download_bucket_non_csv_found(self):
+    @patch("masu.external.report_downloader.OCPReportDownloader.get_local_file_for_report")
+    def test_download_bucket_non_csv_found(self, mock_get_file):
         """Test to verify that basic report downloading with non .csv file in source directory."""
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
@@ -131,10 +141,13 @@ class OCPReportDownloaderTest(MasuTestCase):
             # Create .txt file
             txt_file_path = "{}/{}".format(os.path.dirname(self.test_file_path), "report.txt")
             open(txt_file_path, "a").close()
+            mock_get_file.return_value = txt_file_path
+            manifest_id = 1
+            baker.make(CostUsageReportStatus, report_name=txt_file_path, manifest_id=manifest_id)
             with self.assertRaises(FileNotFoundError):
                 report_context = {
                     "date": test_report_date.date(),
-                    "manifest_id": 1,
+                    "manifest_id": manifest_id,
                     "comporession": "GZIP",
                     "current_file": self.test_file_path,
                 }
