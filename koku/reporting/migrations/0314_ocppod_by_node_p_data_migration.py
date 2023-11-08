@@ -39,5 +39,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(code=migrate_node_date, reverse_code=migrations.RunPython.noop),
+        # this was a 1-time data migration, so now this is a no-op
+        # migrations.RunPython(code=migrate_node_date, reverse_code=migrations.RunPython.noop),
     ]
