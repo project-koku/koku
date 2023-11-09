@@ -158,6 +158,7 @@
         successThreshold: 1
         failureThreshold: 5
         timeoutSeconds: 10
+      terminationGracePeriodSeconds: 3600
       resources:
         limits:
           cpu: ${WORKER_REFRESH_XL_CPU_LIMIT}
