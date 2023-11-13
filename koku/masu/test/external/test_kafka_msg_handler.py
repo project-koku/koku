@@ -684,7 +684,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     shutil.rmtree(fake_dir)
                                     shutil.rmtree(fake_pvc_dir)
 
-    def test_extract_payload_dates(self):
+    @patch("masu.external.kafka_msg_handler.ROSReportShipper")
+    def test_extract_payload_dates(self, _):
         """Test to verify extracting payload is successful."""
 
         fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
@@ -712,8 +713,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     )
                                     expected_path = "{}/{}/{}/".format(
                                         Config.INSIGHTS_LOCAL_REPORT_DIR,
-                                        "5997a261-f23e-45d1-8e01-ee3c765f3aec",
-                                        "20210101-20210201",
+                                        "16b9a60d-0774-4102-9028-bd28d6c38ac2",
+                                        "20230801-20230901",
                                     )
                                     self.assertTrue(os.path.isdir(expected_path))
                                     shutil.rmtree(fake_dir)
@@ -938,7 +939,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_extract_payload_content_and_process_cr(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp = tempfile.NamedTemporaryFile(dir=tmp_dir.name, delete=False)
+            tmp = tempfile.NamedTemporaryFile(dir=tmp_dir, delete=False)
             with open(tmp.name, "wb") as f:
                 f.write(self.dates_tarball)
 
