@@ -957,6 +957,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
             cr_data = msg_handler.process_cr(report_meta)
             self.assertEqual(cr_data["operator_version"], "costmanagement-metrics-operator:3.0.1")
 
+    def test_create_cost_and_usage_report_manifest(self):
+        manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
+        report_meta = utils.get_report_details(manifest.parent)
+        manifest_id = msg_handler.create_cost_and_usage_report_manifest(self.ocp_provider_uuid, report_meta)
+        manifest = CostUsageReportManifest.objects.get(id=manifest_id)
+        self.assertEqual(manifest.assembly_id, report_meta["uuid"])
+        self.assertEqual(manifest.manifest_modified_datetime, report_meta["date"])
+        self.assertEqual(manifest.operator_version, "e03142a32dce56bced9dde7963859832129f1a3a")
+
     def test_divide_csv_daily(self):
         """Test the divide_csv_daily method."""
         with tempfile.TemporaryDirectory() as td:

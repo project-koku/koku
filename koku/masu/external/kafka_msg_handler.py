@@ -221,7 +221,7 @@ def create_cost_and_usage_report_manifest(provider_uuid, manifest):
         "assembly_id": assembly_id,
         "billing_period_start_datetime": billing_start,
         "num_total_files": len(manifest.get("files") or []),
-        "provider_uuid": provider_uuid,
+        "provider_id": provider_uuid,
         "manifest_modified_datetime": manifest_timestamp,
     }
     cr_info = process_cr(manifest)
