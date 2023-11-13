@@ -19,8 +19,8 @@ from kafka_utils.utils import get_producer
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.downloader.ocp.ocp_report_downloader import OPERATOR_VERSIONS
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.util.ocp import common as utils
 
 
 LOG = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ class ROSReportShipper:
             "source_id": self.source_id,
             "provider_uuid": self.provider_uuid,
             "cluster_uuid": report_meta["cluster_id"],
-            "operator_version": OPERATOR_VERSIONS.get(
+            "operator_version": utils.OPERATOR_VERSIONS.get(
                 version,
                 version,  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
             ),

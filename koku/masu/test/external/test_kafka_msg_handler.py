@@ -31,6 +31,7 @@ from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -141,9 +142,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
         super().setUp()
         logging.disable(logging.NOTSET)
 
+        self.test_payload_file = Path("./koku/masu/test/data/ocp/payload2.tar.gz")
+
         with open("./koku/masu/test/data/ocp/payload.tar.gz", "rb") as payload_file:
             self.tarball_file = payload_file.read()
-        with open("./koku/masu/test/data/ocp/payload2.tar.gz", "rb") as payload_file_dates:
+        with open(self.test_payload_file, "rb") as payload_file_dates:
             self.dates_tarball = payload_file_dates.read()
         with open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb") as bad_payload_file:
             self.bad_tarball_file = bad_payload_file.read()
@@ -932,6 +935,26 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch("masu.external.kafka_msg_handler.is_customer_large", return_value=True):
                     msg_handler.summarize_manifest(report_meta, self.manifest_id)
                     self.assertIn(OCP_QUEUE_XL, mock_summarize_reports.call_args.args)
+
+    def test_extract_payload_content_and_process_cr(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = tempfile.NamedTemporaryFile(dir=tmp_dir.name, delete=False)
+            with open(tmp.name, "wb") as f:
+                f.write(self.dates_tarball)
+
+            filename = Path(tmp.name)
+            manifest, _ = msg_handler.extract_payload_contents(uuid.uuid4().hex, filename, {})
+            manifest_path = filename.parent.joinpath(manifest)
+            self.assertTrue(os.path.isfile(manifest_path))
+
+            report_meta = utils.get_report_details(filename.parent)
+            self.assertEqual(report_meta["version"], "e03142a32dce56bced9dde7963859832129f1a3a")
+            cr_data = msg_handler.process_cr(report_meta)
+            self.assertEqual(cr_data["operator_version"], "e03142a32dce56bced9dde7963859832129f1a3a")
+
+            report_meta["version"] = "b5a2c05255069215eb564dcc5c4ec6ca4b33325d"
+            cr_data = msg_handler.process_cr(report_meta)
+            self.assertEqual(cr_data["operator_version"], "costmanagement-metrics-operator:3.0.1")
 
     def test_divide_csv_daily(self):
         """Test the divide_csv_daily method."""
