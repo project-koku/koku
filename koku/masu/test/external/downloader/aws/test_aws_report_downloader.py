@@ -687,9 +687,11 @@ class AWSReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2023-06-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
-        with patch(
-            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-            return_value=start_date,
+        with (
+            patch(
+                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+                return_value=start_date,
+            )
         ):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
@@ -703,6 +705,35 @@ class AWSReportDownloaderTest(MasuTestCase):
                 self.assertTrue(os.path.exists(daily_file))
                 os.remove(daily_file)
             os.remove(temp_path)
+
+    @patch("masu.util.aws.common.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_check_leading_zeros(self, mock_copy):
+        """Check that the leading zeros are kept when downloading."""
+        file = "2023-06-01"
+        file_name = f"{file}.csv"
+        manifest_id = self.aws_manifest_id
+        file_path = f"./koku/masu/test/data/aws/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
+        ):
+            daily_file_names, date_range = create_daily_archives(
+                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+            )
+
+        for daily_file in daily_file_names:
+            with open(daily_file) as file:
+                csv = file.readlines()
+
+            self.assertIn("0099999999999", csv[1].split(","))
+            os.remove(daily_file)
+
+        os.remove(temp_path)
 
     def test_create_daily_archives_dates_out_of_range(self):
         """Test that we correctly create daily archive files."""

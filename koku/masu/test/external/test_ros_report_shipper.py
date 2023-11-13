@@ -114,6 +114,7 @@ class TestROSReportShipper(TestCase):
                 "source_id": self.source_id,
                 "provider_uuid": self.provider_uuid,
                 "cluster_uuid": self.cluster_id,
+                "operator_version": None,
                 "cluster_alias": "my-source-name",
             },
             "files": ["report1_url"],
