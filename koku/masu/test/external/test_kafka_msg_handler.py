@@ -11,9 +11,11 @@ import shutil
 import tempfile
 import uuid
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pandas as pd
 import requests_mock
 from confluent_kafka import KafkaError
 from django.db import InterfaceError
@@ -29,6 +31,11 @@ from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportManifest
+
+
+FILE_PATH_ONE = Path("path/to/file_one")
+FILE_PATH_TWO = Path("path/to/file_two")
 
 
 def raise_exception():
@@ -133,30 +140,24 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Set up each test case."""
         super().setUp()
         logging.disable(logging.NOTSET)
-        payload_file = open("./koku/masu/test/data/ocp/payload.tar.gz", "rb")
-        payload_file_dates = open("./koku/masu/test/data/ocp/payload2.tar.gz", "rb")
-        bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
-        no_manifest_file = open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb")
-        ros_payload_file = open("./koku/masu/test/data/ocp/ros_payload.tar.gz", "rb")
 
-        self.tarball_file = payload_file.read()
-        payload_file.close()
-
-        self.dates_tarball = payload_file_dates.read()
-        payload_file_dates.close()
-
-        self.bad_tarball_file = bad_payload_file.read()
-        bad_payload_file.close()
-
-        self.no_manifest_file = no_manifest_file.read()
-        no_manifest_file.close()
-
-        self.ros_tarball_file = ros_payload_file.read()
-        ros_payload_file.close()
+        with open("./koku/masu/test/data/ocp/payload.tar.gz", "rb") as payload_file:
+            self.tarball_file = payload_file.read()
+        with open("./koku/masu/test/data/ocp/payload2.tar.gz", "rb") as payload_file_dates:
+            self.dates_tarball = payload_file_dates.read()
+        with open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb") as bad_payload_file:
+            self.bad_tarball_file = bad_payload_file.read()
+        with open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb") as no_manifest_file:
+            self.no_manifest_file = no_manifest_file.read()
+        with open("./koku/masu/test/data/ocp/ros_payload.tar.gz", "rb") as ros_payload_file:
+            self.ros_tarball_file = ros_payload_file.read()
 
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
         self.manifest_id = "1234"
+
+        self.ocp_manifest = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first()
+        self.ocp_manifest_id = self.ocp_manifest.id
 
     @patch("masu.external.kafka_msg_handler.listen_for_messages")
     @patch("masu.external.kafka_msg_handler.get_consumer")
@@ -727,7 +728,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch("masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=None):
                         self.assertFalse(
-                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")[0]
+                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})[0]
                         )
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_data_dir)
@@ -781,7 +782,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         with patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
@@ -803,7 +804,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                         with patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
@@ -815,7 +816,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, exc=HTTPError)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
 
     def test_extract_payload_unable_to_open(self):
         """Test to verify extracting payload exceptions are handled."""
@@ -826,7 +827,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch("masu.external.kafka_msg_handler.Path.write_bytes") as mock_oserror:
                 mock_oserror.side_effect = PermissionError
                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
 
     def test_extract_payload_wrong_file_type(self):
         """Test to verify extracting payload is successful."""
@@ -840,7 +841,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=csv_file)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
 
     def test_get_account_from_cluster_id(self):
         """Test to find account from cluster id."""
@@ -931,3 +932,128 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch("masu.external.kafka_msg_handler.is_customer_large", return_value=True):
                     msg_handler.summarize_manifest(report_meta, self.manifest_id)
                     self.assertIn(OCP_QUEUE_XL, mock_summarize_reports.call_args.args)
+
+    def test_divide_csv_daily(self):
+        """Test the divide_csv_daily method."""
+        with tempfile.TemporaryDirectory() as td:
+            filename = "storage_data.csv"
+            file_path = Path(td, filename)
+            with patch("masu.external.kafka_msg_handler.pd") as mock_pd:
+                with patch(
+                    "masu.external.kafka_msg_handler.utils.detect_type",
+                    return_value=("storage_usage", None),
+                ):
+                    dates = ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"]
+                    mock_report = {
+                        "interval_start": dates,
+                        "persistentvolumeclaim_labels": ["label1", "label2"],
+                    }
+                    df = pd.DataFrame(data=mock_report)
+                    mock_pd.read_csv.return_value = df
+                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id)
+                    self.assertNotEqual([], daily_files)
+                    self.assertEqual(len(daily_files), 2)
+                    gen_files = [
+                        f"storage_usage.2020-01-01.{self.ocp_manifest_id}.0.csv",
+                        f"storage_usage.2020-01-02.{self.ocp_manifest_id}.0.csv",
+                    ]
+                    expected_dates = [datetime.strptime(date[:10], "%Y-%m-%d") for date in dates]
+                    expected = [
+                        {"filepath": Path(td, gen_file), "date": expected_dates[i], "num_hours": 1}
+                        for i, gen_file in enumerate(gen_files)
+                    ]
+                    for expected_item in expected:
+                        self.assertIn(expected_item, daily_files)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.kafka_msg_handler.divide_csv_daily")
+    def test_create_daily_archives_very_old_operator(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        # modify the manifest to remove the operator version to test really old operators:
+        self.ocp_manifest.operator_version = None
+        self.ocp_manifest.save()
+
+        start_date = self.dh.this_month_start
+        daily_files = [
+            {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
+            {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
+        ]
+        expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
+
+        mock_divide.return_value = daily_files
+
+        file_path = Path("path")
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
+        )
+
+        self.assertCountEqual(result.keys(), expected_filenames)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_non_daily_operator_files(self, *args):
+        """Test that this method returns a file list."""
+        start_date = self.dh.this_month_start
+
+        file_path = Path("path")
+
+        context = {"version": "1"}
+        expected = [file_path]
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, context=context
+        )
+        self.assertCountEqual(result.keys(), expected)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.kafka_msg_handler.divide_csv_daily")
+    def test_create_daily_archives_daily_operator_files(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        self.ocp_manifest.operator_daily_reports = True
+        self.ocp_manifest.save()
+
+        start_date = self.dh.this_month_start
+        daily_files = [
+            {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 23},
+            {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-02"), "num_hours": 24},
+        ]
+        expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
+        expected_result = {
+            FILE_PATH_ONE: {"meta_reportdatestart": "2020-01-01", "meta_reportnumhours": "23"},
+            FILE_PATH_TWO: {"meta_reportdatestart": "2020-01-02", "meta_reportnumhours": "24"},
+        }
+
+        mock_divide.return_value = daily_files
+
+        file_path = Path("path")
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
+        )
+
+        self.assertCountEqual(result.keys(), expected_filenames)
+        self.assertDictEqual(result, expected_result)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.kafka_msg_handler.divide_csv_daily")
+    def test_create_daily_archives_daily_operator_files_empty_file(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        self.ocp_manifest.operator_daily_reports = True
+        self.ocp_manifest.save()
+
+        start_date = self.dh.this_month_start
+
+        # simulate empty report file
+        mock_divide.return_value = None
+
+        file_path = Path("path")
+        expected_result = {
+            file_path: {"meta_reportdatestart": str(start_date.date()), "meta_reportnumhours": "0"},
+        }
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
+        )
+
+        self.assertCountEqual(result.keys(), [file_path])
+        self.assertDictEqual(result, expected_result)
