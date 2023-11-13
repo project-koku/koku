@@ -22,12 +22,10 @@ class HCSDataTests(TestCase):
     ENDPOINT = "hcs_report_data"
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.hcs_report_data.ProviderDBAccessor")
     @patch("masu.api.hcs_report_data.collect_hcs_report_data")
-    def test_get_report_data(self, mock_celery, mock_accessor, _):
+    def test_get_report_data(self, mock_celery, _):
         """Test the GET report_data endpoint."""
-        provider_type = Provider.PROVIDER_AWS
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        p = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
         end_date = DateHelper().today
         start_date = end_date - timedelta(days=1)
 
@@ -35,7 +33,7 @@ class HCSDataTests(TestCase):
             "schema": "org1234567",
             "start_date": start_date.date().strftime("%Y-%m-%d"),
             "end_date": end_date.date().strftime("%Y-%m-%d"),
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": str(p.uuid),
             "provider": "AWS",
             "tracing_id": str(uuid.uuid4()),
         }
