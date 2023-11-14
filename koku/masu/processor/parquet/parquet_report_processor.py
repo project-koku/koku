@@ -6,6 +6,7 @@
 import datetime
 import logging
 import os
+from functools import cached_property
 from pathlib import Path
 
 import pandas as pd
@@ -290,7 +291,7 @@ class ParquetReportProcessor:
             else get_s3_objects_not_matching_metadata
         )
 
-    @property
+    @cached_property
     def post_processor(self):
         """Post processor based on provider type."""
         if self.provider_type == Provider.PROVIDER_AWS:
