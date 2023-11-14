@@ -271,27 +271,19 @@ class Provider(models.Model):
             )
 
     def set_additional_context(self, context):
-        from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
-
+        """Set the `additional_context` field to the provided context."""
         self.additional_context = context
         self.save(update_fields=["additional_context"])
-        invalidate_view_cache_for_tenant_and_cache_key(PUBLIC)
 
     def set_data_updated_timestamp(self):
         """Set the data updated timestamp to the current time."""
-        from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
-
         self.data_updated_timestamp = timezone.now()
         self.save(update_fields=["data_updated_timestamp"])
-        invalidate_view_cache_for_tenant_and_cache_key(PUBLIC)
 
     def set_setup_complete(self):
         """Set setup_complete to True."""
-        from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
-
         self.setup_complete = True
         self.save(update_fields=["setup_complete"])
-        invalidate_view_cache_for_tenant_and_cache_key(PUBLIC)
 
     def delete(self, *args, **kwargs):
         if self.customer:
