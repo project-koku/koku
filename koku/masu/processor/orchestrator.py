@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Report Processing Orchestrator."""
+import copy
 import logging
 
 from celery import chord
@@ -80,8 +81,7 @@ class Orchestrator:
         for provider in providers:
             provider.polling_timestamp = DH.now_utc
             provider.save(update_fields=["polling_timestamp"])
-            account = provider.account
-            schema_name = account.get("schema_name")
+            schema_name = provider.account.get("schema_name")
             if is_cloud_source_processing_disabled(schema_name):
                 LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
                 continue
@@ -95,7 +95,7 @@ class Orchestrator:
                     )
                 )
                 continue
-            batch.append(account)
+            batch.append(provider)
         return batch
 
     def get_reports(self, provider_uuid):
@@ -283,28 +283,25 @@ class Orchestrator:
         Select the correct prepare function based on source type for processing each account.
 
         """
-        accounts = self.get_polling_batch()
-        if not accounts:
+        providers = self.get_polling_batch()
+        if not providers:
             LOG.info(log_json(msg="no accounts to be polled"))
 
-        LOG.info(log_json(msg="polling accounts", count=len(accounts)))
-        for account in accounts:
-            provider_uuid = account.get("provider_uuid")
-            provider_type = account.get("provider_type")
+        LOG.info(log_json(msg="polling accounts", count=len(providers)))
+        for provider in providers:
+            LOG.info(log_json(msg="polling for account", provider_uuid=provider.uuid))
 
-            LOG.info(log_json(msg="polling for account", provider_uuid=provider_uuid))
-
-            if provider_type in [
+            if provider.type in [
                 Provider.PROVIDER_OCI,
                 Provider.PROVIDER_OCI_LOCAL,
                 Provider.PROVIDER_GCP,
                 Provider.PROVIDER_GCP_LOCAL,
             ]:
-                self.prepare_continuous_report_sources(account, provider_uuid)
+                self.prepare_continuous_report_sources(provider)
             else:
-                self.prepare_monthly_report_sources(account, provider_uuid)
+                self.prepare_monthly_report_sources(provider)
 
-    def prepare_monthly_report_sources(self, account, provider_uuid):
+    def prepare_monthly_report_sources(self, provider: Provider):
         """
         Prepare processing for source types that have monthly billing reports AWS/Azure.
 
@@ -312,24 +309,25 @@ class Orchestrator:
         Any report it finds are queued to the appropriate celery task to download
         and process those reports.
         """
-        tracing_id = provider_uuid
+        tracing_id = provider.uuid
+        account = copy.deepcopy(provider.account)
         schema = account.get("schema_name")
         accounts_labeled = False
-        report_months = self.get_reports(provider_uuid)
+        report_months = self.get_reports(provider.uuid)
         for month in report_months:
             LOG.info(
                 log_json(
                     tracing_id,
                     msg=f"getting {month.strftime('%B %Y')} report files",
                     schema=schema,
-                    provider_uuid=provider_uuid,
+                    provider_uuid=provider.uuid,
                 )
             )
             account["report_month"] = month
             try:
                 LOG.info(
                     log_json(
-                        tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider_uuid
+                        tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid
                     )
                 )
                 _, reports_tasks_queued = self.start_manifest_processing(**account)
@@ -338,42 +336,42 @@ class Orchestrator:
                         tracing_id,
                         msg=f"manifest processing tasks queued: {reports_tasks_queued}",
                         schema=schema,
-                        provider_uuid=provider_uuid,
+                        provider_uuid=provider.uuid,
                     )
                 )
 
                 # update labels
                 if reports_tasks_queued and not accounts_labeled:
-                    if account.get("provider_type") not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+                    if provider.type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
                         continue
                     LOG.info(
                         log_json(
                             tracing_id,
                             msg="updating account aliases",
                             schema=schema,
-                            provider_uuid=provider_uuid,
+                            provider_uuid=provider.uuid,
                         )
                     )
-                    update_account_aliases(account.get("schema_name"), account.get("credentials"), provider_uuid)
+                    update_account_aliases(provider)
                     LOG.info(
                         log_json(
                             tracing_id,
                             msg="done updating account aliases",
                             schema=schema,
-                            provider_uuid=provider_uuid,
+                            provider_uuid=provider.uuid,
                         )
                     )
 
             except ReportDownloaderError as err:
-                LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+                LOG.warning(f"Unable to download manifest for provider: {provider.uuid}. Error: {str(err)}.")
                 continue
             except Exception as err:
                 # Broad exception catching is important here because any errors thrown can
                 # block all subsequent account processing.
-                LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+                LOG.error(f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.")
                 continue
 
-    def prepare_continuous_report_sources(self, account, provider_uuid):
+    def prepare_continuous_report_sources(self, provider: Provider):
         """
         Prepare processing for source types that have continious reports GCP/OCI.
 
@@ -381,9 +379,10 @@ class Orchestrator:
         Any report it finds are queued to the appropriate celery task to download
         and process those reports.
         """
-        tracing_id = provider_uuid
+        tracing_id = provider.uuid
+        account = provider.account
         schema = account.get("schema_name")
-        LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider_uuid))
+        LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider.uuid))
         dh = DateHelper()
         if self.ingress_reports:
             start_date = DateAccessor().get_billing_month_start(f"{self.bill_date}01")
@@ -392,7 +391,7 @@ class Orchestrator:
         account["report_month"] = start_date
         try:
             LOG.info(
-                log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider_uuid)
+                log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid)
             )
             _, reports_tasks_queued = self.start_manifest_processing(**account)
             LOG.info(
@@ -400,15 +399,15 @@ class Orchestrator:
                     tracing_id,
                     msg=f"manifest processing tasks queued: {reports_tasks_queued}",
                     schema=schema,
-                    provider_uuid=provider_uuid,
+                    provider_uuid=provider.uuid,
                 )
             )
         except ReportDownloaderError as err:
-            LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+            LOG.warning(f"Unable to download manifest for provider: {provider.uuid}. Error: {str(err)}.")
         except Exception as err:
             # Broad exception catching is important here because any errors thrown can
             # block all subsequent account processing.
-            LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+            LOG.error(f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.")
 
     def remove_expired_report_data(self, simulate=False):
         """
