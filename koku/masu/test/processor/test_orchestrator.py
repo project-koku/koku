@@ -412,17 +412,19 @@ class OrchestratorTest(MasuTestCase):
                 mock_group.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_get_reports(self, mock_inspect):
+    @patch("masu.processor.orchestrator.check_provider_setup_complete")
+    def test_get_reports(self, mock_check_setup_complete, mock_inspect):
         """Test get_reports for combinations of setup_complete and ingest override."""
         initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         test_matrix = [
-            {"ingest_override": True, "test_months": 5, "expected_month_length": 5},
-            {"ingest_override": True, "test_months": 5, "expected_month_length": 5},
-            {"ingest_override": False, "test_months": 5, "expected_month_length": 2},
-            {"ingest_override": False, "test_months": 5, "expected_month_length": 5},
+            {"get_setup_complete": True, "ingest_override": True, "test_months": 5, "expected_month_length": 5},
+            {"get_setup_complete": False, "ingest_override": True, "test_months": 5, "expected_month_length": 5},
+            {"get_setup_complete": True, "ingest_override": False, "test_months": 5, "expected_month_length": 2},
+            {"get_setup_complete": False, "ingest_override": False, "test_months": 5, "expected_month_length": 5},
         ]
         for test in test_matrix:
             test_months = test.get("test_months")
+            mock_check_setup_complete.return_value = test.get("get_setup_complete")
             Config.INGEST_OVERRIDE = test.get("ingest_override")
             Config.INITIAL_INGEST_NUM_MONTHS = test_months
 
