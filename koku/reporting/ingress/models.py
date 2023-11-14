@@ -8,11 +8,11 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db import transaction
+from django.utils import timezone
 
 from api.common import log_json
-from api.utils import DateHelper
 
-DH = DateHelper()
+
 LOG = logging.getLogger(__name__)
 
 
@@ -62,7 +62,7 @@ class IngressReports(models.Model):
 
     def mark_completed(self):
         self.status = "Completed"
-        self.completed_timestamp = DH.now_utc
+        self.completed_timestamp = timezone.now()
         self.save(update_fields=["completed_timestamp", "status"])
         LOG.info(
             log_json(

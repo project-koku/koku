@@ -180,8 +180,18 @@ class TestParquetReportProcessor(MasuTestCase):
                 "expected": AWSPostProcessor,
             },
             {
+                "provider_uuid": str(self.aws_provider_uuid),
+                "provider_type": Provider.PROVIDER_AWS_LOCAL,
+                "expected": AWSPostProcessor,
+            },
+            {
                 "provider_uuid": str(self.azure_provider_uuid),
                 "provider_type": Provider.PROVIDER_AZURE,
+                "expected": AzurePostProcessor,
+            },
+            {
+                "provider_uuid": str(self.azure_provider_uuid),
+                "provider_type": Provider.PROVIDER_AZURE_LOCAL,
                 "expected": AzurePostProcessor,
             },
             {
@@ -215,7 +225,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 "report_type",
                 return_value="pod_usage",
             ):
-                self.assertIsInstance(report_processor._set_post_processor(), test.get("expected"))
+                self.assertIsInstance(report_processor.post_processor, test.get("expected"))
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -224,20 +234,17 @@ class TestParquetReportProcessor(MasuTestCase):
         _, __, result = self.report_processor_ingress.convert_csv_to_parquet(Path("file.csv.gz"))
         self.assertFalse(result)
 
-    def test_unknown_provider_post_processor(self):
-        """Test that nothing is returned"""
-        report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
-            report_path=self.report_path,
-            provider_uuid="123456",
-            provider_type="unknown_provider",
-            manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-        )
-        dataframe, daily, success = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
-        self.assertIsNone(dataframe)
-        self.assertIsNone(daily)
-        self.assertFalse(success)
+    def test_unknown_provider(self):
+        """Test that invalid provider-type raises ParquetReportProcessorError."""
+        with self.assertRaises(ParquetReportProcessorError):
+            ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid="123456",
+                provider_type="unknown_provider",
+                manifest_id=self.manifest_id,
+                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            )
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -358,7 +365,7 @@ class TestParquetReportProcessor(MasuTestCase):
             "masu.processor.parquet.parquet_report_processor.open"
         ), patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"), patch.object(
             ParquetReportProcessor,
-            "_set_post_processor",
+            "post_processor",
             return_value=OCPPostProcessor(self.schema, "pod_usage"),
         ), patch.object(
             ParquetReportProcessor, "create_parquet_table"

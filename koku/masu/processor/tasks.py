@@ -65,7 +65,6 @@ from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
-DH = DateHelper()
 
 DEFAULT = "celery"
 GET_REPORT_FILES_QUEUE = "download"
@@ -1133,7 +1132,7 @@ def process_daily_openshift_on_cloud(
 
     base_where_clause = f"WHERE source='{provider_uuid}' AND year='{year}' AND month='{month}'"
 
-    days = DH.list_days(start_date, end_date)
+    days = DateHelper().list_days(start_date, end_date)
     for day in days:
         today_where_clause = f"{base_where_clause} AND {provider_where_clause.format(day)}"
         table_count_sql = f"SELECT count(*) FROM {table_name} {today_where_clause}"
