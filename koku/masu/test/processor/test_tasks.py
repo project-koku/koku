@@ -864,7 +864,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             mark_manifest_complete.s(
                 self.schema,
                 provider_type,
-                provider_uuid=provider_aws_uuid,
+                provider_aws_uuid,
                 manifest_list=[manifest_id],
                 ingress_report_uuid=None,
                 tracing_id=tracing_id,
@@ -899,7 +899,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             mark_manifest_complete.s(
                 self.schema,
                 provider_type,
-                provider_uuid=self.gcp_provider_uuid,
+                self.gcp_provider_uuid,
                 manifest_list=[manifest_id],
                 ingress_report_uuid=None,
                 tracing_id=tracing_id,
