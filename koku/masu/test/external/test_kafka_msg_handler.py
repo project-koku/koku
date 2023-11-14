@@ -1090,3 +1090,29 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         self.assertCountEqual(result.keys(), [file_path])
         self.assertDictEqual(result, expected_result)
+
+    def test_divide_csv_daily_leading_zeros(self):
+        """Test if the divide_csv_daily method will keep the leading zeros."""
+
+        with tempfile.TemporaryDirectory() as td:
+            filename = "storage_data.csv"
+            file_path = Path(td, filename)
+            with patch("masu.external.kafka_msg_handler.pd") as mock_pd:
+                with patch(
+                    "masu.external.kafka_msg_handler.utils.detect_type",
+                    return_value=("storage_usage", None),
+                ):
+                    dates = ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"]
+                    mock_report = {
+                        "interval_start": dates,
+                        "persistentvolumeclaim_labels": ["0099999999999", "0099999999999"],
+                    }
+                    df = pd.DataFrame(data=mock_report)
+                    mock_pd.read_csv.return_value = df
+                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id)
+
+                    for daily_file in daily_files:
+                        with open(str(daily_file["filepath"])) as file:
+                            csv = file.readlines()
+
+                        self.assertIn("0099999999999", csv[1])
