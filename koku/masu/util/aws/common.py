@@ -409,8 +409,7 @@ def get_account_alias_from_role_arn(arn, provider_uuid, session=None):
         except ClientError as err:
             LOG.info("Unable to list account aliases.  Reason: %s", str(err))
             context[context_key] = False
-            provider.additional_context = context
-            provider.save(update_fields=["additional_context"])
+            provider.set_additional_context(context)
 
     return (account_id, alias)
 
