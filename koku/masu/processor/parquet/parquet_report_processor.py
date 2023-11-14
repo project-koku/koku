@@ -504,7 +504,7 @@ class ParquetReportProcessor:
             if missing_cols := self.post_processor.check_ingress_required_columns(col_names):
                 message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
                 with schema_context(self.schema_name):
-                    report = IngressReports.objets.get(uuid=self.ingress_reports_uuid)
+                    report = IngressReports.objects.get(uuid=self.ingress_reports_uuid)
                     report.set_status(message)
                 raise ValidationError(message, code="Missing_columns")
 
