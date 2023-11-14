@@ -25,7 +25,6 @@ from koku.database import get_model
 
 
 LOG = logging.getLogger(__name__)
-PUBLIC = "public"
 
 
 def check_provider_setup_complete(provider_uuid):
