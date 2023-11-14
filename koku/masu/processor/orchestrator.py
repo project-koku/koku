@@ -388,7 +388,7 @@ class Orchestrator:
         and process those reports.
         """
         tracing_id = provider.uuid
-        account = provider.account
+        account = copy.deepcopy(provider.account)
         schema = account.get("schema_name")
         LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider.uuid))
         dh = DateHelper()
