@@ -546,9 +546,9 @@ FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
-                (strpos(gcp.labels, 'openshift_project') != 0 AND strpos(gcp.labels, lower(ocp.namespace)) != 0)
-                OR (strpos(gcp.labels, 'openshift_node') != 0 AND strpos(gcp.labels, lower(ocp.node)) != 0)
-                OR (strpos(gcp.labels, 'openshift_cluster') != 0 AND (strpos(gcp.labels, lower(ocp.cluster_id)) != 0 OR strpos(gcp.labels, lower(ocp.cluster_alias)) != 0))
+                (strpos(lower(gcp.labels), 'openshift_project') != 0 AND strpos(lower(gcp.labels), lower(ocp.namespace)) != 0)
+                OR (strpos(lower(gcp.labels), 'openshift_node') != 0 AND strpos(lower(gcp.labels), lower(ocp.node)) != 0)
+                OR (strpos(lower(gcp.labels), 'openshift_cluster') != 0 AND (strpos(lower(gcp.labels), lower(ocp.cluster_id)) != 0 OR strpos(lower(gcp.labels), lower(ocp.cluster_alias)) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
