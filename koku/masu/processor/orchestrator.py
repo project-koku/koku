@@ -123,7 +123,15 @@ class Orchestrator:
         return sorted(DateAccessor().get_billing_months(number_of_months), reverse=True)
 
     def start_manifest_processing(  # noqa: C901
-        self, customer_name, credentials, data_source, provider_type, schema_name, provider_uuid, report_month
+        self,
+        customer_name,
+        credentials,
+        data_source,
+        provider_type,
+        schema_name,
+        provider_uuid,
+        report_month,
+        **kwargs,
     ):
         """
         Start processing an account's manifest for the specified report_month.
