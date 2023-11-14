@@ -9,8 +9,8 @@ from tempfile import mkdtemp
 from django.db.utils import IntegrityError
 
 from api.common import log_json
+from api.provider.models import Provider
 from koku.database import FKViolation
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
 LOG = logging.getLogger(__name__)
@@ -109,12 +109,11 @@ class ReportDownloaderBase:
                         manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
             if not manifest_entry:
                 msg = f"Manifest entry not found for given manifest {manifest_dict}."
-                with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
-                    provider = provider_accessor.get_provider()
-                    if not provider:
-                        msg = f"Provider entry not found for {self._provider_uuid}."
-                        LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
-                        raise ReportDownloaderError(msg)
+                provider = Provider.objects.filter(uuid=self._provider_uuid).first()
+                if not provider:
+                    msg = f"Provider entry not found for {self._provider_uuid}."
+                    LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
+                    raise ReportDownloaderError(msg)
                 LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
                 raise IntegrityError(msg)
             else:

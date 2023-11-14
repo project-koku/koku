@@ -37,7 +37,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
@@ -739,10 +738,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         )
 
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        with ProviderDBAccessor(provider_ocp_uuid) as provider_accessor:
-            provider_obj = provider_accessor.get_provider()
-
-        usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(provider_obj.uuid)
+        usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(self.ocp_provider.uuid)
         with schema_context(self.schema):
             cluster_id = usage_period_qry.first().cluster_id
 

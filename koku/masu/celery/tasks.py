@@ -389,7 +389,7 @@ def crawl_account_hierarchy(provider_uuid=None):
 
         # Look for a known crawler class to handle this provider
         if provider.type == Provider.PROVIDER_AWS:
-            crawler = AWSOrgUnitCrawler(provider.account)
+            crawler = AWSOrgUnitCrawler(provider)
 
         if crawler:
             LOG.info(

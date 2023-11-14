@@ -18,9 +18,9 @@ from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.downloader.ocp.ocp_report_downloader import OPERATOR_VERSIONS
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.util.ocp.common import get_cluster_id_from_provider
 
 
 LOG = logging.getLogger(__name__)
@@ -142,8 +142,7 @@ class ROSReportShipper:
 
     def build_ros_msg(self, presigned_urls, upload_keys):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
-        with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
-            cluster_alias = provider_accessor.get_provider_name()
+        cluster_alias = get_cluster_id_from_provider(self.provider_uuid)
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,

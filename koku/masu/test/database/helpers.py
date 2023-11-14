@@ -24,7 +24,6 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.external.date_accessor import DateAccessor
 from masu.util import common as azure_utils
@@ -211,11 +210,8 @@ class ReportObjectCreator:
             "markup": markup,
         }
 
-        with ProviderDBAccessor(provider_uuid) as accessor:
-            provider_obj = accessor.get_provider()
-
         cost_model_obj = self.create_db_object(table_name, data)
-        data = {"provider_uuid": provider_obj.uuid, "cost_model_id": cost_model_obj.uuid}
+        data = {"provider_uuid": provider_uuid, "cost_model_id": cost_model_obj.uuid}
         self.create_db_object(cost_model_map, data)
         return cost_model_obj
 
