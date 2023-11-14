@@ -12,6 +12,7 @@ from celery.exceptions import MaxRetriesExceededError
 from celery.exceptions import Retry
 from django.conf import settings
 from django.test import override_settings
+from model_bakery import baker
 from requests.exceptions import HTTPError
 
 from api.currency.models import ExchangeRates
@@ -20,6 +21,7 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
@@ -264,30 +266,32 @@ class TestCeleryTasks(MasuTestCase):
             calls.append(call(table, partition_column, provider_uuid))
         mock_delete_partitions.assert_has_calls(calls)
 
-    @patch("masu.celery.tasks.AWSOrgUnitCrawler")
-    def test_crawl_account_hierarchy_with_provider_uuid(self, mock_crawler):
+    def test_crawl_account_hierarchy_with_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
-        mock_crawler.crawl_account_hierarchy.return_value = True
+        p = baker.make(Provider, type=Provider.PROVIDER_AWS)
+        with patch.object(AWSOrgUnitCrawler, "crawl_account_hierarchy") as mock_crawler:
+            mock_crawler.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
-            tasks.crawl_account_hierarchy(self.aws_test_provider_uuid)
-            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % ("1")
+            tasks.crawl_account_hierarchy(p.uuid)
+            expected_log_msg = "Account hierarchy crawler found 1 accounts to scan"
 
         self.assertIn(expected_log_msg, captured_logs.output[0])
 
-    @patch("masu.celery.tasks.AWSOrgUnitCrawler")
-    def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
+    def test_crawl_account_hierarchy_without_provider_uuid(self):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
+        baker.make(Provider, type=Provider.PROVIDER_AWS)
         polling_accounts = Provider.polling_objects.all()
         providers = Provider.objects.all()
         for provider in providers:
             provider.polling_timestamp = None
             provider.save()
-        mock_crawler.crawl_account_hierarchy.return_value = True
-        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
-            tasks.crawl_account_hierarchy()
-            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
-
+        with patch.object(AWSOrgUnitCrawler, "crawl_account_hierarchy") as mock_crawler:
+            mock_crawler.return_value = True
+            with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+                tasks.crawl_account_hierarchy()
+                expected_log_msg = f"Account hierarchy crawler found {len(polling_accounts)} accounts to scan"
         self.assertIn(expected_log_msg, captured_logs.output[0])
+        mock_crawler.assert_called()
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
     def test_cost_model_status_check_with_provider_uuid(self, mock_cost_check):
