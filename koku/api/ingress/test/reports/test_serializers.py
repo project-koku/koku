@@ -6,16 +6,11 @@
 from unittest.mock import patch
 
 from django_tenants.utils import tenant_context
-from faker import Faker
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.ingress.reports.serializers import IngressReportsSerializer
 from api.provider.models import Provider
-from api.utils import DateHelper
-from reporting.ingress.models import IngressReports
-
-FAKE = Faker()
 
 
 class IngressReportsSerializerTest(IamTestCase):
@@ -27,12 +22,6 @@ class IngressReportsSerializerTest(IamTestCase):
 
         self.ocp_provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
-        self.dh = DateHelper()
-
-    def tearDown(self):
-        """Clean up test cases."""
-        with tenant_context(self.tenant):
-            IngressReports.objects.all().delete()
 
     def test_invalid_source_type(self):
         """Test ingress report with invalid source type."""
@@ -76,13 +65,8 @@ class IngressReportsSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 serializer.is_valid(raise_exception=True)
 
-    @patch(
-        "providers.aws.provider._get_sts_access",
-        return_value=dict(
-            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
-        ),
-    )
-    def test_posting_reports_while_pending(self, mock_get_sts_access):
+    @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
+    def test_posting_reports_while_pending(self, _):
         """Test posting additional reports while currently processing same bill month."""
         reports = {
             "source": self.aws_provider.uuid,
@@ -97,13 +81,8 @@ class IngressReportsSerializerTest(IamTestCase):
                 with self.assertRaises(serializers.ValidationError):
                     serializer.is_valid(raise_exception=True)
 
-    @patch(
-        "providers.aws.provider._get_sts_access",
-        return_value=dict(
-            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
-        ),
-    )
-    def test_valid_data(self, mock_get_sts_access):
+    @patch("api.ingress.reports.serializers.ProviderAccessor.check_file_access")
+    def test_valid_data(self, _):
         """Test ingress report valid entries."""
         reports = {
             "source": self.aws_provider.uuid,
