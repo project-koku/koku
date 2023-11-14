@@ -66,9 +66,13 @@ def report_data(request):
         if provider_uuid == "*":
             all_providers = True
         elif provider_uuid:
-            with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                provider = provider_accessor.get_type()
-                provider_schema = provider_accessor.get_schema()
+            try:
+                p = Provider.objects.get(uuid=provider_uuid)
+                provider = p.type
+                provider_schema = p.account.get("schema_name")
+            except Provider.DoesNotExist:
+                errmsg = f"provider_uuid {provider_uuid} does not exist"
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             if provider_schema != schema_name:
                 errmsg = f"provider_uuid {provider_uuid} is not associated with schema {schema_name}."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
