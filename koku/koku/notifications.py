@@ -23,7 +23,7 @@ class NotificationService:
     def __init__(self):
         """Initialize Notifications class"""
         self.msg_uuid = str(uuid.uuid4())
-        self.timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self.timestamp = datetime.datetime.utcnow().isoformat()
         # TODO Protecting your Kafka messages against duplicate processing
         # add header RecordHeaders().add("rh-message-id", messageId)
         # encoded_id = msg_uuid.encode()
