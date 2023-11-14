@@ -32,18 +32,23 @@ class ReportDataTests(TestCase):
         self.start_date = dh.today.date().strftime("%Y-%m-%d")
         self.invoice = dh.gcp_find_invoice_months_in_date_range(dh.today, dh.tomorrow)[0]
 
+        self.provider_type = Provider.PROVIDER_AWS_LOCAL
+        p = Provider.objects.filter(type=self.provider_type).first()
+        self.provider_uuid = str(p.uuid)
+        self.schema_name = p.account.get("schema_name")
+
+        self.gcp_provider_type = Provider.PROVIDER_GCP_LOCAL
+        gcp_p = Provider.objects.filter(type=self.gcp_provider_type).first()
+        self.gcp_provider_uuid = str(gcp_p.uuid)
+
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data(self, mock_update, mock_accessor, _):
+    def test_get_report_data(self, mock_update, _):
         """Test the GET report_data endpoint."""
-        provider_type = Provider.PROVIDER_AWS
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "start_date": self.start_date,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": self.provider_uuid,
         }
         expected_key = "Report Data Task IDs"
 
@@ -54,7 +59,7 @@ class ReportDataTests(TestCase):
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
             params["schema"],
-            Provider.PROVIDER_AWS,
+            self.provider_type,
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
@@ -64,17 +69,13 @@ class ReportDataTests(TestCase):
         )
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_sent_to_OCP_queue(self, mock_update, mock_accessor, _):
+    def test_get_report_data_sent_to_OCP_queue(self, mock_update, _):
         """Test the GET report_data endpoint."""
-        provider_type = Provider.PROVIDER_OCP
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "start_date": self.start_date,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": self.provider_uuid,
             "queue": "ocp",
         }
         expected_key = "Report Data Task IDs"
@@ -86,7 +87,7 @@ class ReportDataTests(TestCase):
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
             params["schema"],
-            Provider.PROVIDER_OCP,
+            self.provider_type,
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
@@ -96,17 +97,13 @@ class ReportDataTests(TestCase):
         )
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_sent_to_XL_OCP_queue(self, mock_update, mock_accessor, _):
+    def test_get_report_data_sent_to_XL_OCP_queue(self, mock_update, _):
         """Test the GET report_data using XL queue."""
-        provider_type = Provider.PROVIDER_OCP
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "start_date": self.start_date,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": self.provider_uuid,
         }
         expected_key = "Report Data Task IDs"
 
@@ -118,7 +115,7 @@ class ReportDataTests(TestCase):
             self.assertIn(expected_key, body)
             mock_update.s.assert_called_with(
                 params["schema"],
-                Provider.PROVIDER_OCP,
+                self.provider_type,
                 params["provider_uuid"],
                 params["start_date"],
                 DateHelper().today.date().strftime("%Y-%m-%d"),
@@ -131,7 +128,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_schema_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing schema."""
-        params = {"start_date": self.start_date, "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
+        params = {"start_date": self.start_date, "provider_type": self.provider_type}
         expected_key = "Error"
         expected_message = "schema is a required parameter."
 
@@ -146,7 +143,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_provider_uuid_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing provider_uuid."""
-        params = {"start_date": self.start_date, "schema": "org1234567"}
+        params = {"start_date": self.start_date, "schema": self.schema_name}
 
         expected_key = "Error"
         expected_message = "provider_uuid or provider_type must be supplied as a parameter."
@@ -159,19 +156,16 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_provider_invalid_uuid_(self, mock_update, mock_accessor, _):
+    def test_get_report_data_provider_invalid_uuid_(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for invalid provider_uuid."""
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = None
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "start_date": self.start_date,
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132ddd",
         }
         expected_key = "Error"
-        expected_message = "Unable to determine provider type."
+        expected_message = "provider_uuid 6e212746-484a-40cd-bba0-09a19d132ddd does not exist"
 
         response = self.client.get(reverse("report_data"), params)
         body = response.json()
@@ -181,22 +175,16 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_provider_invalid_uuid_and_schema(self, mock_update, mock_accessor, _):
+    def test_get_report_data_provider_invalid_uuid_and_schema(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for invalid provider_uuid and schema."""
-        provider_type = Provider.PROVIDER_OCP
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "a-different-schema"
         params = {
             "start_date": self.start_date,
             "schema": "not-the-right-schema",
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132ddd",
+            "provider_uuid": self.provider_uuid,
         }
         expected_key = "Error"
-        expected_message = (
-            "provider_uuid 6e212746-484a-40cd-bba0-09a19d132ddd is not associated with schema not-the-right-schema."
-        )
+        expected_message = f"provider_uuid {self.provider_uuid} is not associated with schema not-the-right-schema."
 
         response = self.client.get(reverse("report_data"), params)
         body = response.json()
@@ -211,7 +199,7 @@ class ReportDataTests(TestCase):
         """Test GET report_data endpoint returns a 400 for invalid queue."""
         params = {
             "start_date": self.start_date,
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132ddd",
             "queue": "not-a-real-queue",
         }
@@ -226,14 +214,10 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_date_missing(self, mock_update, mock_accessor, _):
+    def test_get_report_data_date_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing date."""
-        provider_type = Provider.PROVIDER_AWS
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
-        params = {"schema": "org1234567", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
+        params = {"schema": self.schema_name, "provider_uuid": self.provider_uuid}
         expected_key = "Error"
         expected_message = "start_date is a required parameter."
 
@@ -245,16 +229,12 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_mismatch_types_uuid(self, mock_update, mock_accessor, _):
+    def test_get_report_data_mismatch_types_uuid(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for mismatched type and uuid."""
-        provider_type = Provider.PROVIDER_AWS
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "schema": self.schema_name,
+            "provider_uuid": self.provider_uuid,
             "provider_type": Provider.PROVIDER_OCP,
             "start_date": self.start_date,
         }
@@ -269,20 +249,16 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_with_end_date(self, mock_update, mock_accessor, _):
+    def test_get_report_data_with_end_date(self, mock_update, _):
         """Test GET report_data endpoint with end date."""
         start_date = DateHelper().today
         end_date = start_date + datetime.timedelta(days=1)
         multiple_calls = start_date.month != end_date.month
 
-        provider_type = Provider.PROVIDER_AWS
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "schema": self.schema_name,
+            "provider_uuid": self.provider_uuid,
             "start_date": start_date.date().strftime("%Y-%m-%d"),
             "end_date": end_date.date().strftime("%Y-%m-%d"),
         }
@@ -291,7 +267,7 @@ class ReportDataTests(TestCase):
         expected_calls = [
             call(
                 params["schema"],
-                provider_type,
+                self.provider_type,
                 params["provider_uuid"],
                 params["start_date"],
                 params["end_date"],
@@ -305,7 +281,7 @@ class ReportDataTests(TestCase):
             expected_calls = [
                 call(
                     params["schema"],
-                    provider_type,
+                    self.provider_type,
                     params["provider_uuid"],
                     params["start_date"],
                     params["start_date"],
@@ -315,7 +291,7 @@ class ReportDataTests(TestCase):
                 ),
                 call(
                     params["schema"],
-                    provider_type,
+                    self.provider_type,
                     params["provider_uuid"],
                     params["end_date"],
                     params["end_date"],
@@ -339,8 +315,8 @@ class ReportDataTests(TestCase):
         multiple_calls = self.start_date_time.month != end_date.month
 
         params = {
-            "schema": "org1234567",
-            "provider_type": Provider.PROVIDER_AWS,
+            "schema": self.schema_name,
+            "provider_type": self.provider_type,
             "start_date": self.start_date,
             "end_date": end_date.strftime("%Y-%m-%d"),
         }
@@ -420,9 +396,9 @@ class ReportDataTests(TestCase):
     def test_remove_report_data(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
         params = {
-            "schema": "org1234567",
-            "provider": Provider.PROVIDER_AWS,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "schema": self.schema_name,
+            "provider": self.provider_type,
+            "provider_uuid": self.provider_uuid,
             "simulate": False,
         }
         query_string = urlencode(params)
@@ -443,9 +419,9 @@ class ReportDataTests(TestCase):
     def test_remove_report_data_simulate(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
         params = {
-            "schema": "org1234567",
-            "provider": Provider.PROVIDER_AWS,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "schema": self.schema_name,
+            "provider": self.provider_type,
+            "provider_uuid": self.provider_uuid,
             "simulate": True,
         }
         query_string = urlencode(params)
@@ -466,9 +442,9 @@ class ReportDataTests(TestCase):
     def test_remove_report_data_simulate_missing(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
         params = {
-            "schema": "org1234567",
-            "provider": Provider.PROVIDER_AWS,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "schema": self.schema_name,
+            "provider": self.provider_type,
+            "provider_uuid": self.provider_uuid,
         }
         query_string = urlencode(params)
         expected_key = "Report Data Task ID"
@@ -486,8 +462,8 @@ class ReportDataTests(TestCase):
     def test_remove_report_data_schema_missing(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
         params = {
-            "provider": Provider.PROVIDER_AWS,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider": self.provider_type,
+            "provider_uuid": self.provider_uuid,
             "simulate": True,
         }
         query_string = urlencode(params)
@@ -506,7 +482,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.remove_expired_data")
     def test_remove_report_data_provider_missing(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
-        params = {"schema": "org1234567", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64", "simulate": True}
+        params = {"schema": self.schema_name, "provider_uuid": self.provider_uuid, "simulate": True}
         query_string = urlencode(params)
         expected_key = "Error"
         expected_message = "provider is a required parameter."
@@ -523,7 +499,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.remove_expired_data")
     def test_remove_report_data_provider_uuid_missing(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
-        params = {"schema": "org1234567", "provider": Provider.PROVIDER_AWS, "simulate": True}
+        params = {"schema": self.schema_name, "provider": self.provider_type, "simulate": True}
         query_string = urlencode(params)
         expected_key = "Error"
         expected_message = "provider_uuid is a required parameter."
@@ -537,17 +513,13 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_ocp_on_cloud_false(self, mock_update, mock_accessor, _):
+    def test_get_report_data_ocp_on_cloud_false(self, mock_update, _):
         """Test the GET report_data endpoint."""
-        provider_type = Provider.PROVIDER_AWS
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "start_date": self.start_date,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": self.provider_uuid,
             "ocp_on_cloud": "false",
         }
         expected_key = "Report Data Task IDs"
@@ -559,7 +531,7 @@ class ReportDataTests(TestCase):
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
             params["schema"],
-            Provider.PROVIDER_AWS,
+            self.provider_type,
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
@@ -569,17 +541,13 @@ class ReportDataTests(TestCase):
         )
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_gcp(self, mock_update, mock_accessor, _):
+    def test_get_report_data_gcp(self, mock_update, _):
         """Test the GET report_data endpoint."""
-        provider_type = Provider.PROVIDER_GCP
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "start_date": self.start_date,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": self.gcp_provider_uuid,
             "ocp_on_cloud": "false",
         }
         expected_key = "Report Data Task IDs"
@@ -591,7 +559,7 @@ class ReportDataTests(TestCase):
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
             params["schema"],
-            provider_type,
+            self.gcp_provider_type,
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
@@ -601,18 +569,14 @@ class ReportDataTests(TestCase):
         )
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_gcp_end_date(self, mock_update, mock_accessor, _):
+    def test_get_report_data_gcp_end_date(self, mock_update, _):
         """Test the GET report_data endpoint."""
-        provider_type = Provider.PROVIDER_GCP
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "start_date": self.start_date,
             "end_date": self.start_date,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": self.gcp_provider_uuid,
             "ocp_on_cloud": "false",
         }
         expected_key = "Report Data Task IDs"
@@ -624,7 +588,7 @@ class ReportDataTests(TestCase):
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
             params["schema"],
-            provider_type,
+            self.gcp_provider_type,
             params["provider_uuid"],
             params["end_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
@@ -634,19 +598,15 @@ class ReportDataTests(TestCase):
         )
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_gcp_invoice_month(self, mock_update, mock_accessor, _):
+    def test_get_report_data_gcp_invoice_month(self, mock_update, _):
         """Test the GET report_data endpoint."""
         end_date = DateHelper().this_month_end.date().strftime("%Y-%m-%d")
-        provider_type = Provider.PROVIDER_GCP
-        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
-            "schema": "org1234567",
+            "schema": self.schema_name,
             "start_date": self.start_date,
             "end_date": end_date,
-            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider_uuid": self.gcp_provider_uuid,
             "ocp_on_cloud": "false",
             "invoice_month": "202209",
         }
@@ -659,7 +619,7 @@ class ReportDataTests(TestCase):
         self.assertIn(expected_key, body)
         mock_update.s.assert_called_with(
             params["schema"],
-            provider_type,
+            self.gcp_provider_type,
             params["provider_uuid"],
             self.start_date,
             end_date,

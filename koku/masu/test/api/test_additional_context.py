@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.provider.models import Provider
 from masu.test import MasuTestCase
 
 
@@ -86,3 +87,5 @@ class AdditionalContextTest(MasuTestCase):
             response = self.client.post(url, post_json, content_type="application/json")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), expected_response)
+            p = Provider.objects.get(uuid=self.aws_test_provider_uuid)
+            self.assertEqual(p.additional_context, expected_response)
