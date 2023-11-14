@@ -525,6 +525,43 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             middleware = IdentityHeaderMiddleware()
             middleware.process_request(mock_request)
 
+    @override_settings(DEVELOPMENT=True)
+    def test_process_service_account_identity(self):
+        """Test that process_request() passes-through a custom identity."""
+        fake = Faker()
+
+        identity = {
+            "identity": {
+                "account_number": str(fake.pyint()),
+                "org_id": str(fake.pyint()),
+                "type": "ServiceAccount",
+                "service_account": {
+                    "username": fake.word(),
+                    "client_id": fake.word(),
+                },
+            },
+            "entitlements": {"cost_management": {"is_entitled": True}},
+        }
+
+        mock_request = Mock(path="/api/v1/reports/azure/costs/", META={"QUERY_STRING": ""})
+
+        user = Mock(
+            access={
+                "aws.account": {"read": ["1234567890AB", "234567890AB1"]},
+                "azure.subscription_guid": {"read": ["*"]},
+            },
+            username=fake.word(),
+            email="",
+            admin=False,
+            customer=Mock(account_id=fake.pyint()),
+            req_id="DEVELOPMENT",
+        )
+
+        mock_request.user = user
+        mock_request.META[RH_IDENTITY_HEADER] = base64.b64encode(json.dumps(identity).encode("utf-8"))
+        middleware = IdentityHeaderMiddleware()
+        middleware.process_request(mock_request)
+
 
 class RequestTimingMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""

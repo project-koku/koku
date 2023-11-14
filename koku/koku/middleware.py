@@ -341,11 +341,20 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
         account = json_rh_auth.get("identity", {}).get("account_number")
         org_id = json_rh_auth.get("identity", {}).get("org_id")
-        user = json_rh_auth.get("identity", {}).get("user", {})
-        username = user.get("username")
-        email = user.get("email")
-        is_admin = user.get("is_org_admin")
+        token_type = str(json_rh_auth.get("identity", {}).get("type", "user")).lower()
+        user = None
+        email = None
+        is_admin = False
         req_id = None
+        if token_type == "user":
+            user = json_rh_auth.get("identity", {}).get("user", {})
+            username = user.get("username")
+            email = user.get("email")
+            is_admin = user.get("is_org_admin")
+        else:
+            service_account = json_rh_auth.get("identity", {}).get("service_account", {})
+            username = service_account.get("client_id")
+            email = ""
 
         if username and email and org_id:
             # Get request ID
