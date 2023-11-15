@@ -59,6 +59,7 @@ whitenoise = ">=5.0"
 # Constraints on indirect dependencies
 jinja2 = "<3"   # jinjasql is not compatible with Jinja >=3 https://github.com/sripathikrishnan/jinjasql/pull/53
 markupsafe = "<2.1"  # jinja2 <3 tries to import markupsafe.soft_unicode which was removed in markupsafe 2.1
+packaging = "*"
 
 [dev-packages]
 argh = ">=0.26.2"

@@ -7,6 +7,7 @@ import os
 from decimal import Decimal
 
 import psycopg2
+from packaging import version
 from psycopg2.errors import ProgrammingError
 from psycopg2.extras import RealDictCursor
 from sqlparse import format as sql_format
@@ -203,7 +204,7 @@ select oid
 
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)
-        col_name_sep = "_" if Decimal(pss_ver) < Decimal("1.8") else "_exec_"
+        col_name_sep = "_" if version.parse(pss_ver) < version.parse("1.8") else "_exec_"
         params["dbname"] = dbname
         sql = f"""
 -- STATEMENT STATISTICS
