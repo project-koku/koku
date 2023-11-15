@@ -356,7 +356,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             username = service_account.get("client_id")
             email = ""
 
-        if username and email and org_id:
+        if username and email is not None and org_id:
             # Get request ID
             req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
             # Check for customer creation & user creation
