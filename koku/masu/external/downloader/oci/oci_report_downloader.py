@@ -40,7 +40,7 @@ def divide_csv_monthly(file_path, filename):
     directory = os.path.dirname(file_path)
 
     try:
-        data_frame = pd.read_csv(file_path)
+        data_frame = pd.read_csv(file_path, dtype="str")
     except Exception as error:
         LOG.error(f"File {file_path} could not be parsed. Reason: {error}")
         raise error
