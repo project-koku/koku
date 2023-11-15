@@ -19,6 +19,7 @@ from tarfile import TarFile
 
 import requests
 from confluent_kafka import TopicPartition
+from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import InterfaceError
@@ -688,7 +689,7 @@ def process_messages(msg):
         if summary_task_id:
             LOG.info(log_json(tracing_id, msg=f"Summarization celery uuid: {summary_task_id}"))
 
-    if status:
+    if status and not settings.DEBUG:
         if report_metas:
             file_list = [meta.get("current_file") for meta in report_metas]
             files_string = ",".join(map(str, file_list))

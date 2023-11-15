@@ -12,7 +12,6 @@ from uuid import UUID
 from api.provider.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.test import MasuTestCase
 from masu.util.ocp import common as utils
 
@@ -24,10 +23,8 @@ class OCPUtilTests(MasuTestCase):
         """Shared variables used by ocp common tests."""
         super().setUp()
         self.accessor = OCPReportDBAccessor(schema=self.schema)
-        self.provider_accessor = ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid)
         self.report_schema = self.accessor.report_schema
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
-        self.provider_uuid = self.provider_accessor.get_provider().uuid
 
     def test_get_cluster_id_from_provider(self):
         """Test that the cluster ID is returned from OCP provider."""

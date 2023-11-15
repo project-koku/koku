@@ -181,5 +181,3 @@ class ProviderAccessor:
         LOG.info(f"Validating if ingress reports are accessible for source {source.uuid}.")
         self.service.is_file_reachable(source, reports_list)
         LOG.info(f"Ingress report validation complete for source {source.uuid}.")
-
-        return

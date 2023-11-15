@@ -5,9 +5,11 @@
 #
 import numpy as np
 import pandas as pd
+from django_tenants.utils import schema_context
 
 from masu.test import MasuTestCase
-from masu.util.azure.common import match_openshift_resources_and_labels
+from masu.util.azure import common as utils
+from reporting.models import AzureCostEntryBill
 
 
 class TestAzureUtils(MasuTestCase):
@@ -40,7 +42,7 @@ class TestAzureUtils(MasuTestCase):
 
         df = pd.DataFrame(data)
 
-        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
@@ -64,7 +66,7 @@ class TestAzureUtils(MasuTestCase):
 
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
-        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
@@ -83,7 +85,7 @@ class TestAzureUtils(MasuTestCase):
 
         # No matched tags
         matched_tags = []
-        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
@@ -120,7 +122,7 @@ class TestAzureUtils(MasuTestCase):
         ]
 
         df = pd.DataFrame(data)
-        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
         result = matched_df[matched_df["instanceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
@@ -150,8 +152,24 @@ class TestAzureUtils(MasuTestCase):
         ]
 
         df = pd.DataFrame(data)
-        matched_df = match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.bool())
+
+    def test_get_bill_ids_from_provider(self):
+        """Test that bill IDs are returned for an AWS provider."""
+        with schema_context(self.schema):
+            expected_bill_ids = AzureCostEntryBill.objects.values_list("id")
+            expected_bill_ids = sorted(bill_id[0] for bill_id in expected_bill_ids)
+        bills = utils.get_bills_from_provider(self.azure_provider_uuid, self.schema)
+
+        with schema_context(self.schema):
+            bill_ids = sorted(bill.id for bill in bills)
+
+        self.assertEqual(bill_ids, expected_bill_ids)
+
+        # Try with unknown provider uuid
+        bills = utils.get_bills_from_provider(self.unkown_test_provider_uuid, self.schema)
+        self.assertEqual(bills, [])
