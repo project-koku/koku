@@ -20,8 +20,6 @@ from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
 from masu.external.downloader.ocp.ocp_report_downloader import OPERATOR_VERSIONS
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
-from masu.util.ocp.common import get_cluster_alias_from_cluster_id
-from masu.util.ocp.common import get_cluster_id_from_provider
 
 
 LOG = logging.getLogger(__name__)
@@ -52,10 +50,12 @@ class ROSReportShipper:
 
     def __init__(
         self,
+        provider,
         report_meta,
         b64_identity,
         context,
     ):
+        self.provider = provider
         self.b64_identity = b64_identity
         self.manifest_id = report_meta["manifest_id"]
         self.context = context | {"manifest_id": self.manifest_id}
@@ -143,12 +143,10 @@ class ROSReportShipper:
 
     def build_ros_msg(self, presigned_urls, upload_keys):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
-        cluster_id = get_cluster_id_from_provider(self.provider_uuid)
-        cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,
-            "metadata": self.metadata | {"cluster_alias": cluster_alias},
+            "metadata": self.metadata | {"cluster_alias": self.provider.name},
             "files": presigned_urls,
             "object_keys": upload_keys,
         }

@@ -102,7 +102,7 @@ def create_manifest_entries(report_meta, request_id, context={}):
     return downloader._prepare_db_manifest_record(report_meta)
 
 
-def get_account_from_cluster_id(cluster_id, manifest_uuid, context={}):
+def get_provider_from_cluster_id(cluster_id, manifest_uuid, context={}):
     """
     Returns the provider details for a given OCP cluster id.
 
@@ -125,7 +125,7 @@ def get_account_from_cluster_id(cluster_id, manifest_uuid, context={}):
     if provider_uuid := utils.get_provider_uuid_from_cluster_id(cluster_id):
         context |= {"provider_uuid": provider_uuid, "cluster_id": cluster_id}
         LOG.info(log_json(manifest_uuid, msg="found provider for cluster-id", context=context))
-        account = get_account(provider_uuid, manifest_uuid, context)
+        account = get_provider(provider_uuid, manifest_uuid, context)
     return account
 
 
@@ -301,23 +301,20 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
             context=context,
         )
     )
-    account = get_account_from_cluster_id(cluster_id, manifest_uuid, context)
-    if not account:
+    provider = get_provider_from_cluster_id(cluster_id, manifest_uuid, context)
+    if not provider:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)
         return None, manifest_uuid
+    account = provider.account
     schema_name = account.get("schema_name")
-    provider_type = account.get("provider_type")
-    source_id = None
-    provider_uuid = account.get("provider_uuid")
-    if provider_uuid:
-        source_id = _get_source_id(provider_uuid)
-    context["provider_type"] = provider_type
+    source_id = _get_source_id(provider.uuid)
+    context["provider_type"] = provider.type
     context["schema"] = schema_name
     report_meta["source_id"] = source_id
-    report_meta["provider_uuid"] = provider_uuid
-    report_meta["provider_type"] = provider_type
+    report_meta["provider_uuid"] = provider.uuid
+    report_meta["provider_type"] = provider.type
     report_meta["schema_name"] = schema_name
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
@@ -327,12 +324,12 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get("date"))
-    destination_dir = Path(Config.INSIGHTS_LOCAL_REPORT_DIR, report_meta.get("cluster_id"), usage_month)
+    destination_dir = Path(Config.INSIGHTS_LOCAL_REPORT_DIR, cluster_id, usage_month)
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
     manifest_destination_path = Path(destination_dir, report_meta["manifest_path"].name)
-    shutil.copy(report_meta.get("manifest_path"), manifest_destination_path)
+    shutil.copy(report_meta["manifest_path"], manifest_destination_path)
 
     # Save Manifest
     report_meta["manifest_id"] = create_manifest_entries(report_meta, request_id, context)
@@ -346,6 +343,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
         if ros_file in payload_files:
             ros_reports.append((ros_file, payload_path.with_name(ros_file)))
     ros_processor = ROSReportShipper(
+        provider,
         report_meta,
         b64_identity,
         context,
@@ -466,7 +464,7 @@ def handle_message(kmsg):
         return FAILURE_CONFIRM_STATUS, None, None
 
 
-def get_account(provider_uuid, manifest_uuid, context={}):
+def get_provider(provider_uuid, manifest_uuid, context={}):
     """
     Retrieve a provider's account configuration needed for processing.
 
