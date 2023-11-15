@@ -169,6 +169,7 @@ class Orchestrator:
         # only GCP and OCI return more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
         report_tasks = []
+        LOG.info(log_json("start_manifest_processing", msg="creating manifest list", schema=schema_name))
         for manifest in manifest_list:
             tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
             report_files = manifest.get("files", [])
@@ -260,6 +261,15 @@ class Orchestrator:
                 LOG.info(log_json(tracing_id, msg="download queued", schema=schema_name))
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
+        LOG.info(
+            log_json(
+                "start_manifest_processing",
+                msg="created manifest list",
+                report_tasks=report_tasks,
+                summarize_reports=self._summarize_reports,
+                schema=schema_name,
+            )
+        )
         if report_tasks:
             if self._summarize_reports:
                 reports_tasks_queued = True
@@ -267,13 +277,32 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
+                LOG.info(
+                    log_json(
+                        "start_manifest_processing",
+                        msg="created summary_task signature",
+                        schema=schema_name,
+                        summary_task=str(summary_task),
+                        hcs_task=str(hcs_task),
+                    )
+                )
                 # data source contains fields from applications.extra and metered is the key that gates subs processing.
                 subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
                     queue=SUBS_EXTRACTION_QUEUE
                 )
+                LOG.info(log_json("start_manifest_processing", msg="created subs_task signature", schema=schema_name))
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
+                LOG.info(
+                    log_json(
+                        "start_manifest_processing",
+                        msg="created chord with group",
+                        async_id=str(async_id),
+                        schema=schema_name,
+                    )
+                )
             else:
                 async_id = group(report_tasks)()
+
             LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))
 
         return manifest_list, reports_tasks_queued
