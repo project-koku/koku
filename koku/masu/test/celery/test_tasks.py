@@ -12,6 +12,7 @@ from celery.exceptions import MaxRetriesExceededError
 from celery.exceptions import Retry
 from django.conf import settings
 from django.test import override_settings
+from model_bakery import baker
 from requests.exceptions import HTTPError
 
 from api.currency.models import ExchangeRates
@@ -20,6 +21,7 @@ from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
@@ -264,65 +266,68 @@ class TestCeleryTasks(MasuTestCase):
             calls.append(call(table, partition_column, provider_uuid))
         mock_delete_partitions.assert_has_calls(calls)
 
-    @patch("masu.celery.tasks.AWSOrgUnitCrawler")
-    def test_crawl_account_hierarchy_with_provider_uuid(self, mock_crawler):
+    def test_crawl_account_hierarchy_with_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
-        mock_crawler.crawl_account_hierarchy.return_value = True
+        p = baker.make(Provider, type=Provider.PROVIDER_AWS)
+        with patch.object(AWSOrgUnitCrawler, "crawl_account_hierarchy") as mock_crawler:
+            mock_crawler.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
-            tasks.crawl_account_hierarchy(self.aws_test_provider_uuid)
-            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % ("1")
+            tasks.crawl_account_hierarchy(p.uuid)
+            expected_log_msg = "Account hierarchy crawler found 1 accounts to scan"
 
         self.assertIn(expected_log_msg, captured_logs.output[0])
 
-    @patch("masu.celery.tasks.AWSOrgUnitCrawler")
-    def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
+    def test_crawl_account_hierarchy_without_provider_uuid(self):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
+        baker.make(Provider, type=Provider.PROVIDER_AWS)
         polling_accounts = Provider.polling_objects.all()
         providers = Provider.objects.all()
         for provider in providers:
             provider.polling_timestamp = None
             provider.save()
-        mock_crawler.crawl_account_hierarchy.return_value = True
-        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
-            tasks.crawl_account_hierarchy()
-            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
-
+        with patch.object(AWSOrgUnitCrawler, "crawl_account_hierarchy") as mock_crawler:
+            mock_crawler.return_value = True
+            with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+                tasks.crawl_account_hierarchy()
+                expected_log_msg = f"Account hierarchy crawler found {len(polling_accounts)} accounts to scan"
         self.assertIn(expected_log_msg, captured_logs.output[0])
+        mock_crawler.assert_called()
 
-    @patch("masu.celery.tasks.CostModelDBAccessor")
-    def test_cost_model_status_check_with_provider_uuid(self, mock_cost_check):
+    @patch("masu.celery.tasks.NotificationService")
+    def test_cost_model_status_check_with_provider_uuid(self, mock_notification):
         """Test that only accounts associated with the provider_uuid are polled."""
-        mock_cost_check.cost_model_notification.return_value = True
+        mock_notification.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status(self.ocp_test_provider_uuid)
-            expected_log_msg = "Cost model status check found %s providers to scan" % ("1")
+            expected_log_msg = "Cost model status check found 1 providers to scan"
             self.assertIn(expected_log_msg, captured_logs.output[0])
+        mock_notification.assert_not_called()  # the test-ocp-source has a cost model; this mock should not be called
 
-    @patch("masu.celery.tasks.CostModelDBAccessor")
-    def test_cost_model_status_check_with_incompatible_provider_uuid(self, mock_cost_check):
+    def test_cost_model_status_check_with_incompatible_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
-        mock_cost_check.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status(self.gcp_test_provider_uuid)
             expected_log_msg = f"Source {self.gcp_test_provider_uuid} is not an openshift source."
 
         self.assertIn(expected_log_msg, captured_logs.output[0])
 
-    @patch("masu.celery.tasks.CostModelDBAccessor")
-    def test_cost_model_status_check_without_provider_uuid(self, mock_cost_check):
+    @patch("masu.celery.tasks.NotificationService")
+    def test_cost_model_status_check_without_provider_uuid(self, mock_notification):
         """Test that all polling accounts are used when no provider_uuid is provided."""
+        mock_notification.cost_model_notification.return_value = True
+        baker.make("Provider", type=Provider.PROVIDER_OCP, customer=self.customer)
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
-        mock_cost_check.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status()
-            expected_log_msg = "Cost model status check found %s providers to scan" % (len(providers))
+            expected_log_msg = f"Cost model status check found {len(providers)} providers to scan"
             self.assertIn(expected_log_msg, captured_logs.output[0])
+        mock_notification.assert_called()  # the baked ocp source does not have cost model; this mock should be called
 
     def test_stale_ocp_source_check_with_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source(self.ocp_test_provider_uuid)
-            expected_log_msg = "Openshfit stale cluster check found 1 clusters to scan"
+            expected_log_msg = "Openshift stale cluster check found 1 clusters to scan"
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     def test_stale_ocp_source_check_without_provider_uuid(self):
@@ -330,7 +335,7 @@ class TestCeleryTasks(MasuTestCase):
         manifests = ReportManifestDBAccessor().get_last_manifest_upload_datetime()
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source()
-            expected_log_msg = "Openshfit stale cluster check found %s clusters to scan" % (len(manifests))
+            expected_log_msg = f"Openshift stale cluster check found {len(manifests)} clusters to scan"
 
         self.assertIn(expected_log_msg, captured_logs.output[0])
 

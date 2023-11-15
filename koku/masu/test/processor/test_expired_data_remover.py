@@ -11,6 +11,8 @@ from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.utils import timezone
+from model_bakery import baker
 
 from api.provider.models import Provider
 from masu.config import Config
@@ -18,7 +20,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -265,11 +266,13 @@ class ExpiredDataRemoverTest(MasuTestCase):
         }
         manifest_entry = CostUsageReportManifest(**day_before_cutoff_data)
         manifest_entry.save()
-        manifest_helper = ManifestCreationHelper(
-            manifest_id, manifest_entry.num_total_files, manifest_entry.assembly_id
+
+        baker.make(
+            "CostUsageReportStatus",
+            _quantity=manifest_entry.num_total_files,
+            manifest_id=manifest_id,
+            last_completed_datetime=timezone.now(),
         )
-        manifest_helper.generate_test_report_files()
-        manifest_helper.process_all_files()
 
         count_records = CostUsageReportManifest.objects.count()
         with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:

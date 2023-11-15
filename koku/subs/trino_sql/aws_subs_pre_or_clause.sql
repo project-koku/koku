@@ -45,20 +45,10 @@ FROM
     from
       hive.{{schema | sqlsafe}}.aws_line_items
     WHERE
-      source = {{ provider_uuid }}
+      source = {{ source_uuid }}
       AND year = {{ year }}
       AND month = {{ month }}
       AND lineitem_productcode = 'AmazonEC2'
       AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage')
       AND product_vcpu != ''
-      AND lineitem_usagestartdate >= {{ start_time }}
-      AND lineitem_usagestartdate <= {{ end_time }}
       AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
-      AND lineitem_resourceid = {{ rid }}
-    OFFSET
-      {{ offset }}
-    LIMIT
-      {{ limit }}
-  )
--- this ensures the required `com_redhat_rhel` tag exists in the set of tags since the above match is not exact
-WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL

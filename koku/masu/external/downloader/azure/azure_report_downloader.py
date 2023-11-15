@@ -13,6 +13,7 @@ import pandas as pd
 from django.conf import settings
 
 from api.common import log_json
+from api.provider.models import check_provider_setup_complete
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -60,7 +61,7 @@ def get_processing_date(s3_csv_path, manifest_id, provider_uuid, start_date, end
         and dh.today.day > 1
         or start_date.month < dh.today.month
         and dh.today.day > 1
-        or not com_utils.check_setup_complete(provider_uuid)
+        or not check_provider_setup_complete(provider_uuid)
     ):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
@@ -108,7 +109,7 @@ def create_daily_archives(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
     with pd.read_csv(
-        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval]
+        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval], dtype="str"
     ) as reader:
         for i, data_frame in enumerate(reader):
             if data_frame.empty:

@@ -78,7 +78,7 @@ class SUBSDataMessenger:
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
     def send_kafka_message(self, msg):
-        """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
+        """Sends a kafka message to the SUBS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
         producer.produce(masu_config.SUBS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)

@@ -12,7 +12,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from masu.database.provider_db_accessor import ProviderDBAccessor
+from api.provider.models import Provider
+
 
 ADDITIONAL_CONTEXT_PATHS = ["/aws_list_account_aliases", "/crawl_hierarchy"]
 
@@ -45,25 +46,23 @@ def additional_context(request):
                 {"Error": f"Parameter missing. Required: {required_param}"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-    with ProviderDBAccessor(params.get("provider_uuid")) as provider_accessor:
-        context = provider_accessor.get_additional_context()
-        if request.method == "POST":
-            data = request.data
-            if not isinstance(data, list):
-                return Response(
-                    {"Error": "Post body must be a list of dictionaries."}, status=status.HTTP_400_BAD_REQUEST
-                )
-            for op_dict in data:
-                err_msg = opt_dict_serializer(op_dict)
-                if err_msg:
-                    return Response({"Error": err_msg}, status=status.HTTP_400_BAD_REQUEST)
-                key = op_dict.get("path").replace("/", "")
-                if op_dict.get("op").lower() == "remove" and key in context:
-                    del context[key]
-                elif op_dict.get("op").lower() == "replace":
-                    context[key] = op_dict.get("value")
-            provider_accessor.set_additional_context(context)
-        return Response(context)
+    provider = Provider.objects.get(uuid=params.get("provider_uuid"))
+    ctx = provider.additional_context or {}
+
+    if request.method == "POST":
+        data = request.data
+        if not isinstance(data, list):
+            return Response({"Error": "Post body must be a list of dictionaries."}, status=status.HTTP_400_BAD_REQUEST)
+        for op_dict in data:
+            if err_msg := opt_dict_serializer(op_dict):
+                return Response({"Error": err_msg}, status=status.HTTP_400_BAD_REQUEST)
+            key = op_dict.get("path").replace("/", "")
+            if op_dict.get("op").lower() == "remove" and key in ctx:
+                del ctx[key]
+            elif op_dict.get("op").lower() == "replace":
+                ctx[key] = op_dict.get("value")
+        provider.set_additional_context(ctx)
+    return Response(ctx)
 
 
 # https://www.rfc-editor.org/rfc/rfc6902
