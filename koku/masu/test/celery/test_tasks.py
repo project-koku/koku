@@ -327,7 +327,7 @@ class TestCeleryTasks(MasuTestCase):
         """Test that only accounts associated with the provider_uuid are polled."""
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source(self.ocp_test_provider_uuid)
-            expected_log_msg = "Openshfit stale cluster check found 1 clusters to scan"
+            expected_log_msg = "Openshift stale cluster check found 1 clusters to scan"
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     def test_stale_ocp_source_check_without_provider_uuid(self):
@@ -335,7 +335,7 @@ class TestCeleryTasks(MasuTestCase):
         manifests = ReportManifestDBAccessor().get_last_manifest_upload_datetime()
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source()
-            expected_log_msg = "Openshfit stale cluster check found %s clusters to scan" % (len(manifests))
+            expected_log_msg = f"Openshift stale cluster check found {len(manifests)} clusters to scan"
 
         self.assertIn(expected_log_msg, captured_logs.output[0])
 
