@@ -30,7 +30,6 @@ from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
@@ -607,7 +606,7 @@ def update_summary_tables(  # noqa: C901
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).set(queue=queue_name or fallback_update_cost_model_queue) | mark_manifest_complete.si(
-            schema, provider_type, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
+            schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(
             queue=queue_name or fallback_mark_manifest_complete_queue
         )
@@ -616,7 +615,7 @@ def update_summary_tables(  # noqa: C901
         linked_tasks = mark_manifest_complete.s(
             schema,
             provider_type,
-            provider_uuid=provider_uuid,
+            provider_uuid,
             manifest_list=manifest_list,
             ingress_report_uuid=ingress_report_uuid,
             tracing_id=tracing_id,
@@ -846,8 +845,8 @@ def update_cost_model_costs(
     try:
         if updater := CostModelCostUpdater(schema_name, provider_uuid, tracing_id):
             updater.update_cost_model_costs(start_date, end_date)
-        if provider_uuid:
-            ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
+        if provider := Provider.objects.filter(uuid=provider_uuid).first():
+            provider.set_data_updated_timestamp()
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -858,10 +857,10 @@ def update_cost_model_costs(
 
 
 @celery_app.task(name="masu.processor.tasks.mark_manifest_complete", queue=MARK_MANIFEST_COMPLETE_QUEUE)
-def mark_manifest_complete(  # noqa: C901
+def mark_manifest_complete(
     schema,
     provider_type,
-    provider_uuid="",
+    provider_uuid,
     ingress_report_uuid=None,
     tracing_id=None,
     manifest_list=None,
@@ -875,8 +874,8 @@ def mark_manifest_complete(  # noqa: C901
         "manifest_list": manifest_list,
     }
     LOG.info(log_json(tracing_id, msg="marking manifest complete", context=context))
-    if provider_uuid:
-        ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
+    if provider := Provider.objects.filter(uuid=provider_uuid).first():
+        provider.set_data_updated_timestamp()
     with ReportManifestDBAccessor() as manifest_accessor:
         manifest_accessor.mark_manifests_as_completed(manifest_list)
     if ingress_report_uuid:

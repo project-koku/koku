@@ -529,7 +529,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         end_date = DateHelper().this_month_start.replace(year=2123, month=12, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2123, month=12, day=1, tzinfo=None)
         mock_daily_start.return_value = expected_date
-        with patch("masu.util.common.check_setup_complete", return_Value=True):
+        with patch(
+            "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_Value=True
+        ):
             process_date = get_processing_date(
                 temp_path, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
             )
@@ -549,7 +551,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2023, month=9, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=9, day=1, tzinfo=None)
-        with patch("masu.util.common.check_setup_complete", return_Value=True):
+        with patch(
+            "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_Value=True
+        ):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
                 with patch(
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",

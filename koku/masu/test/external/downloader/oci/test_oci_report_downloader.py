@@ -18,6 +18,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.oci.oci_report_downloader import create_monthly_archives
 from masu.external.downloader.oci.oci_report_downloader import DATA_DIR
+from masu.external.downloader.oci.oci_report_downloader import divide_csv_monthly
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloaderError
 from masu.test import MasuTestCase
@@ -331,3 +332,29 @@ class OCIReportDownloaderTest(MasuTestCase):
         downloader = self.create_oci_downloader_with_mocked_values()
         client = downloader._get_oci_client("region")
         self.assertIsNotNone(client)
+
+    @patch("masu.external.downloader.oci.oci_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_divide_csv_monthly_leading_zeros(self, mock_s3):
+        """Test if the divide_csv_monthly function will keep the leading zeros."""
+
+        # Use the processor example for data:
+        file_name = self.test_cost_report_name
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(self.cost_file_path, temp_path)
+        uuid = uuid4()
+
+        with patch("masu.external.downloader.oci.oci_report_downloader.uuid.uuid4", return_value=uuid):
+            monthly_files, date_range = divide_csv_monthly(
+                temp_path,
+                file_name,
+            )
+
+            for file in monthly_files:
+                print(file["filepath"])
+                with open(file["filepath"]) as csv_file:
+                    csv = csv_file.readlines()
+                    print(csv)
+                self.assertIn("015649487", csv[1].split(","))
+
+            os.remove(temp_path)

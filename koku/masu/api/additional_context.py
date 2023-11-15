@@ -61,8 +61,7 @@ def additional_context(request):
                 del ctx[key]
             elif op_dict.get("op").lower() == "replace":
                 ctx[key] = op_dict.get("value")
-        provider.additional_context = ctx
-        provider.save(update_fields=["additional_context"])
+        provider.set_additional_context(ctx)
     return Response(ctx)
 
 
