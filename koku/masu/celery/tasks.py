@@ -432,13 +432,10 @@ def check_cost_model_status(provider_uuid=None):
 @celery_app.task(name="masu.celery.tasks.check_for_stale_ocp_source", queue=DEFAULT)
 def check_for_stale_ocp_source(provider_uuid=None):
     """Scheduled task to initiate source check and fire notifications."""
-    manifest_accessor = ReportManifestDBAccessor()
-    if provider_uuid:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime(provider_uuid)
-    else:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime()
+    with ReportManifestDBAccessor() as accessor:
+        manifest_data = accessor.get_last_manifest_upload_datetime(provider_uuid)
     if manifest_data:
-        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
+        LOG.info(f"Openshift stale cluster check found {len(manifest_data)} clusters to scan")
         processed = 0
         skipped = 0
         today = DateAccessor().today()
