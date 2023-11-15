@@ -30,12 +30,12 @@ def crawl_account_hierarchy(request):
         errmsg = "provider_uuid is a required parameter."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    if request.method == "GET":
-        provider = Provider.objects.filter(uuid=provider_uuid).first()
-        if not provider:
-            errmsg = f"The provider_uuid {provider_uuid} does not exist."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if not provider:
+        errmsg = f"The provider_uuid {provider_uuid} does not exist."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+    if request.method == "GET":
         async_crawl_hierarchy = crawl_hierarchy.delay(provider_uuid=provider_uuid)
         return Response({"Crawl Account Hierarchy Task ID": str(async_crawl_hierarchy)})
 

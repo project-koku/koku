@@ -246,19 +246,6 @@ class AWSOrganizationalUnit(models.Model):
         )
 
 
-class AWSEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for AWSEnabledTagKeys."""
-
-        indexes = [models.Index(fields=["key", "enabled"], name="aws_enabled_key_index")]
-        db_table = "reporting_awsenabledtagkeys"
-
-    key = models.CharField(max_length=253, primary_key=True)
-    enabled = models.BooleanField(default=True)
-
-
 class AWSCategorySummary(models.Model):
     """A collection of all current existing tag key and values."""
 

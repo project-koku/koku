@@ -109,20 +109,6 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
 
-class GCPEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for GCPEnabledTagKeys."""
-
-        db_table = "reporting_gcpenabledtagkeys"
-        indexes = [models.Index(name="gcp_enabled_covering_ix", fields=["key", "enabled"])]
-
-    id = models.BigAutoField(primary_key=True)
-    key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=False)
-
-
 class GCPTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
 
