@@ -368,14 +368,7 @@ def get_local_file_name(cur_key):
     return local_file_name
 
 
-def get_provider_uuid_from_arn(role_arn):
-    """Returns provider_uuid given the arn."""
-    if p := Provider.objects.filter(authentication_id__credentials__role_arn=role_arn).first():
-        return p.uuid
-    return None
-
-
-def get_account_alias_from_role_arn(arn, provider_uuid, session=None):
+def get_account_alias_from_role_arn(arn: AwsArn, provider: Provider, session: boto3.session.Session = None):
     """
     Get account ID for given RoleARN.
 
@@ -394,10 +387,6 @@ def get_account_alias_from_role_arn(arn, provider_uuid, session=None):
     account_id = arn.arn.split(":")[-2]
     alias = account_id
 
-    provider = Provider.objects.filter(uuid=provider_uuid).first()
-    if not provider:
-        return (account_id, alias)
-
     context = provider.additional_context or {}
     if context.get(context_key, True):
         try:
@@ -414,7 +403,7 @@ def get_account_alias_from_role_arn(arn, provider_uuid, session=None):
     return (account_id, alias)
 
 
-def get_account_names_by_organization(arn, provider_uuid, session=None):
+def get_account_names_by_organization(arn: AwsArn, provider: Provider, session: boto3.session.Session = None):
     """
     Get account ID for given RoleARN.
 
@@ -429,11 +418,6 @@ def get_account_names_by_organization(arn, provider_uuid, session=None):
     if not session:
         session = get_assume_role_session(arn)
     all_accounts = []
-
-    provider = Provider.objects.filter(uuid=provider_uuid).first()
-    if not provider:
-        return all_accounts
-
     context = provider.additional_context or {}
     if context.get(context_key, True):
         try:
@@ -452,14 +436,16 @@ def get_account_names_by_organization(arn, provider_uuid, session=None):
     return all_accounts
 
 
-def update_account_aliases(schema, credentials, provider_uuid):
+def update_account_aliases(provider: Provider):
     """Update the account aliases."""
+    schema = provider.account["schema_name"]
+    credentials = provider.account["credentials"]
     _arn = AwsArn(credentials)
-    account_id, account_alias = get_account_alias_from_role_arn(_arn, provider_uuid)
+    account_id, account_alias = get_account_alias_from_role_arn(_arn, provider)
     with contextlib.suppress(IntegrityError), schema_context(schema):
         AWSAccountAlias.objects.get_or_create(account_id=account_id, account_alias=account_alias)
 
-    accounts = get_account_names_by_organization(_arn, provider_uuid)
+    accounts = get_account_names_by_organization(_arn, provider)
     for account in accounts:
         acct_id = account.get("id")
         acct_alias = account.get("name")

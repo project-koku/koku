@@ -293,40 +293,41 @@ class TestCeleryTasks(MasuTestCase):
         self.assertIn(expected_log_msg, captured_logs.output[0])
         mock_crawler.assert_called()
 
-    @patch("masu.celery.tasks.CostModelDBAccessor")
-    def test_cost_model_status_check_with_provider_uuid(self, mock_cost_check):
+    @patch("masu.celery.tasks.NotificationService")
+    def test_cost_model_status_check_with_provider_uuid(self, mock_notification):
         """Test that only accounts associated with the provider_uuid are polled."""
-        mock_cost_check.cost_model_notification.return_value = True
+        mock_notification.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status(self.ocp_test_provider_uuid)
-            expected_log_msg = "Cost model status check found %s providers to scan" % ("1")
+            expected_log_msg = "Cost model status check found 1 providers to scan"
             self.assertIn(expected_log_msg, captured_logs.output[0])
+        mock_notification.assert_not_called()  # the test-ocp-source has a cost model; this mock should not be called
 
-    @patch("masu.celery.tasks.CostModelDBAccessor")
-    def test_cost_model_status_check_with_incompatible_provider_uuid(self, mock_cost_check):
+    def test_cost_model_status_check_with_incompatible_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
-        mock_cost_check.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status(self.gcp_test_provider_uuid)
             expected_log_msg = f"Source {self.gcp_test_provider_uuid} is not an openshift source."
 
         self.assertIn(expected_log_msg, captured_logs.output[0])
 
-    @patch("masu.celery.tasks.CostModelDBAccessor")
-    def test_cost_model_status_check_without_provider_uuid(self, mock_cost_check):
+    @patch("masu.celery.tasks.NotificationService")
+    def test_cost_model_status_check_without_provider_uuid(self, mock_notification):
         """Test that all polling accounts are used when no provider_uuid is provided."""
+        mock_notification.cost_model_notification.return_value = True
+        baker.make("Provider", type=Provider.PROVIDER_OCP, customer=self.customer)
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
-        mock_cost_check.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status()
-            expected_log_msg = "Cost model status check found %s providers to scan" % (len(providers))
+            expected_log_msg = f"Cost model status check found {len(providers)} providers to scan"
             self.assertIn(expected_log_msg, captured_logs.output[0])
+        mock_notification.assert_called()  # the baked ocp source does not have cost model; this mock should be called
 
     def test_stale_ocp_source_check_with_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source(self.ocp_test_provider_uuid)
-            expected_log_msg = "Openshfit stale cluster check found 1 clusters to scan"
+            expected_log_msg = "Openshift stale cluster check found 1 clusters to scan"
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     def test_stale_ocp_source_check_without_provider_uuid(self):
@@ -334,7 +335,7 @@ class TestCeleryTasks(MasuTestCase):
         manifests = ReportManifestDBAccessor().get_last_manifest_upload_datetime()
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source()
-            expected_log_msg = "Openshfit stale cluster check found %s clusters to scan" % (len(manifests))
+            expected_log_msg = f"Openshift stale cluster check found {len(manifests)} clusters to scan"
 
         self.assertIn(expected_log_msg, captured_logs.output[0])
 

@@ -297,9 +297,8 @@ class ProviderManager:
 def provider_post_save_refresh_cache(*args, **kwargs):
     """Invalidate sources view cache after provider save."""
     provider: Provider = kwargs["instance"]
-    customer = provider.customer
-
-    invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
+    if customer := provider.customer:
+        invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
 
 
 @receiver(post_delete, sender=Provider)

@@ -169,7 +169,7 @@ class TestAWSUtils(MasuTestCase):
         mock_client = Mock()
         mock_client.list_account_aliases.return_value = {"AccountAliases": [mock_alias]}
         session.client.return_value = mock_client
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider_uuid, session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider, session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_alias, account_alias)
 
@@ -185,7 +185,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider_uuid, mock_session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider, mock_session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -201,7 +201,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider_uuid)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -221,7 +221,7 @@ class TestAWSUtils(MasuTestCase):
         mock_paginator.paginate.return_value = paginated_results
         mock_client.get_paginator.return_value = mock_paginator
         session.client.return_value = mock_client
-        accounts = utils.get_account_names_by_organization(arn, self.aws_provider_uuid, session)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider, session)
         self.assertEqual(accounts, expected)
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -236,7 +236,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(arn, self.aws_provider_uuid, mock_session)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider, mock_session)
         self.assertEqual(accounts, [])
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -251,7 +251,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(arn, self.aws_provider_uuid)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider)
         self.assertEqual(accounts, [])
 
     def test_update_account_aliases_no_aliases(self):
@@ -259,14 +259,12 @@ class TestAWSUtils(MasuTestCase):
             orig_count = AWSAccountAlias.objects.all().count()
 
             mock_account_id = self.account_id
-            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
-            credentials = {"role_arn": role_arn}
 
             with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
                 "masu.util.aws.common.get_account_names_by_organization"
             ):
                 mock_get.return_value = (mock_account_id, mock_account_id)
-                utils.update_account_aliases(self.schema, credentials, self.aws_provider_uuid)
+                utils.update_account_aliases(self.aws_provider)
 
             after_count = AWSAccountAlias.objects.all().count()
             self.assertEqual(orig_count + 1, after_count)
@@ -278,14 +276,12 @@ class TestAWSUtils(MasuTestCase):
 
             mock_account_id = self.account_id
             mock_alias = "mock_alias"
-            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
-            credentials = {"role_arn": role_arn}
 
             with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
                 "masu.util.aws.common.get_account_names_by_organization"
             ):
                 mock_get.return_value = (mock_account_id, mock_alias)
-                utils.update_account_aliases(self.schema, credentials, self.aws_provider_uuid)
+                utils.update_account_aliases(self.aws_provider)
 
             after_count = AWSAccountAlias.objects.all().count()
             self.assertEqual(orig_count + 1, after_count)
@@ -299,15 +295,13 @@ class TestAWSUtils(MasuTestCase):
             mock_account_id2 = fake_aws_account_id()
             mock_alias = "mock_alias"
             mock_alias2 = "mock_alias2"
-            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
-            credentials = {"role_arn": role_arn}
 
             with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
                 "masu.util.aws.common.get_account_names_by_organization"
             ) as mock_get_orgs:
                 mock_get.return_value = (mock_account_id, mock_alias)
                 mock_get_orgs.return_value = [{"id": mock_account_id2, "name": mock_alias2}]
-                utils.update_account_aliases(self.schema, credentials, self.aws_provider_uuid)
+                utils.update_account_aliases(self.aws_provider)
 
             after_count = AWSAccountAlias.objects.all().count()
             self.assertEqual(orig_count + 2, after_count)
