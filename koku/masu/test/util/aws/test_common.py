@@ -24,7 +24,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -170,7 +169,7 @@ class TestAWSUtils(MasuTestCase):
         mock_client = Mock()
         mock_client.list_account_aliases.return_value = {"AccountAliases": [mock_alias]}
         session.client.return_value = mock_client
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider, session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_alias, account_alias)
 
@@ -186,7 +185,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, mock_session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider, mock_session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -202,7 +201,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -222,7 +221,7 @@ class TestAWSUtils(MasuTestCase):
         mock_paginator.paginate.return_value = paginated_results
         mock_client.get_paginator.return_value = mock_paginator
         session.client.return_value = mock_client
-        accounts = utils.get_account_names_by_organization(arn, session)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider, session)
         self.assertEqual(accounts, expected)
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -237,7 +236,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(arn, mock_session)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider, mock_session)
         self.assertEqual(accounts, [])
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -252,7 +251,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(arn)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider)
         self.assertEqual(accounts, [])
 
     def test_update_account_aliases_no_aliases(self):
@@ -260,14 +259,12 @@ class TestAWSUtils(MasuTestCase):
             orig_count = AWSAccountAlias.objects.all().count()
 
             mock_account_id = self.account_id
-            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
-            credentials = {"role_arn": role_arn}
 
             with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
                 "masu.util.aws.common.get_account_names_by_organization"
             ):
                 mock_get.return_value = (mock_account_id, mock_account_id)
-                utils.update_account_aliases(self.schema, credentials)
+                utils.update_account_aliases(self.aws_provider)
 
             after_count = AWSAccountAlias.objects.all().count()
             self.assertEqual(orig_count + 1, after_count)
@@ -279,14 +276,12 @@ class TestAWSUtils(MasuTestCase):
 
             mock_account_id = self.account_id
             mock_alias = "mock_alias"
-            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
-            credentials = {"role_arn": role_arn}
 
             with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
                 "masu.util.aws.common.get_account_names_by_organization"
             ):
                 mock_get.return_value = (mock_account_id, mock_alias)
-                utils.update_account_aliases(self.schema, credentials)
+                utils.update_account_aliases(self.aws_provider)
 
             after_count = AWSAccountAlias.objects.all().count()
             self.assertEqual(orig_count + 1, after_count)
@@ -300,15 +295,13 @@ class TestAWSUtils(MasuTestCase):
             mock_account_id2 = fake_aws_account_id()
             mock_alias = "mock_alias"
             mock_alias2 = "mock_alias2"
-            role_arn = f"arn:aws:iam::{mock_account_id}:role/CostManagement"
-            credentials = {"role_arn": role_arn}
 
             with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
                 "masu.util.aws.common.get_account_names_by_organization"
             ) as mock_get_orgs:
                 mock_get.return_value = (mock_account_id, mock_alias)
                 mock_get_orgs.return_value = [{"id": mock_account_id2, "name": mock_alias2}]
-                utils.update_account_aliases(self.schema, credentials)
+                utils.update_account_aliases(self.aws_provider)
 
             after_count = AWSAccountAlias.objects.all().count()
             self.assertEqual(orig_count + 2, after_count)
@@ -357,16 +350,13 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with start date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__gte=end_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
@@ -381,16 +371,13 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with end date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__lte=start_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
@@ -405,16 +392,13 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with both dates."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
             end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = (
                     bills.filter(billing_period_start__gte=start_date.date())
