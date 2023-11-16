@@ -42,7 +42,7 @@ pipeline {
 
         IQE_PLUGINS="cost_management"
         IQE_CJI_TIMEOUT="120m"
-        IQE_ENV_VARS="JOB_NAME=koku_pipeline_pr_check,BUILD_NUMBER=1234"  # custom set of extra environment variables to set on IQE pod
+        IQE_ENV_VARS="JOB_NAME=koku_pipeline_pr_check,BUILD_NUMBER=1234"  // custom set of extra environment variables to set on IQE pod
 
 
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
