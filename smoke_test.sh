@@ -10,6 +10,7 @@ IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
+IQE_ENV_VARS="JOB_NAME=koku_smoke_test,BUILD_NUMBER=1234"  # custom set of extra environment variables to set on IQE pod
 
 # Get bonfire helper scripts
 CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
