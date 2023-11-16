@@ -28,7 +28,6 @@ from django.core.cache import caches
 from django.db.utils import IntegrityError
 from django.test.utils import override_settings
 from django_tenants.utils import schema_context
-from model_bakery import baker
 
 from api.iam.models import Tenant
 from api.models import Provider
@@ -1510,7 +1509,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
         }
-        baker.make("CostUsageReportManifest", **manifest_dict)
+        self.baker.make("CostUsageReportManifest", **manifest_dict)
 
         update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
         mock_delay.assert_not_called()
@@ -1567,7 +1566,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
             "num_total_files": 2,
             "provider_id": self.aws_provider_uuid,
         }
-        baker.make("CostUsageReportManifest", **manifest_dict)
+        self.baker.make("CostUsageReportManifest", **manifest_dict)
 
         update_openshift_on_cloud(
             self.schema,

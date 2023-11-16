@@ -7,8 +7,6 @@ import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
-from model_bakery import baker
-
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
@@ -82,7 +80,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             "num_total_files": 2,
             "provider_id": self.ocp_provider_uuid,
         }
-        manifest = baker.make("CostUsageReportManifest", **manifest_dict)
+        manifest = self.baker.make("CostUsageReportManifest", **manifest_dict)
         manifest_id = manifest.id
         with self.assertRaises(ReportSummaryUpdaterError):
             ReportSummaryUpdater(self.schema, no_provider_uuid, manifest_id)

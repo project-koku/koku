@@ -9,7 +9,6 @@ import uuid
 from dateutil.relativedelta import relativedelta
 from django.utils import timezone
 from faker import Faker
-from model_bakery import baker
 
 from api.utils import DateHelper
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -35,14 +34,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
             "provider_id": self.ocp_provider_uuid,
         }
         self.manifest_accessor = ReportManifestDBAccessor()
-        self.manifest = baker.make("CostUsageReportManifest", **self.manifest_dict)
-
-    # def tearDown(self):
-    #     """Tear down the test class."""
-    #     super().tearDown()
-    #     manifests = self.manifest_accessor._get_db_obj_query().all()
-    #     for manifest in manifests:
-    #         self.manifest_accessor.delete(manifest)
+        self.manifest = self.baker.make("CostUsageReportManifest", **self.manifest_dict)
 
     def test_get_manifest(self):
         """Test that the right manifest is returned."""
@@ -105,12 +97,12 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
         manifest_dict = copy.deepcopy(self.manifest_dict)
         manifest_dict["assembly_id"] = "2345"
-        baker.make("CostUsageReportManifest", **manifest_dict)
+        self.baker.make("CostUsageReportManifest", **manifest_dict)
         result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.ocp_provider_uuid, bill_date)
         self.assertEqual(len(result), 3)
 
         manifest_dict["assembly_id"] = "3456"
-        baker.make("CostUsageReportManifest", **manifest_dict)
+        self.baker.make("CostUsageReportManifest", **manifest_dict)
         result = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.ocp_provider_uuid, bill_date)
         self.assertEqual(len(result), 4)
 
@@ -123,12 +115,12 @@ class ReportManifestDBAccessorTest(MasuTestCase):
             "num_total_files": 1,
             "provider_id": self.aws_provider_uuid,
         }
-        manifest2 = baker.make("CostUsageReportManifest", **manifest_dict2)
+        manifest2 = self.baker.make("CostUsageReportManifest", **manifest_dict2)
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertCountEqual(assembly_ids, [str(self.manifest.assembly_id), manifest2.assembly_id])
 
         # test that when the manifest's files have been processed - it is no longer returned
-        baker.make(
+        self.baker.make(
             "CostUsageReportStatus",
             _quantity=manifest_dict2.get("num_total_files"),
             manifest_id=manifest2.id,
@@ -146,7 +138,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
             "num_total_files": 1,
             "provider_id": self.gcp_provider_uuid,
         }
-        manifest3 = baker.make("CostUsageReportManifest", **manifest_dict3)
+        manifest3 = self.baker.make("CostUsageReportManifest", **manifest_dict3)
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertIn(manifest3.assembly_id, assembly_ids)
 
@@ -162,8 +154,8 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         """Test is last completed datetime is null."""
         manifest_id = 123456789
         self.assertTrue(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
-        baker.make(CostUsageReportManifest, id=manifest_id)
-        baker.make(CostUsageReportStatus, manifest_id=manifest_id, last_completed_datetime=None)
+        self.baker.make(CostUsageReportManifest, id=manifest_id)
+        self.baker.make(CostUsageReportStatus, manifest_id=manifest_id, last_completed_datetime=None)
         self.assertTrue(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
 
         CostUsageReportStatus.objects.filter(manifest_id=manifest_id).update(last_completed_datetime=FAKE.date())
@@ -200,7 +192,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         """Test that s3 CSV clear status is reported."""
         self.manifest_dict["cluster_id"] = "cluster_id"
         self.manifest_dict["assembly_id"] = uuid.uuid4()
-        manifest = baker.make("CostUsageReportManifest", **self.manifest_dict)
+        manifest = self.baker.make("CostUsageReportManifest", **self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
         self.assertTrue(status)
 
@@ -218,7 +210,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         key = "my-made-up-report"
         self.manifest_dict["cluster_id"] = "cluster_id"
         self.manifest_dict["assembly_id"] = uuid.uuid4()
-        manifest = baker.make("CostUsageReportManifest", **self.manifest_dict)
+        manifest = self.baker.make("CostUsageReportManifest", **self.manifest_dict)
         status = self.manifest_accessor.get_s3_parquet_cleared(manifest, key)
         self.assertFalse(status)
 
@@ -260,7 +252,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         # ocp manifest, not daily returns False:
         self.manifest_dict["cluster_id"] = "cluster_id"
         self.manifest_dict["assembly_id"] = uuid.uuid4()
-        manifest = baker.make("CostUsageReportManifest", **self.manifest_dict)
+        manifest = self.baker.make("CostUsageReportManifest", **self.manifest_dict)
         self.assertFalse(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
 
     def test_should_s3_parquet_be_cleared_ocp_is_daily(self):
@@ -269,7 +261,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         self.manifest_dict["cluster_id"] = "cluster_id"
         self.manifest_dict["assembly_id"] = uuid.uuid4()
         self.manifest_dict["operator_daily_reports"] = True
-        manifest = baker.make("CostUsageReportManifest", **self.manifest_dict)
+        manifest = self.baker.make("CostUsageReportManifest", **self.manifest_dict)
         self.assertTrue(self.manifest_accessor.should_s3_parquet_be_cleared(manifest))
 
     def test_bulk_delete_manifests(self):
@@ -277,7 +269,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         manifest_list = [self.manifest.id]
         for fake_assembly_id in ["12345", "123456"]:
             self.manifest_dict["assembly_id"] = fake_assembly_id
-            manifest = baker.make("CostUsageReportManifest", **self.manifest_dict)
+            manifest = self.baker.make("CostUsageReportManifest", **self.manifest_dict)
             manifest_list.append(manifest.id)
         self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
         current_manifests = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(

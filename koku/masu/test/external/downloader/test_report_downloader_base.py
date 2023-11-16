@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 from django.db.utils import IntegrityError
 from faker import Faker
-from model_bakery import baker
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -47,7 +46,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
         }
-        self.manifest = baker.make(
+        self.manifest = self.baker.make(
             CostUsageReportManifest,
             assembly_id=self.assembly_id,
             billing_period_start_datetime=self.billing_start,
@@ -56,23 +55,13 @@ class ReportDownloaderBaseTest(MasuTestCase):
         )
         self.manifest_id = self.manifest.id
         for i in [1, 2]:
-            baker.make(
+            self.baker.make(
                 CostUsageReportStatus,
                 report_name=f"{self.assembly_id}_file_{i}.csv.gz",
                 last_completed_datetime=None,
                 last_started_datetime=None,
                 manifest_id=self.manifest_id,
             )
-
-    # def tearDown(self):
-    #     """Tear down each test case."""
-    #     super().tearDown()
-    #     CostUsageReportStatus.objects.filter(report_name=self.report_name, manifest_id=self.manifest_id).delete()
-
-    #     with ReportManifestDBAccessor() as manifest_accessor:
-    #         manifests = manifest_accessor._get_db_obj_query().all()
-    #         for manifest in manifests:
-    #             manifest_accessor.delete(manifest)
 
     def test_report_downloader_base_no_path(self):
         """Test report downloader download_path."""

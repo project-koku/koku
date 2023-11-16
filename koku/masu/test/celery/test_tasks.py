@@ -266,7 +266,7 @@ class TestCeleryTasks(MasuTestCase):
 
     def test_crawl_account_hierarchy_with_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
-        p = baker.make(Provider, type=Provider.PROVIDER_AWS)
+        p = self.baker.make(Provider, type=Provider.PROVIDER_AWS)
         with patch.object(AWSOrgUnitCrawler, "crawl_account_hierarchy") as mock_crawler:
             mock_crawler.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
@@ -277,7 +277,7 @@ class TestCeleryTasks(MasuTestCase):
 
     def test_crawl_account_hierarchy_without_provider_uuid(self):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
-        baker.make(Provider, type=Provider.PROVIDER_AWS)
+        self.baker.make(Provider, type=Provider.PROVIDER_AWS)
         polling_accounts = Provider.polling_objects.all()
         providers = Provider.objects.all()
         for provider in providers:
@@ -313,7 +313,7 @@ class TestCeleryTasks(MasuTestCase):
     def test_cost_model_status_check_without_provider_uuid(self, mock_notification):
         """Test that all polling accounts are used when no provider_uuid is provided."""
         mock_notification.cost_model_notification.return_value = True
-        baker.make("Provider", type=Provider.PROVIDER_OCP, customer=self.customer)
+        self.baker.make("Provider", type=Provider.PROVIDER_OCP, customer=self.customer)
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status()
