@@ -20,6 +20,7 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.test import MasuTestCase
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
 from reporting.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):
@@ -159,8 +160,13 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
         mock_cost_accessor.return_value.__enter__.return_value.distribution_info = self.distribution_info
+        with schema_context(self.schema):
+            usage_period = (
+                OCPUsageReportPeriod.objects.filter(provider_id=self.provider_uuid)
+                .order_by("-report_period_start")
+                .first()
+            )
 
-        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
         start_date = usage_period.report_period_start.date()
         end_date = usage_period.report_period_end.date() - relativedelta(days=1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
@@ -200,12 +206,16 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             "platform_cost": False,
             "worker_cost": False,
         }
-        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
-        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
-        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
-        updater._update_monthly_cost(start_date, end_date)
-        with schema_context(self.schema):
+        with self.accessor:
+            usage_period = (
+                OCPUsageReportPeriod.objects.filter(provider_id=self.provider_uuid)
+                .order_by("-report_period_start")
+                .first()
+            )
+            start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+            end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+            updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+            updater._update_monthly_cost(start_date, end_date)
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 cost_model_rate_type="Supplementary",
                 monthly_cost_type__isnull=False,
@@ -309,7 +319,12 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_cost_accessor.return_value.__enter__.return_value.tag_infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.tag_supplementary_rates = supplementary_rates
 
-        usage_period = self.accessor.get_current_usage_period(self.provider_uuid)
+        with schema_context(self.schema):
+            usage_period = (
+                OCPUsageReportPeriod.objects.filter(provider_id=self.provider_uuid)
+                .order_by("-report_period_start")
+                .first()
+            )
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
