@@ -27,6 +27,12 @@ LOG = logging.getLogger(__name__)
 class ReportManifestDBAccessor:
     """Class to interact with the koku database for CUR processing statistics."""
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
         return CostUsageReportManifest.objects.filter(provider_id=provider_uuid, assembly_id=assembly_id).first()
