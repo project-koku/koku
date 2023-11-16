@@ -27,7 +27,6 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
-from api.provider.models import Sources
 from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer
 from kafka_utils.utils import get_producer
@@ -193,14 +192,6 @@ def construct_daily_archives(request_id, context, report_meta, report_file_path)
     )
 
 
-def _get_source_id(provider_uuid):
-    """Obtain the source id for a given provider uuid."""
-    source = Sources.objects.filter(koku_uuid=provider_uuid).first()
-    if source:
-        return source.source_id
-    return None
-
-
 # pylint: disable=too-many-locals
 def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     """
@@ -273,18 +264,18 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
             context=context,
         )
     )
-    provider = utils.get_provider_from_cluster_id(cluster_id)
-    if not provider:
+    source = utils.get_source_and_provider_from_cluster_id(cluster_id)
+    if not source:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)
         return None, manifest_uuid
+    provider = source.provider
     account = provider.account
     schema_name = account.get("schema_name")
-    source_id = _get_source_id(provider.uuid)
     context["provider_type"] = provider.type
     context["schema"] = schema_name
-    report_meta["source_id"] = source_id
+    report_meta["source_id"] = source.source_id
     report_meta["provider_uuid"] = provider.uuid
     report_meta["provider_type"] = provider.type
     report_meta["schema_name"] = schema_name
