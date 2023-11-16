@@ -10,7 +10,7 @@ IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
-IQE_ENV_VARS="JOB_NAME=koku_smoke_test,BUILD_NUMBER=1234"
+IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER}"
 
 # Get bonfire helper scripts
 CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
