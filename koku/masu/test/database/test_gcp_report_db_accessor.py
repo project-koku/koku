@@ -21,49 +21,27 @@ from trino.exceptions import TrinoExternalError
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPTopology
+from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 
 class GCPReportDBAccessorTest(MasuTestCase):
     """Test Cases for the ReportDBAccessor object."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up the test class with required objects."""
-        super().setUpClass()
-
-        cls.accessor = GCPReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-
-        cls.all_tables = list(GCP_REPORT_TABLE_MAP.values())
-        cls.foreign_key_tables = [
-            GCP_REPORT_TABLE_MAP["bill"],
-        ]
-        cls.manifest_accessor = ReportManifestDBAccessor()
-
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        today = DateAccessor().today_with_timezone("UTC")
-        billing_start = today.replace(day=1)
-
-        self.manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": billing_start,
-            "num_total_files": 2,
-            "provider_id": self.gcp_provider.uuid,
-        }
-        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.accessor = GCPReportDBAccessor(schema=self.schema)
+        self.manifest = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider.uuid).first()
 
     def test_get_gcp_scan_range_from_report_name_with_manifest(self):
         """Test that we can scan range given the manifest id."""
@@ -111,7 +89,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
         summary_table_name = GCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+        summary_table = get_model(summary_table_name)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider.uuid)
         with schema_context(self.schema):
