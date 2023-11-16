@@ -28,7 +28,6 @@ from koku import trino_database as trino_db
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -60,8 +59,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         super().setUp()
 
         self.cluster_id = "testcluster"
-        with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_accessor:
-            self.ocp_provider_uuid = provider_accessor.get_provider().uuid
+        self.ocp_provider_uuid = self.ocp_provider.uuid
 
         self.reporting_period = self.creator.create_ocp_report_period(
             provider_uuid=self.ocp_provider_uuid, cluster_id=self.cluster_id

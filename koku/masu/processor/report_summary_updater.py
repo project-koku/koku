@@ -9,7 +9,6 @@ import logging
 from api.common import log_json
 from api.models import Provider
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
@@ -67,9 +66,7 @@ class ReportSummaryUpdater:
             with ReportManifestDBAccessor() as manifest_accessor:
                 self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         self._date_accessor = DateAccessor()
-        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
-            self._provider = provider_accessor.get_provider()
-
+        self._provider = Provider.objects.filter(uuid=self._provider_uuid).first()
         if not self._provider:
             raise ReportSummaryUpdaterProviderNotFoundError(
                 f"provider data for uuid '{self._provider_uuid}' not found"

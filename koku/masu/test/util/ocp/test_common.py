@@ -7,7 +7,8 @@ import copy
 import json
 import tempfile
 from unittest.mock import patch
-from uuid import UUID
+
+from model_bakery import baker
 
 from api.provider.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -58,19 +59,17 @@ class OCPUtilTests(MasuTestCase):
         cluster_alias = utils.get_cluster_alias_from_cluster_id(cluster_id)
         self.assertIsNone(cluster_alias)
 
-    def test_get_provider_uuid_from_cluster_id(self):
-        """Test that the provider uuid is returned for a cluster ID."""
+    def test_get_source_and_provider_from_cluster_id(self):
+        """Test that the source/provider is returned for a cluster ID."""
+        baker.make("Sources", provider=self.ocp_provider)
         cluster_id = self.ocp_cluster_id
-        provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
-        try:
-            UUID(provider_uuid)
-        except ValueError:
-            self.fail(f"{str(provider_uuid)} is not a valid uuid.")
+        source = utils.get_source_and_provider_from_cluster_id(cluster_id)
+        self.assertEqual(source.provider, self.ocp_provider)
 
-    def test_get_provider_uuid_from_invalid_cluster_id(self):
-        """Test that the provider uuid is not returned for an invalid cluster ID."""
+    def test_get_source_and_provider_from_cluster_id_invalid_cluster_id(self):
+        """Test that the source/provider is not returned for an invalid cluster ID."""
         cluster_id = "bad_cluster_id"
-        provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
+        provider_uuid = utils.get_source_and_provider_from_cluster_id(cluster_id)
         self.assertIsNone(provider_uuid)
 
     def test_match_openshift_labels(self):
