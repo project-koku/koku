@@ -10,6 +10,7 @@ from django.db.utils import IntegrityError
 
 from api.common import log_json
 from api.provider.models import Provider
+from koku.database import FKViolation
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from reporting_common.models import CostUsageReportManifest
 
@@ -95,7 +96,12 @@ class ReportDownloaderBase:
             manifest_dict["provider_id"] = manifest_dict.pop("provider_uuid")
             try:
                 manifest_entry, _ = CostUsageReportManifest.objects.get_or_create(**manifest_dict)
-            except IntegrityError:
+            except IntegrityError as error:
+
+                if fk_violation := FKViolation(error):
+                    LOG.warning(fk_violation)
+                    raise ReportDownloaderError(f"Method: _process_manifest_db_record :: {fk_violation}") from error
+
                 manifest_entry = CostUsageReportManifest.objects.filter(
                     assembly_id=assembly_id, provider=self._provider_uuid
                 ).first()

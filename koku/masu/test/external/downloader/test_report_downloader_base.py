@@ -64,15 +64,15 @@ class ReportDownloaderBaseTest(MasuTestCase):
                 manifest_id=self.manifest_id,
             )
 
-    def tearDown(self):
-        """Tear down each test case."""
-        super().tearDown()
-        CostUsageReportStatus.objects.filter(report_name=self.report_name, manifest_id=self.manifest_id).delete()
+    # def tearDown(self):
+    #     """Tear down each test case."""
+    #     super().tearDown()
+    #     CostUsageReportStatus.objects.filter(report_name=self.report_name, manifest_id=self.manifest_id).delete()
 
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifests = manifest_accessor._get_db_obj_query().all()
-            for manifest in manifests:
-                manifest_accessor.delete(manifest)
+    #     with ReportManifestDBAccessor() as manifest_accessor:
+    #         manifests = manifest_accessor._get_db_obj_query().all()
+    #         for manifest in manifests:
+    #             manifest_accessor.delete(manifest)
 
     def test_report_downloader_base_no_path(self):
         """Test report downloader download_path."""
@@ -96,7 +96,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def test_process_manifest_db_record_race(self, mock_manifest_objects):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
         mock_manifest_objects.filter.return_value.first.side_effect = [None, self.manifest]
-        mock_manifest_objects.get_or_create.side_effect = IntegrityError("...violates foreign key constraint...")
+        mock_manifest_objects.get_or_create.side_effect = IntegrityError()
         manifest_id = self.downloader._process_manifest_db_record(
             self.assembly_id, self.billing_start, 2, DateAccessor().today()
         )
@@ -106,8 +106,19 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def test_process_manifest_db_record_race_race(self, mock_manifest_objects):
         """Test that the _process_manifest_db_record raises IntegrityError."""
         mock_manifest_objects.filter.return_value.first.side_effect = [None, None]
-        mock_manifest_objects.get_or_create.side_effect = IntegrityError("...violates foreign key constraint...")
+        mock_manifest_objects.get_or_create.side_effect = IntegrityError()
         with self.assertRaises(IntegrityError):
+            self.downloader._process_manifest_db_record(
+                self.assembly_id, self.billing_start, 2, DateAccessor().today()
+            )
+
+    @patch("reporting_common.models.CostUsageReportManifest.objects")
+    def test_process_manifest_db_record_race_race_no_provider(self, mock_manifest_objects):
+        """Test that the _process_manifest_db_record raises IntegrityError."""
+        mock_manifest_objects.filter.return_value.first.side_effect = [None, None]
+        mock_manifest_objects.get_or_create.side_effect = IntegrityError()
+        with self.assertRaises(ReportDownloaderError):
+            self.downloader._provider_uuid = self.unkown_test_provider_uuid
             self.downloader._process_manifest_db_record(
                 self.assembly_id, self.billing_start, 2, DateAccessor().today()
             )
@@ -115,8 +126,12 @@ class ReportDownloaderBaseTest(MasuTestCase):
     @patch("reporting_common.models.CostUsageReportManifest.objects")
     def test_process_manifest_db_record_race_no_provider(self, mock_manifest_objects):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
-        mock_manifest_objects.filter.return_value.first.side_effect = [None, None]
-        mock_manifest_objects.get_or_create.side_effect = IntegrityError("...violates foreign key constraint...")
+        mock_manifest_objects.filter.return_value.first.return_value = None
+        mock_manifest_objects.get_or_create.side_effect = IntegrityError(
+            """insert or update on table "reporting_awscostentrybill" violates foreign key constraint "reporting_awscostent_provider_id_a08725b3_fk_api_provi"
+DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present in table "api_provider".
+"""  # noqa: E501
+        )
         downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
         with self.assertRaises(ReportDownloaderError):
             downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())

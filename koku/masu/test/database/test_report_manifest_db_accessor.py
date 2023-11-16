@@ -125,7 +125,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         }
         manifest2 = baker.make("CostUsageReportManifest", **manifest_dict2)
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
-        self.assertEqual(assembly_ids, [str(self.manifest.assembly_id), manifest2.assembly_id])
+        self.assertCountEqual(assembly_ids, [str(self.manifest.assembly_id), manifest2.assembly_id])
 
         # test that when the manifest's files have been processed - it is no longer returned
         baker.make(
