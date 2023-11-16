@@ -464,7 +464,7 @@ SELECT azure.uuid as azure_uuid,
         AND (
                     (strpos(lower(azure.tags), 'openshift_project') !=0 AND strpos(lower(azure.tags), lower(ocp.namespace)) != 0)
                     OR (strpos(lower(azure.tags), 'openshift_node') != 0 AND strpos(lower(azure.tags),lower(ocp.node)) != 0)
-                    OR (strpos(lower(azure.tags), 'openshift_cluster') != 0 AND (strpos(lower(azure.tags), lower(ocp.cluster_id)) != 0 OR strpos(azure.tags, lower(ocp.cluster_alias)) != 0))
+                    OR (strpos(lower(azure.tags), 'openshift_cluster') != 0 AND (strpos(lower(azure.tags), lower(ocp.cluster_id)) != 0 OR strpos(lower(azure.tags), lower(ocp.cluster_alias)) != 0))
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
