@@ -50,3 +50,13 @@ class Config:
     SOURCES_PSK = ENVIRONMENT.get_value("SOURCES_PSK", default="sources-psk")
 
     RETRY_SECONDS = ENVIRONMENT.int("RETRY_SECONDS", default=10)
+
+    SOURCES_FAKE_SERVICE_ACCOUNT_HEADER = ENVIRONMENT.get_value(
+        "SOURCES_FAKE_SERVICE_ACCOUNT_HEADER",
+        default=(
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjMzMzMzMzM"
+            "iLCAidHlwZSI6ICJTZXJ2aWNlQWNjb3VudCIsICJzZXJ2aWNlX2FjY291bnQiOiB7InVzZXJuYW1lIjo"
+            "gIjBiYjI5MTM1LWQ2ZDEtNDc4Yi1iNWI2LTZiZDEyOWNiNmQ1ZCJ9LCAiaW50ZXJuYWwiOiB7Im9yZ19p"
+            "ZCI6ICIzMzMzMzMzIn19fQ=="
+        ),
+    )
