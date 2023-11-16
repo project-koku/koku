@@ -151,7 +151,13 @@ class OCPPostProcessor:
         return daily_data_frame
 
     def process_dataframe(self, data_frame):
-        label_columns = {"pod_labels", "volume_labels", "namespace_labels", "node_labels"}
+        label_columns = {
+            "pod_labels",
+            "persistentvolume_labels",
+            "persistentvolumeclaim_labels",
+            "namespace_labels",
+            "node_labels",
+        }
         df_columns = set(data_frame.columns)
         columns_to_grab = df_columns.intersection(label_columns)
         label_key_set = set()
