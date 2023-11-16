@@ -22,10 +22,32 @@ from reporting.provider.ocp.models import OpenshiftCostCategory
 
 SETTINGS_GENERATORS = {"settings": Settings}
 
+def _get_return_data(group_name: str="Platform") -> list:
+    cost_category_obj = OpenshiftCostCategory.objects.get(name=group_name)
+    namespaces = OCPCostSummaryByProjectP.objects.values(project_name=F("namespace")).annotate(
+        default=Case(
+            When(namespace__startswith="kube-", then=Value(True)),
+            When(namespace__startswith="openshift-", then=Value(True)),
+            When(namespace="Platform unallocated", then=Value(True)),
+            When(cost_category_id=cost_category_obj.id, then=Value(False)),
+            output_field=BooleanField(null=True),
+        ),
+        clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"),  distinct=True),
+        group=Case(
+            When(namespace__startswith="kube-", then=Value(group_name, output_field=CharField())),
+            When(namespace__startswith="openshift-", then=Value(group_name, output_field=CharField())),
+            When(namespace="Platform unallocated", then=Value(group_name, output_field=CharField())),
+            When(cost_category_id=cost_category_obj.id, then=Value(group_name, output_field=CharField())),
+            output_field=CharField(),
+        ),
+    ).distinct()
+
+    return list(namespaces)
+
 
 class CostGroupsFilter:
     valid_fields = {"name", "kind", "project"}
-    _default_platform_projects = ("kube-%", "openshift-%", "Platform unallocated")
+    _default_platform_projects = frozenset(("kube-%", "openshift-%", "Platform unallocated"))
 
     def __init__(self, request):
         self.request = request
@@ -54,31 +76,29 @@ class CostGroupsFilter:
 
         return self._filter_params
 
-    def filter_data(self, data):
-        result = []
-        for item in data:
-            group = "default" if item in self._default_platform_projects else "platform"
-            result.append({"group": group, "name": item})
+    def filter_data(self):
+        result = _get_return_data()
 
-        for key, value in self.filter_params.items():
-            # FIXME: This needs to do a logical OR for multiple filters of the same field
-            result = [item for item in result if value.lower() in item.get(key, "")]
-
-        field, order = next(iter(self.order_by.items()))
-        reverse = order.lower().startswith("desc")
-
-        def _sort_key(value):
-            return value.get(field, "name")
-
-        result.sort(key=_sort_key, reverse=reverse)
+#         for key, value in self.filter_params.items():
+#             # FIXME: This needs to do a logical OR for multiple filters of the same field
+#             result = [item for item in result if value.lower() in item.get(key, "")]
+#
+#         field, order = next(iter(self.order_by.items()))
+#         reverse = order.lower().startswith("desc")
+#
+#         def _sort_key(value):
+#             return value.get(field, "name")
+#
+#         result.sort(key=_sort_key, reverse=reverse)
 
         return result
 
 
 class CostGroupsView(APIView):
-    """View to manage platform categories
+    """View to manage custom cost groups
 
-    Projects added will be considered part of the platform cost.
+    Projects added will be considered part of the Platform cost group.
+
     Default projects may not be deleted.
     """
 
@@ -93,7 +113,7 @@ class CostGroupsView(APIView):
     @method_decorator(never_cache)
     def get(self, request):
         filter_class = self.filter_class(request)
-        data = filter_class.filter_data(self._platform_record.namespace)
+        data = filter_class.filter_data()
         paginator = ListPaginator(data, request)
 
         return paginator.paginated_response
@@ -111,7 +131,7 @@ class CostGroupsView(APIView):
 
         paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
 
-        self._resummarize_data(request)
+        self._summarize_current_month(request)
 
         return paginator.paginated_response
 
@@ -127,13 +147,13 @@ class CostGroupsView(APIView):
         platform_record.namespace = list(set(platform_record.namespace).difference(request_without_defaults))
         platform_record.save()
 
-        self._resummarize_data(request)
+        self._summarize_current_month(request)
 
         paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
 
         return paginator.paginated_response
 
-    def _resummarize_data(self, request):
+    def _summarize_current_month(self, request):
         """Resummarize OCP data for the current month"""
 
         ocp_queue = OCP_QUEUE
