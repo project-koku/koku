@@ -18,6 +18,7 @@ from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from faker import Faker
+from model_bakery import baker
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
@@ -71,6 +72,7 @@ class IamTestCase(TestCase):
 
     fake = Faker()
     dh = DateHelper()
+    baker = baker
 
     @classmethod
     def setUpClass(cls):
