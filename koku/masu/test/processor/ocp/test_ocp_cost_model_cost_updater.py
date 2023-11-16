@@ -214,8 +214,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             )
             start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
             end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
-            updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
-            updater._update_monthly_cost(start_date, end_date)
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_monthly_cost(start_date, end_date)
+        with self.accessor:
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 cost_model_rate_type="Supplementary",
                 monthly_cost_type__isnull=False,
