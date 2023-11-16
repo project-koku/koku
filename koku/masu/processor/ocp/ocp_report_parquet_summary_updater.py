@@ -23,6 +23,10 @@ from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 LOG = logging.getLogger(__name__)
 
 
+class OCPReportParquetSummaryUpdaterClusterNotFound(Exception):
+    pass
+
+
 class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update OCP report summary data from Trino/Parquet data."""
 
@@ -39,14 +43,15 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         if not self._cluster_id:
-            msg = f"Missing cluster_id for provider: {self._provider.uuid}"
-            LOG.error(
+            msg = "missing cluster_id for provider"
+            LOG.warning(
                 log_json(
-                    msg=msg,
+                    msg="missing cluster_id for provider",
                     provider_uuid=provider.uuid,
+                    schema=schema,
                 )
             )
-            raise ValueError(msg)
+            raise OCPReportParquetSummaryUpdaterClusterNotFound(msg)
 
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         self._date_accessor = DateAccessor()
