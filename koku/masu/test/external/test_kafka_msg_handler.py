@@ -129,12 +129,6 @@ class MockKafkaConsumer:
 class KafkaMsgHandlerTest(MasuTestCase):
     """Test Cases for the Kafka msg handler."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up the class."""
-        super().setUpClass()
-        cls.ocp_source = baker.make("Sources", provider=cls.ocp_provider)
-
     def setUp(self):
         """Set up each test case."""
         super().setUp()
@@ -163,6 +157,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
         self.manifest_id = "1234"
+
+        self.ocp_source = baker.make("Sources", provider=self.ocp_provider)
 
     @patch("masu.external.kafka_msg_handler.listen_for_messages")
     @patch("masu.external.kafka_msg_handler.get_consumer")
