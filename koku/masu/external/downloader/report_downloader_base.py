@@ -10,8 +10,8 @@ from django.db.utils import IntegrityError
 
 from api.common import log_json
 from api.provider.models import Provider
-from koku.database import FKViolation
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from reporting_common.models import CostUsageReportManifest
 
 LOG = logging.getLogger(__name__)
 
@@ -79,47 +79,41 @@ class ReportDownloaderBase:
         msg = f"Inserting/updating manifest in database for assembly_id: {assembly_id}"
         LOG.info(log_json(self.tracing_id, msg=msg))
 
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
+        manifest_entry = CostUsageReportManifest.objects.filter(
+            assembly_id=assembly_id, provider=self._provider_uuid
+        ).first()
+        if not manifest_entry:
+            manifest_dict = kwargs | {
+                "assembly_id": assembly_id,
+                "billing_period_start_datetime": billing_start,
+                "num_total_files": num_of_files,
+                "provider_uuid": self._provider_uuid,
+                "manifest_modified_datetime": manifest_modified_datetime,
+            }
+            # the provider uuid must go in `provider_id`. Explicitly set `provider_uuid` above in case
+            # kwargs contains it. Then we update the key here:
+            manifest_dict["provider_id"] = manifest_dict.pop("provider_uuid")
+            try:
+                manifest_entry, _ = CostUsageReportManifest.objects.get_or_create(**manifest_dict)
+            except IntegrityError:
+                manifest_entry = CostUsageReportManifest.objects.filter(
+                    assembly_id=assembly_id, provider=self._provider_uuid
+                ).first()
 
-            if not manifest_entry:
-                msg = f"No manifest entry found in database. Adding for bill period start: {billing_start}"
-                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-                manifest_dict = {
-                    "assembly_id": assembly_id,
-                    "billing_period_start_datetime": billing_start,
-                    "num_total_files": num_of_files,
-                    "provider_uuid": self._provider_uuid,
-                    "manifest_modified_datetime": manifest_modified_datetime,
-                }
-                manifest_dict.update(kwargs)
-                try:
-                    manifest_entry = manifest_accessor.add(**manifest_dict)
-                except IntegrityError as error:
-                    fk_violation = FKViolation(error)
-                    if fk_violation:
-                        LOG.warning(fk_violation)
-                        raise ReportDownloaderError(f"Method: _process_manifest_db_record :: {fk_violation}")
-                    msg = (
-                        f"Manifest entry uniqueness collision: Error {error}. "
-                        "Manifest already added, getting manifest_entry_id."
-                    )
-                    LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
-                    with ReportManifestDBAccessor() as manifest_accessor:
-                        manifest_entry = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-            if not manifest_entry:
-                msg = f"Manifest entry not found for given manifest {manifest_dict}."
-                provider = Provider.objects.filter(uuid=self._provider_uuid).first()
-                if not provider:
-                    msg = f"Provider entry not found for {self._provider_uuid}."
-                    LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
-                    raise ReportDownloaderError(msg)
+        if not manifest_entry:
+            # if we somehow end up here, then wow
+            msg = f"Manifest entry not found for given manifest {manifest_dict}."
+            provider = Provider.objects.filter(uuid=self._provider_uuid).first()
+            if not provider:
+                msg = f"Provider entry not found for {self._provider_uuid}."
                 LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
-                raise IntegrityError(msg)
-            else:
-                if num_of_files != manifest_entry.num_total_files:
-                    manifest_accessor.update_number_of_files_for_manifest(manifest_entry)
-                manifest_accessor.mark_manifest_as_updated(manifest_entry)
-                manifest_id = manifest_entry.id
+                raise ReportDownloaderError(msg)
+            LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
+            raise IntegrityError(msg)
 
-        return manifest_id
+        with ReportManifestDBAccessor() as manifest_accessor:
+            if num_of_files != manifest_entry.num_total_files:
+                manifest_accessor.update_number_of_files_for_manifest(manifest_entry)
+            manifest_accessor.mark_manifest_as_updated(manifest_entry)
+
+        return manifest_entry.id

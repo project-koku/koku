@@ -15,6 +15,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.test import MasuTestCase
+from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 
@@ -46,10 +47,14 @@ class ReportDownloaderBaseTest(MasuTestCase):
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
         }
-        with ReportManifestDBAccessor() as manifest_accessor:
-            self.manifest = manifest_accessor.add(**self.manifest_dict)
-            self.manifest.save()
-            self.manifest_id = self.manifest.id
+        self.manifest = baker.make(
+            CostUsageReportManifest,
+            assembly_id=self.assembly_id,
+            billing_period_start_datetime=self.billing_start,
+            num_total_files=2,
+            provider_id=self.aws_provider_uuid,
+        )
+        self.manifest_id = self.manifest.id
         for i in [1, 2]:
             baker.make(
                 CostUsageReportStatus,
@@ -87,50 +92,34 @@ class ReportDownloaderBaseTest(MasuTestCase):
         manifest_id = self.downloader._get_existing_manifest_db_id(self.assembly_id)
         self.assertEqual(manifest_id, self.manifest_id)
 
-    @patch.object(ReportManifestDBAccessor, "get_manifest")
-    def test_process_manifest_db_record_race(self, mock_get_manifest):
+    @patch("reporting_common.models.CostUsageReportManifest.objects")
+    def test_process_manifest_db_record_race(self, mock_manifest_objects):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
-        mock_get_manifest.side_effect = [None, self.manifest]
-        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
-            manifest_id = self.downloader._process_manifest_db_record(
-                self.assembly_id, self.billing_start, 2, DateAccessor().today()
-            )
+        mock_manifest_objects.filter.return_value.first.side_effect = [None, self.manifest]
+        mock_manifest_objects.get_or_create.side_effect = IntegrityError("...violates foreign key constraint...")
+        manifest_id = self.downloader._process_manifest_db_record(
+            self.assembly_id, self.billing_start, 2, DateAccessor().today()
+        )
         self.assertEqual(manifest_id, self.manifest.id)
 
-    @patch.object(ReportManifestDBAccessor, "get_manifest")
-    def test_process_manifest_db_record_race_race(self, mock_get_manifest):
+    @patch("reporting_common.models.CostUsageReportManifest.objects")
+    def test_process_manifest_db_record_race_race(self, mock_manifest_objects):
         """Test that the _process_manifest_db_record raises IntegrityError."""
-        mock_get_manifest.side_effect = [None, None]
-        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
-            with self.assertRaises(IntegrityError):
-                self.downloader._process_manifest_db_record(
-                    self.assembly_id, self.billing_start, 2, DateAccessor().today()
-                )
+        mock_manifest_objects.filter.return_value.first.side_effect = [None, None]
+        mock_manifest_objects.get_or_create.side_effect = IntegrityError("...violates foreign key constraint...")
+        with self.assertRaises(IntegrityError):
+            self.downloader._process_manifest_db_record(
+                self.assembly_id, self.billing_start, 2, DateAccessor().today()
+            )
 
-    @patch.object(ReportManifestDBAccessor, "get_manifest")
-    def test_process_manifest_db_record_race_race_no_provider(self, mock_get_manifest):
-        """Test that the _process_manifest_db_record raises IntegrityError."""
-        mock_get_manifest.side_effect = [None, None]
-        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
-            with self.assertRaises(ReportDownloaderError):
-                self.downloader._provider_uuid = self.unkown_test_provider_uuid
-                self.downloader._process_manifest_db_record(
-                    self.assembly_id, self.billing_start, 2, DateAccessor().today()
-                )
-
-    @patch.object(ReportManifestDBAccessor, "get_manifest")
-    def test_process_manifest_db_record_race_no_provider(self, mock_get_manifest):
+    @patch("reporting_common.models.CostUsageReportManifest.objects")
+    def test_process_manifest_db_record_race_no_provider(self, mock_manifest_objects):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
-        mock_get_manifest.side_effect = [None, None]
-        side_effect_error = IntegrityError(
-            """insert or update on table "reporting_awscostentrybill" violates foreign key constraint "reporting_awscostent_provider_id_a08725b3_fk_api_provi"
-DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present in table "api_provider".
-"""  # noqa
-        )  # noqa
-        with patch.object(ReportManifestDBAccessor, "add", side_effect=side_effect_error):
-            downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
-            with self.assertRaises(ReportDownloaderError):
-                downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())
+        mock_manifest_objects.filter.return_value.first.side_effect = [None, None]
+        mock_manifest_objects.get_or_create.side_effect = IntegrityError("...violates foreign key constraint...")
+        downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
+        with self.assertRaises(ReportDownloaderError):
+            downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())
 
     def test_process_manifest_db_record_file_num_changed(self):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""

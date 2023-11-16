@@ -28,6 +28,7 @@ from django.core.cache import caches
 from django.db.utils import IntegrityError
 from django.test.utils import override_settings
 from django_tenants.utils import schema_context
+from model_bakery import baker
 
 from api.iam.models import Tenant
 from api.models import Provider
@@ -37,7 +38,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
@@ -1510,10 +1510,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
             "num_total_files": 2,
             "provider_uuid": self.aws_provider_uuid,
         }
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**manifest_dict)
-            manifest.save()
+        baker.make("CostUsageReportManifest", **manifest_dict)
 
         update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
         mock_delay.assert_not_called()
@@ -1568,12 +1565,9 @@ class TestWorkerCacheThrottling(MasuTestCase):
             "assembly_id": "12345",
             "billing_period_start_datetime": self.dh.today,
             "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
+            "provider_id": self.aws_provider_uuid,
         }
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**manifest_dict)
-            manifest.save()
+        baker.make("CostUsageReportManifest", **manifest_dict)
 
         update_openshift_on_cloud(
             self.schema,

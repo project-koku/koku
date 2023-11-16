@@ -36,10 +36,9 @@ class FakeManifest:
             "assembly_id": "1234",
             "billing_period_start_datetime": "2020-02-01",
             "num_total_files": 2,
-            "provider_uuid": provider_uuid,
+            "provider_id": provider_uuid,
         }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
+        manifest = baker.make("CostUsageReportManifest", **manifest_dict)
         return [manifest]
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
@@ -49,8 +48,7 @@ class FakeManifest:
             "num_total_files": 2,
             "provider_uuid": provider_uuid,
         }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
+        manifest = baker.make("CostUsageReportManifest", **manifest_dict)
         return [manifest]
 
     def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
