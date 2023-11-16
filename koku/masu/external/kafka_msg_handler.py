@@ -27,7 +27,6 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
-from api.provider.models import Provider
 from api.provider.models import Sources
 from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer
@@ -100,33 +99,6 @@ def create_manifest_entries(report_meta, request_id, context={}):
         account=context.get("account", "no_account"),
     )
     return downloader._prepare_db_manifest_record(report_meta)
-
-
-def get_provider_from_cluster_id(cluster_id, manifest_uuid, context={}):
-    """
-    Returns the provider details for a given OCP cluster id.
-
-    Args:
-        cluster_id (String): Cluster UUID.
-        manifest_uuid (String): Identifier associated with the payload manifest
-        context (Dict): Context for logging (account, etc)
-
-    Returns:
-        (dict) - keys: value
-                 authentication: String,
-                 customer_name: String,
-                 billing_source: String,
-                 provider_type: String,
-                 schema_name: String,
-                 provider_uuid: String
-
-    """
-    account = None
-    if provider_uuid := utils.get_provider_uuid_from_cluster_id(cluster_id):
-        context |= {"provider_uuid": provider_uuid, "cluster_id": cluster_id}
-        LOG.info(log_json(manifest_uuid, msg="found provider for cluster-id", context=context))
-        account = get_provider(provider_uuid, manifest_uuid, context)
-    return account
 
 
 def download_payload(request_id, url, context={}):
@@ -301,7 +273,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
             context=context,
         )
     )
-    provider = get_provider_from_cluster_id(cluster_id, manifest_uuid, context)
+    provider = utils.get_provider_from_cluster_id(cluster_id)
     if not provider:
         msg = f"Recieved unexpected OCP report from {cluster_id}"
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
@@ -462,33 +434,6 @@ def handle_message(kmsg):
         msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
         LOG.warning(log_json(request_id, msg=msg, context=context))
         return FAILURE_CONFIRM_STATUS, None, None
-
-
-def get_provider(provider_uuid, manifest_uuid, context={}):
-    """
-    Retrieve a provider's account configuration needed for processing.
-
-    Args:
-        provider_uuid (String): Provider unique identifier.
-        manifest_uuid (String): Identifier associated with the payload manifest
-        context (Dict): Context for logging (account, etc)
-
-    Returns:
-        (dict) - keys: value
-                 authentication: String,
-                 customer_name: String,
-                 billing_source: String,
-                 provider_type: String,
-                 schema_name: String,
-                 provider_uuid: String
-
-    """
-    try:
-        return Provider.objects.get(uuid=provider_uuid)
-    except Provider.DoesNotExist as error:
-        msg = f"Unable to get accounts. Error: {str(error)}"
-        LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
-        return None
 
 
 def summarize_manifest(report_meta, manifest_uuid):

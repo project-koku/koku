@@ -316,24 +316,14 @@ def get_cluster_alias_from_cluster_id(cluster_id):
     return cluster_alias
 
 
-def get_provider_uuid_from_cluster_id(cluster_id):
-    """
-    Return the provider UUID given the cluster ID.
-
-    Args:
-        cluster_id (String): OpenShift Cluster ID
-
-    Returns:
-        (String): provider UUID
-
-    """
-    provider_uuid = None
+def get_provider_from_cluster_id(cluster_id):
+    """Return the provider given the cluster ID."""
+    provider = None
     credentials = {"cluster_id": cluster_id}
     if provider := Provider.objects.filter(authentication__credentials=credentials).first():
-        provider_uuid = str(provider.uuid)
-        LOG.info(f"found provider: {provider_uuid} for cluster-id: {cluster_id}")
-
-    return provider_uuid
+        context = {"provider_uuid": provider.uuid, "cluster_id": cluster_id}
+        LOG.info(log_json("", msg="found provider for cluster-id", context=context))
+    return provider
 
 
 def detect_type(report_path):

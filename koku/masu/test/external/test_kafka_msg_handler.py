@@ -21,7 +21,6 @@ from django.db import OperationalError
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
-from api.provider.models import Provider
 from masu.config import Config
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
@@ -593,7 +592,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=self.ocp_provider
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id",
+                        return_value=self.ocp_provider,
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
                             with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
@@ -623,7 +623,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=self.ocp_provider
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id",
+                        return_value=self.ocp_provider,
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
                             with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
@@ -653,7 +654,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=self.ocp_provider
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id",
+                        return_value=self.ocp_provider,
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
                             with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
@@ -682,7 +684,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=self.ocp_provider
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id",
+                        return_value=self.ocp_provider,
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
                             with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
@@ -712,7 +715,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
             fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
-                    with patch("masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=None):
+                    with patch(
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id", return_value=None
+                    ):
                         self.assertFalse(
                             msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")[0]
                         )
@@ -730,7 +735,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=self.ocp_provider
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id",
+                        return_value=self.ocp_provider,
                     ):
                         with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
                             with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
@@ -759,7 +765,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=self.ocp_provider
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id",
+                        return_value=self.ocp_provider,
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
@@ -780,7 +787,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_provider_from_cluster_id", return_value=self.ocp_provider
+                        "masu.external.kafka_msg_handler.utils.get_provider_from_cluster_id",
+                        return_value=self.ocp_provider,
                     ):
                         with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
@@ -824,41 +832,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
                 msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
 
-    def test_get_account_from_cluster_id(self):
-        """Test to find account from cluster id."""
-        cluster_id = uuid.uuid4()
-
-        def _expected_account_response(provider, test):
-            self.assertEqual(test.get("get_provider_response"), provider)
-
-        def _expected_none_response(provider, test):
-            self.assertEqual(None, provider)
-
-        test_matrix = [
-            {
-                "get_provider_uuid_response": uuid.uuid4(),
-                "get_provider_response": self.ocp_provider,
-                "expected_fn": _expected_account_response,
-            },
-            {
-                "get_provider_uuid_response": None,
-                "get_provider_response": self.ocp_provider,
-                "expected_fn": _expected_none_response,
-            },
-        ]
-
-        context = {"cluster_id": cluster_id}
-        for test in test_matrix:
-            with patch(
-                "masu.external.kafka_msg_handler.utils.get_provider_uuid_from_cluster_id",
-                return_value=test.get("get_provider_uuid_response"),
-            ):
-                with patch(
-                    "masu.external.kafka_msg_handler.get_provider", return_value=test.get("get_provider_response")
-                ):
-                    provider = msg_handler.get_provider_from_cluster_id(cluster_id, "test_request_id", context)
-                    test.get("expected_fn")(provider, test)
-
     def test_create_manifest_entries(self):
         """Test to create manifest entries."""
         report_meta = {
@@ -885,17 +858,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
             # assert that the error caused the kafka error metric to be incremented
             connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
             self.assertEqual(connection_errors_after - connection_errors_before, 1)
-
-    def test_get_account(self):
-        """Test that the account details are returned given a provider uuid."""
-        ocp_account = msg_handler.get_provider(self.ocp_test_provider_uuid, "test_request_id")
-        self.assertIsNotNone(ocp_account)
-        self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
-
-    def test_get_account_exception(self):
-        """Test that no account is returned upon exception."""
-        ocp_account = msg_handler.get_provider(uuid.uuid4(), "test_request_id")
-        self.assertIsNone(ocp_account)
 
     def test_delivery_callback(self):
         """Test that delivery callback raises KafkaMsgHandlerError."""
