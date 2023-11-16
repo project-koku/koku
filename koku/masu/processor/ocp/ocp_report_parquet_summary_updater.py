@@ -44,13 +44,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         if not self._cluster_id:
             msg = "missing cluster_id for provider"
-            LOG.warning(
-                log_json(
-                    msg="missing cluster_id for provider",
-                    provider_uuid=provider.uuid,
-                    schema=schema,
-                )
-            )
+            LOG.warning(log_json(msg=msg, provider_uuid=provider.uuid, schema=schema))
             raise OCPReportParquetSummaryUpdaterClusterNotFound(msg)
 
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
