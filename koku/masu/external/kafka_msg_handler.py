@@ -484,7 +484,7 @@ def get_provider(provider_uuid, manifest_uuid, context={}):
 
     """
     try:
-        return Provider.objects.get(uuid=provider_uuid).account
+        return Provider.objects.get(uuid=provider_uuid)
     except Provider.DoesNotExist as error:
         msg = f"Unable to get accounts. Error: {str(error)}"
         LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
