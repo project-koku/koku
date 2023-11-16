@@ -66,6 +66,12 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
             _ = ReportSummaryUpdater(self.schema, uuid4())
 
+    def test_bad_ocp_provider(self):
+        """Test that an OCP provider without cluster-id throws an error."""
+        p = self.baker.make("Provider", type="OCP")
+        with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
+            _ = ReportSummaryUpdater(self.schema, p.uuid)
+
     def test_no_provider_on_create(self):
         """Test that an error is raised when no provider exists."""
         billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)

@@ -17,6 +17,7 @@ from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParqu
 from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
+from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
 
 LOG = logging.getLogger(__name__)
 REPORT_SUMMARY_UPDATER_DICT = {
@@ -74,6 +75,10 @@ class ReportSummaryUpdater:
 
         try:
             self._updater, self._ocp_cloud_updater = self._set_updater()
+        except OCPReportParquetSummaryUpdaterClusterNotFound as e:
+            raise ReportSummaryUpdaterProviderNotFoundError(
+                f"provider data for uuid '{self._provider_uuid}' not found"
+            ) from e
         except Exception as err:
             raise ReportSummaryUpdaterError(err) from err
 
