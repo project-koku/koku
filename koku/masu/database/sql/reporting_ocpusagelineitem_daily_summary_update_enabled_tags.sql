@@ -24,7 +24,7 @@ from (
         where usage_start >= date({{start_date}})
           and usage_start <= date({{end_date}})
           {% if report_period_ids %}
-            and lids.report_period_id IN {{ report_period_ids | inclause }}
+            and report_period_id IN {{ report_period_ids | inclause }}
           {% endif %}
           and ek.keys != '{}'::text[]
     order by uuid
