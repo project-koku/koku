@@ -353,7 +353,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             is_admin = user.get("is_org_admin")
         else:
             service_account = json_rh_auth.get("identity", {}).get("service_account", {})
-            username = service_account.get("client_id")
+            username = service_account.get("username")
             email = ""
 
         if username and email is not None and org_id:
