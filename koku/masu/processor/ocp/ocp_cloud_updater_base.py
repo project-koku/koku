@@ -56,7 +56,7 @@ class OCPCloudUpdaterBase:
             if self._provider.infrastructure.infrastructure_type == Provider.PROVIDER_OCP:
                 # OCP infra is invalid, so delete these entries from the providerinframap.
                 # The foreign key relation sets the infra on the provider to null when the map is deleted.
-                ProviderInfrastructureMap.objects.filter(self._provider.infrastructure.id).delete()
+                ProviderInfrastructureMap.objects.filter(id=self._provider.infrastructure.id).delete()
                 return infra_map
             infra_map[self._provider_uuid] = (
                 str(self._provider.infrastructure.infrastructure_provider.uuid),

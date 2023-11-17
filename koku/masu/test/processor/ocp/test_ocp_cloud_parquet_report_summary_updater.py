@@ -10,10 +10,12 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.db import connection
+from django.db import IntegrityError
 from django_tenants.utils import schema_context
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
-from api.models import Provider
+from api.provider.models import Provider
+from api.provider.models import ProviderInfrastructureMap
 from api.utils import DateHelper
 from koku.database import get_model
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -500,6 +502,80 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(len(infra_map.keys()), 1)
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
+
+    def test_get_infra_map_from_providers_delete_incorrect_ocp(self):
+        """Test that an infrastructure map of type OCP is deleted."""
+        p1 = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
+        pm = self.baker.make("ProviderInfrastructureMap", infrastructure_type=p1.type, infrastructure_provider=p1)
+        p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP, infrastructure=pm)
+        self.assertIsNotNone(p.infrastructure)
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
+        self.assertFalse(updater.get_infra_map_from_providers())
+
+        p.refresh_from_db()
+        self.assertIsNone(p.infrastructure)
+
+    def test_set_provider_infra_map(self):
+        """Test set_provider_infra_map."""
+        infra_uuid = self.aws_provider_uuid
+        infra_type = self.aws_provider.type
+        p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
+
+        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        expected_infra = ProviderInfrastructureMap.objects.get(infrastructure_provider_id=infra_uuid)
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
+        updater.set_provider_infra_map(infra_map)
+
+        p.refresh_from_db()
+        self.assertEqual(p.infrastructure, expected_infra)
+
+    def test_set_provider_infra_map_unknown_provider(self):
+        """Test set_provider_infra_map does not raise exception for unknown provider."""
+        infra_uuid = self.aws_provider_uuid
+        infra_type = self.aws_provider.type
+        infra_map = {self.unkown_test_provider_uuid: (infra_uuid, infra_type)}
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
+        try:
+            updater.set_provider_infra_map(infra_map)
+        except Exception:
+            self.fail("set_provider_infra_map should not fail on unknown provider")
+
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.ProviderInfrastructureMap.objects")
+    def test_set_provider_infra_map_providermap_integrity_error_race(self, mock_map):
+        """Test set_provider_infra_map does not raise exception when providermap is not found."""
+        infra_uuid = self.aws_provider_uuid
+        infra_type = self.aws_provider.type
+        p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
+
+        mock_map.get_or_create.side_effect = IntegrityError()
+        mock_map.filter.return_value.first.return_value = None
+
+        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
+        try:
+            updater.set_provider_infra_map(infra_map)
+        except Exception:
+            self.fail("set_provider_infra_map should not fail when map not found")
+
+    def test_set_provider_infra_map_providermap_integrity_error_filter(self):
+        """Test set_provider_infra_map during race condition creating map."""
+        infra_uuid = self.aws_provider_uuid
+        infra_type = self.aws_provider.type
+        p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
+        expected_infra = ProviderInfrastructureMap.objects.get(infrastructure_provider_id=infra_uuid)
+
+        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
+        with patch("masu.processor.ocp.ocp_cloud_updater_base.ProviderInfrastructureMap.objects") as mock_map:
+            mock_map.get_or_create.side_effect = IntegrityError()
+            mock_map.filter.return_value.first.return_value = expected_infra
+            updater.set_provider_infra_map(infra_map)
+
+            p.refresh_from_db()
+            self.assertEqual(p.infrastructure, expected_infra)
 
     def test_partition_handler_str_table(self):
         new_table_sql = f"""
