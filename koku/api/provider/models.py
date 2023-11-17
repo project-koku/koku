@@ -279,6 +279,11 @@ class Provider(models.Model):
         self.data_updated_timestamp = timezone.now()
         self.save(update_fields=["data_updated_timestamp"])
 
+    def set_infrastructure(self, infra):
+        """Set the infrastructure."""
+        self.infrastructure = infra
+        self.save(update_fields=["infrastructure"])
+
     def set_setup_complete(self):
         """Set setup_complete to True."""
         self.setup_complete = True
