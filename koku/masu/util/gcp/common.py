@@ -11,7 +11,6 @@ import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -41,9 +40,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
-
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
     if not provider:
         err_msg = "Provider UUID is not associated with a given provider."
         LOG.warning(err_msg)
@@ -209,18 +206,16 @@ def check_resource_level(gcp_provider_uuid):
     else:
         LOG.info("Account not returned, source likely has processing suspended.")
         return False
-    with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
-        source = provider_accessor.get_data_source()
-        if source:
-            if not source.get("storage_only"):
-                if "resource" in source.get("table_id"):
-                    LOG.info("OCP GCP matching set to resource level")
-                    return True
-            else:
-                LOG.info("Storage only source defaults to resource level only")
+    if source := provider.account.get("data_source"):
+        if not source.get("storage_only"):
+            if "resource" in source.get("table_id"):
+                LOG.info("OCP GCP matching set to resource level")
                 return True
-        LOG.info("Defaulting to GCP tag matching")
-        return False
+        else:
+            LOG.info("Storage only source defaults to resource level only")
+            return True
+    LOG.info("Defaulting to GCP tag matching")
+    return False
 
 
 def add_label_columns(data_frame):

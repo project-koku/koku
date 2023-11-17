@@ -412,8 +412,8 @@ class OrchestratorTest(MasuTestCase):
                 mock_group.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
-    def test_get_reports(self, fake_accessor, mock_inspect):
+    @patch("masu.processor.orchestrator.check_provider_setup_complete")
+    def test_get_reports(self, mock_check_setup_complete, mock_inspect):
         """Test get_reports for combinations of setup_complete and ingest override."""
         initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         test_matrix = [
@@ -424,7 +424,7 @@ class OrchestratorTest(MasuTestCase):
         ]
         for test in test_matrix:
             test_months = test.get("test_months")
-            fake_accessor.return_value = test.get("get_setup_complete")
+            mock_check_setup_complete.return_value = test.get("get_setup_complete")
             Config.INGEST_OVERRIDE = test.get("ingest_override")
             Config.INITIAL_INGEST_NUM_MONTHS = test_months
 

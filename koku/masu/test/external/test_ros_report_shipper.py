@@ -7,6 +7,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from botocore.exceptions import EndpointConnectionError
+from model_bakery import baker
 
 from api.utils import DateHelper
 from masu.external.ros_report_shipper import ROSReportShipper
@@ -37,8 +38,10 @@ class TestROSReportShipper(TestCase):
             "account": cls.account_id,
             "org_id": cls.org_id,
         }
+        cls.provider = baker.make("Provider", uuid=cls.provider_uuid, name="my-source-name")
         with patch("masu.external.ros_report_shipper.get_ros_s3_client"):
             cls.ros_shipper = ROSReportShipper(
+                cls.provider,
                 test_report_meta,
                 cls.b64_identity,
                 test_context,
@@ -121,7 +124,5 @@ class TestROSReportShipper(TestCase):
             "object_keys": ["path1"],
         }
         expected_msg = bytes(json.dumps(expected_json), "utf-8")
-        with patch("masu.external.ros_report_shipper.ProviderDBAccessor.get_provider_name") as mock_providerdba:
-            mock_providerdba.return_value = "my-source-name"
-            actual = self.ros_shipper.build_ros_msg(["report1_url"], ["path1"])
+        actual = self.ros_shipper.build_ros_msg(["report1_url"], ["path1"])
         self.assertEqual(actual, expected_msg)

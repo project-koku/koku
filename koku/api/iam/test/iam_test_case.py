@@ -18,13 +18,16 @@ from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from faker import Faker
+from model_bakery import baker
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
 from api.models import Customer
 from api.models import Tenant
 from api.models import User
+from api.provider.models import Provider
 from api.provider.models import Sources
+from api.provider.provider_manager import provider_post_save_refresh_cache
 from api.query_params import QueryParameters
 from api.utils import DateHelper
 from koku.dev_middleware import DevelopmentIdentityHeaderMiddleware
@@ -69,12 +72,14 @@ class IamTestCase(TestCase):
 
     fake = Faker()
     dh = DateHelper()
+    baker = baker
 
     @classmethod
     def setUpClass(cls):
         """Set up each test class."""
         super().setUpClass()
         post_save.disconnect(storage_callback, sender=Sources)
+        post_save.disconnect(provider_post_save_refresh_cache, sender=Provider)
 
         cls.customer_data = cls._create_customer_data()
         cls.user_data = cls._create_user_data()

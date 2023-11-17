@@ -52,7 +52,7 @@ class GCPReportDownloaderError(Exception):
 
 def pd_read_csv(local_file_path):
     try:
-        return pd.read_csv(local_file_path)
+        return pd.read_csv(local_file_path, dtype="str")
     except Exception as error:
         LOG.error(log_json(msg="file could not be parsed", file_path=local_file_path), exc_info=error)
         raise GCPReportDownloaderError(error)

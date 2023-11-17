@@ -17,12 +17,20 @@ from django.db import transaction
 from django.db.models import JSONField
 from django.db.models.query import QuerySet
 from django.db.models.signals import post_delete
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
 from koku.database import get_model
 
+
 LOG = logging.getLogger(__name__)
+
+
+def check_provider_setup_complete(provider_uuid):
+    """Return setup complete or None if Provider does not exist."""
+    if p := Provider.objects.filter(uuid=provider_uuid).first():
+        return p.setup_complete
 
 
 class ProviderAuthentication(models.Model):
@@ -211,6 +219,8 @@ class Provider(models.Model):
             "data_source": getattr(self.billing_source, "data_source", None),
             "provider_type": self.type,
             "schema_name": getattr(self.customer, "schema_name", None),
+            "account_id": getattr(self.customer, "account_id", None),
+            "org_id": getattr(self.customer, "org_id", None),
             "provider_uuid": self.uuid,
         }
 
@@ -257,6 +267,21 @@ class Provider(models.Model):
                 .set(queue="priority")
                 .apply_async()
             )
+
+    def set_additional_context(self, context):
+        """Set the `additional_context` field to the provided context."""
+        self.additional_context = context
+        self.save(update_fields=["additional_context"])
+
+    def set_data_updated_timestamp(self):
+        """Set the data updated timestamp to the current time."""
+        self.data_updated_timestamp = timezone.now()
+        self.save(update_fields=["data_updated_timestamp"])
+
+    def set_setup_complete(self):
+        """Set setup_complete to True."""
+        self.setup_complete = True
+        self.save(update_fields=["setup_complete"])
 
     def delete(self, *args, **kwargs):
         if self.customer:
