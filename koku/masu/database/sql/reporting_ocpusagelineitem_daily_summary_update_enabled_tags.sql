@@ -8,22 +8,26 @@ with cte_enabled_keys as (
 update {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
     set pod_labels = case
         when pod_labels = '"{}"' then '{}'::jsonb
-        else pod_labels - ek.keys
+        else pod_labels - upd.keys
     end,
     volume_labels = case
         when volume_labels = '"{}"' then '{}'::jsonb
-        else volume_labels - ek.keys
+        else volume_labels - upd.keys
     end,
     all_labels = case
         when all_labels = '"{}"' then '{}'::jsonb
-        else all_labels - ek.keys
+        else all_labels - upd.keys
     end
-
-from cte_enabled_keys as ek
-    where ek.keys != '{}'::text[]
-        and lids.usage_start >= date({{start_date}})
-        and lids.usage_start <= date({{end_date}})
-        {% if report_period_ids %}
+from (
+    select uuid, ek.keys as keys
+    from {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary, cte_enabled_keys as ek
+        where usage_start >= date({{start_date}})
+          and usage_start <= date({{end_date}})
+          {% if report_period_ids %}
             and lids.report_period_id IN {{ report_period_ids | inclause }}
-        {% endif %}
-;
+          {% endif %}
+          and ek.keys != '{}'::text[]
+    order by uuid
+    for update
+) as upd
+where lids.uuid = upd.uuid
