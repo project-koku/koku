@@ -15,15 +15,15 @@ from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import OCITagsSummary
+from reporting_common.models import CostUsageReportManifest
 
 
 class OCIReportDBAccessorTest(MasuTestCase):
@@ -35,32 +35,16 @@ class OCIReportDBAccessorTest(MasuTestCase):
         super().setUpClass()
 
         cls.accessor = OCIReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-
-        cls.all_tables = list(OCI_CUR_TABLE_MAP.values())
-        cls.foreign_key_tables = [
-            OCI_CUR_TABLE_MAP["bill"],
-        ]
-        cls.manifest_accessor = ReportManifestDBAccessor()
 
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        today = DateAccessor().today_with_timezone("UTC")
-        billing_start = today.replace(day=1)
-
-        self.manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": billing_start,
-            "num_total_files": 2,
-            "provider_id": self.oci_provider.uuid,
-        }
-        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest = CostUsageReportManifest.objects.filter(provider_id=self.oci_provider.uuid).first()
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
         summary_table_name = OCI_CUR_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+        summary_table = get_model(summary_table_name)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.oci_provider.uuid)
         with schema_context(self.schema):
