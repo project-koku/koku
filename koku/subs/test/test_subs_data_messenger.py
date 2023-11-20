@@ -43,6 +43,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_sla": "Premium",
                 "subs_role": "Red Hat Enterprise Linux Server",
                 "subs_product_ids": "479-70",
+                "subs_sap_bool": False,
             }
         ]
         mock_op = mock_open(read_data="x,y,z")
@@ -65,6 +66,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         sla = "Premium"
         product_ids = ["479", "70"]
         static_uuid = uuid.uuid4()
+        sap_bool = False
         expected_subs_json = {
             "event_id": str(static_uuid),
             "event_source": "cost-management",
@@ -98,6 +100,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 usage,
                 rol,
                 product_ids,
+                sap_bool,
             )
         self.assertEqual(expected, actual)
 
