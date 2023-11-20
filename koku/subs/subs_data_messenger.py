@@ -89,7 +89,6 @@ class SUBSDataMessenger:
     ):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         if sap_bool:
-            LOG.info(f"\npids: {product_ids}, \t {type(product_ids)}")
             # The SAP identifier for RHEL 8+ (479) is 241,  RHEL 7- (69) is 146
             if "479" in product_ids:
                 product_ids.append("241")
