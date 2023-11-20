@@ -11,11 +11,10 @@ from uuid import uuid4
 import faker
 
 from api.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.orchestrator import get_billing_months
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
@@ -214,7 +213,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_not_called()
 
@@ -244,7 +243,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_called()
 
@@ -266,7 +265,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_not_called()
 
@@ -298,7 +297,7 @@ class OrchestratorTest(MasuTestCase):
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
-                DateAccessor().get_billing_months(1)[0],
+                get_billing_months(1)[0],
             )
             if test.get("expect_chord_called"):
                 mock_task.assert_called()
@@ -360,7 +359,7 @@ class OrchestratorTest(MasuTestCase):
                     "AWS-local",
                     account.get("schema_name"),
                     account.get("provider_uuid"),
-                    DateAccessor().get_billing_months(1)[0],
+                    get_billing_months(1)[0],
                 )
                 summary_actual_queue = mock_task.call_args.args[0].options.get("queue")
                 hcs_actual_queue = mock_task.call_args.args[1].options.get("queue")
@@ -400,7 +399,7 @@ class OrchestratorTest(MasuTestCase):
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
-                DateAccessor().get_billing_months(1)[0],
+                get_billing_months(1)[0],
             )
             if test.get("expect_chord_called"):
                 mock_chord.assert_called()
@@ -437,9 +436,8 @@ class OrchestratorTest(MasuTestCase):
         Config.INGEST_OVERRIDE = False
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
 
-        dh = DateHelper()
-        expected = [dh.this_month_start.date()]
-        orchestrator = Orchestrator(bill_date=dh.today)
+        expected = [self.dh.this_month_start.date()]
+        orchestrator = Orchestrator(bill_date=self.dh.today)
         result = orchestrator.get_reports(self.aws_provider_uuid)
         self.assertEqual(result, expected)
 

@@ -19,7 +19,6 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
 from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
@@ -96,7 +95,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     def test_download_bucket(self, mock_copys3, mock_get_file):
         """Test to verify that basic report downloading works."""
         test_report_date = datetime(year=2018, month=9, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
+        with patch.object(DateHelper, "now", return_value=test_report_date):
             mock_get_file.return_value = self.test_filename
             manifest_id = 1
             baker.make(CostUsageReportStatus, report_name=self.test_filename, manifest_id=manifest_id)
@@ -114,7 +113,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     def test_download_bucket_no_csv_found(self, mock_get_file):
         """Test to verify that basic report downloading with no .csv file in source directory."""
         test_report_date = datetime(year=2018, month=9, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
+        with patch.object(DateHelper, "now", return_value=test_report_date):
             os.remove(self.test_file_path)
             os.remove(self.test_storage_file_path)
             with self.assertRaises(FileNotFoundError):
@@ -133,7 +132,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     def test_download_bucket_non_csv_found(self, mock_get_file):
         """Test to verify that basic report downloading with non .csv file in source directory."""
         test_report_date = datetime(year=2018, month=9, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
+        with patch.object(DateHelper, "now", return_value=test_report_date):
             # Remove .csv
             os.remove(self.test_file_path)
             os.remove(self.test_storage_file_path)
@@ -263,7 +262,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
     def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
 
         assembly_id = "1234"
         compression = "PLAIN"
@@ -290,7 +289,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
     def test_get_manifest_context_for_date_no_manifest(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
 
         mock_manifest.return_value = {}
         result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
@@ -300,7 +299,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
     def test_get_manifest_context_new_info(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
 
         assembly_id = "1234"
         compression = "PLAIN"
@@ -352,7 +351,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.ocp_manifest.operator_version = None
         self.ocp_manifest.save()
 
-        start_date = DateHelper().this_month_start
+        start_date = self.dh.this_month_start
         daily_files = [
             {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
             {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
@@ -370,7 +369,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_non_daily_operator_files(self, *args):
         """Test that this method returns a file list."""
-        start_date = DateHelper().this_month_start
+        start_date = self.dh.this_month_start
 
         file_path = Path("path")
 
@@ -389,7 +388,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.ocp_manifest.operator_daily_reports = True
         self.ocp_manifest.save()
 
-        start_date = DateHelper().this_month_start
+        start_date = self.dh.this_month_start
         daily_files = [
             {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 23},
             {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-02"), "num_hours": 24},
@@ -416,7 +415,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.ocp_manifest.operator_daily_reports = True
         self.ocp_manifest.save()
 
-        start_date = DateHelper().this_month_start
+        start_date = self.dh.this_month_start
 
         # simulate empty report file
         mock_divide.return_value = None

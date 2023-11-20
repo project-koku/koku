@@ -8,7 +8,6 @@ from unittest.mock import patch
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 
 
@@ -197,16 +196,14 @@ class ProviderDBAccessorTest(MasuTestCase):
 
     def test_set_data_updated_timestamp(self):
         """Test that the data updated timestamp is updated."""
-        now = DateAccessor().today_with_timezone("UTC")
         ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
-        self.assertGreater(ProviderDBAccessor(self.aws_provider_uuid).provider.data_updated_timestamp, now)
+        self.assertGreater(ProviderDBAccessor(self.aws_provider_uuid).provider.data_updated_timestamp, self.dh.now)
 
     def test_get_updated_timestamp(self):
         """Test that the data updated timestamp is updated."""
-        now = DateAccessor().today_with_timezone("UTC")
         ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
         get_timestamp = ProviderDBAccessor(self.aws_provider_uuid).get_data_updated_timestamp()
-        self.assertGreater(get_timestamp, now)
+        self.assertGreater(get_timestamp, self.dh.now)
 
     def test_get_updated_timestamp_no_provider(self):
         """Test that the data updated timestamp is updated."""

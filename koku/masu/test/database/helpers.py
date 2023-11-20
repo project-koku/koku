@@ -25,7 +25,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportSchema
-from masu.external.date_accessor import DateAccessor
 from masu.util import common as azure_utils
 
 # A subset of AWS product family values
@@ -201,8 +200,8 @@ class ReportObjectCreator:
 
         data = {
             "uuid": str(uuid.uuid4()),
-            "created_timestamp": DateAccessor().today_with_timezone("UTC"),
-            "updated_timestamp": DateAccessor().today_with_timezone("UTC"),
+            "created_timestamp": timezone.now(),
+            "updated_timestamp": timezone.now(),
             "name": self.fake.pystr()[:8],
             "description": self.fake.pystr(),
             "source_type": source_type,

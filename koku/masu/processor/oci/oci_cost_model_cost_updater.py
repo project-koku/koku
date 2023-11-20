@@ -6,12 +6,11 @@
 import logging
 from decimal import Decimal
 
-from django_tenants.utils import schema_context
+from django.utils import timezone
 
 from api.common import log_json
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.util.oci.common import get_bills_from_provider
 from reporting.provider.oci.models import UI_SUMMARY_TABLES
 
@@ -44,8 +43,7 @@ class OCICostModelCostUpdater:
                 markup_value = Decimal(markup.get("value", 0)) / 100
 
             with OCIReportDBAccessor(self._schema) as report_accessor:
-                with schema_context(self._schema):
-                    bill_ids = [str(bill.id) for bill in bills]
+                bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(markup_value, start_date, end_date, bill_ids)
         except OCICostModelCostUpdaterError as error:
             LOG.error(log_json(msg="unable to update markup costs"), exc_info=error)
@@ -81,7 +79,6 @@ class OCICostModelCostUpdater:
             )
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid, UI_SUMMARY_TABLES)
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-            with schema_context(self._schema):
-                for bill in bills:
-                    bill.derived_cost_datetime = DateAccessor().today_with_timezone("UTC")
-                    bill.save()
+            for bill in bills:
+                bill.derived_cost_datetime = timezone.now()
+                bill.save()

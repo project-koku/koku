@@ -15,8 +15,8 @@ from django.utils import timezone
 from model_bakery import baker
 
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
 from masu.test import MasuTestCase
@@ -96,7 +96,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             },
         ]
         for test_case in date_matrix:
-            with patch.object(DateAccessor, "today", return_value=test_case.get("current_date")):
+            with patch.object(DateHelper, "today", return_value=test_case.get("current_date")):
                 retention_policy = test_case.get("months_to_keep")
                 if retention_policy:
                     remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, retention_policy)

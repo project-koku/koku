@@ -13,7 +13,6 @@ from model_bakery import baker
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 
 FAKE = Faker()
@@ -25,7 +24,7 @@ class ReportsViewTest(MasuTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.start = DateAccessor().today_with_timezone("UTC").replace(day=1)
+        self.start = self.dh.today
         self.ingress_uuid = str(uuid.uuid4())
         ingress_report_dict = {
             "uuid": self.ingress_uuid,

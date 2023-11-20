@@ -6,13 +6,13 @@
 import logging
 
 from django.db import transaction
+from django.utils import timezone
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from masu.database.koku_database_access import KokuDBAccess
-from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +34,6 @@ class ProviderDBAccessor(KokuDBAccess):
         self._auth_id = auth_id
         self._table = Provider
         self._provider = None
-        self.date_accessor = DateAccessor()
 
     @property
     def provider(self):
@@ -312,7 +311,7 @@ class ProviderDBAccessor(KokuDBAccess):
     def set_data_updated_timestamp(self):
         """Set the data updated timestamp to the current time."""
         if self.provider:
-            updated_datetime = self.date_accessor.today_with_timezone("UTC")
+            updated_datetime = timezone.now()
             LOG.info(
                 log_json(
                     msg="marking provider updated",

@@ -7,13 +7,12 @@ import logging
 
 import ciso8601
 from django.conf import settings
-from django_tenants.utils import schema_context
+from django.utils import timezone
 
 from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from reporting.provider.oci.models import UI_SUMMARY_TABLES
 
@@ -28,7 +27,6 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
-        self._date_accessor = DateAccessor()
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
@@ -53,19 +51,17 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
-        with schema_context(self._schema):
-            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
-
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
         with OCIReportDBAccessor(self._schema) as accessor:
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+
             # Need these bills on the session to update dates after processing
-            with schema_context(self._schema):
-                bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-                bill_ids = [str(bill.id) for bill in bills]
-                current_bill_id = bills.first().id if bills else None
+            bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
+            bill_ids = [str(bill.id) for bill in bills]
+            current_bill_id = bills.first().id if bills else None
 
             if current_bill_id is None:
                 LOG.info(
@@ -102,8 +98,8 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
 
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-                bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+                    bill.summary_data_creation_datetime = timezone.now()
+                bill.summary_data_updated_datetime = timezone.now()
                 bill.save()
 
         return start_date, end_date

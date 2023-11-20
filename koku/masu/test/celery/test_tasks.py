@@ -68,7 +68,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_orch.prepare.assert_called()
 
     @patch("masu.celery.tasks.Orchestrator")
-    @patch("masu.external.date_accessor.DateAccessor.today")
+    @patch("masu.celery.tasks.timezone.now")
     def test_remove_expired_data(self, mock_date, mock_orchestrator):
         """Test that the scheduled task calls the orchestrator."""
         mock_orch = mock_orchestrator()

@@ -23,12 +23,10 @@ from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakeTrinoConn
 from api.provider.models import Provider
-from api.utils import DateHelper
 from koku import trino_database as trino_db
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.models import OCPStorageVolumeLabelSummary
@@ -85,7 +83,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_get_usage_period_by_dates_and_cluster(self):
         """Test that report periods are returned by dates & cluster filter."""
-        period_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
+        period_start = self.dh.this_month_start
         period_end = period_start + relativedelta.relativedelta(months=1)
         prev_period_start = period_start - relativedelta.relativedelta(months=1)
         prev_period_end = prev_period_start + relativedelta.relativedelta(months=1)
@@ -135,9 +133,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test that OCP trino processing calls executescript
         """
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.next_month_start
+        start_date = self.dh.this_month_start
+        end_date = self.dh.next_month_start
         cluster_id = "ocp-cluster"
         cluster_alias = "OCP FTW"
         report_period_id = 1
@@ -190,10 +187,8 @@ select * from eek where val1 in {{report_period_id}} ;
             "storage_gb_usage_per_month": ["storage", "persistentvolumeclaim_usage_gigabyte_months"],
             "storage_gb_request_per_month": ["storage", "volume_request_storage_gigabyte_months"],
         }
-
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
         self.cluster_id = "OCP-on-AWS"
         with schema_context(self.schema):
             # define the two usage types to test
@@ -354,10 +349,8 @@ select * from eek where val1 in {{report_period_id}} ;
             "storage_gb_usage_per_month": ["storage", "persistentvolumeclaim_usage_gigabyte_months"],
             "storage_gb_request_per_month": ["storage", "volume_request_storage_gigabyte_months"],
         }
-
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
         self.cluster_id = "OCP-on-AWS"
         with schema_context(self.schema):
             # define the two usage types to test
@@ -510,9 +503,8 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
 
         report_period = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
 
@@ -585,9 +577,8 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
         mock_trino.assert_called()
@@ -595,9 +586,8 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
         expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
         with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
             self.accessor.get_ocp_infrastructure_map_trino(
@@ -609,9 +599,8 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
         expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
         with patch("masu.util.gcp.common.is_gcp_resource_matching_disabled", return_value=True):
             with self.assertLogs("masu", level="INFO") as logger:
@@ -642,9 +631,8 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_table.return_value = True
         cluster_id = uuid.uuid4()
         cluster_alias = "test-cluster-1"
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         self.accessor.populate_openshift_cluster_information_tables(
             self.aws_provider, cluster_id, cluster_alias, start_date, end_date
@@ -695,9 +683,8 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_table.return_value = True
         cluster_id = str(uuid.uuid4())
         cluster_alias = "test-cluster-1"
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         # Using the aws_provider to short cut this test instead of creating a brand
         # new provider. The OCP providers already have data, and can't be used here
@@ -739,9 +726,8 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_table.return_value = True
         cluster_id = str(uuid.uuid4())
         cluster_alias = "test-cluster-1"
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         with schema_context(self.schema):
             cluster = OCPCluster(
@@ -827,9 +813,8 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_delete_infrastructure_raw_cost_from_daily_summary(self):
         """Test that infra raw cost is deleted."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
         report_period = self.accessor.report_periods_for_provider_uuid(self.ocpaws_provider_uuid, start_date)
         with schema_context(self.schema):
             report_period_id = report_period.id
@@ -930,9 +915,8 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_delete_all_except_infrastructure_raw_cost_from_daily_summary(self):
         """Test that deleting saves OCP on Cloud data."""
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
 
         # First test an OCP on Cloud source to make sure we don't delete that data
         provider_uuid = self.ocp_on_aws_ocp_provider.uuid

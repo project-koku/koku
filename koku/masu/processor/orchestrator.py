@@ -5,9 +5,12 @@
 """Report Processing Orchestrator."""
 import copy
 import logging
+from datetime import datetime
 
 from celery import chord
 from celery import group
+from dateutil import parser
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 
 from api.common import log_json
@@ -17,7 +20,6 @@ from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_cloud_source_processing_disabled
@@ -37,8 +39,36 @@ from masu.util.aws.common import update_account_aliases
 from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
 
+
 LOG = logging.getLogger(__name__)
-DH = DateHelper()
+
+
+def get_billing_month_start(in_date):
+    """Return the start of the month for the input."""
+    if isinstance(in_date, str):
+        return parser.parse(in_date).replace(day=1).date()
+    elif isinstance(in_date, datetime):
+        return in_date.replace(day=1).date()
+    else:
+        return in_date.replace(day=1)
+
+
+def get_billing_months(number_of_months):
+    """Return a list of datetimes for the number of months to ingest
+
+    Args:
+        number_of_months (int) The the number of months (bills) to ingest.
+
+    Returns:
+        (list) of datetime.datetime objects in YYYY-MM-DD format.
+        example: ["2020-01-01", "2020-02-01"]
+    """
+    months = []
+    current_month = DateHelper().this_month_start
+    for month in reversed(range(number_of_months)):
+        calculated_month = current_month + relativedelta(months=-month)
+        months.append(calculated_month)
+    return months
 
 
 class Orchestrator:
@@ -59,6 +89,7 @@ class Orchestrator:
         queue_name=None,
         **kwargs,
     ):
+        self.dh = DateHelper()
         self.worker_cache = WorkerCache()
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
@@ -79,7 +110,7 @@ class Orchestrator:
 
         batch = []
         for provider in providers:
-            provider.polling_timestamp = DH.now_utc
+            provider.polling_timestamp = self.dh.now
             provider.save(update_fields=["polling_timestamp"])
             schema_name = provider.account.get("schema_name")
             if is_cloud_source_processing_disabled(schema_name):
@@ -112,15 +143,15 @@ class Orchestrator:
         if self.bill_date:
             if self.ingress_reports:
                 bill_date = f"{self.bill_date}01"
-                return [DateAccessor().get_billing_month_start(bill_date)]
-            return [DateAccessor().get_billing_month_start(self.bill_date)]
+                return [get_billing_month_start(bill_date)]
+            return [get_billing_month_start(self.bill_date)]
 
         if Config.INGEST_OVERRIDE or not check_provider_setup_complete(provider_uuid):
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
         else:
             number_of_months = 2
 
-        return sorted(DateAccessor().get_billing_months(number_of_months), reverse=True)
+        return sorted(get_billing_months(number_of_months), reverse=True)
 
     def start_manifest_processing(  # noqa: C901
         self,
@@ -420,11 +451,10 @@ class Orchestrator:
         account = copy.deepcopy(provider.account)
         schema = account.get("schema_name")
         LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider.uuid))
-        dh = DateHelper()
         if self.ingress_reports:
-            start_date = DateAccessor().get_billing_month_start(f"{self.bill_date}01")
+            start_date = get_billing_month_start(f"{self.bill_date}01")
         else:
-            start_date = dh.today
+            start_date = self.dh.today
         account["report_month"] = start_date
         try:
             LOG.info(

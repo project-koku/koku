@@ -26,7 +26,6 @@ from koku.database_exc import get_extended_exception_by_type
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
-from masu.external.date_accessor import DateAccessor
 from reporting.models import PartitionedTable
 from reporting_common import REPORT_COLUMN_MAP
 
@@ -77,7 +76,6 @@ class ReportDBAccessorBase(KokuDBAccess):
         self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
         self.prepare_query = JinjaSql().prepare_query
 
-        self.date_accessor = DateAccessor()
         self.date_helper = DateHelper()
         self.jinja_sql = JinjaSql()
 
