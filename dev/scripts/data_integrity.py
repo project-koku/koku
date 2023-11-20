@@ -58,21 +58,21 @@ class ArgError(Exception):
 class QueryError(Exception):
     """Errors specific to given query"""
 
-    pass
-
 
 def get_list_of_dates(start_date, end_date):
     """Return a list of days from the start date till the end date."""
     end_midnight = end_date
     start_midnight = start_date
-    if isinstance(start_date, str):
+    try:
         start_midnight = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
-    if isinstance(end_date, str):
-        end_midnight = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, second=0, microsecond=0)
-    if isinstance(end_date, datetime.datetime):
-        end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    if isinstance(start_date, datetime.datetime):
+    except TypeError:
         start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+    try:
+        end_midnight = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, second=0, microsecond=0)
+    except TypeError:
+        end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
     days = (end_midnight - start_midnight + datetime.timedelta(days=1)).days
 
     # built-in range(start, end, step) requires (start < end) == True
@@ -84,17 +84,18 @@ def get_list_of_dates(start_date, end_date):
 def date_range_pair(start_date, end_date, step):
     """Create a range generator for dates.
 
-    Given a start date and end date make an generator that returns a start
+    Given a start date and end date make a generator that returns a start
     and end date over the interval.
 
     """
-    if isinstance(start_date, str):
+    try:    
         start_date = parser.parse(start_date)
-    elif isinstance(start_date, datetime.date):
+    except TypeError:
         start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, tzinfo=settings.UTC)
-    if isinstance(end_date, str):
+        
+    try:
         end_date = parser.parse(end_date)
-    elif isinstance(end_date, datetime.date):
+    except TypeError:
         end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, tzinfo=settings.UTC)
 
     dates = list(rrule(freq=DAILY, dtstart=start_date, until=end_date, interval=step))
@@ -128,24 +129,24 @@ def get_providers_and_tables_for_schema(gabi_url, token, schema):
             pg_tables.add(ALL_TABLES["AWS"])
             trino_tables.add(ALL_TRINO_TABLES["AWS"])
             trino_tables.add(ALL_TRINO_TABLES["AWSDAILY"])
-        if "AZURE" == t[0]:
+        elif "AZURE" == t[0]:
             provider_count["AZURE"] += 1
             pg_tables.add(ALL_TABLES["AZURE"])
             trino_tables.add(ALL_TRINO_TABLES["AZURE"])
             trino_tables.add(ALL_TRINO_TABLES["AZUREDAILY"])
-        if "GCP" == t[0]:
+        elif "GCP" == t[0]:
             provider_count["GCP"] += 1
             pg_tables.add(ALL_TABLES["GCP"])
             trino_tables.add(ALL_TRINO_TABLES["GCP"])
             trino_tables.add(ALL_TRINO_TABLES["GCPDAILY"])
-        if "OCI" == t[0]:
+        elif "OCI" == t[0]:
             provider_count["OCI"] += 1
             pg_tables.add(ALL_TABLES["OCI"])
             trino_tables.add(ALL_TRINO_TABLES["OCICOST"])
             trino_tables.add(ALL_TRINO_TABLES["OCICOSTDAILY"])
             trino_tables.add(ALL_TRINO_TABLES["OCIUSAGE"])
             trino_tables.add(ALL_TRINO_TABLES["OCIUSAGEDAILY"])
-        if "OCP" == t[0]:
+        elif "OCP" == t[0]:
             provider_count["OCP"] += 1
             pg_tables.add(ALL_TABLES["OCP"])
             trino_tables.add(ALL_TRINO_TABLES["OCP"])
@@ -153,11 +154,11 @@ def get_providers_and_tables_for_schema(gabi_url, token, schema):
                 pg_tables.add(ALL_TABLES["OCPAWS"])
                 pg_tables.add(ALL_TABLES["OCPALL"])
                 trino_tables.add(ALL_TRINO_TABLES["OCPAWS"])
-            if ["AZURE", "OCP"] == sorted(t):
+            elif ["AZURE", "OCP"] == sorted(t):
                 pg_tables.add(ALL_TABLES["OCPAZURE"])
                 pg_tables.add(ALL_TABLES["OCPALL"])
                 trino_tables.add(ALL_TRINO_TABLES["OCPAZURE"])
-            if ["GCP", "OCP"] == sorted(t):
+            elif ["GCP", "OCP"] == sorted(t):
                 pg_tables.add(ALL_TABLES["OCPGCP"])
                 pg_tables.add(ALL_TABLES["OCPALL"])
                 trino_tables.add(ALL_TRINO_TABLES["OCPGCP"])
@@ -238,11 +239,11 @@ def trino_data_validation(trino_url, cert, key, table, schema, start_date, end_d
     provider = "AWS"
     if "azure" in table:
         provider = "AZURE"
-    if "gcp" in table:
+    elif "gcp" in table:
         provider = "GCP"
-    if "oci" in table:
+    elif "oci" in table:
         provider = "OCI"
-    if "ocp" in table:
+    elif "ocp" in table:
         provider = "OCP"
 
     date_fields = {
@@ -445,7 +446,7 @@ if __name__ == "__main__":
             help="Return the list of schema attempting to query",
         )
 
-        return arg_parser
+        return arg_parser.parse_args()
 
     def process_args(args):
         """Procerss the parsed arguments to the program"""
@@ -463,7 +464,7 @@ if __name__ == "__main__":
         return args
 
     # Init, get, and process the arguments
-    args = process_args(data_integrity_argparser().parse_args())
+    args = data_integrity_argparser()
 
     # Call the main processing entrypoint
     check_data_integrity(
