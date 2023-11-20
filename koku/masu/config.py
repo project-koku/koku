@@ -7,7 +7,6 @@ from tempfile import mkdtemp
 
 from django.conf import settings
 
-from koku.configurator import CONFIGURATOR
 from koku.env import ENVIRONMENT
 
 
@@ -77,20 +76,6 @@ class Config:
 
     # Set ROS presigned URL expiration:
     ROS_URL_EXPIRATION = ENVIRONMENT.int("ROS_URL_EXPIRATION", default=DEFAULT_ROS_URL_EXPIRATION)
-
-    # Insights Kafka
-    INSIGHTS_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
-    INSIGHTS_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
-    INSIGHTS_KAFKA_ADDRESS = f"{INSIGHTS_KAFKA_HOST}:{INSIGHTS_KAFKA_PORT}"
-    INSIGHTS_KAFKA_SASL = CONFIGURATOR.get_kafka_sasl()
-    INSIGHTS_KAFKA_CACERT = CONFIGURATOR.get_kafka_cacert()
-    INSIGHTS_KAFKA_AUTHTYPE = CONFIGURATOR.get_kafka_authtype()
-    HCCM_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.hccm")
-    UPLOAD_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.announce")
-    VALIDATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.validation")
-    NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingress")
-    ROS_TOPIC = CONFIGURATOR.get_kafka_topic("hccm.ros.events")
-    SUBS_TOPIC = CONFIGURATOR.get_kafka_topic("platform.rhsm-subscriptions.service-instance-ingress")
 
     # Flag to signal whether or not to connect to upload service
     KAFKA_CONNECT = ENVIRONMENT.bool("KAFKA_CONNECT", default=DEFAULT_KAFKA_CONNECT)

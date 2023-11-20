@@ -9,8 +9,8 @@ from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
 from kafka_utils.utils import extract_from_header
+from kafka_utils.utils import SOURCES_TOPIC
 from sources import storage
-from sources.config import Config
 from sources.sources_http_client import AUTH_TYPES
 from sources.sources_http_client import convert_header_to_dict
 from sources.sources_http_client import SourceNotFoundError
@@ -344,7 +344,7 @@ class SourceMsgProcessor(KafkaMessageProcessor):
 
 def create_msg_processor(msg, cost_mgmt_id):
     """Create the message processor based on the event_type."""
-    if msg.topic() == Config.SOURCES_TOPIC:
+    if msg.topic() == SOURCES_TOPIC:
         event_type = extract_from_header(msg.headers(), KAFKA_HDR_EVENT_TYPE)
         LOG.debug(f"event_type: {event_type}")
         if event_type in (
