@@ -5,7 +5,6 @@
 """View for server status."""
 import logging
 import platform
-import socket
 import sys
 from http import HTTPStatus
 
@@ -15,7 +14,6 @@ from django.db import InterfaceError
 from django.db import NotSupportedError
 from django.db import OperationalError
 from django.db import ProgrammingError
-from kafka import BrokerConnection
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -34,9 +32,6 @@ from sources.sources_http_client import SourcesHTTPClientError
 
 LOG = logging.getLogger(__name__)
 
-BROKER_CONNECTION = BrokerConnection(
-    SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC
-)
 BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
