@@ -8,7 +8,6 @@ import os
 import time
 
 import ciso8601
-import django.apps
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import connection
@@ -23,10 +22,6 @@ from api.common import log_json
 from api.utils import DateHelper
 from koku.database import execute_delete_sql as exec_del_sql
 from koku.database_exc import get_extended_exception_by_type
-from masu.config import Config
-from masu.database.koku_database_access import KokuDBAccess
-from masu.database.koku_database_access import mini_transaction_delete
-from masu.external.date_accessor import DateAccessor
 from reporting.models import PartitionedTable
 from reporting_common import REPORT_COLUMN_MAP
 
@@ -63,7 +58,7 @@ class ReportSchema:
             self.column_types = column_types
 
 
-class ReportDBAccessorBase(KokuDBAccess):
+class ReportDBAccessorBase:
     """Class to interact with customer reporting tables."""
 
     def __init__(self, schema):
@@ -73,18 +68,20 @@ class ReportDBAccessorBase(KokuDBAccess):
             schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        self.report_schema = ReportSchema(django.apps.apps.get_models())
-        self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
-        self.prepare_query = JinjaSql().prepare_query
-
-        self.date_accessor = DateAccessor()
         self.date_helper = DateHelper()
-        self.jinja_sql = JinjaSql()
+        self.prepare_query = JinjaSql().prepare_query
+        self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
 
-    @property
-    def decimal_precision(self):
-        """Return database precision for decimal values."""
-        return f"0E-{Config.REPORTING_DECIMAL_PRECISION}"
+    def __enter__(self):
+        """Enter context manager."""
+        connection = transaction.get_connection()
+        connection.set_schema(self.schema)
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        """Context manager reset schema to public and exit."""
+        connection = transaction.get_connection()
+        connection.set_schema_to_public()
 
     @property
     def line_item_daily_summary_table(self):
@@ -104,28 +101,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             "provider_uuid": sql_params.get("source_uuid"),
             "cluster_id": sql_params.get("cluster_id"),
         }
-
-    def _get_db_obj_query(self, table, columns=None):
-        """Return a query on a specific database table.
-
-        Args:
-            table (DjangoModel): Which table to query
-            columns (list): A list of column names to exclusively return
-
-        Returns:
-            (Query): A query object
-
-        """
-        # If table is a str, get the model associated
-        if isinstance(table, str):
-            table = getattr(self.report_schema, table)
-
-        with schema_context(self.schema):
-            if columns:
-                query = table.objects.values(*columns)
-            else:
-                query = table.objects.all()
-            return query
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
@@ -258,23 +233,6 @@ class ReportDBAccessorBase(KokuDBAccess):
                 )
         if created:
             LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
-
-    def delete_line_item_daily_summary_entries_for_date_range(
-        self, source_uuid, start_date, end_date, table=None, filters=None
-    ):
-        if table is None:
-            table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table} from {start_date} to {end_date}"
-        LOG.info(msg)
-        select_query = table.objects.filter(
-            source_uuid=source_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-        )
-        if filters:
-            select_query = select_query.filter(**filters)
-        with schema_context(self.schema):
-            count, _ = mini_transaction_delete(select_query)
-        msg = f"Deleted {count} records from {table}"
-        LOG.info(msg)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None

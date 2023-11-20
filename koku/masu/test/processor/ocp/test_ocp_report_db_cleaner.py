@@ -6,18 +6,19 @@
 import datetime
 import uuid
 
-import django
 from dateutil import relativedelta
 from django.conf import settings
 from django.db import transaction
 from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
+from koku.database import get_model
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleanerError
 from masu.test import MasuTestCase
+from reporting.models import OCPUsageReportPeriod
 from reporting.models import PartitionedTable
 
 
@@ -54,23 +55,15 @@ class OCPReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_on_date(self):
         """Test to remove report data on a provided date."""
-        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
-
         cleaner = OCPReportDBCleaner(self.schema)
 
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date == billing_period_start
-            first_period = (
-                self.accessor._get_db_obj_query(report_period_table_name).order_by("-report_period_start").first()
-            )
+            first_period = OCPUsageReportPeriod.objects.order_by("-report_period_start").first()
             cutoff_date = first_period.report_period_start
-            expected_count = (
-                self.accessor._get_db_obj_query(report_period_table_name)
-                .filter(report_period_start__lte=cutoff_date)
-                .count()
-            )
+            expected_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=cutoff_date).count()
 
-            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(OCPUsageReportPeriod.objects.first())
 
         removed_data = cleaner.purge_expired_report_data(cutoff_date)
 
@@ -80,54 +73,38 @@ class OCPReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_before_date(self):
         """Test to remove report data before a provided date."""
-        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
-
         cleaner = OCPReportDBCleaner(self.schema)
 
         with schema_context(self.schema):
             # Verify that data is not cleared for a cutoff date < billing_period_start
-            first_period = (
-                self.accessor._get_db_obj_query(report_period_table_name).order_by("-report_period_start").first()
-            )
+            first_period = OCPUsageReportPeriod.objects.order_by("-report_period_start").first()
             cutoff_date = first_period.report_period_start
             earlier_date = cutoff_date + relativedelta.relativedelta(months=-1)
             earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
-            expected_count = (
-                self.accessor._get_db_obj_query(report_period_table_name)
-                .filter(report_period_start__lte=earlier_cutoff)
-                .count()
-            )
+            expected_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=earlier_cutoff).count()
 
-            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(OCPUsageReportPeriod.objects.first())
 
         removed_data = cleaner.purge_expired_report_data(earlier_cutoff)
 
         self.assertEqual(len(removed_data), expected_count)
 
         with schema_context(self.schema):
-            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(OCPUsageReportPeriod.objects.first())
 
     def test_purge_expired_report_data_after_date(self):
         """Test to remove report data after a provided date."""
-        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
-
         cleaner = OCPReportDBCleaner(self.schema)
 
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date > billing_period_start
-            first_period = (
-                self.accessor._get_db_obj_query(report_period_table_name).order_by("-report_period_start").first()
-            )
+            first_period = OCPUsageReportPeriod.objects.order_by("-report_period_start").first()
             cutoff_date = first_period.report_period_start
             later_date = cutoff_date + relativedelta.relativedelta(months=+1)
             later_cutoff = later_date.replace(day=15)
-            expected_count = (
-                self.accessor._get_db_obj_query(report_period_table_name)
-                .filter(report_period_start__lte=later_cutoff)
-                .count()
-            )
+            expected_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=later_cutoff).count()
 
-            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(OCPUsageReportPeriod.objects.first())
 
         removed_data = cleaner.purge_expired_report_data(later_cutoff)
         self.assertEqual(len(removed_data), expected_count)
@@ -136,23 +113,15 @@ class OCPReportDBCleanerTest(MasuTestCase):
 
     def test_purge_expired_report_data_on_date_simulate(self):
         """Test to simulate removing report data on a provided date."""
-        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
-
         cleaner = OCPReportDBCleaner(self.schema)
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         with schema_context(self.schema):
-            first_period = (
-                self.accessor._get_db_obj_query(report_period_table_name).order_by("-report_period_start").first()
-            )
+            first_period = OCPUsageReportPeriod.objects.order_by("-report_period_start").first()
             cutoff_date = first_period.report_period_start
-            expected_count = (
-                self.accessor._get_db_obj_query(report_period_table_name)
-                .filter(report_period_start__lte=cutoff_date)
-                .count()
-            )
+            expected_count = OCPUsageReportPeriod.objects.filter(report_period_start__lte=cutoff_date).count()
 
-            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(OCPUsageReportPeriod.objects.first())
 
         removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=True)
 
@@ -161,30 +130,23 @@ class OCPReportDBCleanerTest(MasuTestCase):
         self.assertIn(str(first_period.report_period_start), [item.get("interval_start") for item in removed_data])
 
         with schema_context(self.schema):
-            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(OCPUsageReportPeriod.objects.first())
 
     def test_purge_expired_report_data_for_provider(self):
         """Test that the provider_uuid deletes all data for the provider."""
-        report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
-
         cleaner = OCPReportDBCleaner(self.schema)
 
         with schema_context(self.schema):
             # Verify that data is cleared for a cutoff date == billing_period_start
             first_period = (
-                self.accessor._get_db_obj_query(report_period_table_name)
-                .filter(provider_id=self.ocp_provider_uuid)
+                OCPUsageReportPeriod.objects.filter(provider_id=self.ocp_provider_uuid)
                 .order_by("-report_period_start")
                 .first()
             )
 
-            self.assertIsNotNone(self.accessor._get_db_obj_query(report_period_table_name).first())
+            self.assertIsNotNone(OCPUsageReportPeriod.objects.first())
 
-            expected_count = (
-                self.accessor._get_db_obj_query(report_period_table_name)
-                .filter(provider_id=self.ocp_provider_uuid)
-                .count()
-            )
+            expected_count = OCPUsageReportPeriod.objects.filter(provider_id=self.ocp_provider_uuid).count()
 
         removed_data = cleaner.purge_expired_report_data(provider_uuid=self.ocp_provider_uuid)
 
@@ -212,16 +174,8 @@ class OCPReportDBCleanerTest(MasuTestCase):
 
         partitioned_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         report_period_table_name = OCP_REPORT_TABLE_MAP["report_period"]
-        partitioned_table_model = None
-        report_period_model = None
-        for model in django.apps.apps.get_models():
-            if model._meta.db_table == partitioned_table_name:
-                partitioned_table_model = model
-            elif model._meta.db_table == report_period_table_name:
-                report_period_model = model
-            if partitioned_table_model and report_period_model:
-                break
-
+        partitioned_table_model = get_model(partitioned_table_name)
+        report_period_model = get_model(report_period_table_name)
         self.assertIsNotNone(partitioned_table_model)
         self.assertIsNotNone(report_period_model)
 

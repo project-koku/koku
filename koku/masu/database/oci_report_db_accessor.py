@@ -41,9 +41,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
-        table_name = OCICostEntryBill
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
+        return OCICostEntryBill.objects.filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all cost entry bills for provider_uuid on date."""
@@ -57,13 +55,10 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
-        table_name = OCICostEntryBill
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            filters = {"billing_period_start__lte": date}
-            if provider_uuid:
-                filters["provider_id"] = provider_uuid
-            return base_query.filter(**filters)
+        filters = {"billing_period_start__lte": date}
+        if provider_uuid:
+            filters["provider_id"] = provider_uuid
+        return OCICostEntryBill.objects.filter(**filters)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
@@ -107,16 +102,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._execute_trino_raw_sql_query(
             sql, sql_params=sql_params, log_ref="reporting_ocicostentrylineitem_daily_summary.sql"
         )
-
-    def mark_bill_as_finalized(self, bill_id):
-        """Mark a bill in the database as finalized."""
-        table_name = OCICostEntryBill
-        with schema_context(self.schema):
-            bill = self._get_db_obj_query(table_name).get(id=bill_id)
-
-            if bill.finalized_datetime is None:
-                bill.finalized_datetime = self.date_accessor.today_with_timezone("UTC")
-                bill.save()
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""

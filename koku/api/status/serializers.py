@@ -24,7 +24,6 @@ class ConfigSerializer(serializers.Serializer):
     masu_retain_num_months_line_item_only = serializers.IntegerField(
         source="MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY", read_only=True
     )
-    reporting_decimal_precision = serializers.IntegerField(source="REPORTING_DECIMAL_PRECISION", read_only=True)
     initial_ingest_num_months = serializers.IntegerField(source="INITIAL_INGEST_NUM_MONTHS", read_only=True)
     ingest_override = serializers.BooleanField(source="INGEST_OVERRIDE", read_only=True)
     trino_enabled = serializers.BooleanField(default=True)

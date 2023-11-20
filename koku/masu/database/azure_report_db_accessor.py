@@ -65,9 +65,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
-        table_name = AzureCostEntryBill
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
+        return AzureCostEntryBill.objects.filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all cost entry bills for provider_uuid on date."""
@@ -152,13 +150,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_bill_query_before_date(self, date, provider_uuid=None):
         """Get the cost entry bill objects with billing period before provided date."""
-        table_name = AzureCostEntryBill
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            filters = {"billing_period_start__lte": date}
-            if provider_uuid:
-                filters["provider_id"] = provider_uuid
-            return base_query.filter(**filters)
+        filters = {"billing_period_start__lte": date}
+        if provider_uuid:
+            filters["provider_id"] = provider_uuid
+        return AzureCostEntryBill.objects.filter(**filters)
 
     def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
         """Populate the daily cost aggregated summary for OCP on Azure.

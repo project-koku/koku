@@ -70,33 +70,27 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
-        summary_table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            summary_entry = AzureCostEntryLineItemDailySummary.objects.all().aggregate(
+                Min("usage_start"), Max("usage_start")
+            )
             start_date = summary_entry["usage_start__min"]
             end_date = summary_entry["usage_start__max"]
 
-        query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
-            expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
-                markup=Sum(F("pretax_cost") * decimal.Decimal(0.1))
-            )
+            expected_markup = AzureCostEntryLineItemDailySummary.objects.filter(
+                cost_entry_bill__in=bill_ids
+            ).aggregate(markup=Sum(F("pretax_cost") * decimal.Decimal(0.1)))
             expected_markup = expected_markup.get("markup")
-
-        query = self.accessor._get_db_obj_query(summary_table_name)
 
         self.accessor.populate_markup_cost(
             self.azure_provider_uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
         )
         with schema_context(self.schema):
-            query = (
-                self.accessor._get_db_obj_query(summary_table_name)
-                .filter(cost_entry_bill__in=bill_ids)
-                .aggregate(Sum("markup_cost"))
+            query = AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
+                Sum("markup_cost")
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
@@ -315,27 +309,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                     self.assertEqual([key_to_keep.key], tag_keys)
                 else:
                     self.assertEqual([], tag_keys)
-
-    def test_delete_line_item_daily_summary_entries_for_date_range(self):
-        """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
-            start_date = AzureCostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get(
-                "usage_start__max"
-            )
-            end_date = start_date
-
-        table_query = AzureCostEntryLineItemDailySummary.objects.filter(
-            source_uuid=self.azure_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-        )
-        with schema_context(self.schema):
-            self.assertNotEqual(table_query.count(), 0)
-
-        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
-            self.azure_provider_uuid, start_date, end_date
-        )
-
-        with schema_context(self.schema):
-            self.assertEqual(table_query.count(), 0)
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, AzureCostEntryLineItemDailySummary)

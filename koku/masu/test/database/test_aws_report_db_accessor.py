@@ -20,7 +20,6 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
-from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
 from django_tenants.utils import schema_context
 from psycopg2.errors import DeadlockDetected
@@ -39,12 +38,10 @@ from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSTagsSummary
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
-from reporting_common import REPORT_COLUMN_MAP
 
 
 class ReportSchemaTest(MasuTestCase):
@@ -151,8 +148,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         super().setUpClass()
 
         cls.accessor = AWSReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
@@ -179,33 +174,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
 
-    def test_get_db_obj_query_default(self):
-        """Test that a query is returned."""
-        table_name = random.choice(self.all_tables)
-        query = self.accessor._get_db_obj_query(table_name)
-        self.assertIsInstance(query, QuerySet)
-
-    def test_get_db_obj_query_with_columns(self):
-        """Test that a query is returned with limited columns."""
-        tested = False
-        for table_name in self.foreign_key_tables:
-            columns = list(REPORT_COLUMN_MAP[table_name].values())
-
-            selected_columns = [random.choice(columns) for _ in range(2)]
-            missing_columns = set(columns).difference(selected_columns)
-
-            query = self.accessor._get_db_obj_query(table_name, columns=selected_columns)
-            with schema_context(self.schema):
-                self.assertIsInstance(query, QuerySet)
-                result = query.first()
-                if result:
-                    for column in selected_columns:
-                        self.assertTrue(column in result)
-                    for column in missing_columns:
-                        self.assertFalse(column in result)
-                    tested = True
-        self.assertTrue(tested)
-
     def _create_columns_from_data(self, datadict):
         columns = {}
         for name, value in datadict.items():
@@ -224,9 +192,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
         with schema_context(self.schema):
-            table_name = AWS_CUR_TABLE_MAP["bill"]
-            query = self.accessor._get_db_obj_query(table_name)
-            first_entry = query.first()
+            first_entry = AWSCostEntryBill.objects.first()
 
             # Verify that the result is returned for cutoff_date == billing_period_start
             cutoff_date = first_entry.billing_period_start
@@ -249,44 +215,24 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
-        bill1_date = datetime.datetime(2018, 1, 6, 0, 0, 0)
-        bill2_date = datetime.datetime(2018, 2, 3, 0, 0, 0)
-
-        self.creator.create_cost_entry_bill(bill_date=bill1_date, provider_uuid=self.aws_provider.uuid)
-        bill2 = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid, bill_date=bill2_date)
-
-        bills = self.accessor.bills_for_provider_uuid(
-            self.aws_provider.uuid, start_date=bill2_date.strftime("%Y-%m-%d")
-        )
+        bills = self.accessor.bills_for_provider_uuid(self.aws_provider.uuid, start_date=self.dh.today)
         with schema_context(self.schema):
             self.assertEqual(len(bills), 1)
-            self.assertEqual(bills[0].id, bill2.id)
-
-    def test_mark_bill_as_finalized(self):
-        """Test that test_mark_bill_as_finalized sets finalized_datetime field."""
-        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
-        with schema_context(self.schema):
-            self.assertIsNone(bill.finalized_datetime)
-            self.accessor.mark_bill_as_finalized(bill.id)
-            bill.refresh_from_db()
-            self.assertIsNotNone(bill.finalized_datetime)
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
-        summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            summary_entry = AWSCostEntryLineItemDailySummary.objects.all().aggregate(
+                Min("usage_start"), Max("usage_start")
+            )
             start_date = summary_entry["usage_start__min"]
             end_date = summary_entry["usage_start__max"]
 
-        query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
-            expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
+            expected_markup = AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
                 markup=Sum(F("unblended_cost") * decimal.Decimal(0.1))
             )
             expected_markup = expected_markup.get("markup")
@@ -295,10 +241,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider.uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
         )
         with schema_context(self.schema):
-            query = (
-                self.accessor._get_db_obj_query(summary_table_name)
-                .filter(cost_entry_bill__in=bill_ids)
-                .aggregate(Sum("markup_cost"))
+            query = AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
+                Sum("markup_cost")
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
@@ -444,80 +388,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
                     self.assertEqual([key_to_keep.key], tag_keys)
                 else:
                     self.assertEqual([], tag_keys)
-
-    def test_delete_line_item_daily_summary_entries_for_date_range(self):
-        """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
-            start_date = AWSCostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
-            end_date = start_date
-
-        table_query = AWSCostEntryLineItemDailySummary.objects.filter(
-            source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-        )
-        with schema_context(self.schema):
-            self.assertNotEqual(table_query.count(), 0)
-
-        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
-            self.aws_provider_uuid, start_date, end_date
-        )
-
-        with schema_context(self.schema):
-            self.assertEqual(table_query.count(), 0)
-
-    def test_delete_line_item_daily_summary_entries_for_date_range_with_filter(self):
-        """Test that daily summary rows are deleted."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-        new_cluster_id = "new_cluster_id"
-
-        with schema_context(self.schema):
-            cluster_ids = OCPAWSCostLineItemProjectDailySummaryP.objects.values_list("cluster_id").distinct()
-            cluster_ids = [cluster_id[0] for cluster_id in cluster_ids]
-
-            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
-                source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-            )
-            row_count = table_query.count()
-
-            # Change the cluster on some rows
-            update_uuids = table_query.values_list("uuid")[0 : round(row_count / 2, 2)]
-            table_query.filter(uuid__in=update_uuids).update(cluster_id=new_cluster_id)
-
-            self.assertNotEqual(row_count, 0)
-
-        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
-            self.aws_provider_uuid,
-            start_date,
-            end_date,
-            table=OCPAWSCostLineItemProjectDailySummaryP,
-            filters={"cluster_id": cluster_ids[0]},
-        )
-
-        with schema_context(self.schema):
-            # Make sure we didn't delete everything
-            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
-                source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-            )
-            self.assertNotEqual(table_query.count(), 0)
-
-            # Make sure we didn't delete this cluster
-            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
-                source_uuid=self.aws_provider_uuid,
-                usage_start__gte=start_date,
-                usage_start__lte=end_date,
-                cluster_id=new_cluster_id,
-            )
-            self.assertNotEqual(table_query.count(), 0)
-
-            # Make sure we deleted this cluster
-            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
-                source_uuid=self.aws_provider_uuid,
-                usage_start__gte=start_date,
-                usage_start__lte=end_date,
-                cluster_id=cluster_ids[0],
-            )
-            self.assertEqual(table_query.count(), 0)
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
