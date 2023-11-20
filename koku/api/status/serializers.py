@@ -28,11 +28,7 @@ class ConfigSerializer(serializers.Serializer):
     initial_ingest_num_months = serializers.IntegerField(source="INITIAL_INGEST_NUM_MONTHS", read_only=True)
     ingest_override = serializers.BooleanField(source="INGEST_OVERRIDE", read_only=True)
     trino_enabled = serializers.BooleanField(default=True)
-    insights_kafka_host = serializers.CharField(source="INSIGHTS_KAFKA_HOST", read_only=True)
-    insights_kafka_port = serializers.IntegerField(source="INSIGHTS_KAFKA_PORT", read_only=True)
-    insights_kafka_address = serializers.CharField(source="INSIGHTS_KAFKA_ADDRESS", read_only=True)
-    hccm_topic = serializers.CharField(source="HCCM_TOPIC", read_only=True)
-    validation_topic = serializers.CharField(source="VALIDATION_TOPIC", read_only=True)
+
     kafka_connect = serializers.BooleanField(source="KAFKA_CONNECT", read_only=True)
     retry_seconds = serializers.IntegerField(source="RETRY_SECONDS", read_only=True)
     del_record_limit = serializers.IntegerField(source="DEL_RECORD_LIMIT", read_only=True)

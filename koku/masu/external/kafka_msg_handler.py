@@ -36,6 +36,8 @@ from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer
 from kafka_utils.utils import get_producer
 from kafka_utils.utils import is_kafka_connected
+from kafka_utils.utils import UPLOAD_TOPIC
+from kafka_utils.utils import VALIDATION_TOPIC
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
@@ -505,7 +507,7 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer = get_producer()
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
-    producer.produce(Config.VALIDATION_TOPIC, value=msg, callback=delivery_callback)
+    producer.produce(VALIDATION_TOPIC, value=msg, callback=delivery_callback)
     producer.poll(0)
 
 
@@ -513,7 +515,7 @@ def handle_message(kmsg):
     """
     Handle messages from message pending queue.
 
-    Handle's messages with topics: 'platform.upload.hccm',
+    Handle's messages with topics: 'platform.upload.announce',
     and 'platform.upload.available'.
 
     The OCP cost usage payload will land on topic hccm.
@@ -787,7 +789,7 @@ def listen_for_messages_loop():
         "max.poll.interval.ms": 1080000,  # 18 minutes
     }
     consumer = get_consumer(kafka_conf)
-    consumer.subscribe([Config.UPLOAD_TOPIC])
+    consumer.subscribe([UPLOAD_TOPIC])
     LOG.info("Consumer is listening for messages...")
     for _ in itertools.count():  # equivalent to while True, but mockable
         msg = consumer.poll(timeout=1.0)
@@ -839,7 +841,7 @@ def listen_for_messages(msg, consumer):
     """
     offset = msg.offset()
     partition = msg.partition()
-    topic_partition = TopicPartition(topic=Config.UPLOAD_TOPIC, partition=partition, offset=offset)
+    topic_partition = TopicPartition(topic=UPLOAD_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         service = extract_from_header(msg.headers(), "service")
@@ -871,7 +873,7 @@ def koku_listener_thread():  # pragma: no cover
         None
 
     """
-    if is_kafka_connected(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):  # Check that Kafka is running
+    if is_kafka_connected():  # Check that Kafka is running
         LOG.info("Kafka is running.")
 
     try:
