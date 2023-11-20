@@ -2,6 +2,13 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import BooleanField
+from django.db.models import Case
+from django.db.models import F
+from django.db.models import Value
+from django.db.models import When
+from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from querystring_parser import parser
@@ -18,31 +25,66 @@ from masu.processor import is_customer_large
 from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.processor.tasks import update_summary_tables
+from reporting.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OpenshiftCostCategory
+from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
+
+# from django.db.models import CharField
+
 
 SETTINGS_GENERATORS = {"settings": Settings}
 
-def _get_return_data(group_name: str="Platform") -> list:
-    cost_category_obj = OpenshiftCostCategory.objects.get(name=group_name)
-    namespaces = OCPCostSummaryByProjectP.objects.values(project_name=F("namespace")).annotate(
-        default=Case(
-            When(namespace__startswith="kube-", then=Value(True)),
-            When(namespace__startswith="openshift-", then=Value(True)),
-            When(namespace="Platform unallocated", then=Value(True)),
-            When(cost_category_id=cost_category_obj.id, then=Value(False)),
-            output_field=BooleanField(null=True),
-        ),
-        clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"),  distinct=True),
-        group=Case(
-            When(namespace__startswith="kube-", then=Value(group_name, output_field=CharField())),
-            When(namespace__startswith="openshift-", then=Value(group_name, output_field=CharField())),
-            When(namespace="Platform unallocated", then=Value(group_name, output_field=CharField())),
-            When(cost_category_id=cost_category_obj.id, then=Value(group_name, output_field=CharField())),
-            output_field=CharField(),
-        ),
-    ).distinct()
 
-    return list(namespaces)
+# def _get_return_data(group_name: str = "Platform") -> list:
+#     cost_category_obj = OpenshiftCostCategory.objects.get(name=group_name)
+#     namespaces = (
+#         OCPCostSummaryByProjectP.objects.values(project_name=F("namespace"))
+#         .annotate(
+#             default=Case(
+#                 When(namespace__startswith="kube-", then=Value(True)),
+#                 When(namespace__startswith="openshift-", then=Value(True)),
+#                 When(namespace="Platform unallocated", then=Value(True)),
+#                 When(cost_category_id=cost_category_obj.id, then=Value(False)),
+#                 output_field=BooleanField(null=True),
+#             ),
+#             clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+#             group=Case(
+#                 When(namespace__startswith="kube-", then=Value(group_name, output_field=CharField())),
+#                 When(namespace__startswith="openshift-", then=Value(group_name, output_field=CharField())),
+#                 When(namespace="Platform unallocated", then=Value(group_name, output_field=CharField())),
+#                 When(cost_category_id=cost_category_obj.id, then=Value(group_name, output_field=CharField())),
+#                 output_field=CharField(),
+#             ),
+#         )
+#         .distinct()
+#     )
+
+#     return list(namespaces)
+
+
+def _get_return_data(group_name: str = "Platform") -> list:
+    # Assuming you have an OCPCostSummaryByProjectP queryset
+    ocp_namespaces = OpenshiftCostCategoryNamespace.objects.filter(cost_category__name="Platform").values(
+        "namespace", "system_default"
+    )
+
+    ocp_summary_query = OCPCostSummaryByProjectP.objects.values(project_name=F("namespace")).annotate(
+        clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+        group=F("cost_category__name"),
+        default=Case(
+            *[
+                When(namespace__startswith=namespace["namespace"], then=Value(namespace["system_default"]))
+                for namespace in ocp_namespaces
+            ],
+            default=None,
+            output_field=BooleanField()
+        ),
+    )
+
+    # Now, you can access the 'namespace' attribute for each OCPCostSummaryByProjectP
+    for ocp_summary in ocp_summary_query:
+        print(ocp_summary)
+    return ocp_summary_query
 
 
 class CostGroupsFilter:
@@ -79,17 +121,17 @@ class CostGroupsFilter:
     def filter_data(self):
         result = _get_return_data()
 
-#         for key, value in self.filter_params.items():
-#             # FIXME: This needs to do a logical OR for multiple filters of the same field
-#             result = [item for item in result if value.lower() in item.get(key, "")]
-#
-#         field, order = next(iter(self.order_by.items()))
-#         reverse = order.lower().startswith("desc")
-#
-#         def _sort_key(value):
-#             return value.get(field, "name")
-#
-#         result.sort(key=_sort_key, reverse=reverse)
+        #         for key, value in self.filter_params.items():
+        #             # FIXME: This needs to do a logical OR for multiple filters of the same field
+        #             result = [item for item in result if value.lower() in item.get(key, "")]
+        #
+        #         field, order = next(iter(self.order_by.items()))
+        #         reverse = order.lower().startswith("desc")
+        #
+        #         def _sort_key(value):
+        #             return value.get(field, "name")
+        #
+        #         result.sort(key=_sort_key, reverse=reverse)
 
         return result
 
