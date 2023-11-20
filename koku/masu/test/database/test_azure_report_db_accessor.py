@@ -39,8 +39,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         super().setUpClass()
 
         cls.accessor = AzureReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-        cls.dh = DateHelper()
 
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [

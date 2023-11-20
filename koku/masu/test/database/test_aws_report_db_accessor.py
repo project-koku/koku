@@ -5,36 +5,29 @@
 """Test the AWSReportDBAccessor utility object."""
 import datetime
 import decimal
-import os
 import pkgutil
-import random
 from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import django.apps
 from dateutil import relativedelta
 from django.conf import settings
-from django.db import OperationalError
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.utils import ProgrammingError
 from django_tenants.utils import schema_context
-from psycopg2.errors import DeadlockDetected
 from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.database import get_model
-from koku.database_exc import ExtendedDBException
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
@@ -42,101 +35,6 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSTagsSummary
-
-
-class ReportSchemaTest(MasuTestCase):
-    """Test Cases for the ReportSchema object."""
-
-    def setUp(self):
-        """Set up the test class with required objects."""
-        super().setUp()
-        self.accessor = AWSReportDBAccessor(schema=self.schema)
-        self.all_tables = list(AWS_CUR_TABLE_MAP.values())
-        self.foreign_key_tables = [
-            AWS_CUR_TABLE_MAP["bill"],
-        ]
-
-    def test_init(self):
-        """Test the initializer."""
-        tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables)
-
-        for table_name in self.all_tables:
-            self.assertIsNotNone(getattr(report_schema, table_name))
-
-        self.assertNotEqual(report_schema.column_types, {})
-
-    def test_get_reporting_tables(self):
-        """Test that the report schema is populated with a column map."""
-        tables = django.apps.apps.get_models()
-        report_schema = ReportSchema(tables)
-
-        report_schema._set_reporting_tables(tables)
-
-        for table in self.all_tables:
-            self.assertIsNotNone(getattr(report_schema, table))
-
-        self.assertTrue(hasattr(report_schema, "column_types"))
-
-        column_types = report_schema.column_types
-
-        for table in self.all_tables:
-            self.assertIn(table, column_types)
-
-        table_types = column_types[random.choice(self.all_tables)]
-
-        django_field_types = [
-            "IntegerField",
-            "FloatField",
-            "JSONField",
-            "DateTimeField",
-            "DecimalField",
-            "CharField",
-            "TextField",
-            "PositiveIntegerField",
-        ]
-        for table_type in table_types.values():
-            self.assertIn(table_type, django_field_types)
-
-    def test_exec_raw_sql_query(self):
-        class _db:
-            def set_schema(*args, **kwargs):
-                return None
-
-        class _crsr:
-            def __init__(self, *args, **kwargs):
-                self.db = _db()
-
-            def __enter__(self, *args, **kwargs):
-                return self
-
-            def __exit__(self, *args, **kwargs):
-                pass
-
-            def execute(self, *args, **kwargs):
-                try:
-                    self.dd_exc = DeadlockDetected(
-                        "deadlock detected"
-                        + os.linesep
-                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
-                        + os.linesep
-                        + "Process 99  transaction 78  blocked by process 88"
-                        + os.linesep
-                    )
-                    raise self.dd_exc
-                except DeadlockDetected:
-                    raise OperationalError(
-                        "deadlock detected"
-                        + os.linesep
-                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
-                        + os.linesep
-                        + "Process 99  transaction 78  blocked by process 88"
-                        + os.linesep
-                    )
-
-        with patch("masu.database.report_db_accessor_base.connection.cursor", return_value=_crsr()):
-            with self.assertRaises(ExtendedDBException):
-                self.accessor._execute_raw_sql_query(None, None)
 
 
 class AWSReportDBAccessorTest(MasuTestCase):

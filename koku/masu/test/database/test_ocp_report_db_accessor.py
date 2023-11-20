@@ -42,14 +42,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         super().setUp()
 
         self.accessor = OCPReportDBAccessor(schema=self.schema)
-        self.report_schema = self.accessor.report_schema
 
         self.cluster_id = "testcluster"
         self.ocp_provider_uuid = self.ocp_provider.uuid
-
-    def test_initializer(self):
-        """Test initializer."""
-        self.assertIsNotNone(self.report_schema)
 
     def test_get_usage_period_query_by_provider(self):
         """Test that periods are returned filtered by provider."""

@@ -46,12 +46,8 @@ class OCPReportDBCleanerTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         cls.accessor = OCPReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-        cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
-    def test_initializer(self):
-        """Test initializer."""
-        self.assertIsNotNone(self.report_schema)
+        cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def test_purge_expired_report_data_on_date(self):
         """Test to remove report data on a provided date."""

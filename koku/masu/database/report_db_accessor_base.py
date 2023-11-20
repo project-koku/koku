@@ -67,7 +67,8 @@ class ReportDBAccessorBase:
         Args:
             schema (str): The customer schema to associate with
         """
-        super().__init__(schema)
+        self.schema = schema
+
         self.date_helper = DateHelper()
         self.prepare_query = JinjaSql().prepare_query
         self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
