@@ -14,7 +14,6 @@ from koku.feature_flags import UNLEASH_CLIENT
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
-from masu.config import Config
 from masu.external.kafka_msg_handler import initialize_kafka_handler
 
 
@@ -29,7 +28,7 @@ class ListenerProbeServer(ProbeServer):
         status = 424
         msg = "not ready"
         if self.ready:
-            if not check_kafka_connection(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):
+            if not check_kafka_connection():
                 response = ProbeResponse(status, "kafka connection error")
                 self._write_response(response)
                 self.logger.info(response.json)

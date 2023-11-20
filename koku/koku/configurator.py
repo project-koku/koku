@@ -10,7 +10,7 @@ from .env import ENVIRONMENT
 
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
-    from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, DependencyEndpoints
+    from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, KafkaServers, DependencyEndpoints
 
 
 class Configurator:
@@ -47,17 +47,12 @@ class Configurator:
         pass
 
     @staticmethod
-    def get_kafka_broker_host():
+    def get_kafka_broker_list():
         """Obtain kafka broker host address."""
         pass
 
     @staticmethod
-    def get_kafka_broker_port():
-        """Obtain kafka broker port."""
-        pass
-
-    @staticmethod
-    def get_kafka_topic(requestedName: str):
+    def get_kafka_topic(requested_name: str):
         """Obtain kafka topic."""
         pass
 
@@ -102,22 +97,22 @@ class Configurator:
         pass
 
     @staticmethod
-    def get_object_store_access_key(requestedName: str = ""):
+    def get_object_store_access_key(requested_name: str = ""):
         """Obtain object store access key."""
         pass
 
     @staticmethod
-    def get_object_store_secret_key(requestedName: str = ""):
+    def get_object_store_secret_key(requested_name: str = ""):
         """Obtain object store secret key."""
         pass
 
     @staticmethod
-    def get_object_store_bucket(requestedName: str = ""):
+    def get_object_store_bucket(requested_name: str = ""):
         """Obtain object store bucket."""
         pass
 
     @staticmethod
-    def get_object_store_region(requestedName: str = ""):
+    def get_object_store_region(requested_name: str = ""):
         """Obtain object store bucket."""
         pass
 
@@ -206,19 +201,17 @@ class EnvConfigurator(Configurator):
         return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
 
     @staticmethod
-    def get_kafka_broker_host():
+    def get_kafka_broker_list():
         """Obtain kafka broker host address."""
-        return ENVIRONMENT.get_value("INSIGHTS_KAFKA_HOST", default="localhost")
+        return [
+            f'{ENVIRONMENT.get_value("INSIGHTS_KAFKA_HOST", default="localhost")}:'
+            f'{ENVIRONMENT.get_value("INSIGHTS_KAFKA_PORT", default="29092")}'
+        ]
 
     @staticmethod
-    def get_kafka_broker_port():
-        """Obtain kafka broker port."""
-        return ENVIRONMENT.get_value("INSIGHTS_KAFKA_PORT", default="29092")
-
-    @staticmethod
-    def get_kafka_topic(requestedName: str):
+    def get_kafka_topic(requested_name: str):
         """Obtain kafka topic."""
-        return requestedName
+        return requested_name
 
     @staticmethod
     def get_kafka_sasl():
@@ -282,24 +275,24 @@ class EnvConfigurator(Configurator):
         pass
 
     @staticmethod
-    def get_object_store_access_key(requestedName: str = ""):
+    def get_object_store_access_key(requested_name: str = ""):
         """Obtain object store access key."""
         return ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
 
     @staticmethod
-    def get_object_store_secret_key(requestedName: str = ""):
+    def get_object_store_secret_key(requested_name: str = ""):
         """Obtain object store secret key."""
         return ENVIRONMENT.get_value("S3_SECRET", default=None)
 
     @staticmethod
-    def get_object_store_bucket(requestedName: str = ""):
+    def get_object_store_bucket(requested_name: str = ""):
         """Obtain object store bucket."""
-        return ENVIRONMENT.get_value("S3_BUCKET_NAME", default=requestedName)
+        return ENVIRONMENT.get_value("S3_BUCKET_NAME", default=requested_name)
 
     @staticmethod
-    def get_object_store_region(requestedName: str = ""):
+    def get_object_store_region(requested_name: str = ""):
         """Obtain object store bucket."""
-        return ENVIRONMENT.get_value("S3_REGION", default=requestedName)
+        return ENVIRONMENT.get_value("S3_REGION", default=requested_name)
 
     @staticmethod
     def get_database_name():
@@ -388,22 +381,16 @@ class ClowderConfigurator(Configurator):
     def get_in_memory_db_port():
         """Obtain in memory (redis) db port."""
         return LoadedConfig.inMemoryDb.port
-        # return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
 
     @staticmethod
-    def get_kafka_broker_host():
+    def get_kafka_broker_list():
         """Obtain kafka broker host address."""
-        return LoadedConfig.kafka.brokers[0].hostname
+        return KafkaServers
 
     @staticmethod
-    def get_kafka_broker_port():
-        """Obtain kafka broker port."""
-        return LoadedConfig.kafka.brokers[0].port
-
-    @staticmethod
-    def get_kafka_topic(requestedName: str):
+    def get_kafka_topic(requested_name: str):
         """Obtain kafka topic."""
-        return KafkaTopics.get(requestedName).name
+        return KafkaTopics.get(requested_name).name
 
     @staticmethod
     def get_kafka_sasl():
@@ -477,37 +464,37 @@ class ClowderConfigurator(Configurator):
             return False
 
     @staticmethod
-    def get_object_store_access_key(requestedName: str = ""):
+    def get_object_store_access_key(requested_name: str = ""):
         """Obtain object store access key."""
-        if requestedName != "" and ObjectBuckets.get(requestedName):
-            return ObjectBuckets.get(requestedName).accessKey
+        if requested_name != "" and ObjectBuckets.get(requested_name):
+            return ObjectBuckets.get(requested_name).accessKey
         if len(LoadedConfig.objectStore.buckets) > 0:
             return LoadedConfig.objectStore.buckets[0].accessKey
         if LoadedConfig.objectStore.accessKey:
             return LoadedConfig.objectStore.accessKey
 
     @staticmethod
-    def get_object_store_secret_key(requestedName: str = ""):
+    def get_object_store_secret_key(requested_name: str = ""):
         """Obtain object store secret key."""
-        if requestedName != "" and ObjectBuckets.get(requestedName):
-            return ObjectBuckets.get(requestedName).secretKey
+        if requested_name != "" and ObjectBuckets.get(requested_name):
+            return ObjectBuckets.get(requested_name).secretKey
         if len(LoadedConfig.objectStore.buckets) > 0:
             return LoadedConfig.objectStore.buckets[0].secretKey
         if LoadedConfig.objectStore.secretKey:
             return LoadedConfig.objectStore.secretKey
 
     @staticmethod
-    def get_object_store_bucket(requestedName: str = ""):
+    def get_object_store_bucket(requested_name: str = ""):
         """Obtain object store bucket."""
-        if ObjectBuckets.get(requestedName):
-            return ObjectBuckets.get(requestedName).name
-        return requestedName
+        if ObjectBuckets.get(requested_name):
+            return ObjectBuckets.get(requested_name).name
+        return requested_name
 
     @staticmethod
-    def get_object_store_region(requestedName: str = ""):
+    def get_object_store_region(requested_name: str = ""):
         """Obtain object store region."""
-        if ObjectBuckets.get(requestedName):
-            return ObjectBuckets.get(requestedName).region
+        if ObjectBuckets.get(requested_name):
+            return ObjectBuckets.get(requested_name).region
         return None
 
     @staticmethod

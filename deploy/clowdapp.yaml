@@ -4206,7 +4206,6 @@ objects:
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
-    - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
