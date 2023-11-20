@@ -237,7 +237,7 @@ def collect_hcs_report_finalization(  # noqa: C901
         LOG.info(log_json(tracing_id, msg=f"schema_name provided: {schema_name} is not HCS enabled"))
         return
 
-    finalization_date = DateHelper().today
+    finalization_date = DateHelper().this_month_start
 
     if month and year:
         finalization_date = finalization_date.replace(year=int(year), month=int(month)) + relativedelta(months=1)
