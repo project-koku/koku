@@ -102,12 +102,13 @@ def backoff(interval, maximum=120):
 
 def check_kafka_connection():
     """Check connectability of Kafka Broker."""
-    broker = CONFIGURATOR.get_kafka_broker_list()[0]
-    host, port = broker.split(":")
-    conn = BrokerConnection(host, int(port), socket.AF_UNSPEC)
-    connected = conn.connect_blocking(timeout=1)
-    if connected:
-        conn.close()
+    for broker in CONFIGURATOR.get_kafka_broker_list():
+        host, port = broker.split(":")
+        conn = BrokerConnection(host, int(port), socket.AF_UNSPEC)
+        connected = conn.connect_blocking(timeout=1)
+        if connected:
+            conn.close()
+            break
     return connected
 
 
