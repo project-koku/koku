@@ -23,6 +23,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from kafka_utils.utils import check_kafka_connection
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from sources.config import Config as SourcesConfig
@@ -38,14 +39,6 @@ BROKER_CONNECTION = BrokerConnection(
 )
 BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
-
-
-def check_kafka_connection():
-    """Check connectability of Kafka Broker."""
-    connected = BROKER_CONNECTION.connect_blocking(timeout=1)
-    if connected:
-        BROKER_CONNECTION.close()
-    return connected
 
 
 def check_sources_connection():
