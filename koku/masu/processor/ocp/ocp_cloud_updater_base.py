@@ -5,12 +5,14 @@
 """Updater base for OpenShift on Cloud Infrastructures."""
 import logging
 
+from django.db import IntegrityError
+
 from api.common import log_json
 from api.provider.models import Provider
+from api.provider.models import ProviderInfrastructureMap
 from koku.cache import get_cached_infra_map
 from koku.cache import set_cached_infra_map
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
@@ -32,7 +34,7 @@ class OCPCloudUpdaterBase:
 
         """
         self._schema = schema
-        self._provider = provider
+        self._provider: Provider = provider
         self._provider_uuid = str(self._provider.uuid)
         self._manifest = manifest
         self._date_accessor = DateAccessor()
@@ -48,19 +50,22 @@ class OCPCloudUpdaterBase:
 
         """
         infra_map = {}
-        with ProviderDBAccessor(self._provider.uuid) as provider_accessor:
-            if self._provider.type == Provider.PROVIDER_OCP:
-                infra_type = provider_accessor.get_infrastructure_type()
-                if infra_provider_uuid := provider_accessor.get_infrastructure_provider_uuid():
-                    if infra_type == Provider.PROVIDER_OCP:
-                        # OCP infra is invalid, so delete these entries from the providerinframap
-                        provider_accessor.delete_ocp_infra(infra_provider_uuid)
-                        return infra_map
-                    infra_map[self._provider_uuid] = (infra_provider_uuid, infra_type)
-            elif self._provider.type in Provider.CLOUD_PROVIDER_LIST:
-                associated_providers = provider_accessor.get_associated_openshift_providers()
-                for provider in associated_providers:
-                    infra_map[str(provider.uuid)] = (self._provider_uuid, self._provider.type)
+        if self._provider.type == Provider.PROVIDER_OCP:
+            if not self._provider.infrastructure:
+                return infra_map
+            if self._provider.infrastructure.infrastructure_type == Provider.PROVIDER_OCP:
+                # OCP infra is invalid, so delete these entries from the providerinframap.
+                # The foreign key relation sets the infra on the provider to null when the map is deleted.
+                ProviderInfrastructureMap.objects.filter(id=self._provider.infrastructure.id).delete()
+                return infra_map
+            infra_map[self._provider_uuid] = (
+                str(self._provider.infrastructure.infrastructure_provider.uuid),
+                self._provider.infrastructure.infrastructure_type,
+            )
+        elif self._provider.type in Provider.CLOUD_PROVIDER_LIST:
+            ps = Provider.objects.filter(infrastructure__infrastructure_provider__uuid=self._provider.uuid)
+            for provider in ps:
+                infra_map[str(provider.uuid)] = (self._provider_uuid, self._provider.type)
         return infra_map
 
     def _generate_ocp_infra_map_from_sql(self, start_date, end_date):
@@ -159,11 +164,20 @@ class OCPCloudUpdaterBase:
         The infra_map comes from created in _generate_ocp_infra_map_from_sql.
         """
         for key, infra_tuple in infra_map.items():
-            with ProviderDBAccessor(key) as provider_accessor:
-                if provider_accessor.provider:
-                    provider_accessor.set_infrastructure(
-                        infrastructure_provider_uuid=infra_tuple[0], infrastructure_type=infra_tuple[1]
-                    )
+            provider = Provider.objects.filter(uuid=key).first()
+            if not provider:
+                continue
+            try:
+                infra, _ = ProviderInfrastructureMap.objects.get_or_create(
+                    infrastructure_provider_id=infra_tuple[0], infrastructure_type=infra_tuple[1]
+                )
+            except IntegrityError:
+                infra = ProviderInfrastructureMap.objects.filter(
+                    infrastructure_provider_id=infra_tuple[0], infrastructure_type=infra_tuple[1]
+                ).first()
+            if not infra:
+                continue
+            provider.set_infrastructure(infra)
 
     def get_openshift_and_infra_providers_lists(self, infra_map):
         """Return two lists.
