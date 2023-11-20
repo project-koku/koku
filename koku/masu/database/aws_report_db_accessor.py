@@ -137,16 +137,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql, sql_params=sql_params, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
         )
 
-    def mark_bill_as_finalized(self, bill_id):
-        """Mark a bill in the database as finalized."""
-        table_name = AWSCostEntryBill
-        with schema_context(self.schema):
-            bill = self._get_db_obj_query(table_name).get(id=bill_id)
-
-            if bill.finalized_datetime is None:
-                bill.finalized_datetime = self.date_accessor.today_with_timezone("UTC")
-                bill.save()
-
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]

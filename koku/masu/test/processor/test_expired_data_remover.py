@@ -7,6 +7,7 @@ import logging
 import re
 from datetime import datetime
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
@@ -15,7 +16,6 @@ from django.utils import timezone
 from model_bakery import baker
 
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
@@ -96,7 +96,8 @@ class ExpiredDataRemoverTest(MasuTestCase):
             },
         ]
         for test_case in date_matrix:
-            with patch.object(DateHelper, "today", return_value=test_case.get("current_date")):
+            with patch("masu.processor.expired_data_remover.DateHelper.today", new_callable=PropertyMock) as mock_dh:
+                mock_dh.return_value = test_case.get("current_date")
                 retention_policy = test_case.get("months_to_keep")
                 if retention_policy:
                     remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, retention_policy)

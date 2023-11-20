@@ -81,17 +81,14 @@ def merge_dicts(*list_of_dicts):
 class DateHelper:
     """Helper class with convenience functions."""
 
-    def __init__(self, utc=False):
+    def __init__(self):
         """Initialize when now is."""
-        if utc:
-            self._now = datetime.datetime.now(tz=settings.UTC)
-        else:
-            self._now = timezone.now()
+        self._now = None
 
     @property
     def now(self):
         """Return current time at timezone."""
-        return timezone.now()
+        return self._now or timezone.now()
 
     @property
     def now_utc(self):
@@ -116,7 +113,7 @@ class DateHelper:
     @property
     def this_hour(self):
         """Datetime of top of the current hour."""
-        return self._now.replace(microsecond=0, second=0, minute=0)
+        return self.now.replace(microsecond=0, second=0, minute=0)
 
     @property
     def next_hour(self):
@@ -133,7 +130,7 @@ class DateHelper:
     @property
     def today(self):
         """Datetime of midnight today."""
-        return self._now.replace(microsecond=0, second=0, minute=0, hour=0)
+        return self.now.replace(microsecond=0, second=0, minute=0, hour=0)
 
     @property
     def yesterday(self):

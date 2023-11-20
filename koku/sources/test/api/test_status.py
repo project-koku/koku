@@ -171,7 +171,7 @@ class StatusAPITest(TestCase):
             ApplicationStatus().startup()
             self.assertIn(expected, logger.output)
 
-    @patch("masu.external.date_accessor.DateHelper.now", new_callable=PropertyMock)
+    @patch("sources.api.status.DateHelper.now", new_callable=PropertyMock)
     def test_get_datetime(self, mock_date):
         """Test the startup method for datetime."""
         mock_date_string = "2018-07-25 10:41:59.993536"

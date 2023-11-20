@@ -69,8 +69,9 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""
+        now = self.dh.now
         self.manifest_accessor.mark_manifest_as_updated(self.manifest)
-        self.assertGreater(self.manifest.manifest_updated_datetime, self.dh.now)
+        self.assertGreater(self.manifest.manifest_updated_datetime, now)
 
     def test_mark_manifest_as_updated_none_manifest(self):
         """Test that a none manifest doesn't update failure."""
