@@ -4,6 +4,7 @@ SELECT
   time_split[2] as subs_end_time,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
+    WHEN 'hpc' THEN 'Red Hat Enterprise Linux Compute'
     ELSE 'Red Hat Enterprise Linux Server'
   END as subs_role,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_usage'))
@@ -20,7 +21,11 @@ SELECT
     WHEN 'rhel 7 els' THEN '69-204'
     WHEN 'rhel 8 els' THEN '479-204'
     ELSE '479'
-  END as subs_product_ids
+  END as subs_product_ids,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+    WHEN 'sap' THEN true
+    ELSE false
+  END as subs_sap_bool
 FROM
   (
     SELECT *,

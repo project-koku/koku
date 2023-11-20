@@ -64,6 +64,7 @@ class SUBSDataMessenger:
                         row["subs_usage"],
                         row["subs_role"],
                         row["subs_product_ids"].split("-"),
+                        row["subs_sap_bool"],
                     )
                     self.send_kafka_message(msg)
                     msg_count += 1
@@ -84,9 +85,19 @@ class SUBSDataMessenger:
         producer.poll(0)
 
     def build_subs_msg(
-        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, sap_bool
     ):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
+        if sap_bool:
+            LOG.info(f"\npids: {product_ids}, \t {type(product_ids)}")
+            # The SAP identifier for RHEL 8+ (479) is 241,  RHEL 7- (69) is 146
+            if "479" in product_ids:
+                product_ids.append("241")
+            else:
+                product_ids.append("146")
+        if role == "Red Hat Enterprise Linux Compute":
+            # HPC is identified by the role plus a specific product id, '76' for RHEL 7- and 479 for RHEL 8+
+            product_ids = ["76"] if "69" in product_ids else ["479"]
         subs_json = {
             "event_id": str(uuid.uuid4()),
             "event_source": "cost-management",
@@ -107,4 +118,5 @@ class SUBSDataMessenger:
             "billing_provider": "aws",
             "billing_account_id": billing_account_id,
         }
+        LOG.info(f"\n\nbrrrt_message: {subs_json}\n\n")
         return bytes(json.dumps(subs_json), "utf-8")
