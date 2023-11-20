@@ -18,7 +18,6 @@ from rest_framework.settings import api_settings
 
 from api.models import Provider
 from api.utils import get_months_in_date_range
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE_XL
@@ -66,9 +65,13 @@ def report_data(request):
         if provider_uuid == "*":
             all_providers = True
         elif provider_uuid:
-            with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                provider = provider_accessor.get_type()
-                provider_schema = provider_accessor.get_schema()
+            try:
+                p = Provider.objects.get(uuid=provider_uuid)
+                provider = p.type
+                provider_schema = p.account.get("schema_name")
+            except Provider.DoesNotExist:
+                errmsg = f"provider_uuid {provider_uuid} does not exist"
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             if provider_schema != schema_name:
                 errmsg = f"provider_uuid {provider_uuid} is not associated with schema {schema_name}."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)

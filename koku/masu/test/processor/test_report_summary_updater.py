@@ -11,7 +11,6 @@ from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from api.utils import DateHelper
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
@@ -65,6 +64,12 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
             _ = ReportSummaryUpdater(self.schema, uuid4())
 
+    def test_bad_ocp_provider(self):
+        """Test that an OCP provider without cluster-id throws an error."""
+        p = self.baker.make("Provider", type="OCP")
+        with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
+            _ = ReportSummaryUpdater(self.schema, p.uuid)
+
     def test_no_provider_on_create(self):
         """Test that an error is raised when no provider exists."""
         billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
@@ -73,10 +78,9 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             "assembly_id": "1234",
             "billing_period_start_datetime": billing_start,
             "num_total_files": 2,
-            "provider_uuid": self.ocp_provider_uuid,
+            "provider_id": self.ocp_provider_uuid,
         }
-        with ReportManifestDBAccessor() as accessor:
-            manifest = accessor.add(**manifest_dict)
+        manifest = self.baker.make("CostUsageReportManifest", **manifest_dict)
         manifest_id = manifest.id
         with self.assertRaises(ReportSummaryUpdaterError):
             ReportSummaryUpdater(self.schema, no_provider_uuid, manifest_id)

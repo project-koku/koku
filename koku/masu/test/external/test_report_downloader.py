@@ -214,6 +214,32 @@ class ReportDownloaderTest(MasuTestCase):
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
+    def test_download_reports_no_status_found(self, mock_dl_init, mock_dl):
+        """Test download reports."""
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        manifest_id = 99
+        baker.make(CostUsageReportManifest, id=manifest_id)
+        assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        filename = "koku-1.csv.gz"
+        compression = "GZIP"
+        mock_date = FAKE.date()
+        mock_full_file_path = "/full/path/to/file.csv"
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today(), [], {})
+
+        report_context = {
+            "date": mock_date,
+            "manifest_id": manifest_id,
+            "compression": compression,
+            "assembly_id": assembly_id,
+            "current_file": f"/my/{assembly_id}/{filename}",
+        }
+
+        with patch("masu.external.report_downloader.ReportDownloader.is_report_processed", return_value=False):
+            result = downloader.download_report(report_context)
+            self.assertFalse(result)
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_download_reports_already_processed(self, mock_dl_init, mock_dl):
         """Test download reports when report is processed."""
         downloader = self.create_downloader(Provider.PROVIDER_AWS)

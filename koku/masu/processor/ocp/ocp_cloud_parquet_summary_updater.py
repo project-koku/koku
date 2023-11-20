@@ -21,7 +21,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
@@ -119,27 +118,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
         ):
             infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
-
-        summary_infra_map = {}
-        with OCPReportDBAccessor(self._schema) as accessor:
-            # Only include OCP providers for OCP on Cloud summary if we have a matching report period
-            for ocp_provider_uuid in infra_map:
-                if accessor.report_periods_for_provider_uuid(ocp_provider_uuid, start_date):
-                    summary_infra_map[ocp_provider_uuid] = infra_map[ocp_provider_uuid]
-                else:
-                    ctx = {
-                        "schema": self._schema,
-                        "ocp_provider_uuid": ocp_provider_uuid,
-                        "provider_uuid": infra_map[ocp_provider_uuid][0],
-                        "provider_type": infra_map[ocp_provider_uuid][1],
-                    }
-                    LOG.info(
-                        log_json(
-                            msg=f"no matching report periods available for cluster - removing from OCP on {infra_map[ocp_provider_uuid][1]} summary list",  # noqa: E501
-                            context=ctx,
-                        )
-                    )
-        return summary_infra_map
+        return infra_map
 
     def determine_truncates_and_deletes(self, start_date, end_date):
         """Clear out existing data in summary tables."""
@@ -199,8 +178,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
 
         # Update markup for OpenShift tables
-        with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
-            OCPCostModelCostUpdater(self._schema, provider_accessor.provider)._update_markup_cost(start_date, end_date)
+        provider = Provider.objects.get(uuid=ocp_provider_uuid)
+        OCPCostModelCostUpdater(self._schema, provider)._update_markup_cost(start_date, end_date)
 
         # Update the UI tables for the OpenShift provider
         with OCPReportDBAccessor(self._schema) as ocp_accessor:

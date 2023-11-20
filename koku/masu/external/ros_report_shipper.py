@@ -18,7 +18,7 @@ from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
-from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.external.downloader.ocp.ocp_report_downloader import OPERATOR_VERSIONS
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 
@@ -50,10 +50,12 @@ class ROSReportShipper:
 
     def __init__(
         self,
+        provider,
         report_meta,
         b64_identity,
         context,
     ):
+        self.provider = provider
         self.b64_identity = b64_identity
         self.manifest_id = report_meta["manifest_id"]
         self.context = context | {"manifest_id": self.manifest_id}
@@ -61,12 +63,17 @@ class ROSReportShipper:
         self.provider_uuid = str(report_meta["provider_uuid"])
         self.request_id = report_meta["request_id"]
         self.schema_name = report_meta["schema_name"]
+        version = report_meta.get("version")
         self.metadata = {
             "account": context["account"],
             "org_id": context["org_id"],
             "source_id": self.source_id,
             "provider_uuid": self.provider_uuid,
             "cluster_uuid": report_meta["cluster_id"],
+            "operator_version": OPERATOR_VERSIONS.get(
+                version,
+                version,  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
+            ),
         }
         self.s3_client = get_ros_s3_client()
         self.dh = DateHelper()
@@ -136,12 +143,10 @@ class ROSReportShipper:
 
     def build_ros_msg(self, presigned_urls, upload_keys):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
-        with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
-            cluster_alias = provider_accessor.get_provider_name()
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,
-            "metadata": self.metadata | {"cluster_alias": cluster_alias},
+            "metadata": self.metadata | {"cluster_alias": self.provider.name},
             "files": presigned_urls,
             "object_keys": upload_keys,
         }

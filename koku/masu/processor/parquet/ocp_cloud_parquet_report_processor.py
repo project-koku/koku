@@ -81,7 +81,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
         updater = OCPCloudUpdaterBase(self.schema_name, provider, manifest)
         infra_map = updater.get_infra_map_from_providers()
-        openshift_provider_uuids, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
+        _, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
 
         if self.provider_type in Provider.CLOUD_PROVIDER_LIST and str(self.provider_uuid) not in infra_provider_uuids:
             # When running for an Infrastructure provider we want all
@@ -223,15 +223,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     LOG.info(
                         log_json(
                             msg=f"no cluster information available - skipping OCP on {self.provider_type} parquet processing",  # noqa: E501
-                            context=ctx,
-                        )
-                    )
-                    continue
-                # Check we have data for the ocp provider/cluster matching the current report period
-                if not accessor.report_periods_for_provider_uuid(ocp_provider_uuid, self.start_date):
-                    LOG.info(
-                        log_json(
-                            msg=f"no matching report periods available for cluster - skipping OCP on {self.provider_type} parquet processing",  # noqa: E501
                             context=ctx,
                         )
                     )

@@ -226,6 +226,26 @@ class GCPReportDownloaderTest(MasuTestCase):
         os.remove(temp_path)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_leading_zeros(self, mock_s3):
+        """Test if create_daily_archives function is keeping the leading zeros after download."""
+        # Use the processor example for data:
+        file_name = "2022-08-01_5.csv"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        start_date = DateHelper().this_month_start
+        daily_file_names, date_range = create_daily_archives(
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+        )
+        for daily_file in daily_file_names:
+            with open(daily_file) as file:
+                csv = file.readlines()
+
+            self.assertIn("018984-D0AAA4-940B88", csv[1].split(","))
+        os.remove(temp_path)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_error_opening_file(self, mock_s3):
         """
         Test that we handle effor while opening csv file.
