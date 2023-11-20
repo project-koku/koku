@@ -24,7 +24,7 @@ class ReportsViewTest(MasuTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.start = self.dh.today
+        self.start = self.dh.this_month_start
         self.ingress_uuid = str(uuid.uuid4())
         ingress_report_dict = {
             "uuid": self.ingress_uuid,
