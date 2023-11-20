@@ -23,39 +23,13 @@ from api.utils import DateHelper
 from koku.database import execute_delete_sql as exec_del_sql
 from koku.database_exc import get_extended_exception_by_type
 from reporting.models import PartitionedTable
-from reporting_common import REPORT_COLUMN_MAP
+
 
 LOG = logging.getLogger(__name__)
 
 
 class ReportDBAccessorException(Exception):
     """An error in the DB accessor."""
-
-
-class ReportSchema:
-    """A container for the reporting table objects."""
-
-    def __init__(self, tables):
-        """Initialize the report schema."""
-        self.column_types = {}
-        self._set_reporting_tables(tables)
-
-    def _set_reporting_tables(self, models):
-        """Load table objects for reference and creation.
-
-        Args:
-            report_schema (ReportSchema): A schema struct object with all
-                report tables
-        """
-        column_types = {}
-        for model in models:
-            if "django" in model._meta.db_table:
-                continue
-            setattr(self, model._meta.db_table, model)
-            columns = REPORT_COLUMN_MAP[model._meta.db_table].values()
-            types = {column: model._meta.get_field(column).get_internal_type() for column in columns}
-            column_types[model._meta.db_table] = types
-            self.column_types = column_types
 
 
 class ReportDBAccessorBase:

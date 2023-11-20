@@ -68,10 +68,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "provider_id": self.aws_provider.uuid,
         }
 
-    def test_initializer(self):
-        """Test initializer."""
-        self.assertIsNotNone(self.report_schema)
-
     def _create_columns_from_data(self, datadict):
         columns = {}
         for name, value in datadict.items():

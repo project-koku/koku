@@ -12,7 +12,6 @@ from django.db.models import F
 from django_tenants.utils import schema_context
 
 from koku.database import SQLScriptAtomicExecutorMixin
-from masu.config import Config
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from reporting.provider.oci.models import OCICostEntryBill
@@ -32,7 +31,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        self._datetime_format = Config.OCI_DATETIME_STR_FORMAT
         self._table_map = OCI_CUR_TABLE_MAP
 
     @property

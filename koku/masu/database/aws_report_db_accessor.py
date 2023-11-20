@@ -19,7 +19,6 @@ from api.common import log_json
 from api.provider.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
-from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -48,7 +47,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._table_map = AWS_CUR_TABLE_MAP
 
     @property
