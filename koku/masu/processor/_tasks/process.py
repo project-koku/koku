@@ -9,7 +9,7 @@ from pathlib import Path
 import psutil
 
 from api.common import log_json
-from masu.database.provider_db_accessor import ProviderDBAccessor
+from api.provider.models import Provider
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
@@ -88,7 +88,7 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
                 )
             )
 
-    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        provider_accessor.setup_complete()
+    p = Provider.objects.get(uuid=provider_uuid)
+    p.set_setup_complete()
 
     return result

@@ -11,7 +11,6 @@ from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 
 
 LOG = logging.getLogger(__name__)
@@ -40,9 +39,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
-
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
     if not provider:
         err_msg = "Provider UUID is not associated with a given provider."
         LOG.warning(err_msg)

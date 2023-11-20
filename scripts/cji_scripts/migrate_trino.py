@@ -25,6 +25,47 @@ CONNECT_PARAMS = {
     "schema": "default",
 }
 
+# External tables can be dropped as the data in S3 will persist
+EXTERNAL_TABLES = {
+    "aws_line_items",
+    "aws_line_items_daily",
+    "aws_openshift_daily",
+    "azure_line_items",
+    "azure_openshift_daily",
+    "gcp_line_items",
+    "gcp_line_items_daily",
+    "gcp_openshift_daily",
+    "oci_cost_line_items",
+    "oci_cost_line_items_daily",
+    "oci_usage_line_items",
+    "oci_usage_line_items_daily",
+    "openshift_namespace_labels_line_items",
+    "openshift_namespace_labels_line_items_daily",
+    "openshift_node_labels_line_items",
+    "openshift_node_labels_line_items_daily",
+    "openshift_pod_usage_line_items",
+    "openshift_pod_usage_line_items_daily",
+    "openshift_storage_usage_line_items",
+    "openshift_storage_usage_line_items_daily",
+}
+
+# Managed tables should be altered not dropped as we will lose all of the data
+MANAGED_TABLES = {
+    "aws_openshift_daily_resource_matched_temp",
+    "aws_openshift_daily_tag_matched_temp",
+    "azure_openshift_daily_resource_matched_temp",
+    "azure_openshift_daily_tag_matched_temp",
+    "gcp_openshift_daily_resource_matched_temp",
+    "gcp_openshift_daily_tag_matched_temp",
+    "reporting_ocpawscostlineitem_project_daily_summary",
+    "reporting_ocpawscostlineitem_project_daily_summary_temp",
+    "reporting_ocpazurecostlineitem_project_daily_summary",
+    "reporting_ocpazurecostlineitem_project_daily_summary_temp",
+    "reporting_ocpgcpcostlineitem_project_daily_summary",
+    "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+    "reporting_ocpusagelineitem_daily_summary",
+}
+
 
 def get_schemas():
     sql = "SELECT schema_name FROM information_schema.schemata"
@@ -55,6 +96,8 @@ def run_trino_sql(sql, conn_params):
 
 
 def drop_tables(tables, conn_params):
+    if not set(tables).issubset(EXTERNAL_TABLES):
+        raise ValueError("Attempting to drop non-external table, revise the list of tables to drop.", tables)
     for table_name in tables:
         logging.info(f"dropping table {table_name}")
         sql = f"DROP TABLE IF EXISTS {table_name}"

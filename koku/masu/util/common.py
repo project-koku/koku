@@ -27,7 +27,6 @@ import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
@@ -444,16 +443,6 @@ class SingletonMeta(type):
                 instance = super().__call__(*args, **kwargs)
                 cls._instances[cls] = instance
         return cls._instances[cls]
-
-
-def check_setup_complete(provider_uuid):
-    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        return provider_accessor.get_setup_complete()
-
-
-def get_provider_updated_timestamp(provider_uuid):
-    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-        return provider_accessor.get_data_updated_timestamp()
 
 
 def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_id, context):

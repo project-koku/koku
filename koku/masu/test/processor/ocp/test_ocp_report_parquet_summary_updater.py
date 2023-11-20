@@ -9,6 +9,7 @@ from unittest.mock import patch
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
+from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
 from masu.test import MasuTestCase
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
@@ -46,10 +47,10 @@ class OCPReportParquetSummaryUpdaterTest(MasuTestCase):
         """Test the initialization of OCPReportParquetSummaryUpdater with no cluster_id."""
 
         mock_get_cluster_id.return_value = None
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(OCPReportParquetSummaryUpdaterClusterNotFound) as context:
             OCPReportParquetSummaryUpdater(self.schema_name, self.ocp_provider, "test_manifest")
 
-        expected_error_msg = f"Missing cluster_id for provider: {self.ocp_provider.uuid}"
+        expected_error_msg = "missing cluster_id for provider"
         self.assertEqual(str(context.exception), expected_error_msg)
 
     @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor")
