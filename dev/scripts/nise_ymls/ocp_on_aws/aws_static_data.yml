@@ -51,6 +51,110 @@ generators:
       start_date: {{start_date}}
       end_date: {{end_date}}
       processor_arch: 64-bit
+      resource_id: 444444446
+      product_sku: VEAJHRNKTJAA
+      region: us-east-1a
+      tags:
+        resourceTags/user:environment: dev
+        resourceTags/user:version: beta
+        resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:com_REDHAT_rhel: RHEL 8 ELS
+        resourceTags/user:com_redhat_rhel_sla: self-support
+        resourceTags/user:CoM_RedHat_Rhel_varianT: hPC
+        resourceTags/user:com_redhat_rhel_usage: disaster Recovery
+      cost_category:
+        costCategory/env: prod
+      instance_type:
+        inst_type: m5.large
+        physical_cores: 1
+        vcpu: 2
+        memory: '8 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.096
+        rate: 0.096
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: 444444443
+      product_sku: VEAJHRNKTJAA
+      region: us-east-1a
+      tags:
+        resourceTags/user:environment: dev
+        resourceTags/user:version: beta
+        resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:com_REDHAT_rhel: RHEL 7 els
+        resourceTags/user:com_redhat_rhel_sla: self-support
+        resourceTags/user:CoM_RedHat_Rhel_varianT: hPC
+        resourceTags/user:com_redhat_rhel_usage: disaster Recovery
+      cost_category:
+        costCategory/env: prod
+      instance_type:
+        inst_type: m5.large
+        physical_cores: 1
+        vcpu: 2
+        memory: '8 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.096
+        rate: 0.096
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: 444444445
+      product_sku: VEAJHRNKTJAA
+      region: us-east-1a
+      tags:
+        resourceTags/user:environment: dev
+        resourceTags/user:version: beta
+        resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:com_REDHAT_rhel: RHEL 8 ELS
+        resourceTags/user:com_redhat_rhel_sla: self-support
+        resourceTags/user:CoM_RedHat_Rhel_varianT: SAP
+        resourceTags/user:com_redhat_rhel_usage: disaster Recovery
+      cost_category:
+        costCategory/env: prod
+      instance_type:
+        inst_type: m5.large
+        physical_cores: 1
+        vcpu: 2
+        memory: '8 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.096
+        rate: 0.096
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: 444444442
+      product_sku: VEAJHRNKTJAA
+      region: us-east-1a
+      tags:
+        resourceTags/user:environment: dev
+        resourceTags/user:version: beta
+        resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:com_REDHAT_rhel: RHEL 7 ELS
+        resourceTags/user:com_redhat_rhel_sla: self-support
+        resourceTags/user:CoM_RedHat_Rhel_varianT: SAP
+        resourceTags/user:com_redhat_rhel_usage: disaster Recovery
+      cost_category:
+        costCategory/env: prod
+      instance_type:
+        inst_type: m5.large
+        physical_cores: 1
+        vcpu: 2
+        memory: '8 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.096
+        rate: 0.096
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
       resource_id: 55555557
       product_sku: VEAJHRNKTJAB
       region: us-east-1a

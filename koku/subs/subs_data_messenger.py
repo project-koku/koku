@@ -118,5 +118,4 @@ class SUBSDataMessenger:
             "billing_provider": "aws",
             "billing_account_id": billing_account_id,
         }
-        LOG.info(f"\n\nbrrrt_message: {subs_json}\n\n")
         return bytes(json.dumps(subs_json), "utf-8")
