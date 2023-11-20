@@ -14,7 +14,6 @@ from django_tenants.utils import schema_context
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
-from api.utils import DateHelper
 from koku.database import get_model
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
@@ -26,12 +25,6 @@ from masu.util.ocp.common import get_cluster_id_from_provider
 
 class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     """Test cases for the OCPCloudParquetReportSummaryUpdaterTest class."""
-
-    @classmethod
-    def setUpClass(cls):
-        """Set up the test class with required objects."""
-        super().setUpClass()
-        cls.dh = DateHelper(utc=True)
 
     def setUp(self):
         """Set up tests."""
