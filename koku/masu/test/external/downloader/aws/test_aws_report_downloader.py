@@ -659,7 +659,9 @@ class AWSReportDownloaderTest(MasuTestCase):
         start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
         end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
         expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
-        with patch("masu.util.common.check_setup_complete", return_Value=True):
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.check_provider_setup_complete", return_Value=True
+        ):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
                 with patch(
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
