@@ -274,15 +274,14 @@ class DateHelper:
         if isinstance(end_date, str):
             end_midnight = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, second=0, microsecond=0)
         if isinstance(end_date, datetime.datetime):
-            end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
         if isinstance(start_date, datetime.datetime):
-            start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
         days = (end_midnight - start_midnight + self.one_day).days
 
         # built-in range(start, end, step) requires (start < end) == True
-        day_range = range(days, 0) if days < 0 else range(0, days)
-        output = [start_midnight + datetime.timedelta(i) for i in day_range]
-        return output
+        day_range = range(days, 0) if days < 0 else range(days)
+        return [start_midnight + datetime.timedelta(i) for i in day_range]
 
     def list_months(self, start_date, end_date):
         """Return a list of months from the start date til the end date.
