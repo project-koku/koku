@@ -7,6 +7,7 @@ import logging
 from decimal import Decimal
 
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -44,7 +45,8 @@ class AWSCostModelCostUpdater:
                 markup_value = Decimal(markup.get("value", 0)) / 100
 
             with AWSReportDBAccessor(self._schema) as report_accessor:
-                bill_ids = [str(bill.id) for bill in bills]
+                with schema_context(self._schema):
+                    bill_ids = [str(bill.id) for bill in bills]
                 report_accessor.populate_markup_cost(self._provider.uuid, markup_value, start_date, end_date, bill_ids)
         except AWSCostModelCostUpdaterError as error:
             LOG.error(
@@ -89,6 +91,7 @@ class AWSCostModelCostUpdater:
                 start_date, end_date, self._provider.uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
             )
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-            for bill in bills:
-                bill.derived_cost_datetime = timezone.now()
-                bill.save()
+            with schema_context(self._schema):
+                for bill in bills:
+                    bill.derived_cost_datetime = timezone.now()
+                    bill.save()

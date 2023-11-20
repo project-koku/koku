@@ -3,6 +3,7 @@ import logging
 import ciso8601
 from django.conf import settings
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
@@ -53,13 +54,15 @@ class AzureReportParquetSummaryUpdater(PartitionHandlerMixin):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        with AzureReportDBAccessor(self._schema) as accessor:
+        with schema_context(self._schema):
             self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
 
+        with AzureReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
-            bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-            bill_ids = [str(bill.id) for bill in bills]
-            current_bill_id = bills.first().id if bills else None
+            with schema_context(self._schema):
+                bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
+                bill_ids = [str(bill.id) for bill in bills]
+                current_bill_id = bills.first().id if bills else None
 
             if current_bill_id is None:
                 LOG.info(

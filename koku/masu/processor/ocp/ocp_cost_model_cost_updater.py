@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from dateutil.parser import parse
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.metrics import constants as metric_constants
@@ -394,19 +395,20 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Delete existing tag based rated entries"""
         # Delete existing records
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
-            if not report_period:
-                LOG.warning(
-                    log_json(
-                        msg="no report period for provider",
-                        provider_uuid=self._provider.uuid,
-                        start_date=start_date,
-                        end_date=end_date,
-                        schema=self._schema,
+            with schema_context(self._schema):
+                report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+                if not report_period:
+                    LOG.warning(
+                        log_json(
+                            msg="no report period for provider",
+                            provider_uuid=self._provider.uuid,
+                            start_date=start_date,
+                            end_date=end_date,
+                            schema=self._schema,
+                        )
                     )
-                )
-                return
-            report_period_id = report_period.id
+                    return
+                report_period_id = report_period.id
             report_accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                 source_uuid,
                 start_date,
@@ -461,5 +463,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if report_period:
-                report_period.derived_cost_datetime = timezone.now()
-                report_period.save()
+                with schema_context(self._schema):
+                    report_period.derived_cost_datetime = timezone.now()
+                    report_period.save()

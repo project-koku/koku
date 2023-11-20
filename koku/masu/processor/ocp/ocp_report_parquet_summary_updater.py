@@ -9,6 +9,7 @@ from datetime import datetime
 import ciso8601
 from django.conf import settings
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
@@ -87,21 +88,23 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         start_date, end_date = self._check_parquet_date_range(start_date, end_date)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
+        with schema_context(self._schema):
             self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
 
-            report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
-            if not report_period:
-                LOG.warning(
-                    log_json(
-                        msg="no report period found for start_date",
-                        start_date=start_date,
-                        end_date=end_date,
-                        context=self._context,
+        with OCPReportDBAccessor(self._schema) as accessor:
+            with schema_context(self._schema):
+                report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+                if not report_period:
+                    LOG.warning(
+                        log_json(
+                            msg="no report period found for start_date",
+                            start_date=start_date,
+                            end_date=end_date,
+                            context=self._context,
+                        )
                     )
-                )
-                return start_date, end_date
-            report_period_id = report_period.id
+                    return start_date, end_date
+                report_period_id = report_period.id
 
             accessor.populate_openshift_cluster_information_tables(
                 self._provider, self._cluster_id, self._cluster_alias, start_date, end_date

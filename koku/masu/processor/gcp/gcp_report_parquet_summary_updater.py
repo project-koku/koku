@@ -8,6 +8,7 @@ import logging
 import ciso8601
 from django.conf import settings
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.utils import DateHelper
@@ -58,25 +59,27 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        with GCPReportDBAccessor(self._schema) as accessor:
+        with schema_context(self._schema):
             self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
 
+        with GCPReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
-            if invoice_month:
-                invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
-                bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
-                bill_ids = [str(bill.id) for bill in bills]
-                current_bill_id = bills.first().id if bills else None
-            else:
-                LOG.info(
-                    log_json(
-                        msg="no invoice month provided, skipping summarization",
-                        schema=self._schema,
-                        provider_uuid=self._provider.uuid,
-                        start_date=start_date,
+            with schema_context(self._schema):
+                if invoice_month:
+                    invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
+                    bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
+                    bill_ids = [str(bill.id) for bill in bills]
+                    current_bill_id = bills.first().id if bills else None
+                else:
+                    LOG.info(
+                        log_json(
+                            msg="no invoice month provided, skipping summarization",
+                            schema=self._schema,
+                            provider_uuid=self._provider.uuid,
+                            start_date=start_date,
+                        )
                     )
-                )
-                return start_date, end_date
+                    return start_date, end_date
 
             if current_bill_id is None:
                 LOG.info(
