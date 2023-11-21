@@ -18,7 +18,6 @@ from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLo
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
@@ -122,12 +121,6 @@ class ReportDownloaderTest(MasuTestCase):
     def test_init_with_gcp(self, mock_downloader_init):
         """Assert ReportDownloader creation sets the GCP downloader."""
         self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_GCP, GCPReportDownloader)
-        mock_downloader_init.assert_called()
-
-    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader.__init__", return_value=None)
-    def test_init_with_ocp(self, mock_downloader_init):
-        """Assert ReportDownloader creation sets the OCP downloader."""
-        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_OCP, OCPReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", side_effect=AWSReportDownloaderError)

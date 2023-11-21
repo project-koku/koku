@@ -82,8 +82,7 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
 
     def get_queryset(self):
         """Return a Queryset of non-OCP and active and non-paused Providers."""
-        excludes = {} if settings.DEBUG else {"type": Provider.PROVIDER_OCP}
-        return super().get_queryset().filter(active=True, paused=False).exclude(**excludes)
+        return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
 
     def get_polling_batch(self, limit=-1, offset=0, filters=None):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
@@ -250,7 +249,7 @@ class Provider(models.Model):
         super().save(*args, **kwargs)
 
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
-            if self.type == Provider.PROVIDER_OCP and not settings.DEBUG:
+            if self.type == Provider.PROVIDER_OCP:
                 # OCP Providers are not pollable, so shouldn't go thru check_report_updates
                 return
             # Local import of task function to avoid potential import cycle.
