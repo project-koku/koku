@@ -87,12 +87,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
-    def get_bill_query_before_date(self, date, provider_uuid=None):
+    def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""
-        filters = {"billing_period_start__lte": date}
-        if provider_uuid:
-            filters["provider_id"] = provider_uuid
-        return GCPCostEntryBill.objects.filter(**filters)
+        return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month_date

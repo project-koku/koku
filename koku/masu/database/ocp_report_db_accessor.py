@@ -77,12 +77,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             report_periods = report_periods.filter(report_period_start=report_date).first()
         return report_periods
 
-    def get_report_periods_before_date(self, date, provider_uuid=None):
+    def get_report_periods_before_date(self, date):
         """Get the report periods with report period before provided date."""
-        filters = {"report_period_start__lte": date}
-        if provider_uuid:
-            filters["provider_id"] = provider_uuid
-        return OCPUsageReportPeriod.objects.filter(**filters)
+        return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""

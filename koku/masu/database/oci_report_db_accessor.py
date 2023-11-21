@@ -51,12 +51,9 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
-    def get_bill_query_before_date(self, date, provider_uuid=None):
+    def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""
-        filters = {"billing_period_start__lte": date}
-        if provider_uuid:
-            filters["provider_id"] = provider_uuid
-        return OCICostEntryBill.objects.filter(**filters)
+        return OCICostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""

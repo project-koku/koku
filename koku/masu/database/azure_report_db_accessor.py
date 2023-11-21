@@ -146,12 +146,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
                     ).update(markup_cost=(F("unblended_cost") * markup))
 
-    def get_bill_query_before_date(self, date, provider_uuid=None):
+    def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""
-        filters = {"billing_period_start__lte": date}
-        if provider_uuid:
-            filters["provider_id"] = provider_uuid
-        return AzureCostEntryBill.objects.filter(**filters)
+        return AzureCostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
         """Populate the daily cost aggregated summary for OCP on Azure.
