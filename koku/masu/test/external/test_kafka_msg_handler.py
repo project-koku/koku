@@ -21,6 +21,7 @@ from model_bakery import baker
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
+from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
@@ -62,7 +63,7 @@ class MockMessage:
 
     def __init__(
         self,
-        topic=Config.UPLOAD_TOPIC,
+        topic=UPLOAD_TOPIC,
         url="http://unreal",
         value_dict={},
         offset=50,
@@ -199,7 +200,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         for test in test_matrix:
             msg = MockMessage(
-                topic="platform.upload.hccm",
+                topic="platform.upload.announce",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
                 value_dict=test.get("test_value"),
@@ -240,7 +241,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         for test in test_matrix:
             msg = MockMessage(
-                topic="platform.upload.hccm",
+                topic="platform.upload.announce",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
                 value_dict=test.get("test_value"),
@@ -279,7 +280,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         for test in test_matrix:
             msg = MockMessage(
-                topic="platform.upload.hccm",
+                topic="platform.upload.announce",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
                 value_dict=test.get("test_value"),
@@ -397,7 +398,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         for test in test_matrix:
             with self.subTest(test=test):
                 msg = MockMessage(
-                    topic="platform.upload.hccm",
+                    topic="platform.upload.announce",
                     offset=5,
                     url="https://insights-quarantine.s3.amazonaws.com/myfile",
                     value_dict=test.get("test_value"),
@@ -418,7 +419,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = MockMessage(Config.UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        hccm_msg = MockMessage(UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
