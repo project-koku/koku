@@ -65,7 +65,7 @@ def get_billing_months(number_of_months):
     """
     months = []
     current_month = DateHelper().this_month_start
-    for month in reversed(range(number_of_months)):
+    for month in range(number_of_months):
         calculated_month = current_month + relativedelta(months=-month)
         months.append(calculated_month.date())
     return months
@@ -151,7 +151,7 @@ class Orchestrator:
         else:
             number_of_months = 2
 
-        return sorted(get_billing_months(number_of_months), reverse=True)
+        return get_billing_months(number_of_months)
 
     def start_manifest_processing(  # noqa: C901
         self,

@@ -5,6 +5,8 @@
 """Test the Orchestrator object."""
 import logging
 import random
+from datetime import date
+from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -14,6 +16,7 @@ from api.models import Provider
 from masu.config import Config
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.orchestrator import get_billing_month_start
 from masu.processor.orchestrator import get_billing_months
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
@@ -466,3 +469,47 @@ class OrchestratorTest(MasuTestCase):
         p = o.get_polling_batch()
         self.assertGreater(len(p), 0)
         self.assertEqual(len(p), expected_providers.count())
+
+    def test_get_billing_months(self):
+        """Test get_billing_months"""
+        # test that num_months = 1 returns the current month
+        result = get_billing_months(1)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result, [self.dh.this_month_start.date()])
+
+        # test that num_months = 2 returns 2 months and assert the order is latest month first
+        result = get_billing_months(2)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result, [self.dh.this_month_start.date(), self.dh.last_month_start.date()])
+
+        # test that num_month = 5 returns 5 unique entires and that the first index is the current month
+        result = get_billing_months(5)
+        self.assertEqual(len(set(result)), 5)
+        self.assertEqual(result[0], self.dh.this_month_start.date())
+
+    def test_get_billing_month_start(self):
+        """Test get_billing_month_start returns the first of the month in the date provided."""
+        today = self.dh.today
+        result = get_billing_month_start(str(today))
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        result = get_billing_month_start(today)
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        result = get_billing_month_start(today.date())
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        test_input = datetime(year=2020, month=6, day=25)
+        expected = date(year=2020, month=6, day=1)
+        result = get_billing_month_start("20200625")
+        self.assertEqual(result, expected)
+        result = get_billing_month_start("2020-06-25")
+        self.assertEqual(result, expected)
+        result = get_billing_month_start("2020-6-25")
+        self.assertEqual(result, expected)
+
+        result = get_billing_month_start(test_input)
+        self.assertEqual(result, expected)
+
+        result = get_billing_month_start(test_input.date())
+        self.assertEqual(result, expected)
