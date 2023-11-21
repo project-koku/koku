@@ -21,9 +21,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.utils import DateHelper
 from kafka_utils.utils import check_kafka_connection
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from sources.config import Config as SourcesConfig
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
@@ -159,7 +159,7 @@ class ApplicationStatus:
 
         :returns: The datetime string.
         """
-        return DateAccessor().today()
+        return DateHelper().now
 
     @property
     def debug(self):

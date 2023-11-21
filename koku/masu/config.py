@@ -65,10 +65,6 @@ class Config:
         "RETAIN_NUM_MONTHS", default=DEFAULT_MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY
     )
 
-    # TODO: Remove this if/when reporting model files are owned by masu
-    # The decimal precision of our database Numeric columns
-    REPORTING_DECIMAL_PRECISION = 9
-
     # Specify the number of months (bills) to ingest
     INITIAL_INGEST_NUM_MONTHS = ENVIRONMENT.int("INITIAL_INGEST_NUM_MONTHS", default=DEFAULT_INITIAL_INGEST_NUM_MONTHS)
 

@@ -13,7 +13,6 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.conf import settings
-from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Sum
 from trino.exceptions import TrinoExternalError
@@ -43,14 +42,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         super().setUp()
 
         self.accessor = OCPReportDBAccessor(schema=self.schema)
-        self.report_schema = self.accessor.report_schema
 
         self.cluster_id = "testcluster"
         self.ocp_provider_uuid = self.ocp_provider.uuid
-
-    def test_initializer(self):
-        """Test initializer."""
-        self.assertIsNotNone(self.report_schema)
 
     def test_get_usage_period_query_by_provider(self):
         """Test that periods are returned filtered by provider."""
@@ -78,7 +72,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test that OCP trino processing calls executescript
         """
-
         start_date = self.dh.this_month_start
         end_date = self.dh.next_month_start
         cluster_id = "ocp-cluster"
@@ -450,8 +443,8 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
-        start_date = self.dh.this_month_start.date()
-        end_date = self.dh.this_month_end.date()
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
         with self.accessor as acc:
             report_period = acc.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
 
@@ -494,18 +487,6 @@ select * from eek where val1 in {{report_period_id}} ;
                 else:
                     self.assertEqual([], tag_keys)
 
-    def test_delete_line_item_daily_summary_entries_for_date_range(self):
-        """Test that daily summary rows are deleted."""
-        with self.accessor as acc:
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
-            end_date = start_date
-            table_query = OCPUsageLineItemDailySummary.objects.filter(
-                source_uuid=self.ocp_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-            )
-            self.assertNotEqual(table_query.count(), 0)
-            acc.delete_line_item_daily_summary_entries_for_date_range(self.ocp_provider_uuid, start_date, end_date)
-            self.assertEqual(table_query.count(), 0)
-
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, OCPUsageLineItemDailySummary)
 
@@ -515,7 +496,6 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
 
@@ -525,7 +505,6 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
         expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
@@ -539,7 +518,6 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
         expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"

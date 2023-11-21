@@ -10,7 +10,6 @@ from dateutil.relativedelta import relativedelta
 from django_tenants.utils import schema_context
 
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.util.gcp import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -37,17 +36,15 @@ class TestGCPUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_date(self):
         """Test that bill IDs are returned for an GCP provider with start date."""
-        date_accessor = DateAccessor()
-
         with GCPReportDBAccessor(schema=self.schema) as accessor:
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
             bills = accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__gte=end_date.date()).all()
+                bills = bills.filter(billing_period_start__gte=end_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.gcp_provider_uuid, self.schema, start_date=end_date)
@@ -58,17 +55,15 @@ class TestGCPUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_end_date(self):
         """Test that bill IDs are returned for an GCP provider with end date."""
-        date_accessor = DateAccessor()
-
         with GCPReportDBAccessor(schema=self.schema) as accessor:
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
             bills = accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__lte=start_date.date()).all()
+                bills = bills.filter(billing_period_start__lte=start_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.gcp_provider_uuid, self.schema, end_date=start_date)
@@ -79,10 +74,8 @@ class TestGCPUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_and_end_date(self):
         """Test that bill IDs are returned for an GCP provider with both dates."""
-        date_accessor = DateAccessor()
-
         with GCPReportDBAccessor(schema=self.schema) as accessor:
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
@@ -90,9 +83,7 @@ class TestGCPUtils(MasuTestCase):
             bills = accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider_uuid)
             with schema_context(self.schema):
                 bills = (
-                    bills.filter(billing_period_start__gte=start_date.date())
-                    .filter(billing_period_start__lte=end_date.date())
-                    .all()
+                    bills.filter(billing_period_start__gte=start_date).filter(billing_period_start__lte=end_date).all()
                 )
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
