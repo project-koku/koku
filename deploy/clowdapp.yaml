@@ -4638,6 +4638,10 @@ parameters:
   displayName: Enable SUBS Debug
   name: ENABLE_SUBS_DEBUG
   value: "False"
+- description: Enable ROS Kafka Debug
+  displayName: Enable ROS Debug
+  name: ENABLE_ROS_DEBUG
+  value: "False"
 - displayName: Minimum replicas
   name: KOKU_REPLICAS
   required: true
@@ -4710,9 +4714,6 @@ parameters:
   name: LISTENER_KOKU_LOG_LEVEL
   required: true
   value: INFO
-- displayName: ROS debug
-  name: ENABLE_ROS_DEBUG
-  value: "False"
 - displayName: Minimum replicas
   name: MASU_REPLICAS
   required: true

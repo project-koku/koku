@@ -202,9 +202,3 @@
     name: LISTENER_KOKU_LOG_LEVEL
     required: true
     value: INFO
-- op: add
-  path: /parameters/-
-  value:
-    displayName: ROS debug
-    name: ENABLE_ROS_DEBUG
-    value: "False"
