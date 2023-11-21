@@ -13,29 +13,34 @@ import tempfile
 import threading
 import time
 import traceback
+from datetime import datetime
 from pathlib import Path
 from tarfile import ReadError
 from tarfile import TarFile
 
+import pandas as pd
 import requests
 from confluent_kafka import TopicPartition
 from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
+from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
+from django.db import transaction
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
+from api.provider.models import Provider
 from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer
 from kafka_utils.utils import get_producer
 from kafka_utils.utils import is_kafka_connected
+from kafka_utils.utils import UPLOAD_TOPIC
+from kafka_utils.utils import VALIDATION_TOPIC
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
-from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor import is_customer_large
 from masu.processor._tasks.process import _process_report_file
@@ -47,7 +52,10 @@ from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
+from reporting_common.models import CostUsageReportManifest
 
 
 LOG = logging.getLogger(__name__)
@@ -58,6 +66,173 @@ MANIFEST_ACCESSOR = ReportManifestDBAccessor()
 
 class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
+
+
+def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
+    """
+    Split local file into daily content.
+    """
+    daily_files = []
+
+    try:
+        data_frame = pd.read_csv(file_path, dtype="str")
+    except Exception as error:
+        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
+        raise error
+
+    report_type, _ = utils.detect_type(file_path)
+    unique_times = data_frame.interval_start.unique()
+    days = list({cur_dt[:10] for cur_dt in unique_times})
+    daily_data_frames = [
+        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
+        for cur_day in days
+    ]
+
+    for daily_data in daily_data_frames:
+        day = daily_data.get("date")
+        df = daily_data.get("data_frame")
+        file_prefix = f"{report_type}.{day}.{manifest_id}"
+        with transaction.atomic():
+            # With split payloads, we could have a race condition trying to update the `report_tracker`.
+            # using a transaction and `select_for_update` should minimize the risk of multiple
+            # workers trying to update this field at the same time by locking the manifest during update.
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if not manifest.report_tracker.get(file_prefix):
+                manifest.report_tracker[file_prefix] = 0
+            counter = manifest.report_tracker[file_prefix]
+            manifest.report_tracker[file_prefix] = counter + 1
+            manifest.save(update_fields=["report_tracker"])
+        day_file = f"{file_prefix}.{counter}.csv"
+        day_filepath = file_path.parent.joinpath(day_file)
+        df.to_csv(day_filepath, index=False, header=True)
+        daily_files.append(
+            {
+                "filepath": day_filepath,
+                "date": datetime.strptime(day, "%Y-%m-%d"),
+                "num_hours": len(df.interval_start.unique()),
+            }
+        )
+    return daily_files
+
+
+def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest_id, start_date, context):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        tracing_id (str): The tracing id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        filepath (PosixPath): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    manifest = CostUsageReportManifest.objects.get(id=manifest_id)
+    daily_file_names = {}
+    if manifest.operator_version and not manifest.operator_daily_reports:
+        # operator_version and NOT operator_daily_reports is used for payloads received from
+        # cost-mgmt-metrics-operators that are not generating daily reports
+        # These reports are additive and cannot be split
+        daily_files = [{"filepath": filepath, "date": start_date, "num_hours": 0}]
+    else:
+        # we call divide_csv_daily for really old operators (those still relying on metering)
+        # or for operators sending daily files
+        daily_files = divide_csv_daily(filepath, manifest.id)
+
+    if not daily_files:
+        daily_files = [{"filepath": filepath, "date": start_date, "num_hours": 0}]
+
+    for daily_file in daily_files:
+        # Push to S3
+        s3_csv_path = get_path_prefix(
+            account, Provider.PROVIDER_OCP, provider_uuid, daily_file.get("date"), Config.CSV_DATA_TYPE
+        )
+        filepath = daily_file.get("filepath")
+        copy_local_report_file_to_s3_bucket(
+            tracing_id,
+            s3_csv_path,
+            filepath,
+            filepath.name,
+            manifest_id,
+            context,
+        )
+        daily_file_names[filepath] = {
+            "meta_reportdatestart": str(daily_file["date"].date()),
+            "meta_reportnumhours": str(daily_file["num_hours"]),
+        }
+    return daily_file_names
+
+
+def process_cr(report_meta):
+    """
+    Process the manifest info.
+
+    Args:
+        report_meta (Dict): The metadata from the manifest
+
+    Returns:
+        manifest_info (Dict): Dictionary containing the following:
+            airgapped: (Bool or None)
+            version: (str or None)
+            certified: (Bool or None)
+            channel: (str or None)
+            errors: (Dict or None)
+    """
+    LOG.info(log_json(report_meta.get("tracing_id"), msg="Processing the manifest"))
+
+    version = report_meta.get("version")
+    manifest_info = {
+        "cluster_id": report_meta.get("cluster_id"),
+        "operator_certified": report_meta.get("certified"),
+        "operator_version": utils.OPERATOR_VERSIONS.get(
+            version, version  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
+        ),
+        "cluster_channel": None,
+        "operator_airgapped": None,
+        "operator_errors": None,
+        "operator_daily_reports": report_meta.get("daily_reports", False),
+    }
+    if cr_status := report_meta.get("cr_status"):
+        manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
+        manifest_info["operator_airgapped"] = not cr_status.get("upload", {}).get("upload")
+        errors = {}
+        for case in ["authentication", "packaging", "upload", "prometheus", "source"]:
+            if err := cr_status.get(case, {}).get("error"):
+                errors[case + "_error"] = err
+        manifest_info["operator_errors"] = errors or None
+
+    return manifest_info
+
+
+def create_cost_and_usage_report_manifest(provider_uuid, manifest):
+    """Prepare to insert or update the manifest DB record."""
+    assembly_id = manifest.get("uuid")
+    manifest_timestamp = manifest.get("date")
+
+    # old manifests may not have a 'start', so fallback to the
+    # datetime when the manifest was created:
+    start = manifest.get("start") or manifest_timestamp
+
+    date_range = utils.month_date_range(start)
+    billing_str = date_range.split("-")[0]
+    billing_start = datetime.strptime(billing_str, "%Y%m%d")
+
+    manifest_dict = {
+        "assembly_id": assembly_id,
+        "billing_period_start_datetime": billing_start,
+        "num_total_files": len(manifest.get("files") or []),
+        "provider_id": provider_uuid,
+        "manifest_modified_datetime": manifest_timestamp,
+    }
+    cr_info = process_cr(manifest)
+
+    try:
+        manifest, _ = CostUsageReportManifest.objects.get_or_create(**manifest_dict, **cr_info)
+    except IntegrityError:
+        manifest = CostUsageReportManifest.objects.get(provider_id=provider_uuid, assembly_id=assembly_id)
+
+    return manifest.id
 
 
 def close_and_set_db_connection():  # pragma: no cover
@@ -75,32 +250,7 @@ def delivery_callback(err, msg):
         LOG.info("Validation message delivered.")
 
 
-def create_manifest_entries(report_meta, request_id, context={}):
-    """
-    Creates manifest database entries for report processing tracking.
-
-    Args:
-        report_meta (dict): Report context dictionary from extract_payload.
-        request_id (String): Identifier associated with the payload
-        context (Dict): Context for logging (account, etc)
-
-    Returns:
-        manifest_id (Integer): Manifest identifier of the created db entry.
-
-    """
-
-    downloader = OCPReportDownloader(
-        report_meta.get("schema_name"),
-        report_meta.get("cluster_id"),
-        None,
-        provider_uuid=report_meta.get("provider_uuid"),
-        request_id=request_id,
-        account=context.get("account", "no_account"),
-    )
-    return downloader._prepare_db_manifest_record(report_meta)
-
-
-def download_payload(request_id, url, context={}):
+def download_payload(request_id, url, context):
     """
     Download the payload from ingress to temporary location.
 
@@ -141,7 +291,7 @@ def download_payload(request_id, url, context={}):
     return temp_file
 
 
-def extract_payload_contents(request_id, tarball_path, context={}):
+def extract_payload_contents(request_id, tarball_path, context):
     """
     Extract the payload contents into a temporary location.
 
@@ -193,7 +343,7 @@ def construct_daily_archives(request_id, context, report_meta, report_file_path)
 
 
 # pylint: disable=too-many-locals
-def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
+def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
 
@@ -207,11 +357,6 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
             cluster_id  - OCP cluster ID.
     2. *.csv - Actual usage report for the cluster.  Format is:
         Format is: <uuid>_report_name.csv
-
-    On successful completion the report and manifest will be in a directory
-    structure that the OCPReportDownloader is expecting.
-
-    Ex: /var/tmp/insights_local/my-ocp-cluster-1/20181001-20181101
 
     Once the files are extracted:
     1. Provider account is retrieved for the cluster id.  If no account is found we return.
@@ -295,7 +440,7 @@ def extract_payload(url, request_id, b64_identity, context={}):  # noqa: C901
     shutil.copy(report_meta["manifest_path"], manifest_destination_path)
 
     # Save Manifest
-    report_meta["manifest_id"] = create_manifest_entries(report_meta, request_id, context)
+    report_meta["manifest_id"] = create_cost_and_usage_report_manifest(provider.uuid, report_meta)
 
     # Copy report payload
     report_metas = []
@@ -362,7 +507,7 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer = get_producer()
     validation = {"request_id": request_id, "validation": status}
     msg = bytes(json.dumps(validation), "utf-8")
-    producer.produce(Config.VALIDATION_TOPIC, value=msg, callback=delivery_callback)
+    producer.produce(VALIDATION_TOPIC, value=msg, callback=delivery_callback)
     producer.poll(0)
 
 
@@ -370,7 +515,7 @@ def handle_message(kmsg):
     """
     Handle messages from message pending queue.
 
-    Handle's messages with topics: 'platform.upload.hccm',
+    Handle's messages with topics: 'platform.upload.announce',
     and 'platform.upload.available'.
 
     The OCP cost usage payload will land on topic hccm.
@@ -644,7 +789,7 @@ def listen_for_messages_loop():
         "max.poll.interval.ms": 1080000,  # 18 minutes
     }
     consumer = get_consumer(kafka_conf)
-    consumer.subscribe([Config.UPLOAD_TOPIC])
+    consumer.subscribe([UPLOAD_TOPIC])
     LOG.info("Consumer is listening for messages...")
     for _ in itertools.count():  # equivalent to while True, but mockable
         msg = consumer.poll(timeout=1.0)
@@ -696,7 +841,7 @@ def listen_for_messages(msg, consumer):
     """
     offset = msg.offset()
     partition = msg.partition()
-    topic_partition = TopicPartition(topic=Config.UPLOAD_TOPIC, partition=partition, offset=offset)
+    topic_partition = TopicPartition(topic=UPLOAD_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         service = extract_from_header(msg.headers(), "service")
@@ -728,7 +873,7 @@ def koku_listener_thread():  # pragma: no cover
         None
 
     """
-    if is_kafka_connected(Config.INSIGHTS_KAFKA_HOST, Config.INSIGHTS_KAFKA_PORT):  # Check that Kafka is running
+    if is_kafka_connected():  # Check that Kafka is running
         LOG.info("Kafka is running.")
 
     try:

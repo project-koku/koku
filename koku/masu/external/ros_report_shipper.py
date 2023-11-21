@@ -16,10 +16,11 @@ from api.common import log_json
 from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
+from kafka_utils.utils import ROS_TOPIC
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
-from masu.external.downloader.ocp.ocp_report_downloader import OPERATOR_VERSIONS
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.util.ocp import common as utils
 
 
 LOG = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class ROSReportShipper:
             "source_id": self.source_id,
             "provider_uuid": self.provider_uuid,
             "cluster_uuid": report_meta["cluster_id"],
-            "operator_version": OPERATOR_VERSIONS.get(
+            "operator_version": utils.OPERATOR_VERSIONS.get(
                 version,
                 version,  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
             ),
@@ -138,7 +139,7 @@ class ROSReportShipper:
     def send_kafka_message(self, msg):
         """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
-        producer.produce(masu_config.ROS_TOPIC, value=msg, callback=delivery_callback)
+        producer.produce(ROS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
 
     def build_ros_msg(self, presigned_urls, upload_keys):
