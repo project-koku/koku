@@ -108,7 +108,7 @@ class ROSReportShipper:
 
         if (
             not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context)
-            or not settings.ENABLE_HCS_DEBUG
+            or not settings.ENABLE_ROS_DEBUG
         ):
             msg = "ROS report handling gated by unleash - not sending kafka msg"
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
