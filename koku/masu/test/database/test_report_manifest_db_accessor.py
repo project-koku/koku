@@ -10,9 +10,7 @@ from dateutil.relativedelta import relativedelta
 from django.utils import timezone
 from faker import Faker
 
-from api.utils import DateHelper
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
@@ -26,7 +24,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
     def setUp(self):
         """Set up the test class."""
         super().setUp()
-        self.billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
+        self.billing_start = self.dh.this_month_start
         self.manifest_dict = {
             "assembly_id": uuid.uuid4(),
             "billing_period_start_datetime": self.billing_start,
@@ -71,7 +69,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""
-        now = DateAccessor().today_with_timezone("UTC")
+        now = self.dh.now
         self.manifest_accessor.mark_manifest_as_updated(self.manifest)
         self.assertGreater(self.manifest.manifest_updated_datetime, now)
 
@@ -233,7 +231,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
     def test_set_and_get_manifest_daily_archive_start_date(self):
         """Test marking manifest daily archive start date."""
-        start_date = DateHelper().this_month_start.replace(year=2019, month=7).replace(tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2019, month=7).replace(tzinfo=None)
         manifest_start = self.manifest_accessor.set_manifest_daily_start_date(self.manifest.id, start_date)
         self.assertEqual(manifest_start, start_date)
 

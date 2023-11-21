@@ -35,7 +35,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
@@ -69,8 +68,7 @@ def check_report_updates(*args, **kwargs):
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
-    today = DateAccessor().today()
-    LOG.info("Removing expired data at %s", str(today))
+    LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
 
@@ -438,8 +436,8 @@ def check_for_stale_ocp_source(provider_uuid=None):
         LOG.info(f"Openshift stale cluster check found {len(manifest_data)} clusters to scan")
         processed = 0
         skipped = 0
-        today = DateAccessor().today()
-        check_date = DateHelper().n_days_ago(today, 3)
+        dh = DateHelper()
+        check_date = dh.n_days_ago(dh.now, 3)
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:

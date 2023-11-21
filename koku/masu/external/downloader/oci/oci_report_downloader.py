@@ -307,7 +307,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ]
             if files_list:
                 manifest_id = self._process_manifest_db_record(
-                    assembly_id, month.strftime("%Y-%m-%d"), len(month_report_names), dh._now
+                    assembly_id, month.strftime("%Y-%m-%d"), len(month_report_names), dh.now
                 )
                 monthly_report["manifest_id"] = manifest_id
                 monthly_report["assembly_id"] = assembly_id

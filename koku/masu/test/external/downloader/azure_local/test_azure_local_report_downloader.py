@@ -13,8 +13,8 @@ from faker import Faker
 from model_bakery import baker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -93,7 +93,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
     def test_download_report(self, *args):
         """Test the top level Azure-Local download_report."""
         test_report_date = datetime.datetime(year=2019, month=8, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
+        with patch.object(DateHelper, "now", return_value=test_report_date):
             filename = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
             manifest_id = 1
             report_context = {

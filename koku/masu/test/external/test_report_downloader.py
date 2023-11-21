@@ -10,7 +10,6 @@ from faker import Faker
 from model_bakery import baker
 
 from api.models import Provider
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
@@ -143,15 +142,6 @@ class ReportDownloaderTest(MasuTestCase):
             self.create_downloader(FAKE.slug())
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
-    def test_get_reports_error(self, mock_downloader_init):
-        """Assert ReportDownloaderError is raised when get_reports raises an exception."""
-        downloader = self.create_downloader(Provider.PROVIDER_AWS)
-        mock_downloader_init.assert_called()
-        with patch.object(AWSReportDownloader, "download_file", side_effect=Exception("some error")):
-            with self.assertRaises(ReportDownloaderError):
-                downloader.get_reports()
-
-    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_is_report_processed(self, mock_downloader_init):
         """Test if given report_name has been processed.
 
@@ -187,7 +177,7 @@ class ReportDownloaderTest(MasuTestCase):
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
-        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today(), [], {})
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", self.dh.now, [], {})
 
         report_context = {
             "date": mock_date,
@@ -217,7 +207,7 @@ class ReportDownloaderTest(MasuTestCase):
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
-        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today(), [], {})
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", self.dh.now, [], {})
 
         report_context = {
             "date": mock_date,

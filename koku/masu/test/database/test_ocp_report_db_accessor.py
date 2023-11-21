@@ -72,7 +72,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test that OCP trino processing calls executescript
         """
-
         start_date = self.dh.this_month_start
         end_date = self.dh.next_month_start
         cluster_id = "ocp-cluster"
@@ -444,8 +443,8 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
-        start_date = self.dh.this_month_start.date()
-        end_date = self.dh.this_month_end.date()
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
         with self.accessor as acc:
             report_period = acc.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
 
@@ -497,7 +496,6 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
 
@@ -507,7 +505,6 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
         expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
@@ -521,7 +518,6 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
         expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"

@@ -10,9 +10,9 @@ from datetime import timedelta
 from django.conf import settings
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.gcp.gcp_report_db_cleaner import GCPReportDBCleaner
@@ -100,7 +100,7 @@ class ExpiredDataRemover:
         """
         months = self._months_to_keep
         expiration_msg = "Report data expiration is {} for a {} month retention policy"
-        today = DateAccessor().today()
+        today = DateHelper().today
         LOG.info("Current date time is %s", today)
 
         middle_of_current_month = today.replace(day=15)

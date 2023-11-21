@@ -8,12 +8,12 @@ from datetime import datetime
 
 import ciso8601
 from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -48,7 +48,6 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             raise OCPReportParquetSummaryUpdaterClusterNotFound(msg)
 
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
-        self._date_accessor = DateAccessor()
         self._context = {
             "schema": self._schema,
             "provider_uuid": self._provider.uuid,
@@ -150,8 +149,8 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 log_json(msg="updating OCP report periods", context=self._context, report_period_id=report_period_id)
             )
             if report_period.summary_data_creation_datetime is None:
-                report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-            report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+                report_period.summary_data_creation_datetime = timezone.now()
+            report_period.summary_data_updated_datetime = timezone.now()
             report_period.save()
             LOG.info(
                 log_json(

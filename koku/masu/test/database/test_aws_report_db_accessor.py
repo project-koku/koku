@@ -22,14 +22,12 @@ from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
-from api.utils import DateHelper
 from koku.database import get_model
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -56,14 +54,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        today = DateAccessor().today_with_timezone("UTC")
-        billing_start = today.replace(day=1)
 
         self.cluster_id = "testcluster"
-
         self.manifest_dict = {
             "assembly_id": "1234",
-            "billing_period_start_datetime": billing_start,
+            "billing_period_start_datetime": self.dh.this_month_start,
             "num_total_files": 2,
             "provider_id": self.aws_provider.uuid,
         }
@@ -144,9 +139,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
         """Test that we construst our SQL and query using Trino."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
@@ -180,9 +174,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_aws_cost_daily_summary_trino(self, mock_trino, mock_month_delete, mock_delete):
         """Test that we construst our SQL and query using Trino."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
@@ -212,9 +205,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self, mock_trino, mock_month_delete, mock_delete
     ):
         """Test that we construst our SQL and query using Trino."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
         with schema_context(self.schema):
@@ -239,9 +231,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
         with schema_context(self.schema):
@@ -255,9 +246,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
         with schema_context(self.schema):
@@ -356,10 +346,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         is_savingsplan_cost = True
         mock_unleash.return_value = is_savingsplan_cost
         report_period_id = 1
-        dh = DateHelper()
 
-        start_date = dh.this_month_start
-        end_date = dh.today
+        start_date = self.dh.this_month_start
+        end_date = self.dh.today
 
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")

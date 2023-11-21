@@ -148,7 +148,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         reports_list = []
         for manifest in manifest_list:
             manifest_id = self._process_manifest_db_record(
-                manifest["assembly_id"], manifest["bill_date"], len(manifest["files"]), dh._now
+                manifest["assembly_id"], manifest["bill_date"], len(manifest["files"]), dh.now
             )
             files_list = [
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")

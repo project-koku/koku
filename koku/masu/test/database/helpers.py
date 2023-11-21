@@ -5,12 +5,13 @@
 """Helper class for database test classes."""
 import uuid
 
+from django.utils import timezone
 from django_tenants.utils import schema_context
 from faker import Faker
 
 from koku.database import get_model
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.external.date_accessor import DateAccessor
+
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = ["Storage", "Compute Instance", "Database Storage", "Database Instance"]
@@ -54,8 +55,8 @@ class ReportObjectCreator:
 
         data = {
             "uuid": str(uuid.uuid4()),
-            "created_timestamp": DateAccessor().today_with_timezone("UTC"),
-            "updated_timestamp": DateAccessor().today_with_timezone("UTC"),
+            "created_timestamp": timezone.now(),
+            "updated_timestamp": timezone.now(),
             "name": self.fake.pystr()[:8],
             "description": self.fake.pystr(),
             "source_type": source_type,
