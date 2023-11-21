@@ -19,7 +19,6 @@ from api.common import log_json
 from api.models import Provider
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
-from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -48,7 +47,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
         self._table_map = AZURE_REPORT_TABLE_MAP
 
     @property
@@ -65,9 +63,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
-        table_name = AzureCostEntryBill
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
+        return AzureCostEntryBill.objects.filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all cost entry bills for provider_uuid on date."""
@@ -150,15 +146,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
                     ).update(markup_cost=(F("unblended_cost") * markup))
 
-    def get_bill_query_before_date(self, date, provider_uuid=None):
+    def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""
-        table_name = AzureCostEntryBill
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            filters = {"billing_period_start__lte": date}
-            if provider_uuid:
-                filters["provider_id"] = provider_uuid
-            return base_query.filter(**filters)
+        return AzureCostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
         """Populate the daily cost aggregated summary for OCP on Azure.

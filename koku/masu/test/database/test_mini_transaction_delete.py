@@ -13,7 +13,7 @@ from masu.test import MasuTestCase
 
 
 class MiniTransactionDeleteTest(MasuTestCase):
-    """Test Cases for the ReportSchema object."""
+    """Test Cases for mini_transaction_delete."""
 
     def test_mini_transaction_delete_base(self):
         for id in range(100, 110):
