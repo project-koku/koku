@@ -67,7 +67,7 @@ def get_list_of_dates(start_date, end_date):
         start_midnight = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
     except TypeError:
         start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        
+
     try:
         end_midnight = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, second=0, microsecond=0)
     except TypeError:
@@ -88,11 +88,11 @@ def date_range_pair(start_date, end_date, step):
     and end date over the interval.
 
     """
-    try:    
+    try:
         start_date = parser.parse(start_date)
     except TypeError:
         start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, tzinfo=settings.UTC)
-        
+
     try:
         end_date = parser.parse(end_date)
     except TypeError:
