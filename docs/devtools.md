@@ -284,3 +284,32 @@ password: unleash4all
 
 Example:
 - https://github.com/project-koku/koku/pull/4551/files
+
+
+## Checking data integrity between Trino and Postgres ##
+
+This is a small script to iterate over schema and validate any data in Trino also exists in Postgres summary tables.
+
+Examples commands and results:
+
+
+1. This `python ./dev/scripts/data_integrity.py -g "gabi_url" -u "trino-url" -t "my-token" -c "my.cert" -k "my.key" -s "2023-11-07" -e "2023-11-08" -l` will return a list of all active Postgres Schema's
+
+```
+["schema1", "schema2", "schema3"]
+```
+
+2. This `python ./dev/scripts/data_integrity.py -g "gabi_url" -u "trino-url" -t "my-token" -c "my.cert" -k "my.key" -s "2023-11-07" -e "2023-11-08"` will return the following snippet stating if there is complete data or any tables with missing data for particular days.
+
+```
+{'schema1': {'PG': {'reporting_awscostentrylineitem_daily_summary': 'All data complete for table: reporting_awscostentrylineitem_daily_summary'}, 'TRINO': 'PG data complete so skipping trino query'}},
+{'schema2': {'PG': {"reporting_awscostentrylineitem_daily_summary": "Missing data in reporting_awscostentrylineitem_daily_summary for days: ['2023-10-26', '2023-10-27', '2023-10-28', '2023-10-29', '2023-10-30', '2023-10-31']"}, 'TRINO': {"aws_line_items": "All data complete for table: aws_line_items"}}, 'schema3': {'PG': {'reporting_awscostentrylineitem_daily_summary': 'All data complete for table: reporting_awscostentrylineitem_daily_summary'}, 'TRINO': 'PG data complete so skipping trino query'}}
+```
+
+
+3. This `python ./dev/scripts/data_integrity.py -g "gabi_url" -u "trino-url" -t "my-token" -c "my.cert" -k "my.key" -s "2023-11-07" -e "2023-11-08" -x "schema1" "schema3"` will return similar to above but run for specific schema
+
+```
+'schema1': {'PG': {'reporting_awscostentrylineitem_daily_summary': 'All data complete for table: reporting_awscostentrylineitem_daily_summary'}, 'TRINO': 'PG data complete so skipping trino query'}},
+'schema3': {'PG': {'reporting_awscostentrylineitem_daily_summary': 'All data complete for table: reporting_awscostentrylineitem_daily_summary'}, 'TRINO': 'PG data complete so skipping trino query'}}
+```
