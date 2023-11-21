@@ -16,7 +16,7 @@ from api.iam.models import Customer
 from api.provider.models import Provider
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
-from masu.config import Config as masu_config
+from kafka_utils.utils import SUBS_TOPIC
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.aws.common import get_s3_resource
 
@@ -88,7 +88,7 @@ class SUBSDataMessenger:
     def send_kafka_message(self, msg):
         """Sends a kafka message to the SUBS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
-        producer.produce(masu_config.SUBS_TOPIC, value=msg, callback=delivery_callback)
+        producer.produce(SUBS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
 
     def build_subs_msg(

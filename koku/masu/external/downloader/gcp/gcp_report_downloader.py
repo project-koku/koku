@@ -398,7 +398,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 LOG.info(
                     log_json(self.tracing_id, msg="creating new manifest", context=self.context, **ctx, **manifest)
                 )
-                reports_list.append(self.get_report_from_manifest(manifest, dh._now, ctx))
+                reports_list.append(self.get_report_from_manifest(manifest, dh.now, ctx))
 
         return reports_list
 

@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS org unit crawler."""
-# from django_tenants.utils import schema_context
 import logging
-from datetime import timedelta
 
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
@@ -14,8 +12,8 @@ from django_tenants.utils import schema_context
 from requests.exceptions import ConnectionError as BotoConnectionError
 
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.external.accounts.hierarchy.account_crawler import AccountCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.util.aws import common as utils
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSOrganizationalUnit
@@ -35,7 +33,6 @@ class AWSOrgUnitCrawler(AccountCrawler):
         """
         super().__init__(provider.account)
         self._auth_cred = self.account.get("credentials", {})
-        self._date_accessor = DateAccessor()
         self._client = None
         self._account_alias_map = None
         self._structure_yesterday = None
@@ -43,6 +40,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self.errors_raised = False
         self.provider = provider
         self.crawlable = True
+        self.dh = DateHelper()
 
     @transaction.atomic
     def crawl_account_hierarchy(self):
@@ -71,11 +69,10 @@ class AWSOrgUnitCrawler(AccountCrawler):
             LOG.exception(msg=error_message, exc_info=unknown_error)
 
     def _mark_nodes_deleted(self):
-        today = self._date_accessor.today()
         # Mark everything that is dict as deleted
         with schema_context(self.schema):
             for _, org_unit in self._structure_yesterday.items():
-                org_unit.deleted_timestamp = today
+                org_unit.deleted_timestamp = self.dh.today
                 org_unit.save()
 
     def _crawl_org_for_accounts(self, ou, prefix, level):
@@ -285,7 +282,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             accounts = AWSOrganizationalUnit.objects.filter(account_alias=account_alias)
             # The can be multiple records for a single accounts due to changes in org structure
             for account in accounts:
-                account.deleted_timestamp = self._date_accessor.today().strftime("%Y-%m-%d")
+                account.deleted_timestamp = self.dh.today
                 account.save()
             return accounts
 
@@ -303,7 +300,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             accounts = AWSOrganizationalUnit.objects.filter(org_unit_id=org_unit_id)
             # The can be multiple records for a single accounts due to changes in org structure
             for account in accounts:
-                account.deleted_timestamp = self._date_accessor.today().strftime("%Y-%m-%d")
+                account.deleted_timestamp = self.dh.today
                 account.save()
             return accounts
 
@@ -327,8 +324,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             dict: key built of org_unit (if account is none) or org_unit and account number to
             django AWSOrganizationalUnit model objects.
         """
-        yesterday = (self._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
-        self._structure_yesterday = self._compute_org_structure_interval(yesterday)
+        self._structure_yesterday = self._compute_org_structure_interval(self.dh.yesterday)
 
     def _compute_org_structure_interval(self, start_date, end_date=None):
         """

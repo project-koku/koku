@@ -1,0 +1,102 @@
+{
+    "uuid": "39f765bc-4f7a-4f80-83ad-8a515e422e00",
+    "cluster_id": "16b9a60d-0774-4102-9028-bd28d6c38ac2",
+    "version": "e03142a32dce56bced9dde7963859832129f1a3a",
+    "date": "2023-08-21T18:03:24.327297688Z",
+    "files": [
+        "39f765bc-4f7a-4f80-83ad-8a515e422e00_openshift_usage_report.0.csv",
+        "39f765bc-4f7a-4f80-83ad-8a515e422e00_openshift_usage_report.1.csv",
+        "39f765bc-4f7a-4f80-83ad-8a515e422e00_openshift_usage_report.2.csv",
+        "39f765bc-4f7a-4f80-83ad-8a515e422e00_openshift_usage_report.3.csv"
+    ],
+    "resource_optimization_files": [
+        "39f765bc-4f7a-4f80-83ad-8a515e422e00_openshift_usage_report.4.csv"
+    ],
+    "start": "2023-08-21T00:00:00Z",
+    "end": "2023-08-21T17:59:59Z",
+    "cr_status": {
+        "clusterID": "16b9a60d-0774-4102-9028-bd28d6c38ac2",
+        "clusterVersion": "stable-4.13",
+        "api_url": "https://console.redhat.com",
+        "authentication": {
+            "type": "token",
+            "credentials_found": true
+        },
+        "packaging": {
+            "last_successful_packaging_time": "2023-08-21T12:03:12Z",
+            "max_reports_to_store": 30,
+            "max_size_MB": 100,
+            "number_reports_stored": 0
+        },
+        "upload": {
+            "ingress_path": "/api/ingress/v1/upload",
+            "upload": true,
+            "upload_wait": 3,
+            "upload_cycle": 360,
+            "last_upload_status": "202 Accepted",
+            "last_payload_name": "20230821T120312_411102-cost-mgmt.tar.gz",
+            "last_payload_manifest_id": "2c5bf36c-7572-4156-b102-43f898e1430f",
+            "last_payload_request_id": "ab1e2a00cc2a4ddc8c59b91b73c9ce33",
+            "last_payload_files": [
+                "2c5bf36c-7572-4156-b102-43f898e1430f_openshift_usage_report.0.csv",
+                "2c5bf36c-7572-4156-b102-43f898e1430f_openshift_usage_report.1.csv",
+                "2c5bf36c-7572-4156-b102-43f898e1430f_openshift_usage_report.2.csv",
+                "2c5bf36c-7572-4156-b102-43f898e1430f_openshift_usage_report.3.csv"
+            ],
+            "last_successful_upload_time": "2023-08-21T14:03:18Z",
+            "validate_cert": true
+        },
+        "operator_commit": "e03142a32dce56bced9dde7963859832129f1a3a",
+        "prometheus": {
+            "prometheus_configured": true,
+            "prometheus_connected": true,
+            "context_timeout": 120,
+            "last_query_start_time": "2023-08-21T17:00:00Z",
+            "last_query_success_time": "2023-08-21T17:00:00Z",
+            "previous_data_collected": true,
+            "disabled_metrics_collection_cost_management": false,
+            "disabled_metrics_collection_resource_optimization": false,
+            "service_address": "https://thanos-querier.openshift-monitoring.svc:9091",
+            "skip_tls_verification": false
+        },
+        "reports": {
+            "report_month": "08",
+            "last_hour_queried": "2023-08-21 17:00:00 - 2023-08-21 17:59:59",
+            "data_collected": true
+        },
+        "source": {
+            "sources_path": "/api/sources/v1.0/",
+            "name": "16b9a60d-0774-4102-9028-bd28d6c38ac2",
+            "source_defined": true,
+            "create_source": true,
+            "last_check_time": "2023-08-20T20:02:42Z",
+            "check_cycle": 1440
+        },
+        "storage": {
+            "volume_type": "\u0026PersistentVolumeClaimVolumeSource{ClaimName:koku-metrics-operator-data,ReadOnly:false,}",
+            "volume_mounted": true
+        },
+        "persistent_volume_claim": {
+            "kind": "PersistentVolumeClaim",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "koku-metrics-operator-data"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "10Gi"
+                    }
+                },
+                "volumeName": "pvc-daeeaa1e-1f51-4685-af8b-2cd2d678e6c4",
+                "storageClassName": "crc-csi-hostpath-provisioner",
+                "volumeMode": "Filesystem"
+            }
+        }
+    },
+    "certified": false,
+    "daily_reports": true
+}

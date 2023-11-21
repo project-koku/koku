@@ -8,12 +8,12 @@ import time
 
 from django.core.management.base import BaseCommand
 
+from kafka_utils.utils import check_kafka_connection
 from koku.database import check_migrations
 from koku.feature_flags import UNLEASH_CLIENT
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
-from sources.api.status import check_kafka_connection
 from sources.api.status import check_sources_connection
 from sources.kafka_listener import initialize_sources_integration
 

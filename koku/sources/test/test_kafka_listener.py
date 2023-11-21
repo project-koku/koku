@@ -26,7 +26,6 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_builder import ProviderBuilderError
 from koku.middleware import IdentityHeaderMiddleware
-from masu.prometheus_stats import WORKER_REGISTRY
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources import storage
@@ -854,15 +853,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
 
         response = source_integration._collect_pending_items()
         self.assertEqual(len(response), 3)
-
-    @patch("time.sleep", side_effect=None)
-    @patch("sources.kafka_listener.check_kafka_connection", side_effect=[bool(0), bool(1)])
-    def test_kafka_connection_metrics_listen_for_messages(self, mock_start, mock_sleep):
-        """Test check_kafka_connection increments kafka connection errors on KafkaError."""
-        connection_errors_before = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
-        source_integration.is_kafka_connected()
-        connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
-        self.assertEqual(connection_errors_after - connection_errors_before, 1)
 
     # @patch.object(Config, "SOURCES_API_URL", "http://www.sources.com")
     # def test_process_message_application_unsupported_source_type(self):

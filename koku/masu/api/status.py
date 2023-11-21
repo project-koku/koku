@@ -21,10 +21,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.utils import DateHelper
 from koku import celery_app
 from masu.api import API_VERSION
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.prometheus_stats import CELERY_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
@@ -225,7 +225,7 @@ class ApplicationStatus:
 
         :returns: The datetime string.
         """
-        return DateAccessor().today()
+        return DateHelper().now
 
     @property
     def debug(self):
