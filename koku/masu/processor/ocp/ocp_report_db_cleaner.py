@@ -96,9 +96,7 @@ class OCPReportDBCleaner:
         all_period_starts = set()
 
         with OCPReportDBAccessor(self._schema) as accessor:
-            all_usage_periods = accessor._get_db_obj_query(accessor._table_map["report_period"]).filter(
-                report_period_start__lte=expired_date
-            )
+            all_usage_periods = accessor.get_report_periods_before_date(expired_date)
 
             table_names = [
                 # accessor._aws_table_map["ocp_on_aws_daily_summary"],

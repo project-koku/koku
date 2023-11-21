@@ -24,7 +24,6 @@ class OCPUtilTests(MasuTestCase):
         """Shared variables used by ocp common tests."""
         super().setUp()
         self.accessor = OCPReportDBAccessor(schema=self.schema)
-        self.report_schema = self.accessor.report_schema
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def test_get_cluster_id_from_provider(self):
