@@ -33,7 +33,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
         """Test the initializer."""
         dba = HCSReportDBAccessor("org1234567")
         self.assertEqual(dba.schema, "org1234567")
-        self.assertNotEqual(dba.jinja_sql, None)
 
     def test_no_sql_file(self):
         """Test with start and end dates provided"""

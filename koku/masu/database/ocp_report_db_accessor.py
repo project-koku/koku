@@ -23,7 +23,6 @@ from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.database import SQLScriptAtomicExecutorMixin
-from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import filter_dictionary
@@ -45,18 +44,6 @@ from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 LOG = logging.getLogger(__name__)
 
 
-def create_filter(data_source, start_date, end_date, cluster_id):
-    """Create filter with data source, start and end dates."""
-    filters = {"data_source": data_source}
-    if start_date:
-        filters["usage_start__gte"] = start_date if isinstance(start_date, datetime.date) else start_date.date()
-    if end_date:
-        filters["usage_start__lte"] = end_date if isinstance(end_date, datetime.date) else end_date.date()
-    if cluster_id:
-        filters["cluster_id"] = cluster_id
-    return filters
-
-
 class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
@@ -70,7 +57,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._table_map = OCP_REPORT_TABLE_MAP
 
     @property
@@ -90,6 +76,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             report_date = start_date.replace(day=1)
             report_periods = report_periods.filter(report_period_start=report_date).first()
         return report_periods
+
+    def get_report_periods_before_date(self, date):
+        """Get the report periods with report period before provided date."""
+        return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
