@@ -67,7 +67,7 @@ def get_billing_months(number_of_months):
     current_month = DateHelper().this_month_start
     for month in reversed(range(number_of_months)):
         calculated_month = current_month + relativedelta(months=-month)
-        months.append(calculated_month)
+        months.append(calculated_month.date())
     return months
 
 

@@ -149,15 +149,6 @@ class ReportDownloaderTest(MasuTestCase):
             self.create_downloader(FAKE.slug())
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
-    def test_get_reports_error(self, mock_downloader_init):
-        """Assert ReportDownloaderError is raised when get_reports raises an exception."""
-        downloader = self.create_downloader(Provider.PROVIDER_AWS)
-        mock_downloader_init.assert_called()
-        with patch.object(AWSReportDownloader, "download_file", side_effect=Exception("some error")):
-            with self.assertRaises(ReportDownloaderError):
-                downloader.get_reports()
-
-    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_is_report_processed(self, mock_downloader_init):
         """Test if given report_name has been processed.
 

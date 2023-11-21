@@ -5,11 +5,8 @@
 """Provider external interface for koku to consume."""
 import logging
 
-from dateutil.relativedelta import relativedelta
-
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
@@ -115,27 +112,6 @@ class ReportDownloader:
                 ingress_reports=self.ingress_reports,
             )
         return None
-
-    def get_reports(self, number_of_months=2):
-        """
-        Download cost usage reports.
-
-        Args:
-            (Int) Number of monthly reports to download.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        reports = []
-        try:
-            current_month = DateHelper().this_month_start
-            for month in reversed(range(number_of_months)):
-                calculated_month = current_month + relativedelta(months=-month)
-                reports += self.download_report(calculated_month)
-        except Exception as err:
-            raise ReportDownloaderError(str(err)) from err
-        return reports
 
     def is_report_processed(self, report_name, manifest_id):
         """Check if report_name has completed processing.
