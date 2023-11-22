@@ -34,7 +34,6 @@ class CostGroupsView(APIView):
     Default projects may not be deleted.
     """
 
-    report = "cost_group"
     permission_classes = (SettingsAccessPermission,)
     _date_helper = DateHelper()
     serializer = CostGroupQueryParamSerializer

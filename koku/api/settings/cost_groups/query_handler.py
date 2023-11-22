@@ -32,6 +32,7 @@ class CostGroupsQueryHandler:
         self.dh = DateHelper()
         self.filters = QueryFilterCollection()
         self.exclusion = QueryFilterCollection()
+        self.order_by = self._check_order_by()
         self._set_filters_or_exclusion()
 
     def _set_filters_or_exclusion(self):
@@ -55,6 +56,15 @@ class CostGroupsQueryHandler:
 
         self.exclusion = self.exclusion.compose(logical_operator="or")
         self.filters = self.filters.compose()
+
+    def _check_order_by(self):
+        """Checks the parameters class to see if an order by."""
+        if order_by_dict := self.parameters._parameters.get("order_by"):
+            for key, order in order_by_dict.items():
+                if order == "desc":
+                    return f"-{key}"
+                return f"{key}"
+        return None
 
     def _build_default_field_when_conditions(self):
         """Builds the default when conditions."""
@@ -85,4 +95,6 @@ class CostGroupsQueryHandler:
             ocp_summary_query = ocp_summary_query.exclude(self.exclusion)
         if self.filters:
             ocp_summary_query = ocp_summary_query.filter(self.filters)
+        if self.order_by:
+            ocp_summary_query = ocp_summary_query.order_by(self.order_by)
         return ocp_summary_query
