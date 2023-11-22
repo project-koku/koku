@@ -60,7 +60,7 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_hotfix"
     elif grep -E "cost-model-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_raw_advanced_rates"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
