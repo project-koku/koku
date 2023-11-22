@@ -2,7 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Serializers for Masu API `manifest`."""
+"""Serializers for settings cost groups."""
 from rest_framework import serializers
 
 from api.report.serializers import ExcludeSerializer

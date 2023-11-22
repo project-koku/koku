@@ -15,6 +15,8 @@ from api.deprecated_settings.settings import Settings
 from api.provider.models import Provider
 from api.query_params import QueryParameters
 from api.settings.cost_groups.query_handler import CostGroupsQueryHandler
+from api.settings.cost_groups.query_handler import delete_openshift_namespaces
+from api.settings.cost_groups.query_handler import put_openshift_namespaces
 from api.settings.cost_groups.serializers import CostGroupQueryParamSerializer
 from api.settings.serializers import NonEmptyListSerializer
 from api.utils import DateHelper
@@ -22,6 +24,7 @@ from masu.processor import is_customer_large
 from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.processor.tasks import update_summary_tables
+
 
 SETTINGS_GENERATORS = {"settings": Settings}
 
@@ -66,36 +69,19 @@ class CostGroupsView(APIView):
     def put(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        filter_class = self.filter_class(request)
-
         projects = serializer.validated_data["projects"]
-        platform_record = self._platform_record
-        platform_record.namespace = list(set(platform_record.namespace).union(projects))
-        platform_record.save()
-
-        paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
-
+        projects = put_openshift_namespaces(projects)
+        paginator = ListPaginator(projects, request)
         self._summarize_current_month(request)
-
         return paginator.paginated_response
 
     def delete(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        filter_class = self.filter_class(request)
-
         projects = serializer.validated_data["projects"]
-        request_without_defaults = set(projects).difference(self.filter_class._default_platform_projects)
-        platform_record = self._platform_record
-        platform_record.namespace = list(set(platform_record.namespace).difference(request_without_defaults))
-        platform_record.save()
-
+        projects = delete_openshift_namespaces(projects)
         self._summarize_current_month(request)
-
-        paginator = ListPaginator(filter_class.filter_data(platform_record.namespace), request)
-
+        paginator = ListPaginator(projects, request)
         return paginator.paginated_response
 
     def _summarize_current_month(self, request):

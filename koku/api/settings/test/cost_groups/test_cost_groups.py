@@ -8,7 +8,7 @@ from django_tenants.utils import schema_context
 from rest_framework import status
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.settings.platform.view import CostGroupsView
+from api.settings.cost_groups.view import CostGroupsView
 
 
 class TestCostGroupsAPI(IamTestCase):

@@ -1,4 +1,7 @@
+import logging
+
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db import IntegrityError
 from django.db.models import BooleanField
 from django.db.models import Case
 from django.db.models import F
@@ -11,7 +14,46 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.utils import DateHelper
 from reporting.models import OCPCostSummaryByProjectP
+from reporting.provider.ocp.models import OpenshiftCostCategory
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
+
+LOG = logging.getLogger(__name__)
+
+
+def _remove_default_projects(projects):
+    default_ = OpenshiftCostCategoryNamespace.objects.filter(system_default=True).values_list("namespace", flat=True)
+    default_projects = [project.replace("%", "") for project in default_]
+    substring_matches = [x for x in projects if any(default in x for default in default_projects)]
+    for project in substring_matches:
+        projects.remove(project)
+    return projects
+
+
+def put_openshift_namespaces(projects, category_name="Platform"):
+    projects = _remove_default_projects(projects)
+    platform_category = OpenshiftCostCategory.objects.get(name=category_name)
+    namespaces_to_create = [
+        OpenshiftCostCategoryNamespace(namespace=new_project, system_default=False, cost_category=platform_category)
+        for new_project in projects
+    ]
+    try:
+        # Perform bulk create
+        OpenshiftCostCategoryNamespace.objects.bulk_create(namespaces_to_create)
+    except IntegrityError as e:
+        # Handle IntegrityError (e.g., if a unique constraint is violated)
+        LOG.warning(f"IntegrityError: {e}")
+    return projects
+
+
+def delete_openshift_namespaces(projects, category_name="Platform"):
+    projects = _remove_default_projects(projects)
+    platform_category = OpenshiftCostCategory.objects.get(name=category_name)
+    delete_condition = Q(cost_category=platform_category, namespace__in=projects)
+    deleted_count, _ = (
+        OpenshiftCostCategoryNamespace.objects.filter(delete_condition).exclude(system_default=True).delete()
+    )
+    LOG.info(f"Deleted {deleted_count} namespace records from openshift cost groups.")
+    return projects
 
 
 class CostGroupsQueryHandler:
