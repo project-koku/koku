@@ -17,6 +17,7 @@ from botocore.exceptions import ClientError
 from django.conf import settings
 
 from api.common import log_json
+from api.provider.models import check_provider_setup_complete
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -69,7 +70,7 @@ def get_processing_date(
         base_cols = copy.deepcopy(utils.RECOMMENDED_ALT_COLUMNS) | copy.deepcopy(utils.OPTIONAL_ALT_COLS)
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
-    if data_frame[invoice_bill].any() or not com_utils.check_setup_complete(provider_uuid):
+    if data_frame[invoice_bill].any() or not check_provider_setup_complete(provider_uuid):
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, start_date)
     else:

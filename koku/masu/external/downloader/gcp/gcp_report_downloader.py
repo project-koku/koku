@@ -52,7 +52,7 @@ class GCPReportDownloaderError(Exception):
 
 def pd_read_csv(local_file_path):
     try:
-        return pd.read_csv(local_file_path)
+        return pd.read_csv(local_file_path, dtype="str")
     except Exception as error:
         LOG.error(log_json(msg="file could not be parsed", file_path=local_file_path), exc_info=error)
         raise GCPReportDownloaderError(error)
@@ -398,7 +398,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 LOG.info(
                     log_json(self.tracing_id, msg="creating new manifest", context=self.context, **ctx, **manifest)
                 )
-                reports_list.append(self.get_report_from_manifest(manifest, dh._now, ctx))
+                reports_list.append(self.get_report_from_manifest(manifest, dh.now, ctx))
 
         return reports_list
 

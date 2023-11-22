@@ -11,8 +11,9 @@ from unittest.mock import patch
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
 from django_tenants.utils import schema_context
-from faker import Faker
+from model_bakery import baker
 
+from api.models import Customer
 from api.models import Provider
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import LOG as crawler_log
@@ -21,11 +22,7 @@ from masu.test.external.downloader.aws import fake_arn
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
-FAKE = Faker()
-CUSTOMER_NAME = FAKE.word()
-BUCKET = FAKE.word()
-P_UUID = FAKE.uuid4()
-P_TYPE = Provider.PROVIDER_AWS
+
 GEN_NUM_ACT_DEFAULT = 2
 
 
@@ -82,27 +79,26 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             "ou-2": {"OrganizationalUnits": []},
             "sou-0": {"OrganizationalUnits": []},
         }
-        self.account = {
-            "credentials": {"role_arn": fake_arn(service="iam", generate_account_id=True)},
-            "customer_name": CUSTOMER_NAME,
-            "billing_source": BUCKET,
-            "provider_type": P_TYPE,
-            "schema_name": self.schema,
-            "provider_uuid": P_UUID,
-        }
+        creds = {"role_arn": fake_arn(service="iam", generate_account_id=True)}
+        auth = baker.make("ProviderAuthentication", credentials=creds)
+        customer = Customer.objects.get(schema_name=self.schema)
+        p = baker.make("Provider", type=Provider.PROVIDER_AWS, authentication=auth, customer=customer)
+        with schema_context(self.schema):
+            baker.make("TenantAPIProvider", uuid=p.uuid, name=p.name, type=p.type, provider=p)
+        self.provider = p
 
     def test_initializer(self):
         """Test AWSOrgUnitCrawler initializer."""
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         result_auth_cred = unit_crawler._auth_cred
-        expected_auth_cred = self.account.get("credentials", {})
+        expected_auth_cred = self.provider.account.get("credentials", {})
         self.assertEqual(result_auth_cred, expected_auth_cred)
         self.assertIsNone(unit_crawler._client)
 
     @patch("masu.util.aws.common.get_assume_role_session")
     def test_init_session(self, mock_session):
         """Test the method that retrieves of a aws client."""
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         mock_session.assert_called()
 
@@ -111,7 +107,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         """Test the aws account info is depaginated"""
         mock_session.client = MagicMock()
         parent_id = "TestDepaginate"
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         side_effect_list = _generate_act_for_parent_side_effect(self.schema, parent_id, 3)
         unit_crawler._build_accout_alias_map()
@@ -130,7 +126,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         """Test that the accounts are depaginated and saved to db."""
         mock_session.client = MagicMock()
         parent_id = "big_sub_org"
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         side_effect_list = _generate_act_for_parent_side_effect(self.schema, parent_id, 3)
         unit_crawler._build_accout_alias_map()
@@ -162,7 +158,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             paginator = MagicMock()
             paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
             paginator_side_effect.append(paginator)
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         unit_crawler._client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
         unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect
@@ -178,7 +174,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         """Test botocore parameter exception is caught properly."""
         logging.disable(logging.NOTSET)
         mock_session.client = MagicMock()
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         unit_crawler._client.list_roots.side_effect = ParamValidationError(report="Bad Param")
         with self.assertLogs(logger=crawler_log, level=logging.WARNING):
@@ -190,7 +186,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         logging.disable(logging.NOTSET)
         mock_error = MagicMock()
         mock_error.list_roots.side_effect = _mock_boto3_access_denied
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._client = mock_error
         unit_crawler._check_if_crawlable()
         self.assertEqual(False, unit_crawler.crawlable)
@@ -200,7 +196,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         logging.disable(logging.NOTSET)
         mock_error = MagicMock()
         mock_error.list_roots.side_effect = _mock_boto3_general_client_error
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._client = mock_error
         unit_crawler._check_if_crawlable()
         self.assertEqual(False, unit_crawler.crawlable)
@@ -210,7 +206,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         """Test botocore general ClientError."""
         logging.disable(logging.NOTSET)
         mock_session.client = MagicMock()
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         unit_crawler._client.list_roots.side_effect = Exception("unknown error")
         with self.assertLogs(logger=crawler_log, level=logging.raiseExceptions):
@@ -232,7 +228,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             paginator = MagicMock()
             paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
             paginator_side_effect.append(paginator)
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         unit_crawler._client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
         unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect
@@ -245,7 +241,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
     def test_save_aws_org_method(self):
         """Test that saving to the database works."""
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
             self.assertEqual(cur_count, 0)
@@ -274,7 +270,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
     def test_org_unit_deleted_state(self):
         """Test that an org unit that is in a deleted state is fixed when it is found again."""
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         with schema_context(self.schema):
             AWSAccountAlias.objects.create(account_id="A_001", account_alias="Root Account")
         unit_crawler._build_accout_alias_map()
@@ -286,7 +282,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         # nullifies the deleted_timestamp
         with schema_context(self.schema):
             ou_to_update = AWSOrganizationalUnit.objects.filter(org_unit_id="R_001")
-            ou_to_update.update(deleted_timestamp=unit_crawler._date_accessor.today())
+            ou_to_update.update(deleted_timestamp=self.dh.today)
         updated_ou = unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
@@ -295,7 +291,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
     def test_build_account_alias_map(self):
         """Test function that builds account alias map."""
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         with schema_context(self.schema):
             account_1 = AWSAccountAlias.objects.create(account_id="12345", account_alias="a1")
             account_2 = AWSAccountAlias.objects.create(account_id="67890", account_alias="a2")
@@ -310,7 +306,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
     def test_compute_org_structure_interval(self):
         """Test function that computes org structure for an interval."""
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._build_accout_alias_map()
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
@@ -339,7 +335,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
         # Change created date to two_days_ago
         with schema_context(self.schema):
-            two_days_ago = (unit_crawler._date_accessor.today() - timedelta(2)).strftime("%Y-%m-%d")
+            two_days_ago = (self.dh.today - timedelta(2)).strftime("%Y-%m-%d")
             for node in created_nodes:
                 node.created_timestamp = two_days_ago
                 node.save()
@@ -367,7 +363,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._delete_aws_org_unit("sub_org_unit_1_Fake")
 
         with schema_context(self.schema):
-            yesterday = (unit_crawler._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
+            yesterday = (self.dh.today - timedelta(1)).strftime("%Y-%m-%d")
             for node in created_nodes:
                 node.created_timestamp = yesterday
                 node.save()
@@ -385,7 +381,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._save_aws_org_method(sub_org_unit_2, "R_001&OU_3000", 1, None)
 
         with schema_context(self.schema):
-            today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
+            today = self.dh.today.strftime("%Y-%m-%d")
             curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=today).count()
             deleted_count = AWSOrganizationalUnit.objects.filter(deleted_timestamp__lte=today).count()
             self.assertEqual(curr_count, 9)
@@ -416,7 +412,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             paginator = MagicMock()
             paginator.paginate(ParentId=ou_id).build_full_result.return_value = self.paginator_dict[ou_id]
             paginator_side_effect.append(paginator)
-        unit_crawler = AWSOrgUnitCrawler(self.account)
+        unit_crawler = AWSOrgUnitCrawler(self.provider)
         unit_crawler._init_session()
         unit_crawler._client.list_roots.return_value = {"Roots": [{"Id": "r-0", "Arn": "arn-0", "Name": "root_0"}]}
         unit_crawler._client.list_accounts_for_parent.side_effect = account_side_effect

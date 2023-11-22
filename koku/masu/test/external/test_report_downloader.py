@@ -10,7 +10,6 @@ from faker import Faker
 from model_bakery import baker
 
 from api.models import Provider
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
@@ -18,7 +17,6 @@ from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLo
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
@@ -124,12 +122,6 @@ class ReportDownloaderTest(MasuTestCase):
         self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_GCP, GCPReportDownloader)
         mock_downloader_init.assert_called()
 
-    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader.__init__", return_value=None)
-    def test_init_with_ocp(self, mock_downloader_init):
-        """Assert ReportDownloader creation sets the OCP downloader."""
-        self.assertDownloaderSetsProviderDownloader(Provider.PROVIDER_OCP, OCPReportDownloader)
-        mock_downloader_init.assert_called()
-
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", side_effect=AWSReportDownloaderError)
     def test_init_with_downloader_exception(self, mock_downloader_init):
         """Assert ReportDownloaderError is raised when _set_downloader raises an exception."""
@@ -148,15 +140,6 @@ class ReportDownloaderTest(MasuTestCase):
         """Assert ReportDownloaderError is raised when given an invalid account source."""
         with self.assertRaises(ReportDownloaderError):
             self.create_downloader(FAKE.slug())
-
-    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
-    def test_get_reports_error(self, mock_downloader_init):
-        """Assert ReportDownloaderError is raised when get_reports raises an exception."""
-        downloader = self.create_downloader(Provider.PROVIDER_AWS)
-        mock_downloader_init.assert_called()
-        with patch.object(AWSReportDownloader, "download_file", side_effect=Exception("some error")):
-            with self.assertRaises(ReportDownloaderError):
-                downloader.get_reports()
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_is_report_processed(self, mock_downloader_init):
@@ -194,7 +177,7 @@ class ReportDownloaderTest(MasuTestCase):
         compression = "GZIP"
         mock_date = FAKE.date()
         mock_full_file_path = "/full/path/to/file.csv"
-        mock_dl.return_value = (mock_full_file_path, "fake_etag", DateAccessor().today(), [], {})
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", self.dh.now, [], {})
 
         report_context = {
             "date": mock_date,
@@ -211,6 +194,32 @@ class ReportDownloaderTest(MasuTestCase):
             self.assertEqual(result.get("start_date"), mock_date)
             self.assertEqual(result.get("assembly_id"), assembly_id)
             self.assertEqual(result.get("manifest_id"), manifest_id)
+
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
+    @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
+    def test_download_reports_no_status_found(self, mock_dl_init, mock_dl):
+        """Test download reports."""
+        downloader = self.create_downloader(Provider.PROVIDER_AWS)
+        manifest_id = 99
+        baker.make(CostUsageReportManifest, id=manifest_id)
+        assembly_id = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+        filename = "koku-1.csv.gz"
+        compression = "GZIP"
+        mock_date = FAKE.date()
+        mock_full_file_path = "/full/path/to/file.csv"
+        mock_dl.return_value = (mock_full_file_path, "fake_etag", self.dh.now, [], {})
+
+        report_context = {
+            "date": mock_date,
+            "manifest_id": manifest_id,
+            "compression": compression,
+            "assembly_id": assembly_id,
+            "current_file": f"/my/{assembly_id}/{filename}",
+        }
+
+        with patch("masu.external.report_downloader.ReportDownloader.is_report_processed", return_value=False):
+            result = downloader.download_report(report_context)
+            self.assertFalse(result)
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)

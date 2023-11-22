@@ -35,7 +35,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
@@ -69,8 +68,7 @@ def check_report_updates(*args, **kwargs):
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
-    today = DateAccessor().today()
-    LOG.info("Removing expired data at %s", str(today))
+    LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
 
@@ -385,27 +383,20 @@ def crawl_account_hierarchy(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in polling_accounts:
-        account = provider.account
         crawler = None
 
         # Look for a known crawler class to handle this provider
-        if account.get("provider_type") == Provider.PROVIDER_AWS:
-            crawler = AWSOrgUnitCrawler(account)
+        if provider.type == Provider.PROVIDER_AWS:
+            crawler = AWSOrgUnitCrawler(provider)
 
         if crawler:
             LOG.info(
-                "Starting account hierarchy crawler for type {} with provider_uuid: {}".format(
-                    account.get("provider_type"), account.get("provider_uuid")
-                )
+                f"Starting account hierarchy crawler for type {provider.type} with provider_uuid: {provider.uuid}"
             )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
-            LOG.info(
-                "No known crawler for account with provider_uuid: {} of type {}".format(
-                    account.get("provider_uuid"), account.get("provider_type")
-                )
-            )
+            LOG.info(f"No known crawler for account with provider_uuid: {provider.uuid} of type {provider.type}")
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
 
@@ -427,12 +418,11 @@ def check_cost_model_status(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in providers:
-        account = provider.account
-        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider.uuid)
+        cost_model_map = CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid)
         if cost_model_map.cost_model:
             skipped += 1
         else:
-            NotificationService().cost_model_notification(account)
+            NotificationService().cost_model_notification(provider)
             processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
@@ -440,22 +430,19 @@ def check_cost_model_status(provider_uuid=None):
 @celery_app.task(name="masu.celery.tasks.check_for_stale_ocp_source", queue=DEFAULT)
 def check_for_stale_ocp_source(provider_uuid=None):
     """Scheduled task to initiate source check and fire notifications."""
-    manifest_accessor = ReportManifestDBAccessor()
-    if provider_uuid:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime(provider_uuid)
-    else:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime()
+    with ReportManifestDBAccessor() as accessor:
+        manifest_data = accessor.get_last_manifest_upload_datetime(provider_uuid)
     if manifest_data:
-        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
+        LOG.info(f"Openshift stale cluster check found {len(manifest_data)} clusters to scan")
         processed = 0
         skipped = 0
-        today = DateAccessor().today()
-        check_date = DateHelper().n_days_ago(today, 3)
+        dh = DateHelper()
+        check_date = dh.n_days_ago(dh.now, 3)
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                account = Provider.objects.get(uuid=data.get("provider_id")).account
-                NotificationService().ocp_stale_source_notification(account)
+                provider = Provider.objects.get(uuid=data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(provider)
                 processed += 1
             else:
                 skipped += 1

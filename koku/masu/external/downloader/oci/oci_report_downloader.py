@@ -40,7 +40,7 @@ def divide_csv_monthly(file_path, filename):
     directory = os.path.dirname(file_path)
 
     try:
-        data_frame = pd.read_csv(file_path)
+        data_frame = pd.read_csv(file_path, dtype="str")
     except Exception as error:
         LOG.error(f"File {file_path} could not be parsed. Reason: {error}")
         raise error
@@ -307,7 +307,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ]
             if files_list:
                 manifest_id = self._process_manifest_db_record(
-                    assembly_id, month.strftime("%Y-%m-%d"), len(month_report_names), dh._now
+                    assembly_id, month.strftime("%Y-%m-%d"), len(month_report_names), dh.now
                 )
                 monthly_report["manifest_id"] = manifest_id
                 monthly_report["assembly_id"] = assembly_id

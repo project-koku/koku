@@ -18,13 +18,11 @@ from faker import Faker
 from model_bakery import baker
 
 from api.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProviderError
 from masu.external import AWS_REGIONS
 from masu.external import UNCOMPRESSED
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
@@ -521,7 +519,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_manifest_context_for_date(self, mock_session, mock_manifest, mock_delete):
         """Test that the manifest is read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
         downloader = AWSReportDownloader(
             self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
@@ -538,7 +536,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "reportKeys": report_keys,
                 "billingPeriod": {"start": start_str},
             },
-            DateAccessor().today(),
+            self.dh.now,
         )
 
         result = downloader.get_manifest_context_for_date(current_month)
@@ -551,7 +549,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_pseudo_manifest_context_for_date(self, mock_session, mock_manifest, mock_delete):
         """Test that the pseudo manifest is created and read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
         downloader = AWSReportDownloader(
             self.fake_customer_name,
             self.credentials,
@@ -571,7 +569,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 "start_date": start_str,
                 "filenames": self.ingress_reports,
             },
-            DateAccessor().today(),
+            self.dh.now,
         )
 
         result = downloader.get_manifest_context_for_date(current_month)
@@ -580,7 +578,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     def test_get_storage_only_manifest_file(self):
         """Test _get_manifest method w storage only."""
-        mock_datetime = DateAccessor().today()
+        mock_datetime = self.dh.now
 
         result = self.aws_storage_only_report_downloader.get_manifest_context_for_date(mock_datetime)
         self.assertEqual(result, {})
@@ -590,12 +588,12 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_get_manifest_context_for_date_no_manifest(self, mock_session, mock_manifest, mock_delete):
         """Test that the manifest is read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
         downloader = AWSReportDownloader(
             self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
 
-        mock_manifest.return_value = ("", {"reportKeys": []}, DateAccessor().today())
+        mock_manifest.return_value = ("", {"reportKeys": []}, self.dh.now)
 
         result = downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result, {})
@@ -603,7 +601,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
     def test_get_manifest(self, mock_download_file):
         """Test _get_manifest method."""
-        mock_datetime = DateAccessor().today()
+        mock_datetime = self.dh.now
         mock_file_name = "testfile"
         mock_download_file.return_value = (mock_file_name, None, mock_datetime, [], {})
         fake_manifest_dict = {"foo": "bar"}
@@ -621,7 +619,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
     def test_get_manifest_file_not_found(self, mock_download_file):
         """Test _get_manifest method when file is not found."""
-        mock_datetime = DateAccessor().today()
+        mock_datetime = self.dh.now
         mock_download_file.side_effect = AWSReportDownloaderNoFileError("fake error")
 
         manifest_file, manifest_json, manifest_modified_timestamp = self.aws_report_downloader._get_manifest(
@@ -634,7 +632,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._generate_monthly_pseudo_manifest")
     def test_generate_pseudo_manifest(self, mock_pseudo_manifest):
         """Test Generating pseudo manifest for storage only."""
-        mock_datetime = DateAccessor().today()
+        mock_datetime = self.dh.now
         expected_manifest_data = {
             "assembly_id": "1234",
             "compression": UNCOMPRESSED,
@@ -656,10 +654,12 @@ class AWSReportDownloaderTest(MasuTestCase):
         expected_interval = "identity/TimeInterval"
         expected_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS) | copy.deepcopy(utils.OPTIONAL_COLS)
         expected_cols |= {"costCategory/qe_source", "costCategory/name", "costCategory/cost_env"}
-        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
-        end_date = DateHelper().this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
-        expected_date = DateHelper().this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
-        with patch("masu.util.common.check_setup_complete", return_Value=True):
+        start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
+        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
+        expected_date = self.dh.this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
+        with patch(
+            "masu.external.downloader.aws.aws_report_downloader.check_provider_setup_complete", return_Value=True
+        ):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
                 with patch(
                     "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
@@ -686,7 +686,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         expected_daily_files = [
             f"{temp_dir}/2023-06-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
-        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
         with (
             patch(
                 "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
@@ -716,7 +716,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
 
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
@@ -745,7 +745,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
 
-        start_date = DateHelper().this_month_start.replace(year=2023, month=9, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=9, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
         )
@@ -761,7 +761,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        start_date = DateHelper().this_month_start.replace(year=2023, month=6, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
         )
@@ -782,7 +782,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         expected_daily_files = [
             f"{temp_dir}/2022-07-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
-        start_date = DateHelper().this_month_start.replace(year=2022, month=7, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2022, month=7, tzinfo=None)
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
             return_value=start_date,

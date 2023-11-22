@@ -15,7 +15,6 @@ from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.ocp.common import match_openshift_labels
 
 LOG = logging.getLogger(__name__)
@@ -149,8 +148,11 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if not provider:
+        err_msg = "Provider UUID is not associated with a given provider."
+        LOG.warning(err_msg)
+        return []
 
     if provider.type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         err_msg = f"Provider UUID is not an Azure type.  It is {provider.type}"

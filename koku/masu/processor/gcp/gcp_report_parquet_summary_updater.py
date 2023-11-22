@@ -7,6 +7,7 @@ import logging
 
 import ciso8601
 from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -15,7 +16,6 @@ from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
@@ -30,7 +30,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
-        self._date_accessor = DateAccessor()
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
@@ -120,8 +119,8 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-                bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+                    bill.summary_data_creation_datetime = timezone.now()
+                bill.summary_data_updated_datetime = timezone.now()
                 bill.save()
 
         return start_date, end_date

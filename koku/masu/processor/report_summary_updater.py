@@ -8,16 +8,16 @@ import logging
 
 from api.common import log_json
 from api.models import Provider
+from api.utils import DateHelper
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParquetSummaryUpdater
 from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
+from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
 
 LOG = logging.getLogger(__name__)
 REPORT_SUMMARY_UPDATER_DICT = {
@@ -66,10 +66,7 @@ class ReportSummaryUpdater:
         if manifest_id is not None:
             with ReportManifestDBAccessor() as manifest_accessor:
                 self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-        self._date_accessor = DateAccessor()
-        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
-            self._provider = provider_accessor.get_provider()
-
+        self._provider = Provider.objects.filter(uuid=self._provider_uuid).first()
         if not self._provider:
             raise ReportSummaryUpdaterProviderNotFoundError(
                 f"provider data for uuid '{self._provider_uuid}' not found"
@@ -77,6 +74,10 @@ class ReportSummaryUpdater:
 
         try:
             self._updater, self._ocp_cloud_updater = self._set_updater()
+        except OCPReportParquetSummaryUpdaterClusterNotFound as e:
+            raise ReportSummaryUpdaterProviderNotFoundError(
+                f"provider data for uuid '{self._provider_uuid}' not found"
+            ) from e
         except Exception as err:
             raise ReportSummaryUpdaterError(err) from err
 
@@ -116,7 +117,7 @@ class ReportSummaryUpdater:
             end_date = end_date.strftime("%Y-%m-%d")
         elif end_date is None:
             # Run up to the current date
-            end_date = self._date_accessor.today_with_timezone("UTC")
+            end_date = DateHelper().today
             end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
