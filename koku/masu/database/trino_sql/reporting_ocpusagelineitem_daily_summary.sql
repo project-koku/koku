@@ -240,7 +240,7 @@ FROM (
     SELECT date(li.interval_start) as usage_start,
         li.namespace,
         li.node,
-        max(cat.id) as cost_category_id,
+        max(cat_ns.cost_category_id) as cost_category_id,
         li.source as source_uuid,
         map_concat(
             cast(json_parse(coalesce(nli.node_labels, '{}')) as map(varchar, varchar)),
@@ -274,8 +274,8 @@ FROM (
             AND nc.node = li.node
     LEFT JOIN cte_ocp_cluster_capacity as cc
         ON cc.usage_start = date(li.interval_start)
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category as cat
-        ON any_match(cat.namespace, x -> li.namespace LIKE x)
+    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+        ON li.namespace LIKE cat_ns.namespace
     WHERE li.source = {{source}}
         AND li.year = {{year}}
         AND li.month = {{month}}
@@ -369,7 +369,7 @@ FROM (
             cast(json_parse(sli.persistentvolumeclaim_labels) as map(varchar, varchar))
         ) as volume_labels,
         sli.source as source_uuid,
-        max(cat.id) as cost_category_id,
+        max(cat_ns.cost_category_id) as cost_category_id,
         max(sli.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
         -- Divide volume usage and requests by the number of nodes that volume is mounted on
@@ -390,8 +390,8 @@ FROM (
     LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
         ON nsli.namespace = sli.namespace
             AND nsli.usage_start = date(sli.interval_start)
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category as cat
-        ON any_match(cat.namespace, x -> sli.namespace LIKE x)
+    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+        ON sli.namespace LIKE cat_ns.namespace
     WHERE sli.source = {{source}}
         AND sli.year = {{year}}
         AND sli.month = {{month}}
@@ -532,14 +532,14 @@ SELECT
     cluster_capacity_memory_gigabyte_hours,
     data_source,
     source_uuid,
-    cat.id as cost_category_id,
+    cat_ns.cost_category_id as cost_category_id,
     source,
     year,
     month,
     day
 FROM cte_unallocated_capacity AS uc
-LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-    ON any_match(cat.namespace, x -> uc.namespace LIKE x)
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+    ON uc.namespace LIKE cat_ns.namespace
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
