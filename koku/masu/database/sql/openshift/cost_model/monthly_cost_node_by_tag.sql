@@ -286,7 +286,7 @@ SELECT uuid,
     monthly_cost_type,
     cat_ns.cost_category_id as cost_category_id
 FROM cte_unallocated AS uc
-LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
     ON uc.namespace LIKE cat_ns.namespace
 ;
 
