@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the ProviderDBAccessor utility object."""
+"""Test ArraySubtract."""
 import json
 
 from django.db import connection

@@ -3,16 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportSummaryUpdater object."""
-import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
-from api.utils import DateHelper
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParquetSummaryUpdater
@@ -30,9 +26,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        today = DateAccessor().today_with_timezone("UTC")
-        cls.today = today.strftime("%Y-%m-%d")
-        cls.tomorrow = (today + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
         cls.tracing_id = "1234"
 
     def test_bad_provider_type(self):
@@ -65,18 +58,23 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
             _ = ReportSummaryUpdater(self.schema, uuid4())
 
+    def test_bad_ocp_provider(self):
+        """Test that an OCP provider without cluster-id throws an error."""
+        p = self.baker.make("Provider", type="OCP")
+        with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
+            _ = ReportSummaryUpdater(self.schema, p.uuid)
+
     def test_no_provider_on_create(self):
         """Test that an error is raised when no provider exists."""
-        billing_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
+        billing_start = self.dh.this_month_start
         no_provider_uuid = uuid4()
         manifest_dict = {
             "assembly_id": "1234",
             "billing_period_start_datetime": billing_start,
             "num_total_files": 2,
-            "provider_uuid": self.ocp_provider_uuid,
+            "provider_id": self.ocp_provider_uuid,
         }
-        with ReportManifestDBAccessor() as accessor:
-            manifest = accessor.add(**manifest_dict)
+        manifest = self.baker.make("CostUsageReportManifest", **manifest_dict)
         manifest_id = manifest.id
         with self.assertRaises(ReportSummaryUpdaterError):
             ReportSummaryUpdater(self.schema, no_provider_uuid, manifest_id)
@@ -100,8 +98,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
     def test_update_openshift_on_cloud_summary_tables(self, mock_update):
         """Test that we run OCP on Cloud summary."""
-        start_date = DateHelper().this_month_start.date()
-        end_date = DateHelper().today.date()
+        start_date = self.dh.this_month_start
+        end_date = self.dh.today
 
         updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
         updater.update_openshift_on_cloud_summary_tables(
