@@ -414,16 +414,16 @@ def check_cost_model_status(provider_uuid=None):
             return
     else:
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
-    LOG.info("Cost model status check found %s providers to scan" % len(providers))
+    LOG.info(f"Cost model status check found {len(providers)} providers to scan")
     processed = 0
     skipped = 0
     for provider in providers:
-        cost_model_map = CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid)
-        if cost_model_map.cost_model:
-            skipped += 1
-        else:
-            NotificationService().cost_model_notification(provider)
-            processed += 1
+        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+            if cmdba.cost_model:
+                skipped += 1
+                continue
+        NotificationService().cost_model_notification(provider)
+        processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 

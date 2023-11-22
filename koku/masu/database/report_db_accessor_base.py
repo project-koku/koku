@@ -7,22 +7,17 @@ import logging
 import os
 import time
 
-import ciso8601
-from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
-from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
 from trino.exceptions import TrinoExternalError
 
 import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
-from koku.database import execute_delete_sql as exec_del_sql
 from koku.database_exc import get_extended_exception_by_type
-from reporting.models import PartitionedTable
 
 
 LOG = logging.getLogger(__name__)
@@ -65,17 +60,20 @@ class ReportDBAccessorBase:
 
     @staticmethod
     def extract_context_from_sql_params(sql_params: dict):
-        return {
-            "schema": sql_params.get("schema"),
-            # An "or" comparison is needed here in case "start" or "end" contain
-            # falsy values such as "None"
-            "start_date": sql_params.get("start") or sql_params.get("start_date"),
-            "end_date": sql_params.get("end") or sql_params.get("end_date"),
-            "invoice_month": sql_params.get("invoice_month"),
-            "source_type": sql_params.get("source_type"),
-            "provider_uuid": sql_params.get("source_uuid"),
-            "cluster_id": sql_params.get("cluster_id"),
-        }
+        ctx = {}
+        if schema := sql_params.get("schema"):
+            ctx["schema"] = schema
+        if (start := sql_params.get("start")) or (start := sql_params.get("start_date")):
+            ctx["start_date"] = start
+        if (end := sql_params.get("end")) or (end := sql_params.get("end_date")):
+            ctx["end_date"] = end
+        if invoice_month := sql_params.get("invoice_month"):
+            ctx["invoice_month"] = invoice_month
+        if provider_uuid := sql_params.get("source_uuid"):
+            ctx["provider_uuid"] = provider_uuid
+        if cluster_id := sql_params.get("cluster_id"):
+            ctx["cluster_id"] = cluster_id
+        return ctx
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
@@ -91,7 +89,7 @@ class ReportDBAccessorBase:
         sql, sql_params = self.prepare_query(tmp_sql, tmp_sql_params)
         return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
 
-    def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None, operation="UPDATE"):
+    def _execute_raw_sql_query(self, table, sql, bind_params=None, operation="UPDATE"):
         """Run a SQL statement via a cursor."""
         LOG.info(log_json(msg=f"triggering {operation}", table=table))
         with connection.cursor() as cursor:
@@ -124,11 +122,14 @@ class ReportDBAccessorBase:
             context = {}
         if conn_params is None:
             conn_params = {}
-        ctx = (
-            self.extract_context_from_sql_params(sql_params)
-            if sql_params
-            else self.extract_context_from_sql_params(context)
-        )
+
+        if sql_params:
+            ctx = self.extract_context_from_sql_params(sql_params)
+        elif context:
+            ctx = self.extract_context_from_sql_params(context)
+        else:
+            ctx = {}
+
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
@@ -150,64 +151,6 @@ class ReportDBAccessorBase:
         """Execute multiple related SQL queries in Trino."""
         trino_conn = trino_db.connect(schema=self.schema)
         return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
-
-    def get_existing_partitions(self, table):
-        if isinstance(table, str):
-            table_name = table
-        else:
-            # assume model
-            table_name = table._meta.db_table
-
-        with transaction.atomic():  # Make sure this does *not* open a lingering transaction at the driver
-            connection.set_schema(self.schema)
-            existing_partitions = PartitionedTable.objects.filter(
-                schema_name=self.schema, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
-            ).all()
-
-        return existing_partitions
-
-    def get_partition_start_dates(self, partitions):
-        exist_partition_start_dates = {
-            ciso8601.parse_datetime(p.partition_parameters["from"]).date()
-            for p in partitions
-            if not p.partition_parameters["default"]
-        }
-
-        return exist_partition_start_dates
-
-    def add_partitions(self, existing_partitions, requested_partition_start_dates):
-        tmplpart = existing_partitions[0]
-        for needed_partition in {
-            r.replace(day=1) for r in requested_partition_start_dates
-        } - self.get_partition_start_dates(existing_partitions):
-            # This *should* always work as there should always be a default partition
-            partition_name = f"{tmplpart.partition_of_table_name}_{needed_partition.strftime('%Y_%m')}"
-            # Successfully creating a new record will also create the partition
-            newpart_vals = dict(
-                schema_name=tmplpart.schema_name,
-                table_name=partition_name,
-                partition_of_table_name=tmplpart.partition_of_table_name,
-                partition_type=tmplpart.partition_type,
-                partition_col=tmplpart.partition_col,
-                partition_parameters={
-                    "default": False,
-                    "from": str(needed_partition),
-                    "to": str(needed_partition + relativedelta(months=1)),
-                },
-                active=True,
-            )
-            self.add_partition(**newpart_vals)
-
-    def add_partition(self, **partition_record):
-        with transaction.atomic():
-            with schema_context(self.schema):
-                newpart, created = PartitionedTable.objects.get_or_create(
-                    defaults=partition_record,
-                    schema_name=partition_record["schema_name"],
-                    table_name=partition_record["table_name"],
-                )
-        if created:
-            LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
@@ -236,7 +179,7 @@ class ReportDBAccessorBase:
         filters["start_date"] = start_date
         filters["end_date"] = end_date
 
-        self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
+        self._execute_raw_sql_query(table, sql, bind_params=filters, operation="DELETE")
 
     def truncate_partition(self, partition_name):
         """Issue a TRUNCATE command on a specific partition of a table"""
@@ -269,27 +212,12 @@ class ReportDBAccessorBase:
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        table = self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino")
-        if table:
-            return True
-        return False
+        return bool(self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino"))
 
     def schema_exists_trino(self):
         """Check if table exists."""
         check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
-        schema_exists = self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino")
-        if schema_exists:
-            return True
-        return False
-
-    def execute_delete_sql(self, query):
-        """
-        Detach a partition by marking the active columnm as False in the tracking table
-        Schema must be set before this function is called
-        Parameters:
-            query (QuerySet) : A valid django queryset
-        """
-        return exec_del_sql(query)
+        return bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
 
     def delete_hive_partition_by_month(self, table, source, year, month):
         """Deletes partitions individually by month."""
