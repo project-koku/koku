@@ -2,7 +2,8 @@
 
 1. Add AWS credentials to the [.env]{.title-ref} file:
 
-        AWS_ACCESS_KEY_ID=123456 AWS_SECRET_ACCESS_KEY=abc1234
+        AWS_ACCESS_KEY_ID=123456 
+        AWS_SECRET_ACCESS_KEY=abc1234
 
 You'll need to set those environment variables with your AWS access and
 secret key. Then you can call `docker compose up`.

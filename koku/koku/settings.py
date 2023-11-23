@@ -103,8 +103,12 @@ SHARED_APPS = (
 )
 
 TENANT_APPS = ("reporting", "cost_models")
-TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
-TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
+TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int(
+    "TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2
+)
+TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int(
+    "TENANT_MULTIPROCESSING_CHUNKS", default=2
+)
 
 DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
@@ -114,8 +118,12 @@ PROMETHEUS_BEFORE_MIDDLEWARE = "django_prometheus.middleware.PrometheusBeforeMid
 PROMETHEUS_AFTER_MIDDLEWARE = "django_prometheus.middleware.PrometheusAfterMiddleware"
 
 if ACCOUNT_ENHANCED_METRICS:
-    PROMETHEUS_BEFORE_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsBeforeMiddleware"
-    PROMETHEUS_AFTER_MIDDLEWARE = "koku.middleware.AccountEnhancedMetricsAfterMiddleware"
+    PROMETHEUS_BEFORE_MIDDLEWARE = (
+        "koku.middleware.AccountEnhancedMetricsBeforeMiddleware"
+    )
+    PROMETHEUS_AFTER_MIDDLEWARE = (
+        "koku.middleware.AccountEnhancedMetricsAfterMiddleware"
+    )
 
 ### Middleware setup
 MIDDLEWARE = [
@@ -133,26 +141,40 @@ MIDDLEWARE = [
     PROMETHEUS_AFTER_MIDDLEWARE,
 ]
 
-MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
+MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int(
+    "MIDDLEWARE_TIME_TO_LIVE", default=900
+)  # in seconds (default = 15 minutes)
 
-DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
+DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=True)
+print("DEV", DEVELOPMENT)
 if DEVELOPMENT:
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
-            "org_id": "1234567",
+            "org_id": "enstructure",
             "type": "User",
-            "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": "True", "access": {}},
+            "user": {
+                "username": "vien.nguyen",
+                "email": "vien.nguyen@enstructure.net",
+                "is_org_admin": "True",
+                "access": {},
+            },
         },
         "entitlements": {"cost_management": {"is_entitled": "True"}},
     }
-    DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
-    FORCE_HEADER_OVERRIDE = ENVIRONMENT.bool("FORCE_HEADER_OVERRIDE", default=False)
+    DEVELOPMENT_IDENTITY = ENVIRONMENT.json(
+        "DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY
+    )
+    FORCE_HEADER_OVERRIDE = ENVIRONMENT.bool("FORCE_HEADER_OVERRIDE", default=True)
+
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
     try:
         from django_cprofile_middleware.middleware import ProfilerMiddleware
 
-        MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
+        MIDDLEWARE.insert(
+            len(MIDDLEWARE) - 1,
+            "django_cprofile_middleware.middleware.ProfilerMiddleware",
+        )
     except ImportError:
         pass
     DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
@@ -163,13 +185,17 @@ UNLEASH_PORT = CONFIGURATOR.get_feature_flag_port()
 UNLEASH_PREFIX = "https" if str(UNLEASH_PORT) == "443" else "http"
 UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
 UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
-UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
+UNLEASH_CACHE_DIR = ENVIRONMENT.get_value(
+    "UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash")
+)
 
 # Set max group by options
 MAX_GROUP_BY = ENVIRONMENT.int("MAX_GROUP_BY_OVERRIDE", default=3)
 
 ### Currency URL
-CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
+CURRENCY_URL = ENVIRONMENT.get_value(
+    "CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD"
+)
 
 ### End Middleware
 
@@ -203,7 +229,9 @@ WSGI_APPLICATION = "koku.wsgi.application"
 
 WORKER_CACHE_KEY = "worker"
 WORKER_CACHE_TIMEOUT = ENVIRONMENT.get_value("WORKER_CACHE_TIMEOUT", default=3600)
-WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT = ENVIRONMENT.get_value("WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT", default=14400)
+WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT = ENVIRONMENT.get_value(
+    "WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT", default=14400
+)
 WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS = ENVIRONMENT.get_value(
     "WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS", default=2
 )
@@ -233,8 +261,14 @@ if "test" in sys.argv:
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         },
-        "rbac": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
-        "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        "rbac": {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+            "LOCATION": TEST_CACHE_LOCATION,
+        },
+        "worker": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": TEST_CACHE_LOCATION,
+        },
     }
 else:
     CACHES = {
@@ -270,7 +304,9 @@ else:
     }
 
 if ENVIRONMENT.bool("CACHED_VIEWS_DISABLED", default=False):
-    CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
+    CACHES.update(
+        {"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}}
+    )
 DATABASES = {"default": database.config()}
 
 DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
@@ -291,7 +327,9 @@ PROMETHEUS_EXPORT_MIGRATIONS = False
 # https://docs.djangoproject.com/en/2.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -315,7 +353,9 @@ USE_TZ = True
 
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
 DEFAULT_RETAIN_NUM_MONTHS = 4
-RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=DEFAULT_RETAIN_NUM_MONTHS)
+RETAIN_NUM_MONTHS = ENVIRONMENT.int(
+    "RETAIN_NUM_MONTHS", default=DEFAULT_RETAIN_NUM_MONTHS
+)
 NOTIFICATION_CHECK_TIME = ENVIRONMENT.int("NOTIFICATION_CHECK_TIME", default=24)
 
 # Static files (CSS, JavaScript, Images)
@@ -333,16 +373,23 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 DEFAULT_PAGINATION_CLASS = "api.common.pagination.StandardResultsSetPagination"
 DEFAULT_EXCEPTION_HANDLER = "api.common.exception_handler.custom_exception_handler"
 
-DEFAULT_RENDERER_CLASSES = ("rest_framework.renderers.JSONRenderer", "api.common.csv.PaginatedCSVRenderer")
+DEFAULT_RENDERER_CLASSES = (
+    "rest_framework.renderers.JSONRenderer",
+    "api.common.csv.PaginatedCSVRenderer",
+)
 
 if DEVELOPMENT:
-    DEFAULT_RENDERER_CLASSES = DEFAULT_RENDERER_CLASSES + ("rest_framework.renderers.BrowsableAPIRenderer",)
+    DEFAULT_RENDERER_CLASSES = DEFAULT_RENDERER_CLASSES + (
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    )
 
 # django rest_framework settings
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly"
+    ],
     "DEFAULT_PAGINATION_CLASS": DEFAULT_PAGINATION_CLASS,
     "DEFAULT_RENDERER_CLASSES": DEFAULT_RENDERER_CLASSES,
     "EXCEPTION_HANDLER": DEFAULT_EXCEPTION_HANDLER,
@@ -357,13 +404,17 @@ LOGGING_FORMATTER = ENVIRONMENT.get_value("DJANGO_LOG_FORMATTER", default="simpl
 DJANGO_LOGGING_LEVEL = ENVIRONMENT.get_value("DJANGO_LOG_LEVEL", default="INFO")
 KOKU_LOGGING_LEVEL = ENVIRONMENT.get_value("KOKU_LOG_LEVEL", default="INFO")
 UNLEASH_LOGGING_LEVEL = ENVIRONMENT.get_value("UNLEASH_LOG_LEVEL", default="WARNING")
-LOGGING_HANDLERS = ENVIRONMENT.get_value("DJANGO_LOG_HANDLERS", default="console").split(",")
+LOGGING_HANDLERS = ENVIRONMENT.get_value(
+    "DJANGO_LOG_HANDLERS", default="console"
+).split(",")
 VERBOSE_FORMATTING = (
     "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d "
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
+SIMPLE_FORMATTING = (
+    "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
+)
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
@@ -410,7 +461,6 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"()": "koku.log.TaskFormatter", "format": VERBOSE_FORMATTING},
         "simple": {"()": "koku.log.TaskFormatter", "format": SIMPLE_FORMATTING},
     },
     "handlers": {
@@ -434,7 +484,11 @@ LOGGING = {
         },
         "django": {"handlers": LOGGING_HANDLERS, "level": DJANGO_LOGGING_LEVEL},
         "api": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "celery": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
+        "celery": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+            "propagate": False,
+        },
         "cost_models": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "forecast": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "hcs": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
@@ -443,7 +497,11 @@ LOGGING = {
         "providers": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "reporting": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "reporting_common": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "masu": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
+        "masu": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+            "propagate": False,
+        },
         "sources": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "subs": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         # The following set the log level for the UnleashClient and Unleash cache refresh jobs.
@@ -458,9 +516,13 @@ if "watchtower" in LOGGING_HANDLERS:
     print("CloudWatch configured.")
 
 KOKU_DEFAULT_CURRENCY = ENVIRONMENT.get_value("KOKU_DEFAULT_CURRENCY", default="USD")
-KOKU_DEFAULT_COST_TYPE = ENVIRONMENT.get_value("KOKU_DEFAULT_COST_TYPE", default="unblended_cost")
+KOKU_DEFAULT_COST_TYPE = ENVIRONMENT.get_value(
+    "KOKU_DEFAULT_COST_TYPE", default="unblended_cost"
+)
 KOKU_DEFAULT_TIMEZONE = ENVIRONMENT.get_value("KOKU_DEFAULT_TIMEZONE", default="UTC")
-KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value("KOKU_DEFAULT_LOCALE", default="en_US.UTF-8")
+KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value(
+    "KOKU_DEFAULT_LOCALE", default="en_US.UTF-8"
+)
 
 
 # Cors Setup
@@ -476,8 +538,12 @@ if len(sys.argv) > 1 and sys.argv[1] == "test" and DISABLE_LOGGING:
 
 # AWS S3 Bucket Settings
 REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-report")
-REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value("REQUESTED_ROS_BUCKET", default="ros-report")
-REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value("REQUESTED_SUBS_BUCKET", default="subs-report")
+REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value(
+    "REQUESTED_ROS_BUCKET", default="ros-report"
+)
+REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value(
+    "REQUESTED_SUBS_BUCKET", default="subs-report"
+)
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
 S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
@@ -496,13 +562,17 @@ S3_SUBS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_SUBS_BUCKET)
 SKIP_MINIO_DATA_DELETION = ENVIRONMENT.bool("SKIP_MINIO_DATA_DELETION", default=False)
 
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
-PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
+PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int(
+    "PARQUET_PROCESSING_BATCH_SIZE", default=200000
+)
 PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
 OCI_CONFIG = {
     "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
     "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="None"),
-    "fingerprint": ENVIRONMENT.get_value("OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"),
+    "fingerprint": ENVIRONMENT.get_value(
+        "OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"
+    ),
     "tenancy": ENVIRONMENT.get_value("OCI_CLI_TENANCY", default="OCI_TENANT"),
 }
 
@@ -512,18 +582,30 @@ TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
 
 # IBM Settings
-IBM_SERVICE_URL = ENVIRONMENT.get_value("IBM_SERVICE_URL", default="https://enterprise.cloud.ibm.com")
+IBM_SERVICE_URL = ENVIRONMENT.get_value(
+    "IBM_SERVICE_URL", default="https://enterprise.cloud.ibm.com"
+)
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
-COLD_STORAGE_RETRIVAL_WAIT_TIME = ENVIRONMENT.int("COLD_STORAGE_RETRIVAL_WAIT_TIME", default=10800)
+COLD_STORAGE_RETRIVAL_WAIT_TIME = ENVIRONMENT.int(
+    "COLD_STORAGE_RETRIVAL_WAIT_TIME", default=10800
+)
 
 # Sources Client API Endpoints
-KOKU_SOURCES_CLIENT_HOST = CONFIGURATOR.get_endpoint_host("koku", "sources-client", "localhost")
-KOKU_SOURCES_CLIENT_PORT = CONFIGURATOR.get_endpoint_port("koku", "sources-client", "4000")
-SOURCES_CLIENT_BASE_URL = f"http://{KOKU_SOURCES_CLIENT_HOST}:{KOKU_SOURCES_CLIENT_PORT}/"
+KOKU_SOURCES_CLIENT_HOST = CONFIGURATOR.get_endpoint_host(
+    "koku", "sources-client", "localhost"
+)
+KOKU_SOURCES_CLIENT_PORT = CONFIGURATOR.get_endpoint_port(
+    "koku", "sources-client", "4000"
+)
+SOURCES_CLIENT_BASE_URL = (
+    f"http://{KOKU_SOURCES_CLIENT_HOST}:{KOKU_SOURCES_CLIENT_PORT}/"
+)
 
 # Prometheus pushgateway hostname:port
-PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default="localhost:9091")
+PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value(
+    "PROMETHEUS_PUSHGATEWAY", default="localhost:9091"
+)
 
 # Flag for automatic data ingest on Provider create
 AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
@@ -544,7 +626,9 @@ except JSONDecodeError:
 
 # Aids the UI in showing pre-release features in allowed environments.
 # see: koku.api.user_access.view
-ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool("ENABLE_PRERELEASE_FEATURES", default=False)
+ENABLE_PRERELEASE_FEATURES = ENVIRONMENT.bool(
+    "ENABLE_PRERELEASE_FEATURES", default=False
+)
 
 # Celery configuration
 

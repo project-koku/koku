@@ -4,7 +4,7 @@ OC_DATA_DIR	= ${HOME}/.oc/openshift.local.data
 OC_SOURCE	= registry.access.redhat.com/openshift3/ose
 
 # PostgreSQL settings
-PGSQL_VERSION   = 9.6
+PGSQL_VERSION   = 14
 
 # Basic environment settings
 PYTHON	= $(shell which python)
@@ -261,7 +261,7 @@ unleash-export:
 	-s | python -m json.tool > .unleash/flags.json
 
 unleash-import:
-	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
+	curl -X POST -H "Content-Type: application/json" -H "Authorization: user:7533bf0a6cc47c433d239db66c2833389c95a4d1bb52bc23849277a4" \
 	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import
 
 unleash-import-drop:
@@ -429,6 +429,8 @@ docker-up-min-trino: docker-up-min docker-trino-up
 
 docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
 
+sources:
+	./run_sources.sh
 
 ### Source targets ###
 ocp-source-from-yaml:

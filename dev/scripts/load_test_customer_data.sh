@@ -415,10 +415,10 @@ build_oci_data() {
 
 build_all(){
   build_aws_data
-  build_azure_data
-  build_gcp_data
-  build_oci_data
-  build_onprem_data
+  # build_azure_data
+  # build_gcp_data
+  # build_oci_data
+  # build_onprem_data
 }
 
 # ---execute---

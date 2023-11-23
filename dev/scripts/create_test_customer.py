@@ -46,8 +46,16 @@ from yaml import safe_load
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + "/test_customer.yaml"
-SUPPORTED_SOURCES_REAL = ["AWS", "Azure", "OCP", "GCP", "IBM", "OCI"]
-SUPPORTED_SOURCES = SUPPORTED_SOURCES_REAL + ["AWS-local", "Azure-local", "GCP-local", "IBM-local", "OCI-local"]
+SUPPORTED_SOURCES_REAL = ["AWS"]
+SUPPORTED_SOURCES = SUPPORTED_SOURCES_REAL
+
+# SUPPORTED_SOURCES = SUPPORTED_SOURCES_REAL + [
+#     "AWS-local",
+#     "Azure-local",
+#     "GCP-local",
+#     "IBM-local",
+#     "OCI-local",
+# ]
 
 SLEEP = 60
 
@@ -101,7 +109,9 @@ class KokuCustomerOnboarder:
         # on any API request
         print("\nAdding customer...")
         response = wallclock(
-            requests.get, self.endpoint_base + "reports/azure/costs/", headers=get_headers(self.auth_token)
+            requests.get,
+            self.endpoint_base + "reports/azure/costs/",
+            headers=get_headers(self.auth_token),
         )
         print(f"Response: [{response.status_code}] {response.text}")
         if response.status_code not in [200, 201]:
@@ -122,9 +132,13 @@ class KokuCustomerOnboarder:
                 "authentication": source.get("authentication", {}),
                 "billing_source": source.get("billing_source", {}),
             }
-
+            print('self.endpoint_base + "sources/",', self.endpoint_base + "sources/")
+            print("token", self.auth_token)
             response = wallclock(
-                requests.post, self.endpoint_base + "sources/", headers=get_headers(self.auth_token), json=data
+                requests.post,
+                self.endpoint_base + "sources/",
+                headers=get_headers(self.auth_token),
+                json=data,
             )
             print(f"Response: [{response.status_code}] {response.reason}")
             if response.status_code not in [200, 201]:
@@ -186,8 +200,8 @@ RETURNING id
 
             provider_sql = """
 INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id,
-                    created_by_id, customer_id, setup_complete, active)
-VALUES(%s, %s, %s, %s, %s, 1, 1, False, True)
+                    created_by_id, customer_id, setup_complete, active, paused)
+VALUES(%s, %s, %s, %s, %s, 1, 1, True, True, False)
 /* RETURNING uuid */
 ;
 """
@@ -229,7 +243,10 @@ def get_token(account_id, org_id, username, email):
         "type": "User",
         "user": {"username": username, "email": email, "is_org_admin": True},
     }
-    header = {"identity": identity, "entitlements": {"cost_management": {"is_entitled": "True"}}}
+    header = {
+        "identity": identity,
+        "entitlements": {"cost_management": {"is_entitled": "True"}},
+    }
     json_identity = json_dumps(header)
     return b64encode(json_identity.encode("utf-8"))
 
@@ -248,14 +265,29 @@ def load_yaml(filename):
 if __name__ == "__main__":
     PARSER = argparse.ArgumentParser()
     PARSER.add_argument(
-        "-f", "--file", dest="config_file", help="YAML-formatted configuration file name", default=DEFAULT_CONFIG
+        "-f",
+        "--file",
+        dest="config_file",
+        help="YAML-formatted configuration file name",
+        default=DEFAULT_CONFIG,
     )
     PARSER.add_argument(
-        "--bypass-api", dest="bypass_api", action="store_true", help="Create Sources in DB, bypassing Koku API"
+        "--bypass-api",
+        dest="bypass_api",
+        action="store_true",
+        help="Create Sources in DB, bypassing Koku API",
     )
-    PARSER.add_argument("--no-sources", dest="no_sources", action="store_true", help="Don't create sources at all")
     PARSER.add_argument(
-        "--api-prefix", dest="api_prefix", help="API path prefix", default=os.getenv("API_PATH_PREFIX")
+        "--no-sources",
+        dest="no_sources",
+        action="store_true",
+        help="Don't create sources at all",
+    )
+    PARSER.add_argument(
+        "--api-prefix",
+        dest="api_prefix",
+        help="API path prefix",
+        default=os.getenv("API_PATH_PREFIX"),
     )
     ARGS = vars(PARSER.parse_args())
 

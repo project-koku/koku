@@ -40,12 +40,35 @@ class SameLengthDict(UserDict):
         assert len(value) == self.length
 
 
-AWS_REGIONS = ("us-east-1", "us-west-2", "eu-west-1", "ap-southeast-2", "af-south-1")
-AWS_AVAILABILITY_ZONES = ("us-east-1a", "us-west-2a", "eu-west-1c", "ap-southeast-2b", "af-south-1a")
-AWS_GEOG = SameLengthDict({"regions": AWS_REGIONS, "availability_zones": AWS_AVAILABILITY_ZONES})
+AWS_REGIONS = (
+    "us-east-1",
+    "us-east-2",
+    "us-west-2",
+    "eu-west-1",
+    "ap-southeast-2",
+    "af-south-1",
+)
+AWS_AVAILABILITY_ZONES = (
+    "us-east-1a",
+    "us-west-2a",
+    "eu-west-1c",
+    "ap-southeast-2b",
+    "af-south-1a",
+)
+AWS_GEOG = SameLengthDict(
+    {"regions": AWS_REGIONS, "availability_zones": AWS_AVAILABILITY_ZONES}
+)
 
 # Product Code, Product Family, Instances, Units
-AWS_PRODUCT_CODES = ("AmazonRDS", "AmazonRDS", "AmazonS3", "AmazonVPC", "AmazonEC2", "AmazonEC2", "AmazonEC2")
+AWS_PRODUCT_CODES = (
+    "AmazonRDS",
+    "AmazonRDS",
+    "AmazonS3",
+    "AmazonVPC",
+    "AmazonEC2",
+    "AmazonEC2",
+    "AmazonEC2",
+)
 AWS_PRODUCT_FAMILIES = (
     "Database Instance",
     "Database Instance",
@@ -55,9 +78,25 @@ AWS_PRODUCT_FAMILIES = (
     "Compute Instance",
     "Compute Instance",
 )
-AWS_INSTANCE_TYPES = ("db.t3.medium", "db.r5.2xlarge", None, None, "m5.large", "r4.large", "t2.micro")
+AWS_INSTANCE_TYPES = (
+    "db.t3.medium",
+    "db.r5.2xlarge",
+    None,
+    None,
+    "m5.large",
+    "r4.large",
+    "t2.micro",
+)
 AWS_RESOURCE_COUNTS = (1, 1, 0, 0, 1, 1, 1)
-AWS_RESOURCE_IDS = (["i-11111111"], ["i-22222222"], [None], [None], ["i-33333333"], ["i-44444444"], ["i-55555555"])
+AWS_RESOURCE_IDS = (
+    ["i-11111111"],
+    ["i-22222222"],
+    [None],
+    [None],
+    ["i-33333333"],
+    ["i-44444444"],
+    ["i-55555555"],
+)
 AWS_UNITS = ("Hrs", "Hrs", "GB-Mo", "Hrs", "Hrs", "Hrs", "Hrs")
 AWS_COST_CATEGORIES = (
     {"ninja": "turtle"},
@@ -107,8 +146,20 @@ AZURE_CONSTANTS = SameLengthDict(
 )
 
 
-GCP_SERVICE_IDS = ("6F81-5844-456A", "1111-581D-38E5", "95FF-2EF5-5EA1", "12B3-1234-JK3C", "23C3-JS3K-SDL3")
-GCP_SERVICE_ALIASES = ("Compute Engine", "SQL Database", "Cloud Storage", "Network", "VPC")
+GCP_SERVICE_IDS = (
+    "6F81-5844-456A",
+    "1111-581D-38E5",
+    "95FF-2EF5-5EA1",
+    "12B3-1234-JK3C",
+    "23C3-JS3K-SDL3",
+)
+GCP_SERVICE_ALIASES = (
+    "Compute Engine",
+    "SQL Database",
+    "Cloud Storage",
+    "Network",
+    "VPC",
+)
 GCP_SKU_ALIASES = (
     "Instance Core running",
     "Storage PD Snapshot",
@@ -127,8 +178,22 @@ GCP_CONSTANTS = SameLengthDict(
 )
 
 OCP_PLATFORM_NAMESPACE = "openshift-default"
-OCP_NAMESPACES = (OCP_PLATFORM_NAMESPACE, "koku", "koku-dev", "koku-stage", "koku-perf", "koku-prod")
-OCP_STORAGE_CLASSES = ("bronze", "silver", "gold", "platinum", "adamantium", "vibranium")
+OCP_NAMESPACES = (
+    OCP_PLATFORM_NAMESPACE,
+    "koku",
+    "koku-dev",
+    "koku-stage",
+    "koku-perf",
+    "koku-prod",
+)
+OCP_STORAGE_CLASSES = (
+    "bronze",
+    "silver",
+    "gold",
+    "platinum",
+    "adamantium",
+    "vibranium",
+)
 OCP_POD_LABELS = (
     {"app": "mobile", "disabled": "Danilov"},
     {"app": "banking", "disabled": "Villabate"},
@@ -163,112 +228,221 @@ OCP_ON_PREM_COST_MODEL = {
     "rates": [
         {
             "metric": {"name": "cpu_core_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.0070000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.0070000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "cpu_core_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.0140000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.0140000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "cpu_core_request_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.2000000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.2000000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "cpu_core_request_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.4000000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.4000000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "cpu_core_effective_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.7000000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.7000000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "cpu_core_effective_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 1.4000000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 1.4000000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "memory_gb_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.0090000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.0090000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "memory_gb_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.0180000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.0180000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "memory_gb_request_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.0500000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.0500000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "memory_gb_request_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.1000000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.1000000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "memory_gb_effective_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 0.500000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.500000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "memory_gb_effective_usage_per_hour"},
-            "tiered_rates": [{"unit": "USD", "value": 1.0000000000, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 1.0000000000,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "storage_gb_usage_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 0.01, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "storage_gb_usage_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 0.02, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 0.02, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "storage_gb_request_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 0.01, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 0.01, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "storage_gb_request_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 0.02, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 0.02, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "node_cost_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 1000.0, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 1000.0, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "node_cost_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 100.0, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 100.0, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "cluster_cost_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 10000.0, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 10000.0,
+                    "usage_start": None,
+                    "usage_end": None,
+                }
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "cluster_cost_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 1000.0, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 1000.0, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Supplementary",
         },
         {
             "metric": {"name": "pvc_cost_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 10.0, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 10.0, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Infrastructure",
         },
         {
             "metric": {"name": "pvc_cost_per_month"},
-            "tiered_rates": [{"unit": "USD", "value": 20.0, "usage_start": None, "usage_end": None}],
+            "tiered_rates": [
+                {"unit": "USD", "value": 20.0, "usage_start": None, "usage_end": None}
+            ],
             "cost_type": "Supplementary",
         },
     ],
@@ -289,7 +463,9 @@ OCI_INSTANCE_TYPES = (
 ) + (None,) * 5
 OCI_INSTANCE_IDS = (
     [None],
-    ["ocid1.instance.oc1.uk-london-1.anwgiljtcf22xzacqqiueuntvcjnqkbep26cg24lpnu5tpekmi2sdif2vpma"],
+    [
+        "ocid1.instance.oc1.uk-london-1.anwgiljtcf22xzacqqiueuntvcjnqkbep26cg24lpnu5tpekmi2sdif2vpma"
+    ],
 ) + ([None],) * 5
 OCI_INSTANCE_COUNTS = (1, 1) + (0,) * 5
 OCI_UNITS_OF_MEASURE = ("BYTES",) + (None,) * 3 + ("BYTE_MS",) + (None,) * 2
