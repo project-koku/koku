@@ -12,7 +12,7 @@ from django_tenants.utils import tenant_context
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
-from reporting.provider.ocp.models import OpenshiftCostCategory
+from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
 LOG = logging.getLogger(__name__)
 
@@ -158,17 +158,21 @@ class TagQueryHandler(QueryHandler):
         Create a mapping of category to namespaces.
         """
         category_filters = QueryFilterCollection()
-        namespace_query = OpenshiftCostCategory.objects.filter(name__in=category_list).values("namespace")
-        if not namespace_query and "*" not in category_list:
+        namespaces = list(
+            OpenshiftCostCategoryNamespace.objects.filter(cost_category__name__in=category_list).values_list(
+                "namespace", flat=True
+            )
+        )
+
+        if not namespaces and "*" not in category_list:
             raise NoNamespacesForCategory(f"No namespaces for category: {category_list}")
-        for row in namespace_query:
-            namespaces = row.get("namespace")
-            for namespace in namespaces:
-                namespace_formated = namespace.replace("%", "")  # django is doing `kube-\%%`
-                namespace_filter = QueryFilter(
-                    parameter=namespace_formated, **{"field": "namespace", "operation": "startswith"}
-                )
-                category_filters.add(namespace_filter)
+
+        for namespace in namespaces:
+            namespace_formated = namespace.replace("%", "")  # django is doing `kube-\%%`
+            namespace_filter = QueryFilter(
+                parameter=namespace_formated, **{"field": "namespace", "operation": "startswith"}
+            )
+            category_filters.add(namespace_filter)
         return category_filters.compose(logical_operator="or")
 
     def _get_filter(self, delta=False):  # noqa: C901
