@@ -113,11 +113,19 @@ def create_daily_archives(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
     LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
+
+    dtype_mapping = {
+        "bill/PayerAccountId": "str",
+        "bill/InvoiceId": "str",
+        "lineItem/ResourceId": "str",
+        "lineItem/UsageAccountId": "str",
+    }
+
     with pd.read_csv(
         local_file,
         chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
         usecols=lambda x: x in use_cols,
-        dtype="str",
+        dtype=dtype_mapping,
     ) as reader:
         for i, data_frame in enumerate(reader):
             if data_frame.empty:
