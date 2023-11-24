@@ -17,17 +17,20 @@ from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 
 
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
+    NUMERIC_COLUMNS = [
+        "cost",
+        "currency_conversion_rate",
+        "usage_amount",
+        "usage_amount_in_pricing_units",
+        "credit_amount",
+        "daily_credits",
+    ]
+    DATE_COLUMNS = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
+    BOOLEAN_COLUMNS = ["ocp_matched"]
+    JSON_COLUMNS = ["project.labels", "labels", "system_labels"]
+    CREDITS = ["credits"]
+
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        numeric_columns = [
-            "cost",
-            "currency_conversion_rate",
-            "usage_amount",
-            "usage_amount_in_pricing_units",
-            "credit_amount",
-            "daily_credits",
-        ]
-        date_columns = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
-        boolean_columns = ["ocp_matched"]
         if "openshift" in s3_path:
             table_name = TRINO_OCP_ON_GCP_DAILY_TABLE
         elif "daily" in s3_path:
@@ -35,9 +38,9 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
         else:
             table_name = TRINO_LINE_ITEM_TABLE
         column_types = {
-            "numeric_columns": numeric_columns,
-            "date_columns": date_columns,
-            "boolean_columns": boolean_columns,
+            "numeric_columns": self.NUMERIC_COLUMNS,
+            "date_columns": self.DATE_COLUMNS,
+            "boolean_columns": self.BOOLEAN_COLUMNS,
         }
         super().__init__(
             manifest_id=manifest_id,

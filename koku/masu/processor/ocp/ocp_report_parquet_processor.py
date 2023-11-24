@@ -23,31 +23,46 @@ LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
+    BOOLEAN_COLUMNS = []
+    NUMERIC_COLUMNS = [
+        "pod_usage_cpu_core_seconds",
+        "pod_request_cpu_core_seconds",
+        "pod_effective_usage_cpu_core_seconds",
+        "pod_limit_cpu_core_seconds",
+        "pod_usage_memory_byte_seconds",
+        "pod_request_memory_byte_seconds",
+        "pod_effective_usage_memory_byte_seconds",
+        "pod_limit_memory_byte_seconds",
+        "node_capacity_cpu_cores",
+        "node_capacity_cpu_core_seconds",
+        "node_capacity_memory_bytes",
+        "node_capacity_memory_byte_seconds",
+        "persistentvolumeclaim_usage_byte_seconds",
+        "volume_request_storage_byte_seconds",
+        "persistentvolumeclaim_capacity_byte_seconds",
+        "persistentvolumeclaim_capacity_bytes",
+    ]
+    DATE_COLUMNS = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
+    JSON_COLUMNS = [
+        "pod_labels",
+        "persistentvolume_labels",
+        "persistentvolumeclaim_labels",
+        "node_labels",
+        "namespace_labels",
+    ]
+    CREDITS = []
+
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
         if "daily" in s3_path:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_DAILY_MAP[report_type]
         else:
             ocp_table_name = TRINO_LINE_ITEM_TABLE_MAP[report_type]
-        numeric_columns = [
-            "pod_usage_cpu_core_seconds",
-            "pod_request_cpu_core_seconds",
-            "pod_effective_usage_cpu_core_seconds",
-            "pod_limit_cpu_core_seconds",
-            "pod_usage_memory_byte_seconds",
-            "pod_request_memory_byte_seconds",
-            "pod_effective_usage_memory_byte_seconds",
-            "pod_limit_memory_byte_seconds",
-            "node_capacity_cpu_cores",
-            "node_capacity_cpu_core_seconds",
-            "node_capacity_memory_bytes",
-            "node_capacity_memory_byte_seconds",
-            "persistentvolumeclaim_usage_byte_seconds",
-            "volume_request_storage_byte_seconds",
-            "persistentvolumeclaim_capacity_byte_seconds",
-            "persistentvolumeclaim_capacity_bytes",
-        ]
-        date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
-        column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
+        LOG.info(f"ocp table name: {ocp_table_name}")
+        column_types = {
+            "numeric_columns": self.NUMERIC_COLUMNS,
+            "date_columns": self.DATE_COLUMNS,
+            "boolean_columns": self.BOOLEAN_COLUMNS,
+        }
         super().__init__(
             manifest_id=manifest_id,
             account=account,

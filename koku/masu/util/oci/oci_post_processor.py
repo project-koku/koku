@@ -1,13 +1,17 @@
 import json
+import logging
 
-import ciso8601
 import pandas as pd
 
 from api.models import Provider
+from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor as trino_schema
+from masu.util.common import add_missing_columns_with_dtypes
+from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_limit
-from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
+
+LOG = logging.getLogger(__name__)
 
 
 def scrub_resource_col_name(res_col_name):
@@ -23,19 +27,7 @@ class OCIPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        converters = {
-            "bill/billingperiodstartdate": ciso8601.parse_datetime,
-            "bill/billingperiodenddate": ciso8601.parse_datetime,
-            "lineitem/intervalusagestart": ciso8601.parse_datetime,
-            "lineitem/intervalusageend": ciso8601.parse_datetime,
-            "usage/consumedquantity": safe_float,
-            "cost/mycost": safe_float,
-        }
-        csv_converters = {
-            col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-        }
-        csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        return csv_converters, panda_kwargs
+        return get_column_converters_common(col_names, panda_kwargs, trino_schema)
 
     def check_ingress_required_columns(self, _):
         """
@@ -80,7 +72,7 @@ class OCIPostProcessor:
         """
         Consume the OCI data and add a column creating a dictionary for the oci tags
         """
-
+        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS)
         columns = set(list(data_frame))
         columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
         columns = sorted(list(columns))

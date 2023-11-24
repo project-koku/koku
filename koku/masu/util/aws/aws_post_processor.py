@@ -1,19 +1,21 @@
 import json
 import logging
 
-import ciso8601
 import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.models import Provider
+from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor as trino_schema
+from masu.util.aws.common import get_columns
 from masu.util.aws.common import OPTIONAL_ALT_COLS
 from masu.util.aws.common import OPTIONAL_COLS
 from masu.util.aws.common import RECOMMENDED_ALT_COLUMNS
 from masu.util.aws.common import RECOMMENDED_COLUMNS
+from masu.util.common import add_missing_columns_with_dtypes
 from masu.util.common import batch
+from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_limit
-from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS
@@ -149,43 +151,13 @@ class AWSPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        converters = {
-            "bill/billingperiodstartdate": ciso8601.parse_datetime,
-            "bill/billingperiodenddate": ciso8601.parse_datetime,
-            "lineitem/usagestartdate": ciso8601.parse_datetime,
-            "lineitem/usageenddate": ciso8601.parse_datetime,
-            "lineitem/usageamount": safe_float,
-            "lineitem/normalizationfactor": safe_float,
-            "lineitem/normalizedusageamount": safe_float,
-            "lineitem/unblendedrate": safe_float,
-            "lineitem/unblendedcost": safe_float,
-            "lineitem/blendedrate": safe_float,
-            "lineitem/blendedcost": safe_float,
-            "pricing/publicondemandcost": safe_float,
-            "pricing/publicondemandrate": safe_float,
-            "savingsplan/savingsplaneffectivecost": safe_float,
-            "bill_billing_period_start_date": ciso8601.parse_datetime,
-            "bill_billing_period_end_date": ciso8601.parse_datetime,
-            "line_item_usage_start_date": ciso8601.parse_datetime,
-            "line_item_usage_end_date": ciso8601.parse_datetime,
-            "line_item_usage_amount": safe_float,
-            "line_item_normalization_factor": safe_float,
-            "line_item_normalized_usage_amount": safe_float,
-            "line_item_unblended_rate": safe_float,
-            "line_item_unblended_cost": safe_float,
-            "line_item_blended_rate": safe_float,
-            "line_item_blended_cost": safe_float,
-            "pricing_public_on_demand_cost": safe_float,
-            "pricing_public_on_demand_rate": safe_float,
-            "savings_plan_savings_plan_effective_cost": safe_float,
-        }
-        csv_converters = {
-            col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-        }
-        csv_converters.update({col: str for col in col_names if col not in csv_converters})
+        columns = get_columns(col_names, self.COL_TRANSLATION)
+        if columns == []:
+            columns = col_names
+        csv_converters, panda_kwargs = get_column_converters_common(columns, panda_kwargs, trino_schema)
         csv_columns = RECOMMENDED_COLUMNS.union(RECOMMENDED_ALT_COLUMNS).union(OPTIONAL_COLS).union(OPTIONAL_ALT_COLS)
         panda_kwargs["usecols"] = [
-            col for col in col_names if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
+            col for col in columns if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
         ]
         return csv_converters, panda_kwargs
 
@@ -237,12 +209,9 @@ class AWSPostProcessor:
 
     def process_dataframe(self, data_frame):
         """Process dataframe."""
+        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS)
         org_columns = data_frame.columns.unique()
-        columns = []
-        for col in org_columns:
-            if "/" not in col and self.COL_TRANSLATION.get(col):
-                data_frame = data_frame.rename(columns={col: self.COL_TRANSLATION[col]})
-                columns.append(self.COL_TRANSLATION[col])
+        columns = get_columns(org_columns, self.COL_TRANSLATION)
         columns = set(TRINO_REQUIRED_COLUMNS).union(data_frame)
         columns = sorted(list(columns))
 

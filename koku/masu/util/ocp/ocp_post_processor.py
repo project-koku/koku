@@ -2,64 +2,16 @@ import copy
 import json
 import logging
 
-import ciso8601
 import pandas as pd
-from dateutil.parser import ParserError
 
 from api.models import Provider
+from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor as trino_schema
+from masu.util.common import add_missing_columns_with_dtypes
+from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_false
-from masu.util.common import safe_float
 from masu.util.ocp.common import OCP_REPORT_TYPES
 
 LOG = logging.getLogger(__name__)
-
-
-def process_openshift_datetime(val):
-    """
-    Convert the date time from the Metering operator reports to a consumable datetime.
-    """
-    result = None
-    try:
-        datetime_str = str(val).replace(" +0000 UTC", "")
-        result = ciso8601.parse_datetime(datetime_str)
-    except ParserError:
-        pass
-    return result
-
-
-def process_openshift_labels(label_string):
-    """Convert the report string to a JSON dictionary.
-
-    Args:
-        label_string (str): The raw report string of pod labels
-
-    Returns:
-        (dict): The JSON dictionary made from the label string
-
-    Dev Note:
-        You can reference the operator here to see what queries to run
-        in prometheus to see the labels.
-
-    """
-    labels = label_string.split("|") if label_string else []
-    label_dict = {}
-
-    for label in labels:
-        if ":" not in label:
-            continue
-        try:
-            key, value = label.split(":")
-            key = key.replace("label_", "")
-            label_dict[key] = value
-        except ValueError as err:
-            LOG.warning(err)
-            LOG.warning("%s could not be properly split", label)
-            continue
-    return label_dict
-
-
-def process_openshift_labels_to_json(label_val):
-    return json.dumps(process_openshift_labels(label_val))
 
 
 class OCPPostProcessor:
@@ -91,36 +43,7 @@ class OCPPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        converters = {
-            "report_period_start": process_openshift_datetime,
-            "report_period_end": process_openshift_datetime,
-            "interval_start": process_openshift_datetime,
-            "interval_end": process_openshift_datetime,
-            "pod_usage_cpu_core_seconds": safe_float,
-            "pod_request_cpu_core_seconds": safe_float,
-            "pod_limit_cpu_core_seconds": safe_float,
-            "pod_usage_memory_byte_seconds": safe_float,
-            "pod_request_memory_byte_seconds": safe_float,
-            "pod_limit_memory_byte_seconds": safe_float,
-            "node_capacity_cpu_cores": safe_float,
-            "node_capacity_cpu_core_seconds": safe_float,
-            "node_capacity_memory_bytes": safe_float,
-            "node_capacity_memory_byte_seconds": safe_float,
-            "persistentvolumeclaim_capacity_bytes": safe_float,
-            "persistentvolumeclaim_capacity_byte_seconds": safe_float,
-            "volume_request_storage_byte_seconds": safe_float,
-            "persistentvolumeclaim_usage_byte_seconds": safe_float,
-            "pod_labels": process_openshift_labels_to_json,
-            "persistentvolume_labels": process_openshift_labels_to_json,
-            "persistentvolumeclaim_labels": process_openshift_labels_to_json,
-            "node_labels": process_openshift_labels_to_json,
-            "namespace_labels": process_openshift_labels_to_json,
-        }
-        csv_converters = {
-            col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-        }
-        csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        return csv_converters, panda_kwargs
+        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "OCP")
 
     def _generate_daily_data(self, data_frame):
         """Given a dataframe, group the data to create daily data."""
@@ -144,9 +67,7 @@ class OCPPostProcessor:
         daily_data_frame.reset_index(inplace=True)
 
         new_cols = report.get("new_required_columns")
-        for col in new_cols:
-            if col not in daily_data_frame:
-                daily_data_frame[col] = None
+        daily_data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, new_cols)
 
         return daily_data_frame
 

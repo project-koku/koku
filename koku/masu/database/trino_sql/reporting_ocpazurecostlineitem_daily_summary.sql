@@ -149,10 +149,10 @@ INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_tem
 )
 SELECT cast(uuid() as varchar) as uuid,
     coalesce(azure.date, azure.usagedatetime) as usage_start,
-    split_part(coalesce(resourceid, instanceid), '/', 9) as resource_id,
-    coalesce(servicename, metercategory) as service_name,
+    split_part(coalesce(NULLIF(resourceid, ''), instanceid), '/', 9) as resource_id,
+    coalesce(NULLIF(servicename, ''), metercategory) as service_name,
     max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
-    coalesce(azure.subscriptionid, azure.subscriptionguid) as subscription_guid,
+    coalesce(NULLIF(azure.subscriptionid, ''), azure.subscriptionguid) as subscription_guid,
     azure.resourcelocation as resource_location,
     max(CASE
         WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
@@ -164,7 +164,7 @@ SELECT cast(uuid() as varchar) as uuid,
         ELSE unitofmeasure
     END) as unit_of_measure,
     sum(coalesce(azure.quantity, azure.usagequantity)) as usage_quantity,
-    coalesce(azure.billingcurrencycode, azure.currency) as currency,
+    coalesce(NULLIF(azure.billingcurrencycode, ''), azure.currency) as currency,
     sum(coalesce(azure.costinbillingcurrency, azure.pretaxcost)) as pretax_cost,
     azure.tags,
     max(azure.resource_id_matched) as resource_id_matched,
@@ -179,11 +179,11 @@ WHERE azure.source = {{azure_source_uuid}}
     AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
     AND azure.resource_id_matched = TRUE
 GROUP BY coalesce(azure.date, azure.usagedatetime),
-    split_part(coalesce(resourceid, instanceid), '/', 9),
-    coalesce(servicename, metercategory),
-    coalesce(subscriptionid, subscriptionguid),
+    split_part(coalesce(NULLIF(resourceid, ''), instanceid), '/', 9),
+    coalesce(NULLIF(servicename, ''), metercategory),
+    coalesce(NULLIF(subscriptionid, ''), subscriptionguid),
     azure.resourcelocation,
-    coalesce(azure.billingcurrencycode, azure.currency),
+    coalesce(NULLIF(azure.billingcurrencycode, ''), azure.currency),
     azure.tags
 ;
 
@@ -219,9 +219,9 @@ WITH cte_enabled_tag_keys AS (
 SELECT cast(uuid() as varchar) as uuid,
     coalesce(azure.date, azure.usagedatetime) as usage_start,
     split_part(coalesce(resourceid, instanceid), '/', 9) as resource_id,
-    coalesce(servicename, metercategory) as service_name,
+    coalesce(NULLIF(servicename, ''), metercategory) as service_name,
     max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
-    coalesce(azure.subscriptionid, azure.subscriptionguid) as subscription_guid,
+    coalesce(NULLIF(azure.subscriptionid, ''), azure.subscriptionguid) as subscription_guid,
     azure.resourcelocation as resource_location,
     max(CASE
         WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
@@ -233,7 +233,7 @@ SELECT cast(uuid() as varchar) as uuid,
         ELSE unitofmeasure
     END) as unit_of_measure,
     sum(coalesce(azure.quantity, azure.usagequantity)) as usage_quantity,
-    coalesce(azure.billingcurrencycode, azure.currency) as currency,
+    coalesce(NULLIF(azure.billingcurrencycode, ''), azure.currency) as currency,
     sum(coalesce(azure.costinbillingcurrency, azure.pretaxcost)) as pretax_cost,
     json_format(
         cast(
@@ -256,11 +256,11 @@ WHERE azure.source = {{azure_source_uuid}}
     AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
     AND (azure.resource_id_matched = FALSE OR azure.resource_id_matched IS NULL)
 GROUP BY coalesce(azure.date, azure.usagedatetime),
-    split_part(coalesce(resourceid, instanceid), '/', 9),
-    coalesce(servicename, metercategory),
-    coalesce(subscriptionid, subscriptionguid),
+    split_part(coalesce(NULLIF(resourceid, ''), instanceid), '/', 9),
+    coalesce(NULLIF(servicename, ''), metercategory),
+    coalesce(NULLIF(subscriptionid, ''), subscriptionguid),
     azure.resourcelocation,
-    coalesce(azure.billingcurrencycode, azure.currency),
+    coalesce(NULLIF(azure.billingcurrencycode, ''), azure.currency),
     12, -- tags
     azure.matched_tag
 ;

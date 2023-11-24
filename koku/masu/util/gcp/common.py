@@ -4,14 +4,15 @@
 #
 """GCP utility functions and vars."""
 import datetime
+import json
 import logging
 import uuid
+from json.decoder import JSONDecodeError
 
 import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
-from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
 
@@ -200,6 +201,9 @@ def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
     if provider := Provider.objects.filter(uuid=gcp_provider_uuid).first():
         account = provider.account
+        # Prevent circular import
+        from masu.processor import is_gcp_resource_matching_disabled
+
         if is_gcp_resource_matching_disabled(account.get("schema_name")):
             LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
             return False
@@ -232,3 +236,24 @@ def add_label_columns(data_frame):
     if not system_label_data:
         data_frame["system_labels"] = ""
     return data_frame
+
+
+def gcp_json_converter(label_string):
+    """Convert the report string to a JSON dictionary.
+
+    Args:
+        label_string (str): The raw report string of pod labels
+
+    Returns:
+        (dict): The JSON dictionary made from the label string
+
+    """
+    label_dict = {}
+    try:
+        if label_string:
+            labels = json.loads(label_string)
+            label_dict = {entry.get("key"): entry.get("value") for entry in labels}
+    except JSONDecodeError:
+        LOG.warning("Unable to process GCP labels.")
+
+    return json.dumps(label_dict)

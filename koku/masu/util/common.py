@@ -11,11 +11,13 @@ import logging
 import re
 from datetime import timedelta
 from itertools import groupby
+from json.decoder import JSONDecodeError
 from os import remove
 from tempfile import gettempdir
 from threading import RLock
 from uuid import uuid4
 
+import ciso8601
 import pandas as pd
 from dateutil import parser
 from dateutil.rrule import DAILY
@@ -27,6 +29,10 @@ import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
+from masu.util.azure.common import azure_json_converter
+from masu.util.gcp.common import gcp_json_converter
+from masu.util.ocp.common import ocp_json_converter
+from masu.util.ocp.common import ocp_parse_datetime
 from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
@@ -468,3 +474,63 @@ def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_i
 def chunk_columns(col_list, chunk_count):
     for i in range(0, len(col_list), chunk_count):
         yield list(col_list[i : i + chunk_count])
+
+
+def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_columns, clean=False):
+    """Adds the missing columns with the correct dtypes."""
+    raw_columns = data_frame.columns.tolist()
+    if clean:
+        # For Azure the Trino Columns are the cleaned column names
+        raw_columns = [strip_characters_from_column_name(raw_column) for raw_column in raw_columns]
+    missing_columns = [col for col in trino_required_columns if col not in raw_columns]
+    for column in missing_columns:
+        cleaned_column = strip_characters_from_column_name(column)
+        if cleaned_column in trino_schema.NUMERIC_COLUMNS:
+            data_frame[column] = pd.Series(dtype="float64")
+        elif cleaned_column in trino_schema.BOOLEAN_COLUMNS:
+            data_frame[column] = pd.Series(dtype="bool")
+        elif cleaned_column in trino_schema.DATE_COLUMNS:
+            data_frame[column] = pd.Series(dtype="datetime64[ms]")
+        else:
+            data_frame[column] = ""
+    return data_frame
+
+
+def get_column_converters_common(col_names, panda_kwargs, trino_schema, prov_type=None):
+    """
+    Return source specific parquet column converters.
+    """
+    json_converter = {
+        "OCP": ocp_json_converter,
+        "AZURE": azure_json_converter,
+        "GCP": gcp_json_converter,
+    }
+    converters = {}
+    for col in col_names:
+        cleaned_column = strip_characters_from_column_name(col)
+        if cleaned_column in trino_schema.NUMERIC_COLUMNS:
+            converters[col] = safe_float
+        elif cleaned_column in trino_schema.DATE_COLUMNS:
+            converters[col] = ocp_parse_datetime if prov_type == "OCP" else ciso8601.parse_datetime
+        elif cleaned_column in trino_schema.BOOLEAN_COLUMNS:
+            converters[col] = bool
+        elif cleaned_column in trino_schema.JSON_COLUMNS:
+            converters[col] = json_converter[prov_type]
+        elif cleaned_column in trino_schema.CREDITS:
+            converters[col] = process_credits
+        else:
+            converters[col] = str
+    return converters, panda_kwargs
+
+
+def process_credits(credit_string):
+    """Process the credits column, which is non-standard JSON."""
+    credit_dict = {}
+    try:
+        credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
+        if credits:
+            credit_dict = credits[0]
+    except JSONDecodeError:
+        LOG.warning("Unable to process GCP credits.")
+
+    return json.dumps(credit_dict)

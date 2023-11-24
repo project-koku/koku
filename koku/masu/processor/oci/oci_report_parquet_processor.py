@@ -16,20 +16,23 @@ from reporting.provider.oci.models import TRINO_LINE_ITEM_TABLE_MAP
 
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
-        numeric_columns = ["usage_consumedquantity", "cost_mycost"]
-        date_columns = [
-            "lineitem_intervalusagestart",
-            "lineitem_intervalusageend",
-            "bill_billingperiodstartdate",
-            "bill_billingperiodenddate",
-        ]
-        boolean_columns = ["resource_id_matched"]
 
+    NUMERIC_COLUMNS = ["usage_consumedquantity", "cost_mycost"]
+    DATE_COLUMNS = [
+        "lineitem_intervalusagestart",
+        "lineitem_intervalusageend",
+        "bill_billingperiodstartdate",
+        "bill_billingperiodenddate",
+    ]
+    BOOLEAN_COLUMNS = ["resource_id_matched"]
+    JSON_COLUMS = []
+    CREDITS = []
+
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
         column_types = {
-            "numeric_columns": numeric_columns,
-            "date_columns": date_columns,
-            "boolean_columns": boolean_columns,
+            "numeric_columns": self.NUMERIC_COLUMNS,
+            "date_columns": self.DATE_COLUMNS,
+            "boolean_columns": self.BOOLEAN_COLUMNS,
         }
         if "daily" in s3_path:
             table_name = TRINO_LINE_ITEM_DAILY_TABLE_MAP[report_type]

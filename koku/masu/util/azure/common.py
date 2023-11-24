@@ -4,6 +4,7 @@
 #
 """Common util functions."""
 import datetime
+import json
 import logging
 import re
 import uuid
@@ -241,3 +242,20 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     )
 
     return openshift_matched_data_frame
+
+
+def azure_json_converter(tag_str):
+    """Convert either Azure JSON field format to proper JSON."""
+    tag_dict = {}
+    try:
+        if "{" in tag_str:
+            tag_dict = json.loads(tag_str)
+        else:
+            tags = tag_str.split('","')
+            for tag in tags:
+                key, value = tag.split(": ")
+                tag_dict[key.strip('"')] = value.strip('"')
+    except (ValueError, TypeError):
+        pass
+
+    return json.dumps(tag_dict)

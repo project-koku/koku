@@ -11,8 +11,10 @@ from decimal import Decimal
 from enum import Enum
 from pathlib import Path
 
+import ciso8601
 import pandas as pd
 from dateutil import parser
+from dateutil.parser import ParserError
 from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
@@ -400,3 +402,47 @@ def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
 
     days_in_month = dh().days_in_month(start_date)
     return Decimal(monthly_rate) / days_in_month
+
+
+def ocp_parse_datetime(val):
+    """
+    Convert the date time from the Metering operator reports to a consumable datetime.
+    """
+    result = None
+    try:
+        datetime_str = str(val).replace(" +0000 UTC", "")
+        result = ciso8601.parse_datetime(datetime_str)
+    except ParserError:
+        pass
+    return result
+
+
+def ocp_json_converter(label_string):
+    """Convert the report string to a JSON dictionary.
+
+    Args:
+        label_string (str): The raw report string of pod labels
+
+    Returns:
+        (dict): The JSON dictionary made from the label string
+
+    Dev Note:
+        You can reference the operator here to see what queries to run
+        in prometheus to see the labels.
+
+    """
+    labels = label_string.split("|") if label_string else []
+    label_dict = {}
+
+    for label in labels:
+        if ":" not in label:
+            continue
+        try:
+            key, value = label.split(":")
+            key = key.replace("label_", "")
+            label_dict[key] = value
+        except ValueError as err:
+            LOG.warning(err)
+            LOG.warning("%s could not be properly split", label)
+            continue
+    return json.dumps(label_dict)

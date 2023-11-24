@@ -1,47 +1,19 @@
 import json
+import logging
 
-import ciso8601
 import pandas
-from numpy import nan
 
 from api.models import Provider
+from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor as trino_schema
 from masu.util.azure.common import INGRESS_ALT_COLUMNS
 from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
+from masu.util.common import add_missing_columns_with_dtypes
+from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_limit
-from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from reporting.provider.azure.models import TRINO_COLUMNS
+from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS
 
-
-def azure_json_converter(tag_str):
-    """Convert either Azure JSON field format to proper JSON."""
-    tag_dict = {}
-    try:
-        if "{" in tag_str:
-            tag_dict = json.loads(tag_str)
-        else:
-            tags = tag_str.split('","')
-            for tag in tags:
-                key, value = tag.split(": ")
-                tag_dict[key.strip('"')] = value.strip('"')
-    except (ValueError, TypeError):
-        pass
-
-    return json.dumps(tag_dict)
-
-
-def azure_date_converter(date):
-    """Convert Azure date fields properly."""
-    if date:
-        try:
-            new_date = ciso8601.parse_datetime(date)
-        except ValueError:
-            date_split = date.split("/")
-            new_date_str = date_split[2] + date_split[0] + date_split[1]
-            new_date = ciso8601.parse_datetime(new_date_str)
-        return new_date
-    else:
-        return nan
+LOG = logging.getLogger(__name__)
 
 
 class AzurePostProcessor:
@@ -63,27 +35,7 @@ class AzurePostProcessor:
         """
         Return source specific parquet column converters.
         """
-        converters = {
-            "usagedatetime": azure_date_converter,
-            "date": azure_date_converter,
-            "billingperiodstartdate": azure_date_converter,
-            "billingperiodenddate": azure_date_converter,
-            "usagequantity": safe_float,
-            "quantity": safe_float,
-            "resourcerate": safe_float,
-            "pretaxcost": safe_float,
-            "costinbillingcurrency": safe_float,
-            "effectiveprice": safe_float,
-            "unitprice": safe_float,
-            "paygprice": safe_float,
-            "tags": azure_json_converter,
-            "additionalinfo": azure_json_converter,
-        }
-        csv_converters = {
-            col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-        }
-        csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        return csv_converters, panda_kwargs
+        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "AZURE")
 
     def _generate_daily_data(self, data_frame):
         """
@@ -92,6 +44,7 @@ class AzurePostProcessor:
         return data_frame
 
     def process_dataframe(self, data_frame):
+        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS, True)
         columns = list(data_frame)
         column_name_map = {}
 
@@ -102,7 +55,7 @@ class AzurePostProcessor:
         data_frame = data_frame.rename(columns=column_name_map)
 
         columns = set(data_frame)
-        columns = set(TRINO_COLUMNS).union(columns)
+        columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
         columns = sorted(columns)
 
         data_frame = data_frame.reindex(columns=columns)

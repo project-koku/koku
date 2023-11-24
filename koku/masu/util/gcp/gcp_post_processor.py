@@ -1,50 +1,15 @@
 import json
 import logging
-from json.decoder import JSONDecodeError
 
-import ciso8601
 import pandas as pd
 
 from api.models import Provider
+from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor as trino_schema
+from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_false
-from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 
 LOG = logging.getLogger(__name__)
-
-
-def process_gcp_labels(label_string):
-    """Convert the report string to a JSON dictionary.
-
-    Args:
-        label_string (str): The raw report string of pod labels
-
-    Returns:
-        (dict): The JSON dictionary made from the label string
-
-    """
-    label_dict = {}
-    try:
-        if label_string:
-            labels = json.loads(label_string)
-            label_dict = {entry.get("key"): entry.get("value") for entry in labels}
-    except JSONDecodeError:
-        LOG.warning("Unable to process GCP labels.")
-
-    return json.dumps(label_dict)
-
-
-def process_gcp_credits(credit_string):
-    """Process the credits column, which is non-standard JSON."""
-    credit_dict = {}
-    try:
-        gcp_credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
-        if gcp_credits:
-            credit_dict = gcp_credits[0]
-    except JSONDecodeError:
-        LOG.warning("Unable to process GCP credits.")
-
-    return json.dumps(credit_dict)
 
 
 class GCPPostProcessor:
@@ -95,24 +60,7 @@ class GCPPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        converters = {
-            "usage_start_time": ciso8601.parse_datetime,
-            "usage_end_time": ciso8601.parse_datetime,
-            "project.labels": process_gcp_labels,
-            "labels": process_gcp_labels,
-            "system_labels": process_gcp_labels,
-            "export_time": ciso8601.parse_datetime,
-            "cost": safe_float,
-            "currency_conversion_rate": safe_float,
-            "usage.amount": safe_float,
-            "usage.amount_in_pricing_units": safe_float,
-            "credits": process_gcp_credits,
-        }
-        csv_converters = {
-            col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-        }
-        csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        return csv_converters, panda_kwargs
+        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "GCP")
 
     def _generate_daily_data(self, data_frame):
         """

@@ -16,7 +16,7 @@ from masu.test import MasuTestCase
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from reporting.provider.all.models import EnabledTagKeys
-from reporting.provider.azure.models import TRINO_COLUMNS
+from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS
 
 
 class TestAzurePostProcessor(MasuTestCase):
@@ -44,7 +44,7 @@ class TestAzurePostProcessor(MasuTestCase):
             result, _ = self.post_processor.process_dataframe(df)
             columns = list(result)
             expected_columns = sorted(
-                col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_COLUMNS
+                col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_REQUIRED_COLUMNS
             )
             self.assertEqual(columns, expected_columns)
 
