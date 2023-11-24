@@ -7,13 +7,13 @@ import logging
 
 import ciso8601
 from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
@@ -28,7 +28,6 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
-        self._date_accessor = DateAccessor()
         self._context = {
             "schema": self._schema,
             "provider_uuid": self._provider.uuid,
@@ -107,8 +106,8 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-                bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+                    bill.summary_data_creation_datetime = timezone.now()
+                bill.summary_data_updated_datetime = timezone.now()
                 bill.save()
 
         return start_date, end_date

@@ -11,25 +11,32 @@ import shutil
 import tempfile
 import uuid
 from datetime import datetime
-from unittest.mock import Mock
+from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
 import requests_mock
 from confluent_kafka import KafkaError
 from django.db import InterfaceError
 from django.db import OperationalError
+from model_bakery import baker
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
-from api.provider.models import Provider
+from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+from masu.util.ocp import common as utils
+from reporting_common.models import CostUsageReportManifest
+
+
+FILE_PATH_ONE = Path("path/to/file_one")
+FILE_PATH_TWO = Path("path/to/file_two")
 
 
 def raise_exception():
@@ -63,7 +70,7 @@ class MockMessage:
 
     def __init__(
         self,
-        topic=Config.UPLOAD_TOPIC,
+        topic=UPLOAD_TOPIC,
         url="http://unreal",
         value_dict={},
         offset=50,
@@ -134,30 +141,27 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Set up each test case."""
         super().setUp()
         logging.disable(logging.NOTSET)
-        payload_file = open("./koku/masu/test/data/ocp/payload.tar.gz", "rb")
-        payload_file_dates = open("./koku/masu/test/data/ocp/payload2.tar.gz", "rb")
-        bad_payload_file = open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb")
-        no_manifest_file = open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb")
-        ros_payload_file = open("./koku/masu/test/data/ocp/ros_payload.tar.gz", "rb")
 
-        self.tarball_file = payload_file.read()
-        payload_file.close()
+        self.test_payload_file = Path("./koku/masu/test/data/ocp/payload2.tar.gz")
 
-        self.dates_tarball = payload_file_dates.read()
-        payload_file_dates.close()
-
-        self.bad_tarball_file = bad_payload_file.read()
-        bad_payload_file.close()
-
-        self.no_manifest_file = no_manifest_file.read()
-        no_manifest_file.close()
-
-        self.ros_tarball_file = ros_payload_file.read()
-        ros_payload_file.close()
+        with open("./koku/masu/test/data/ocp/payload.tar.gz", "rb") as payload_file:
+            self.tarball_file = payload_file.read()
+        with open(self.test_payload_file, "rb") as payload_file_dates:
+            self.dates_tarball = payload_file_dates.read()
+        with open("./koku/masu/test/data/ocp/bad_payload.tar.gz", "rb") as bad_payload_file:
+            self.bad_tarball_file = bad_payload_file.read()
+        with open("./koku/masu/test/data/ocp/no_manifest.tar.gz", "rb") as no_manifest_file:
+            self.no_manifest_file = no_manifest_file.read()
+        with open("./koku/masu/test/data/ocp/ros_payload.tar.gz", "rb") as ros_payload_file:
+            self.ros_tarball_file = ros_payload_file.read()
 
         self.cluster_id = "my-ocp-cluster-1"
         self.date_range = "20190201-20190301"
         self.manifest_id = "1234"
+
+        self.ocp_manifest = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first()
+        self.ocp_manifest_id = self.ocp_manifest.id
+        self.ocp_source = baker.make("Sources", provider=self.ocp_provider)
 
     @patch("masu.external.kafka_msg_handler.listen_for_messages")
     @patch("masu.external.kafka_msg_handler.get_consumer")
@@ -198,7 +202,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         for test in test_matrix:
             msg = MockMessage(
-                topic="platform.upload.hccm",
+                topic="platform.upload.announce",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
                 value_dict=test.get("test_value"),
@@ -239,7 +243,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         for test in test_matrix:
             msg = MockMessage(
-                topic="platform.upload.hccm",
+                topic="platform.upload.announce",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
                 value_dict=test.get("test_value"),
@@ -278,7 +282,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         ]
         for test in test_matrix:
             msg = MockMessage(
-                topic="platform.upload.hccm",
+                topic="platform.upload.announce",
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
                 value_dict=test.get("test_value"),
@@ -396,7 +400,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         for test in test_matrix:
             with self.subTest(test=test):
                 msg = MockMessage(
-                    topic="platform.upload.hccm",
+                    topic="platform.upload.announce",
                     offset=5,
                     url="https://insights-quarantine.s3.amazonaws.com/myfile",
                     value_dict=test.get("test_value"),
@@ -417,7 +421,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = MockMessage(Config.UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        hccm_msg = MockMessage(UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
@@ -570,22 +574,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     async_id = msg_handler.summarize_manifest(report_meta, self.manifest_id)
                     self.assertIsNone(async_id)
 
-    def test__get_source_id(self):
-        """Test to verify behavior when the source is not found"""
-        source_id = msg_handler._get_source_id("bad-provider-uuid")
-        self.assertIsNone(source_id)
-
-        with patch("masu.external.kafka_msg_handler.Sources.objects.filter") as mock_filter:
-            mock_source_id = 1
-            mock_queryset = Mock(source_id=mock_source_id)
-            mock_filter.return_value = mock_queryset
-            source_id = msg_handler._get_source_id("mock-provider-uuid")
-            self.assertIsNotNone(source_id)
-
     def test_extract_payload(self):
         """Test to verify extracting payload is successful."""
-
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.tarball_file)
@@ -595,29 +585,30 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
                     ):
-                        with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
-                                with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                    msg_handler.extract_payload(
-                                        payload_url,
-                                        "test_request_id",
-                                        "fake_identity",
-                                        {"account": "1234", "org_id": "5678"},
-                                    )
-                                    expected_path = "{}/{}/{}/".format(
-                                        Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
-                                    )
-                                    self.assertTrue(os.path.isdir(expected_path))
-                                    shutil.rmtree(fake_dir)
-                                    shutil.rmtree(fake_data_dir)
+                        with patch(
+                            "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                        ):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
+                                expected_path = "{}/{}/{}/".format(
+                                    Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                )
+                                self.assertTrue(os.path.isdir(expected_path))
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_data_dir)
 
     @patch("masu.external.kafka_msg_handler.ROSReportShipper")
     def test_extract_payload_ROS_report(self, mock_ros_shipper):
         """Test to verify extracting a ROS payload is successful."""
         ros_file_name = "e6b3701e-1e91-433b-b238-a31e49937558_ROS.csv"
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.ros_tarball_file)
@@ -626,59 +617,59 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
                     ):
-                        with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
-                                with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
+                        with patch(
+                            "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                        ):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
+                                mock_ros_shipper.return_value.process_manifest_reports.assert_called_once()
+                                # call_args is a tuple of arguments
+                                # process_manifest_reports takes a list of tuples and the 1st value is the filename
+                                call_args, _ = mock_ros_shipper.return_value.process_manifest_reports.call_args
+                                self.assertTrue(call_args[0][0][0], ros_file_name)
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_pvc_dir)
+
+    @patch("masu.external.kafka_msg_handler.ROSReportShipper")
+    def test_extract_payload_ROS_report_exception(self, mock_ros_shipper):
+        """Test to verify an exception during ROS processing results in a warning log."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.ros_tarball_file)
+            fake_dir = tempfile.mkdtemp()
+            fake_pvc_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with patch(
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
+                    ):
+                        with patch(
+                            "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                        ):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
+                                mock_ros_shipper.return_value.process_manifest_reports.side_effect = Exception
+                                with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
                                     msg_handler.extract_payload(
                                         payload_url,
                                         "test_request_id",
                                         "fake_identity",
                                         {"account": "1234", "org_id": "5678"},
                                     )
-                                    mock_ros_shipper.return_value.process_manifest_reports.assert_called_once()
-                                    # call_args is a tuple of arguments
-                                    # process_manifest_reports takes a list of tuples and the 1st value is the filename
-                                    call_args, _ = mock_ros_shipper.return_value.process_manifest_reports.call_args
-                                    self.assertTrue(call_args[0][0][0], ros_file_name)
-                                    shutil.rmtree(fake_dir)
-                                    shutil.rmtree(fake_pvc_dir)
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_pvc_dir)
 
     @patch("masu.external.kafka_msg_handler.ROSReportShipper")
-    def test_extract_payload_ROS_report_exception(self, mock_ros_shipper):
-        """Test to verify an exception during ROS processing results in a warning log."""
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
-        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
-        with requests_mock.mock() as m:
-            m.get(payload_url, content=self.ros_tarball_file)
-            fake_dir = tempfile.mkdtemp()
-            fake_pvc_dir = tempfile.mkdtemp()
-            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
-                with patch.object(Config, "TMP_DIR", fake_dir):
-                    with patch(
-                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
-                    ):
-                        with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
-                                with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                    mock_ros_shipper.return_value.process_manifest_reports.side_effect = Exception
-                                    with self.assertLogs(
-                                        logger="masu.external.kafka_msg_handler", level=logging.WARNING
-                                    ):
-                                        msg_handler.extract_payload(
-                                            payload_url,
-                                            "test_request_id",
-                                            "fake_identity",
-                                            {"account": "1234", "org_id": "5678"},
-                                        )
-                                    shutil.rmtree(fake_dir)
-                                    shutil.rmtree(fake_pvc_dir)
-
-    def test_extract_payload_dates(self):
+    def test_extract_payload_dates(self, _):
         """Test to verify extracting payload is successful."""
-
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.dates_tarball)
@@ -688,25 +679,27 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
                     ):
-                        with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
-                                with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
-                                    msg_handler.extract_payload(
-                                        payload_url,
-                                        "test_request_id",
-                                        "fake_identity",
-                                        {"account": "1234", "org_id": "5678"},
-                                    )
-                                    expected_path = "{}/{}/{}/".format(
-                                        Config.INSIGHTS_LOCAL_REPORT_DIR,
-                                        "5997a261-f23e-45d1-8e01-ee3c765f3aec",
-                                        "20210101-20210201",
-                                    )
-                                    self.assertTrue(os.path.isdir(expected_path))
-                                    shutil.rmtree(fake_dir)
-                                    shutil.rmtree(fake_data_dir)
+                        with patch(
+                            "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                        ):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
+                                expected_path = "{}/{}/{}/".format(
+                                    Config.INSIGHTS_LOCAL_REPORT_DIR,
+                                    "16b9a60d-0774-4102-9028-bd28d6c38ac2",
+                                    "20230801-20230901",
+                                )
+                                self.assertTrue(os.path.isdir(expected_path))
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_data_dir)
 
     def test_extract_payload_no_account(self):
         """Test to verify extracting payload when no provider exists."""
@@ -718,16 +711,18 @@ class KafkaMsgHandlerTest(MasuTestCase):
             fake_data_dir = tempfile.mkdtemp()
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
-                    with patch("masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=None):
+                    with patch(
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=None,
+                    ):
                         self.assertFalse(
-                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")[0]
+                            msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})[0]
                         )
                         shutil.rmtree(fake_dir)
                         shutil.rmtree(fake_data_dir)
 
     def test_extract_incomplete_file_payload(self):
         """Test to verify extracting payload missing report files is successful."""
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.bad_tarball_file)
@@ -737,27 +732,28 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
                     ):
-                        with patch("masu.external.kafka_msg_handler._get_source_id", return_value=1):
-                            with patch("masu.external.kafka_msg_handler.create_manifest_entries", return_value=1):
-                                with patch("masu.external.kafka_msg_handler.record_report_status"):
-                                    msg_handler.extract_payload(
-                                        payload_url,
-                                        "test_request_id",
-                                        "fake_identity",
-                                        {"account": "1234", "org_id": "5678"},
-                                    )
-                                    expected_path = "{}/{}/{}/".format(
-                                        Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
-                                    )
-                                    self.assertFalse(os.path.isdir(expected_path))
-                                    shutil.rmtree(fake_dir)
-                                    shutil.rmtree(fake_data_dir)
+                        with patch(
+                            "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                        ):
+                            with patch("masu.external.kafka_msg_handler.record_report_status"):
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
+                                expected_path = "{}/{}/{}/".format(
+                                    Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                )
+                                self.assertFalse(os.path.isdir(expected_path))
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_data_dir)
 
     def test_extract_no_manifest(self):
         """Test to verify extracting payload missing a manifest is not successful."""
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.no_manifest_file)
@@ -767,19 +763,19 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
     @patch("masu.external.kafka_msg_handler.TarFile.extractall", side_effect=raise_OSError)
     def test_extract_bad_payload_not_tar(self, mock_extractall):
         """Test to verify extracting payload missing report files is not successful."""
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
         with requests_mock.mock() as m:
             m.get(payload_url, content=self.bad_tarball_file)
@@ -789,12 +785,13 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
                 with patch.object(Config, "TMP_DIR", fake_dir):
                     with patch(
-                        "masu.external.kafka_msg_handler.get_account_from_cluster_id", return_value=fake_account
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
                     ):
-                        with patch("masu.external.kafka_msg_handler.create_manifest_entries", returns=1):
+                        with patch("masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", returns=1):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
                                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
@@ -806,7 +803,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, exc=HTTPError)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
 
     def test_extract_payload_unable_to_open(self):
         """Test to verify extracting payload exceptions are handled."""
@@ -817,7 +814,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch("masu.external.kafka_msg_handler.Path.write_bytes") as mock_oserror:
                 mock_oserror.side_effect = PermissionError
                 with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
+                    msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
 
     def test_extract_payload_wrong_file_type(self):
         """Test to verify extracting payload is successful."""
@@ -831,59 +828,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             m.get(payload_url, content=csv_file)
 
             with self.assertRaises(msg_handler.KafkaMsgHandlerError):
-                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity")
-
-    def test_get_account_from_cluster_id(self):
-        """Test to find account from cluster id."""
-        cluster_id = uuid.uuid4()
-        fake_account = {"provider_uuid": uuid.uuid4(), "provider_type": "OCP", "schema_name": "testschema"}
-
-        def _expected_account_response(account, test):
-            self.assertEqual(test.get("get_account_response"), account)
-
-        def _expected_none_response(account, test):
-            self.assertEqual(None, account)
-
-        test_matrix = [
-            {
-                "get_provider_uuid_response": uuid.uuid4(),
-                "get_account_response": fake_account,
-                "expected_fn": _expected_account_response,
-            },
-            {
-                "get_provider_uuid_response": None,
-                "get_account_response": fake_account,
-                "expected_fn": _expected_none_response,
-            },
-        ]
-
-        context = {"cluster_id": cluster_id}
-        for test in test_matrix:
-            with patch(
-                "masu.external.kafka_msg_handler.utils.get_provider_uuid_from_cluster_id",
-                return_value=test.get("get_provider_uuid_response"),
-            ):
-                with patch(
-                    "masu.external.kafka_msg_handler.get_account", return_value=test.get("get_account_response")
-                ):
-                    account = msg_handler.get_account_from_cluster_id(cluster_id, "test_request_id", context)
-                    test.get("expected_fn")(account, test)
-
-    def test_create_manifest_entries(self):
-        """Test to create manifest entries."""
-        report_meta = {
-            "schema_name": "test_schema",
-            "manifest_id": "1",
-            "provider_uuid": uuid.uuid4(),
-            "provider_type": "OCP",
-            "cluster_id": "cluster-id",
-            "compression": "UNCOMPRESSED",
-            "file": "/path/to/file.csv",
-            "date": datetime.now(),
-            "uuid": uuid.uuid4(),
-        }
-        with patch.object(OCPReportDownloader, "_prepare_db_manifest_record", return_value=1):
-            self.assertEqual(1, msg_handler.create_manifest_entries(report_meta, "test_request_id"))
+                msg_handler.extract_payload(payload_url, "test_request_id", "fake_identity", {})
 
     def test_send_confirmation_error(self):
         """Set up the test for raising a kafka error during sending confirmation."""
@@ -895,17 +840,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
             # assert that the error caused the kafka error metric to be incremented
             connection_errors_after = WORKER_REGISTRY.get_sample_value("kafka_connection_errors_total")
             self.assertEqual(connection_errors_after - connection_errors_before, 1)
-
-    def test_get_account(self):
-        """Test that the account details are returned given a provider uuid."""
-        ocp_account = msg_handler.get_account(self.ocp_test_provider_uuid, "test_request_id")
-        self.assertIsNotNone(ocp_account)
-        self.assertEqual(ocp_account.get("provider_type"), Provider.PROVIDER_OCP)
-
-    def test_get_account_exception(self):
-        """Test that no account is returned upon exception."""
-        ocp_account = msg_handler.get_account(uuid.uuid4(), "test_request_id")
-        self.assertIsNone(ocp_account)
 
     def test_delivery_callback(self):
         """Test that delivery callback raises KafkaMsgHandlerError."""
@@ -938,3 +872,183 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 with patch("masu.external.kafka_msg_handler.is_customer_large", return_value=True):
                     msg_handler.summarize_manifest(report_meta, self.manifest_id)
                     self.assertIn(OCP_QUEUE_XL, mock_summarize_reports.call_args.args)
+
+    def test_extract_payload_content_and_process_cr(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = tempfile.NamedTemporaryFile(dir=tmp_dir, delete=False)
+            with open(tmp.name, "wb") as f:
+                f.write(self.dates_tarball)
+
+            filename = Path(tmp.name)
+            manifest, _ = msg_handler.extract_payload_contents(uuid.uuid4().hex, filename, {})
+            manifest_path = filename.parent.joinpath(manifest)
+            self.assertTrue(os.path.isfile(manifest_path))
+
+            report_meta = utils.get_report_details(filename.parent)
+            self.assertEqual(report_meta["version"], "e03142a32dce56bced9dde7963859832129f1a3a")
+            cr_data = msg_handler.process_cr(report_meta)
+            self.assertEqual(cr_data["operator_version"], "e03142a32dce56bced9dde7963859832129f1a3a")
+
+            report_meta["version"] = "b5a2c05255069215eb564dcc5c4ec6ca4b33325d"
+            cr_data = msg_handler.process_cr(report_meta)
+            self.assertEqual(cr_data["operator_version"], "costmanagement-metrics-operator:3.0.1")
+
+    def test_create_cost_and_usage_report_manifest(self):
+        manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
+        report_meta = utils.get_report_details(manifest.parent)
+        manifest_id = msg_handler.create_cost_and_usage_report_manifest(self.ocp_provider_uuid, report_meta)
+        manifest = CostUsageReportManifest.objects.get(id=manifest_id)
+        self.assertEqual(manifest.assembly_id, report_meta["uuid"])
+        self.assertEqual(manifest.manifest_modified_datetime, report_meta["date"])
+        self.assertEqual(manifest.operator_version, "e03142a32dce56bced9dde7963859832129f1a3a")
+
+    def test_divide_csv_daily(self):
+        """Test the divide_csv_daily method."""
+        with tempfile.TemporaryDirectory() as td:
+            filename = "storage_data.csv"
+            file_path = Path(td, filename)
+            with patch("masu.external.kafka_msg_handler.pd") as mock_pd:
+                with patch(
+                    "masu.external.kafka_msg_handler.utils.detect_type",
+                    return_value=("storage_usage", None),
+                ):
+                    dates = ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"]
+                    mock_report = {
+                        "interval_start": dates,
+                        "persistentvolumeclaim_labels": ["label1", "label2"],
+                    }
+                    df = pd.DataFrame(data=mock_report)
+                    mock_pd.read_csv.return_value = df
+                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id)
+                    self.assertNotEqual([], daily_files)
+                    self.assertEqual(len(daily_files), 2)
+                    gen_files = [
+                        f"storage_usage.2020-01-01.{self.ocp_manifest_id}.0.csv",
+                        f"storage_usage.2020-01-02.{self.ocp_manifest_id}.0.csv",
+                    ]
+                    expected_dates = [datetime.strptime(date[:10], "%Y-%m-%d") for date in dates]
+                    expected = [
+                        {"filepath": Path(td, gen_file), "date": expected_dates[i], "num_hours": 1}
+                        for i, gen_file in enumerate(gen_files)
+                    ]
+                    for expected_item in expected:
+                        self.assertIn(expected_item, daily_files)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.kafka_msg_handler.divide_csv_daily")
+    def test_create_daily_archives_very_old_operator(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        # modify the manifest to remove the operator version to test really old operators:
+        self.ocp_manifest.operator_version = None
+        self.ocp_manifest.save()
+
+        start_date = self.dh.this_month_start
+        daily_files = [
+            {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
+            {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
+        ]
+        expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
+
+        mock_divide.return_value = daily_files
+
+        file_path = Path("path")
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
+        )
+
+        self.assertCountEqual(result.keys(), expected_filenames)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_non_daily_operator_files(self, *args):
+        """Test that this method returns a file list."""
+        start_date = self.dh.this_month_start
+
+        file_path = Path("path")
+
+        context = {"version": "1"}
+        expected = [file_path]
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, context=context
+        )
+        self.assertCountEqual(result.keys(), expected)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.kafka_msg_handler.divide_csv_daily")
+    def test_create_daily_archives_daily_operator_files(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        self.ocp_manifest.operator_daily_reports = True
+        self.ocp_manifest.save()
+
+        start_date = self.dh.this_month_start
+        daily_files = [
+            {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 23},
+            {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-02"), "num_hours": 24},
+        ]
+        expected_filenames = [FILE_PATH_ONE, FILE_PATH_TWO]
+        expected_result = {
+            FILE_PATH_ONE: {"meta_reportdatestart": "2020-01-01", "meta_reportnumhours": "23"},
+            FILE_PATH_TWO: {"meta_reportdatestart": "2020-01-02", "meta_reportnumhours": "24"},
+        }
+
+        mock_divide.return_value = daily_files
+
+        file_path = Path("path")
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
+        )
+
+        self.assertCountEqual(result.keys(), expected_filenames)
+        self.assertDictEqual(result, expected_result)
+
+    @patch("masu.external.kafka_msg_handler.os")
+    @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
+    @patch("masu.external.kafka_msg_handler.divide_csv_daily")
+    def test_create_daily_archives_daily_operator_files_empty_file(self, mock_divide, *args):
+        """Test that this method returns a file list."""
+        self.ocp_manifest.operator_daily_reports = True
+        self.ocp_manifest.save()
+
+        start_date = self.dh.this_month_start
+
+        # simulate empty report file
+        mock_divide.return_value = None
+
+        file_path = Path("path")
+        expected_result = {
+            file_path: {"meta_reportdatestart": str(start_date.date()), "meta_reportnumhours": "0"},
+        }
+        result = msg_handler.create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
+        )
+
+        self.assertCountEqual(result.keys(), [file_path])
+        self.assertDictEqual(result, expected_result)
+
+    def test_divide_csv_daily_leading_zeros(self):
+        """Test if the divide_csv_daily method will keep the leading zeros."""
+
+        with tempfile.TemporaryDirectory() as td:
+            filename = "storage_data.csv"
+            file_path = Path(td, filename)
+            with patch("masu.external.kafka_msg_handler.pd") as mock_pd:
+                with patch(
+                    "masu.external.kafka_msg_handler.utils.detect_type",
+                    return_value=("storage_usage", None),
+                ):
+                    dates = ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"]
+                    mock_report = {
+                        "interval_start": dates,
+                        "persistentvolumeclaim_labels": ["0099999999999", "0099999999999"],
+                    }
+                    df = pd.DataFrame(data=mock_report)
+                    mock_pd.read_csv.return_value = df
+                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id)
+
+                    for daily_file in daily_files:
+                        with open(str(daily_file["filepath"])) as file:
+                            csv = file.readlines()
+
+                        self.assertIn("0099999999999", csv[1])

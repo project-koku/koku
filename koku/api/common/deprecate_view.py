@@ -51,7 +51,7 @@ class DeprecateEndpoint:
         # https://greenbytes.de/tech/webdav/draft-ietf-httpapi-deprecation-header-latest.html
         if sunset_datetime := getattr(self.viewclass, "sunset_datetime", None):
             response["Sunset"] = sunset_datetime.strftime(HTTP_DATE_FORMAT)
-            if sunset_datetime < DateHelper(True).now:
+            if sunset_datetime < DateHelper().now:
                 self.sunset_endpoint = True
         if deprecation_datetime := getattr(self.viewclass, "deprecation_datetime", None):
             response["Deprecation"] = deprecation_datetime.strftime(HTTP_DATE_FORMAT)

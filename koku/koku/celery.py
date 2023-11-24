@@ -16,6 +16,7 @@ from croniter import croniter
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
+from .database import FKViolation
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
 from koku.probe_server import ProbeResponse
@@ -31,7 +32,10 @@ class LogErrorsTask(Task):  # pragma: no cover
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log exceptions when a celery task fails."""
-        LOG.exception("Task failed: %s", exc, exc_info=exc)
+        if fk_violation := FKViolation(exc):
+            LOG.warning("task failed: %s", fk_violation)
+        else:
+            LOG.exception("Task failed: %s", exc, exc_info=exc)
         super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
@@ -236,6 +240,13 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
     httpd.RequestHandlerClass._collector = collect_queue_metrics
+
+    if ENVIRONMENT.bool("DEBUG_ATTACH", default=False):
+        import debugpy
+
+        debugpy.listen(("0.0.0.0", 5678))
+        print("Waiting for debugger attach on port 5678")
+        debugpy.wait_for_client()
 
 
 @worker_process_init.connect

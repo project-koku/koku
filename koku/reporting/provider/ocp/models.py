@@ -237,20 +237,6 @@ class OCPStorageVolumeLabelSummary(models.Model):
     node = models.TextField(null=True)
 
 
-class OCPEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for OCPEnabledTagKeys."""
-
-        db_table = "reporting_ocpenabledtagkeys"
-        indexes = [models.Index(name="ocp_enabled_covering_ix", fields=["key", "enabled"])]
-
-    id = models.BigAutoField(primary_key=True)
-    key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=False)
-
-
 class OCPCluster(models.Model):
     """All clusters for a tenant."""
 
@@ -311,6 +297,19 @@ class OpenshiftCostCategory(models.Model):
     system_default = models.BooleanField(null=False, default=False)
     namespace = ArrayField(models.TextField())
     label = ArrayField(models.TextField())
+
+
+class OpenshiftCostCategoryNamespace(models.Model):
+    """Namespaces to bucket to category."""
+
+    class Meta:
+        """Meta for cost category namespaces."""
+
+        db_table = "reporting_ocp_cost_category_namespace"
+
+    namespace = models.TextField(unique=True)
+    system_default = models.BooleanField(null=False, default=False)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE)
 
 
 class OCPProject(models.Model):
