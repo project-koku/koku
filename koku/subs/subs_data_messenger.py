@@ -19,12 +19,10 @@ from kafka_utils.utils import get_producer
 from kafka_utils.utils import SUBS_TOPIC
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.aws.common import get_s3_resource
+from providers.azure.client import AzureClientFactory
+
 
 LOG = logging.getLogger(__name__)
-
-
-def determine_azure_instance_id(row):
-    pass
 
 
 class SUBSDataMessenger:
@@ -40,6 +38,34 @@ class SUBSDataMessenger:
         self.account_id = subs_cust.account_id
         self.org_id = subs_cust.org_id
         self.download_path = mkdtemp(prefix="subs")
+        self.instance_map = {}
+
+    def determine_azure_instance_id(self, row):
+        """For Azure we have to query the instance id if it is not provided via tag."""
+        if row["resourceid"] in self.instance_map:
+            return self.instance_map.get(row["resourceid"])
+        # this column comes from a user defined tag allowing us to avoid querying Azure if its present.
+        if row["subs_instance"] != "":
+            instance_id = row["subs_instance"]
+        # attempt to query azure for instance id
+        else:
+            prov = Provider.objects.get(row["source"])
+            credentials = prov.account.get("credentials")
+            subscription_id = credentials.get("subscription_id")
+            tenant_id = credentials.get("tenant_id")
+            client_id = credentials.get("client_id")
+            client_secret = credentials.get("client_secret")
+            _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
+            compute_client = _factory.compute_client()
+            response = compute_client.virtual_machines.get(
+                resource_group_name=row["resourcegroup"],
+                # the last element of the instance is the vm name
+                vm_name=row["instancename"].split("/")[-1],
+            )
+            instance_id = response.vm_id
+
+        self.instance_map[row["resourceid"]] = instance_id
+        return instance_id
 
     def process_and_send_subs_message(self, upload_keys):
         """
@@ -60,7 +86,10 @@ class SUBSDataMessenger:
                 msg_count = 0
                 for row in reader:
                     if self.provider_type == Provider.PROVIDER_AZURE:
-                        row["subs_resource_id"] = determine_azure_instance_id(row)
+                        instance_id = self.determine_azure_instance_id(row)
+                        if not instance_id:
+                            continue
+                        row["subs_resource_id"] = instance_id
                     # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
                     msg = self.build_subs_msg(
                         row["subs_resource_id"],
