@@ -27,7 +27,7 @@ class OCIPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        return get_column_converters_common(col_names, panda_kwargs, trino_schema)
+        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "OCI")
 
     def check_ingress_required_columns(self, _):
         """
