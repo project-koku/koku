@@ -67,7 +67,7 @@ class OCPPostProcessor:
         daily_data_frame.reset_index(inplace=True)
 
         new_cols = report.get("new_required_columns")
-        daily_data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, new_cols)
+        daily_data_frame = add_missing_columns_with_dtypes(daily_data_frame, trino_schema, new_cols)
 
         return daily_data_frame
 
