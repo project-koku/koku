@@ -11,8 +11,10 @@ import uuid
 from enum import Enum
 from itertools import chain
 
+import ciso8601
 import pandas as pd
 from django_tenants.utils import schema_context
+from numpy import nan
 
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -259,3 +261,17 @@ def azure_json_converter(tag_str):
         pass
 
     return json.dumps(tag_dict)
+
+
+def azure_date_converter(date):
+    """Convert Azure date fields properly."""
+    if date:
+        try:
+            new_date = ciso8601.parse_datetime(date)
+        except ValueError:
+            date_split = date.split("/")
+            new_date_str = date_split[2] + date_split[0] + date_split[1]
+            new_date = ciso8601.parse_datetime(new_date_str)
+        return new_date
+    else:
+        return nan

@@ -29,6 +29,7 @@ import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
+from masu.util.azure.common import azure_date_converter
 from masu.util.azure.common import azure_json_converter
 from masu.util.gcp.common import gcp_json_converter
 from masu.util.ocp.common import ocp_json_converter
@@ -505,13 +506,20 @@ def get_column_converters_common(col_names, panda_kwargs, trino_schema, prov_typ
         "AZURE": azure_json_converter,
         "GCP": gcp_json_converter,
     }
+    date_converter = {
+        "OCP": ocp_parse_datetime,
+        "AZURE": azure_date_converter,
+        "AWS": ciso8601.parse_datetime,
+        "GCP": ciso8601.parse_datetime,
+        "OCI": ciso8601.parse_datetime,
+    }
     converters = {}
     for col in col_names:
         cleaned_column = strip_characters_from_column_name(col)
         if cleaned_column in trino_schema.NUMERIC_COLUMNS:
             converters[col] = safe_float
         elif cleaned_column in trino_schema.DATE_COLUMNS:
-            converters[col] = ocp_parse_datetime if prov_type == "OCP" else ciso8601.parse_datetime
+            converters[col] = date_converter[prov_type]
         elif cleaned_column in trino_schema.BOOLEAN_COLUMNS:
             converters[col] = bool
         elif cleaned_column in trino_schema.JSON_COLUMNS:

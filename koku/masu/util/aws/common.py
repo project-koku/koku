@@ -936,12 +936,3 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     )
 
     return openshift_matched_data_frame
-
-
-def get_columns(col_names, translation):
-    """Method to translate column names for AWS"""
-    columns = []
-    for col in col_names:
-        if "/" not in col and translation.get(col):
-            columns.append(translation[col])
-    return columns

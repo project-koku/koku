@@ -212,7 +212,7 @@ class TestOCPPostProcessor(MasuTestCase):
         csv_converters, panda_kwargs = post_processor.get_column_converters(["report_period_start"], {})
         self.assertEqual({}, panda_kwargs)
         datetime_converter = csv_converters.get("report_period_start")
-        with patch("masu.util.ocp.ocp_post_processor.ciso8601.parse_datetime") as mock_parse:
+        with patch("masu.util.common.ciso8601.parse_datetime") as mock_parse:
             mock_parse.side_effect = ParserError
             dt = datetime_converter("parse error")
             self.assertIsNone(dt)

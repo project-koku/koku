@@ -7,7 +7,6 @@ from django_tenants.utils import schema_context
 from api.common import log_json
 from api.models import Provider
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor as trino_schema
-from masu.util.aws.common import get_columns
 from masu.util.aws.common import OPTIONAL_ALT_COLS
 from masu.util.aws.common import OPTIONAL_COLS
 from masu.util.aws.common import RECOMMENDED_ALT_COLUMNS
@@ -151,7 +150,10 @@ class AWSPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        columns = get_columns(col_names, self.COL_TRANSLATION)
+        columns = []
+        for col in col_names:
+            if "/" not in col and self.translation.get(col):
+                columns.append(self.translation[col])
         if columns == []:
             columns = col_names
         csv_converters, panda_kwargs = get_column_converters_common(columns, panda_kwargs, trino_schema)
@@ -209,9 +211,12 @@ class AWSPostProcessor:
 
     def process_dataframe(self, data_frame):
         """Process dataframe."""
-        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS)
         org_columns = data_frame.columns.unique()
-        columns = get_columns(org_columns, self.COL_TRANSLATION)
+        columns = []
+        for col in org_columns:
+            if "/" not in col and self.COL_TRANSLATION.get(col):
+                data_frame = data_frame.rename(columns={col: self.COL_TRANSLATION[col]})
+                columns.append(self.COL_TRANSLATION[col])
         columns = set(TRINO_REQUIRED_COLUMNS).union(data_frame)
         columns = sorted(list(columns))
 
@@ -227,6 +232,8 @@ class AWSPostProcessor:
 
         # Make sure we have entries for our required columns
         data_frame = data_frame.reindex(columns=columns)
+
+        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS)
 
         columns = list(data_frame)
         column_name_map = {}
