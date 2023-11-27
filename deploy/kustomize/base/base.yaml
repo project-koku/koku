@@ -31,7 +31,6 @@ objects:
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
-    - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
@@ -537,4 +536,8 @@ parameters:
 - description: Enabale Subscription Watch Debug
   displayName: Enable SUBS Debug
   name: ENABLE_SUBS_DEBUG
+  value: "False"
+- description: Enable ROS Kafka Debug
+  displayName: Enable ROS Debug
+  name: ENABLE_ROS_DEBUG
   value: "False"

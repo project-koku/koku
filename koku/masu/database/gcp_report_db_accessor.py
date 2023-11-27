@@ -22,7 +22,6 @@ from api.common import log_json
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -75,9 +74,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
-        table_name = GCPCostEntryBill
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
+        return GCPCostEntryBill.objects.filter(provider_id=provider_uuid)
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all cost entry bills for provider_uuid on date."""
@@ -89,15 +86,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bills = bills.filter(billing_period_start=bill_date)
         return bills
 
-    def get_bill_query_before_date(self, date, provider_uuid=None):
+    def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""
-        table_name = GCPCostEntryBill
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            filters = {"billing_period_start__lte": date}
-            if provider_uuid:
-                filters["provider_id"] = provider_uuid
-            return base_query.filter(**filters)
+        return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month_date
@@ -119,7 +110,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # we need to extend the end date by a couple of days. For more
             # information see: https://issues.redhat.com/browse/COST-1771
             new_end_date = end_date + relativedelta(days=2)
-            self.delete_line_item_daily_summary_entries_for_date_range(source_uuid, end_date, new_end_date)
+            invoice_month = end_date.strftime("%Y%m")
+            self.delete_line_item_daily_summary_entries_for_date_range_raw(
+                source_uuid,
+                end_date,
+                new_end_date,
+                table=self.line_item_daily_summary_table,
+                filters={"invoice_month": invoice_month},
+            )
             end_date = new_end_date
 
         sql = pkgutil.get_data("masu.database", "trino_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
@@ -315,40 +313,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "invoice_id": invoice_month_date,
         }
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_gcp_topology_trino")
-
-    def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
-        """Overwrite the parent class to include invoice month for gcp.
-
-        Args:
-            source_uuid (uuid): uuid of a given source
-            start_date (datetime): start range date
-            end_date (datetime): end range date
-            table (string): table name
-        """
-        # We want to include the invoice month in the delete to make sure we
-        # don't accidentially delete last month's data that flows into the
-        # next month
-        invoice_month = start_date.strftime("%Y%m")
-        if table is None:
-            table = self.line_item_daily_summary_table
-        ctx = {
-            "schema": self.schema,
-            "provider_uuid": source_uuid,
-            "start_date": start_date,
-            "end_date": end_date,
-            "table": table,
-            "invoice_month": invoice_month,
-        }
-        LOG.info(log_json(msg="deleting records", context=ctx))
-        select_query = table.objects.filter(
-            source_uuid=source_uuid,
-            usage_start__gte=start_date,
-            usage_start__lte=end_date,
-            invoice_month=invoice_month,
-        )
-        with schema_context(self.schema):
-            count, _ = mini_transaction_delete(select_query)
-        LOG.info(log_json(msg=f"deleted {count} records", context=ctx))
 
     def populate_ocp_on_gcp_cost_daily_summary_trino(
         self,

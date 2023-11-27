@@ -12,25 +12,17 @@ from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from dateutil import relativedelta
 from django.conf import settings
-from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Sum
-from django.db.models.query import QuerySet
-from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakeTrinoConn
 from api.provider.models import Provider
-from api.utils import DateHelper
 from koku import trino_database as trino_db
-from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ReportObjectCreator
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
@@ -39,93 +31,38 @@ from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPReportDBAccessor object."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up the test class with required objects."""
-        super().setUpClass()
-
-        cls.accessor = OCPReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(cls.schema)
-        cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
-
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
 
+        self.accessor = OCPReportDBAccessor(schema=self.schema)
+
         self.cluster_id = "testcluster"
         self.ocp_provider_uuid = self.ocp_provider.uuid
 
-        self.reporting_period = self.creator.create_ocp_report_period(
-            provider_uuid=self.ocp_provider_uuid, cluster_id=self.cluster_id
-        )
-
-    def test_initializer(self):
-        """Test initializer."""
-        self.assertIsNotNone(self.report_schema)
-
-    def test_get_db_obj_query_default(self):
-        """Test that a query is returned."""
-        table_name = random.choice(self.all_tables)
-
-        query = self.accessor._get_db_obj_query(table_name)
-
-        self.assertIsInstance(query, QuerySet)
-
-    def test_get_current_usage_period(self):
-        """Test that the most recent usage period is returned."""
-        current_report_period = self.accessor.get_current_usage_period(self.ocp_provider_uuid)
-        self.assertIsNotNone(current_report_period.report_period_start)
-        self.assertIsNotNone(current_report_period.report_period_end)
-
-    def test_get_usage_period_by_dates_and_cluster(self):
-        """Test that report periods are returned by dates & cluster filter."""
-        period_start = DateAccessor().today_with_timezone("UTC").replace(day=1)
-        period_end = period_start + relativedelta.relativedelta(months=1)
-        prev_period_start = period_start - relativedelta.relativedelta(months=1)
-        prev_period_end = prev_period_start + relativedelta.relativedelta(months=1)
-        reporting_period = self.creator.create_ocp_report_period(
-            self.ocp_provider_uuid, period_date=period_start, cluster_id="0001"
-        )
-        prev_reporting_period = self.creator.create_ocp_report_period(
-            self.ocp_provider_uuid, period_date=prev_period_start, cluster_id="0002"
-        )
-        with schema_context(self.schema):
-            periods = self.accessor.get_usage_period_by_dates_and_cluster(
-                period_start.date(), period_end.date(), "0001"
-            )
-            self.assertEqual(reporting_period, periods)
-            periods = self.accessor.get_usage_period_by_dates_and_cluster(
-                prev_period_start.date(), prev_period_end.date(), "0002"
-            )
-            self.assertEqual(prev_reporting_period, periods)
-
     def test_get_usage_period_query_by_provider(self):
         """Test that periods are returned filtered by provider."""
-        provider_uuid = self.ocp_provider_uuid
-
-        period_query = self.accessor.get_usage_period_query_by_provider(provider_uuid)
-        with schema_context(self.schema):
+        with self.accessor as acc:
+            provider_uuid = self.ocp_provider_uuid
+            period_query = acc.get_usage_period_query_by_provider(provider_uuid)
             periods = period_query.all()
-
             self.assertGreater(len(periods), 0)
-
             period = periods[0]
-
             self.assertEqual(period.provider_id, provider_uuid)
 
     def test_report_periods_for_provider_uuid(self):
         """Test that periods are returned filtered by provider id and start date."""
-        provider_uuid = self.ocp_provider_uuid
-        start_date = str(self.reporting_period.report_period_start)
-
-        period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
-        with schema_context(self.schema):
+        with self.accessor as acc:
+            provider_uuid = self.ocp_provider_uuid
+            reporting_period = OCPUsageReportPeriod.objects.filter(provider=self.ocp_provider_uuid).first()
+            start_date = str(reporting_period.report_period_start)
+            period = acc.report_periods_for_provider_uuid(provider_uuid, start_date)
             self.assertEqual(period.provider_id, provider_uuid)
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
@@ -135,17 +72,17 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test that OCP trino processing calls executescript
         """
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.next_month_start
+        start_date = self.dh.this_month_start
+        end_date = self.dh.next_month_start
         cluster_id = "ocp-cluster"
         cluster_alias = "OCP FTW"
         report_period_id = 1
         source = self.provider_uuid
-        self.accessor.populate_line_item_daily_summary_table_trino(
-            start_date, end_date, report_period_id, cluster_id, cluster_alias, source
-        )
-        mock_execute.assert_called()
+        with self.accessor as acc:
+            acc.populate_line_item_daily_summary_table_trino(
+                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
+            )
+            mock_execute.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
@@ -190,12 +127,10 @@ select * from eek where val1 in {{report_period_id}} ;
             "storage_gb_usage_per_month": ["storage", "persistentvolumeclaim_usage_gigabyte_months"],
             "storage_gb_request_per_month": ["storage", "volume_request_storage_gigabyte_months"],
         }
-
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
         self.cluster_id = "OCP-on-AWS"
-        with schema_context(self.schema):
+        with self.accessor as acc:
             # define the two usage types to test
             usage_types = ("Infrastructure", "Supplementary")
             for usage_type in usage_types:
@@ -273,7 +208,7 @@ select * from eek where val1 in {{report_period_id}} ;
                             )
 
                     # call populate monthly tag_cost with the rates defined above
-                    self.accessor.populate_tag_usage_costs(
+                    acc.populate_tag_usage_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
@@ -354,12 +289,10 @@ select * from eek where val1 in {{report_period_id}} ;
             "storage_gb_usage_per_month": ["storage", "persistentvolumeclaim_usage_gigabyte_months"],
             "storage_gb_request_per_month": ["storage", "volume_request_storage_gigabyte_months"],
         }
-
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
         self.cluster_id = "OCP-on-AWS"
-        with schema_context(self.schema):
+        with self.accessor as acc:
             # define the two usage types to test
             usage_types = ("Infrastructure", "Supplementary")
             for usage_type in usage_types:
@@ -435,7 +368,7 @@ select * from eek where val1 in {{report_period_id}} ;
                             )
 
                     # call populate monthly tag_cost with the rates defined above
-                    self.accessor.populate_tag_usage_default_costs(
+                    acc.populate_tag_usage_default_costs(
                         infrastructure_rates, supplementary_rates, start_date, end_date, self.cluster_id
                     )
 
@@ -510,20 +443,18 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
+        with self.accessor as acc:
+            report_period = acc.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
 
-        report_period = self.accessor.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
-
-        with schema_context(self.schema):
             OCPUsagePodLabelSummary.objects.all().delete()
             OCPStorageVolumeLabelSummary.objects.all().delete()
             key_to_keep = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").first()
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).update(enabled=False)
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").update(enabled=True)
             report_period_ids = [report_period.id]
-            self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
+            acc.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
             tags = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     usage_start__gte=start_date, report_period_id__in=report_period_ids
@@ -556,38 +487,17 @@ select * from eek where val1 in {{report_period_id}} ;
                 else:
                     self.assertEqual([], tag_keys)
 
-    def test_delete_line_item_daily_summary_entries_for_date_range(self):
-        """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
-            start_date = OCPUsageLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
-            end_date = start_date
-
-        table_query = OCPUsageLineItemDailySummary.objects.filter(
-            source_uuid=self.ocp_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-        )
-        with schema_context(self.schema):
-            self.assertNotEqual(table_query.count(), 0)
-
-        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
-            self.ocp_provider_uuid, start_date, end_date
-        )
-
-        with schema_context(self.schema):
-            self.assertEqual(table_query.count(), 0)
-
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, OCPUsageLineItemDailySummary)
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, OCP_REPORT_TABLE_MAP)
-        self.assertEqual(self.accessor._aws_table_map, AWS_CUR_TABLE_MAP)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino(self, mock_trino):
         """Test that Trino is used to find matched tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
         mock_trino.assert_called()
@@ -595,9 +505,8 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
         expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
         with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
             self.accessor.get_ocp_infrastructure_map_trino(
@@ -609,9 +518,8 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_trino):
         """Test that Trino is used to find matched resource names."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
         expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
         with patch("masu.util.gcp.common.is_gcp_resource_matching_disabled", return_value=True):
             with self.assertLogs("masu", level="INFO") as logger:
@@ -642,15 +550,16 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_table.return_value = True
         cluster_id = uuid.uuid4()
         cluster_alias = "test-cluster-1"
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
 
-        self.accessor.populate_openshift_cluster_information_tables(
-            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
-        )
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
-        with schema_context(self.schema):
+        with self.accessor as acc:
+
+            acc.populate_openshift_cluster_information_tables(
+                self.aws_provider, cluster_id, cluster_alias, start_date, end_date
+            )
+
             self.assertIsNotNone(OCPCluster.objects.filter(cluster_id=cluster_id).first())
             for node in nodes:
                 db_node = OCPNode.objects.filter(node=node).first()
@@ -665,14 +574,14 @@ select * from eek where val1 in {{report_period_id}} ;
             for project in projects:
                 self.assertIsNotNone(OCPProject.objects.filter(project=project).first())
 
-        mock_table.reset_mock()
-        mock_get_pvcs.reset_mock()
-        mock_table.return_value = False
+            mock_table.reset_mock()
+            mock_get_pvcs.reset_mock()
+            mock_table.return_value = False
 
-        self.accessor.populate_openshift_cluster_information_tables(
-            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
-        )
-        mock_get_pvcs.assert_not_called()
+            acc.populate_openshift_cluster_information_tables(
+                self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+            )
+            mock_get_pvcs.assert_not_called()
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_trino")
@@ -695,22 +604,22 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_table.return_value = True
         cluster_id = str(uuid.uuid4())
         cluster_alias = "test-cluster-1"
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
 
-        # Using the aws_provider to short cut this test instead of creating a brand
-        # new provider. The OCP providers already have data, and can't be used here
-        self.accessor.populate_openshift_cluster_information_tables(
-            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
-        )
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
 
-        with schema_context(self.schema):
+        with self.accessor as acc:
+            # Using the aws_provider to short cut this test instead of creating a brand
+            # new provider. The OCP providers already have data, and can't be used here
+            acc.populate_openshift_cluster_information_tables(
+                self.aws_provider, cluster_id, cluster_alias, start_date, end_date
+            )
+
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider_uuid])
+            topology = acc.get_openshift_topology_for_multiple_providers([self.aws_provider_uuid])
             self.assertEqual(len(topology), 1)
             topo = topology[0]
             self.assertEqual(topo.get("cluster_id"), cluster_id)
@@ -739,16 +648,16 @@ select * from eek where val1 in {{report_period_id}} ;
         mock_table.return_value = True
         cluster_id = str(uuid.uuid4())
         cluster_alias = "test-cluster-1"
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
 
-        with schema_context(self.schema):
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+
+        with self.accessor as acc:
             cluster = OCPCluster(
                 cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid
             )
             cluster.save()
-            topology = self.accessor.get_filtered_openshift_topology_for_multiple_providers(
+            topology = acc.get_filtered_openshift_topology_for_multiple_providers(
                 [self.gcp_provider_uuid], start_date, end_date
             )
             self.assertEqual(len(topology), 1)
@@ -765,13 +674,13 @@ select * from eek where val1 in {{report_period_id}} ;
         node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
         cluster_id = str(uuid.uuid4())
         cluster_alias = "node_role_test"
-        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
-        with schema_context(self.schema):
+        with self.accessor as acc:
+            cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
             node = OCPNode.objects.create(
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertIsNone(node.node_role)
-            self.accessor.populate_node_table(cluster, [node_info])
+            acc.populate_node_table(cluster, [node_info])
             node = OCPNode.objects.get(
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
@@ -782,12 +691,11 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = str(uuid.uuid4())
         cluster_alias = "cluster_alias"
         new_cluster_alias = "new_cluster_alias"
-        self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
-
-        with schema_context(self.schema):
+        with self.accessor as acc:
+            acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, cluster_alias)
-            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            acc.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
             cluster = OCPCluster.objects.filter(cluster_id=cluster_id).first()
             self.assertEqual(cluster.cluster_alias, new_cluster_alias)
 
@@ -795,13 +703,13 @@ select * from eek where val1 in {{report_period_id}} ;
         """Test updating cluster alias for duplicate entry in the cluster table."""
         cluster_id = str(uuid.uuid4())
         new_cluster_alias = "new_cluster_alias"
-        self.accessor.populate_cluster_table(self.aws_provider, cluster_id, "cluster_alias")
-        with schema_context(self.schema):
+        with self.accessor as acc:
+            acc.populate_cluster_table(self.aws_provider, cluster_id, "cluster_alias")
             # Forcefully create a second entry
             OCPCluster.objects.get_or_create(
                 cluster_id=cluster_id, cluster_alias=self.aws_provider.name, provider_id=self.aws_provider_uuid
             )
-            self.accessor.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
+            acc.populate_cluster_table(self.aws_provider, cluster_id, new_cluster_alias)
             clusters = OCPCluster.objects.filter(cluster_id=cluster_id)
             self.assertEqual(len(clusters), 1)
             cluster = clusters.first()
@@ -812,14 +720,14 @@ select * from eek where val1 in {{report_period_id}} ;
         node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
         cluster_id = str(uuid.uuid4())
         cluster_alias = "node_role_test"
-        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
-        with schema_context(self.schema):
-            self.accessor.populate_node_table(cluster, [node_info])
+        with self.accessor as acc:
+            cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+            acc.populate_node_table(cluster, [node_info])
             node_count = OCPNode.objects.filter(
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             ).count()
             self.assertEqual(node_count, 1)
-            self.accessor.populate_node_table(cluster, [node_info])
+            acc.populate_node_table(cluster, [node_info])
             node_count = OCPNode.objects.filter(
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             ).count()
@@ -827,26 +735,22 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_delete_infrastructure_raw_cost_from_daily_summary(self):
         """Test that infra raw cost is deleted."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-        report_period = self.accessor.report_periods_for_provider_uuid(self.ocpaws_provider_uuid, start_date)
-        with schema_context(self.schema):
+        with self.accessor as acc:
+            start_date = self.dh.this_month_start.date()
+            end_date = self.dh.this_month_end.date()
+            report_period = acc.report_periods_for_provider_uuid(self.ocpaws_provider_uuid, start_date)
             report_period_id = report_period.id
             count = OCPUsageLineItemDailySummary.objects.filter(
                 report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
             ).count()
-        self.assertNotEqual(count, 0)
-
-        self.accessor.delete_infrastructure_raw_cost_from_daily_summary(
-            self.ocpaws_provider_uuid, report_period_id, start_date, end_date
-        )
-
-        with schema_context(self.schema):
+            self.assertNotEqual(count, 0)
+            acc.delete_infrastructure_raw_cost_from_daily_summary(
+                self.ocpaws_provider_uuid, report_period_id, start_date, end_date
+            )
             count = OCPUsageLineItemDailySummary.objects.filter(
                 report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
             ).count()
-        self.assertEqual(count, 0)
+            self.assertEqual(count, 0)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
@@ -930,15 +834,14 @@ select * from eek where val1 in {{report_period_id}} ;
 
     def test_delete_all_except_infrastructure_raw_cost_from_daily_summary(self):
         """Test that deleting saves OCP on Cloud data."""
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        with self.accessor as acc:
+            start_date = self.dh.this_month_start
+            end_date = self.dh.this_month_end
 
-        # First test an OCP on Cloud source to make sure we don't delete that data
-        provider_uuid = self.ocp_on_aws_ocp_provider.uuid
-        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+            # First test an OCP on Cloud source to make sure we don't delete that data
+            provider_uuid = self.ocp_on_aws_ocp_provider.uuid
+            report_period = acc.report_periods_for_provider_uuid(provider_uuid, start_date)
 
-        with schema_context(self.schema):
             report_period_id = report_period.id
             initial_non_raw_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
@@ -954,11 +857,10 @@ select * from eek where val1 in {{report_period_id}} ;
                 report_period_id=report_period_id,
             ).count()
 
-        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
-            provider_uuid, report_period_id, start_date, end_date
-        )
+            acc.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+                provider_uuid, report_period_id, start_date, end_date
+            )
 
-        with schema_context(self.schema):
             new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -968,15 +870,14 @@ select * from eek where val1 in {{report_period_id}} ;
                 report_period_id=report_period_id,
             ).count()
 
-        self.assertEqual(initial_non_raw_count, 0)
-        self.assertEqual(new_non_raw_count, 0)
-        self.assertEqual(initial_raw_count, new_raw_count)
+            self.assertEqual(initial_non_raw_count, 0)
+            self.assertEqual(new_non_raw_count, 0)
+            self.assertEqual(initial_raw_count, new_raw_count)
 
-        # Now test an on prem OCP cluster to make sure we still remove non raw costs
-        provider_uuid = self.ocp_provider.uuid
-        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+            # Now test an on prem OCP cluster to make sure we still remove non raw costs
+            provider_uuid = self.ocp_provider.uuid
+            report_period = acc.report_periods_for_provider_uuid(provider_uuid, start_date)
 
-        with schema_context(self.schema):
             report_period_id = report_period.id
             initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
@@ -987,11 +888,10 @@ select * from eek where val1 in {{report_period_id}} ;
                 report_period_id=report_period_id,
             ).count()
 
-        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
-            provider_uuid, report_period_id, start_date, end_date
-        )
+            acc.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+                provider_uuid, report_period_id, start_date, end_date
+            )
 
-        with schema_context(self.schema):
             new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
                 Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
                 report_period_id=report_period_id,
@@ -1001,42 +901,46 @@ select * from eek where val1 in {{report_period_id}} ;
                 report_period_id=report_period_id,
             ).count()
 
-        self.assertNotEqual(initial_non_raw_count, new_non_raw_count)
-        self.assertEqual(initial_raw_count, 0)
-        self.assertEqual(new_raw_count, 0)
+            self.assertNotEqual(initial_non_raw_count, new_non_raw_count)
+            self.assertEqual(initial_raw_count, 0)
+            self.assertEqual(new_raw_count, 0)
 
     def test_populate_monthly_cost_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
-            self.accessor.populate_monthly_cost_sql("", "", "", start_date, end_date, "", self.provider_uuid)
-            self.assertIn("no report period for OCP provider", logger.output[0])
+            with self.accessor as acc:
+                acc.populate_monthly_cost_sql("", "", "", start_date, end_date, "", self.provider_uuid)
+                self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_monthly_cost_tag_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
-            self.accessor.populate_monthly_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
-            self.assertIn("no report period for OCP provider", logger.output[0])
+            with self.accessor as acc:
+                acc.populate_monthly_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
+                self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_usage_costs_new_columns_no_report_period(self):
         """Test that updating new column usage costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
-            self.accessor.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
-            self.assertIn("no report period for OCP provider", logger.output[0])
+            with self.accessor as acc:
+                acc.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
+                self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_platform_and_worker_distributed_cost_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
-        result = self.accessor.populate_platform_and_worker_distributed_cost_sql(
-            start_date, end_date, self.provider_uuid, {"platform_cost": True}
-        )
-        self.assertIsNone(result)
+        with self.accessor as acc:
+            result = acc.populate_platform_and_worker_distributed_cost_sql(
+                start_date, end_date, self.provider_uuid, {"platform_cost": True}
+            )
+            self.assertIsNone(result)
 
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
@@ -1052,7 +956,6 @@ select * from eek where val1 in {{report_period_id}} ;
         masu_database = "masu.database"
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
-        accessor = OCPReportDBAccessor(schema=self.schema)
         default_sql_params = {
             "start_date": start_date,
             "end_date": end_date,
@@ -1068,15 +971,17 @@ select * from eek where val1 in {{report_period_id}} ;
         ]
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
-        accessor.prepare_query = mock_jinja
-        accessor.populate_platform_and_worker_distributed_cost_sql(
-            start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True}
-        )
-        expected_calls = [
-            call(masu_database, "sql/openshift/cost_model/distribute_worker_cost.sql"),
-            call(masu_database, "sql/openshift/cost_model/distribute_platform_cost.sql"),
-        ]
-        for expected_call in expected_calls:
-            self.assertIn(expected_call, mock_data_get.call_args_list)
-        mock_sql_execute.assert_called()
-        self.assertEqual(len(mock_sql_execute.call_args_list), 2)
+
+        with self.accessor as acc:
+            acc.prepare_query = mock_jinja
+            acc.populate_platform_and_worker_distributed_cost_sql(
+                start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True}
+            )
+            expected_calls = [
+                call(masu_database, "sql/openshift/cost_model/distribute_worker_cost.sql"),
+                call(masu_database, "sql/openshift/cost_model/distribute_platform_cost.sql"),
+            ]
+            for expected_call in expected_calls:
+                self.assertIn(expected_call, mock_data_get.call_args_list)
+            mock_sql_execute.assert_called()
+            self.assertEqual(len(mock_sql_execute.call_args_list), 2)

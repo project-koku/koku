@@ -41,7 +41,7 @@ class OCPAWSReportViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh.now, 9)
 
     def test_execute_query_ocp_aws_storage(self):
         """Test that OCP on AWS Storage endpoint works."""

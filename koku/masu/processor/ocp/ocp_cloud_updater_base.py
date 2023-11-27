@@ -13,7 +13,6 @@ from api.provider.models import ProviderInfrastructureMap
 from koku.cache import get_cached_infra_map
 from koku.cache import set_cached_infra_map
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -37,7 +36,6 @@ class OCPCloudUpdaterBase:
         self._provider: Provider = provider
         self._provider_uuid = str(self._provider.uuid)
         self._manifest = manifest
-        self._date_accessor = DateAccessor()
 
     def get_infra_map_from_providers(self):
         """Check a provider for an existing OpenShift/Cloud relationship.
