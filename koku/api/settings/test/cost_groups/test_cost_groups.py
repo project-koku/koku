@@ -2,129 +2,142 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import rest_framework.test
+import json
+from unittest.mock import patch
+from urllib.parse import quote_plus
+from urllib.parse import urlencode
+
 from django.urls import reverse
 from django_tenants.utils import schema_context
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.settings.cost_groups.view import CostGroupsView
+from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
+from api.settings.cost_groups.query_handler import _remove_default_projects
+from api.settings.cost_groups.query_handler import put_openshift_namespaces
+from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
+
+
+class FailedToPopulateDummyProjects(Exception):
+    pass
 
 
 class TestCostGroupsAPI(IamTestCase):
+    def setUp(self):
+        """Set up the account settings view tests."""
+        super().setUp()
+        self.client = APIClient()
+
     @property
     def url(self):
         return reverse("settings-cost-groups")
 
-    @property
-    def default_projects(self):
-        return sorted(CostGroupsView._default_platform_projects)
-
-    def test_get(self):
-        """Get the current platform projects"""
-
+    def test_get_cost_groups(self):
+        """Basic test to exercise the API endpoint"""
         with schema_context(self.schema_name):
-            client = rest_framework.test.APIClient()
-            response = client.get(self.url, **self.headers)
-
-        result = sorted(response.data["data"])
-
+            response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(result, self.default_projects)
 
-    def test_update_platforms(self):
-        """Add more projects to the platform projects"""
+    def test_get_cost_groups_filters(self):
+        """Basic test to exercise the API endpoint"""
+        parameters = [{"group": "Platform"}, {"default": True}, {"project_name": OCP_PLATFORM_NAMESPACE}]
+        for parameter in parameters:
+            with self.subTest(parameter=parameter):
+                for filter_option, filter_value in parameter.items():
+                    param = {f"filter[{filter_option}]": filter_value}
+                    url = self.url + "?" + urlencode(param, quote_via=quote_plus)
+                    with schema_context(self.schema_name):
+                        response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    data = response.data.get("data")
+                    for item in data:
+                        self.assertEqual(item.get(filter_option), filter_value)
 
-        body = {
-            "projects": [
-                "New",
-                "Project",
-            ]
-        }
-        with schema_context(self.schema_name):
-            client = rest_framework.test.APIClient()
-            response = client.put(self.url, body, format="json", **self.headers)
+    def test_get_cost_groups_order(self):
+        """Basic test to exercise the API endpoint"""
 
-        projects = response.data.get("data", [])
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(set(body["projects"]).issubset(projects))
-
-    def test_delete_default_platforms(self):
-        """Ensure default platform categories cannot be deleted"""
-
-        body = {"projects": self.default_projects}
-        with schema_context(self.schema_name):
-            client = rest_framework.test.APIClient()
-            response = client.delete(self.url, body, format="json", **self.headers)
-
-        projects = sorted(response.data.get("data", []))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(projects, self.default_projects)
-
-    def test_delete_platforms(self):
-        """Test deleting platform projects"""
-
-        additional_projects = [
-            "New-Project-%",
-            "Overhead",
-            "More-Overhead-%",
-        ]
-
-        with schema_context(self.schema_name):
-            client = rest_framework.test.APIClient()
-
-            # Get current list of platform projects
-            initial_response = client.get(self.url, **self.headers)
-            initial_projects = sorted(initial_response.data.get("data", []))
-
-            # Add platform projects
-            put_response = client.put(self.url, {"projects": additional_projects}, **self.headers)
-            updated_projects = sorted(put_response.data.get("data", []))
-
-            # Delete one non-default platform project
-            delete_response = client.delete(self.url, {"projects": additional_projects[0]}, **self.headers)
-            final_projects = sorted(delete_response.data.get("data", []))
-
-        # The final platform projects should be the default projects plus those that were add but not deleted
-        expected_final_projects = sorted(additional_projects[1:] + self.default_projects)
-
-        self.assertFalse(set(additional_projects).issubset(initial_projects))
-        self.assertTrue(set(additional_projects).issubset(updated_projects))
-        self.assertEqual(expected_final_projects, final_projects)
-
-    def test_put_invalid(self):
-        """Ensure invalid PUT requests return a 400 status"""
-
-        test_cases = (
-            ({"projects": []}, "may not be empty"),
-            ({"projects": [True]}, "not a valid string"),
-            ({"nope": []}, "field is required"),
-        )
-        for case, expected in test_cases:
+        def spotcheck_first_data_element(option, value):
+            param = {f"order_by[{option}]": value}
+            url = self.url + "?" + urlencode(param, quote_via=quote_plus)
             with schema_context(self.schema_name):
-                client = rest_framework.test.APIClient()
-                response = client.put(self.url, case, format="json", **self.headers)
+                response = self.client.get(url, **self.headers)
+            return response.status_code, response.data.get("data")[0]
 
-            error = response.data.get("errors", [{}])[0].get("detail")
+        order_by_options = ["group", "default", "project_name"]
+        for order_by_option in order_by_options:
+            with self.subTest(order_by_option=order_by_option):
+                asc_status_code, spotcheck_asc = spotcheck_first_data_element(order_by_option, "asc")
+                self.assertEqual(asc_status_code, status.HTTP_200_OK)
+                desc_status_code, spotcheck_desc = spotcheck_first_data_element(order_by_option, "desc")
+                self.assertEqual(desc_status_code, status.HTTP_200_OK)
+                self.assertNotEqual(spotcheck_asc, spotcheck_desc)
 
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn(expected, error.lower())
+    def test_get_cost_groups_exclude_functionality(self):
+        """Test that values can be excluded in the return."""
+        parameters = [{"group": "Platform"}, {"default": True}, {"project_name": "koku"}]
+        for parameter in parameters:
+            with self.subTest(parameter=parameter):
+                for exclude_option, exclude_value in parameter.items():
+                    param = {f"exclude[{exclude_option}]": exclude_value}
+                    url = self.url + "?" + urlencode(param, quote_via=quote_plus)
+                    with schema_context(self.schema_name):
+                        response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    data = response.data.get("data")
+                    for item in data:
+                        if exclude_option in ["group", "default"]:
+                            self.assertNotEqual(item.get(exclude_option), exclude_value)
+                        else:
+                            self.assertNotIn(exclude_value, item.get(exclude_option))
 
-    def test_delete_invalid(self):
-        """Ensure invalid DELETE requests return a 400 status"""
-        test_cases = (
-            ({"projects": []}, "may not be empty"),
-            ({"projects": [True]}, "not a valid string"),
-            ({"nope": []}, "field is required"),
-        )
-        for case, expected in test_cases:
+    @patch("api.settings.cost_groups.view.CostGroupsView._summarize_current_month")
+    def test_delete_cost_groups(self, mock_summarize_current_month):
+        """Test that we can delete projects from the namespaces."""
+
+        def _add_additional_projects(schema_name, testing_prefix):
+            with schema_context(schema_name):
+                current_rows = OpenshiftCostCategoryNamespace.objects.count()
+                additional_project_names = [f"{testing_prefix}project_{i}" for i in range(3)]
+                expected_count = current_rows + len(additional_project_names)
+                put_openshift_namespaces(additional_project_names)
+                current_count = OpenshiftCostCategoryNamespace.objects.count()
+                if current_count != expected_count:
+                    raise FailedToPopulateDummyProjects("Failed to populate dummy data for deletion testing.")
+                return additional_project_names
+
+        testing_prefix = "TESTING_"
+        dummy_projects = _add_additional_projects(self.schema_name, testing_prefix)
+        body = json.dumps({"projects": dummy_projects})
+        with schema_context(self.schema_name):
+            response = self.client.delete(self.url, body, content_type="application/json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=testing_prefix).count()
+            self.assertEqual(current_count, 0)
+            mock_summarize_current_month.assert_called()
+
+    def test_query_handler_remove_default_projects(self):
+        """Test that you can not delete a default project."""
+        with schema_context(self.schema_name):
+            self.assertEqual(_remove_default_projects([OCP_PLATFORM_NAMESPACE]), [])
+
+    def test_put_catch_integrity_error(self):
+        """Test that we catch integrity errors on put."""
+        projects = ["project1", "project1"]
+        with self.assertLogs(logger="api.settings.cost_groups.query_handler", level="WARNING") as log_warning:
             with schema_context(self.schema_name):
-                client = rest_framework.test.APIClient()
-                response = client.delete(self.url, case, format="json", **self.headers)
+                put_openshift_namespaces(projects)
+        self.assertEqual(len(log_warning.records), 1)  # Check that a warning log was generated
+        self.assertIn("IntegrityError", log_warning.records[0].getMessage())
 
-            error = response.data.get("errors", [{}])[0].get("detail")
-
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-            self.assertIn(expected, error.lower())
+    @patch("api.settings.cost_groups.view.CostGroupsView._summarize_current_month")
+    def test_put_new_records(self, mock_summarize_current_month):
+        testing_prefix = "TESTING"
+        new_projects = [f"{testing_prefix}_one", f"{testing_prefix}_two"]
+        body = json.dumps({"projects": new_projects})
+        with schema_context(self.schema_name):
+            response = self.client.put(self.url, body, content_type="application/json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=testing_prefix).count()
+            self.assertEqual(current_count, 2)
+            mock_summarize_current_month.assert_called()
