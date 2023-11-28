@@ -25,7 +25,7 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
         "bill_billingperiodenddate",
     ]
     BOOLEAN_COLUMNS = ["resource_id_matched"]
-    JSON_COLUMS = []
+    JSON_COLUMNS = []
     CREDITS = []
 
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):

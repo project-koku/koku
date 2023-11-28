@@ -256,7 +256,7 @@ WHERE azure.source = {{azure_source_uuid}}
     AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
     AND (azure.resource_id_matched = FALSE OR azure.resource_id_matched IS NULL)
 GROUP BY coalesce(azure.date, azure.usagedatetime),
-    split_part(coalesce(NULLIF(resourceid, ''), instanceid), '/', 9),
+    split_part(coalesce(resourceid, instanceid), '/', 9),
     coalesce(NULLIF(servicename, ''), metercategory),
     coalesce(NULLIF(subscriptionid, ''), subscriptionguid),
     azure.resourcelocation,
