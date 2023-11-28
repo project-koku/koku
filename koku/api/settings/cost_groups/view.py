@@ -42,6 +42,7 @@ class CostGroupsView(APIView):
     serializer = CostGroupQueryParamSerializer
     tag_providers = []
     query_handler = CostGroupsQueryHandler
+    report = "cost_group"
 
     @method_decorator(never_cache)
     def get(self, request, **kwargs):

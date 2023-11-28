@@ -23,6 +23,7 @@ LOG = logging.getLogger(__name__)
 def _remove_default_projects(projects):
     default_ = OpenshiftCostCategoryNamespace.objects.filter(system_default=True).values_list("namespace", flat=True)
     default_projects = [project.replace("%", "") for project in default_]
+    # TODO (cody-sam): This needs to change.
     substring_matches = [x for x in projects if any(default in x for default in default_projects)]
     for project in substring_matches:
         projects.remove(project)
@@ -53,6 +54,8 @@ def delete_openshift_namespaces(projects, category_name="Platform"):
         OpenshiftCostCategoryNamespace.objects.filter(delete_condition).exclude(system_default=True).delete()
     )
     LOG.info(f"Deleted {deleted_count} namespace records from openshift cost groups.")
+    # TODO (cody-sam): This needs to change.
+    # Better return values
     return projects
 
 
@@ -106,6 +109,7 @@ class CostGroupsQueryHandler:
                 if order == "desc":
                     return f"-{key}"
                 return f"{key}"
+        # TODO (cody-sam): create a default value
         return None
 
     def _build_default_field_when_conditions(self):
@@ -113,6 +117,8 @@ class CostGroupsQueryHandler:
         ocp_namespaces = OpenshiftCostCategoryNamespace.objects.filter(cost_category__name="Platform").values(
             "namespace", "system_default"
         )
+        # TODO (cody-sam): If the namespace has a % we need to do startswith
+        # else exact.
         when_conditions = [
             When(
                 namespace__startswith=namespace["namespace"].replace("%", ""), then=Value(namespace["system_default"])
