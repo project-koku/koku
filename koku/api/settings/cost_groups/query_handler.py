@@ -62,7 +62,7 @@ def delete_openshift_namespaces(projects, category_name="Platform"):
 class CostGroupsQueryHandler:
     """Query Handler for the cost groups"""
 
-    FILTER_MAP = {
+    _filter_map = {
         "group": {"field": "group", "operation": "icontains"},
         "default": {"field": "default", "operation": "exact"},
         "project_name": {"field": "project_name", "operation": "icontains"},
@@ -77,21 +77,33 @@ class CostGroupsQueryHandler:
         self.dh = DateHelper()
         self.filters = QueryFilterCollection()
         self.exclusion = QueryFilterCollection()
-        self.order_by = self._check_order_by()
+        self._default_order_by = "namespace"
+
         self._set_filters_or_exclusion()
+
+    @property
+    def order_by(self):
+        if order_by_params := self.parameters._parameters.get("order_by"):
+            for key, order in order_by_params.items():
+                if order.lower() == "desc":
+                    return f"-{key}"
+
+                return f"{key}"
+
+        return self._default_order_by
 
     def _set_filters_or_exclusion(self):
         """Populate the query filter and exclusion collections for search filters."""
-        for q_param in self.FILTER_MAP.keys():
+        for q_param in self._filter_map.keys():
             filter_values = self.parameters.get_filter(q_param, list())
             if filter_values:
                 for item in filter_values if isinstance(filter_values, list) else [filter_values]:
-                    q_filter = QueryFilter(parameter=item, **self.FILTER_MAP[q_param])
+                    q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
                     self.filters.add(q_filter)
             exclude_values = self.parameters.get_exclude(q_param, list())
             if exclude_values:
                 for item in exclude_values if isinstance(exclude_values, list) else [exclude_values]:
-                    q_filter = QueryFilter(parameter=item, **self.FILTER_MAP[q_param])
+                    q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
                     if q_param in ["group", "default"]:
                         # .exclude() will remove nulls, so use Q objects directly to include them
                         Q_kwargs = {q_param: item, f"{q_param}__isnull": False}
@@ -101,16 +113,6 @@ class CostGroupsQueryHandler:
 
         self.exclusion = self.exclusion.compose(logical_operator="or")
         self.filters = self.filters.compose()
-
-    def _check_order_by(self):
-        """Checks the parameters class to see if an order by."""
-        if order_by_dict := self.parameters._parameters.get("order_by"):
-            for key, order in order_by_dict.items():
-                if order == "desc":
-                    return f"-{key}"
-                return f"{key}"
-        # TODO (cody-sam): create a default value
-        return None
 
     def _build_default_field_when_conditions(self):
         """Builds the default when conditions."""
@@ -143,6 +145,7 @@ class CostGroupsQueryHandler:
             ocp_summary_query = ocp_summary_query.exclude(self.exclusion)
         if self.filters:
             ocp_summary_query = ocp_summary_query.filter(self.filters)
-        if self.order_by:
-            ocp_summary_query = ocp_summary_query.order_by(self.order_by)
+
+        ocp_summary_query = ocp_summary_query.order_by(self.order_by)
+
         return ocp_summary_query
