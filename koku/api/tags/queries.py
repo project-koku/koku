@@ -172,7 +172,7 @@ class TagQueryHandler(QueryHandler):
             if namespace.endswith("%"):
                 namespace = namespace.replace("%", "")  # django is doing `kube-\%%`
                 operation = "startswith"
-                
+
             namespace_filter = QueryFilter(parameter=namespace, field="namespace", operation=operation)
             category_filters.add(namespace_filter)
         return category_filters.compose(logical_operator="or")
