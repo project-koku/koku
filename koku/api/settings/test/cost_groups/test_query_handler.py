@@ -1,76 +1,143 @@
-import unittest
-from unittest.mock import Mock
+#
+# Copyright 2023 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+import json
 from unittest.mock import patch
+from urllib.parse import quote_plus
+from urllib.parse import urlencode
 
-from django.db.models import Q
+from django.urls import reverse
+from django_tenants.utils import schema_context
+from rest_framework import status
+from rest_framework.test import APIClient
 
-from api.query_params import QueryParameters
-from api.settings.cost_groups.query_handler import CostGroupsQueryHandler
-from api.settings.cost_groups.query_handler import delete_openshift_namespaces
+from api.iam.test.iam_test_case import IamTestCase
+from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
+from api.settings.cost_groups.query_handler import _remove_default_projects
 from api.settings.cost_groups.query_handler import put_openshift_namespaces
-from reporting.provider.ocp.models import OpenshiftCostCategory
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
 
-class TestCostGroupQueryHandler(unittest.TestCase):
+class FailedToPopulateDummyProjects(Exception):
+    pass
+
+
+class TestCostGroupsAPI(IamTestCase):
     def setUp(self):
-        self.mock_parameters = Mock(spec=QueryParameters)
-        self.mock_parameters.get_filter.return_value = []
-        self.mock_parameters.get_exclude.return_value = []
-        self.mock_parameters._parameters = {"order_by": {"project_name": "asc"}}
-        self.mock_parameters.caller = Mock()
+        """Set up the account settings view tests."""
+        super().setUp()
+        self.client = APIClient()
 
-    def test_put_and_delete_openshift_namespaces(self):
-        original_record_count = OpenshiftCostCategoryNamespace.objects.all().count()
-        projects = ["project1", "project2"]
-        put_openshift_namespaces(projects, category_name="Platform")
-        new_record_count = OpenshiftCostCategoryNamespace.objects.all().count()
-        self.assertNotEqual(original_record_count, new_record_count)
-        new_records = new_record_count - original_record_count
-        self.assertEqual(new_records, len(projects))
-        delete_openshift_namespaces(projects)
-        delete_record_count = OpenshiftCostCategoryNamespace.objects.all().count()
-        self.assertEqual(original_record_count, delete_record_count)
+    @property
+    def url(self):
+        return reverse("settings-cost-groups")
 
-    @patch("reporting.provider.ocp.models.OpenshiftCostCategoryNamespace.objects.filter")
-    @patch("reporting.provider.ocp.models.OpenshiftCostCategoryNamespace.objects.exclude")
-    def test_delete_openshift_namespaces(self, mock_exclude, mock_filter, mock_log):
-        projects = ["project1", "project2"]
-        platform_category = OpenshiftCostCategory.objects.create(name="Platform")
-        mock_exclude.return_value.delete.return_value = (2, {})
+    def test_get_cost_groups(self):
+        """Basic test to exercise the API endpoint"""
+        with schema_context(self.schema_name):
+            response = self.client.get(self.url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        delete_openshift_namespaces(projects, category_name="Platform")
+    def test_get_cost_groups_filters(self):
+        """Basic test to exercise the API endpoint"""
+        parameters = [{"group": "Platform"}, {"default": True}, {"project_name": OCP_PLATFORM_NAMESPACE}]
+        for parameter in parameters:
+            with self.subTest(parameter=parameter):
+                for filter_option, filter_value in parameter.items():
+                    param = {f"filter[{filter_option}]": filter_value}
+                    url = self.url + "?" + urlencode(param, quote_via=quote_plus)
+                    with schema_context(self.schema_name):
+                        response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    data = response.data.get("data")
+                    for item in data:
+                        self.assertEqual(item.get(filter_option), filter_value)
 
-        mock_filter.assert_called_once_with(Q(cost_category=platform_category, namespace__in=projects))
-        mock_exclude.assert_called_once_with(system_default=True)
-        mock_log.info.assert_called_once_with("Deleted 2 namespace records from openshift cost groups.")
+    def test_get_cost_groups_order(self):
+        """Basic test to exercise the API endpoint"""
 
-    @patch("reporting.provider.ocp.models.OpenshiftCostCategoryNamespace.objects.filter")
-    def test_cost_groups_query_handler(self, mock_filter):
-        mock_filter.return_value.exclude.return_value = None
-        mock_filter.return_value.filter.return_value = None
-        mock_filter.return_value.order_by.return_value = None
+        def spotcheck_first_data_element(option, value):
+            param = {f"order_by[{option}]": value}
+            url = self.url + "?" + urlencode(param, quote_via=quote_plus)
+            with schema_context(self.schema_name):
+                response = self.client.get(url, **self.headers)
+            return response.status_code, response.data.get("data")[0]
 
-        handler = CostGroupsQueryHandler(self.mock_parameters)
-        handler.execute_query()
+        order_by_options = ["group", "default", "project_name"]
+        for order_by_option in order_by_options:
+            with self.subTest(order_by_option=order_by_option):
+                asc_status_code, spotcheck_asc = spotcheck_first_data_element(order_by_option, "asc")
+                self.assertEqual(asc_status_code, status.HTTP_200_OK)
+                desc_status_code, spotcheck_desc = spotcheck_first_data_element(order_by_option, "desc")
+                self.assertEqual(desc_status_code, status.HTTP_200_OK)
+                self.assertNotEqual(spotcheck_asc, spotcheck_desc)
 
-        mock_filter.assert_called()
-        mock_filter.return_value.exclude.assert_called()
-        mock_filter.return_value.filter.assert_called()
-        mock_filter.return_value.order_by.assert_called()
+    def test_get_cost_groups_exclude_functionality(self):
+        """Test that values can be excluded in the return."""
+        parameters = [{"group": "Platform"}, {"default": True}, {"project_name": "koku"}]
+        for parameter in parameters:
+            with self.subTest(parameter=parameter):
+                for exclude_option, exclude_value in parameter.items():
+                    param = {f"exclude[{exclude_option}]": exclude_value}
+                    url = self.url + "?" + urlencode(param, quote_via=quote_plus)
+                    with schema_context(self.schema_name):
+                        response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    data = response.data.get("data")
+                    for item in data:
+                        if exclude_option in ["group", "default"]:
+                            self.assertNotEqual(item.get(exclude_option), exclude_value)
+                        else:
+                            self.assertNotIn(exclude_value, item.get(exclude_option))
 
-    @patch("reporting.provider.ocp.models.OpenshiftCostCategoryNamespace.objects.filter")
-    def test_cost_groups_query_handler_with_exclusion(self, mock_filter):
-        mock_filter.return_value.exclude.return_value = "exclusion"
-        mock_filter.return_value.filter.return_value = None
-        mock_filter.return_value.order_by.return_value = None
+    @patch("api.settings.cost_groups.view.CostGroupsView._summarize_current_month")
+    def test_delete_cost_groups(self, mock_summarize_current_month):
+        """Test that we can delete projects from the namespaces."""
 
-        self.mock_parameters.get_exclude.return_value = {"group": "test"}
+        def _add_additional_projects(schema_name, testing_prefix):
+            with schema_context(schema_name):
+                current_rows = OpenshiftCostCategoryNamespace.objects.count()
+                additional_project_names = [f"{testing_prefix}project_{i}" for i in range(3)]
+                expected_count = current_rows + len(additional_project_names)
+                put_openshift_namespaces(additional_project_names)
+                current_count = OpenshiftCostCategoryNamespace.objects.count()
+                if current_count != expected_count:
+                    raise FailedToPopulateDummyProjects("Failed to populate dummy data for deletion testing.")
+                return additional_project_names
 
-        handler = CostGroupsQueryHandler(self.mock_parameters)
-        handler.execute_query()
+        testing_prefix = "TESTING_"
+        dummy_projects = _add_additional_projects(self.schema_name, testing_prefix)
+        body = json.dumps({"projects": dummy_projects})
+        with schema_context(self.schema_name):
+            response = self.client.delete(self.url, body, content_type="application/json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=testing_prefix).count()
+            self.assertEqual(current_count, 0)
+            mock_summarize_current_month.assert_called()
 
-        mock_filter.assert_called()
-        mock_filter.return_value.exclude.assert_called()
-        mock_filter.return_value.filter.assert_not_called()
-        mock_filter.return_value.order_by.assert_not_called()
+    def test_query_handler_remove_default_projects(self):
+        """Test that you can not delete a default project."""
+        with schema_context(self.schema_name):
+            self.assertEqual(_remove_default_projects([OCP_PLATFORM_NAMESPACE]), [])
+
+    def test_put_catch_integrity_error(self):
+        """Test that we catch integrity errors on put."""
+        projects = ["project1", "project1"]
+        with self.assertLogs(logger="api.settings.cost_groups.query_handler", level="WARNING") as log_warning:
+            with schema_context(self.schema_name):
+                put_openshift_namespaces(projects)
+        self.assertEqual(len(log_warning.records), 1)  # Check that a warning log was generated
+        self.assertIn("IntegrityError", log_warning.records[0].getMessage())
+
+    @patch("api.settings.cost_groups.view.CostGroupsView._summarize_current_month")
+    def test_put_new_records(self, mock_summarize_current_month):
+        testing_prefix = "TESTING"
+        new_projects = [f"{testing_prefix}_one", f"{testing_prefix}_two"]
+        body = json.dumps({"projects": new_projects})
+        with schema_context(self.schema_name):
+            response = self.client.put(self.url, body, content_type="application/json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=testing_prefix).count()
+            self.assertEqual(current_count, 2)
+            mock_summarize_current_month.assert_called()
