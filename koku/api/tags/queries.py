@@ -168,17 +168,13 @@ class TagQueryHandler(QueryHandler):
             raise NoNamespacesForCategory(f"No namespaces for category: {category_list}")
 
         for namespace in namespaces:
-            if "%" in namespace:
-                namespace_formated = namespace.replace("%", "")  # django is doing `kube-\%%`
-                namespace_filter = QueryFilter(
-                    parameter=namespace_formated, **{"field": "namespace", "operation": "startswith"}
-                )
-                category_filters.add(namespace_filter)
-            else:
-                namespace_filter = QueryFilter(
-                    parameter=namespace_formated, **{"field": "namespace", "operation": "exact"}
-                )
-                category_filters.add(namespace_filter)
+            operation = "exact"
+            if namespace.endswith("%"):
+                namespace = namespace.replace("%", "")  # django is doing `kube-\%%`
+                operation = "startswith"
+                
+            namespace_filter = QueryFilter(parameter=namespace, field="namespace", operation=operation)
+            category_filters.add(namespace_filter)
         return category_filters.compose(logical_operator="or")
 
     def _get_filter(self, delta=False):  # noqa: C901
