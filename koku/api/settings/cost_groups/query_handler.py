@@ -119,15 +119,20 @@ class CostGroupsQueryHandler:
         ocp_namespaces = OpenshiftCostCategoryNamespace.objects.filter(cost_category__name="Platform").values(
             "namespace", "system_default"
         )
-        # TODO (cody-sam): If the namespace has a % we need to do startswith
-        # else exact.
-        when_conditions = [
-            When(
-                namespace__startswith=namespace["namespace"].replace("%", ""), then=Value(namespace["system_default"])
-            )
-            for namespace in ocp_namespaces
-        ]
+
+        when_conditions = []
+        for item in ocp_namespaces:
+            operation = ""
+            namespace = item["namespace"]
+            if namespace.endswith("%"):
+                operation = "__startswith"
+                namespace = namespace.replace("%", "")
+
+            kwargs = {f"namespace{operation}": namespace}
+            when_conditions.append(When(**kwargs, then=Value(item["system_default"])))
+
         when_conditions.append(When(namespace="Worker unallocated", then=Value(True)))
+
         return when_conditions
 
     def execute_query(self):
