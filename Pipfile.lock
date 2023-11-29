@@ -1365,7 +1365,7 @@
                 "sha256:32c7c0b711493c72ff18a981d24f28aaf9c1fb7ed5e9667c9e84e3db623bdbfb",
                 "sha256:ede28a1a32462f5a9705e07aea48001a08f7cf81a021585011deba701581a0db"
             ],
-            "markers": "python_version >= '3.1'",
+            "markers": "python_version > '3.0'",
             "version": "==3.1.1"
         },
         "python-dateutil": {
@@ -1475,7 +1475,7 @@
                 "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926",
                 "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "version": "==1.16.0"
         },
         "soupsieve": {
@@ -1623,7 +1623,7 @@
                 "sha256:244def434ccf31b668ed282954e5d315b4e066c4940b94aff4a7962d85947830",
                 "sha256:5ea9e61caf96db1e5b3d0a914378d2cd83c269dfce1fb8242ce96589fa3382f0"
             ],
-            "markers": "python_version < '4' and python_full_version >= '3.7.2'",
+            "markers": "python_full_version >= '3.7.2' and python_version < '4'",
             "version": "==2.12.1"
         },
         "app-common-python": {
@@ -2006,11 +2006,11 @@
         },
         "crc-bonfire": {
             "hashes": [
-                "sha256:544373267f6c588c295aae4ec5d2c1546332b5d0820e4f814800ea6af8a1a6f9",
-                "sha256:bc6cf595215b3bb989ada41bd621d45f8809971d14a8f5bf29183b98e5f8b9ef"
+                "sha256:2f30e0595d3948cc1bc94f0c49c1041369d0066c2d3d22cc07d358714f1c3895",
+                "sha256:c538ec1fe21d8f8d0c9e9d2f5aaa3589760a4ea8ddc304fe392ff49ae3e4de8a"
             ],
             "index": "pypi",
-            "version": "==5.3.0"
+            "version": "==5.3.1"
         },
         "cryptography": {
             "hashes": [
@@ -2171,7 +2171,7 @@
             "hashes": [
                 "sha256:34a17436ed1e96697a86f9de3d15a3b0be01d8bc8de9c1dffd59fb8234ed5307"
             ],
-            "markers": "python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "markers": "python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2'",
             "version": "==0.18.3"
         },
         "google-api-core": {
@@ -3037,7 +3037,7 @@
                 "sha256:32c7c0b711493c72ff18a981d24f28aaf9c1fb7ed5e9667c9e84e3db623bdbfb",
                 "sha256:ede28a1a32462f5a9705e07aea48001a08f7cf81a021585011deba701581a0db"
             ],
-            "markers": "python_version >= '3.1'",
+            "markers": "python_version > '3.0'",
             "version": "==3.1.1"
         },
         "python-dateutil": {
@@ -3180,7 +3180,7 @@
                 "sha256:9b2998f313f201c777e2c0061f0b1367497097ef13388595be147e2a00bf7ba1",
                 "sha256:ced8f2e081a858b66a46ace3703dec243779abbd5a1887ba7e3c34f34da70cd2"
             ],
-            "markers": "python_version < '4.0' and python_full_version >= '3.8.1'",
+            "markers": "python_full_version >= '3.8.1' and python_version < '4.0'",
             "version": "==2.0.6"
         },
         "six": {
@@ -3188,7 +3188,7 @@
                 "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926",
                 "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "version": "==1.16.0"
         },
         "snakeviz": {
@@ -3235,7 +3235,7 @@
                 "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
                 "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
             ],
-            "markers": "python_version < '3.11' and python_version >= '3.7'",
+            "markers": "python_version >= '3.7' and python_version < '3.11'",
             "version": "==2.0.1"
         },
         "tornado": {
