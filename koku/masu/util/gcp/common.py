@@ -68,10 +68,8 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     tags = data_frame["labels"]
     tags = tags.str.lower()
     resource_id_df = data_frame.get("resource_name")
-    match_columns = []
 
     for i, cluster_topology in enumerate(cluster_topologies):
-        match_col_name = f"ocp_matched_{i}"
         cluster_id = cluster_topology.get("cluster_id", "")
         cluster_alias = cluster_topology.get("cluster_alias", "")
         nodes = list(filter(None, cluster_topology.get("nodes", [])))
@@ -95,7 +93,6 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         data_frame["ocp_source_uuid"] = ocp_matched
         condition_map = {True: cluster_topology.get("provider_uuid"), False: pd.NA}
         data_frame["ocp_source_uuid"] = data_frame["ocp_source_uuid"].map(condition_map)
-        match_columns.append(match_col_name)
 
     # Consildate the columns per cluster into a single column
     data_frame["ocp_matched"] = data_frame["ocp_source_uuid"].notnull()
