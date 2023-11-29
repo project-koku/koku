@@ -92,15 +92,13 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             ocp_matched = tags.str.contains("|".join(cluster_strings))
 
         # Add in OCP Cluster these resources matched to
-        data_frame[match_col_name] = ocp_matched
-        data_frame.loc[data_frame[match_col_name] == True, "ocp_source_uuid"] = cluster_topology.get(  # noqa: E712
-            "provider_uuid"
-        )
+        data_frame["ocp_source_uuid"] = ocp_matched
+        condition_map = {True: cluster_topology.get("provider_uuid"), False: pd.NA}
+        data_frame["ocp_source_uuid"] = data_frame["ocp_source_uuid"].map(condition_map)
         match_columns.append(match_col_name)
 
     # Consildate the columns per cluster into a single column
-    data_frame.loc[data_frame["ocp_source_uuid"].notnull(), "ocp_matched"] = True
-    data_frame = data_frame.drop(columns=match_columns)
+    data_frame["ocp_matched"] = data_frame["ocp_source_uuid"].notnull()
     data_frame["ocp_source_uuid"].fillna(value="", inplace=True)
 
     special_case_tag_matched = tags.str.contains(
