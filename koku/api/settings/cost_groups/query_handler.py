@@ -77,7 +77,7 @@ class CostGroupsQueryHandler:
         self.dh = DateHelper()
         self.filters = QueryFilterCollection()
         self.exclusion = QueryFilterCollection()
-        self._default_order_by = "namespace"
+        self._default_order_by = "project_name"
 
         self._set_filters_or_exclusion()
 
@@ -85,7 +85,7 @@ class CostGroupsQueryHandler:
     def order_by(self):
         if order_by_params := self.parameters._parameters.get("order_by"):
             for key, order in order_by_params.items():
-                if order.lower() == "desc":
+                if order == "desc":
                     return f"-{key}"
 
                 return f"{key}"
