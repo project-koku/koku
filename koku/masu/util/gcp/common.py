@@ -99,7 +99,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
 
     # Consildate the columns per cluster into a single column
     data_frame["ocp_source_uuid"] = data_frame[match_columns].fillna(value="").agg("max", axis=1)
-    data_frame["ocp_matched"] = data_frame["ocp_source_uuid"].notnull()
+    data_frame["ocp_matched"] = data_frame["ocp_source_uuid"].str.len() > 0
     data_frame = data_frame.drop(columns=match_columns)
 
     special_case_tag_matched = tags.str.contains(
