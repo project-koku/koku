@@ -63,26 +63,32 @@ class CostGroupsView(APIView):
             params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
         handler = self.query_handler(params)
         output = handler.execute_query()
         paginator = ListPaginator(output, request)
+
         return paginator.paginated_response
 
     def put(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         projects = serializer.validated_data["projects"]
         projects = put_openshift_namespaces(projects)
-        paginator = ListPaginator(projects, request)
         self._summarize_current_month(request.user.customer.schema_name, projects)
+
+        paginator = ListPaginator(projects, request)
         return paginator.paginated_response
 
     def delete(self, request):
         serializer = NonEmptyListSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         projects = serializer.validated_data["projects"]
         projects = delete_openshift_namespaces(projects)
         self._summarize_current_month(request.user.customer.schema_name, projects)
+
         paginator = ListPaginator(projects, request)
         return paginator.paginated_response
 
@@ -106,4 +112,5 @@ class CostGroupsView(APIView):
                 start_date=self._date_helper.this_month_start,
             ).apply_async(queue=ocp_queue)
             async_ids.append(str(async_result))
+
         return async_ids

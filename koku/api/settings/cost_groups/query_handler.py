@@ -61,6 +61,7 @@ def put_openshift_namespaces(projects, category_name="Platform"):
     except IntegrityError as e:
         # Handle IntegrityError (e.g., if a unique constraint is violated)
         LOG.warning(f"IntegrityError: {e}")
+
     return projects
 
 
@@ -72,8 +73,7 @@ def delete_openshift_namespaces(projects, category_name="Platform"):
         OpenshiftCostCategoryNamespace.objects.filter(delete_condition).exclude(system_default=True).delete()
     )
     LOG.info(f"Deleted {deleted_count} namespace records from openshift cost groups.")
-    # TODO (cody-sam): This needs to change.
-    # Better return values
+
     return projects
 
 
