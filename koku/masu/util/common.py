@@ -493,7 +493,7 @@ def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_col
         elif cleaned_column in trino_schema.DATE_COLUMNS:
             data_frame[column] = pd.Series(dtype="datetime64[ms]")
         else:
-            data_frame[column] = ""
+            data_frame[column] = pd.Series(dtype="string")
     return data_frame
 
 
