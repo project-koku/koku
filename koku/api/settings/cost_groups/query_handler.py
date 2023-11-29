@@ -1,5 +1,7 @@
 import logging
 
+from types import MappingProxyType
+
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import IntegrityError
 from django.db.models import BooleanField
@@ -71,11 +73,11 @@ def delete_openshift_namespaces(projects, category_name="Platform"):
 class CostGroupsQueryHandler:
     """Query Handler for the cost groups"""
 
-    _filter_map = {
-        "group": {"field": "group", "operation": "icontains"},
-        "default": {"field": "default", "operation": "exact"},
-        "project_name": {"field": "project_name", "operation": "icontains"},
-    }
+    _filter_map = MappingProxyType({
+        "group": MappingProxyType({"field": "group", "operation": "icontains"}),
+        "default": MappingProxyType({"field": "default", "operation": "exact"}),
+        "project_name": MappingProxyType({"field": "project_name", "operation": "icontains"}),
+    })
 
     def __init__(self, parameters):
         """
