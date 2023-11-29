@@ -14,6 +14,7 @@ from django.db.models.functions import Coalesce
 
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
+from api.query_params import QueryParameters
 from api.utils import DateHelper
 from reporting.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OpenshiftCostCategory
@@ -23,13 +24,16 @@ LOG = logging.getLogger(__name__)
 
 
 def _remove_default_projects(projects) -> list[str, ...]:
-    if not getattr(_remove_default_projects, "_default", None):
-        _remove_default_projects._default = OpenshiftCostCategoryNamespace.objects.filter(
+    try:
+        _remove_default_projects.system_default_namespaces
+    except AttributeError:
+        # Cache the system default namespcases
+        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(
             system_default=True
         ).values_list("namespace", flat=True)
 
-    exact_matches = {project for project in _remove_default_projects._default if not project.endswith("%")}
-    prefix_matches = set(_remove_default_projects._default).difference(exact_matches)
+    exact_matches = {project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")}
+    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)
 
     scrubbed_projects = []
     for project in projects:
@@ -84,7 +88,7 @@ class CostGroupsQueryHandler:
         }
     )
 
-    def __init__(self, parameters):
+    def __init__(self, parameters: QueryParameters):
         """
         Args:
             parameters    (QueryParameters): parameter object for query
