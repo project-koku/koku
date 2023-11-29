@@ -13,9 +13,11 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.models import Provider
 from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
 from api.settings.cost_groups.query_handler import _remove_default_projects
 from api.settings.cost_groups.query_handler import put_openshift_namespaces
+from api.utils import DateHelper
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
 
@@ -130,14 +132,24 @@ class TestCostGroupsAPI(IamTestCase):
         self.assertEqual(len(log_warning.records), 1)  # Check that a warning log was generated
         self.assertIn("IntegrityError", log_warning.records[0].getMessage())
 
-    @patch("api.settings.cost_groups.view.CostGroupsView._summarize_current_month")
-    def test_put_new_records(self, mock_summarize_current_month):
-        testing_prefix = "TESTING"
-        new_projects = [f"{testing_prefix}_one", f"{testing_prefix}_two"]
-        body = json.dumps({"projects": new_projects})
+    @patch("api.settings.cost_groups.view.OCPProject.objects.filter")
+    @patch("api.settings.cost_groups.view.update_summary_tables")
+    @patch("api.settings.cost_groups.view.is_customer_large", return_value=False)
+    def test_put_new_records(self, mock_is_customer_large, mock_update, mock_project):
+        mock_provider_uuid = "fake_uuid_1"
+        mock_values_list = mock_project.return_value.values_list.return_value
+        mock_values_list.distinct.return_value = [mock_provider_uuid]
+        namespace = "Test"
+        body = json.dumps({"projects": [namespace]})
         with schema_context(self.schema_name):
             response = self.client.put(self.url, body, content_type="application/json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=testing_prefix).count()
-            self.assertEqual(current_count, 2)
-            mock_summarize_current_month.assert_called()
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=namespace).count()
+            self.assertEqual(current_count, 1)
+            mock_is_customer_large.assert_called_once_with(self.schema_name)
+            mock_update.s.assert_called_with(
+                self.schema_name,
+                provider_type=Provider.PROVIDER_OCP,
+                provider_uuid=mock_provider_uuid,
+                start_date=DateHelper().this_month_start,
+            )

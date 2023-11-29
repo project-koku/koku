@@ -24,6 +24,7 @@ from masu.processor import is_customer_large
 from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.processor.tasks import update_summary_tables
+from reporting.provider.ocp.models import OCPProject
 
 
 SETTINGS_GENERATORS = {"settings": Settings}
@@ -73,7 +74,7 @@ class CostGroupsView(APIView):
         projects = serializer.validated_data["projects"]
         projects = put_openshift_namespaces(projects)
         paginator = ListPaginator(projects, request)
-        self._summarize_current_month(request)
+        self._summarize_current_month(request.user.customer.schema_name, projects)
         return paginator.paginated_response
 
     def delete(self, request):
@@ -81,33 +82,28 @@ class CostGroupsView(APIView):
         serializer.is_valid(raise_exception=True)
         projects = serializer.validated_data["projects"]
         projects = delete_openshift_namespaces(projects)
-        self._summarize_current_month(request)
+        self._summarize_current_month(request.user.customer.schema_name, projects)
         paginator = ListPaginator(projects, request)
         return paginator.paginated_response
 
-    def _summarize_current_month(self, request):
-        """Resummarize OCP data for the current month"""
-
+    def _summarize_current_month(self, schema_name, projects):
+        """Resummarize OCP data for the current month."""
         ocp_queue = OCP_QUEUE
-        schema_name = request.user.customer.schema_name
-        provider_type = Provider.PROVIDER_OCP
         if is_customer_large(schema_name):
             ocp_queue = OCP_QUEUE_XL
 
-        providers = Provider.objects.filter(
-            type=provider_type,
-            customer_id=request.user.customer.id,
+        provider_uuids = (
+            OCPProject.objects.filter(project__in=projects)
+            .values_list("cluster__provider__uuid", flat=True)
+            .distinct()
         )
-
         async_ids = []
-        for provider in providers:
+        for provider_uuid in provider_uuids:
             async_result = update_summary_tables.s(
                 schema_name,
-                provider_type=provider_type,
-                provider_uuid=str(provider.uuid),
+                provider_type=Provider.PROVIDER_OCP,
+                provider_uuid=provider_uuid,
                 start_date=self._date_helper.this_month_start,
             ).apply_async(queue=ocp_queue)
-
             async_ids.append(str(async_result))
-
         return async_ids
