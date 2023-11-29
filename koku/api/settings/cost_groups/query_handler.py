@@ -23,17 +23,21 @@ from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 LOG = logging.getLogger(__name__)
 
 
-def _remove_default_projects(projects) -> list[str, ...]:
+def _remove_default_projects(projects: list[str]) -> list[str]:
     try:
-        _remove_default_projects.system_default_namespaces
+        _remove_default_projects.system_default_namespaces  # type: ignore[attr-defined]
     except AttributeError:
         # Cache the system default namespcases
-        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(
+        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(  # type: ignore[attr-defined]
             system_default=True
-        ).values_list("namespace", flat=True)
+        ).values_list(
+            "namespace", flat=True
+        )
 
-    exact_matches = {project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")}
-    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)
+    exact_matches = {
+        project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")  # type: ignore[attr-defined]
+    }
+    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)  # type: ignore[attr-defined]
 
     scrubbed_projects = []
     for project in projects:
@@ -48,7 +52,7 @@ def _remove_default_projects(projects) -> list[str, ...]:
     return scrubbed_projects
 
 
-def put_openshift_namespaces(projects, category_name="Platform"):
+def put_openshift_namespaces(projects: list[str], category_name: str = "Platform") -> list[str]:
     projects = _remove_default_projects(projects)
     platform_category = OpenshiftCostCategory.objects.get(name=category_name)
     namespaces_to_create = [
@@ -65,7 +69,7 @@ def put_openshift_namespaces(projects, category_name="Platform"):
     return projects
 
 
-def delete_openshift_namespaces(projects, category_name="Platform"):
+def delete_openshift_namespaces(projects: list[str], category_name: str = "Platform") -> list[str]:
     projects = _remove_default_projects(projects)
     platform_category = OpenshiftCostCategory.objects.get(name=category_name)
     delete_condition = Q(cost_category=platform_category, namespace__in=projects)
@@ -88,7 +92,7 @@ class CostGroupsQueryHandler:
         }
     )
 
-    def __init__(self, parameters: QueryParameters):
+    def __init__(self, parameters: QueryParameters) -> None:
         """
         Args:
             parameters    (QueryParameters): parameter object for query
@@ -102,7 +106,7 @@ class CostGroupsQueryHandler:
         self._set_filters_or_exclusion()
 
     @property
-    def order_by(self):
+    def order_by(self) -> str:
         if order_by_params := self.parameters._parameters.get("order_by"):
             for key, order in order_by_params.items():
                 if order == "desc":
@@ -112,7 +116,7 @@ class CostGroupsQueryHandler:
 
         return self._default_order_by
 
-    def _set_filters_or_exclusion(self):
+    def _set_filters_or_exclusion(self) -> None:
         """Populate the query filter and exclusion collections for search filters."""
         for q_param in self._filter_map.keys():
             filter_values = self.parameters.get_filter(q_param, list())
@@ -134,7 +138,7 @@ class CostGroupsQueryHandler:
         self.exclusion = self.exclusion.compose(logical_operator="or")
         self.filters = self.filters.compose()
 
-    def _build_default_field_when_conditions(self):
+    def _build_default_field_when_conditions(self) -> list[When]:
         """Builds the default when conditions."""
         ocp_namespaces = OpenshiftCostCategoryNamespace.objects.filter(cost_category__name="Platform").values(
             "namespace", "system_default"

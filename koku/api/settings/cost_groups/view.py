@@ -5,6 +5,7 @@
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
@@ -41,12 +42,12 @@ class CostGroupsView(APIView):
     permission_classes = (SettingsAccessPermission,)
     _date_helper = DateHelper()
     serializer = CostGroupQueryParamSerializer
-    tag_providers = []
+    tag_providers: list[str] = []
     query_handler = CostGroupsQueryHandler
     report = "cost_group"
 
     @method_decorator(never_cache)
-    def get(self, request, **kwargs):
+    def get(self, request: Request, **kwargs) -> Response:
         """Get Report Data.
 
         This method is responsible for passing request data to the reporting APIs.
@@ -58,7 +59,6 @@ class CostGroupsView(APIView):
             (Response): The report in a Response object
 
         """
-
         try:
             params = QueryParameters(request=request, caller=self, **kwargs)
         except ValidationError as exc:
@@ -70,7 +70,7 @@ class CostGroupsView(APIView):
 
         return paginator.paginated_response
 
-    def put(self, request):
+    def put(self, request: Request) -> Response:
         serializer = NonEmptyListSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -78,10 +78,9 @@ class CostGroupsView(APIView):
         projects = put_openshift_namespaces(projects)
         self._summarize_current_month(request.user.customer.schema_name, projects)
 
-        paginator = ListPaginator(projects, request)
-        return paginator.paginated_response
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def delete(self, request):
+    def delete(self, request: Request) -> Response:
         serializer = NonEmptyListSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -89,10 +88,9 @@ class CostGroupsView(APIView):
         projects = delete_openshift_namespaces(projects)
         self._summarize_current_month(request.user.customer.schema_name, projects)
 
-        paginator = ListPaginator(projects, request)
-        return paginator.paginated_response
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _summarize_current_month(self, schema_name, projects):
+    def _summarize_current_month(self, schema_name: str, projects: list[str]) -> list[str]:
         """Resummarize OCP data for the current month."""
         ocp_queue = OCP_QUEUE
         if is_customer_large(schema_name):
