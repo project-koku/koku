@@ -1,5 +1,4 @@
 import logging
-
 from types import MappingProxyType
 
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -7,6 +6,7 @@ from django.db import IntegrityError
 from django.db.models import BooleanField
 from django.db.models import Case
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
@@ -21,11 +21,14 @@ from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
 LOG = logging.getLogger(__name__)
 
+
 def _remove_default_projects(projects) -> list[str, ...]:
     if not getattr(_remove_default_projects, "_default", None):
-        _remove_default_projects._default = OpenshiftCostCategoryNamespace.objects.filter(system_default=True).values_list("namespace", flat=True)
+        _remove_default_projects._default = OpenshiftCostCategoryNamespace.objects.filter(
+            system_default=True
+        ).values_list("namespace", flat=True)
 
-    exact_matches = set(project for project in _remove_default_projects._default if not project.endswith("%"))
+    exact_matches = {project for project in _remove_default_projects._default if not project.endswith("%")}
     prefix_matches = set(_remove_default_projects._default).difference(exact_matches)
 
     scrubbed_projects = []
@@ -73,11 +76,13 @@ def delete_openshift_namespaces(projects, category_name="Platform"):
 class CostGroupsQueryHandler:
     """Query Handler for the cost groups"""
 
-    _filter_map = MappingProxyType({
-        "group": MappingProxyType({"field": "group", "operation": "icontains"}),
-        "default": MappingProxyType({"field": "default", "operation": "exact"}),
-        "project_name": MappingProxyType({"field": "project_name", "operation": "icontains"}),
-    })
+    _filter_map = MappingProxyType(
+        {
+            "group": MappingProxyType({"field": "group", "operation": "icontains"}),
+            "default": MappingProxyType({"field": "default", "operation": "exact"}),
+            "project_name": MappingProxyType({"field": "project_name", "operation": "icontains"}),
+        }
+    )
 
     def __init__(self, parameters):
         """
@@ -148,8 +153,18 @@ class CostGroupsQueryHandler:
 
     def execute_query(self):
         """Executes a query to grab the information we need for the api return."""
+        max_usage_start_subquery = (
+            OCPCostSummaryByProjectP.objects.filter(
+                namespace=F("namespace"),
+            )
+            .values("namespace")
+            .annotate(max_usage_start=Max("usage_start"))
+            .distinct()
+        )
+
         ocp_summary_query = (
-            OCPCostSummaryByProjectP.objects.values(project_name=F("namespace"))
+            OCPCostSummaryByProjectP.objects.filter(usage_start__in=max_usage_start_subquery.values("max_usage_start"))
+            .values(project_name=F("namespace"))
             .annotate(
                 clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                 group=F("cost_category__name"),
