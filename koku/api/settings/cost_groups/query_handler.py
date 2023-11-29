@@ -19,15 +19,24 @@ from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
 LOG = logging.getLogger(__name__)
 
+def _remove_default_projects(projects) -> list[str, ...]:
+    if not getattr(_remove_default_projects, "_default", None):
+        _remove_default_projects._default = OpenshiftCostCategoryNamespace.objects.filter(system_default=True).values_list("namespace", flat=True)
 
-def _remove_default_projects(projects):
-    default_ = OpenshiftCostCategoryNamespace.objects.filter(system_default=True).values_list("namespace", flat=True)
-    default_projects = [project.replace("%", "") for project in default_]
-    # TODO (cody-sam): This needs to change.
-    substring_matches = [x for x in projects if any(default in x for default in default_projects)]
-    for project in substring_matches:
-        projects.remove(project)
-    return projects
+    exact_matches = set(project for project in _remove_default_projects._default if not project.endswith("%"))
+    prefix_matches = set(_remove_default_projects._default).difference(exact_matches)
+
+    scrubbed_projects = []
+    for project in projects:
+        if project in exact_matches:
+            continue
+
+        if any(project.startswith(prefix.replace("%", "")) for prefix in prefix_matches):
+            continue
+
+        scrubbed_projects.append(project)
+
+    return scrubbed_projects
 
 
 def put_openshift_namespaces(projects, category_name="Platform"):
