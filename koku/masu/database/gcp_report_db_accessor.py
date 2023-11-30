@@ -116,7 +116,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 end_date,
                 new_end_date,
                 table=self.line_item_daily_summary_table,
-                filters={"invoice_month": invoice_month},
+                filters={"invoice_month": invoice_month, "source_uuid": source_uuid},
             )
             end_date = new_end_date
 
