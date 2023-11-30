@@ -481,7 +481,6 @@ def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_col
     """Adds the missing columns with the correct dtypes."""
     raw_columns = data_frame.columns.tolist()
     if clean:
-        # For Azure the Trino Columns are the cleaned column names
         raw_columns = [strip_characters_from_column_name(raw_column) for raw_column in raw_columns]
     missing_columns = [col for col in trino_required_columns if col not in raw_columns]
     for column in missing_columns:
@@ -497,7 +496,7 @@ def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_col
     return data_frame
 
 
-def get_column_converters_common(col_names, panda_kwargs, trino_schema, prov_type=None):
+def get_column_converters_common(col_names, panda_kwargs, trino_schema, prov_type=None, translation=None):
     """
     Return source specific parquet column converters.
     """
@@ -515,7 +514,10 @@ def get_column_converters_common(col_names, panda_kwargs, trino_schema, prov_typ
     }
     converters = {}
     for col in col_names:
-        cleaned_column = strip_characters_from_column_name(col)
+        if translation and translation.get(col):
+            cleaned_column = strip_characters_from_column_name(translation.get(col))
+        else:
+            cleaned_column = strip_characters_from_column_name(col)
         if cleaned_column in trino_schema.NUMERIC_COLUMNS:
             converters[col] = safe_float
         elif cleaned_column in trino_schema.DATE_COLUMNS:

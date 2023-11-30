@@ -150,16 +150,15 @@ class AWSPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        columns = []
-        for col in col_names:
-            if "/" not in col and self.translation.get(col):
-                columns.append(self.translation[col])
-        if columns == []:
-            columns = col_names
-        csv_converters, panda_kwargs = get_column_converters_common(columns, panda_kwargs, trino_schema, "AWS")
+        translation = None
+        if "/" not in col_names[0]:
+            translation = self.COL_TRANSLATION
+        csv_converters, panda_kwargs = get_column_converters_common(
+            col_names, panda_kwargs, trino_schema, "AWS", translation=translation
+        )
         csv_columns = RECOMMENDED_COLUMNS.union(RECOMMENDED_ALT_COLUMNS).union(OPTIONAL_COLS).union(OPTIONAL_ALT_COLS)
         panda_kwargs["usecols"] = [
-            col for col in columns if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
+            col for col in col_names if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
         ]
         return csv_converters, panda_kwargs
 
