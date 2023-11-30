@@ -165,8 +165,9 @@ class TestGCPUtils(MasuTestCase):
                 "resource_ids": [],
                 "cluster_id": "ocp-gcp-cluster",
                 "cluster_alias": "my-ocp-cluster",
-                "nodes": ["id1", "id2", "id3"],
+                "nodes": ["node1", "node2", "node3"],
                 "projects": [],
+                "provider_uuid": "2e26f8a7-42db-4a11-a0b1-f3084cd11e60",
             }
         ]
 
@@ -175,21 +176,21 @@ class TestGCPUtils(MasuTestCase):
             {
                 "resourceid": "id1",
                 "pretaxcost": 1,
-                "resource_name": "resource_1",
+                "resource_name": "node1",
                 "global_resource_name": "global_resource_1",
                 "labels": '{"key": "other_value"}',
             },
             {
                 "resourceid": "id2",
                 "pretaxcost": 1,
-                "resource_name": "resource_2",
+                "resource_name": "node3",
                 "global_resource_name": "global_resource_2",
                 "labels": '{"key": "other_value"}',
             },
             {
                 "resourceid": "id3",
                 "pretaxcost": 1,
-                "resource_name": "resource_2",
+                "resource_name": "node3",
                 "global_resource_name": "global_resource_3",
                 "labels": '{"key": "other_value"}',
             },
@@ -201,8 +202,10 @@ class TestGCPUtils(MasuTestCase):
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
         with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-            utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+            matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
             self.assertIn(expected_log, logger.output[0])
+
+        self.assertEqual(matched_df.shape[0], 3)
 
     def test_deduplicate_reports_for_gcp(self):
         """Test the deduplication of reports for gcp."""
