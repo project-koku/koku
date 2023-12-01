@@ -6,7 +6,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.models import Provider
-from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor as trino_schema
+from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.util.aws.common import OPTIONAL_ALT_COLS
 from masu.util.aws.common import OPTIONAL_COLS
 from masu.util.aws.common import RECOMMENDED_ALT_COLUMNS
@@ -154,7 +154,7 @@ class AWSPostProcessor:
         if "/" not in col_names[0]:
             translation = self.COL_TRANSLATION
         csv_converters, panda_kwargs = get_column_converters_common(
-            col_names, panda_kwargs, trino_schema, "AWS", translation=translation
+            col_names, panda_kwargs, AWSReportParquetProcessor, "AWS", translation=translation
         )
         csv_columns = RECOMMENDED_COLUMNS.union(RECOMMENDED_ALT_COLUMNS).union(OPTIONAL_COLS).union(OPTIONAL_ALT_COLS)
         panda_kwargs["usecols"] = [
@@ -232,7 +232,7 @@ class AWSPostProcessor:
         # Make sure we have entries for our required columns
         data_frame = data_frame.reindex(columns=columns)
 
-        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS)
+        data_frame = add_missing_columns_with_dtypes(data_frame, AWSReportParquetProcessor, TRINO_REQUIRED_COLUMNS)
 
         columns = list(data_frame)
         column_name_map = {}

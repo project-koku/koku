@@ -17,16 +17,16 @@ from reporting.provider.oci.models import TRINO_LINE_ITEM_TABLE_MAP
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):
 
-    NUMERIC_COLUMNS = ["usage_consumedquantity", "cost_mycost"]
-    DATE_COLUMNS = [
+    NUMERIC_COLUMNS = ("usage_consumedquantity", "cost_mycost")
+    DATE_COLUMNS = (
         "lineitem_intervalusagestart",
         "lineitem_intervalusageend",
         "bill_billingperiodstartdate",
         "bill_billingperiodenddate",
-    ]
-    BOOLEAN_COLUMNS = ["resource_id_matched"]
-    JSON_COLUMNS = []
-    CREDITS = []
+    )
+    BOOLEAN_COLUMNS = "resource_id_matched"
+    JSON_COLUMNS = ()
+    CREDITS = ()
 
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
         column_types = {

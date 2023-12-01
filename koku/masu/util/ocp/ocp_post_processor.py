@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 
 from api.models import Provider
-from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor as trino_schema
+from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.common import add_missing_columns_with_dtypes
 from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_false
@@ -43,7 +43,7 @@ class OCPPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "OCP")
+        return get_column_converters_common(col_names, panda_kwargs, OCPReportParquetProcessor, "OCP")
 
     def _generate_daily_data(self, data_frame):
         """Given a dataframe, group the data to create daily data."""
@@ -67,7 +67,7 @@ class OCPPostProcessor:
         daily_data_frame.reset_index(inplace=True)
 
         new_cols = report.get("new_required_columns")
-        daily_data_frame = add_missing_columns_with_dtypes(daily_data_frame, trino_schema, new_cols)
+        daily_data_frame = add_missing_columns_with_dtypes(daily_data_frame, OCPReportParquetProcessor, new_cols)
 
         return daily_data_frame
 

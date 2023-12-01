@@ -17,18 +17,18 @@ from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 
 
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
-    NUMERIC_COLUMNS = [
+    NUMERIC_COLUMNS = (
         "cost",
         "currency_conversion_rate",
         "usage_amount",
         "usage_amount_in_pricing_units",
         "credit_amount",
         "daily_credits",
-    ]
-    DATE_COLUMNS = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
-    BOOLEAN_COLUMNS = ["ocp_matched"]
-    JSON_COLUMNS = ["project.labels", "labels", "system_labels"]
-    CREDITS = ["credits"]
+    )
+    DATE_COLUMNS = ("usage_start_time", "usage_end_time", "export_time", "partition_time")
+    BOOLEAN_COLUMNS = "ocp_matched"
+    JSON_COLUMNS = ("project.labels", "labels", "system_labels")
+    CREDITS = "credits"
 
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
         if "openshift" in s3_path:

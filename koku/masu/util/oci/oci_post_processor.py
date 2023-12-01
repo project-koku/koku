@@ -4,7 +4,7 @@ import logging
 import pandas as pd
 
 from api.models import Provider
-from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor as trino_schema
+from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.util.common import add_missing_columns_with_dtypes
 from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_limit
@@ -27,7 +27,7 @@ class OCIPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "OCI")
+        return get_column_converters_common(col_names, panda_kwargs, OCIReportParquetProcessor, "OCI")
 
     def check_ingress_required_columns(self, _):
         """
@@ -72,7 +72,7 @@ class OCIPostProcessor:
         """
         Consume the OCI data and add a column creating a dictionary for the oci tags
         """
-        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS)
+        data_frame = add_missing_columns_with_dtypes(data_frame, OCIReportParquetProcessor, TRINO_REQUIRED_COLUMNS)
         columns = set(list(data_frame))
         columns = set(TRINO_REQUIRED_COLUMNS).union(columns)
         columns = sorted(list(columns))

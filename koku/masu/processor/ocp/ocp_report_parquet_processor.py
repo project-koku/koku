@@ -23,8 +23,8 @@ LOG = logging.getLogger(__name__)
 
 
 class OCPReportParquetProcessor(ReportParquetProcessorBase):
-    BOOLEAN_COLUMNS = []
-    NUMERIC_COLUMNS = [
+    BOOLEAN_COLUMNS = ()
+    NUMERIC_COLUMNS = (
         "pod_usage_cpu_core_seconds",
         "pod_request_cpu_core_seconds",
         "pod_effective_usage_cpu_core_seconds",
@@ -41,16 +41,16 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         "volume_request_storage_byte_seconds",
         "persistentvolumeclaim_capacity_byte_seconds",
         "persistentvolumeclaim_capacity_bytes",
-    ]
-    DATE_COLUMNS = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
-    JSON_COLUMNS = [
+    )
+    DATE_COLUMNS = ("report_period_start", "report_period_end", "interval_start", "interval_end")
+    JSON_COLUMNS = (
         "pod_labels",
         "persistentvolume_labels",
         "persistentvolumeclaim_labels",
         "node_labels",
         "namespace_labels",
-    ]
-    CREDITS = []
+    )
+    CREDITS = ()
 
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
         if "daily" in s3_path:

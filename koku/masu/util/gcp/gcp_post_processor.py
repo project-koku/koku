@@ -4,7 +4,7 @@ import logging
 import pandas as pd
 
 from api.models import Provider
-from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor as trino_schema
+from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
 from masu.util.common import get_column_converters_common
 from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import strip_characters_from_column_name
@@ -60,7 +60,7 @@ class GCPPostProcessor:
         """
         Return source specific parquet column converters.
         """
-        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "GCP")
+        return get_column_converters_common(col_names, panda_kwargs, GCPReportParquetProcessor, "GCP")
 
     def _generate_daily_data(self, data_frame):
         """

@@ -477,7 +477,7 @@ def chunk_columns(col_list, chunk_count):
         yield list(col_list[i : i + chunk_count])
 
 
-def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_columns, clean=False):
+def add_missing_columns_with_dtypes(data_frame, provider_processor, trino_required_columns, clean=False):
     """Adds the missing columns with the correct dtypes."""
     raw_columns = data_frame.columns.tolist()
     if clean:
@@ -485,18 +485,18 @@ def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_col
     missing_columns = (col for col in trino_required_columns if col not in raw_columns)
     for column in missing_columns:
         cleaned_column = strip_characters_from_column_name(column)
-        if cleaned_column in trino_schema.NUMERIC_COLUMNS:
+        if cleaned_column in provider_processor.NUMERIC_COLUMNS:
             data_frame[column] = pd.Series(dtype="float64")
-        elif cleaned_column in trino_schema.BOOLEAN_COLUMNS:
+        elif cleaned_column in provider_processor.BOOLEAN_COLUMNS:
             data_frame[column] = pd.Series(dtype="bool")
-        elif cleaned_column in trino_schema.DATE_COLUMNS:
+        elif cleaned_column in provider_processor.DATE_COLUMNS:
             data_frame[column] = pd.Series(dtype="datetime64[ms]")
         else:
             data_frame[column] = pd.Series(dtype=pd.StringDtype(storage="pyarrow"))
     return data_frame
 
 
-def get_column_converters_common(col_names, panda_kwargs, trino_schema, prov_type=None, translation=None):
+def get_column_converters_common(col_names, panda_kwargs, provider_processor, prov_type=None, translation=None):
     """
     Return source specific parquet column converters.
     """
@@ -518,15 +518,15 @@ def get_column_converters_common(col_names, panda_kwargs, trino_schema, prov_typ
             cleaned_column = strip_characters_from_column_name(translation.get(col))
         else:
             cleaned_column = strip_characters_from_column_name(col)
-        if cleaned_column in trino_schema.NUMERIC_COLUMNS:
+        if cleaned_column in provider_processor.NUMERIC_COLUMNS:
             converters[col] = safe_float
-        elif cleaned_column in trino_schema.DATE_COLUMNS:
+        elif cleaned_column in provider_processor.DATE_COLUMNS:
             converters[col] = date_converter[prov_type]
-        elif cleaned_column in trino_schema.BOOLEAN_COLUMNS:
+        elif cleaned_column in provider_processor.BOOLEAN_COLUMNS:
             converters[col] = bool
-        elif cleaned_column in trino_schema.JSON_COLUMNS:
+        elif cleaned_column in provider_processor.JSON_COLUMNS:
             converters[col] = json_converter[prov_type]
-        elif cleaned_column in trino_schema.CREDITS:
+        elif cleaned_column in provider_processor.CREDITS:
             converters[col] = process_credits
         else:
             converters[col] = str

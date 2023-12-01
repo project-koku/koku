@@ -4,7 +4,7 @@ import logging
 import pandas
 
 from api.models import Provider
-from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor as trino_schema
+from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.util.azure.common import INGRESS_ALT_COLUMNS
 from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import add_missing_columns_with_dtypes
@@ -35,7 +35,7 @@ class AzurePostProcessor:
         """
         Return source specific parquet column converters.
         """
-        return get_column_converters_common(col_names, panda_kwargs, trino_schema, "AZURE")
+        return get_column_converters_common(col_names, panda_kwargs, AzureReportParquetProcessor, "AZURE")
 
     def _generate_daily_data(self, data_frame):
         """
@@ -44,7 +44,9 @@ class AzurePostProcessor:
         return data_frame
 
     def process_dataframe(self, data_frame):
-        data_frame = add_missing_columns_with_dtypes(data_frame, trino_schema, TRINO_REQUIRED_COLUMNS, True)
+        data_frame = add_missing_columns_with_dtypes(
+            data_frame, AzureReportParquetProcessor, TRINO_REQUIRED_COLUMNS, True
+        )
         columns = list(data_frame)
         column_name_map = {}
 
