@@ -49,7 +49,7 @@ def _remove_default_projects(projects: list[dict[str:str]]) -> list[dict[str:str
     return scrubbed_projects
 
 
-def put_openshift_namespaces(projects: list[dict[str:str]]) -> list[str]:
+def put_openshift_namespaces(projects: list[dict[str:str]]) -> list[dict[str:str]]:
     projects = _remove_default_projects(projects)
 
     # Build mapping of cost groups to cost category IDs in order to easiy get
@@ -74,7 +74,7 @@ def put_openshift_namespaces(projects: list[dict[str:str]]) -> list[str]:
     return projects
 
 
-def delete_openshift_namespaces(projects: list[dict[str:str]], category_name: str = "Platform") -> list[str]:
+def delete_openshift_namespaces(projects: list[dict[str:str]], category_name: str = "Platform") -> list[dict[str:str]]:
     projects = _remove_default_projects(projects)
     projects_to_delete = [item["project_name"] for item in projects]
     deleted_count, _ = (

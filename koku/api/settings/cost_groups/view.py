@@ -88,14 +88,15 @@ class CostGroupsView(APIView):
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _summarize_current_month(self, schema_name: str, projects: list[str]) -> list[str]:
+    def _summarize_current_month(self, schema_name: str, projects: list[dict[str:str]]) -> list[str]:
         """Resummarize OCP data for the current month."""
+        projects_to_summarize = [proj["project_name"] for proj in projects]
         ocp_queue = OCP_QUEUE
         if is_customer_large(schema_name):
             ocp_queue = OCP_QUEUE_XL
 
         provider_uuids = (
-            OCPProject.objects.filter(project__in=projects)
+            OCPProject.objects.filter(project__in=projects_to_summarize)
             .values_list("cluster__provider__uuid", flat=True)
             .distinct()
         )

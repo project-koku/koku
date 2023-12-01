@@ -18,6 +18,7 @@ from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
 from api.settings.cost_groups.query_handler import _remove_default_projects
 from api.settings.cost_groups.query_handler import put_openshift_namespaces
 from api.utils import DateHelper
+from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
 
@@ -30,6 +31,16 @@ class TestCostGroupsAPI(IamTestCase):
         """Set up the account settings view tests."""
         super().setUp()
         self.client = APIClient()
+        self.default_cost_group = "Platform"
+        with schema_context(self.schema_name):
+            project_to_insert = (
+                OCPProject.objects.exclude(project=OCP_PLATFORM_NAMESPACE)
+                .values("cluster__provider__uuid", "project")
+                .first()
+            )
+            self.project_name = project_to_insert.get("project")
+            self.provider_uuid = project_to_insert.get("cluster__provider__uuid")
+            self.body_format = [{"project_name": self.project_name, "group": self.default_cost_group}]
 
     @property
     def url(self):
@@ -98,23 +109,20 @@ class TestCostGroupsAPI(IamTestCase):
     def test_delete_cost_groups(self, mock_summarize_current_month):
         """Test that we can delete projects from the namespaces."""
 
-        def _add_additional_projects(schema_name, testing_prefix):
+        def _add_additional_projects(schema_name):
             with schema_context(schema_name):
                 current_rows = OpenshiftCostCategoryNamespace.objects.count()
-                additional_project_names = [f"{testing_prefix}project_{i}" for i in range(3)]
-                expected_count = current_rows + len(additional_project_names)
-                put_openshift_namespaces(additional_project_names)
+                expected_count = current_rows + 1
+                put_openshift_namespaces(self.body_format)
                 current_count = OpenshiftCostCategoryNamespace.objects.count()
-                if current_count != expected_count:
-                    raise FailedToPopulateDummyProjects("Failed to populate dummy data for deletion testing.")
-                return additional_project_names
+            if current_count != expected_count:
+                raise FailedToPopulateDummyProjects("Failed to populate dummy data for deletion testing.")
 
-        testing_prefix = "TESTING_"
-        dummy_projects = _add_additional_projects(self.schema_name, testing_prefix)
-        body = json.dumps({"projects": dummy_projects})
+        _add_additional_projects(self.schema_name)
+        body = json.dumps(self.body_format)
         with schema_context(self.schema_name):
             response = self.client.delete(self.url, body, content_type="application/json", **self.headers)
-            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=testing_prefix).count()
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project_name).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(current_count, 0)
@@ -123,29 +131,25 @@ class TestCostGroupsAPI(IamTestCase):
     def test_query_handler_remove_default_projects(self):
         """Test that you can not delete a default project."""
         with schema_context(self.schema_name):
-            self.assertEqual(_remove_default_projects([OCP_PLATFORM_NAMESPACE]), [])
+            body_format = [{"project_name": OCP_PLATFORM_NAMESPACE, "group": self.default_cost_group}]
+            self.assertEqual(_remove_default_projects(body_format), [])
 
     def test_put_catch_integrity_error(self):
         """Test that we catch integrity errors on put."""
-        projects = ["project1", "project1"]
+        self.body_format.append({"project_name": self.project_name, "group": self.default_cost_group})
         with self.assertLogs(logger="api.settings.cost_groups.query_handler", level="WARNING") as log_warning:
             with schema_context(self.schema_name):
-                put_openshift_namespaces(projects)
+                put_openshift_namespaces(self.body_format)
         self.assertEqual(len(log_warning.records), 1)  # Check that a warning log was generated
         self.assertIn("IntegrityError", log_warning.records[0].getMessage())
 
-    @patch("api.settings.cost_groups.view.OCPProject.objects.filter")
     @patch("api.settings.cost_groups.view.update_summary_tables")
     @patch("api.settings.cost_groups.view.is_customer_large", return_value=False)
-    def test_put_new_records(self, mock_is_customer_large, mock_update, mock_project):
-        mock_provider_uuid = "fake_uuid_1"
-        mock_values_list = mock_project.return_value.values_list.return_value
-        mock_values_list.distinct.return_value = [mock_provider_uuid]
-        namespace = "Test"
-        body = json.dumps({"projects": [namespace]})
+    def test_put_new_records(self, mock_is_customer_large, mock_update):
         with schema_context(self.schema_name):
+            body = json.dumps(self.body_format)
             response = self.client.put(self.url, body, content_type="application/json", **self.headers)
-            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=namespace).count()
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project_name).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(current_count, 1)
@@ -153,6 +157,6 @@ class TestCostGroupsAPI(IamTestCase):
         mock_update.s.assert_called_with(
             self.schema_name,
             provider_type=Provider.PROVIDER_OCP,
-            provider_uuid=mock_provider_uuid,
+            provider_uuid=self.provider_uuid,
             start_date=DateHelper().this_month_start,
         )
