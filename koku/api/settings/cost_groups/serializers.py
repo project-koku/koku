@@ -9,6 +9,8 @@ from api.report.serializers import ExcludeSerializer
 from api.report.serializers import FilterSerializer
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
+from reporting.provider.ocp.models import OCPProject
+from reporting.provider.ocp.models import OpenshiftCostCategory
 
 
 class CostGroupFilterSerializer(FilterSerializer):
@@ -50,3 +52,22 @@ class CostGroupQueryParamSerializer(ReportQueryParamSerializer):
 class CostGroupProjectSerializer(serializers.Serializer):
     project_name = serializers.CharField()
     group = serializers.CharField()
+
+    def _is_valid(self, model, data: str, field_name: str) -> None:
+        valid_values = sorted(model.objects.values_list(field_name, flat=True).distinct())
+        if data not in valid_values:
+            msg = f"'{data}' is not a valid value"
+            if len(valid_values) < 7:
+                msg = f"{msg}: {', '.join(valid_values)}"
+
+            raise serializers.ValidationError(msg)
+
+    def validate_project_name(self, data):
+        self._is_valid(OCPProject, data, "project")
+
+        return data
+
+    def validate_group(self, data):
+        self._is_valid(OpenshiftCostCategory, data, "name")
+
+        return data
