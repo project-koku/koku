@@ -174,12 +174,16 @@ class CostGroupsQueryHandler:
             group=F("cost_category__name"),
         ).values("project_name", "default", "group")
 
-        ocp_summary_query = OCPProject.objects.annotate(
-            project_name=F("project"),
-            clusters=ArrayAgg(F("cluster__cluster_alias")),
-            group=Case(*self.build_when_conditions(cost_group_projects, "group")),
-            default=Case(*self.build_when_conditions(cost_group_projects, "default")),
-        ).values("project_name", "clusters", "group", "default")
+        ocp_summary_query = (
+            OCPProject.objects.values(project_name=F("project"))
+            .annotate(
+                group=Case(*self.build_when_conditions(cost_group_projects, "group")),
+                default=Case(*self.build_when_conditions(cost_group_projects, "default")),
+                clusters=ArrayAgg(F("cluster__cluster_alias"), distinct=True),
+            )
+            .values("project_name", "group", "clusters", "default")
+            .distinct()
+        )
 
         if self.exclusion:
             ocp_summary_query = ocp_summary_query.exclude(self.exclusion)
