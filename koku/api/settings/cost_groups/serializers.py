@@ -50,7 +50,3 @@ class CostGroupQueryParamSerializer(ReportQueryParamSerializer):
 class CostGroupProjectSerializer(serializers.Serializer):
     project_name = serializers.CharField()
     group = serializers.CharField()
-
-
-class CostGroupChangeSerializer(serializers.ListField):
-    child = CostGroupProjectSerializer()

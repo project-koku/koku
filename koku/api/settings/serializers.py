@@ -10,14 +10,6 @@ from api.settings.settings import COST_TYPE_CHOICES
 from reporting.user_settings.models import UserSettings
 
 
-class ListStringSerializer(serializers.ListField):
-    child = serializers.CharField()
-
-
-class NonEmptyListSerializer(serializers.Serializer):
-    projects = ListStringSerializer(allow_empty=False, min_length=1)
-
-
 class UserSettingSerializer(serializers.Serializer):
     """Serializer for CostUsageReportManifest."""
 
