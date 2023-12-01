@@ -482,7 +482,7 @@ def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_col
     raw_columns = data_frame.columns.tolist()
     if clean:
         raw_columns = [strip_characters_from_column_name(raw_column) for raw_column in raw_columns]
-    missing_columns = [col for col in trino_required_columns if col not in raw_columns]
+    missing_columns = (col for col in trino_required_columns if col not in raw_columns)
     for column in missing_columns:
         cleaned_column = strip_characters_from_column_name(column)
         if cleaned_column in trino_schema.NUMERIC_COLUMNS:
@@ -492,7 +492,7 @@ def add_missing_columns_with_dtypes(data_frame, trino_schema, trino_required_col
         elif cleaned_column in trino_schema.DATE_COLUMNS:
             data_frame[column] = pd.Series(dtype="datetime64[ms]")
         else:
-            data_frame[column] = pd.Series(dtype="string")
+            data_frame[column] = pd.Series(dtype=pd.StringDtype(storage="pyarrow"))
     return data_frame
 
 
