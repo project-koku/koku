@@ -18,8 +18,8 @@ from api.query_params import QueryParameters
 from api.settings.cost_groups.query_handler import CostGroupsQueryHandler
 from api.settings.cost_groups.query_handler import delete_openshift_namespaces
 from api.settings.cost_groups.query_handler import put_openshift_namespaces
+from api.settings.cost_groups.serializers import CostGroupProjectSerializer
 from api.settings.cost_groups.serializers import CostGroupQueryParamSerializer
-from api.settings.serializers import NonEmptyListSerializer
 from api.utils import DateHelper
 from masu.processor import is_customer_large
 from masu.processor.tasks import OCP_QUEUE
@@ -71,21 +71,19 @@ class CostGroupsView(APIView):
         return paginator.paginated_response
 
     def put(self, request: Request) -> Response:
-        serializer = NonEmptyListSerializer(data=request.data)
+        serializer = CostGroupProjectSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
 
-        projects = serializer.validated_data["projects"]
-        projects = put_openshift_namespaces(projects)
+        projects = put_openshift_namespaces(serializer.validated_data)
         self._summarize_current_month(request.user.customer.schema_name, projects)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def delete(self, request: Request) -> Response:
-        serializer = NonEmptyListSerializer(data=request.data)
+        serializer = CostGroupProjectSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
 
-        projects = serializer.validated_data["projects"]
-        projects = delete_openshift_namespaces(projects)
+        projects = delete_openshift_namespaces(serializer.validated_data)
         self._summarize_current_month(request.user.customer.schema_name, projects)
 
         return Response(status=status.HTTP_204_NO_CONTENT)

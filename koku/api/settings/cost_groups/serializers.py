@@ -45,3 +45,12 @@ class CostGroupQueryParamSerializer(ReportQueryParamSerializer):
     ORDER_BY_SERIALIZER = CostGroupOrderSerializer
 
     order_by_allowlist = ("project_name", "group", "default")
+
+
+class CostGroupProjectSerializer(serializers.Serializer):
+    project_name = serializers.CharField()
+    group = serializers.CharField()
+
+
+class CostGroupChangeSerializer(serializers.ListField):
+    child = CostGroupProjectSerializer()

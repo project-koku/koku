@@ -10,10 +10,10 @@ from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
 
+from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_params import QueryParameters
-from api.models import Provider
 from api.utils import DateHelper
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategory
@@ -22,7 +22,7 @@ from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 LOG = logging.getLogger(__name__)
 
 
-def _remove_default_projects(projects: list[str]) -> list[str]:
+def _remove_default_projects(projects: list[dict[str:str]]) -> list[dict[str:str]]:
     try:
         _remove_default_projects.system_default_namespaces  # type: ignore[attr-defined]
     except AttributeError:
@@ -37,23 +37,31 @@ def _remove_default_projects(projects: list[str]) -> list[str]:
     prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)
 
     scrubbed_projects = []
-    for project in projects:
-        if project in exact_matches:
+    for request in projects:
+        if request["project_name"] in exact_matches:
             continue
 
-        if any(project.startswith(prefix.replace("%", "")) for prefix in prefix_matches):
+        if any(request["project_name"].startswith(prefix.replace("%", "")) for prefix in prefix_matches):
             continue
 
-        scrubbed_projects.append(project)
+        scrubbed_projects.append(request)
 
     return scrubbed_projects
 
 
-def put_openshift_namespaces(projects: list[str], category_name: str = "Platform") -> list[str]:
+def put_openshift_namespaces(projects: list[dict[str:str]]) -> list[str]:
     projects = _remove_default_projects(projects)
-    platform_category = OpenshiftCostCategory.objects.get(name=category_name)
+
+    # Build mapping of cost groups to cost category IDs in order to easiy get
+    # the ID of the cost group to update
+    cost_groups = {item["name"]: item["id"] for item in OpenshiftCostCategory.objects.values("name", "id")}
+
     namespaces_to_create = [
-        OpenshiftCostCategoryNamespace(namespace=new_project, system_default=False, cost_category=platform_category)
+        OpenshiftCostCategoryNamespace(
+            namespace=new_project["project_name"],
+            system_default=False,
+            cost_category_id=cost_groups[new_project["group"]],
+        )
         for new_project in projects
     ]
     try:
@@ -66,12 +74,13 @@ def put_openshift_namespaces(projects: list[str], category_name: str = "Platform
     return projects
 
 
-def delete_openshift_namespaces(projects: list[str], category_name: str = "Platform") -> list[str]:
+def delete_openshift_namespaces(projects: list[dict[str:str]], category_name: str = "Platform") -> list[str]:
     projects = _remove_default_projects(projects)
-    platform_category = OpenshiftCostCategory.objects.get(name=category_name)
-    delete_condition = Q(cost_category=platform_category, namespace__in=projects)
+    projects_to_delete = [item["project_name"] for item in projects]
     deleted_count, _ = (
-        OpenshiftCostCategoryNamespace.objects.filter(delete_condition).exclude(system_default=True).delete()
+        OpenshiftCostCategoryNamespace.objects.filter(namespace__in=projects_to_delete)
+        .exclude(system_default=True)
+        .delete()
     )
     LOG.info(f"Deleted {deleted_count} namespace records from openshift cost groups.")
 
@@ -80,6 +89,7 @@ def delete_openshift_namespaces(projects: list[str], category_name: str = "Platf
 
 class CostGroupsQueryHandler:
     """Query Handler for the cost groups"""
+
     provider = Provider.PROVIDER_OCP
     _filter_map = MappingProxyType(
         {
