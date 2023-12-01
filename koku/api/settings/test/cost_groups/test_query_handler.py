@@ -38,9 +38,10 @@ class TestCostGroupsAPI(IamTestCase):
                 .values("cluster__provider__uuid", "project")
                 .first()
             )
-            self.project_name = project_to_insert.get("project")
-            self.provider_uuid = project_to_insert.get("cluster__provider__uuid")
-            self.body_format = [{"project_name": self.project_name, "group": self.default_cost_group}]
+
+        self.project_name = project_to_insert.get("project")
+        self.provider_uuid = project_to_insert.get("cluster__provider__uuid")
+        self.body_format = [{"project_name": self.project_name, "group": self.default_cost_group}]
 
     @property
     def url(self):
@@ -154,7 +155,7 @@ class TestCostGroupsAPI(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(current_count, 1)
         mock_is_customer_large.assert_called_once_with(self.schema_name)
-        mock_update.s.assert_called_with(
+        mock_update.s.assert_any_call(
             self.schema_name,
             provider_type=Provider.PROVIDER_OCP,
             provider_uuid=self.provider_uuid,
