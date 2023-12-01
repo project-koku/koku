@@ -7,7 +7,6 @@ import datetime
 import json
 import logging
 import uuid
-from json import JSONDecodeError
 
 import pandas as pd
 from django_tenants.utils import schema_context
@@ -252,9 +251,11 @@ def gcp_json_converter(label_string):
     """
     label_dict = {}
     try:
-        labels = json.loads(label_string)
-        label_dict = {entry.get("key"): entry.get("value") for entry in labels}
-    except JSONDecodeError:
+        # This handles empty sets
+        if label_string:
+            labels = json.loads(label_string)
+            label_dict = {entry.get("key"): entry.get("value") for entry in labels}
+    except json.JSONDecodeError:
         LOG.warning("Unable to process GCP labels.")
 
     return json.dumps(label_dict)
