@@ -64,6 +64,7 @@ class TestCostGroupsAPI(IamTestCase):
             url = self.url + "?" + urlencode(param, quote_via=quote_plus)
             with schema_context(self.schema_name):
                 response = self.client.get(url, **self.headers)
+
             return response.status_code, response.data.get("data")[0]
 
         order_by_options = ["group", "default", "project_name"]
@@ -113,10 +114,11 @@ class TestCostGroupsAPI(IamTestCase):
         body = json.dumps({"projects": dummy_projects})
         with schema_context(self.schema_name):
             response = self.client.delete(self.url, body, content_type="application/json", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=testing_prefix).count()
-            self.assertEqual(current_count, 0)
-            mock_summarize_current_month.assert_called()
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(current_count, 0)
+        mock_summarize_current_month.assert_called()
 
     def test_query_handler_remove_default_projects(self):
         """Test that you can not delete a default project."""
@@ -143,13 +145,14 @@ class TestCostGroupsAPI(IamTestCase):
         body = json.dumps({"projects": [namespace]})
         with schema_context(self.schema_name):
             response = self.client.put(self.url, body, content_type="application/json", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace__startswith=namespace).count()
-            self.assertEqual(current_count, 1)
-            mock_is_customer_large.assert_called_once_with(self.schema_name)
-            mock_update.s.assert_called_with(
-                self.schema_name,
-                provider_type=Provider.PROVIDER_OCP,
-                provider_uuid=mock_provider_uuid,
-                start_date=DateHelper().this_month_start,
-            )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(current_count, 1)
+        mock_is_customer_large.assert_called_once_with(self.schema_name)
+        mock_update.s.assert_called_with(
+            self.schema_name,
+            provider_type=Provider.PROVIDER_OCP,
+            provider_uuid=mock_provider_uuid,
+            start_date=DateHelper().this_month_start,
+        )
