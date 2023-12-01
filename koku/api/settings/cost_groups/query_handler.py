@@ -13,6 +13,7 @@ from django.db.models import When
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_params import QueryParameters
+from api.models import Provider
 from api.utils import DateHelper
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategory
@@ -79,7 +80,7 @@ def delete_openshift_namespaces(projects: list[str], category_name: str = "Platf
 
 class CostGroupsQueryHandler:
     """Query Handler for the cost groups"""
-
+    provider = Provider.PROVIDER_OCP
     _filter_map = MappingProxyType(
         {
             "group": MappingProxyType({"field": "group", "operation": "icontains"}),
