@@ -3,20 +3,18 @@ from types import MappingProxyType
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import IntegrityError
-from django.db.models import BooleanField
 from django.db.models import Case
+from django.db.models import CharField
 from django.db.models import F
-from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
-from django.db.models.functions import Coalesce
 
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_params import QueryParameters
 from api.utils import DateHelper
-from reporting.models import OCPCostSummaryByProjectP
+from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategory
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
@@ -28,16 +26,14 @@ def _remove_default_projects(projects: list[str]) -> list[str]:
         _remove_default_projects.system_default_namespaces  # type: ignore[attr-defined]
     except AttributeError:
         # Cache the system default namespcases
-        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(  # type: ignore[attr-defined]
+        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(
             system_default=True
-        ).values_list(
-            "namespace", flat=True
-        )
+        ).values_list("namespace", flat=True)
 
     exact_matches = {
-        project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")  # type: ignore[attr-defined]
+        project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")
     }
-    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)  # type: ignore[attr-defined]
+    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)
 
     scrubbed_projects = []
     for project in projects:
@@ -138,48 +134,42 @@ class CostGroupsQueryHandler:
         self.exclusion = self.exclusion.compose(logical_operator="or")
         self.filters = self.filters.compose()
 
-    def _build_default_field_when_conditions(self) -> list[When]:
-        """Builds the default when conditions."""
-        ocp_namespaces = OpenshiftCostCategoryNamespace.objects.filter(cost_category__name="Platform").values(
-            "namespace", "system_default"
-        )
+    def _add_worker_unallocated(self, field_name):
+        """Specail handling for the worker unallocated project.
 
+        Worker unallocated is a default project, but it does not currently
+        belong to a cost group.
+        """
+        default_value = Value(None, output_field=CharField())
+        if field_name == "default":
+            default_value = Value(True)
+        return When(project_name="Worker unallocated", then=default_value)
+
+    def build_when_conditions(self, cost_group_projects, field_name):
+        """Builds when conditions given a field name in the cost_group_projects."""
+        # __like is a custom django lookup we added to perform a postgresql LIKE
         when_conditions = []
-        for item in ocp_namespaces:
-            operation = ""
-            namespace = item["namespace"]
-            if namespace.endswith("%"):
-                operation = "__startswith"
-                namespace = namespace.replace("%", "")
-
-            kwargs = {f"namespace{operation}": namespace}
-            when_conditions.append(When(**kwargs, then=Value(item["system_default"])))
-
-        when_conditions.append(When(namespace="Worker unallocated", then=Value(True)))
-
+        for project in cost_group_projects:
+            when_conditions.append(When(project_name__like=project["project_name"], then=Value(project[field_name])))
+        when_conditions.append(self._add_worker_unallocated(field_name))
         return when_conditions
 
     def execute_query(self):
         """Executes a query to grab the information we need for the api return."""
-        max_usage_start_subquery = (
-            OCPCostSummaryByProjectP.objects.filter(
-                namespace=F("namespace"),
-            )
-            .values("namespace")
-            .annotate(max_usage_start=Max("usage_start"))
-            .distinct()
-        )
+        # This query builds the information we need for our when conditions
+        cost_group_projects = OpenshiftCostCategoryNamespace.objects.annotate(
+            project_name=F("namespace"),
+            default=F("system_default"),
+            group=F("cost_category__name"),
+        ).values("project_name", "default", "group")
 
-        ocp_summary_query = (
-            OCPCostSummaryByProjectP.objects.filter(usage_start__in=max_usage_start_subquery.values("max_usage_start"))
-            .values(project_name=F("namespace"))
-            .annotate(
-                clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                group=F("cost_category__name"),
-                default=Case(*self._build_default_field_when_conditions(), default=None, output_field=BooleanField()),
-            )
-            .distinct()
-        )
+        ocp_summary_query = OCPProject.objects.annotate(
+            project_name=F("project"),
+            clusters=ArrayAgg(F("cluster__cluster_alias")),
+            group=Case(*self.build_when_conditions(cost_group_projects, "group")),
+            default=Case(*self.build_when_conditions(cost_group_projects, "default")),
+        ).values("project_name", "clusters", "group", "default")
+
         if self.exclusion:
             ocp_summary_query = ocp_summary_query.exclude(self.exclusion)
         if self.filters:
