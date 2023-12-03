@@ -293,6 +293,7 @@ generators:
         rate_id: 2343582976
         subscription_id: 2346788732
 
+
 accounts:
   payer: 9999999999998
   user:
