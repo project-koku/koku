@@ -228,6 +228,7 @@ class AWSPostProcessor:
                 "savingsplan_savingsplaneffectivecost": ["sum"],
                 "product_productname": ["max"],
                 "bill_invoiceid": ["max"],
+                "product_vcpu": ["max"],
             }
         )
         columns = daily_data_frame.columns.droplevel(1)
