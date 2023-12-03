@@ -292,52 +292,6 @@ generators:
         rate_code: SDFKLSDHCICLKKDS.LKHSSDUQHI.SDHLJKKJDQ
         rate_id: 2343582976
         subscription_id: 2346788732
-  - MarketplaceGenerator:
-      start_date: {{start_date}}
-      end_date: {{end_date}}
-      processor_arch: 32-bit
-      resource_id: 25555556
-      product_sku: VEAJHRNKTJZZ
-      legal_entity: 'Amazon Web Services, Inc.'
-      region: us-east-1a
-      tags:
-        resourceTags/aws:createdBy: AssumedRole:AROAYSLL3JVQ6DYUNKWQJ:1637692740557658269
-      cost_category:
-        costCategory/env: prod
-      instance_type:
-        inst_type: m5.large
-        vcpu: 2
-        memory: '8 GiB'
-        storage: 'EBS Only'
-        family: 'General Purpose'
-        cost: 1.000
-        rate: 0.500
-        rate_code: SDFKLSDHCICLKKDS.LKHSSDUQHI.SDHLJKKJDQ
-        rate_id: 2343582976
-        subscription_id: 2346788732
-  - MarketplaceGenerator:
-      start_date: {{start_date}}
-      end_date: {{end_date}}
-      processor_arch: 32-bit
-      resource_id: 25555557
-      product_sku: VEAJHRNKTJZZ
-      legal_entity: 'Amazon Web Services, Inc.'
-      region: us-east-1a
-      tags:
-        resourceTags/aws:createdBy: AssumedRole:AROAYSLL3JVQ6DYUNKWQJ:1637692740557658269
-      cost_category:
-        costCategory/env: prod
-      instance_type:
-        inst_type: m5.large
-        vcpu: 2
-        memory: '8 GiB'
-        storage: 'EBS Only'
-        family: 'General Purpose'
-        cost: 1.000
-        rate: 0.500
-        rate_code: SDFKLSDHCICLKKDS.LKHSSDUQHI.SDHLJKKJDQ
-        rate_id: 2343582976
-        subscription_id: 2346788732
 
 accounts:
   payer: 9999999999998
