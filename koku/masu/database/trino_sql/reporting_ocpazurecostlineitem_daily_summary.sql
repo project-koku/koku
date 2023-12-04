@@ -163,9 +163,9 @@ SELECT cast(uuid() as varchar) as uuid,
             THEN  split_part(unitofmeasure, ' ', 2)
         ELSE unitofmeasure
     END) as unit_of_measure,
-    sum(coalesce(azure.quantity, azure.usagequantity)) as usage_quantity,
+    sum(coalesce(NULLIF(azure.quantity, 0), azure.usagequantity)) as usage_quantity,
     coalesce(NULLIF(azure.billingcurrencycode, ''), azure.currency) as currency,
-    sum(coalesce(azure.costinbillingcurrency, azure.pretaxcost)) as pretax_cost,
+    sum(coalesce(NULLIF(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pretax_cost,
     azure.tags,
     max(azure.resource_id_matched) as resource_id_matched,
     {{ocp_source_uuid}} as ocp_source,
@@ -232,9 +232,9 @@ SELECT cast(uuid() as varchar) as uuid,
             THEN  split_part(unitofmeasure, ' ', 2)
         ELSE unitofmeasure
     END) as unit_of_measure,
-    sum(coalesce(azure.quantity, azure.usagequantity)) as usage_quantity,
+    sum(coalesce(NULLIF(azure.quantity, 0), azure.usagequantity)) as usage_quantity,
     coalesce(NULLIF(azure.billingcurrencycode, ''), azure.currency) as currency,
-    sum(coalesce(azure.costinbillingcurrency, azure.pretaxcost)) as pretax_cost,
+    sum(coalesce(NULLIF(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pretax_cost,
     json_format(
         cast(
             map_filter(
