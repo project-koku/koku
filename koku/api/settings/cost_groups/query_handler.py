@@ -74,7 +74,7 @@ def put_openshift_namespaces(projects: list[dict[str:str]]) -> list[dict[str:str
     return projects
 
 
-def delete_openshift_namespaces(projects: list[dict[str:str]], category_name: str = "Platform") -> list[dict[str:str]]:
+def delete_openshift_namespaces(projects: list[dict[str:str]]) -> list[dict[str:str]]:
     projects = _remove_default_projects(projects)
     projects_to_delete = [item["project_name"] for item in projects]
     deleted_count, _ = (
@@ -123,25 +123,32 @@ class CostGroupsQueryHandler:
 
         return self._default_order_by
 
+    def _check_parameters_for_filter_param(self, q_param) -> None:
+        """Populate the query filter collections."""
+        filter_values = self.parameters.get_filter(q_param, list())
+        if filter_values:
+            for item in filter_values if isinstance(filter_values, list) else [filter_values]:
+                q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
+                self.filters.add(q_filter)
+
+    def _check_parameters_for_exclude_param(self, q_param):
+        """Populate the exclude collections."""
+        exclude_values = self.parameters.get_exclude(q_param, list())
+        if exclude_values:
+            for item in exclude_values if isinstance(exclude_values, list) else [exclude_values]:
+                q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
+                if q_param in ["group", "default"]:
+                    # .exclude() will remove nulls, so use Q objects directly to include them
+                    q_kwargs = {q_param: item, f"{q_param}__isnull": False}
+                    self.exclusion.add(QueryFilter(parameter=Q(**q_kwargs)))
+                else:
+                    self.exclusion.add(q_filter)
+
     def _set_filters_or_exclusion(self) -> None:
         """Populate the query filter and exclusion collections for search filters."""
         for q_param in self._filter_map.keys():
-            filter_values = self.parameters.get_filter(q_param, list())
-            if filter_values:
-                for item in filter_values if isinstance(filter_values, list) else [filter_values]:
-                    q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
-                    self.filters.add(q_filter)
-            exclude_values = self.parameters.get_exclude(q_param, list())
-            if exclude_values:
-                for item in exclude_values if isinstance(exclude_values, list) else [exclude_values]:
-                    q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
-                    if q_param in ["group", "default"]:
-                        # .exclude() will remove nulls, so use Q objects directly to include them
-                        Q_kwargs = {q_param: item, f"{q_param}__isnull": False}
-                        self.exclusion.add(QueryFilter(parameter=Q(**Q_kwargs)))
-                    else:
-                        self.exclusion.add(q_filter)
-
+            self._check_parameters_for_filter_param(q_param)
+            self._check_parameters_for_exclude_param(q_param)
         self.exclusion = self.exclusion.compose(logical_operator="or")
         self.filters = self.filters.compose()
 
