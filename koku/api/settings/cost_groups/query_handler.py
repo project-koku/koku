@@ -108,20 +108,24 @@ class CostGroupsQueryHandler:
         self.dh = DateHelper()
         self.filters = QueryFilterCollection()
         self.exclusion = QueryFilterCollection()
-        self._default_order_by = "project_name"
+        self._default_order_by = ["project_name"]
 
         self._set_filters_or_exclusion()
 
     @property
     def order_by(self) -> str:
-        if order_by_params := self.parameters._parameters.get("order_by"):
-            for key, order in order_by_params.items():
-                if order == "desc":
-                    return f"-{key}"
+        order_by_params = self.parameters._parameters.get("order_by")
+        if not order_by_params:
+            return self._default_order_by
 
-                return f"{key}"
+        result = []
+        for key, order in order_by_params.items():
+            if order == "desc":
+                result.insert(0, f"-{key}")
+            else:
+                result.insert(0, f"{key}")
 
-        return self._default_order_by
+        return result
 
     def _check_parameters_for_filter_param(self, q_param) -> None:
         """Populate the query filter collections."""
@@ -197,6 +201,6 @@ class CostGroupsQueryHandler:
         if self.filters:
             ocp_summary_query = ocp_summary_query.filter(self.filters)
 
-        ocp_summary_query = ocp_summary_query.order_by(self.order_by)
+        ocp_summary_query = ocp_summary_query.order_by(*self.order_by)
 
         return ocp_summary_query

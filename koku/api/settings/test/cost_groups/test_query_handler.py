@@ -132,7 +132,17 @@ class TestCostGroupsAPI(IamTestCase):
     def test_query_handler_remove_default_projects(self):
         """Test that you can not delete a default project."""
         with schema_context(self.schema_name):
-            body_format = [{"project_name": OCP_PLATFORM_NAMESPACE, "group": self.default_cost_group}]
+            body_format = [
+                {
+                    "project_name": OCP_PLATFORM_NAMESPACE,
+                    "group": self.default_cost_group
+                },
+                {
+                    "project_name": "openshift",
+                    "group": self.default_cost_group,
+                }
+
+            ]
             self.assertEqual(_remove_default_projects(body_format), [])
 
     def test_put_catch_integrity_error(self):
