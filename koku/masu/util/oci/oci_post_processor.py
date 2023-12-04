@@ -95,8 +95,10 @@ class OCIPostProcessor:
         resource_tags_dict = resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}])
 
         data_frame["tags"] = resource_tags_dict.apply(json.dumps)
-        # Make sure we have entries for our required columns
-        data_frame = data_frame.reindex(columns=columns)
+
+        missing = set(TRINO_REQUIRED_COLUMNS).difference(data_frame)
+        to_add = {k: TRINO_REQUIRED_COLUMNS[k] for k in missing}
+        data_frame = data_frame.assign(**to_add)
 
         columns = list(data_frame)
         column_name_map = {}
