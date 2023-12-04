@@ -1,4 +1,5 @@
 import json
+import logging
 
 import ciso8601
 import pandas
@@ -10,7 +11,9 @@ from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import populate_enabled_tag_rows_with_limit
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from reporting.provider.azure.models import TRINO_COLUMNS
+from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS
+
+LOG = logging.getLogger(__name__)
 
 
 def azure_json_converter(tag_str):
@@ -101,11 +104,10 @@ class AzurePostProcessor:
 
         data_frame = data_frame.rename(columns=column_name_map)
 
-        columns = set(data_frame)
-        columns = set(TRINO_COLUMNS).union(columns)
-        columns = sorted(columns)
-
-        data_frame = data_frame.reindex(columns=columns)
+        missing = set(TRINO_REQUIRED_COLUMNS).difference(data_frame)
+        to_add = {k: TRINO_REQUIRED_COLUMNS[k] for k in missing}
+        LOG.info(f"\n\n ADD COLS: {to_add} \n\n")
+        data_frame = data_frame.assign(**to_add)
 
         unique_tags = set()
         for tags_json in data_frame["tags"].values:

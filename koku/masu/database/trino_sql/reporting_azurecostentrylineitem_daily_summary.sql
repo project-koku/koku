@@ -21,17 +21,17 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
 WITH cte_line_items AS (
     SELECT date(coalesce(date, usagedatetime)) as usage_date,
         INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
-        coalesce(subscriptionid, subscriptionguid) as subscription_guid,
+        coalesce(NULLIF(subscriptionid, ''), subscriptionguid) as subscription_guid,
         resourcelocation as resource_location,
-        coalesce(servicename, metercategory) as service_name,
+        coalesce(NULLIF(servicename, ''), metercategory) as service_name,
         json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_type,
         cast(coalesce(quantity, usagequantity) as DECIMAL(24,9)) as usage_quantity,
         cast(coalesce(costinbillingcurrency, pretaxcost) as DECIMAL(24,9)) as pretax_cost,
-        coalesce(billingcurrencycode, currency, billingcurrency) as currency,
+        coalesce(NULLIF(billingcurrencycode, ''), NULLIF(currency, ''), billingcurrency) as currency,
         json_parse(tags) as tags,
-        coalesce(resourceid, instanceid) as instance_id,
+        coalesce(NULLIF(resourceid, ''), instanceid) as instance_id,
         cast(source as UUID) as source_uuid,
-        coalesce(subscriptionname, subscriptionid, subscriptionguid) as subscription_name,
+        coalesce(NULLIF(subscriptionname, ''), NULLIF(subscriptionid, ''), subscriptionguid) as subscription_name,
         CASE
             WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$') AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines') AND NOT split_part(unitofmeasure, ' ', 2) = ''
                 THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
