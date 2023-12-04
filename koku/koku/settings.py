@@ -566,3 +566,6 @@ ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)
 
 # SUBS Data Extraction debugging
 ENABLE_SUBS_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_DEBUG", default=False)
+
+# ROS debugging
+ENABLE_ROS_DEBUG = ENVIRONMENT.bool("ENABLE_ROS_DEBUG", default=False)
