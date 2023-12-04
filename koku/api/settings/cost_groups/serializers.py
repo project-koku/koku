@@ -46,14 +46,19 @@ class CostGroupQueryParamSerializer(ReportQueryParamSerializer):
     EXCLUDE_SERIALIZER = CostGroupExcludeSerializer
     ORDER_BY_SERIALIZER = CostGroupOrderSerializer
 
-    order_by_allowlist = ("project_name", "group", "default")
+    order_by_allowlist = frozenset(("project_name", "group", "default"))
 
 
 class CostGroupProjectSerializer(serializers.Serializer):
     project_name = serializers.CharField()
     group = serializers.CharField()
 
-    def _is_valid(self, model, data: str, field_name: str) -> None:
+    def _is_valid_field_value(self, model, data: str, field_name: str) -> None:
+        """Check that the provided data matches a value in the model field.
+
+        Raises a ValidationError if the data is not found in the model field.
+        """
+
         valid_values = sorted(model.objects.values_list(field_name, flat=True).distinct())
         if data not in valid_values:
             msg = "Select a valid choice"
@@ -66,11 +71,11 @@ class CostGroupProjectSerializer(serializers.Serializer):
             raise serializers.ValidationError(msg)
 
     def validate_project_name(self, data):
-        self._is_valid(OCPProject, data, "project")
+        self._is_valid_field_value(OCPProject, data, "project")
 
         return data
 
     def validate_group(self, data):
-        self._is_valid(OpenshiftCostCategory, data, "name")
+        self._is_valid_field_value(OpenshiftCostCategory, data, "name")
 
         return data
