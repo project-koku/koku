@@ -146,7 +146,7 @@ class CostGroupsQueryHandler:
 
     def _set_filters_or_exclusion(self) -> None:
         """Populate the query filter and exclusion collections for search filters."""
-        for q_param in self._filter_map.keys():
+        for q_param in self._filter_map:
             self._check_parameters_for_filter_param(q_param)
             self._check_parameters_for_exclude_param(q_param)
         self.exclusion = self.exclusion.compose(logical_operator="or")
