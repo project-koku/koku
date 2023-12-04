@@ -56,9 +56,12 @@ class CostGroupProjectSerializer(serializers.Serializer):
     def _is_valid(self, model, data: str, field_name: str) -> None:
         valid_values = sorted(model.objects.values_list(field_name, flat=True).distinct())
         if data not in valid_values:
-            msg = f"'{data}' is not a valid value"
-            if len(valid_values) < 7:
-                msg = f"{msg}: {', '.join(valid_values)}"
+            msg = "Select a valid choice"
+            if 0 < len(valid_values) < 7:
+                verb = "Choice is" if len(valid_values) == 1 else "Choices are"
+                msg = f"{msg}. {verb} {', '.join(valid_values)}."
+            else:
+                msg = f"{msg}. '{data}' is not a valid choice."
 
             raise serializers.ValidationError(msg)
 
