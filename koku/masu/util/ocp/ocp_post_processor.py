@@ -146,7 +146,7 @@ class OCPPostProcessor:
         new_cols = report.get("new_required_columns")
         for col in new_cols:
             if col not in daily_data_frame:
-                daily_data_frame[col] = None
+                daily_data_frame[col] = ""
 
         return daily_data_frame
 
