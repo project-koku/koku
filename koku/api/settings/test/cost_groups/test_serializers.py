@@ -1,8 +1,11 @@
 from django.test import TestCase
+from django_tenants.utils import schema_context
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.settings.cost_groups.serializers import CostGroupExcludeSerializer
 from api.settings.cost_groups.serializers import CostGroupFilterSerializer
 from api.settings.cost_groups.serializers import CostGroupOrderSerializer
+from api.settings.cost_groups.serializers import CostGroupProjectSerializer
 
 
 class CostGroupFilterSerializerTest(TestCase):
@@ -54,3 +57,27 @@ class CostGroupOrderSerializerTest(TestCase):
         instance_data = {"project_name": "asc", "group": "desc", "default": "asc"}
         serializer = CostGroupOrderSerializer(instance_data)
         self.assertEqual(serializer.data, instance_data)
+
+
+class CostGroupProjectSerializerTest(IamTestCase):
+    def test_validate_project_name_invalid(self):
+        """Test when project_name is an invalid value"""
+        data = {"project_name": "invalid_project", "group": "Platform"}
+        serializer = CostGroupProjectSerializer(data=data)
+        with schema_context(self.schema_name):
+            self.assertFalse(serializer.is_valid())
+        self.assertIn("project_name", serializer.errors)
+
+    def test_validate_group_invalid(self):
+        data = {"project_name": "koku", "group": "Fake"}
+        serializer = CostGroupProjectSerializer(data=data)
+        with schema_context(self.schema_name):
+            self.assertFalse(serializer.is_valid())
+        self.assertIn("group", serializer.errors)
+
+    def test_valid(self):
+        """Test we get a valid when a real project and group provided."""
+        data = {"project_name": "koku", "group": "Platform"}
+        serializer = CostGroupProjectSerializer(data=data)
+        with schema_context(self.schema_name):
+            self.assertTrue(serializer.is_valid())
