@@ -41,6 +41,7 @@ class ReportProcessor:
         context=None,
         ingress_reports=None,
         ingress_reports_uuid=None,
+        reprocess_csv_reports=None,
     ):
         """Set the processor based on the data provider."""
         self.schema_name = schema_name
@@ -53,6 +54,7 @@ class ReportProcessor:
         self.tracing_id = context.get("tracing_id") if context else None
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
+        self.reprocess_csv_reports = reprocess_csv_reports
         try:
             self._processor = self._set_processor()
         except Exception as err:
@@ -94,6 +96,7 @@ class ReportProcessor:
             context=self.context,
             ingress_reports=self.ingress_reports,
             ingress_reports_uuid=self.ingress_reports_uuid,
+            reprocess_csv_reports=self.reprocess_csv_reports,
         )
 
     def process(self):

@@ -225,6 +225,7 @@ def get_path_prefix(
     account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False, partition_daily=False
 ):
     """Get the S3 bucket prefix"""
+    provider_type = provider_type.strip("-local")
     path = None
     if start_date:
         year = start_date.strftime("%Y")

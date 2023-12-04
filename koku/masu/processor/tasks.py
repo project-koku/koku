@@ -166,6 +166,7 @@ def get_report_files(  # noqa: C901
     tracing_id,
     ingress_reports=None,
     ingress_reports_uuid=None,
+    reprocess_csv_reports=None,
 ):
     """
     Task to download a Report and process the report.
@@ -215,6 +216,7 @@ def get_report_files(  # noqa: C901
                 month,
                 report_context,
                 ingress_reports,
+                reprocess_csv_reports,
             )
         except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
             worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
@@ -252,7 +254,7 @@ def get_report_files(  # noqa: C901
             report_dict["provider_type"] = provider_type
 
             result = _process_report_file(
-                schema_name, provider_type, report_dict, ingress_reports, ingress_reports_uuid
+                schema_name, provider_type, report_dict, ingress_reports, ingress_reports_uuid, reprocess_csv_reports
             )
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:

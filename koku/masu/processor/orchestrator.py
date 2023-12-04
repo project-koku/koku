@@ -98,6 +98,7 @@ class Orchestrator:
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._summarize_reports = kwargs.get("summarize_reports", True)
+        self._reprocess_csv_reports = kwargs.get("reprocess_csv_reports", False)
 
     def get_polling_batch(self):
         if self.provider_uuid:
@@ -183,6 +184,8 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
+        reprocess_csv_reports = kwargs.get("reprocess_csv_reports", False)
+
         # Switching initial ingest to use priority queue for QE tests based on QE_SCHEMA flag
         if self.queue_name is not None and self.provider_uuid is not None:
             SUMMARY_QUEUE = self.queue_name
@@ -204,6 +207,7 @@ class Orchestrator:
             provider_uuid=provider_uuid,
             report_name=None,
             ingress_reports=self.ingress_reports,
+            reprocess_csv_reports=reprocess_csv_reports,
         )
         # only GCP and OCI return more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
@@ -243,7 +247,10 @@ class Orchestrator:
                 if self.worker_cache.task_is_running(cache_key):
                     LOG.info(
                         log_json(
-                            tracing_id, msg="file processing is in progress", filename=local_file, schema=schema_name
+                            tracing_id,
+                            msg="file processing is in progress",
+                            filename=local_file,
+                            schema=schema_name,
                         )
                     )
                     continue
@@ -270,15 +277,17 @@ class Orchestrator:
                     # on the final file of the set.
                     report_context["create_table"] = True
 
-                # this is used to create bills for previous months on GCP
-                if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-                    if assembly_id := manifest.get("assembly_id"):
-                        report_month = assembly_id.split("|")[0]
-                elif provider_type == Provider.PROVIDER_OCP:
-                    # The report month is used in the metadata of OCP files in s3.
-                    # Setting the report_month to the start date allows us to
-                    # delete the correct data for daily operator files
-                    report_month = manifest.get("start")
+                if not reprocess_csv_reports:
+                    # this is used to create bills for previous months on GCP
+                    if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+                        if assembly_id := manifest.get("assembly_id"):
+                            report_month = assembly_id.split("|")[0]
+                    elif provider_type == Provider.PROVIDER_OCP:
+                        # The report month is used in the metadata of OCP files in s3.
+                        # Setting the report_month to the start date allows us to
+                        # delete the correct data for daily operator files
+                        report_month = manifest.get("start")
+
                 # add the tracing id to the report context
                 # This defaults to the celery queue
                 LOG.info(log_json(tracing_id, msg="queueing download", schema=schema_name))
@@ -295,6 +304,7 @@ class Orchestrator:
                         tracing_id=tracing_id,
                         ingress_reports=self.ingress_reports,
                         ingress_reports_uuid=self.ingress_report_uuid,
+                        reprocess_csv_reports=reprocess_csv_reports,
                     ).set(queue=REPORT_QUEUE)
                 )
                 LOG.info(log_json(tracing_id, msg="download queued", schema=schema_name))

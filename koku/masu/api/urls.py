@@ -8,6 +8,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from masu.api.manifest.views import ManifestView
+from masu.api.process_csv import reprocess_csv_reports
 from masu.api.sources.views import SourcesViewSet
 from masu.api.trino import trino_ui
 from masu.api.views import additional_context
@@ -48,6 +49,7 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 
 
 urlpatterns = [
+    path("reprocess_csv_reports/", reprocess_csv_reports, name="reprocess_csv_reports"),
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
     path("ingress_reports/", ingress_reports, name="ingress_reports"),

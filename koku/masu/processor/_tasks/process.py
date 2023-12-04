@@ -19,7 +19,9 @@ from reporting_common.models import CostUsageReportStatus
 LOG = logging.getLogger(__name__)
 
 
-def _process_report_file(schema_name, provider, report_dict, ingress_reports=None, ingress_reports_uuid=None):
+def _process_report_file(
+    schema_name, provider, report_dict, ingress_reports=None, ingress_reports_uuid=None, reprocess_csv_reports=None
+):
     """
     Task to process a Report.
 
@@ -65,6 +67,7 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
             context=report_dict,
             ingress_reports=ingress_reports,
             ingress_reports_uuid=ingress_reports_uuid,
+            reprocess_csv_reports=reprocess_csv_reports,
         )
 
         result = processor.process()

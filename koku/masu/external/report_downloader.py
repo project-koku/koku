@@ -13,6 +13,7 @@ from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLo
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
+from masu.external.downloader.custom.custom_report_downloader import CustomReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
@@ -39,6 +40,7 @@ class ReportDownloader:
         report_name=None,
         account=None,
         ingress_reports=None,
+        reprocess_csv_reports=None,
         tracing_id="no_tracing_id",
     ):
         """Set the downloader based on the backend cloud provider."""
@@ -52,6 +54,7 @@ class ReportDownloader:
         self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
         self.ingress_reports = ingress_reports
+        self.reprocess_csv_reports = reprocess_csv_reports
         if self.account is None:
             # Existing schema will start with acct and we strip that prefix for use later
             # new customers include the org prefix in case an org-id and an account number might overlap
@@ -97,7 +100,15 @@ class ReportDownloader:
             Provider.PROVIDER_OCI_LOCAL: OCILocalReportDownloader,
             Provider.PROVIDER_IBM: IBMReportDownloader,
         }
-        if self.provider_type in downloader_map:
+        if self.reprocess_csv_reports:
+            return CustomReportDownloader(
+                customer_name=self.customer_name,
+                provider_uuid=self.provider_uuid,
+                tracing_id=self.tracing_id,
+                account=self.account,
+                provider_type=self.provider_type,
+            )
+        elif self.provider_type in downloader_map:
             return downloader_map[self.provider_type](
                 customer_name=self.customer_name,
                 credentials=self.credentials,

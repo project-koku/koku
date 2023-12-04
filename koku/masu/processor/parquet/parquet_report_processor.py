@@ -75,6 +75,7 @@ class ParquetReportProcessor:
         context=None,
         ingress_reports=None,
         ingress_reports_uuid=None,
+        reprocess_csv_reports=None,
     ):
         """initialize report processor."""
         if context is None:
@@ -93,9 +94,11 @@ class ParquetReportProcessor:
         self.files_to_remove = []
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
+        self.reprocess_csv_reports = reprocess_csv_reports
 
         self.split_files = [Path(file) for file in self._context.get("split_files") or []]
-        self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
+        if not self.reprocess_csv_reports:
+            self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
 
     @property
     def schema_name(self):
@@ -626,7 +629,7 @@ class ParquetReportProcessor:
 
     def get_metadata(self, filename) -> dict:
         metadata = {"ManifestId": str(self.manifest_id)}
-        if self._provider_type == Provider.PROVIDER_OCP:
+        if self._provider_type == Provider.PROVIDER_OCP and not self.reprocess_csv_reports:
             metadata["ReportDateStart"] = self.ocp_files_to_process[filename]["meta_reportdatestart"]
             metadata["ReportNumHours"] = self.ocp_files_to_process[filename]["meta_reportnumhours"]
         return metadata
