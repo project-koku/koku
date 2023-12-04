@@ -34,7 +34,7 @@ TABLE_MAP = {
 
 ID_COLUMN_MAP = {
     Provider.PROVIDER_AWS: "lineitem_usageaccountid",
-    Provider.PROVIDER_AZURE: "subscriptionid",
+    Provider.PROVIDER_AZURE: "COALESCE(subscriptionid, subscriptionguid)",
 }
 
 RECORD_FILTER_MAP = {
@@ -57,7 +57,8 @@ RESOURCE_ID_FILTER_MAP = {
     Provider.PROVIDER_AZURE: (
         " AND metercategory = 'Virtual Machines' "
         "AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL "
-        "AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL AND subscriptionid = {{usage_account}}"
+        "AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL "
+        "AND (subscriptionid = {{usage_account}} or subscriptionguid = {{usage_account}}) "
     ),
 }
 

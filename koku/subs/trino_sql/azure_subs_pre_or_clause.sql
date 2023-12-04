@@ -1,10 +1,10 @@
 SELECT
   *,
-  coalesce(date, usagedatetime) as subs_start_time,
-  date_add('day', 1, coalesce(date, usagedatetime)) as subs_end_time,
+  COALESCE(date, usagedatetime) as subs_start_time,
+  date_add('day', 1, COALESCE(date, usagedatetime)) as subs_end_time,
   json_extract_scalar(lower(additionalinfo), '$.vcpus') as subs_vcpu,
-  subscriptionid as subs_account,
-  regexp_extract(coalesce(resourceid, instancename), '([^/]+$)') as subs_resource_id,
+  COALESCE(subscriptionid, subscriptionguid) as subs_account,
+  regexp_extract(COALESCE(resourceid, instancename), '([^/]+$)') as subs_resource_id,
   CASE lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
     ELSE 'Red Hat Enterprise Linux Server'
@@ -24,7 +24,7 @@ SELECT
     WHEN 'rhel 8 els' THEN '479-204'
     ELSE '479'
   END as subs_product_ids,
-  COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), "") as subs_instance
+  COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance
 FROM
     hive.{{schema | sqlsafe}}.azure_line_items
 WHERE

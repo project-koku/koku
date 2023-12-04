@@ -49,18 +49,17 @@ class SUBSDataMessenger:
             instance_id = row["subs_instance"]
         # attempt to query azure for instance id
         else:
-            prov = Provider.objects.get(row["source"])
+            prov = Provider.objects.get(uuid=row["source"])
             credentials = prov.account.get("credentials")
             subscription_id = credentials.get("subscription_id")
             tenant_id = credentials.get("tenant_id")
             client_id = credentials.get("client_id")
             client_secret = credentials.get("client_secret")
             _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-            compute_client = _factory.compute_client()
+            compute_client = _factory.compute_client
             response = compute_client.virtual_machines.get(
                 resource_group_name=row["resourcegroup"],
-                # the last element of the instance is the vm name
-                vm_name=row["instancename"].split("/")[-1],
+                vm_name=row["subs_resource_id"],
             )
             instance_id = response.vm_id
 
@@ -135,7 +134,7 @@ class SUBSDataMessenger:
             "timestamp": tstamp,
             "expiration": expiration,
             "measurements": [{"value": cpu_count, "uom": "vCPUs"}],
-            "cloud_provider": "AWS",
+            "cloud_provider": self.provider_type,
             "hardware_type": "Cloud",
             "product_ids": product_ids,
             "role": role,
