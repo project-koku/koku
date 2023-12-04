@@ -106,7 +106,6 @@ class AzurePostProcessor:
 
         missing = set(TRINO_REQUIRED_COLUMNS).difference(data_frame)
         to_add = {k: TRINO_REQUIRED_COLUMNS[k] for k in missing}
-        LOG.info(f"\n\n ADD COLS: {to_add} \n\n")
         data_frame = data_frame.assign(**to_add)
 
         unique_tags = set()
