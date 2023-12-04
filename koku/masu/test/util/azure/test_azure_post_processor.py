@@ -46,7 +46,7 @@ class TestAzurePostProcessor(MasuTestCase):
             expected_columns = sorted(
                 col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_REQUIRED_COLUMNS
             )
-            self.assertEqual(columns, expected_columns)
+            self.assertEqual(sorted(columns), sorted(expected_columns))
 
     def test_azure_date_converter(self):
         """Test that we convert the new Azure date format."""
