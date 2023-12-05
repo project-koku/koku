@@ -146,7 +146,7 @@ class OCPPostProcessor:
         new_cols = report.get("new_required_columns")
         for col in new_cols:
             if col not in daily_data_frame:
-                daily_data_frame[col] = ""
+                daily_data_frame[col] = pd.Series(dtype=pd.StringDtype(storage="pyarrow"))
 
         return daily_data_frame
 
