@@ -22,19 +22,21 @@ from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 LOG = logging.getLogger(__name__)
 
 
-def _remove_default_projects(projects: list[dict[str:str]]) -> list[dict[str:str]]:
+def _remove_default_projects(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     try:
         _remove_default_projects.system_default_namespaces  # type: ignore[attr-defined]
     except AttributeError:
         # Cache the system default namespcases
-        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(
+        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(  # type: ignore[attr-defined]  # noqa: E501
             system_default=True
-        ).values_list("namespace", flat=True)
+        ).values_list(
+            "namespace", flat=True
+        )
 
     exact_matches = {
-        project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")
+        project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")  # type: ignore[attr-defined]  # noqa: E501
     }
-    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)
+    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)  # type: ignore[attr-defined]  # noqa: E501
 
     scrubbed_projects = []
     for request in projects:
@@ -49,7 +51,7 @@ def _remove_default_projects(projects: list[dict[str:str]]) -> list[dict[str:str
     return scrubbed_projects
 
 
-def put_openshift_namespaces(projects: list[dict[str:str]]) -> list[dict[str:str]]:
+def put_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     projects = _remove_default_projects(projects)
 
     # Build mapping of cost groups to cost category IDs in order to easiy get
@@ -74,7 +76,7 @@ def put_openshift_namespaces(projects: list[dict[str:str]]) -> list[dict[str:str
     return projects
 
 
-def delete_openshift_namespaces(projects: list[dict[str:str]]) -> list[dict[str:str]]:
+def delete_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     projects = _remove_default_projects(projects)
     projects_to_delete = [item["project_name"] for item in projects]
     deleted_count, _ = (
@@ -113,12 +115,12 @@ class CostGroupsQueryHandler:
         self._set_filters_or_exclusion()
 
     @property
-    def order_by(self) -> str:
+    def order_by(self) -> list[str]:
         order_by_params = self.parameters._parameters.get("order_by")
         if not order_by_params:
             return self._default_order_by
 
-        result = []
+        result: list[str] = []
         for key, order in order_by_params.items():
             if order == "desc":
                 result.insert(0, f"-{key}")
