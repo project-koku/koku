@@ -568,5 +568,8 @@ class ProviderInfrastructureMap(models.Model):
     associated provider the cluster is installed on.
     """
 
+    class Meta:
+        unique_together = ("infrastructure_type", "infrastructure_provider")
+
     infrastructure_type = models.CharField(max_length=50, choices=Provider.CLOUD_PROVIDER_CHOICES, blank=False)
     infrastructure_provider = models.ForeignKey("Provider", on_delete=models.CASCADE)
