@@ -18,6 +18,8 @@ from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
 from api.settings.cost_groups.query_handler import _remove_default_projects
 from api.settings.cost_groups.query_handler import put_openshift_namespaces
 from api.utils import DateHelper
+from masu.processor.tasks import OCP_QUEUE
+from masu.processor.tasks import OCP_QUEUE_XL
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
@@ -52,6 +54,12 @@ class TestCostGroupsAPI(IamTestCase):
         with schema_context(self.schema_name):
             response = self.client.get(self.url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_cost_groups_invalid(self):
+        with schema_context(self.schema_name):
+            response = self.client.get(self.url, {"nope": "nope"}, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_cost_groups_filters(self):
         """Basic test to exercise the API endpoint"""
@@ -135,13 +143,12 @@ class TestCostGroupsAPI(IamTestCase):
             body_format = [
                 {
                     "project_name": OCP_PLATFORM_NAMESPACE,
-                    "group": self.default_cost_group
+                    "group": self.default_cost_group,
                 },
                 {
                     "project_name": "openshift",
                     "group": self.default_cost_group,
-                }
-
+                },
             ]
             self.assertEqual(_remove_default_projects(body_format), [])
 
@@ -154,9 +161,10 @@ class TestCostGroupsAPI(IamTestCase):
         self.assertEqual(len(log_warning.records), 1)  # Check that a warning log was generated
         self.assertIn("IntegrityError", log_warning.records[0].getMessage())
 
-    @patch("api.settings.cost_groups.view.update_summary_tables")
-    @patch("api.settings.cost_groups.view.is_customer_large", return_value=False)
-    def test_put_new_records(self, mock_is_customer_large, mock_update):
+    @patch("api.settings.cost_groups.view.update_summary_tables.s")
+    @patch("api.settings.cost_groups.view.is_customer_large")
+    def test_put_new_records(self, mock_is_customer_large, mock_update_schedule):
+        mock_is_customer_large.return_value = False
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
             response = self.client.put(self.url, body, content_type="application/json", **self.headers)
@@ -165,9 +173,30 @@ class TestCostGroupsAPI(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(current_count, 1)
         mock_is_customer_large.assert_called_once_with(self.schema_name)
-        mock_update.s.assert_any_call(
+        mock_update_schedule.assert_any_call(
             self.schema_name,
             provider_type=Provider.PROVIDER_OCP,
             provider_uuid=self.provider_uuid,
             start_date=DateHelper().this_month_start,
         )
+        mock_update_schedule.return_value.apply_async.assert_called_with(queue=OCP_QUEUE)
+
+    @patch("api.settings.cost_groups.view.update_summary_tables.s")
+    @patch("api.settings.cost_groups.view.is_customer_large")
+    def test_put_new_records_large(self, mock_is_customer_large, mock_update_schedule):
+        mock_is_customer_large.return_value = True
+        with schema_context(self.schema_name):
+            body = json.dumps(self.body_format)
+            response = self.client.put(self.url, body, content_type="application/json", **self.headers)
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project_name).count()
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(current_count, 1)
+        mock_is_customer_large.assert_called_once_with(self.schema_name)
+        mock_update_schedule.assert_any_call(
+            self.schema_name,
+            provider_type=Provider.PROVIDER_OCP,
+            provider_uuid=self.provider_uuid,
+            start_date=DateHelper().this_month_start,
+        )
+        mock_update_schedule.return_value.apply_async.assert_called_with(queue=OCP_QUEUE_XL)
