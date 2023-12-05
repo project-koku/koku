@@ -13,7 +13,6 @@ from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLo
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
-from masu.external.downloader.custom.custom_report_downloader import CustomReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
@@ -21,6 +20,7 @@ from masu.external.downloader.oci.oci_report_downloader import OCIReportDownload
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
+from masu.external.downloader.reprocess.reprocess_report_downloader import ReprocessReportDownloader
 from reporting_common.models import CostUsageReportStatus
 
 
@@ -101,7 +101,7 @@ class ReportDownloader:
             Provider.PROVIDER_IBM: IBMReportDownloader,
         }
         if self.reprocess_csv_reports:
-            return CustomReportDownloader(
+            return ReprocessReportDownloader(
                 customer_name=self.customer_name,
                 provider_uuid=self.provider_uuid,
                 tracing_id=self.tracing_id,

@@ -2,7 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Custom Report Downloader."""
+"""Reprocess CSV Report Downloader."""
 import datetime
 import logging
 import os
@@ -33,9 +33,9 @@ class ReportDownloaderNoFileError(Exception):
     """Report Downloader error for missing file."""
 
 
-class CustomReportDownloader(ReportDownloaderBase, DownloaderInterface):
+class ReprocessReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """
-    Custom Report Downloader for reprocessing CSV files.
+    Reprocess Report Downloader for reprocessing CSV files to parquet.
 
     """
 
@@ -45,7 +45,6 @@ class CustomReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         Args:
             customer_name    (String) Name of the customer
-            ingress_reports (List) List of reports from ingress post endpoint (optional)
 
         """
         super().__init__(**kwargs)
