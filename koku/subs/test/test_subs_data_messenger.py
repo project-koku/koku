@@ -19,9 +19,11 @@ class TestSUBSDataMessenger(SUBSTestCase):
         """Set up the class."""
         super().setUpClass()
         cls.context = {"some": "context", "provider_type": "AWS-local"}
+        cls.azure_context = {"some": "context", "provider_type": "Azure-local"}
         cls.tracing_id = "trace_me"
         with patch("subs.subs_data_messenger.get_s3_resource"):
             cls.messenger = SUBSDataMessenger(cls.context, cls.schema, cls.tracing_id)
+            cls.azure_messenger = SUBSDataMessenger(cls.azure_context, cls.schema, cls.tracing_id)
 
     @patch("subs.subs_data_messenger.os.remove")
     @patch("subs.subs_data_messenger.get_producer")
@@ -107,3 +109,109 @@ class TestSUBSDataMessenger(SUBSTestCase):
         kafka_msg = {"test"}
         self.messenger.send_kafka_message(kafka_msg)
         mock_producer.assert_called()
+
+    def test_determine_azure_instance_id_tag(self):
+        """Test getting the azure instance id from the row provided by a tag returns as expected."""
+        expected_instance = "waffle-house"
+        self.messenger.instance_map = {}
+        my_row = {
+            "resourceid": "i-55555556",
+            "subs_start_time": "2023-07-01T01:00:00Z",
+            "subs_end_time": "2023-07-01T02:00:00Z",
+            "subs_resource_id": "i-55555556",
+            "subs_account": "9999999999999",
+            "physical_cores": "1",
+            "subs_vcpu": "2",
+            "variant": "Server",
+            "subs_usage": "Production",
+            "subs_sla": "Premium",
+            "subs_role": "Red Hat Enterprise Linux Server",
+            "subs_product_ids": "479-70",
+            "subs_instance": expected_instance,
+        }
+        actual = self.messenger.determine_azure_instance_id(my_row)
+        self.assertEqual(expected_instance, actual)
+
+    def test_determine_azure_instance_id_from_map(self):
+        """Test getting the azure instance id from the instance map returns as expected."""
+        expected = "oh-yeah"
+        self.messenger.instance_map["i-55555556"] = expected
+        my_row = {
+            "resourceid": "i-55555556",
+            "subs_start_time": "2023-07-01T01:00:00Z",
+            "subs_end_time": "2023-07-01T02:00:00Z",
+            "subs_resource_id": "i-55555556",
+            "subs_account": "9999999999999",
+            "physical_cores": "1",
+            "subs_vcpu": "2",
+            "variant": "Server",
+            "subs_usage": "Production",
+            "subs_sla": "Premium",
+            "subs_role": "Red Hat Enterprise Linux Server",
+            "subs_product_ids": "479-70",
+            "subs_instance": "fake",
+        }
+        actual = self.messenger.determine_azure_instance_id(my_row)
+        self.assertEqual(expected, actual)
+
+    def test_determine_azure_instance_id(self):
+        """Test getting the azure instance id from mock Azure Compute Client returns as expected."""
+        expected = "my-fake-id"
+        self.messenger.instance_map = {}
+        my_row = {
+            "resourceid": "i-55555556",
+            "subs_start_time": "2023-07-01T01:00:00Z",
+            "subs_end_time": "2023-07-01T02:00:00Z",
+            "subs_resource_id": "i-55555556",
+            "subs_account": "9999999999999",
+            "physical_cores": "1",
+            "subs_vcpu": "2",
+            "variant": "Server",
+            "subs_usage": "Production",
+            "subs_sla": "Premium",
+            "subs_role": "Red Hat Enterprise Linux Server",
+            "subs_product_ids": "479-70",
+            "subs_instance": "",
+            "source": self.azure_provider.uuid,
+            "resourcegroup": "my-fake-rg",
+        }
+        with patch("subs.subs_data_messenger.AzureClientFactory") as mock_factory:
+            mock_factory.return_value.compute_client.virtual_machines.get.return_value.vm_id = expected
+            actual = self.messenger.determine_azure_instance_id(my_row)
+        self.assertEqual(expected, actual)
+
+    @patch("subs.subs_data_messenger.SUBSDataMessenger.determine_azure_instance_id")
+    @patch("subs.subs_data_messenger.os.remove")
+    @patch("subs.subs_data_messenger.get_producer")
+    @patch("subs.subs_data_messenger.csv.DictReader")
+    @patch("subs.subs_data_messenger.SUBSDataMessenger.build_subs_msg")
+    def test_process_and_send_subs_message_azure_with_id(
+        self, mock_msg_builder, mock_reader, mock_producer, mock_remove, mock_azure_id
+    ):
+        """Tests that the proper functions are called when running process_and_send_subs_message with Azure provider."""
+        upload_keys = ["fake_key"]
+        mock_reader.return_value = [
+            {
+                "resourceid": "i-55555556",
+                "subs_start_time": "2023-07-01T01:00:00Z",
+                "subs_end_time": "2023-07-01T02:00:00Z",
+                "subs_resource_id": "i-55555556",
+                "subs_account": "9999999999999",
+                "physical_cores": "1",
+                "subs_vcpu": "2",
+                "variant": "Server",
+                "subs_usage": "Production",
+                "subs_sla": "Premium",
+                "subs_role": "Red Hat Enterprise Linux Server",
+                "subs_product_ids": "479-70",
+                "subs_instance": "",
+                "source": self.azure_provider.uuid,
+                "resourcegroup": "my-fake-rg",
+            }
+        ]
+        mock_op = mock_open(read_data="x,y,z")
+        with patch("builtins.open", mock_op):
+            self.azure_messenger.process_and_send_subs_message(upload_keys)
+        mock_azure_id.assert_called_once()
+        mock_msg_builder.assert_called_once()
+        mock_producer.assert_called_once()
