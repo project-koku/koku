@@ -28,6 +28,11 @@ LOG = logging.getLogger(__name__)
 class SUBSDataMessenger:
     def __init__(self, context, schema_name, tracing_id):
         self.provider_type = context["provider_type"].removesuffix("-local")
+        # Local azure providers shouldnt attempt to query Azure
+        if context["provider_type"] == Provider.PROVIDER_AZURE_LOCAL:
+            self.local_prov = True
+        else:
+            self.local_prov = False
         self.context = context
         self.tracing_id = tracing_id
         self.schema_name = schema_name
@@ -49,6 +54,9 @@ class SUBSDataMessenger:
             instance_id = row["subs_instance"]
         # attempt to query azure for instance id
         else:
+            # if its a local Azure provider, don't query Azure
+            if self.local_prov:
+                return ""
             prov = Provider.objects.get(uuid=row["source"])
             credentials = prov.account.get("credentials")
             subscription_id = credentials.get("subscription_id")
