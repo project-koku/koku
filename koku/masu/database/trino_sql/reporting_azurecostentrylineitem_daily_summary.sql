@@ -21,17 +21,17 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
 WITH cte_line_items AS (
     SELECT date(coalesce(date, usagedatetime)) as usage_date,
         INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
-        coalesce(NULLIF(subscriptionid, ''), subscriptionguid) as subscription_guid,
+        coalesce(nullif(subscriptionid, ''), subscriptionguid) as subscription_guid,
         resourcelocation as resource_location,
-        coalesce(NULLIF(servicename, ''), metercategory) as service_name,
+        coalesce(nullif(servicename, ''), metercategory) as service_name,
         json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_type,
-        cast(coalesce(NULLIF(quantity, 0), usagequantity) as DECIMAL(24,9)) as usage_quantity,
-        cast(coalesce(NULLIF(costinbillingcurrency, 0), pretaxcost) as DECIMAL(24,9)) as pretax_cost,
-        coalesce(NULLIF(billingcurrencycode, ''), NULLIF(currency, ''), billingcurrency) as currency,
+        cast(coalesce(nullif(quantity, 0), usagequantity) as DECIMAL(24,9)) as usage_quantity,
+        cast(coalesce(nullif(costinbillingcurrency, 0), pretaxcost) as DECIMAL(24,9)) as pretax_cost,
+        coalesce(nullif(billingcurrencycode, ''), nullif(currency, ''), billingcurrency) as currency,
         json_parse(tags) as tags,
-        coalesce(NULLIF(resourceid, ''), instanceid) as instance_id,
+        coalesce(nullif(resourceid, ''), instanceid) as instance_id,
         cast(source as UUID) as source_uuid,
-        coalesce(NULLIF(subscriptionname, ''), NULLIF(subscriptionid, ''), subscriptionguid) as subscription_name,
+        coalesce(nullif(subscriptionname, ''), nullif(subscriptionid, ''), subscriptionguid) as subscription_name,
         CASE
             WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$') AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines') AND NOT split_part(unitofmeasure, ' ', 2) = ''
                 THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
