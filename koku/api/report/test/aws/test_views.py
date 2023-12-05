@@ -4,6 +4,7 @@
 #
 """Test the AWS Report views."""
 import copy
+import csv as csv
 
 from django.urls import reverse
 from rest_framework import status
@@ -600,3 +601,26 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-costs") + "?group_by[aws_categroy:invalid]=value"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_units_consistency(self):
+        """Test if provider map used units match the report."""
+        file = "October-2023-None"
+        file_name = f"{file}.csv"
+        csv_units = set()
+        file_path = f"./testing/local_providers/aws_local/None/20231001-20231101/59be89a2-1e53-4483-bb66-86d2f9f8e6b4/{file_name}"  # noqa: E501
+        provider_map_units = [
+            "Hrs",
+            "GB-Mo",
+        ]
+
+        with open(file_path) as file:
+            csv_reader = csv.DictReader(file)
+
+            for row in csv_reader:
+                valor = row.get("pricing/unit")
+
+                if valor is not None and valor not in csv_units:
+                    csv_units.add(valor)
+
+        for unit in provider_map_units:
+            self.assertIn(unit, csv_units)
