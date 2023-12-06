@@ -13,7 +13,6 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import boto3
-import numpy as np
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
@@ -755,7 +754,7 @@ class TestAWSUtils(MasuTestCase):
 
         matched_tags = [{"key": "value"}]
         data = [
-            {"lineitem_resourceid": np.nan, "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
+            {"lineitem_resourceid": "", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
         ]
 
         df = pd.DataFrame(data)
@@ -779,7 +778,7 @@ class TestAWSUtils(MasuTestCase):
 
         matched_tags = [{"key": "value"}]
         data = [
-            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": np.nan},
+            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": ""},
         ]
 
         df = pd.DataFrame(data)
