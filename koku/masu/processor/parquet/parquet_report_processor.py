@@ -94,6 +94,9 @@ class ParquetReportProcessor:
         self.files_to_remove = []
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
+        # Cody: I am not really sure why this was needed
+        # From my understanding the only way that the ocp_files_to_process
+        # is set in the context is from the kafka message handler.
         self.reprocess_csv_reports = reprocess_csv_reports
 
         self.split_files = [Path(file) for file in self._context.get("split_files") or []]

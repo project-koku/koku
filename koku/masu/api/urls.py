@@ -8,7 +8,6 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from masu.api.manifest.views import ManifestView
-from masu.api.process_csv import reprocess_csv_reports
 from masu.api.sources.views import SourcesViewSet
 from masu.api.trino import trino_ui
 from masu.api.views import additional_context
@@ -35,6 +34,7 @@ from masu.api.views import pg_engine_version
 from masu.api.views import process_openshift_on_cloud
 from masu.api.views import purge_trino_files
 from masu.api.views import report_data
+from masu.api.views import reprocess_csv_reports
 from masu.api.views import running_celery_tasks
 from masu.api.views import schema_sizes
 from masu.api.views import stat_activity

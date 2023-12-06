@@ -27,6 +27,7 @@ from masu.api.notifications import notification
 from masu.api.process_openshift_on_cloud import process_openshift_on_cloud
 from masu.api.purge_trino_files import purge_trino_files
 from masu.api.report_data import report_data
+from masu.api.reprocess_csv_reports import reprocess_csv_reports
 from masu.api.running_celery_tasks import celery_queue_lengths
 from masu.api.running_celery_tasks import celery_queue_tasks
 from masu.api.running_celery_tasks import clear_celery_queues
