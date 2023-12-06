@@ -64,7 +64,7 @@ RESOURCE_ID_FILTER_MAP = {
 
 RESOURCE_SELECT_MAP = {
     Provider.PROVIDER_AWS: " SELECT lineitem_resourceid, max(lineitem_usagestartdate) ",
-    Provider.PROVIDER_AZURE: " SELECT coalesce(resourceid, instancename), max(coalesce(date, usagedatetime)) ",
+    Provider.PROVIDER_AZURE: " SELECT coalesce(resourceid, instancename), date_add('day', -1, max(coalesce(date, usagedatetime))) ",  # noqa E501
 }
 
 RESOURCE_ID_GROUP_BY_MAP = {
@@ -86,7 +86,7 @@ RESOURCE_ID_SQL_CLAUSE_MAP = {
     Provider.PROVIDER_AZURE: (
         " ( coalesce(resourceid, instancename) = {{{{ rid_{0} }}}} "
         "AND coalesce(date, usagedatetime) >= {{{{ start_date_{0} }}}} "
-        "AND coalesce(date, usagedatetime) >= {{{{ end_date_{0} }}}}) "
+        "AND coalesce(date, usagedatetime) <= {{{{ end_date_{0} }}}}) "
     ),
 }
 
@@ -149,7 +149,11 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 # and we want to gather new data we have not processed yet
                 # so we add one second to the last timestamp to ensure the time range processed
                 # is all new data
-                lpt_dict[rid] = latest_time + timedelta(seconds=1)
+                if self.provider_type != Provider.PROVIDER_AZURE:
+                    lpt_dict[rid] = latest_time + timedelta(seconds=1)
+                # Azure is daily timestamps so we do not need to increase this by 1 since this was the previous end
+                else:
+                    lpt_dict[rid] = latest_time
         return lpt_dict
 
     def determine_latest_processed_time_for_provider(self, rid, year, month):
