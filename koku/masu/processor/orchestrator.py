@@ -98,7 +98,6 @@ class Orchestrator:
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._summarize_reports = kwargs.get("summarize_reports", True)
-        self._reprocess_csv_reports = kwargs.get("reprocess_csv_reports", False)
 
     def get_polling_batch(self):
         if self.provider_uuid:
@@ -510,3 +509,17 @@ class Orchestrator:
             )
             async_results.append({"customer": account.get("customer_name"), "async_id": str(async_result)})
         return async_results
+
+    def reprocess_csv_reports(self):
+        """
+        Downloads the CSV files from our bucket and reconverts them into parquet.
+        """
+        providers = self.get_polling_batch()
+        for provider in providers:
+            report_months = self.get_reports(provider.uuid)
+            for report_month in report_months:
+                account = copy.deepcopy(provider.account)
+                account["tracing_id"] = provider.uuid
+                account["reprocess_csv_reports"] = True
+                account["report_month"] = report_month
+                self.start_manifest_processing(**account)

@@ -73,6 +73,14 @@ def remove_expired_data(simulate=False):
     orchestrator.remove_expired_report_data(simulate)
 
 
+@celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
+def reprocess_csv_reports(*args, **kwargs):
+    """Scheduled task to initiate scanning process on a regular interval."""
+    orchestrator = Orchestrator(*args, **kwargs)
+    LOG.info(log_json(msg="reprocess csv reports to parquet", args=args, kwargs=kwargs))
+    orchestrator.reprocess_csv_reports()
+
+
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
 def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
     """Remove files in a particular path prefix."""

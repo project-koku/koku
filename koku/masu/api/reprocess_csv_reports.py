@@ -15,17 +15,36 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
-from masu.processor.orchestrator import Orchestrator
-from masu.util.common import DateHelper
+from masu.celery.tasks import reprocess_csv_reports as reprocess_task
+
 
 LOG = logging.getLogger(__name__)
 
 
-def check_required_parameters(query_params):
+class RequiredParametersError(Exception):
+    """Handle require parameters error."""
+
+
+def build_reprocess_kwargs(query_params):
     """Validates the expected query parameters."""
-    for param in ["start_date", "provider_uuid"]:
-        if not query_params.get(param):
-            return f"{param} must be supplied as a parameter."
+    reprocess_kwargs = {}
+    if start_date := query_params.get("start_date"):
+        reprocess_kwargs["bill_date"] = start_date
+    else:
+        raise RequiredParametersError("start_date must be supplied as a parameter.")
+    uuid_or_type_provided = False
+    if provider_uuid := query_params.get("provider_uuid"):
+        uuid_or_type_provided = True
+        provider = Provider.objects.filter(uuid=provider_uuid).first()
+        if not provider:
+            raise RequiredParametersError(f"The provider_uuid {provider_uuid} does not exist.")
+        reprocess_kwargs["provider_uuid"] = provider_uuid
+    if provider_type := query_params.get("provider_type"):
+        uuid_or_type_provided = True
+        reprocess_kwargs["provider_type"] = provider_type
+    if not uuid_or_type_provided:
+        raise RequiredParametersError("provider_uuid or provider_type must be supplied")
+    return reprocess_kwargs
 
 
 @never_cache
@@ -35,44 +54,14 @@ def check_required_parameters(query_params):
 def reprocess_csv_reports(request):
     """trigger a task to reprocess monthly csv files into parquet files for a provider."""
     params = request.query_params
-    errmsg = check_required_parameters(params)
-    if errmsg:
+    try:
+        reprocess_kwargs = build_reprocess_kwargs(params)
+    except RequiredParametersError as errmsg:
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-    provider_uuid = params.get("provider_uuid")
     summarize_reports = params.get("summarize_reports", "true").lower()
-    summarize_reports = True if summarize_reports == "true" else False
-
-    provider = Provider.objects.filter(uuid=provider_uuid).first()
-    schema = provider.account.get("schema_name")
-    report_month = DateHelper().month_start(params.get("start_date"))
-
-    orchestrator = Orchestrator()
-
+    reprocess_kwargs["summarize_reports"] = True if summarize_reports == "true" else False
+    async_reprocess_reports = reprocess_task.delay(**reprocess_kwargs)
     # TODO
-    # 1. Should we enable by provider type too (might need batching logic)
     # 2. The ability to trigger multiple months for a/each provider.
-    # 3. Add safety measures to ensure you can't retrigger this back to back.
-
-    manifest_list, reports_tasks_queued = orchestrator.start_manifest_processing(
-        customer_name=schema,
-        credentials={},
-        data_source={},
-        provider_type=provider.type,
-        schema_name=schema,
-        provider_uuid=provider_uuid,
-        report_month=report_month,
-        summarize_reports=summarize_reports,
-        reprocess_csv_reports=True,
-    )
-    # Cody:
-    # One potential problem with hooking into the already existing start_manifest_processing,
-    # is that you would kick off another sub_task & hcs_task as well. I am curious to what
-    # impact this might have on those tasks.
-    return Response(
-        {
-            "Triggering provider reprocessing": {provider_uuid},
-            "Billing month": {report_month},
-            "Manifest ids": str(manifest_list),
-            "Reports queued": str(reports_tasks_queued),
-        }
-    )
+    # 3. Add more protections for triggering this multiple time within a time period.
+    return Response({"Reprocess CSV Task ID": str(async_reprocess_reports)})
