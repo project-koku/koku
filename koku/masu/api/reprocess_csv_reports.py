@@ -15,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
+from koku.cache import get_cached_reprocess_by_provider_type
+from koku.cache import set_cached_reprocess_by_provider_type
 from masu.celery.tasks import reprocess_csv_reports as reprocess_task
 
 
@@ -27,12 +29,12 @@ class RequiredParametersError(Exception):
 
 def build_reprocess_kwargs(query_params):
     """Validates the expected query parameters."""
+    uuid_or_type_provided = False  # used to check if provider uuid or type supplied
     reprocess_kwargs = {}
     if start_date := query_params.get("start_date"):
         reprocess_kwargs["bill_date"] = start_date
     else:
         raise RequiredParametersError("start_date must be supplied as a parameter.")
-    uuid_or_type_provided = False
     if provider_uuid := query_params.get("provider_uuid"):
         uuid_or_type_provided = True
         provider = Provider.objects.filter(uuid=provider_uuid).first()
@@ -40,6 +42,11 @@ def build_reprocess_kwargs(query_params):
             raise RequiredParametersError(f"The provider_uuid {provider_uuid} does not exist.")
         reprocess_kwargs["provider_uuid"] = provider_uuid
     if provider_type := query_params.get("provider_type"):
+        key_exist, timeout = get_cached_reprocess_by_provider_type(provider_type)
+        if key_exist:
+            err_msg = f"provider_type ({provider_type}) still disabled for {round(timeout/60, 2)} minutes"
+            raise RequiredParametersError(err_msg)
+        set_cached_reprocess_by_provider_type(provider_type)
         uuid_or_type_provided = True
         reprocess_kwargs["provider_type"] = provider_type
     if not uuid_or_type_provided:
@@ -63,5 +70,5 @@ def reprocess_csv_reports(request):
     async_reprocess_reports = reprocess_task.delay(**reprocess_kwargs)
     # TODO
     # 2. The ability to trigger multiple months for a/each provider.
-    # 3. Add more protections for triggering this multiple time within a time period.
+    # Do we actually want this?
     return Response({"Reprocess CSV Task ID": str(async_reprocess_reports)})

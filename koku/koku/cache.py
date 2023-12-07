@@ -34,6 +34,13 @@ OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
 OPENSHIFT_GCP_CACHE_PREFIX = "openshift-gcp-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 SOURCES_CACHE_PREFIX = "sources"
+MASU_REPROCESS_CACHE_PREFIX = "masu-reprocess"
+
+
+def get_cache_key_timeout(cache_key):
+    """Get cache key timeout."""
+    cache = caches["default"]
+    return cache.ttl(cache_key)
 
 
 def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None):
@@ -148,3 +155,20 @@ def set_cached_infra_map(schema_name, provider_type, provider_uuid, infra_map):
     cache = caches["default"]
     cache_key = f"OCP-on-{provider_type}:{schema_name}:{provider_uuid}:infra-map"
     cache.set(cache_key, infra_map)
+
+
+def set_cached_reprocess_by_provider_type(provider_type):
+    """Set a wait period to resummarize by provider type."""
+    cache_key = f"{MASU_REPROCESS_CACHE_PREFIX}{provider_type}"
+    cache = caches["default"]
+    if cache.has_key(cache_key):
+        return False
+    # This key will be cached for an hour
+    return cache.set(cache_key, provider_type, timeout=3600)
+
+
+def get_cached_reprocess_by_provider_type(provider_type):
+    """Return the cache key if it exists."""
+    cache_key = f"{MASU_REPROCESS_CACHE_PREFIX}{provider_type}"
+    cache = caches["default"]
+    return cache.get(cache_key), get_cache_key_timeout(cache_key)
