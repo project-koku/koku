@@ -4,6 +4,7 @@
 #
 import json
 import uuid
+from collections import defaultdict
 from unittest.mock import mock_open
 from unittest.mock import patch
 
@@ -132,6 +133,27 @@ class TestSUBSDataMessenger(SUBSTestCase):
         actual = self.messenger.determine_azure_instance_id(my_row)
         self.assertEqual(expected_instance, actual)
 
+    def test_determine_azure_instance_id_local_prov(self):
+        """Test that a local provider does not reach out to Azure."""
+        self.messenger.instance_map = {}
+        my_row = {
+            "resourceid": "i-55555556",
+            "subs_start_time": "2023-07-01T01:00:00Z",
+            "subs_end_time": "2023-07-01T02:00:00Z",
+            "subs_resource_id": "i-55555556",
+            "subs_account": "9999999999999",
+            "physical_cores": "1",
+            "subs_vcpu": "2",
+            "variant": "Server",
+            "subs_usage": "Production",
+            "subs_sla": "Premium",
+            "subs_role": "Red Hat Enterprise Linux Server",
+            "subs_product_ids": "479-70",
+            "subs_instance": "",
+        }
+        actual = self.azure_messenger.determine_azure_instance_id(my_row)
+        self.assertEqual("", actual)
+
     def test_determine_azure_instance_id_from_map(self):
         """Test getting the azure instance id from the instance map returns as expected."""
         expected = "oh-yeah"
@@ -190,6 +212,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
     ):
         """Tests that the proper functions are called when running process_and_send_subs_message with Azure provider."""
         upload_keys = ["fake_key"]
+        self.azure_messenger.date_map = defaultdict(list)
         mock_reader.return_value = [
             {
                 "resourceid": "i-55555556",
@@ -215,3 +238,40 @@ class TestSUBSDataMessenger(SUBSTestCase):
         mock_azure_id.assert_called_once()
         mock_msg_builder.assert_called_once()
         mock_producer.assert_called_once()
+
+    @patch("subs.subs_data_messenger.SUBSDataMessenger.determine_azure_instance_id")
+    @patch("subs.subs_data_messenger.os.remove")
+    @patch("subs.subs_data_messenger.get_producer")
+    @patch("subs.subs_data_messenger.csv.DictReader")
+    @patch("subs.subs_data_messenger.SUBSDataMessenger.build_subs_msg")
+    def test_process_and_send_subs_message_azure_time_already_processed(
+        self, mock_msg_builder, mock_reader, mock_producer, mock_remove, mock_azure_id
+    ):
+        """Tests that the functions are not called for a provider that has already processed."""
+        upload_keys = ["fake_key"]
+        self.azure_messenger.date_map["2023-07-01T01:00:00Z"] = "i-55555556"
+        mock_reader.return_value = [
+            {
+                "resourceid": "i-55555556",
+                "subs_start_time": "2023-07-01T01:00:00Z",
+                "subs_end_time": "2023-07-01T02:00:00Z",
+                "subs_resource_id": "i-55555556",
+                "subs_account": "9999999999999",
+                "physical_cores": "1",
+                "subs_vcpu": "2",
+                "variant": "Server",
+                "subs_usage": "Production",
+                "subs_sla": "Premium",
+                "subs_role": "Red Hat Enterprise Linux Server",
+                "subs_product_ids": "479-70",
+                "subs_instance": "",
+                "source": self.azure_provider.uuid,
+                "resourcegroup": "my-fake-rg",
+            }
+        ]
+        mock_op = mock_open(read_data="x,y,z")
+        with patch("builtins.open", mock_op):
+            self.azure_messenger.process_and_send_subs_message(upload_keys)
+        mock_azure_id.assert_not_called()
+        mock_msg_builder.assert_not_called()
+        mock_producer.assert_not_called()
