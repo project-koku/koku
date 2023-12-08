@@ -46,7 +46,7 @@ class SUBSDataMessenger:
         self.instance_map = {}
 
     def determine_azure_instance_id(self, row):
-        """For Azure we have to query the instance id if it is not provided via tag."""
+        """For Azure we have to query the instance id if its not provided by a tag."""
         if row["resourceid"] in self.instance_map:
             return self.instance_map.get(row["resourceid"])
         # this column comes from a user defined tag allowing us to avoid querying Azure if its present.

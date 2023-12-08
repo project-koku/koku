@@ -34,7 +34,7 @@ TABLE_MAP = {
 
 ID_COLUMN_MAP = {
     Provider.PROVIDER_AWS: "lineitem_usageaccountid",
-    Provider.PROVIDER_AZURE: "COALESCE(subscriptionid, subscriptionguid)",
+    Provider.PROVIDER_AZURE: "COALESCE(NULLIF(subscriptionid, ''), subscriptionguid)",
 }
 
 RECORD_FILTER_MAP = {
@@ -64,7 +64,7 @@ RESOURCE_ID_FILTER_MAP = {
 
 RESOURCE_SELECT_MAP = {
     Provider.PROVIDER_AWS: " SELECT lineitem_resourceid, max(lineitem_usagestartdate) ",
-    Provider.PROVIDER_AZURE: " SELECT coalesce(resourceid, instancename), date_add('day', -1, max(coalesce(date, usagedatetime))) ",  # noqa E501
+    Provider.PROVIDER_AZURE: " SELECT coalesce(NULLIF(resourceid, ''), instancename), date_add('day', -1, max(coalesce(date, usagedatetime))) ",  # noqa E501
 }
 
 RESOURCE_ID_GROUP_BY_MAP = {
@@ -74,7 +74,7 @@ RESOURCE_ID_GROUP_BY_MAP = {
 
 RESOURCE_ID_EXCLUSION_CLAUSE_MAP = {
     Provider.PROVIDER_AWS: " AND lineitem_resourceid NOT IN {{excluded_ids | inclause}} ",
-    Provider.PROVIDER_AZURE: " and coalesce(resourceid, instancename) NOT IN {{excluded_ids | inclause}} ",
+    Provider.PROVIDER_AZURE: " and coalesce(NULLIF(resourceid, ''), instancename) NOT IN {{excluded_ids | inclause}} ",
 }
 
 RESOURCE_ID_SQL_CLAUSE_MAP = {
@@ -84,7 +84,7 @@ RESOURCE_ID_SQL_CLAUSE_MAP = {
         " AND lineitem_usagestartdate <= {{{{ end_date_{0} }}}}) "
     ),
     Provider.PROVIDER_AZURE: (
-        " ( coalesce(resourceid, instancename) = {{{{ rid_{0} }}}} "
+        " ( coalesce(NULLIF(resourceid, ''), instancename) = {{{{ rid_{0} }}}} "
         "AND coalesce(date, usagedatetime) >= {{{{ start_date_{0} }}}} "
         "AND coalesce(date, usagedatetime) <= {{{{ end_date_{0} }}}}) "
     ),
@@ -213,7 +213,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def determine_where_clause_and_params(self, year, month):
         """Determine the where clause to use when processing subs data"""
-        where_clause = "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND "
+        where_clause = "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
         # different provider types have different required filters here
         where_clause += self.provider_where_clause
         sql_params = {

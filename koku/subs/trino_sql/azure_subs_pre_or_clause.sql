@@ -3,8 +3,8 @@ SELECT
   COALESCE(date, usagedatetime) as subs_start_time,
   date_add('day', 1, COALESCE(date, usagedatetime)) as subs_end_time,
   json_extract_scalar(lower(additionalinfo), '$.vcpus') as subs_vcpu,
-  COALESCE(subscriptionid, subscriptionguid) as subs_account,
-  regexp_extract(COALESCE(resourceid, instancename), '([^/]+$)') as subs_resource_id,
+  COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as subs_account,
+  regexp_extract(COALESCE(NULLIF(resourceid, ''), instancename), '([^/]+$)') as subs_resource_id,
   CASE lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
     ELSE 'Red Hat Enterprise Linux Server'
