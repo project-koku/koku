@@ -67,8 +67,9 @@ class SUBSDataMessenger:
             client_secret = credentials.get("client_secret")
             _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
             compute_client = _factory.compute_client
+            resource_group = row["resourcegroup"] if row.get("resourcegroup") else row["resourcegroupname"]
             response = compute_client.virtual_machines.get(
-                resource_group_name=row["resourcegroup"],
+                resource_group_name=resource_group,
                 vm_name=row["subs_resource_id"],
             )
             instance_id = response.vm_id
