@@ -96,8 +96,10 @@ class SUBSDataMessenger:
                 for row in reader:
                     if self.provider_type == Provider.PROVIDER_AZURE:
                         # Azure can unexplicably generate strange records with a second entry per day
+                        # so we track the resource ids we've seen for a specific day so we don't send a record twice
                         if row["resourceid"] in self.date_map.get(row["subs_start_time"]):
                             continue
+                        self.date_map["subs_start_time"].append(row["resourceid"])
                         instance_id = self.determine_azure_instance_id(row)
                         if not instance_id:
                             continue
