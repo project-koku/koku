@@ -893,6 +893,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
             cr_data = msg_handler.process_cr(report_meta)
             self.assertEqual(cr_data["operator_version"], "costmanagement-metrics-operator:3.0.1")
 
+            # test that we warn when basic auth is being used:
+            report_meta["cr_status"]["authentication"]["type"] = "basic"
+            with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
+                msg_handler.process_cr(report_meta)
+
     def test_create_cost_and_usage_report_manifest(self):
         manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
         report_meta = utils.get_report_details(manifest.parent)

@@ -75,7 +75,7 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
     daily_files = []
 
     try:
-        data_frame = pd.read_csv(file_path, dtype="str")
+        data_frame = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"))
     except Exception as error:
         LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
         raise error
@@ -201,6 +201,11 @@ def process_cr(report_meta):
             if err := cr_status.get(case, {}).get("error"):
                 errors[case + "_error"] = err
         manifest_info["operator_errors"] = errors or None
+
+        auth_type = cr_status.get("authentication", {}).get("type")
+        if auth_type == "basic":
+            ctx = {"schema": report_meta.get("schema_name"), "provider_uuid": report_meta.get("provider_uuid")}
+            LOG.warning(log_json(report_meta.get("tracing_id"), msg="cluster is using basic auth", context=ctx))
 
     return manifest_info
 
