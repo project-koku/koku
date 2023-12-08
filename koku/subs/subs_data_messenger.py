@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import uuid
+from collections import defaultdict
 from tempfile import mkdtemp
 
 from django.conf import settings
@@ -44,6 +45,7 @@ class SUBSDataMessenger:
         self.org_id = subs_cust.org_id
         self.download_path = mkdtemp(prefix="subs")
         self.instance_map = {}
+        self.date_map = defaultdict(list)
 
     def determine_azure_instance_id(self, row):
         """For Azure we have to query the instance id if its not provided by a tag."""
@@ -93,6 +95,9 @@ class SUBSDataMessenger:
                 msg_count = 0
                 for row in reader:
                     if self.provider_type == Provider.PROVIDER_AZURE:
+                        # Azure can unexplicably generate strange records with a second entry per day
+                        if row["resourceid"] in self.date_map.get(row["subs_start_time"]):
+                            continue
                         instance_id = self.determine_azure_instance_id(row)
                         if not instance_id:
                             continue
