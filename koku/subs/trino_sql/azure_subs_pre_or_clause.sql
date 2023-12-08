@@ -1,7 +1,7 @@
 SELECT
   *,
-  COALESCE(date, usagedatetime) as subs_start_time,
-  date_add('day', 1, COALESCE(date, usagedatetime)) as subs_end_time,
+  with_timezone(COALESCE(date, usagedatetime), 'UTC') as subs_start_time,
+  with_timezone(date_add('day', 1, COALESCE(date, usagedatetime)), 'UTC') as subs_end_time,
   json_extract_scalar(lower(additionalinfo), '$.vcpus') as subs_vcpu,
   COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as subs_account,
   regexp_extract(COALESCE(NULLIF(resourceid, ''), instancename), '([^/]+$)') as subs_resource_id,

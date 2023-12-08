@@ -49,8 +49,8 @@ class SUBSDataMessenger:
 
     def determine_azure_instance_id(self, row):
         """For Azure we have to query the instance id if its not provided by a tag."""
-        if row["resourceid"] in self.instance_map:
-            return self.instance_map.get(row["resourceid"])
+        if row["subs_resource_id"] in self.instance_map:
+            return self.instance_map.get(row["subs_resource_id"])
         # this column comes from a user defined tag allowing us to avoid querying Azure if its present.
         if row["subs_instance"] != "":
             instance_id = row["subs_instance"]
@@ -73,7 +73,7 @@ class SUBSDataMessenger:
             )
             instance_id = response.vm_id
 
-        self.instance_map[row["resourceid"]] = instance_id
+        self.instance_map[row["subs_resource_id"]] = instance_id
         return instance_id
 
     def process_and_send_subs_message(self, upload_keys):
@@ -97,9 +97,11 @@ class SUBSDataMessenger:
                     if self.provider_type == Provider.PROVIDER_AZURE:
                         # Azure can unexplicably generate strange records with a second entry per day
                         # so we track the resource ids we've seen for a specific day so we don't send a record twice
-                        if row["resourceid"] in self.date_map.get(row["subs_start_time"]):
+                        if self.date_map.get(row["subs_start_time"]) and row["subs_resource_id"] in self.date_map.get(
+                            row["subs_start_time"]
+                        ):
                             continue
-                        self.date_map["subs_start_time"].append(row["resourceid"])
+                        self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
                         instance_id = self.determine_azure_instance_id(row)
                         if not instance_id:
                             continue
