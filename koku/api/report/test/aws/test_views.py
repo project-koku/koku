@@ -604,10 +604,11 @@ class AWSReportViewTest(IamTestCase):
 
     def test_units_consistency(self):
         """Test if provider map used units match the report."""
-        file = "October-2023-None"
+        file = "November-2023-None"
         file_name = f"{file}.csv"
         csv_units = set()
-        file_path = f"./testing/local_providers/aws_local/None/20231001-20231101/59be89a2-1e53-4483-bb66-86d2f9f8e6b4/{file_name}"  # noqa: E501
+        file_path = f"./koku/masu/test/data/aws/{file_name}"  # noqa: E501
+
         provider_map_units = [
             "Hrs",
             "GB-Mo",
