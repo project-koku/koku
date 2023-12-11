@@ -118,7 +118,7 @@ def create_daily_archives(
         local_file,
         chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
         usecols=lambda x: x in use_cols,
-        dtype="str",
+        dtype=pd.StringDtype(storage="pyarrow"),
     ) as reader:
         for i, data_frame in enumerate(reader):
             if data_frame.empty:
