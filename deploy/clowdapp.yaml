@@ -4642,6 +4642,10 @@ parameters:
   displayName: Enable ROS Debug
   name: ENABLE_ROS_DEBUG
   value: "False"
+- description: Enable SUBS Provider Types for Processing
+  displayname: Enable SUBS Provider Types
+  name: ENABLE_SUBS_PROVIDER_TYPES
+  value: AWS
 - displayName: Minimum replicas
   name: KOKU_REPLICAS
   required: true
