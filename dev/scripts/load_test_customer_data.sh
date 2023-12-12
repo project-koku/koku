@@ -422,9 +422,9 @@ build_all(){
 }
 
 # ---execute---
-provider_arg=`echo ${1^^} |tr [a-z] [A-Z]`
+provider_arg=`echo ${1} |tr [a-z] [A-Z]`
 
-case ${provider_arg} in
+case ${provider_arg^^} in
    "AWS")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
