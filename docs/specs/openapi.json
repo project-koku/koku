@@ -5552,6 +5552,49 @@
                 }]
             }
         },
+        "/settings/cost-groups/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Query which projects belong to which cost groups",
+                "operationId": "getSettingsCostGroups",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Add projects to a cost group",
+                "operationId": "putSettingsCostGroups",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Remove projects from a coust group",
+                "operationId": "deleteSettingsCostGroups",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                }
+            }
+        },
         "/settings/tags/": {
             "get": {
                 "tags": [
@@ -5995,6 +6038,39 @@
                 }
             }
         },
+            "CostGroupsBody": {
+                "description": "List of project name and cost group",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "project_name": {
+                                        "type": "string"
+                                    },
+                                    "group": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "example": [
+                                {
+                                    "project_name": "accounting",
+                                    "group": "Platform"
+                                },
+                                {
+                                    "project_name": "infra",
+                                    "group": "Platform"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
         "securitySchemes": {
             "basic_auth": {
                 "type": "http",
