@@ -29,6 +29,8 @@ UI_SUMMARY_TABLES = (
 TRINO_LINE_ITEM_TABLE_MAP = {"cost": "oci_cost_line_items", "usage": "oci_usage_line_items"}
 TRINO_LINE_ITEM_DAILY_TABLE_MAP = {"cost": "oci_cost_line_items_daily", "usage": "oci_usage_line_items_daily"}
 
+# These defaults need to match the numeric & date columns in OCIReportParquetProcessor
+# because that is how we build the trino schema
 TRINO_REQUIRED_COLUMNS = {
     "lineItem/referenceNo": "",
     "lineItem/tenantId": "",
@@ -42,17 +44,17 @@ TRINO_REQUIRED_COLUMNS = {
     "product/availabilityDomain": "",
     "product/resourceId": "",
     "usage/consumedQuantity": 0.0,
-    "usage/billedQuantity": 0.0,
-    "usage/billedQuantityOverage": 0.0,
+    "usage/billedQuantity": "",
+    "usage/billedQuantityOverage": "",
     "usage/consumedQuantityUnits": "",
     "usage/consumedQuantityMeasure": "",
     "cost/subscriptionId": "",
     "cost/productSku": "",
     "product/Description": "",
-    "cost/unitPrice": 0.0,
-    "cost/unitPriceOverage": 0.0,
+    "cost/unitPrice": "",
+    "cost/unitPriceOverage": "",
     "cost/myCost": 0.0,
-    "cost/myCostOverage": 0.0,
+    "cost/myCostOverage": "",
     "cost/currencyCode": "",
     "cost/billingUnitReadable": "",
     "cost/skuUnitDescription": "",
