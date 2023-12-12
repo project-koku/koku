@@ -422,7 +422,7 @@ build_all(){
 }
 
 # ---execute---
-provider_arg=`echo ${1} |tr [a-z] [A-Z]`
+provider_arg=`echo ${1^^} |tr [a-z] [A-Z]`
 
 case ${provider_arg} in
    "AWS")
