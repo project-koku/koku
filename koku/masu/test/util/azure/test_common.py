@@ -3,7 +3,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import numpy as np
 import pandas as pd
 from django_tenants.utils import schema_context
 
@@ -116,9 +115,9 @@ class TestAzureUtils(MasuTestCase):
         ]
         matched_tags = []
         data = [
-            {"resourceid": np.nan, "instanceid": "id1", "pretaxcost": 1, "tags": '{"key": "value"}'},
-            {"resourceid": np.nan, "instanceid": "id2", "pretaxcost": 1, "tags": '{"key": "other_value"}'},
-            {"resourceid": np.nan, "instanceid": "id3", "pretaxcost": 1, "tags": '{"keyz": "value"}'},
+            {"resourceid": "", "instanceid": "id1", "pretaxcost": 1, "tags": '{"key": "value"}'},
+            {"resourceid": "", "instanceid": "id2", "pretaxcost": 1, "tags": '{"key": "other_value"}'},
+            {"resourceid": "", "instanceid": "id3", "pretaxcost": 1, "tags": '{"keyz": "value"}'},
         ]
 
         df = pd.DataFrame(data)
@@ -148,7 +147,7 @@ class TestAzureUtils(MasuTestCase):
 
         matched_tags = [{"key": "value"}]
         data = [
-            {"resourceid": "id1", "pretaxcost": 1, "tags": np.nan},
+            {"resourceid": "id1", "pretaxcost": 1, "tags": ""},
         ]
 
         df = pd.DataFrame(data)
