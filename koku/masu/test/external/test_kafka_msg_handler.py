@@ -895,8 +895,10 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
             # test that we warn when basic auth is being used:
             report_meta["cr_status"]["authentication"]["type"] = "basic"
-            with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
+            with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.INFO) as log:
                 msg_handler.process_cr(report_meta)
+                self.assertEqual(len(log.output), 2)
+                self.assertIn("cluster is using basic auth", log.output[1])
 
     def test_create_cost_and_usage_report_manifest(self):
         manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
