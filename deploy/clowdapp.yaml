@@ -3960,6 +3960,8 @@ objects:
           value: ${ENHANCED_ORG_ADMIN}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
+        - name: ENABLE_SUBS_PROVIDER_TYPES
+          value: ${ENABLE_SUBS_PROVIDER_TYPES}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
