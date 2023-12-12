@@ -8,8 +8,10 @@ import logging
 import os
 import uuid
 from collections import defaultdict
+from datetime import timedelta
 from tempfile import mkdtemp
 
+from dateutil import parser
 from django.conf import settings
 
 from api.common import log_json
@@ -106,21 +108,41 @@ class SUBSDataMessenger:
                         instance_id = self.determine_azure_instance_id(row)
                         if not instance_id:
                             continue
-                        row["subs_resource_id"] = instance_id
-                    # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
-                    msg = self.build_subs_msg(
-                        row["subs_resource_id"],
-                        row["subs_account"],
-                        row["subs_start_time"],
-                        row["subs_end_time"],
-                        row["subs_vcpu"],
-                        row["subs_sla"],
-                        row["subs_usage"],
-                        row["subs_role"],
-                        row["subs_product_ids"].split("-"),
-                    )
-                    self.send_kafka_message(msg)
-                    msg_count += 1
+                        # Azure is daily records but subs need hourly records
+                        start = parser.parse(row["subs_start_time"])
+                        LOG.info(f"start\n{start}\n{type(start)}")
+                        for i in range(int(row["subs_usage_quantity"])):
+                            end = start + timedelta(hours=1)
+                            msg = self.build_subs_msg(
+                                instance_id,
+                                row["subs_account"],
+                                str(start),
+                                str(end),
+                                row["subs_vcpu"],
+                                row["subs_sla"],
+                                row["subs_usage"],
+                                row["subs_role"],
+                                row["subs_product_ids"].split("-"),
+                            )
+                            # move to the next hour in the range
+                            start = end
+                            self.send_kafka_message(msg)
+                            msg_count += 1
+                    else:
+                        # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
+                        msg = self.build_subs_msg(
+                            row["subs_resource_id"],
+                            row["subs_account"],
+                            row["subs_start_time"],
+                            row["subs_end_time"],
+                            row["subs_vcpu"],
+                            row["subs_sla"],
+                            row["subs_usage"],
+                            row["subs_role"],
+                            row["subs_product_ids"].split("-"),
+                        )
+                        self.send_kafka_message(msg)
+                        msg_count += 1
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -158,7 +180,7 @@ class SUBSDataMessenger:
             "role": role,
             "sla": sla,
             "usage": usage,
-            "billing_provider": "aws",
+            "billing_provider": self.provider_type.lower(),
             "billing_account_id": billing_account_id,
         }
         return bytes(json.dumps(subs_json), "utf-8")

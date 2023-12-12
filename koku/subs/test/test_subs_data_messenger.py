@@ -226,6 +226,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_usage": "Production",
                 "subs_sla": "Premium",
                 "subs_role": "Red Hat Enterprise Linux Server",
+                "subs_usage_quantity": "4",
                 "subs_product_ids": "479-70",
                 "subs_instance": "",
                 "source": self.azure_provider.uuid,
@@ -236,8 +237,8 @@ class TestSUBSDataMessenger(SUBSTestCase):
         with patch("builtins.open", mock_op):
             self.azure_messenger.process_and_send_subs_message(upload_keys)
         mock_azure_id.assert_called_once()
-        mock_msg_builder.assert_called_once()
-        mock_producer.assert_called_once()
+        self.assertEqual(mock_msg_builder.call_count, 4)
+        self.assertEqual(mock_producer.call_count, 4)
 
     @patch("subs.subs_data_messenger.SUBSDataMessenger.determine_azure_instance_id")
     @patch("subs.subs_data_messenger.os.remove")
