@@ -15,6 +15,7 @@ class StateTracker:
     NO_CHANGES_NEEDED = "no_changes_needed"
     COERCE_REQUIRED = "coerce_required"
     SENT_TO_S3_COMPLETE = "sent_to_s3_complete"
+    S3_FILE_DELETED = "s3_file_deleted"
     SENT_TO_S3_FAILED = "sent_to_s3_failed"
     FAILED_DTYPE_CONVERSION = "failed_data_type_conversion"
 
@@ -62,14 +63,12 @@ class StateTracker:
             else:
                 files_failed.append(s3_obj_key)
         simulate_info = {
-            "already correct.": files_correct,
-            "need updated.": files_need_updated,
-            "failed to convert.": files_failed,
+            "Files that have all correct data_types.": files_correct,
+            "Files that need to be updated.": files_need_updated,
+            "Files that failed to convert.": files_failed,
         }
         for substring, files_list in simulate_info.items():
-            LOG.info(f"{len(files_list)} out of {files_count} {substring}")
-            if files_list:
-                LOG.info(f"File list: {files_list}")
+            LOG.info(log_json(self.provider_uuid, msg=substring, file_count=len(files_list), total_count=files_count))
 
     def _clean_local_files(self):
         for file_path in self.local_files.values():
