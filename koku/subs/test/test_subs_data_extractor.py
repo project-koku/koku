@@ -1,4 +1,5 @@
 import datetime
+import pkgutil
 import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -92,13 +93,11 @@ class TestSUBSDataExtractor(SUBSTestCase):
             "year": year,
             "month": month,
         }
-        expected_clause = (
-            "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
-            " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
-        )
+        sql_file = f"trino_sql/{self.extractor.provider_type.lower()}_subs_where_clause.sql"
+        expected_clause_sql = pkgutil.get_data("subs", sql_file)
+        expected_clause_sql = expected_clause_sql.decode("utf-8")
         actual_clause, actual_params = self.extractor.determine_where_clause_and_params(year, month)
-        self.assertEqual(expected_clause, actual_clause)
+        self.assertEqual(expected_clause_sql, actual_clause)
         self.assertEqual(expected_sql_params, actual_params)
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor.bulk_update_latest_processed_time")
