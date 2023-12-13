@@ -64,17 +64,17 @@ RESOURCE_ID_FILTER_MAP = {
 
 RESOURCE_SELECT_MAP = {
     Provider.PROVIDER_AWS: " SELECT lineitem_resourceid, max(lineitem_usagestartdate) ",
-    Provider.PROVIDER_AZURE: " SELECT coalesce(NULLIF(resourceid, ''), instancename), date_add('day', -1, max(coalesce(date, usagedatetime))) ",  # noqa E501
+    Provider.PROVIDER_AZURE: " SELECT coalesce(NULLIF(resourceid, ''), instanceid), date_add('day', -1, max(coalesce(date, usagedatetime))) ",  # noqa E501
 }
 
 RESOURCE_ID_GROUP_BY_MAP = {
     Provider.PROVIDER_AWS: " GROUP BY lineitem_resourceid",
-    Provider.PROVIDER_AZURE: " GROUP BY resourceid, instancename",
+    Provider.PROVIDER_AZURE: " GROUP BY resourceid, instanceid",
 }
 
 RESOURCE_ID_EXCLUSION_CLAUSE_MAP = {
     Provider.PROVIDER_AWS: " AND lineitem_resourceid NOT IN {{excluded_ids | inclause}} ",
-    Provider.PROVIDER_AZURE: " and coalesce(NULLIF(resourceid, ''), instancename) NOT IN {{excluded_ids | inclause}} ",
+    Provider.PROVIDER_AZURE: " and coalesce(NULLIF(resourceid, ''), instanceid) NOT IN {{excluded_ids | inclause}} ",
 }
 
 RESOURCE_ID_SQL_CLAUSE_MAP = {
@@ -84,7 +84,7 @@ RESOURCE_ID_SQL_CLAUSE_MAP = {
         " AND lineitem_usagestartdate <= {{{{ end_date_{0} }}}}) "
     ),
     Provider.PROVIDER_AZURE: (
-        " ( coalesce(NULLIF(resourceid, ''), instancename) = {{{{ rid_{0} }}}} "
+        " ( coalesce(NULLIF(resourceid, ''), instanceid) = {{{{ rid_{0} }}}} "
         "AND coalesce(date, usagedatetime) >= {{{{ start_date_{0} }}}} "
         "AND coalesce(date, usagedatetime) <= {{{{ end_date_{0} }}}}) "
     ),
