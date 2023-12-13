@@ -98,36 +98,7 @@ class SUBSDataMessenger:
                 msg_count = 0
                 for row in reader:
                     if self.provider_type == Provider.PROVIDER_AZURE:
-                        # Azure can unexplicably generate strange records with a second entry per day
-                        # so we track the resource ids we've seen for a specific day so we don't send a record twice
-                        if self.date_map.get(row["subs_start_time"]) and row["subs_resource_id"] in self.date_map.get(
-                            row["subs_start_time"]
-                        ):
-                            continue
-                        self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
-                        instance_id = self.determine_azure_instance_id(row)
-                        if not instance_id:
-                            continue
-                        # Azure is daily records but subs need hourly records
-                        start = parser.parse(row["subs_start_time"])
-                        LOG.info(f"start\n{start}\n{type(start)}")
-                        for i in range(int(row["subs_usage_quantity"])):
-                            end = start + timedelta(hours=1)
-                            msg = self.build_subs_msg(
-                                instance_id,
-                                row["subs_account"],
-                                str(start),
-                                str(end),
-                                row["subs_vcpu"],
-                                row["subs_sla"],
-                                row["subs_usage"],
-                                row["subs_role"],
-                                row["subs_product_ids"].split("-"),
-                            )
-                            # move to the next hour in the range
-                            start = end
-                            self.send_kafka_message(msg)
-                            msg_count += 1
+                        msg_count += self.process_azure_row(row)
                     else:
                         # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
                         msg = self.build_subs_msg(
@@ -184,3 +155,37 @@ class SUBSDataMessenger:
             "billing_account_id": billing_account_id,
         }
         return bytes(json.dumps(subs_json), "utf-8")
+
+    def process_azure_row(self, row):
+        """Process an Azure row into subs kafka messages."""
+        msg_count = 0
+        # Azure can unexplicably generate strange records with a second entry per day
+        # so we track the resource ids we've seen for a specific day so we don't send a record twice
+        if self.date_map.get(row["subs_start_time"]) and row["subs_resource_id"] in self.date_map.get(
+            row["subs_start_time"]
+        ):
+            return msg_count
+        self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
+        instance_id = self.determine_azure_instance_id(row)
+        if not instance_id:
+            return msg_count
+        # Azure is daily records but subs need hourly records
+        start = parser.parse(row["subs_start_time"])
+        for i in range(int(row["subs_usage_quantity"])):
+            end = start + timedelta(hours=1)
+            msg = self.build_subs_msg(
+                instance_id,
+                row["subs_account"],
+                str(start),
+                str(end),
+                row["subs_vcpu"],
+                row["subs_sla"],
+                row["subs_usage"],
+                row["subs_role"],
+                row["subs_product_ids"].split("-"),
+            )
+            # move to the next hour in the range
+            start = end
+            self.send_kafka_message(msg)
+            msg_count += 1
+        return msg_count

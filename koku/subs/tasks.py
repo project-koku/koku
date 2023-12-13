@@ -73,9 +73,7 @@ def extract_subs_data_from_reports(reports_to_extract, metered):
         tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
         context = {"schema": schema_name, "provider_type": provider_type, "provider_uuid": provider_uuid}
         # SUBS provider type enablement is handled through the ENABLE_SUBS_PROVIDER_TYPES environment variable
-        if (provider_type.rstrip("-local") not in settings.ENABLE_SUBS_PROVIDER_TYPES) and (
-            not settings.ENABLE_SUBS_DEBUG
-        ):
+        if provider_type.rstrip("-local") not in settings.ENABLE_SUBS_PROVIDER_TYPES:
             LOG.info(log_json(tracing_id, msg="provider type not valid for subs processing", context=context))
             continue
         if not enable_subs_extraction(schema_name, metered):
