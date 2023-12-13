@@ -87,6 +87,14 @@
             "index": "pypi",
             "version": "==1.15.0"
         },
+        "azure-mgmt-compute": {
+            "hashes": [
+                "sha256:73845529ebee3ba1e9f5d3963f5b1f9108c950948faa8ab2206b1d62eb7f036c",
+                "sha256:e529786340f862aa6a218a7ad6a5beb6b9fb55833c5caa0851cc3314d0493b63"
+            ],
+            "index": "pypi",
+            "version": "==30.3.0"
+        },
         "azure-mgmt-core": {
             "hashes": [
                 "sha256:81071675f186a585555ef01816f2774d49c1c9024cb76e5720c3c0f6b337bb7d",
