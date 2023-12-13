@@ -69,6 +69,7 @@ class StateTracker:
         }
         for substring, files_list in simulate_info.items():
             LOG.info(log_json(self.provider_uuid, msg=substring, file_count=len(files_list), total_count=files_count))
+        self._clean_local_files()
 
     def _clean_local_files(self):
         for file_path in self.local_files.values():
