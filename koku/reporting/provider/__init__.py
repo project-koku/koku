@@ -1,3 +1,4 @@
+from django.db.models import CharField
 from django.db.models import Field
 from django.db.models import Lookup
 
@@ -31,3 +32,17 @@ class AllowNullIcontains(Lookup):
                 formatted_sql.append(the_format)
         final_format = " AND ".join(formatted_sql), params
         return final_format
+
+
+@Field.register_lookup
+class LikeLookup(Lookup):
+    lookup_name = "like"
+
+    def as_sql(self, compiler, connection):
+        lhs_sql, lhs_params = self.process_lhs(compiler, connection)
+        rhs_sql, rhs_params = self.process_rhs(compiler, connection)
+        params = lhs_params + rhs_params
+        return f"{lhs_sql} LIKE {rhs_sql}", params
+
+
+CharField.register_lookup(LikeLookup)
