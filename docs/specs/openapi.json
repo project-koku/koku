@@ -5570,7 +5570,29 @@
                     {
                         "$ref": "#/components/parameters/QueryFilter"
                     }
-                ]
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OpenShift projects and the current cost group",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostGroupsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
             },
             "put": {
                 "tags": [
@@ -5581,6 +5603,21 @@
                 "operationId": "putSettingsCostGroups",
                 "requestBody": {
                     "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
                 }
             },
             "delete": {
@@ -5590,8 +5627,20 @@
                 ],
                 "summary": "Remove projects from a coust group",
                 "operationId": "deleteSettingsCostGroups",
-                "requestBody": {
-                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -6036,8 +6085,7 @@
                         }
                     }
                 }
-            }
-        },
+            },
             "CostGroupsBody": {
                 "description": "List of project name and cost group",
                 "required": true,
@@ -6070,7 +6118,8 @@
                         }
                     }
                 }
-            },
+            }
+        },
         "securitySchemes": {
             "basic_auth": {
                 "type": "http",
@@ -6079,6 +6128,36 @@
             }
         },
         "schemas": {
+            "CostGroupsResponse": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "project_name": {
+                                    "type": "string"
+                                },
+                                "group": {
+                                    "type": "string"
+                                },
+                                "default": {
+                                    "type": "boolean"
+                                },
+                                "clusters": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "CostModel": {
                 "properties": {
                     "name": {
