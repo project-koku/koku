@@ -12,7 +12,7 @@ from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.views.decorators.cache import never_cache
 from django_filters import CharFilter
 from django_filters import FilterSet
@@ -73,7 +73,7 @@ class RateProviderPermissionDenied(APIException):
     def __init__(self):
         """Initialize with status code 403."""
         self.status_code = status.HTTP_403_FORBIDDEN
-        self.detail = {"detail": force_text(self.default_detail)}
+        self.detail = {"detail": force_str(self.default_detail)}
 
 
 class CostModelQueryException(APIException):
@@ -82,7 +82,7 @@ class CostModelQueryException(APIException):
     def __init__(self, message):
         """Initialize with status code 400."""
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 class CostModelProviderQueryException(APIException):
@@ -91,7 +91,7 @@ class CostModelProviderQueryException(APIException):
     def __init__(self, message):
         """Initialize with status code 500."""
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 class CostModelProviderMethodException(APIException):
@@ -100,7 +100,7 @@ class CostModelProviderMethodException(APIException):
     def __init__(self, message):
         """Set custom error message for ProviderManager errors."""
         self.status_code = status.HTTP_405_METHOD_NOT_ALLOWED
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 class CostModelViewSet(viewsets.ModelViewSet):

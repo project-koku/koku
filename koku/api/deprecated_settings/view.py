@@ -4,7 +4,7 @@
 #
 """View for Settings."""
 from django.utils.decorators import method_decorator
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError

@@ -4,7 +4,7 @@
 #
 """Views for Masu API `manifest`."""
 from django.forms.models import model_to_dict
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework import viewsets
@@ -32,7 +32,7 @@ class ManifestException(APIException):
     def __init__(self, message):
         """Initialize with status code 404."""
         self.status_code = status.HTTP_404_NOT_FOUND
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 class ManifestInvalidFilterException(APIException):
@@ -41,7 +41,7 @@ class ManifestInvalidFilterException(APIException):
     def __init__(self, message):
         """Initialize with status code 400."""
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 class ManifestView(viewsets.ModelViewSet):

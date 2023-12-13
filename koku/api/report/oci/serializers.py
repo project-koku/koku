@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCI Report Serializers."""
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
