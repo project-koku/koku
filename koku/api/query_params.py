@@ -13,7 +13,7 @@ from pprint import pformat
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext
 from django_tenants.utils import tenant_context
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
@@ -188,7 +188,7 @@ class QueryParameters:
             for p in provider_list:
                 if self.provider_resource_list.get(p) is None:
                     msg = f'Invalid provider "{p}".'
-                    raise ValidationError({"details": _(msg)})
+                    raise ValidationError({"details": gettext(msg)})
                 access.extend(self.provider_resource_list[p])
         return access
 
@@ -619,4 +619,4 @@ def get_tenant(user):
             pass
     if tenant:
         return tenant
-    raise ValidationError({"details": _("Invalid user definition")})
+    raise ValidationError({"details": gettext("Invalid user definition")})

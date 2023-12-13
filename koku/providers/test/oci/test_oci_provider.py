@@ -6,7 +6,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext
 from faker import Faker
 from oci._vendor.urllib3.exceptions import LocationParseError
 from oci.exceptions import ClientError
@@ -32,7 +32,7 @@ class OCIProviderTestCase(TestCase):
         """Test the error_obj method."""
         test_key = "tkey"
         test_message = "tmessage"
-        expected = {test_key: [_(test_message)]}
+        expected = {test_key: [gettext(test_message)]}
         error = error_obj(test_key, test_message)
         self.assertEqual(error, expected)
 

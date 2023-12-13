@@ -4,7 +4,7 @@
 #
 """View for Settings."""
 from django.utils.decorators import method_decorator
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext
 from django.views.decorators.cache import never_cache
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
@@ -39,7 +39,7 @@ class SettingsView(APIView):
         """Handle all changed settings."""
         if not isinstance(request.data, dict):
             msg = "Invalid input format."
-            raise ValidationError({"details": _(msg)})
+            raise ValidationError({"details": gettext(msg)})
         for settings_clazz in SETTINGS_GENERATORS.values():
             instance = settings_clazz(request)
             instance.handle_settings(request.data)

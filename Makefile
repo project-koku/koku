@@ -402,8 +402,7 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-# CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/{parquet_data,trino}
-CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/parquet_data $(TOPDIR)/.trino/trino
+CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/{parquet_data,trino}
 docker-host-dir-setup:
 	@mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
 	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS)

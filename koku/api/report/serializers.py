@@ -6,7 +6,7 @@
 import copy
 from collections.abc import Mapping
 
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext
 from rest_framework import serializers
 from rest_framework.fields import DateField
 
@@ -43,7 +43,7 @@ def handle_invalid_fields(this, data):
     if unknown_keys:
         error = {}
         for unknown_key in unknown_keys:
-            error[unknown_key] = _("Unsupported parameter or invalid value")
+            error[unknown_key] = gettext("Unsupported parameter or invalid value")
         raise serializers.ValidationError(error)
     return data
 
@@ -82,7 +82,7 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     subclasses = serializer_cls.__subclasses__()
     if subclasses and not serializer.is_valid():
         message = "Unsupported parameter or invalid value"
-        error = serializers.ValidationError({field: _(message)})
+        error = serializers.ValidationError({field: gettext(message)})
         for subcls in subclasses:
             for parent in subcls.__bases__:
                 # when using multiple inheritance, the data is valid as long as one
@@ -502,7 +502,7 @@ class ParamSerializer(BaseSerializer):
                 continue  # fields that do not require a group-by
 
             if "or:" in key:
-                error[key] = _(f'The order_by key "{key}" can not contain the or parameter.')
+                error[key] = gettext(f'The order_by key "{key}" can not contain the or parameter.')
                 raise serializers.ValidationError(error)
 
             if "group_by" in self.initial_data:
@@ -537,12 +537,12 @@ class ParamSerializer(BaseSerializer):
                         and value.get("date") <= dh.today.date()
                     ):
                         continue
-                    error[key] = _(
+                    error[key] = gettext(
                         f"Order-by date must be from {materialized_view_month_start(dh).date()} to {dh.today.date()}"
                     )
                     raise serializers.ValidationError(error)
 
-            error[key] = _(f'Order-by "{key}" requires matching Group-by.')
+            error[key] = gettext(f'Order-by "{key}" requires matching Group-by.')
             raise serializers.ValidationError(error)
         validate_field(self, "order_by", self.ORDER_BY_SERIALIZER, value)
         return value
