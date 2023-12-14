@@ -117,6 +117,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         self.creation_processing_time = self.provider_created_timestamp.replace(
             microsecond=0, second=0, minute=0, hour=0
         ) - timedelta(days=1)
+        if self.provider_type == Provider.PROVIDER_AZURE:
+            # Since Azure works on days with complete data, use -2 days for initial processing as -1 wont be complete
+            self.creation_processing_time = self.creation_processing_time - timedelta(days=1)
         self.tracing_id = tracing_id
         self.s3_resource = get_s3_resource(
             settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
