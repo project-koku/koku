@@ -161,7 +161,7 @@ class VerifyParquetFiles:
                     s3_bucket.download_file(s3_object_key, local_file_path)
                     self.file_tracker.add_local_file(s3_object_key, local_file_path)
                     self.file_tracker.set_state(s3_object_key, self._coerce_parquet_data_type(local_file_path))
-                del self.logging_context[self.S3_OBJ_LOG_KEY]
+                    del self.logging_context[self.S3_OBJ_LOG_KEY]
                 del self.logging_context[self.S3_PREFIX_LOG_KEY]
 
         if self.simulate:
@@ -172,11 +172,13 @@ class VerifyParquetFiles:
             for s3_obj_key, converted_local_file_path in files_need_updated.items():
                 self.logging_context[self.S3_OBJ_LOG_KEY] = s3_obj_key
                 try:
-                    LOG.info(log_json(self.provider_uuid, "Deleting s3 parquet file.", context=self.logging_context))
+                    LOG.info(
+                        log_json(self.provider_uuid, msg="Deleting s3 parquet file.", context=self.logging_context)
+                    )
                     s3_bucket.Object(s3_obj_key).delete()
                     self.file_tracker.set_state(s3_object_key, self.file_tracker.S3_FILE_DELETED)
                     LOG.info(
-                        log_json(self.provider_uuid, "Deletion of s3 parquet file.", context=self.logging_context)
+                        log_json(self.provider_uuid, msg="Deletion of s3 parquet file.", context=self.logging_context)
                     )
                 except ClientError as e:
                     LOG.info(f"Failed to delete {s3_object_key}: {str(e)}")
@@ -188,7 +190,7 @@ class VerifyParquetFiles:
                     LOG.info(
                         log_json(
                             self.provider_uuid,
-                            "Uploading revised parquet file.",
+                            msg="Uploading revised parquet file.",
                             context=self.logging_context,
                             local_file_path=converted_local_file_path,
                         )

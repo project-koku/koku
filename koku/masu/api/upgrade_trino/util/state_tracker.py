@@ -73,7 +73,8 @@ class StateTracker:
 
     def _clean_local_files(self):
         for file_path in self.local_files.values():
-            os.remove(file_path)
+            if os.path.exists(file_path):
+                os.remove(file_path)
 
     def _check_for_incomplete_files(self):
         incomplete_files = []
