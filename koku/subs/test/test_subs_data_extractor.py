@@ -30,9 +30,15 @@ class TestSUBSDataExtractor(SUBSTestCase):
             "provider_type": cls.aws_provider_type,
             "provider_uuid": cls.aws_provider.uuid,
         }
+        azure_context = {
+            "schema": cls.schema,
+            "provider_type": cls.azure_provider_type,
+            "provider_uuid": cls.azure_provider.uuid,
+        }
         with patch("subs.subs_data_extractor.get_s3_resource"):
             with patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query"):
                 cls.extractor = SUBSDataExtractor(cls.tracing_id, context)
+                cls.azure_extractor = SUBSDataExtractor(cls.tracing_id, azure_context)
 
     def test_subs_s3_path(self):
         """Test that the generated s3 path is expected"""
@@ -281,3 +287,14 @@ class TestSUBSDataExtractor(SUBSTestCase):
             )
             self.assertEqual(subs_record_1.latest_processed_time, expected_time)
             self.assertEqual(subs_record_2.latest_processed_time, expected_time)
+
+    def test_provider_creation_time(self):
+        """Test provider processing time for different provider types."""
+        aws_expected = self.aws_provider.created_timestamp.replace(
+            microsecond=0, second=0, minute=0, hour=0
+        ) - timedelta(days=1)
+        azure_expected = self.azure_provider.created_timestamp.replace(
+            microsecond=0, second=0, minute=0, hour=0
+        ) - timedelta(days=2)
+        self.assertEqual(aws_expected, self.extractor.creation_processing_time)
+        self.assertEqual(azure_expected, self.azure_extractor.creation_processing_time)
