@@ -204,8 +204,12 @@ def process_cr(report_meta):
 
         auth_type = cr_status.get("authentication", {}).get("type")
         if auth_type == "basic":
-            ctx = {"schema": report_meta.get("schema_name"), "provider_uuid": report_meta.get("provider_uuid")}
-            LOG.warning(log_json(report_meta.get("tracing_id"), msg="cluster is using basic auth", context=ctx))
+            ctx = {
+                "schema": report_meta.get("schema_name"),
+                "provider_uuid": report_meta.get("provider_uuid"),
+                "cluster_id": report_meta.get("cluster_id"),
+            }
+            LOG.info(log_json(report_meta.get("tracing_id"), msg="cluster is using basic auth", context=ctx))
 
     return manifest_info
 

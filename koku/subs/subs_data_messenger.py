@@ -7,23 +7,35 @@ import json
 import logging
 import os
 import uuid
+from collections import defaultdict
+from datetime import timedelta
 from tempfile import mkdtemp
 
+from dateutil import parser
 from django.conf import settings
 
 from api.common import log_json
 from api.iam.models import Customer
+from api.provider.models import Provider
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from kafka_utils.utils import SUBS_TOPIC
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.aws.common import get_s3_resource
+from providers.azure.client import AzureClientFactory
+
 
 LOG = logging.getLogger(__name__)
 
 
 class SUBSDataMessenger:
     def __init__(self, context, schema_name, tracing_id):
+        self.provider_type = context["provider_type"].removesuffix("-local")
+        # Local azure providers shouldnt attempt to query Azure
+        if context["provider_type"] == Provider.PROVIDER_AZURE_LOCAL:
+            self.local_prov = True
+        else:
+            self.local_prov = False
         self.context = context
         self.tracing_id = tracing_id
         self.schema_name = schema_name
@@ -34,6 +46,38 @@ class SUBSDataMessenger:
         self.account_id = subs_cust.account_id
         self.org_id = subs_cust.org_id
         self.download_path = mkdtemp(prefix="subs")
+        self.instance_map = {}
+        self.date_map = defaultdict(list)
+
+    def determine_azure_instance_id(self, row):
+        """For Azure we have to query the instance id if its not provided by a tag."""
+        if row["subs_resource_id"] in self.instance_map:
+            return self.instance_map.get(row["subs_resource_id"])
+        # this column comes from a user defined tag allowing us to avoid querying Azure if its present.
+        if row["subs_instance"] != "":
+            instance_id = row["subs_instance"]
+        # attempt to query azure for instance id
+        else:
+            # if its a local Azure provider, don't query Azure
+            if self.local_prov:
+                return ""
+            prov = Provider.objects.get(uuid=row["source"])
+            credentials = prov.account.get("credentials")
+            subscription_id = credentials.get("subscription_id")
+            tenant_id = credentials.get("tenant_id")
+            client_id = credentials.get("client_id")
+            client_secret = credentials.get("client_secret")
+            _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
+            compute_client = _factory.compute_client
+            resource_group = row["resourcegroup"] if row.get("resourcegroup") else row["resourcegroupname"]
+            response = compute_client.virtual_machines.get(
+                resource_group_name=resource_group,
+                vm_name=row["subs_resource_id"],
+            )
+            instance_id = response.vm_id
+
+        self.instance_map[row["subs_resource_id"]] = instance_id
+        return instance_id
 
     def process_and_send_subs_message(self, upload_keys):
         """
@@ -53,20 +97,23 @@ class SUBSDataMessenger:
                 )
                 msg_count = 0
                 for row in reader:
-                    # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
-                    msg = self.build_subs_msg(
-                        row["lineitem_resourceid"],
-                        row["lineitem_usageaccountid"],
-                        row["subs_start_time"],
-                        row["subs_end_time"],
-                        row["product_vcpu"],
-                        row["subs_sla"],
-                        row["subs_usage"],
-                        row["subs_role"],
-                        row["subs_product_ids"].split("-"),
-                    )
-                    self.send_kafka_message(msg)
-                    msg_count += 1
+                    if self.provider_type == Provider.PROVIDER_AZURE:
+                        msg_count += self.process_azure_row(row)
+                    else:
+                        # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
+                        msg = self.build_subs_msg(
+                            row["subs_resource_id"],
+                            row["subs_account"],
+                            row["subs_start_time"],
+                            row["subs_end_time"],
+                            row["subs_vcpu"],
+                            row["subs_sla"],
+                            row["subs_usage"],
+                            row["subs_role"],
+                            row["subs_product_ids"].split("-"),
+                        )
+                        self.send_kafka_message(msg)
+                        msg_count += 1
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -98,13 +145,47 @@ class SUBSDataMessenger:
             "timestamp": tstamp,
             "expiration": expiration,
             "measurements": [{"value": cpu_count, "uom": "vCPUs"}],
-            "cloud_provider": "AWS",
+            "cloud_provider": self.provider_type,
             "hardware_type": "Cloud",
             "product_ids": product_ids,
             "role": role,
             "sla": sla,
             "usage": usage,
-            "billing_provider": "aws",
+            "billing_provider": self.provider_type.lower(),
             "billing_account_id": billing_account_id,
         }
         return bytes(json.dumps(subs_json), "utf-8")
+
+    def process_azure_row(self, row):
+        """Process an Azure row into subs kafka messages."""
+        msg_count = 0
+        # Azure can unexplicably generate strange records with a second entry per day
+        # so we track the resource ids we've seen for a specific day so we don't send a record twice
+        if self.date_map.get(row["subs_start_time"]) and row["subs_resource_id"] in self.date_map.get(
+            row["subs_start_time"]
+        ):
+            return msg_count
+        self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
+        instance_id = self.determine_azure_instance_id(row)
+        if not instance_id:
+            return msg_count
+        # Azure is daily records but subs need hourly records
+        start = parser.parse(row["subs_start_time"])
+        for i in range(int(row["subs_usage_quantity"])):
+            end = start + timedelta(hours=1)
+            msg = self.build_subs_msg(
+                instance_id,
+                row["subs_account"],
+                str(start),
+                str(end),
+                row["subs_vcpu"],
+                row["subs_sla"],
+                row["subs_usage"],
+                row["subs_role"],
+                row["subs_product_ids"].split("-"),
+            )
+            # move to the next hour in the range
+            start = end
+            self.send_kafka_message(msg)
+            msg_count += 1
+        return msg_count
