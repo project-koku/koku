@@ -36,7 +36,7 @@ class VerifyParquetFiles:
         self.file_tracker = StateTracker(provider_uuid)
         self.openshift_data = False  # Not sure if we need this
         self.report_types = self._set_report_types()
-        self.required_columns = cleaned_column_mapping
+        self.required_columns = self._set_pyarrow_types(cleaned_column_mapping)
         self.logging_context = {
             "provider_type": self.provider_type,
             "provider_uuid": self.provider_uuid,
@@ -45,24 +45,26 @@ class VerifyParquetFiles:
             "bill_date": self.bill_date,
         }
 
+    def _set_pyarrow_types(self, cleaned_column_mapping):
+        mapping = {}
+        for key, default_val in cleaned_column_mapping.items():
+            if pd.isnull(default_val):
+                # TODO: Azure saves datetime as pa.timestamp("ms")
+                # TODO: AWS saves datetime as timestamp[ms, tz=UTC]
+                # Should we be storing in a standard type here?
+                mapping[key] = pa.timestamp("ms")
+            elif default_val == "":
+                mapping[key] = pa.string()
+            elif default_val == 0.0:
+                mapping[key] = pa.float64()
+        return mapping
+
     def _set_report_types(self):
         if self.provider_type == Provider.PROVIDER_OCI:
             return ["cost", "usage"]
         if self.provider_type == Provider.PROVIDER_OCP:
             return ["namespace_labels", "node_labels", "pod_usage", "storage_usage"]
         return [None]
-
-    def _find_pyarrow_value(self, default_val):
-        """Converts our default value to a pyarrow dtype."""
-        if pd.isnull(default_val):
-            # TODO: Azure saves datetime as pa.timestamp("ms")
-            # TODO: AWS saves datetime as timestamp[ms, tz=UTC]
-            # Should we be storing in a standard type here?
-            return pa.timestamp("ms")
-        elif default_val == "":
-            return pa.string()
-        elif default_val == 0.0:
-            return pa.float64()
 
     def _get_bill_dates(self):
         # However far back we want to fix.
@@ -195,8 +197,37 @@ class VerifyParquetFiles:
                     self.file_tracker.set_state(s3_obj_key, self.file_tracker.SENT_TO_S3_COMPLETE)
         self.file_tracker.finalize_and_clean_up()
 
+    def _perform_transformation_double_to_timestamp(self, parquet_file_path, field_names):
+        """Performs a transformation to change a double to a timestamp."""
+        table = pq.read_table(parquet_file_path)
+        schema = table.schema
+        fields = []
+        for field in schema:
+            if field.name in field_names:
+                # if len is 0 here we get an empty list, if it does
+                # have a value for the field, overwrite it with bill_date
+                replaced_values = [self.bill_date] * len(table[field.name])
+                corrected_column = pa.array(replaced_values, type=pa.timestamp("ms"))
+                field = pa.field(field.name, corrected_column.type)
+            fields.append(field)
+        # Create a new schema
+        new_schema = pa.schema(fields)
+        # Create a DataFrame from the original PyArrow Table
+        original_df = table.to_pandas()
+
+        # Update the DataFrame with corrected values
+        for field_name in field_names:
+            if field_name in original_df.columns:
+                original_df[field_name] = corrected_column.to_pandas()
+
+        # Create a new PyArrow Table from the updated DataFrame
+        new_table = pa.Table.from_pandas(original_df, schema=new_schema)
+
+        # Write the new table back to the Parquet file
+        pq.write_table(new_table, parquet_file_path)
+
     # Same logic as last time, but combined into one method & added state tracking
-    def _coerce_parquet_data_type(self, parquet_file_path):
+    def _coerce_parquet_data_type(self, parquet_file_path, transformation_enabled=True):
         """If a parquet file has an incorrect dtype we can attempt to coerce
         it to the correct type it.
 
@@ -212,16 +243,15 @@ class VerifyParquetFiles:
             )
         )
         corrected_fields = {}
+        double_to_timestamp_fields = []
         try:
             table = pq.read_table(parquet_file_path)
             schema = table.schema
             fields = []
             for field in schema:
-                if default_value := self.required_columns.get(field.name):
-                    correct_data_type = self._find_pyarrow_value(default_value)
+                if correct_data_type := self.required_columns.get(field.name):
                     # Check if the field's type matches the desired type
                     if field.type != correct_data_type:
-                        # State update: Needs to be replaced.
                         LOG.info(
                             log_json(
                                 self.provider_uuid,
@@ -232,11 +262,14 @@ class VerifyParquetFiles:
                                 expected_data_type=correct_data_type,
                             )
                         )
-                        field = pa.field(field.name, correct_data_type)
-                        corrected_fields[field.name] = correct_data_type
+                        if field.type == pa.float64() and correct_data_type == pa.timestamp("ms"):
+                            double_to_timestamp_fields.append(field.name)
+                        else:
+                            field = pa.field(field.name, correct_data_type)
+                            corrected_fields[field.name] = correct_data_type
                 fields.append(field)
 
-            if not corrected_fields:
+            if not corrected_fields and not double_to_timestamp_fields:
                 # Final State: No changes needed.
                 LOG.info(
                     log_json(
@@ -261,6 +294,8 @@ class VerifyParquetFiles:
             table = table.cast(new_schema)
             # Write the table back to the Parquet file
             pa.parquet.write_table(table, parquet_file_path)
+            if double_to_timestamp_fields:
+                self._perform_transformation_double_to_timestamp(parquet_file_path, double_to_timestamp_fields)
             # Signal that we need to send this update to S3.
             return self.file_tracker.COERCE_REQUIRED
 

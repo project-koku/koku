@@ -57,21 +57,22 @@ class FixParquetTaskHandler:
             reprocess_kwargs.provider_type = provider_type
 
         if simulate := query_params.get("simulate"):
-            reprocess_kwargs.simulate = simulate
+            if simulate.lower() == "true":
+                reprocess_kwargs.simulate = True
 
         if not reprocess_kwargs.provider_type and not reprocess_kwargs.provider_uuid:
             raise RequiredParametersError("provider_uuid or provider_type must be supplied")
         if not reprocess_kwargs.bill_date:
             raise RequiredParametersError("start_date must be supplied as a parameter.")
 
-        reprocess_kwargs.cleaned_column_mapping = reprocess_kwargs.clean_column_names()
+        reprocess_kwargs.cleaned_column_mapping = reprocess_kwargs.clean_column_names(reprocess_kwargs.provider_type)
         return reprocess_kwargs
 
-    def clean_column_names(self):
+    @classmethod
+    def clean_column_names(self, provider_type):
         """Creates a mapping of columns to expected pyarrow values."""
         clean_column_names = {}
-        # provider_type_key = copy.deepcopy()
-        provider_mapping = self.REQUIRED_COLUMNS_MAPPING.get(self.provider_type.replace("local", ""))
+        provider_mapping = self.REQUIRED_COLUMNS_MAPPING.get(provider_type.replace("-local", ""))
         # Our required mapping stores the raw column name; however,
         # the parquet files will contain the cleaned column name.
         for raw_col, default_val in provider_mapping.items():
