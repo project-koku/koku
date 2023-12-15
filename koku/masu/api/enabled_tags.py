@@ -7,6 +7,7 @@ import logging
 import pkgutil
 
 from django.db import connection
+from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
@@ -43,7 +44,7 @@ class EnabledTagView(APIView):
 
     permission_classes = [AllowAny]
 
-    @never_cache
+    @method_decorator(never_cache)
     def get(self, request):
         """Handle the GET portion."""
         params = request.query_params
@@ -69,7 +70,7 @@ class EnabledTagView(APIView):
 
         return Response({RESPONSE_KEY: tag_keys})
 
-    @never_cache
+    @method_decorator(never_cache)
     def post(self, request):
         """Handle the POST."""
         data = request.data
