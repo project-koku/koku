@@ -61,7 +61,7 @@ class TestVerifyParquetFiles(MasuTestCase):
 
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.StateTracker._clean_local_files")
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.get_s3_resource")
-    def test_retrieve_verify_reload_S3_parquet(self, mock_s3_resource, _):
+    def test_retrieve_verify_reload_s3_parquet(self, mock_s3_resource, _):
         """Test fixes for reindexes on all required columns."""
         # build a parquet file where reindex is used for all required columns
         test_metadata = [
@@ -95,7 +95,7 @@ class TestVerifyParquetFiles(MasuTestCase):
                 mock_bucket.objects.filter.side_effect = filter_side_effect
                 mock_bucket.download_file.return_value = temp_file
                 VerifyParquetFiles.local_path = self.temp_dir
-                verify_handler.retrieve_verify_reload_S3_parquet()
+                verify_handler.retrieve_verify_reload_s3_parquet()
                 mock_bucket.upload_fileobj.assert_called()
                 table = pq.read_table(temp_file)
                 schema = table.schema
@@ -249,7 +249,7 @@ class TestVerifyParquetFiles(MasuTestCase):
 
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.StateTracker._clean_local_files")
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.get_s3_resource")
-    def test_retrieve_verify_reload_S3_parquet_failure(self, mock_s3_resource, _):
+    def test_retrieve_verify_reload_s3_parquet_failure(self, mock_s3_resource, _):
         """Test fixes for reindexes on all required columns."""
         # build a parquet file where reindex is used for all required columns
         file_data = {
@@ -277,7 +277,7 @@ class TestVerifyParquetFiles(MasuTestCase):
         mock_bucket.objects.filter.side_effect = filter_side_effect
         mock_bucket.download_file.return_value = temp_file
         VerifyParquetFiles.local_path = self.temp_dir
-        verify_handler.retrieve_verify_reload_S3_parquet()
+        verify_handler.retrieve_verify_reload_s3_parquet()
         mock_bucket.upload_fileobj.assert_not_called()
         os.remove(temp_file)
 

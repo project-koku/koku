@@ -69,10 +69,10 @@ class FixParquetTaskHandler:
         return reprocess_kwargs
 
     @classmethod
-    def clean_column_names(self, provider_type):
+    def clean_column_names(cls, provider_type):
         """Creates a mapping of columns to expected pyarrow values."""
         clean_column_names = {}
-        provider_mapping = self.REQUIRED_COLUMNS_MAPPING.get(provider_type.replace("-local", ""))
+        provider_mapping = cls.REQUIRED_COLUMNS_MAPPING.get(provider_type.replace("-local", ""))
         # Our required mapping stores the raw column name; however,
         # the parquet files will contain the cleaned column name.
         for raw_col, default_val in provider_mapping.items():

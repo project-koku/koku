@@ -53,9 +53,9 @@ class VerifyParquetFiles:
                 # TODO: AWS saves datetime as timestamp[ms, tz=UTC]
                 # Should we be storing in a standard type here?
                 mapping[key] = pa.timestamp("ms")
-            elif default_val == "":
+            elif isinstance(default_val, str):
                 mapping[key] = pa.string()
-            elif default_val == 0.0:
+            elif isinstance(default_val, float):
                 mapping[key] = pa.float64()
         return mapping
 
@@ -130,7 +130,7 @@ class VerifyParquetFiles:
         local_path.mkdir(parents=True, exist_ok=True)
         return local_path
 
-    def retrieve_verify_reload_S3_parquet(self):
+    def retrieve_verify_reload_s3_parquet(self):
         """Retrieves the s3 files from s3"""
         s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
         s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
@@ -201,6 +201,8 @@ class VerifyParquetFiles:
 
     def _perform_transformation_double_to_timestamp(self, parquet_file_path, field_names):
         """Performs a transformation to change a double to a timestamp."""
+        if not field_names:
+            return
         table = pq.read_table(parquet_file_path)
         schema = table.schema
         fields = []
@@ -229,7 +231,7 @@ class VerifyParquetFiles:
         pq.write_table(new_table, parquet_file_path)
 
     # Same logic as last time, but combined into one method & added state tracking
-    def _coerce_parquet_data_type(self, parquet_file_path, transformation_enabled=True):
+    def _coerce_parquet_data_type(self, parquet_file_path):
         """If a parquet file has an incorrect dtype we can attempt to coerce
         it to the correct type it.
 
@@ -296,8 +298,7 @@ class VerifyParquetFiles:
             table = table.cast(new_schema)
             # Write the table back to the Parquet file
             pa.parquet.write_table(table, parquet_file_path)
-            if double_to_timestamp_fields:
-                self._perform_transformation_double_to_timestamp(parquet_file_path, double_to_timestamp_fields)
+            self._perform_transformation_double_to_timestamp(parquet_file_path, double_to_timestamp_fields)
             # Signal that we need to send this update to S3.
             return self.file_tracker.COERCE_REQUIRED
 

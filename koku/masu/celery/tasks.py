@@ -62,7 +62,7 @@ PROVIDER_REPORT_TYPE_MAP = {
 @celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=DEFAULT)
 def fix_parquet_data_types(*args, **kwargs):
     verify_parquet = VerifyParquetFiles(*args, **kwargs)
-    verify_parquet.retrieve_verify_reload_S3_parquet()
+    verify_parquet.retrieve_verify_reload_s3_parquet()
 
 
 @celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
