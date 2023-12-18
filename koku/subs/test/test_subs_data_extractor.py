@@ -298,3 +298,22 @@ class TestSUBSDataExtractor(SUBSTestCase):
         ) - timedelta(days=2)
         self.assertEqual(aws_expected, self.extractor.creation_processing_time)
         self.assertEqual(azure_expected, self.azure_extractor.creation_processing_time)
+
+    def test_get_latest_processed_dict_for_provider(self):
+        """Test that one second is appropriately added to last processed time."""
+        year = "2023"
+        month = "06"
+        rid = "fake_rid"
+        base_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+        with schema_context(self.schema):
+            SubsLastProcessed.objects.create(
+                source_uuid_id=self.aws_provider.uuid,
+                resource_id=rid,
+                year=year,
+                month=month,
+                latest_processed_time=base_time,
+            ).save()
+        lpt_dict = self.extractor.get_latest_processed_dict_for_provider("2023", "06")
+        actual_time = lpt_dict.get(rid)
+        # One second should be added to the stored time to avoid processing overlaps
+        self.assertEqual(base_time + timedelta(seconds=1), actual_time)

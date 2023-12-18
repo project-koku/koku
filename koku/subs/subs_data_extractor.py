@@ -152,11 +152,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 # and we want to gather new data we have not processed yet
                 # so we add one second to the last timestamp to ensure the time range processed
                 # is all new data
-                if self.provider_type != Provider.PROVIDER_AZURE:
-                    lpt_dict[rid] = latest_time + timedelta(seconds=1)
-                # Azure is daily timestamps so we do not need to increase this by 1 since this was the previous end
-                else:
-                    lpt_dict[rid] = latest_time
+                lpt_dict[rid] = latest_time + timedelta(seconds=1)
         return lpt_dict
 
     def determine_latest_processed_time_for_provider(self, rid, year, month):
