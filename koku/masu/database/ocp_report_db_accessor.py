@@ -376,10 +376,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.warning(
                     log_json(
                         ctx=self.extract_context_from_sql_params(sql_params),
-                        msg=trino_exc.__cause__.message,
-                        error_type=trino_exc.__cause__.error_type,
-                        error_name=trino_exc.__cause__.error_name,
-                        query_id=trino_exc.__cause__.query_id,
+                        msg=getattr(trino_exc.__cause__, "message", None),
+                        error_type=getattr(trino_exc.__cause__, "error_type", None),
+                        error_name=getattr(trino_exc.__cause__, "error_name", None),
+                        query_id=getattr(trino_exc.__cause__, "query_id", None),
                     )
                 )
             else:
