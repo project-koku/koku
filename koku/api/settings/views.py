@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from dataclasses import field
 
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.views.decorators.cache import never_cache
 from rest_framework import permissions
 from rest_framework import status
@@ -39,7 +39,7 @@ class SettingsInvalidFilterException(APIException):
     def __init__(self, message):
         """Initialize with status code 404."""
         self.status_code = status.HTTP_404_NOT_FOUND
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 @dataclass

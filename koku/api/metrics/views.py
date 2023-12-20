@@ -5,7 +5,7 @@
 """Views for CostModelMetricsMap."""
 import copy
 
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import permissions
 from rest_framework import status
@@ -55,4 +55,4 @@ class CostModelMetricMapJSONException(APIException):
     def __init__(self, message):
         """Initialize with status code 500."""
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}

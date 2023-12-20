@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.cache import caches
 from django.core.cache.backends.dummy import DummyCache
 from django.core.cache.backends.locmem import LocMemCache
-from django_redis.cache import RedisCache
+from django.core.cache.backends.redis import RedisCache
 from redis import Redis
 
 from api.common import log_json
