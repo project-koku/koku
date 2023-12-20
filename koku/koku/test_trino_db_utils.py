@@ -1,4 +1,3 @@
-import textwrap
 import uuid
 
 from django.test import TestCase
@@ -30,24 +29,24 @@ class TestTrinoDatabaseUtils(IamTestCase):
         Test execution of a buffer containing multiple statements
         """
         sqlscript = """
-            drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
-            create table hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}}
-            (
-                id varchar,
-                i_data integer,
-                t_data varchar
-            );
+drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
+create table hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}}
+(
+    id varchar,
+    i_data integer,
+    t_data varchar
+);
 
-            insert into hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
-            values (cast(uuid() as varchar), 10, 'default');
+insert into hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
+values (cast(uuid() as varchar), 10, 'default');
 
-            insert into hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
-            values (cast(uuid() as varchar), {{int_data}}, {{txt_data}});
+insert into hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
+values (cast(uuid() as varchar), {{int_data}}, {{txt_data}});
 
-            select t_data from hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} where i_data = {{int_data}};
+select t_data from hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} where i_data = {{int_data}};
 
-            drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
-        """
+drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
+"""
         conn = FakeTrinoConn()
         params = {
             "uuid": str(uuid.uuid4()).replace("-", "_"),
@@ -55,7 +54,7 @@ class TestTrinoDatabaseUtils(IamTestCase):
             "int_data": 255,
             "txt_data": "This is a test",
         }
-        results = executescript(conn, textwrap.dedent(sqlscript), params=params, preprocessor=JinjaSql().prepare_query)
+        results = executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
         self.assertEqual(results, [["eek"], ["eek"], ["eek"], ["eek"], ["eek"], ["eek"]])
 
     def test_executescript_preprocessor_error(self):
@@ -64,22 +63,22 @@ class TestTrinoDatabaseUtils(IamTestCase):
         """
         conn = FakeTrinoConn()
         sqlscript = """
-            select * from eek where val1 in {{val_list}};
-        """
+select * from eek where val1 in {{val_list}};
+"""
         params = {"val_list": (1, 2, 3, 4, 5)}
         with self.assertRaises(PreprocessStatementError):
-            executescript(conn, textwrap.dedent(sqlscript), params=params, preprocessor=JinjaSql().prepare_query)
+            executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
 
     def test_executescript_no_preprocessor_error(self):
         """
         Test executescript will not raise a preprocessor error
         """
         sqlscript = """
-            select x from y;
-            select a from b;
-        """
+select x from y;
+select a from b;
+"""
         conn = FakeTrinoConn()
-        res = executescript(conn, textwrap.dedent(sqlscript))
+        res = executescript(conn, sqlscript)
         self.assertEqual(res, [["eek"], ["eek"]])
 
     def test_executescript_trino_error(self):
@@ -111,14 +110,13 @@ class TestTrinoDatabaseUtils(IamTestCase):
             raise TypeError("This is a test")
 
         sqlscript = """
-            \n
-            select x from y;
-            select a from b;
-        """
+select x from y;
+select a from b;
+"""
         params = {"eek": 1}
         conn = FakeTrinoConn()
         with self.assertRaises(PreprocessStatementError):
-            executescript(conn, textwrap.dedent(sqlscript), params=params, preprocessor=t_preprocessor)
+            executescript(conn, sqlscript, params=params, preprocessor=t_preprocessor)
 
     def test_executescript_error(self):
         def t_exec_error(*args, **kwargs):
@@ -133,9 +131,9 @@ class TestTrinoDatabaseUtils(IamTestCase):
                 return FakerFakeTrinoCur()
 
         sqlscript = """
-            select x from y;
-            select a from b;
-        """
+select x from y;
+select a from b;
+"""
         with self.assertRaises(ValueError):
             conn = FakerFakeTrinoConn()
             executescript(conn, sqlscript)
