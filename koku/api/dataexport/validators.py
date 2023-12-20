@@ -8,14 +8,7 @@ from api.dataexport.models import DataExportRequest
 class DataExportRequestValidator:
     """Validator that ensures date fields are appropriately defined for a new request."""
 
-    def set_context(self, serializer):
-        """
-        Set extra data from the serializer so we can do extra lookup validation.
-
-        This hook is called by the serializer instance prior to the validation call being made.
-        """
-        self.queryset = serializer.context["view"].get_queryset()
-        self.instance = getattr(serializer, "instance", None)
+    requires_context = True
 
     def pending_instance_exists(self, start_date, end_date):
         """Check for a pending or processing instance that matches the requested dates."""
@@ -29,8 +22,13 @@ class DataExportRequestValidator:
         )
         return queryset.exists()
 
-    def __call__(self, attrs):
+    def __call__(self, attrs, serializer_field):
         """Enforce validation of all relevant fields."""
+
+        # Set extra data from the serializer to do extra lookup validation.
+        self.queryset = serializer_field.context["view"].get_queryset()
+        self.instance = getattr(serializer_field, "instance", None)
+
         start_date = attrs["start_date"]
         end_date = attrs["end_date"]
         if end_date < start_date:
