@@ -90,7 +90,7 @@ class CostGroupsView(APIView):
 
     def _summarize_current_month(self, schema_name: str, projects: list[dict[str, str]]) -> list[str]:
         """Resummarize OCP data for the current month."""
-        projects_to_summarize = [proj["project_name"] for proj in projects]
+        projects_to_summarize = [proj["project"] for proj in projects]
         ocp_queue = OCP_QUEUE
         if is_customer_large(schema_name):
             ocp_queue = OCP_QUEUE_XL
