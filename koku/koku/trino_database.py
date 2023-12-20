@@ -35,11 +35,11 @@ class TrinoStatementExecError(Exception):
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__} "
+            f"{self.__class__.__name__}("
             f"type={self.error_type}, "
-            f"name{self.error_name}, "
-            f"message{self.message}, "
-            f"query_id={self.query_id}"
+            f"name={self.error_name}, "
+            f"message={self.message}, "
+            f"query_id={self.query_id})"
         )
 
     def __str__(self):
