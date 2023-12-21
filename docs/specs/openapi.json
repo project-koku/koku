@@ -6097,7 +6097,7 @@
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "project_name": {
+                                    "project": {
                                         "type": "string"
                                     },
                                     "group": {
@@ -6107,11 +6107,11 @@
                             },
                             "example": [
                                 {
-                                    "project_name": "accounting",
+                                    "project": "accounting",
                                     "group": "Platform"
                                 },
                                 {
-                                    "project_name": "infra",
+                                    "project": "infra",
                                     "group": "Platform"
                                 }
                             ]
@@ -6138,7 +6138,7 @@
                         "type": "array",
                         "items": {
                             "properties": {
-                                "project_name": {
+                                "project": {
                                     "type": "string"
                                 },
                                 "group": {
