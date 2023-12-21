@@ -17,8 +17,8 @@ from reporting.provider.ocp.models import OpenshiftCostCategory
 class CostGroupFilterSerializer(FilterSerializer):
     """Serializer for Cost Group Settings."""
 
-    project = serializers.CharField(required=False)
-    group = serializers.CharField(required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    group = StringOrListField(child=serializers.CharField(), required=False)
     default = serializers.BooleanField(required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
 
