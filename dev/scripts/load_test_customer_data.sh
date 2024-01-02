@@ -44,9 +44,7 @@ NISE="$(which nise)"
 NISE_DATA_PATH="${DEV_SCRIPTS_PATH}/../../testing"
 
 # import common functions
-# shellcheck source=/dev/null
 source "$DEV_SCRIPTS_PATH"/common/logging.sh
-# shellcheck source=/dev/null
 source "$DEV_SCRIPTS_PATH"/common/utils.sh
 
 trap handle_errors ERR
