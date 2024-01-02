@@ -132,15 +132,13 @@ class TestGCPUtils(MasuTestCase):
             },
         ]
 
-        df = pd.DataFrame(data)
-
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
 
         # kubernetes-io-cluster matching, 2 results should come back with no matched tags
         self.assertEqual(matched_df.shape[0], 2)
 
         matched_tags = [{"key": "other_value"}]
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
         # tag matching
         result = matched_df[matched_df["resourceid"] == "id2"]["matched_tag"] == '"key": "other_value"'
         self.assertTrue(result.bool())
@@ -150,13 +148,19 @@ class TestGCPUtils(MasuTestCase):
 
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
 
         # kubernetes-io-cluster matching, 2 results should come back but no matched tags
         self.assertEqual(matched_df.shape[0], 2)
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+        # COST-4543 - no topologies, no alerts on missing `tmp`
+        try:
+            utils.match_openshift_resources_and_labels(pd.DataFrame(data), {}, [])
+        except Exception as err:
+            self.fail(f"failed matching: {err}")
 
     def test_match_openshift_resources(self):
         """Test that OCP on GCP matching occurs."""
