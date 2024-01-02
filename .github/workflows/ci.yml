@@ -57,7 +57,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v34.0.2
+        uses: tj-actions/changed-files@v41.0.0
         with:
           files_from_source_file: docker-files.txt
 
@@ -120,7 +120,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v34.0.2
+        uses: tj-actions/changed-files@v41.0.0
         with:
           files: |
             db_functions/
