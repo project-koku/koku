@@ -156,7 +156,7 @@ class TestGCPUtils(MasuTestCase):
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
 
-        # COST-4543 - no topologies, no alerts on missing `tmp`
+        # COST-4543 - ensure we don't fail when dropping `tmp_ocp_matched`
         try:
             utils.match_openshift_resources_and_labels(pd.DataFrame(data), {}, [])
         except Exception as err:
