@@ -45,7 +45,7 @@ select c.oid
                 action_stmts = array_append(
                     action_stmts,
                     format(
-                        'ALTER TABLE %I.%I DETACH PARTITION %I.%I ;',
+                        'ALTER TABLE %I.%I DETACH PARTITION %I.%I CONCURRENTLY ;',
                         OLD.schema_name,
                         OLD.partition_of_table_name,
                         OLD.schema_name,
@@ -149,7 +149,7 @@ SELECT relispartition
             action_stmts = array_append(
                 action_stmts,
                 format(
-                    'ALTER TABLE IF EXISTS %I.%I DETACH PARTITION %I.%I ;',
+                    'ALTER TABLE IF EXISTS %I.%I DETACH PARTITION %I.%I CONCURRENTLY ;',
                     OLD.schema_name,
                     NEW.partition_of_table_name,
                     OLD.schema_name,

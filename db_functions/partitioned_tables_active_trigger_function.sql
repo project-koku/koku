@@ -17,7 +17,7 @@ BEGIN
                         quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.partition_of_table_name) ||
                         ' DETACH PARTITION ' ||
                         quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name)
-                        || ' ;';
+                        || ' CONCURRENTLY ;';
             msg = 'DETACH PARTITION ' ||
                 quote_ident(OLD.schema_name) || '.' || quote_ident(OLD.table_name);
         ELSE
