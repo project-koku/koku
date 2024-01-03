@@ -4,8 +4,6 @@
 #
 import json
 from unittest.mock import patch
-from urllib.parse import quote_plus
-from urllib.parse import urlencode
 
 from django.urls import reverse
 from django_tenants.utils import schema_context
@@ -53,12 +51,12 @@ class TestCostGroupsAPI(IamTestCase):
     def test_get_cost_groups(self):
         """Basic test to exercise the API endpoint"""
         with schema_context(self.schema_name):
-            response = self.client.get(self.url, **self.headers)
+            response = self.client.get(self.url, headers=self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_get_cost_groups_invalid(self):
         with schema_context(self.schema_name):
-            response = self.client.get(self.url, {"nope": "nope"}, **self.headers)
+            response = self.client.get(self.url, {"nope": "nope"}, headers=self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -69,9 +67,8 @@ class TestCostGroupsAPI(IamTestCase):
             with self.subTest(parameter=parameter):
                 for filter_option, filter_value in parameter.items():
                     param = {f"filter[{filter_option}]": filter_value}
-                    url = self.url + "?" + urlencode(param, quote_via=quote_plus)
                     with schema_context(self.schema_name):
-                        response = self.client.get(url, **self.headers)
+                        response = self.client.get(self.url, param, headers=self.headers)
                     self.assertEqual(response.status_code, status.HTTP_200_OK)
                     data = response.data.get("data")
                     for item in data:
@@ -92,9 +89,8 @@ class TestCostGroupsAPI(IamTestCase):
 
         def spotcheck_first_data_element(option, value):
             param = {f"order_by[{option}]": value}
-            url = self.url + "?" + urlencode(param, quote_via=quote_plus)
             with schema_context(self.schema_name):
-                response = self.client.get(url, **self.headers)
+                response = self.client.get(self.url, param, headers=self.headers)
 
             return response.status_code, response.data.get("data")[0]
 
@@ -119,9 +115,8 @@ class TestCostGroupsAPI(IamTestCase):
             with self.subTest(parameter=parameter):
                 for exclude_option, exclude_value in parameter.items():
                     param = {f"exclude[{exclude_option}]": exclude_value}
-                    url = self.url + "?" + urlencode(param, quote_via=quote_plus)
                     with schema_context(self.schema_name):
-                        response = self.client.get(url, **self.headers)
+                        response = self.client.get(self.url, param, headers=self.headers)
                     self.assertEqual(response.status_code, status.HTTP_200_OK)
                     data = response.data.get("data")
                     for item in data:
@@ -146,7 +141,7 @@ class TestCostGroupsAPI(IamTestCase):
         _add_additional_projects(self.schema_name)
         body = json.dumps(self.body_format)
         with schema_context(self.schema_name):
-            response = self.client.delete(self.url, body, content_type="application/json", **self.headers)
+            response = self.client.delete(self.url, body, content_type="application/json", headers=self.headers)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -183,7 +178,7 @@ class TestCostGroupsAPI(IamTestCase):
         mock_is_customer_large.return_value = False
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
-            response = self.client.put(self.url, body, content_type="application/json", **self.headers)
+            response = self.client.put(self.url, body, content_type="application/json", headers=self.headers)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -203,7 +198,7 @@ class TestCostGroupsAPI(IamTestCase):
         mock_is_customer_large.return_value = True
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
-            response = self.client.put(self.url, body, content_type="application/json", **self.headers)
+            response = self.client.put(self.url, body, content_type="application/json", headers=self.headers)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
