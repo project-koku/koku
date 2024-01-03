@@ -41,9 +41,9 @@ class TestCostGroupsAPI(IamTestCase):
                 .first()
             )
 
-        self.project_name = project_to_insert.get("project")
+        self.project = project_to_insert.get("project")
         self.provider_uuid = project_to_insert.get("cluster__provider__uuid")
-        self.body_format = [{"project_name": self.project_name, "group": self.default_cost_group}]
+        self.body_format = [{"project": self.project, "group": self.default_cost_group}]
 
     @property
     def url(self):
@@ -63,7 +63,7 @@ class TestCostGroupsAPI(IamTestCase):
 
     def test_get_cost_groups_filters(self):
         """Basic test to exercise the API endpoint"""
-        parameters = [{"group": "Platform"}, {"default": True}, {"project_name": OCP_PLATFORM_NAMESPACE}]
+        parameters = [{"group": "Platform"}, {"default": True}, {"project": OCP_PLATFORM_NAMESPACE}]
         for parameter in parameters:
             with self.subTest(parameter=parameter):
                 for filter_option, filter_value in parameter.items():
@@ -87,7 +87,7 @@ class TestCostGroupsAPI(IamTestCase):
 
             return response.status_code, response.data.get("data")[0]
 
-        order_by_options = ["group", "default", "project_name"]
+        order_by_options = ["group", "default", "project"]
         for order_by_option in order_by_options:
             with self.subTest(order_by_option=order_by_option):
                 asc_status_code, spotcheck_asc = spotcheck_first_data_element(order_by_option, "asc")
@@ -98,7 +98,7 @@ class TestCostGroupsAPI(IamTestCase):
 
     def test_get_cost_groups_exclude_functionality(self):
         """Test that values can be excluded in the return."""
-        parameters = [{"group": "Platform"}, {"default": True}, {"project_name": "koku"}]
+        parameters = [{"group": "Platform"}, {"default": True}, {"project": "koku"}]
         for parameter in parameters:
             with self.subTest(parameter=parameter):
                 for exclude_option, exclude_value in parameter.items():
@@ -131,7 +131,7 @@ class TestCostGroupsAPI(IamTestCase):
         body = json.dumps(self.body_format)
         with schema_context(self.schema_name):
             response = self.client.delete(self.url, body, content_type="application/json", **self.headers)
-            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project_name).count()
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(current_count, 0)
@@ -142,11 +142,11 @@ class TestCostGroupsAPI(IamTestCase):
         with schema_context(self.schema_name):
             body_format = [
                 {
-                    "project_name": OCP_PLATFORM_NAMESPACE,
+                    "project": OCP_PLATFORM_NAMESPACE,
                     "group": self.default_cost_group,
                 },
                 {
-                    "project_name": "openshift",
+                    "project": "openshift",
                     "group": self.default_cost_group,
                 },
             ]
@@ -154,7 +154,7 @@ class TestCostGroupsAPI(IamTestCase):
 
     def test_put_catch_integrity_error(self):
         """Test that we catch integrity errors on put."""
-        self.body_format.append({"project_name": self.project_name, "group": self.default_cost_group})
+        self.body_format.append({"project": self.project, "group": self.default_cost_group})
         with self.assertLogs(logger="api.settings.cost_groups.query_handler", level="WARNING") as log_warning:
             with schema_context(self.schema_name):
                 put_openshift_namespaces(self.body_format)
@@ -168,7 +168,7 @@ class TestCostGroupsAPI(IamTestCase):
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
             response = self.client.put(self.url, body, content_type="application/json", **self.headers)
-            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project_name).count()
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(current_count, 1)
@@ -188,7 +188,7 @@ class TestCostGroupsAPI(IamTestCase):
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
             response = self.client.put(self.url, body, content_type="application/json", **self.headers)
-            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project_name).count()
+            current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(current_count, 1)
