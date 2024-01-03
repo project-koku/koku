@@ -7,7 +7,6 @@ import ciso8601
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from botocore.exceptions import ClientError
 from django.conf import settings
 
 from api.common import log_json

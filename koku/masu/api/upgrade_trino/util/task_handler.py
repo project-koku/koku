@@ -9,8 +9,8 @@ from django.http import QueryDict
 from api.common import log_json
 from api.provider.models import Provider
 from masu.celery.tasks import fix_parquet_data_types
-from masu.processor.orchestrator import get_billing_month_start
 from masu.processor import is_customer_large
+from masu.processor.orchestrator import get_billing_month_start
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.util.common import strip_characters_from_column_name
