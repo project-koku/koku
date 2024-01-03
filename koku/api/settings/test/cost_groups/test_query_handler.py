@@ -62,7 +62,7 @@ class TestCostGroupsAPI(IamTestCase):
 
     def test_get_cost_groups_filters(self):
         """Basic test to exercise the API endpoint"""
-        parameters = [{"group": self.default_cost_group}, {"default": True}, {"project": OCP_PLATFORM_NAMESPACE}, {}]
+        parameters = ({"group": self.default_cost_group}, {"default": True}, {"project": OCP_PLATFORM_NAMESPACE}, {})
         for parameter in parameters:
             with self.subTest(parameter=parameter):
                 for filter_option, filter_value in parameter.items():
@@ -83,6 +83,34 @@ class TestCostGroupsAPI(IamTestCase):
         data = response.data.get("data")
         for item in data:
             self.assertIn(OCP_ON_GCP_CLUSTER_ID, item.get("clusters"))
+
+    def test_get_cost_groups_filters_multiple(self):
+        """Test filtering with multiple values per field"""
+        test_matrix = (
+            {
+                "field": "group",
+                "value": ["Platform"],
+                "expected": {"Platform"},
+            },
+            {
+                "field": "project",
+                "value": [OCP_PLATFORM_NAMESPACE, "-PrOd"],
+                "expected": {"openshift-default", "koku-prod"},
+            },
+        )
+        for case in test_matrix:
+            with self.subTest(parameter=case["value"]):
+                params = {f"filter[{case['field']}]": case["value"]}
+                with schema_context(self.schema_name):
+                    response = self.client.get(self.url, params, headers=self.headers)
+
+                data = response.data.get("data")
+                result = {}
+                if data:
+                    result = {item[case["field"]] for item in data}
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertTrue(result.issubset(case["expected"]))
 
     def test_get_cost_groups_order(self):
         """Basic test to exercise the API endpoint"""
