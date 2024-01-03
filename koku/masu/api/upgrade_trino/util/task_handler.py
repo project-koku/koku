@@ -10,6 +10,9 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.celery.tasks import fix_parquet_data_types
 from masu.processor.orchestrator import get_billing_month_start
+from masu.processor import is_customer_large
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS as AWS_TRINO_REQUIRED_COLUMNS
 from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS as AZURE_TRINO_REQUIRED_COLUMNS
@@ -94,16 +97,20 @@ class FixParquetTaskHandler:
             providers = Provider.objects.filter(active=True, paused=False, type=self.provider_type)
 
         for provider in providers:
+            queue_name = GET_REPORT_FILES_QUEUE
+            if is_customer_large(provider.account["schema_name"]):
+                queue_name = GET_REPORT_FILES_QUEUE_XL
+
             account = copy.deepcopy(provider.account)
             report_month = get_billing_month_start(self.bill_date)
-            async_result = fix_parquet_data_types.delay(
+            async_result = fix_parquet_data_types.s(
                 schema_name=account.get("schema_name"),
                 provider_type=account.get("provider_type"),
                 provider_uuid=account.get("provider_uuid"),
                 simulate=self.simulate,
                 bill_date=report_month,
                 cleaned_column_mapping=self.cleaned_column_mapping,
-            )
+            ).apply_async(queue=queue_name)
             LOG.info(
                 log_json(
                     provider.uuid,

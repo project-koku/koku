@@ -171,21 +171,7 @@ class VerifyParquetFiles:
             files_need_updated = self.file_tracker.get_files_that_need_updated()
             for s3_obj_key, converted_local_file_path in files_need_updated.items():
                 self.logging_context[self.S3_OBJ_LOG_KEY] = s3_obj_key
-                try:
-                    LOG.info(
-                        log_json(self.provider_uuid, msg="Deleting s3 parquet file.", context=self.logging_context)
-                    )
-                    s3_bucket.Object(s3_obj_key).delete()
-                    self.file_tracker.set_state(s3_object_key, self.file_tracker.S3_FILE_DELETED)
-                    LOG.info(
-                        log_json(self.provider_uuid, msg="Deletion of s3 parquet file.", context=self.logging_context)
-                    )
-                except ClientError as e:
-                    LOG.info(f"Failed to delete {s3_object_key}: {str(e)}")
-                    self.file_tracker.set_state(s3_object_key, self.file_tracker.SENT_TO_S3_FAILED)
-                    continue
-
-                # An error here would cause a data gap.
+                # Overwrite s3 object with updated file data
                 with open(converted_local_file_path, "rb") as new_file:
                     LOG.info(
                         log_json(

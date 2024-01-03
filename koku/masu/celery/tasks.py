@@ -58,7 +58,6 @@ PROVIDER_REPORT_TYPE_MAP = {
 }
 
 
-# TODO: Change the queue from the default queue
 @celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=DEFAULT)
 def fix_parquet_data_types(*args, **kwargs):
     verify_parquet = VerifyParquetFiles(*args, **kwargs)
