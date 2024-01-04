@@ -40,6 +40,7 @@ from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
@@ -58,7 +59,7 @@ PROVIDER_REPORT_TYPE_MAP = {
 }
 
 
-@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=DEFAULT)
+@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=GET_REPORT_FILES_QUEUE)
 def fix_parquet_data_types(*args, **kwargs):
     verify_parquet = VerifyParquetFiles(*args, **kwargs)
     verify_parquet.retrieve_verify_reload_s3_parquet()
