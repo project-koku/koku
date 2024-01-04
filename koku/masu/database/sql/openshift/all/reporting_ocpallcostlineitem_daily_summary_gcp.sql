@@ -39,7 +39,7 @@ INSERT
 SELECT 'GCP'::text AS source_type,
        gcp.cluster_id,
        {{cluster_alias}},
-       array_agg(gcp.namespace),
+       array_agg(distinct gcp.namespace),
        gcp.node,
        gcp.resource_id,
        gcp.usage_start,
