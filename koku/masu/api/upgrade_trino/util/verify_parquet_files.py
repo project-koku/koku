@@ -9,6 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from botocore.exceptions import ClientError
 from django.conf import settings
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -34,7 +35,6 @@ class VerifyParquetFiles:
         self.simulate = simulate
         self.bill_date = bill_date
         self.file_tracker = StateTracker(provider_uuid)
-        self.openshift_data = False  # Not sure if we need this
         self.report_types = self._set_report_types()
         self.required_columns = self._set_pyarrow_types(cleaned_column_mapping)
         self.logging_context = {
@@ -115,12 +115,16 @@ class VerifyParquetFiles:
         """
         generates the s3 path prefixes.
         """
+        with schema_context(self.schema_name):
+            ocp_on_cloud_check = Provider.objects.filter(
+                infrastructure__infrastructure_provider__uuid=self.provider_uuid
+            ).exists()
         path_prefixes = set()
         for report_type in self.report_types:
             path_prefixes.add(self._parquet_path_s3(bill_date, report_type))
             path_prefixes.add(self._parquet_daily_path_s3(bill_date, report_type))
-        if self.openshift_data:
-            path_prefixes.add(self._parquet_ocp_on_cloud_path_s3(bill_date))
+            if ocp_on_cloud_check:
+                path_prefixes.add(self._parquet_ocp_on_cloud_path_s3(bill_date))
         return path_prefixes
 
     # Stolen from parquet_report_processor

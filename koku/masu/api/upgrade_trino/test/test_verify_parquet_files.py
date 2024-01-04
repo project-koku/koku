@@ -215,6 +215,23 @@ class TestVerifyParquetFiles(MasuTestCase):
             self.assertIn(expected_path, s3_prefixes)
 
     def test_other_providers_s3_paths(self):
+        def _build_expected_s3_paths(metadata):
+            expected_s3_paths = []
+            path_kwargs = {
+                "account": self.schema_name,
+                "provider_type": metadata["type"],
+                "provider_uuid": metadata["uuid"],
+                "start_date": bill_date,
+                "data_type": Config.PARQUET_DATA_TYPE,
+            }
+            expected_s3_paths.append(get_path_prefix(**path_kwargs))
+            path_kwargs["daily"] = True
+            path_kwargs["report_type"] = "raw"
+            expected_s3_paths.append(get_path_prefix(**path_kwargs))
+            path_kwargs["report_type"] = "openshift"
+            expected_s3_paths.append(get_path_prefix(**path_kwargs))
+            return expected_s3_paths
+
         bill_date = DateHelper().this_month_start
         test_metadata = [
             {"uuid": self.aws_provider_uuid, "type": self.aws_provider.type.replace("-local", "")},
@@ -222,18 +239,7 @@ class TestVerifyParquetFiles(MasuTestCase):
         ]
         for metadata in test_metadata:
             with self.subTest(metadata=metadata):
-                expected_s3_paths = []
-                path_kwargs = {
-                    "account": self.schema_name,
-                    "provider_type": metadata["type"],
-                    "provider_uuid": metadata["uuid"],
-                    "start_date": bill_date,
-                    "data_type": Config.PARQUET_DATA_TYPE,
-                }
-                expected_s3_paths.append(get_path_prefix(**path_kwargs))
-                path_kwargs["daily"] = True
-                path_kwargs["report_type"] = "raw"
-                expected_s3_paths.append(get_path_prefix(**path_kwargs))
+                expected_s3_paths = _build_expected_s3_paths(metadata)
                 verify_handler = VerifyParquetFiles(
                     schema_name=self.schema_name,
                     provider_uuid=metadata["uuid"],

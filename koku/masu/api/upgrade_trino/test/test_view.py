@@ -12,6 +12,7 @@ from django.urls import reverse
 from api.models import Provider
 from api.utils import DateHelper
 from masu.api.upgrade_trino.util.task_handler import FixParquetTaskHandler
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.test import MasuTestCase
 
 
@@ -47,17 +48,18 @@ class TestUpgradeTrinoView(MasuTestCase):
         cleaned_column_mapping = FixParquetTaskHandler.clean_column_names(self.aws_provider.type)
         for parameters in acceptable_parameters:
             with self.subTest(parameters=parameters):
-                with patch("masu.celery.tasks.fix_parquet_data_types.delay") as patch_celery:
+                with patch("masu.celery.tasks.fix_parquet_data_types.apply_async") as patch_celery:
                     response = self.client.get(reverse(self.ENDPOINT), parameters)
                     self.assertEqual(response.status_code, 200)
                     simulate = parameters.get("simulate", False)
                     if simulate == "bad_value":
                         simulate = False
-                    patch_celery.assert_called_once_with(
-                        schema_name=self.schema_name,
-                        provider_type=Provider.PROVIDER_AWS_LOCAL,
-                        provider_uuid=self.aws_provider.uuid,
-                        simulate=simulate,
-                        bill_date=self.bill_date,
-                        cleaned_column_mapping=cleaned_column_mapping,
-                    )
+                    async_kwargs = {
+                        "schema_name": self.schema_name,
+                        "provider_type": Provider.PROVIDER_AWS_LOCAL,
+                        "provider_uuid": self.aws_provider.uuid,
+                        "simulate": simulate,
+                        "bill_date": self.bill_date,
+                        "cleaned_column_mapping": cleaned_column_mapping,
+                    }
+                    patch_celery.assert_called_once_with((), async_kwargs, queue=GET_REPORT_FILES_QUEUE)
