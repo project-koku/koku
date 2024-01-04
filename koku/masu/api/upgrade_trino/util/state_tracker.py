@@ -15,7 +15,6 @@ class StateTracker:
     NO_CHANGES_NEEDED = "no_changes_needed"
     COERCE_REQUIRED = "coerce_required"
     SENT_TO_S3_COMPLETE = "sent_to_s3_complete"
-    S3_FILE_DELETED = "s3_file_deleted"
     SENT_TO_S3_FAILED = "sent_to_s3_failed"
     FAILED_DTYPE_CONVERSION = "failed_data_type_conversion"
 

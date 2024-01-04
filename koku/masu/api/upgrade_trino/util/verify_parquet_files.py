@@ -7,6 +7,7 @@ import ciso8601
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from botocore.exceptions import ClientError
 from django.conf import settings
 
 from api.common import log_json
@@ -180,8 +181,13 @@ class VerifyParquetFiles:
                             local_file_path=converted_local_file_path,
                         )
                     )
-                    s3_bucket.upload_fileobj(new_file, s3_obj_key)
-                    self.file_tracker.set_state(s3_obj_key, self.file_tracker.SENT_TO_S3_COMPLETE)
+                    try:
+                        s3_bucket.upload_fileobj(new_file, s3_obj_key)
+                        self.file_tracker.set_state(s3_obj_key, self.file_tracker.SENT_TO_S3_COMPLETE)
+                    except ClientError as e:
+                        LOG.info(f"Failed to overwrite S3 file {s3_object_key}: {str(e)}")
+                        self.file_tracker.set_state(s3_object_key, self.file_tracker.SENT_TO_S3_FAILED)
+                        continue
         self.file_tracker.finalize_and_clean_up()
 
     def _perform_transformation_double_to_timestamp(self, parquet_file_path, field_names):
