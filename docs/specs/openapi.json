@@ -5827,12 +5827,12 @@
                 }
             },
         "/recommendations/openshift": {
-            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift"
+            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift"
         },
         "/recommendations/openshift/{recommendation-id}": {
-            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift~1{recommendation-id}"
+            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
         }
-        },
+    },
     "externalDocs": {
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
