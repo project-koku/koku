@@ -39,7 +39,7 @@ INSERT
 SELECT 'Azure'::text AS source_type,
        azure.cluster_id,
        {{cluster_alias}},
-       array_agg(azure.namespace),
+       array_agg(distinct azure.namespace),
        azure.node,
        azure.resource_id,
        azure.usage_start,
