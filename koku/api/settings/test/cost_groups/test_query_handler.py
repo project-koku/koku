@@ -81,7 +81,7 @@ class TestCostGroupsAPI(IamTestCase):
         """Basic test to exercise the API endpoint"""
         param = {"filter[cluster]": OCP_ON_GCP_CLUSTER_ID}
         with schema_context(self.schema_name):
-            response = self.client.get(self.url, param, headers=self.headers)
+            response = self.client.get(self.url, param, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data.get("data")
         for item in data:
