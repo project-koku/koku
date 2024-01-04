@@ -123,9 +123,9 @@ jobs:
         uses: tj-actions/changed-files@v41.0.0
         with:
           files: |
-            db_functions/
-            koku/
-            .github/postgres
+            db_functions/**
+            koku/**
+            .github/postgres/**
             .github/scripts/check_migrations.sh
             .github/workflows/ci.yml
             Pipfile.lock
@@ -134,9 +134,16 @@ jobs:
       - name: Check files or fork
         id: check-files-or-fork
         run: |
-          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
+          if [ "${{ steps.changed-files.outputs.any_modified }}" == "true" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
             echo "run_tests=true" >> $GITHUB_OUTPUT
           fi
+
+      - name: Show changed files
+        run: |
+          echo "Changed files:"
+          for file in ${{ steps.changed-files.outputs.all_changed_and_modified_files }}; do
+            echo "  $file"
+          done
 
   units:
     name: Units - ${{ matrix.python-version }}
