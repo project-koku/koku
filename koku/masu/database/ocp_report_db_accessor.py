@@ -23,6 +23,7 @@ from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.database import SQLScriptAtomicExecutorMixin
+from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import filter_dictionary
@@ -368,7 +369,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_exists": storage_exists,
         }
 
-        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        try:
+            self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        except TrinoStatementExecError as trino_exc:
+            if "one or more partitions already exist" in str(trino_exc).lower():
+                LOG.warning(
+                    log_json(
+                        ctx=self.extract_context_from_sql_params(sql_params),
+                        msg=getattr(trino_exc.__cause__, "message", None),
+                        error_type=getattr(trino_exc.__cause__, "error_type", None),
+                        error_name=getattr(trino_exc.__cause__, "error_name", None),
+                        query_id=getattr(trino_exc.__cause__, "query_id", None),
+                    )
+                )
+            else:
+                raise
 
     def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
