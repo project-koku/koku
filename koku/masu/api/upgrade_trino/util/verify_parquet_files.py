@@ -4,7 +4,6 @@ import uuid
 from pathlib import Path
 
 import ciso8601
-import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from botocore.exceptions import ClientError
@@ -48,11 +47,12 @@ class VerifyParquetFiles:
     def _set_pyarrow_types(self, cleaned_column_mapping):
         mapping = {}
         for key, default_val in cleaned_column_mapping.items():
-            if pd.isnull(default_val):
-                # TODO: Azure saves datetime as pa.timestamp("ms")
-                # TODO: AWS saves datetime as timestamp[ms, tz=UTC]
-                # Should we be storing in a standard type here?
-                mapping[key] = pa.timestamp("ms")
+            if str(default_val) == "NaT":
+                # Store original provider datetime type
+                if self.provider_type == "Azure":
+                    mapping[key] = pa.timestamp("ms")
+                else:
+                    mapping[key] = pa.timestamp("ms", tz="UTC")
             elif isinstance(default_val, str):
                 mapping[key] = pa.string()
             elif isinstance(default_val, float):
