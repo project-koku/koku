@@ -68,6 +68,11 @@ class QueryFilter(UserDict):
 
     def composed_Q(self):
         """Return a Q object formatted for Django's ORM."""
+        if isinstance(self.parameter, Q):
+            # This will allow us to add Qs directly to
+            # the filter collection
+            return self.parameter
+
         query_dict = {self.composed_query_string(): self.parameter}
         return Q(**query_dict)
 

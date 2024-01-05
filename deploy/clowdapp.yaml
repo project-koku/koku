@@ -307,6 +307,8 @@ objects:
           value: ${S3_ROS_BUCKET_NAME}
         - name: ROS_URL_EXPIRATION
           value: ${ROS_URL_EXPIRATION}
+        - name: ENABLE_ROS_DEBUG
+          value: ${ENABLE_ROS_DEBUG}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
@@ -3958,6 +3960,8 @@ objects:
           value: ${ENHANCED_ORG_ADMIN}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
+        - name: ENABLE_SUBS_PROVIDER_TYPES
+          value: ${ENABLE_SUBS_PROVIDER_TYPES}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -4206,7 +4210,6 @@ objects:
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
-    - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
@@ -4637,6 +4640,14 @@ parameters:
   displayName: Enable SUBS Debug
   name: ENABLE_SUBS_DEBUG
   value: "False"
+- description: Enable ROS Kafka Debug
+  displayName: Enable ROS Debug
+  name: ENABLE_ROS_DEBUG
+  value: "False"
+- description: Enable SUBS Provider Types for Processing
+  displayname: Enable SUBS Provider Types
+  name: ENABLE_SUBS_PROVIDER_TYPES
+  value: AWS
 - displayName: Minimum replicas
   name: KOKU_REPLICAS
   required: true

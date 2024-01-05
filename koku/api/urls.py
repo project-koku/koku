@@ -30,6 +30,7 @@ from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
+from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
@@ -347,6 +348,7 @@ urlpatterns = [
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
     # path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
+    path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
     path(
         "settings/aws_category_keys/enable/",
         SettingsEnableAWSCategoryKeyView.as_view(),

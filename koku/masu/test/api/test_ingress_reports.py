@@ -10,11 +10,7 @@ from unittest.mock import patch
 from celery.result import AsyncResult
 from django.test.utils import override_settings
 from django.urls import reverse
-from django_tenants.utils import schema_context
 
-from api.iam.models import Tenant
-from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 
 LOG = logging.getLogger(__name__)
@@ -27,26 +23,7 @@ class IngressReportsAPIViewTest(MasuTestCase):
     def setUp(self):
         """Create test case setup."""
         super().setUp()
-        Tenant.objects.get_or_create(schema_name="public")
-        self.schema = self.schema_name
-        self.start = DateAccessor().today_with_timezone("UTC").replace(day=1)
         self.ingress_uuid = str(uuid.uuid4())
-        self.ingress_report_dict = {
-            "uuid": self.ingress_uuid,
-            "created_timestamp": self.start,
-            "completed_timestamp": None,
-            "reports_list": ["test"],
-            "source": self.aws_provider,
-        }
-        self.ingress_report_accessor = IngressReportDBAccessor(self.schema)
-
-    def tearDown(self):
-        """Tear down the test class."""
-        super().tearDown()
-        with schema_context(self.schema):
-            reports = self.ingress_report_accessor._get_db_obj_query().all()
-            for report in reports:
-                self.ingress_report_accessor.delete(report)
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch(

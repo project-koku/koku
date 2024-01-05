@@ -142,7 +142,13 @@ class TestOCPPostProcessor(MasuTestCase):
     def test_ocp_process_dataframe(self):
         """Test the unique tag key processing for OpenShift."""
 
-        for label_type in ("pod_labels", "volume_labels", "namespace_labels", "node_labels"):
+        for label_type in (
+            "pod_labels",
+            "persistentvolume_labels",
+            "persistentvolumeclaim_labels",
+            "namespace_labels",
+            "node_labels",
+        ):
             with self.subTest(label_type=label_type):
                 data = [
                     {

@@ -147,7 +147,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             month_file_names = self._extract_names(month)
             files_list = [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in month_file_names]
             if files_list:
-                manifest_id = self._process_manifest_db_record(assembly_id, str(month), len(month_file_names), dh._now)
+                manifest_id = self._process_manifest_db_record(assembly_id, str(month), len(month_file_names), dh.now)
                 monthly_report["manifest_id"] = manifest_id
                 monthly_report["assembly_id"] = assembly_id
                 monthly_report["compression"] = manifest_dict.get("compression", "")

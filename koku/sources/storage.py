@@ -44,6 +44,7 @@ def _aws_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and aws_settings_ready(provider)
+        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -60,6 +61,7 @@ def _ocp_provider_ready_for_create(provider):
         and provider.name
         and ocp_settings_ready(provider)
         and provider.auth_header
+        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -85,6 +87,7 @@ def _azure_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and azure_settings_ready(provider)
+        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -101,6 +104,7 @@ def _gcp_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and gcp_settings_ready(provider)
+        and not provider.status
         and not provider.koku_uuid
     )
 
@@ -117,6 +121,7 @@ def _oci_provider_ready_for_create(provider):
         and provider.name
         and provider.auth_header
         and oci_settings_ready(provider)
+        and not provider.status
         and not provider.koku_uuid
     )
 

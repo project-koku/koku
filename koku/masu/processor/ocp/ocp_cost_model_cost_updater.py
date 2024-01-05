@@ -7,13 +7,13 @@ import logging
 from decimal import Decimal
 
 from dateutil.parser import parse
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.metrics import constants as metric_constants
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import filter_dictionary
 from masu.util.ocp.common import get_amortized_monthly_cost_model_rate
@@ -464,5 +464,5 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if report_period:
                 with schema_context(self._schema):
-                    report_period.derived_cost_datetime = DateAccessor().today_with_timezone("UTC")
+                    report_period.derived_cost_datetime = timezone.now()
                     report_period.save()

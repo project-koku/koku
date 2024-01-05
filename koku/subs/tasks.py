@@ -9,7 +9,6 @@ import uuid
 from dateutil import parser
 
 from api.common import log_json
-from api.provider.models import Provider
 from api.utils import DateHelper
 from koku import celery_app
 from koku import settings
@@ -26,12 +25,6 @@ SUBS_TRANSMISSION_QUEUE = "subs_transmission"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [SUBS_EXTRACTION_QUEUE, SUBS_TRANSMISSION_QUEUE]
-
-SUBS_ACCEPTED_PROVIDERS = (
-    Provider.PROVIDER_AWS,
-    Provider.PROVIDER_AWS_LOCAL,
-    # Add additional accepted providers here
-)
 
 
 def enable_subs_extraction(schema_name: str, metered: str) -> bool:  # pragma: no cover
@@ -79,7 +72,8 @@ def extract_subs_data_from_reports(reports_to_extract, metered):
         provider_uuid = report.get("provider_uuid")
         tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
         context = {"schema": schema_name, "provider_type": provider_type, "provider_uuid": provider_uuid}
-        if provider_type not in SUBS_ACCEPTED_PROVIDERS:
+        # SUBS provider type enablement is handled through the ENABLE_SUBS_PROVIDER_TYPES environment variable
+        if provider_type.rstrip("-local") not in settings.ENABLE_SUBS_PROVIDER_TYPES:
             LOG.info(log_json(tracing_id, msg="provider type not valid for subs processing", context=context))
             continue
         if not enable_subs_extraction(schema_name, metered):

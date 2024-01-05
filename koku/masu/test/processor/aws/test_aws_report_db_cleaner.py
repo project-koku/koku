@@ -44,15 +44,11 @@ class AWSReportDBCleanerTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         cls.accessor = AWSReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
+
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [
             AWS_CUR_TABLE_MAP["bill"],
         ]
-
-    def test_initializer(self):
-        """Test initializer."""
-        self.assertIsNotNone(self.report_schema)
 
     def test_purge_expired_report_data_no_args(self):
         """Test that the provider_uuid deletes all data for the provider."""

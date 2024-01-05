@@ -307,21 +307,6 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_data_processor.assert_not_called()
         mock_create_parquet.assert_not_called()
 
-    @patch.object(OCPReportDBAccessor, "report_periods_for_provider_uuid")
-    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
-    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
-    @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
-    def test_process_no_matching_cluster_report_period(
-        self, mock_data_processor, mock_create_parquet, mock_cluster_info, mock_report_periods
-    ):
-        """Test that ocp on cloud data is not processed when there is no matching report period for the cluster."""
-        # this is a yes or no check so false is fine
-        mock_cluster_info.return_value = True
-        mock_report_periods.return_value = False
-        self.report_processor.process("", [pd.DataFrame()])
-        mock_data_processor.assert_not_called()
-        mock_create_parquet.assert_not_called()
-
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")

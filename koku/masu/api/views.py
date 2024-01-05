@@ -20,6 +20,7 @@ from masu.api.enabled_tags import EnabledTagView
 from masu.api.expired_data import expired_data
 from masu.api.hcs_report_data import hcs_report_data
 from masu.api.hcs_report_finalization import hcs_report_finalization
+from masu.api.ingest_ocp_payload import ingest_ocp_payload
 from masu.api.ingress_reports import ingress_reports
 from masu.api.manifest.views import ManifestView
 from masu.api.notifications import notification

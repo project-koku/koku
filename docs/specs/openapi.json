@@ -56,6 +56,10 @@
         {
             "name": "Status",
             "description": "Operations about status"
+        },
+        {
+            "name": "Optimizations",
+            "description": "Resource Optimization for Openshift"
         }
     ],
     "paths": {
@@ -5548,6 +5552,98 @@
                 }]
             }
         },
+        "/settings/cost-groups/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Query which projects belong to which cost groups",
+                "operationId": "getSettingsCostGroups",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OpenShift projects and the current cost group",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostGroupsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Add projects to a cost group",
+                "operationId": "putSettingsCostGroups",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Remove projects from a coust group",
+                "operationId": "deleteSettingsCostGroups",
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/settings/tags/": {
             "get": {
                 "tags": [
@@ -5729,8 +5825,14 @@
                         "basic_auth": []
                     }]
                 }
-            }
+            },
+        "/recommendations/openshift": {
+            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift"
         },
+        "/recommendations/openshift/{recommendation-id}": {
+            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
+        }
+    },
     "externalDocs": {
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
@@ -5797,7 +5899,7 @@
                 }
             },
             "QueryEndDate": {
-                "name": "QueryEndDate",
+                "name": "end_date",
                 "in": "query",
                 "description": "String to indicate end date of date range.",
                 "schema": {
@@ -5806,7 +5908,7 @@
                 }
             },
             "QueryFilter": {
-                "name": "QueryFilter",
+                "name": "filter",
                 "required": false,
                 "in": "query",
                 "description": "The filter to apply to the report as a URL encoded dictionary.",
@@ -5891,7 +5993,7 @@
                 }
             },
             "QueryStartDate": {
-                "name": "QueryStartDate",
+                "name": "start_date",
                 "in": "query",
                 "description": "String to indicate start date of date range.",
                 "schema": {
@@ -5983,6 +6085,39 @@
                         }
                     }
                 }
+            },
+            "CostGroupsBody": {
+                "description": "List of project name and cost group",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "project": {
+                                        "type": "string"
+                                    },
+                                    "group": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "example": [
+                                {
+                                    "project": "accounting",
+                                    "group": "Platform"
+                                },
+                                {
+                                    "project": "infra",
+                                    "group": "Platform"
+                                }
+                            ]
+                        }
+                    }
+                }
             }
         },
         "securitySchemes": {
@@ -5993,6 +6128,36 @@
             }
         },
         "schemas": {
+            "CostGroupsResponse": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "project": {
+                                    "type": "string"
+                                },
+                                "group": {
+                                    "type": "string"
+                                },
+                                "default": {
+                                    "type": "boolean"
+                                },
+                                "clusters": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "CostModel": {
                 "properties": {
                     "name": {
