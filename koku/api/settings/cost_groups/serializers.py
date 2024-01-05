@@ -9,6 +9,7 @@ from api.report.serializers import ExcludeSerializer
 from api.report.serializers import FilterSerializer
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
+from api.report.serializers import StringOrListField
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
@@ -19,6 +20,7 @@ class CostGroupFilterSerializer(FilterSerializer):
     project = serializers.CharField(required=False)
     group = serializers.CharField(required=False)
     default = serializers.BooleanField(required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class CostGroupExcludeSerializer(ExcludeSerializer):
@@ -27,6 +29,7 @@ class CostGroupExcludeSerializer(ExcludeSerializer):
     project = serializers.CharField(required=False)
     group = serializers.CharField(required=False)
     default = serializers.BooleanField(required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class CostGroupOrderSerializer(OrderSerializer):

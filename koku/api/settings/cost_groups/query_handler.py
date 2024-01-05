@@ -9,6 +9,7 @@ from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -98,6 +99,7 @@ class CostGroupsQueryHandler:
             "group": MappingProxyType({"field": "group", "operation": "icontains"}),
             "default": MappingProxyType({"field": "default", "operation": "exact"}),
             "project": MappingProxyType({"field": "project", "operation": "icontains"}),
+            "cluster": MappingProxyType({"field": "clusters", "operation": "icontains"}),
         }
     )
 
@@ -192,7 +194,7 @@ class CostGroupsQueryHandler:
             .annotate(
                 group=Case(*self.build_when_conditions(cost_group_projects, "group")),
                 default=Case(*self.build_when_conditions(cost_group_projects, "default")),
-                clusters=ArrayAgg(F("cluster__cluster_alias"), distinct=True),
+                clusters=ArrayAgg(Coalesce(F("cluster__cluster_alias"), F("cluster__cluster_id")), distinct=True),
             )
             .values("project", "group", "clusters", "default")
             .distinct()
