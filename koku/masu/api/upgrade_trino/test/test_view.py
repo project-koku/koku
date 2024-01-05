@@ -1,8 +1,8 @@
 #
-# Copyright 2023 Red Hat Inc.
+# Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the hcs_report_data endpoint view."""
+"""Test the verify parquet files endpoint view."""
 from unittest.mock import patch
 from uuid import uuid4
 
