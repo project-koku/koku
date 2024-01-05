@@ -18,6 +18,7 @@ from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
 from api.settings.cost_groups.query_handler import _remove_default_projects
 from api.settings.cost_groups.query_handler import put_openshift_namespaces
 from api.utils import DateHelper
+from koku.koku_test_runner import OCP_ON_GCP_CLUSTER_ID
 from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from reporting.provider.ocp.models import OCPProject
@@ -63,7 +64,7 @@ class TestCostGroupsAPI(IamTestCase):
 
     def test_get_cost_groups_filters(self):
         """Basic test to exercise the API endpoint"""
-        parameters = [{"group": "Platform"}, {"default": True}, {"project": OCP_PLATFORM_NAMESPACE}]
+        parameters = [{"group": self.default_cost_group}, {"default": True}, {"project": OCP_PLATFORM_NAMESPACE}, {}]
         for parameter in parameters:
             with self.subTest(parameter=parameter):
                 for filter_option, filter_value in parameter.items():
@@ -75,6 +76,16 @@ class TestCostGroupsAPI(IamTestCase):
                     data = response.data.get("data")
                     for item in data:
                         self.assertEqual(item.get(filter_option), filter_value)
+
+    def test_get_cost_groups_filter_cluster(self):
+        """Basic test to exercise the API endpoint"""
+        param = {"filter[cluster]": OCP_ON_GCP_CLUSTER_ID}
+        with schema_context(self.schema_name):
+            response = self.client.get(self.url, param, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data.get("data")
+        for item in data:
+            self.assertIn(OCP_ON_GCP_CLUSTER_ID, item.get("clusters"))
 
     def test_get_cost_groups_order(self):
         """Basic test to exercise the API endpoint"""
@@ -98,7 +109,12 @@ class TestCostGroupsAPI(IamTestCase):
 
     def test_get_cost_groups_exclude_functionality(self):
         """Test that values can be excluded in the return."""
-        parameters = [{"group": "Platform"}, {"default": True}, {"project": "koku"}]
+        parameters = [
+            {"group": "Platform"},
+            {"default": True},
+            {"project": "koku"},
+            {"cluster": OCP_ON_GCP_CLUSTER_ID},
+        ]
         for parameter in parameters:
             with self.subTest(parameter=parameter):
                 for exclude_option, exclude_value in parameter.items():
