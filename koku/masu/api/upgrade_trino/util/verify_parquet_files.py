@@ -12,6 +12,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.api.upgrade_trino.util.state_tracker import StateTracker
 from masu.config import Config
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
@@ -68,7 +69,8 @@ class VerifyParquetFiles:
 
     def _get_bill_dates(self):
         # However far back we want to fix.
-        return [ciso8601.parse_datetime(self.bill_date)]
+        dh = DateHelper()
+        return dh.list_months(ciso8601.parse_datetime(self.bill_date), dh.today.replace(tzinfo=None))
 
     # Stolen from parquet_report_processor
     def _parquet_path_s3(self, bill_date, report_type):
