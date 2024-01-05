@@ -5827,10 +5827,10 @@
                 }
             },
         "/recommendations/openshift": {
-            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift"
+            "$ref": "openshift_recommendations.json#/paths/~1recommendations~1openshift"
         },
         "/recommendations/openshift/{recommendation-id}": {
-            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
+            "$ref": "openshift_recommendations.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
         }
     },
     "externalDocs": {
