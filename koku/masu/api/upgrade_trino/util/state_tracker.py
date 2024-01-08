@@ -60,9 +60,7 @@ class StateTracker:
     def add_local_file(self, s3_obj_key, local_path, bill_date):
         # TODO: make bill date a string.
         self.local_files[s3_obj_key] = local_path
-        bill_date_files = self.tracker.get(bill_date)
-        if bill_date_files:
-            self.set_state(s3_obj_key, self.DOWNLOADED_LOCALLY, bill_date)
+        self.set_state(s3_obj_key, self.DOWNLOADED_LOCALLY, bill_date)
 
     def get_files_that_need_updated(self):
         """Returns a mapping of files in the s3 needs
