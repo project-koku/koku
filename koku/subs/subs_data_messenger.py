@@ -176,8 +176,8 @@ class SUBSDataMessenger:
             msg = self.build_subs_msg(
                 instance_id,
                 row["subs_account"],
-                str(start),
-                str(end),
+                start.isoformat(),
+                end.isoformat(),
                 row["subs_vcpu"],
                 row["subs_sla"],
                 row["subs_usage"],
