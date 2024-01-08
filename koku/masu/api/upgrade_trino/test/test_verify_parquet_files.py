@@ -52,8 +52,8 @@ class TestVerifyParquetFiles(MasuTestCase):
     def create_default_verify_handler(self):
         return VerifyParquetFiles(
             schema_name=self.schema_name,
-            provider_uuid=self.aws_provider_uuid,
-            provider_type=self.aws_provider.type,
+            provider_uuid=self.azure_provider_uuid,
+            provider_type=self.azure_provider.type,
             simulate=True,
             bill_date=datetime(2023, 1, 1),
             cleaned_column_mapping=self.required_columns,
