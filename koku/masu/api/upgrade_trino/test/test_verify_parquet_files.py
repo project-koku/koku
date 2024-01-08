@@ -15,6 +15,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from api.utils import DateHelper
+from masu.api.upgrade_trino.util.state_tracker import CONTEXT_KEY_MAPPING
 from masu.api.upgrade_trino.util.state_tracker import StateTracker
 from masu.api.upgrade_trino.util.task_handler import FixParquetTaskHandler
 from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
@@ -73,7 +74,6 @@ class TestVerifyParquetFiles(MasuTestCase):
         ]
         for metadata in test_metadata:
             with self.subTest(metadata=metadata):
-                bill_date = str(DateHelper().this_month_start)
                 required_columns = FixParquetTaskHandler.clean_column_names(metadata["type"])
                 data_frame = pd.DataFrame()
                 data_frame = data_frame.reindex(columns=required_columns.keys())
@@ -86,7 +86,7 @@ class TestVerifyParquetFiles(MasuTestCase):
                     provider_uuid=metadata["uuid"],
                     provider_type=metadata["type"],
                     simulate=False,
-                    bill_date=bill_date,
+                    bill_date=self.bill_date,
                     cleaned_column_mapping=required_columns,
                 )
                 prefixes = verify_handler._generate_s3_path_prefixes(DateHelper().this_month_start)
@@ -115,12 +115,12 @@ class TestVerifyParquetFiles(MasuTestCase):
         with tempfile.NamedTemporaryFile(suffix=self.suffix) as temp_file:
             pd.DataFrame(file_data).to_parquet(temp_file, **self.panda_kwargs)
             verify_handler = self.create_default_verify_handler()
-            verify_handler.file_tracker.add_local_file(temp_file.name, temp_file, self.bill_date)
+            verify_handler.file_tracker.add_local_file(temp_file.name, temp_file)
             return_state = verify_handler._coerce_parquet_data_type(temp_file)
-            verify_handler.file_tracker.set_state(temp_file.name, return_state, self.bill_date)
+            verify_handler.file_tracker.set_state(temp_file.name, return_state)
             self.assertEqual(return_state, StateTracker.NO_CHANGES_NEEDED)
             bill_metadata = verify_handler.file_tracker._create_bill_date_metadata()
-            self.assertTrue(bill_metadata.get(self.bill_date, {}).get("conversion_successful"))
+            self.assertTrue(bill_metadata.get(CONTEXT_KEY_MAPPING["successful"]))
 
     def test_coerce_parquet_data_type_coerce_needed(self):
         """Test that files created through reindex are fixed correctly."""
@@ -130,12 +130,12 @@ class TestVerifyParquetFiles(MasuTestCase):
         temp_file = os.path.join(self.temp_dir, f"test{self.suffix}")
         data_frame.to_parquet(temp_file, **self.panda_kwargs)
         verify_handler = self.create_default_verify_handler()
-        verify_handler.file_tracker.add_local_file(filename, temp_file, self.bill_date)
+        verify_handler.file_tracker.add_local_file(filename, temp_file)
         return_state = verify_handler._coerce_parquet_data_type(temp_file)
         self.assertEqual(return_state, StateTracker.COERCE_REQUIRED)
-        verify_handler.file_tracker.set_state(filename, return_state, self.bill_date)
+        verify_handler.file_tracker.set_state(filename, return_state)
         files_need_updating = verify_handler.file_tracker.get_files_that_need_updated()
-        self.assertTrue(files_need_updating.get(self.bill_date, {}).get(filename))
+        self.assertTrue(files_need_updating.get(filename))
         table = pq.read_table(temp_file)
         schema = table.schema
         for field in schema:
@@ -152,11 +152,12 @@ class TestVerifyParquetFiles(MasuTestCase):
         with tempfile.NamedTemporaryFile(suffix=self.suffix) as temp_file:
             pd.DataFrame(file_data).to_parquet(temp_file, **self.panda_kwargs)
             verify_handler = self.create_default_verify_handler()
-            verify_handler.file_tracker.add_local_file(temp_file.name, temp_file, self.bill_date)
+            verify_handler.file_tracker.add_local_file(temp_file.name, temp_file)
             return_state = verify_handler._coerce_parquet_data_type(temp_file)
-            verify_handler.file_tracker.set_state(temp_file.name, return_state, self.bill_date)
+            verify_handler.file_tracker.set_state(temp_file.name, return_state)
             self.assertEqual(return_state, StateTracker.FAILED_DTYPE_CONVERSION)
             bill_metadata = verify_handler.file_tracker._create_bill_date_metadata()
+            self.assertFalse(bill_metadata.get(self.bill_date, {}).get(CONTEXT_KEY_MAPPING["successful"]))
             self.assertNotEqual(bill_metadata, {})
 
     def test_oci_s3_paths(self):

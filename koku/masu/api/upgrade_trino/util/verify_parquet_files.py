@@ -12,7 +12,6 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.api.upgrade_trino.util.state_tracker import StateTracker
 from masu.config import Config
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
@@ -32,8 +31,8 @@ class VerifyParquetFiles:
         self.provider_uuid = uuid.UUID(provider_uuid)
         self.provider_type = provider_type.replace("-local", "")
         self.simulate = simulate
-        self.bill_date = bill_date
-        self.file_tracker = StateTracker(provider_uuid)
+        self.bill_date = self._bill_date(bill_date)
+        self.file_tracker = StateTracker(provider_uuid, self.bill_date)
         self.report_types = self._set_report_types()
         self.required_columns = self._set_pyarrow_types(cleaned_column_mapping)
         self.logging_context = {
@@ -43,6 +42,12 @@ class VerifyParquetFiles:
             "simulate": self.simulate,
             "bill_date": self.bill_date,
         }
+
+    def _bill_date(self, bill_date):
+        """bill_date"""
+        if isinstance(bill_date, str):
+            return ciso8601.parse_datetime(bill_date).replace(tzinfo=None).date()
+        return bill_date
 
     def _set_pyarrow_types(self, cleaned_column_mapping):
         mapping = {}
@@ -65,12 +70,6 @@ class VerifyParquetFiles:
         if self.provider_type == Provider.PROVIDER_OCP:
             return ["namespace_labels", "node_labels", "pod_usage", "storage_usage"]
         return [None]
-
-    def _get_bill_dates(self):
-        dh = DateHelper()
-        return dh.list_months(
-            ciso8601.parse_datetime(self.bill_date).replace(tzinfo=None), dh.today.replace(tzinfo=None)
-        )
 
     def _parquet_path_s3(self, bill_date, report_type):
         """The path in the S3 bucket where Parquet files are loaded."""
@@ -135,68 +134,62 @@ class VerifyParquetFiles:
         """Retrieves the s3 files from s3"""
         s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
         s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
-        bill_dates = self._get_bill_dates()
-        for bill_date in bill_dates:
-            str_date = bill_date.strftime("%Y-%m-%d")
-            for prefix in self._generate_s3_path_prefixes(bill_date):
-                self.logging_context[self.S3_PREFIX_LOG_KEY] = prefix
+        for prefix in self._generate_s3_path_prefixes(self.bill_date):
+            self.logging_context[self.S3_PREFIX_LOG_KEY] = prefix
+            LOG.info(
+                log_json(
+                    self.provider_uuid,
+                    msg="Retrieving files from S3.",
+                    context=self.logging_context,
+                    prefix=prefix,
+                )
+            )
+            for s3_object in s3_bucket.objects.filter(Prefix=prefix):
+                s3_object_key = s3_object.key
+                self.logging_context[self.S3_OBJ_LOG_KEY] = s3_object_key
+                self.file_tracker.set_state(s3_object_key, self.file_tracker.FOUND_S3_FILE)
+                local_file_path = os.path.join(self.local_path, os.path.basename(s3_object_key))
                 LOG.info(
                     log_json(
                         self.provider_uuid,
-                        msg="Retrieving files from S3.",
+                        msg="Downloading file locally",
                         context=self.logging_context,
-                        prefix=prefix,
                     )
                 )
-                for s3_object in s3_bucket.objects.filter(Prefix=prefix):
-                    s3_object_key = s3_object.key
-                    self.logging_context[self.S3_OBJ_LOG_KEY] = s3_object_key
-                    self.file_tracker.set_state(s3_object_key, self.file_tracker.FOUND_S3_FILE, str_date)
-                    local_file_path = os.path.join(self.local_path, os.path.basename(s3_object_key))
-                    LOG.info(
-                        log_json(
-                            self.provider_uuid,
-                            msg="Downloading file locally",
-                            context=self.logging_context,
-                        )
-                    )
-                    s3_bucket.download_file(s3_object_key, local_file_path)
-                    self.file_tracker.add_local_file(s3_object_key, local_file_path, str_date)
-                    self.file_tracker.set_state(
-                        s3_object_key, self._coerce_parquet_data_type(local_file_path), str_date
-                    )
-                    del self.logging_context[self.S3_OBJ_LOG_KEY]
-                del self.logging_context[self.S3_PREFIX_LOG_KEY]
+                s3_bucket.download_file(s3_object_key, local_file_path)
+                self.file_tracker.add_local_file(s3_object_key, local_file_path)
+                self.file_tracker.set_state(s3_object_key, self._coerce_parquet_data_type(local_file_path))
+                del self.logging_context[self.S3_OBJ_LOG_KEY]
+            del self.logging_context[self.S3_PREFIX_LOG_KEY]
 
         if self.simulate:
             self.file_tracker.generate_simulate_messages()
             return False
         else:
             files_need_updated = self.file_tracker.get_files_that_need_updated()
-            for bill_date, bill_date_data in files_need_updated.items():
-                for s3_obj_key, converted_local_file_path in bill_date_data.items():
-                    self.logging_context[self.S3_OBJ_LOG_KEY] = s3_obj_key
-                    # Overwrite s3 object with updated file data
-                    with open(converted_local_file_path, "rb") as new_file:
-                        LOG.info(
-                            log_json(
-                                self.provider_uuid,
-                                msg="Uploading revised parquet file.",
-                                context=self.logging_context,
-                                local_file_path=converted_local_file_path,
-                            )
+            for s3_obj_key, converted_local_file_path in files_need_updated.items():
+                self.logging_context[self.S3_OBJ_LOG_KEY] = s3_obj_key
+                # Overwrite s3 object with updated file data
+                with open(converted_local_file_path, "rb") as new_file:
+                    LOG.info(
+                        log_json(
+                            self.provider_uuid,
+                            msg="Uploading revised parquet file.",
+                            context=self.logging_context,
+                            local_file_path=converted_local_file_path,
                         )
-                        try:
-                            s3_bucket.upload_fileobj(
-                                new_file,
-                                s3_obj_key,
-                                ExtraArgs={"Metadata": {"converter_version": StateTracker.CONVERTER_VERSION}},
-                            )
-                            self.file_tracker.set_state(s3_obj_key, self.file_tracker.SENT_TO_S3_COMPLETE, bill_date)
-                        except ClientError as e:
-                            LOG.info(f"Failed to overwrite S3 file {s3_object_key}: {str(e)}")
-                            self.file_tracker.set_state(s3_object_key, self.file_tracker.SENT_TO_S3_FAILED, bill_date)
-                            continue
+                    )
+                    try:
+                        s3_bucket.upload_fileobj(
+                            new_file,
+                            s3_obj_key,
+                            ExtraArgs={"Metadata": {"converter_version": StateTracker.CONVERTER_VERSION}},
+                        )
+                        self.file_tracker.set_state(s3_obj_key, self.file_tracker.SENT_TO_S3_COMPLETE)
+                    except ClientError as e:
+                        LOG.info(f"Failed to overwrite S3 file {s3_object_key}: {str(e)}")
+                        self.file_tracker.set_state(s3_object_key, self.file_tracker.SENT_TO_S3_FAILED)
+                        continue
         self.file_tracker.finalize_and_clean_up()
 
     def _perform_transformation_double_to_timestamp(self, parquet_file_path, field_names, timestamp_std):
