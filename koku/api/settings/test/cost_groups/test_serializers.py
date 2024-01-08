@@ -20,7 +20,7 @@ class CostGroupFilterSerializerTest(TestCase):
         self.assertFalse(serializer.is_valid())
 
     def test_serialization(self):
-        instance_data = {"project": "example_project", "group": "example_group", "default": True}
+        instance_data = {"project": ["example_project"], "group": ["example_group"], "default": True}
         serializer = CostGroupFilterSerializer(instance_data)
         self.assertEqual(serializer.data, instance_data)
 
