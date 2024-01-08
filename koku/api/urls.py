@@ -30,6 +30,7 @@ from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
+from api.views import CostGroupsAddView
 from api.views import CostGroupsRemoveView
 from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
@@ -351,7 +352,7 @@ urlpatterns = [
     path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
     path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
-    path("settings/cost-groups/add/", CostGroupsView.as_view(), name="settings-cost-groups-add"),
+    path("settings/cost-groups/add/", CostGroupsAddView.as_view(), name="settings-cost-groups-add"),
     path("settings/cost-groups/remove/", CostGroupsRemoveView.as_view(), name="settings-cost-groups-remove"),
     path(
         "settings/aws_category_keys/enable/",

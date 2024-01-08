@@ -5593,7 +5593,9 @@
                         }
                     }
                 }
-            },
+            }
+        },
+        "/settings/cost/groups/add/": {
             "put": {
                 "tags": [
                     "Settings",

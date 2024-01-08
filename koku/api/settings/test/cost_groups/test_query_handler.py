@@ -236,7 +236,7 @@ class TestCostGroupsAPI(IamTestCase):
         mock_is_customer_large.return_value = True
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
-            response = self.client.put(self.url, body, content_type="application/json", **self.headers)
+            response = self.client.put(self.add_url, body, content_type="application/json", **self.headers)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
