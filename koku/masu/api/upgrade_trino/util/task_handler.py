@@ -8,6 +8,7 @@ from django.http import QueryDict
 
 from api.common import log_json
 from api.provider.models import Provider
+from masu.api.upgrade_trino.util.state_tracker import StateTracker
 from masu.celery.tasks import fix_parquet_data_types
 from masu.processor import is_customer_large
 from masu.processor.orchestrator import get_billing_month_start
@@ -32,6 +33,7 @@ class FixParquetTaskHandler:
     provider_type: Optional[str] = field(default=None)
     simulate: Optional[bool] = field(default=False)
     cleaned_column_mapping: Optional[dict] = field(default=None)
+    state_tracker: StateTracker = field(init=False)
 
     # Node role is the only column we add manually for OCP
     # Therefore, it is the only column that can be incorrect
@@ -47,7 +49,7 @@ class FixParquetTaskHandler:
         """Create an instance from query parameters."""
         reprocess_kwargs = cls()
         if start_date := query_params.get("start_date"):
-            reprocess_kwargs.bill_date = start_date
+            reprocess_kwargs.bill_date = get_billing_month_start(start_date)
 
         if provider_uuid := query_params.get("provider_uuid"):
             provider = Provider.objects.filter(uuid=provider_uuid).first()
@@ -103,22 +105,26 @@ class FixParquetTaskHandler:
 
             account = copy.deepcopy(provider.account)
             report_month = get_billing_month_start(self.bill_date)
-            async_result = fix_parquet_data_types.s(
-                schema_name=account.get("schema_name"),
-                provider_type=account.get("provider_type"),
-                provider_uuid=account.get("provider_uuid"),
-                simulate=self.simulate,
-                bill_date=report_month,
-                cleaned_column_mapping=self.cleaned_column_mapping,
-            ).apply_async(queue=queue_name)
-            LOG.info(
-                log_json(
-                    provider.uuid,
-                    msg="Calling fix_parquet_data_types",
-                    schema=account.get("schema_name"),
-                    provider_uuid=provider.uuid,
-                    task_id=str(async_result),
+            tracker = StateTracker(self.provider_uuid)
+            conversion_metadata = provider.additional_context.get(StateTracker.CONTEXT_KEY, {})
+            bill_data = conversion_metadata.get(report_month, {})
+            if tracker.add_to_queue(bill_data):
+                async_result = fix_parquet_data_types.s(
+                    schema_name=account.get("schema_name"),
+                    provider_type=account.get("provider_type"),
+                    provider_uuid=account.get("provider_uuid"),
+                    simulate=self.simulate,
+                    bill_date=report_month,
+                    cleaned_column_mapping=self.cleaned_column_mapping,
+                ).apply_async(queue=queue_name)
+                LOG.info(
+                    log_json(
+                        provider.uuid,
+                        msg="Calling fix_parquet_data_types",
+                        schema=account.get("schema_name"),
+                        provider_uuid=provider.uuid,
+                        task_id=str(async_result),
+                    )
                 )
-            )
-            async_results.append(str(async_result))
+                async_results.append(str(async_result))
         return async_results
