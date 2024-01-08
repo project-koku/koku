@@ -143,6 +143,7 @@ class VerifyParquetFiles:
         s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
         bill_dates = self._get_bill_dates()
         for bill_date in bill_dates:
+            str_date = bill_date.strftime("%Y-%m-%d")
             for prefix in self._generate_s3_path_prefixes(bill_date):
                 self.logging_context[self.S3_PREFIX_LOG_KEY] = prefix
                 LOG.info(
@@ -156,7 +157,7 @@ class VerifyParquetFiles:
                 for s3_object in s3_bucket.objects.filter(Prefix=prefix):
                     s3_object_key = s3_object.key
                     self.logging_context[self.S3_OBJ_LOG_KEY] = s3_object_key
-                    self.file_tracker.set_state(s3_object_key, self.file_tracker.FOUND_S3_FILE, bill_date)
+                    self.file_tracker.set_state(s3_object_key, self.file_tracker.FOUND_S3_FILE, str_date)
                     local_file_path = os.path.join(self.local_path, os.path.basename(s3_object_key))
                     LOG.info(
                         log_json(
@@ -166,9 +167,9 @@ class VerifyParquetFiles:
                         )
                     )
                     s3_bucket.download_file(s3_object_key, local_file_path)
-                    self.file_tracker.add_local_file(s3_object_key, local_file_path, bill_date)
+                    self.file_tracker.add_local_file(s3_object_key, local_file_path, str_date)
                     self.file_tracker.set_state(
-                        s3_object_key, self._coerce_parquet_data_type(local_file_path), bill_date
+                        s3_object_key, self._coerce_parquet_data_type(local_file_path), str_date
                     )
                     del self.logging_context[self.S3_OBJ_LOG_KEY]
                 del self.logging_context[self.S3_PREFIX_LOG_KEY]
