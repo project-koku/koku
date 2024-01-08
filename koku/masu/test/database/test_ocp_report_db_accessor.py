@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.db.models import Sum
 from trino.exceptions import TrinoExternalError
+from trino.exceptions import TrinoUserError
 
 from api.iam.test.iam_test_case import FakeTrinoConn
 from api.provider.models import Provider
@@ -105,8 +106,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.accessor as acc,
             self.assertLogs("masu.database.ocp_report_db_accessor", level="WARN") as logger,
         ):
-            mock_sql_query.side_effect = TrinoStatementExecError(message)
-            mock_sql_query.side_effect.__cause__ = TrinoExternalError({"message": message})
+            trino_error = TrinoUserError(
+                {
+                    "errorType": "USER_ERROR",
+                    "errorName": "ALREADY_EXISTS",
+                    "message": message,
+                }
+            )
+            mock_sql_query.side_effect = TrinoStatementExecError("SELECT * from table", 1, {}, trino_error)
 
             acc.populate_line_item_daily_summary_table_trino(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
@@ -133,46 +140,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
             patch.object(self.accessor, "delete_ocp_hive_partition_by_day"),
             patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_sql_query,
             self.accessor as acc,
-            self.assertRaisesRegex(TrinoStatementExecError, "Some other reason"),
+            self.assertRaisesRegex(TrinoStatementExecError, "Something went wrong"),
         ):
-            mock_sql_query.side_effect = TrinoStatementExecError("Some other reason")
+            trino_error = TrinoExternalError(
+                {
+                    "errorType": "EXTERNAL",
+                    "errorName": "SOME_EXTERNAL_PROBLEM",
+                    "message": "Something went wrong",
+                }
+            )
+            mock_sql_query.side_effect = TrinoStatementExecError("SELECT * from table", 1, {}, trino_error)
 
             acc.populate_line_item_daily_summary_table_trino(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
-
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
-    def test_populate_line_item_daily_summary_table_trino_exception_other(self, mock_table_exists):
-        """
-        Test that a warning is logged when a TrinoStatementExecError is raised because
-        a partion already exists and that no errors are encountered if an exception other
-        than a TrinoQueryError is the cause.
-        """
-
-        start_date = self.dh.this_month_start
-        end_date = self.dh.next_month_start
-        cluster_id = "ocp-cluster"
-        cluster_alias = "OCP FTW"
-        report_period_id = 1
-        source = self.provider_uuid
-        message = "One or more Partitions Already exist"
-        with (
-            patch.object(self.accessor, "delete_ocp_hive_partition_by_day"),
-            patch.object(self.accessor, "_execute_trino_multipart_sql_query") as mock_sql_query,
-            self.accessor as acc,
-            self.assertLogs("masu.database.ocp_report_db_accessor", level="WARN") as logger,
-        ):
-            mock_sql_query.side_effect = TrinoStatementExecError(message)
-            mock_sql_query.side_effect.__cause__ = ValueError("Some other exception type")
-
-            acc.populate_line_item_daily_summary_table_trino(
-                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
-            )
-
-        self.assertIn(
-            "WARNING:masu.database.ocp_report_db_accessor:{'message': None",
-            logger.output[0],
-        )
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
