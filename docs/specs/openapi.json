@@ -5619,14 +5619,19 @@
                         }
                     }
                 }
-            },
-            "delete": {
+            }
+        },
+        "/settings/cost-groups/remove/": {
+            "put": {
                 "tags": [
                     "Settings",
                     "Cost Groups"
                 ],
-                "summary": "Remove projects from a coust group",
-                "operationId": "deleteSettingsCostGroups",
+                "summary": "Remove projects from a cost group",
+                "operationId": "putSettingsCostGroupsRemove",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
                 "responses": {
                     "204": {
                         "description": "Cost groups updated"
