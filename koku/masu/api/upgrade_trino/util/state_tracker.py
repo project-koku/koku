@@ -49,7 +49,6 @@ class StateTracker:
         return True
 
     def set_state(self, s3_obj_key, state, bill_date):
-        # TODO: make bill date a string.
         bill_date_files = self.tracker.get(bill_date)
         if bill_date_files:
             bill_date_files[s3_obj_key] = state
@@ -58,7 +57,6 @@ class StateTracker:
             self.tracker[bill_date] = {s3_obj_key: state}
 
     def add_local_file(self, s3_obj_key, local_path, bill_date):
-        # TODO: make bill date a string.
         self.local_files[s3_obj_key] = local_path
         self.set_state(s3_obj_key, self.DOWNLOADED_LOCALLY, bill_date)
 

@@ -67,13 +67,11 @@ class VerifyParquetFiles:
         return [None]
 
     def _get_bill_dates(self):
-        # However far back we want to fix.
         dh = DateHelper()
         return dh.list_months(
             ciso8601.parse_datetime(self.bill_date).replace(tzinfo=None), dh.today.replace(tzinfo=None)
         )
 
-    # Stolen from parquet_report_processor
     def _parquet_path_s3(self, bill_date, report_type):
         """The path in the S3 bucket where Parquet files are loaded."""
         return get_path_prefix(
@@ -85,7 +83,6 @@ class VerifyParquetFiles:
             report_type=report_type,
         )
 
-    # Stolen from parquet_report_processor
     def _parquet_daily_path_s3(self, bill_date, report_type):
         """The path in the S3 bucket where Parquet files are loaded."""
         if report_type is None:
@@ -100,7 +97,6 @@ class VerifyParquetFiles:
             daily=True,
         )
 
-    # Stolen from parquet_report_processor
     def _parquet_ocp_on_cloud_path_s3(self, bill_date):
         """The path in the S3 bucket where Parquet files are loaded."""
         return get_path_prefix(
@@ -113,7 +109,6 @@ class VerifyParquetFiles:
             daily=True,
         )
 
-    # Stolen from parquet_report_processor
     def _generate_s3_path_prefixes(self, bill_date):
         """
         generates the s3 path prefixes.
@@ -130,7 +125,6 @@ class VerifyParquetFiles:
                 path_prefixes.add(self._parquet_ocp_on_cloud_path_s3(bill_date))
         return path_prefixes
 
-    # Stolen from parquet_report_processor
     @property
     def local_path(self):
         local_path = Path(Config.TMP_DIR, self.schema_name, str(self.provider_uuid))
