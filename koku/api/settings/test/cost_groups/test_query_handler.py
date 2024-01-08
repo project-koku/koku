@@ -48,6 +48,14 @@ class TestCostGroupsAPI(IamTestCase):
     def url(self):
         return reverse("settings-cost-groups")
 
+    @property
+    def add_url(self):
+        return reverse("settings-cost-groups-add")
+
+    @property
+    def remove_url(self):
+        return reverse("settings-cost-groups-remove")
+
     def test_get_cost_groups(self):
         """Basic test to exercise the API endpoint"""
         with schema_context(self.schema_name):
@@ -163,13 +171,14 @@ class TestCostGroupsAPI(IamTestCase):
                 expected_count = current_rows + 1
                 put_openshift_namespaces(self.body_format)
                 current_count = OpenshiftCostCategoryNamespace.objects.count()
+
             if current_count != expected_count:
                 raise FailedToPopulateDummyProjects("Failed to populate dummy data for deletion testing.")
 
         _add_additional_projects(self.schema_name)
         body = json.dumps(self.body_format)
         with schema_context(self.schema_name):
-            response = self.client.delete(self.url, body, content_type="application/json", **self.headers)
+            response = self.client.put(self.remove_url, body, content_type="application/json", **self.headers)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -197,16 +206,17 @@ class TestCostGroupsAPI(IamTestCase):
         with self.assertLogs(logger="api.settings.cost_groups.query_handler", level="WARNING") as log_warning:
             with schema_context(self.schema_name):
                 put_openshift_namespaces(self.body_format)
+
         self.assertEqual(len(log_warning.records), 1)  # Check that a warning log was generated
         self.assertIn("IntegrityError", log_warning.records[0].getMessage())
 
     @patch("api.settings.cost_groups.view.update_summary_tables.s")
     @patch("api.settings.cost_groups.view.is_customer_large")
-    def test_put_new_records(self, mock_is_customer_large, mock_update_schedule):
+    def test_add_new_records(self, mock_is_customer_large, mock_update_schedule):
         mock_is_customer_large.return_value = False
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
-            response = self.client.put(self.url, body, content_type="application/json", **self.headers)
+            response = self.client.put(self.add_url, body, content_type="application/json", **self.headers)
             current_count = OpenshiftCostCategoryNamespace.objects.filter(namespace=self.project).count()
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -222,7 +232,7 @@ class TestCostGroupsAPI(IamTestCase):
 
     @patch("api.settings.cost_groups.view.update_summary_tables.s")
     @patch("api.settings.cost_groups.view.is_customer_large")
-    def test_put_new_records_large(self, mock_is_customer_large, mock_update_schedule):
+    def test_add_new_records_large(self, mock_is_customer_large, mock_update_schedule):
         mock_is_customer_large.return_value = True
         with schema_context(self.schema_name):
             body = json.dumps(self.body_format)
