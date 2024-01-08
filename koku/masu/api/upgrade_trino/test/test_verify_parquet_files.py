@@ -47,6 +47,7 @@ class TestVerifyParquetFiles(MasuTestCase):
         }
         self.suffix = ".parquet"
         self.bill_date = str(DateHelper().this_month_start)
+        self.default_provider = self.azure_provider
 
     def tearDown(self):
         shutil.rmtree(self.temp_dir)
@@ -54,41 +55,55 @@ class TestVerifyParquetFiles(MasuTestCase):
     def create_default_verify_handler(self):
         return VerifyParquetFiles(
             schema_name=self.schema_name,
-            provider_uuid=self.azure_provider_uuid,
-            provider_type=self.azure_provider.type,
+            provider_uuid=str(self.default_provider.uuid),
+            provider_type=self.default_provider.type,
             simulate=True,
             bill_date=self.bill_date,
             cleaned_column_mapping=self.required_columns,
         )
+
+    def build_expected_additional_context(self, verify_hander, successful=True):
+        return {
+            CONTEXT_KEY_MAPPING["metadata"]: {
+                verify_hander.file_tracker.bill_date_str: {
+                    CONTEXT_KEY_MAPPING["version"]: verify_hander.file_tracker.CONVERTER_VERSION,
+                    CONTEXT_KEY_MAPPING["successful"]: successful,
+                }
+            }
+        }
 
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.StateTracker._clean_local_files")
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.get_s3_resource")
     def test_retrieve_verify_reload_s3_parquet(self, mock_s3_resource, _):
         """Test fixes for reindexes on all required columns."""
         # build a parquet file where reindex is used for all required columns
-        test_metadata = [
-            {"uuid": self.aws_provider_uuid, "type": self.aws_provider.type},
-            {"uuid": self.azure_provider_uuid, "type": self.azure_provider.type},
-            {"uuid": self.ocp_provider_uuid, "type": self.ocp_provider.type},
-            {"uuid": self.oci_provider_uuid, "type": self.oci_provider.type},
-        ]
-        for metadata in test_metadata:
-            with self.subTest(metadata=metadata):
-                required_columns = FixParquetTaskHandler.clean_column_names(metadata["type"])
-                data_frame = pd.DataFrame()
-                data_frame = data_frame.reindex(columns=required_columns.keys())
-                filename = f"test_{metadata['uuid']}{self.suffix}"
-                temp_file = os.path.join(self.temp_dir, filename)
-                data_frame.to_parquet(temp_file, **self.panda_kwargs)
+
+        def create_tmp_test_file(provider, required_columns):
+            """Creates a parquet file with all empty required columns through reindexing."""
+            data_frame = pd.DataFrame()
+            data_frame = data_frame.reindex(columns=required_columns.keys())
+            filename = f"test_{str(provider.uuid)}{self.suffix}"
+            temp_file = os.path.join(self.temp_dir, filename)
+            data_frame.to_parquet(temp_file, **self.panda_kwargs)
+            return temp_file
+
+        attributes = ["aws_provider", "azure_provider", "ocp_provider", "oci_provider"]
+        for attr in attributes:
+            with self.subTest(attr=attr):
+                provider = getattr(self, attr)
+                required_columns = FixParquetTaskHandler.clean_column_names(provider.type)
+                temp_file = create_tmp_test_file(provider, required_columns)
                 mock_bucket = mock_s3_resource.return_value.Bucket.return_value
                 verify_handler = VerifyParquetFiles(
                     schema_name=self.schema_name,
-                    provider_uuid=metadata["uuid"],
-                    provider_type=metadata["type"],
+                    provider_uuid=str(provider.uuid),
+                    provider_type=provider.type,
                     simulate=False,
                     bill_date=self.bill_date,
                     cleaned_column_mapping=required_columns,
                 )
+                conversion_metadata = provider.additional_context.get(CONTEXT_KEY_MAPPING["metadata"], {})
+                self.assertTrue(verify_handler.file_tracker.add_to_queue(conversion_metadata))
                 prefixes = verify_handler._generate_s3_path_prefixes(DateHelper().this_month_start)
                 filter_side_effect = [[DummyS3Object(key=temp_file)]]
                 for _ in range(len(prefixes) - 1):
@@ -103,6 +118,12 @@ class TestVerifyParquetFiles(MasuTestCase):
                 for field in schema:
                     self.assertEqual(field.type, verify_handler.required_columns.get(field.name))
                 os.remove(temp_file)
+                provider.refresh_from_db()
+                self.assertEqual(
+                    provider.additional_context, self.build_expected_additional_context(verify_handler, True)
+                )
+                conversion_metadata = provider.additional_context.get(CONTEXT_KEY_MAPPING["metadata"])
+                self.assertFalse(verify_handler.file_tracker.add_to_queue(conversion_metadata))
 
     def test_coerce_parquet_data_type_no_changes_needed(self):
         """Test a parquet file with correct dtypes."""
@@ -156,9 +177,18 @@ class TestVerifyParquetFiles(MasuTestCase):
             return_state = verify_handler._coerce_parquet_data_type(temp_file)
             verify_handler.file_tracker.set_state(temp_file.name, return_state)
             self.assertEqual(return_state, StateTracker.FAILED_DTYPE_CONVERSION)
-            bill_metadata = verify_handler.file_tracker._create_bill_date_metadata()
-            self.assertFalse(bill_metadata.get(self.bill_date, {}).get(CONTEXT_KEY_MAPPING["successful"]))
-            self.assertNotEqual(bill_metadata, {})
+            verify_handler.file_tracker._check_if_complete()
+            self.default_provider.refresh_from_db()
+            conversion_metadata = self.default_provider.additional_context.get(CONTEXT_KEY_MAPPING["metadata"])
+            self.assertIsNotNone(conversion_metadata)
+            bill_metadata = conversion_metadata.get(verify_handler.file_tracker.bill_date_str)
+            self.assertIsNotNone(bill_metadata)
+            self.assertFalse(bill_metadata.get(CONTEXT_KEY_MAPPING["successful"]), True)
+            self.assertIsNotNone(bill_metadata.get(CONTEXT_KEY_MAPPING["failed_files"]))
+            # confirm nothing would be sent to s3
+            self.assertEqual(verify_handler.file_tracker.get_files_that_need_updated(), {})
+            # confirm that it should be retried on next run
+            self.assertTrue(verify_handler.file_tracker.add_to_queue(conversion_metadata))
 
     def test_oci_s3_paths(self):
         """test path generation for oci sources."""

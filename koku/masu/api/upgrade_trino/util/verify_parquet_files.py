@@ -192,7 +192,7 @@ class VerifyParquetFiles:
                         continue
         self.file_tracker.finalize_and_clean_up()
 
-    def _perform_transformation_double_to_timestamp(self, parquet_file_path, field_names, timestamp_std):
+    def _perform_transformation_double_to_timestamp(self, parquet_file_path, field_names):
         """Performs a transformation to change a double to a timestamp."""
         if not field_names:
             return
@@ -204,7 +204,8 @@ class VerifyParquetFiles:
                 # if len is 0 here we get an empty list, if it does
                 # have a value for the field, overwrite it with bill_date
                 replaced_values = [self.bill_date] * len(table[field.name])
-                corrected_column = pa.array(replaced_values, type=timestamp_std)
+                correct_data_type = self.required_columns.get(field.name)
+                corrected_column = pa.array(replaced_values, type=correct_data_type)
                 field = pa.field(field.name, corrected_column.type)
             fields.append(field)
         # Create a new schema
@@ -259,13 +260,11 @@ class VerifyParquetFiles:
                                 expected_data_type=correct_data_type,
                             )
                         )
-                        if (
-                            field.type == pa.float64()
-                            and correct_data_type == pa.timestamp("ms")
-                            or correct_data_type == pa.timestamp("ms", tz="UTC")
-                        ):
+                        if field.type == pa.float64() and correct_data_type in [
+                            pa.timestamp("ms"),
+                            pa.timestamp("ms", tz="UTC"),
+                        ]:
                             double_to_timestamp_fields.append(field.name)
-                            timestamp_std = correct_data_type
                         else:
                             field = pa.field(field.name, correct_data_type)
                             corrected_fields[field.name] = correct_data_type
@@ -296,9 +295,7 @@ class VerifyParquetFiles:
             table = table.cast(new_schema)
             # Write the table back to the Parquet file
             pa.parquet.write_table(table, parquet_file_path)
-            self._perform_transformation_double_to_timestamp(
-                parquet_file_path, double_to_timestamp_fields, timestamp_std
-            )
+            self._perform_transformation_double_to_timestamp(parquet_file_path, double_to_timestamp_fields)
             # Signal that we need to send this update to S3.
             return self.file_tracker.COERCE_REQUIRED
 
