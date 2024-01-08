@@ -80,7 +80,7 @@ def put_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, s
 def delete_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     projects = _remove_default_projects(projects)
     projects_to_delete = [item["project"] for item in projects]
-    deleted_count, _ = (
+    deleted_count, deletions = (
         OpenshiftCostCategoryNamespace.objects.filter(namespace__in=projects_to_delete)
         .exclude(system_default=True)
         .delete()

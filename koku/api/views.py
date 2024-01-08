@@ -74,6 +74,7 @@ from api.resource_types.view import ResourceTypeView
 from api.settings.aws_category_keys.view import SettingsAWSCategoryKeyView
 from api.settings.aws_category_keys.view import SettingsDisableAWSCategoryKeyView
 from api.settings.aws_category_keys.view import SettingsEnableAWSCategoryKeyView
+from api.settings.cost_groups.view import CostGroupsRemoveView
 from api.settings.cost_groups.view import CostGroupsView
 from api.settings.tags.view import SettingsDisableTagView
 from api.settings.tags.view import SettingsEnableTagView

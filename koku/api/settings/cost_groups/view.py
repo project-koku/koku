@@ -78,8 +78,6 @@ class CostGroupsView(APIView):
         self._summarize_current_month(request.user.customer.schema_name, projects)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def delete(self, request: Request) -> Response:
         serializer = CostGroupProjectSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
 
@@ -111,3 +109,14 @@ class CostGroupsView(APIView):
             async_ids.append(str(async_result))
 
         return async_ids
+
+
+class CostGroupsRemoveView(CostGroupsView):
+    def put(self, request: Request) -> Response:
+        serializer = CostGroupProjectSerializer(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        projects = delete_openshift_namespaces(serializer.validated_data)
+        self._summarize_current_month(request.user.customer.schema_name, projects)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
