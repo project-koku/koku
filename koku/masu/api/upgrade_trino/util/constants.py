@@ -13,7 +13,7 @@ class ReprEnum(Enum):
 
 # StrEnum is available in python 3.11, vendored over from
 # https://github.com/python/cpython/blob/c31be58da8577ef140e83d4e46502c7bb1eb9abf/Lib/enum.py#L1321-L1345
-class StrEnum(str, ReprEnum):
+class StrEnum(str, ReprEnum):  # pragma: no cover
     """
     Enum where members are also (and must be) strings
     """
