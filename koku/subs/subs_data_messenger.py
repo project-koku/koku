@@ -49,20 +49,20 @@ class SUBSDataMessenger:
         self.instance_map = {}
         self.date_map = defaultdict(list)
 
-    def determine_azure_instance_id(self, row):
-        """For Azure we have to query the instance id if its not provided by a tag."""
+    def determine_azure_instance_and_tenant_id(self, row):
+        """For Azure we have to query the instance id if its not provided by a tag and the tenant_id."""
         if row["subs_resource_id"] in self.instance_map:
             return self.instance_map.get(row["subs_resource_id"])
-        # this column comes from a user defined tag allowing us to avoid querying Azure if its present.
+        prov = Provider.objects.get(uuid=row["source"])
+        credentials = prov.account.get("credentials")
+        tenant_id = credentials.get("tenant_id")
         if row["subs_instance"] != "":
             instance_id = row["subs_instance"]
         # attempt to query azure for instance id
         else:
             # if its a local Azure provider, don't query Azure
             if self.local_prov:
-                return ""
-            prov = Provider.objects.get(uuid=row["source"])
-            credentials = prov.account.get("credentials")
+                return "", tenant_id
             subscription_id = credentials.get("subscription_id")
             tenant_id = credentials.get("tenant_id")
             client_id = credentials.get("client_id")
@@ -76,8 +76,8 @@ class SUBSDataMessenger:
             )
             instance_id = response.vm_id
 
-        self.instance_map[row["subs_resource_id"]] = instance_id
-        return instance_id
+        self.instance_map[row["subs_resource_id"]] = (instance_id, tenant_id)
+        return instance_id, tenant_id
 
     def process_and_send_subs_message(self, upload_keys):
         """
@@ -131,7 +131,17 @@ class SUBSDataMessenger:
         producer.poll(0)
 
     def build_subs_msg(
-        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+        self,
+        instance_id,
+        billing_account_id,
+        tstamp,
+        expiration,
+        cpu_count,
+        sla,
+        usage,
+        role,
+        product_ids,
+        tenant_id=None,
     ):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
         subs_json = {
@@ -154,6 +164,8 @@ class SUBSDataMessenger:
             "billing_provider": self.provider_type.lower(),
             "billing_account_id": billing_account_id,
         }
+        if tenant_id:
+            subs_json["azure_tenant_id"] = tenant_id
         return bytes(json.dumps(subs_json), "utf-8")
 
     def process_azure_row(self, row):
@@ -166,7 +178,7 @@ class SUBSDataMessenger:
         ):
             return msg_count
         self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
-        instance_id = self.determine_azure_instance_id(row)
+        instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
         if not instance_id:
             return msg_count
         # Azure is daily records but subs need hourly records
@@ -183,6 +195,7 @@ class SUBSDataMessenger:
                 row["subs_usage"],
                 row["subs_role"],
                 row["subs_product_ids"].split("-"),
+                tenant_id,
             )
             # move to the next hour in the range
             start = end
