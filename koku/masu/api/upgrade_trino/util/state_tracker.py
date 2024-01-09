@@ -5,7 +5,9 @@ from datetime import date
 from api.common import log_json
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
-from masu.api.upgrade_trino.util import CONTEXT_KEY_MAPPING
+from masu.api.upgrade_trino.util.constants import ConversionContextKeys
+from masu.api.upgrade_trino.util.constants import ConversionStates as cstates
+from masu.api.upgrade_trino.util.constants import CONVERTER_VERSION
 
 
 LOG = logging.getLogger(__name__)
@@ -13,15 +15,6 @@ LOG = logging.getLogger(__name__)
 
 class StateTracker:
     """Tracks the state of each s3 file for the provider per bill date"""
-
-    CONVERTER_VERSION = "0"
-    FOUND_S3_FILE = "found_s3_file"
-    DOWNLOADED_LOCALLY = "downloaded_locally"
-    NO_CHANGES_NEEDED = "no_changes_needed"
-    COERCE_REQUIRED = "coerce_required"
-    SENT_TO_S3_COMPLETE = "sent_to_s3_complete"
-    SENT_TO_S3_FAILED = "sent_to_s3_failed"
-    FAILED_DTYPE_CONVERSION = "failed_data_type_conversion"
 
     def __init__(self, provider_uuid: str, bill_date: date):
         self.files = []
@@ -41,10 +34,10 @@ class StateTracker:
             bool: True if the task should be added to the queue, False otherwise.
         """
         bill_metadata = conversion_metadata.get(self.bill_date_str, {})
-        if bill_metadata.get(CONTEXT_KEY_MAPPING["version"]) != self.CONVERTER_VERSION:
+        if bill_metadata.get(ConversionContextKeys.version) != CONVERTER_VERSION:
             # always kick off a task if the version does not match or exist.
             return True
-        if bill_metadata.get(CONTEXT_KEY_MAPPING["successful"]):
+        if bill_metadata.get(ConversionContextKeys.successful):
             # if the conversion was successful for this version do not kick
             # off a task.
             LOG.info(
@@ -63,7 +56,7 @@ class StateTracker:
 
     def add_local_file(self, s3_obj_key, local_path):
         self.local_files[s3_obj_key] = local_path
-        self.tracker[s3_obj_key] = self.DOWNLOADED_LOCALLY
+        self.tracker[s3_obj_key] = cstates.downloaded_locally
 
     def get_files_that_need_updated(self):
         """Returns a mapping of files in the s3 needs
@@ -73,7 +66,7 @@ class StateTracker:
         """
         mapping = {}
         for s3_obj_key, state in self.tracker.items():
-            if state == self.COERCE_REQUIRED:
+            if state == cstates.coerce_required:
                 mapping[s3_obj_key] = self.local_files.get(s3_obj_key)
         return mapping
 
@@ -88,9 +81,9 @@ class StateTracker:
         files_correct = []
         for s3_obj_key, state in self.tracker.items():
             files_count += 1
-            if state == self.COERCE_REQUIRED:
+            if state == cstates.coerce_required:
                 files_need_updated.append(s3_obj_key)
-            elif state == self.NO_CHANGES_NEEDED:
+            elif state == cstates.no_changes_needed:
                 files_correct.append(s3_obj_key)
             else:
                 files_failed.append(s3_obj_key)
@@ -118,26 +111,26 @@ class StateTracker:
 
     def _create_bill_date_metadata(self):
         # Check for incomplete files
-        bill_date_data = {"version": self.CONVERTER_VERSION}
+        bill_date_data = {"version": CONVERTER_VERSION}
         incomplete_files = []
         for file_prefix, state in self.tracker.items():
-            if state not in [self.SENT_TO_S3_COMPLETE, self.NO_CHANGES_NEEDED]:
+            if state not in [cstates.s3_complete, cstates.no_changes_needed]:
                 file_metadata = {"key": file_prefix, "state": state}
                 incomplete_files.append(file_metadata)
         if incomplete_files:
-            bill_date_data[CONTEXT_KEY_MAPPING["successful"]] = False
-            bill_date_data[CONTEXT_KEY_MAPPING["failed_files"]] = incomplete_files
+            bill_date_data[ConversionContextKeys.successful] = False
+            bill_date_data[ConversionContextKeys.failed_files] = incomplete_files
         if not incomplete_files:
-            bill_date_data[CONTEXT_KEY_MAPPING["successful"]] = True
+            bill_date_data[ConversionContextKeys.successful] = True
         return bill_date_data
 
     def _check_if_complete(self):
         try:
             manager = ProviderManager(self.provider_uuid)
             context = manager.get_additional_context()
-            conversion_metadata = context.get(CONTEXT_KEY_MAPPING["metadata"], {})
+            conversion_metadata = context.get(ConversionContextKeys.metadata, {})
             conversion_metadata[self.bill_date_str] = self._create_bill_date_metadata()
-            context[CONTEXT_KEY_MAPPING["metadata"]] = conversion_metadata
+            context[ConversionContextKeys.metadata] = conversion_metadata
             manager.model.set_additional_context(context)
             LOG.info(self.provider_uuid, log_json(msg="setting dtype states", context=context))
         except ProviderManagerError:

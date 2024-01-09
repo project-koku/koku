@@ -12,6 +12,8 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
+from masu.api.upgrade_trino.util.constants import ConversionStates as cstates
+from masu.api.upgrade_trino.util.constants import CONVERTER_VERSION
 from masu.api.upgrade_trino.util.state_tracker import StateTracker
 from masu.config import Config
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
@@ -147,7 +149,7 @@ class VerifyParquetFiles:
             for s3_object in s3_bucket.objects.filter(Prefix=prefix):
                 s3_object_key = s3_object.key
                 self.logging_context[self.S3_OBJ_LOG_KEY] = s3_object_key
-                self.file_tracker.set_state(s3_object_key, self.file_tracker.FOUND_S3_FILE)
+                self.file_tracker.set_state(s3_object_key, cstates.found_s3_file)
                 local_file_path = os.path.join(self.local_path, os.path.basename(s3_object_key))
                 LOG.info(
                     log_json(
@@ -183,12 +185,12 @@ class VerifyParquetFiles:
                         s3_bucket.upload_fileobj(
                             new_file,
                             s3_obj_key,
-                            ExtraArgs={"Metadata": {"converter_version": StateTracker.CONVERTER_VERSION}},
+                            ExtraArgs={"Metadata": {"converter_version": CONVERTER_VERSION}},
                         )
-                        self.file_tracker.set_state(s3_obj_key, self.file_tracker.SENT_TO_S3_COMPLETE)
+                        self.file_tracker.set_state(s3_obj_key, cstates.s3_complete)
                     except ClientError as e:
                         LOG.info(f"Failed to overwrite S3 file {s3_object_key}: {str(e)}")
-                        self.file_tracker.set_state(s3_object_key, self.file_tracker.SENT_TO_S3_FAILED)
+                        self.file_tracker.set_state(s3_object_key, cstates.s3_failed)
                         continue
         self.file_tracker.finalize_and_clean_up()
 
@@ -280,7 +282,7 @@ class VerifyParquetFiles:
                         local_file_path=parquet_file_path,
                     )
                 )
-                return self.file_tracker.NO_CHANGES_NEEDED
+                return cstates.no_changes_needed
 
             new_schema = pa.schema(fields)
             LOG.info(
@@ -297,8 +299,8 @@ class VerifyParquetFiles:
             pa.parquet.write_table(table, parquet_file_path)
             self._perform_transformation_double_to_timestamp(parquet_file_path, double_to_timestamp_fields)
             # Signal that we need to send this update to S3.
-            return self.file_tracker.COERCE_REQUIRED
+            return cstates.coerce_required
 
         except Exception as e:
             LOG.info(log_json(self.provider_uuid, msg="Failed to coerce data.", context=self.logging_context, error=e))
-            return self.file_tracker.FAILED_DTYPE_CONVERSION
+            return cstates.conversion_failed

@@ -15,8 +15,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from api.utils import DateHelper
-from masu.api.upgrade_trino.util.state_tracker import CONTEXT_KEY_MAPPING
-from masu.api.upgrade_trino.util.state_tracker import StateTracker
+from masu.api.upgrade_trino.util.constants import ConversionContextKeys
+from masu.api.upgrade_trino.util.constants import ConversionStates as cstates
+from masu.api.upgrade_trino.util.constants import CONVERTER_VERSION
 from masu.api.upgrade_trino.util.task_handler import FixParquetTaskHandler
 from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
 from masu.celery.tasks import PROVIDER_REPORT_TYPE_MAP
@@ -64,10 +65,10 @@ class TestVerifyParquetFiles(MasuTestCase):
 
     def build_expected_additional_context(self, verify_hander, successful=True):
         return {
-            CONTEXT_KEY_MAPPING["metadata"]: {
+            ConversionContextKeys.metadata: {
                 verify_hander.file_tracker.bill_date_str: {
-                    CONTEXT_KEY_MAPPING["version"]: verify_hander.file_tracker.CONVERTER_VERSION,
-                    CONTEXT_KEY_MAPPING["successful"]: successful,
+                    ConversionContextKeys.version: CONVERTER_VERSION,
+                    ConversionContextKeys.successful: successful,
                 }
             }
         }
@@ -102,7 +103,7 @@ class TestVerifyParquetFiles(MasuTestCase):
                     bill_date=self.bill_date,
                     cleaned_column_mapping=required_columns,
                 )
-                conversion_metadata = provider.additional_context.get(CONTEXT_KEY_MAPPING["metadata"], {})
+                conversion_metadata = provider.additional_context.get(ConversionContextKeys.metadata, {})
                 self.assertTrue(verify_handler.file_tracker.add_to_queue(conversion_metadata))
                 prefixes = verify_handler._generate_s3_path_prefixes(DateHelper().this_month_start)
                 filter_side_effect = [[DummyS3Object(key=temp_file)]]
@@ -122,7 +123,7 @@ class TestVerifyParquetFiles(MasuTestCase):
                 self.assertEqual(
                     provider.additional_context, self.build_expected_additional_context(verify_handler, True)
                 )
-                conversion_metadata = provider.additional_context.get(CONTEXT_KEY_MAPPING["metadata"])
+                conversion_metadata = provider.additional_context.get(ConversionContextKeys.metadata)
                 self.assertFalse(verify_handler.file_tracker.add_to_queue(conversion_metadata))
 
     def test_coerce_parquet_data_type_no_changes_needed(self):
@@ -139,9 +140,9 @@ class TestVerifyParquetFiles(MasuTestCase):
             verify_handler.file_tracker.add_local_file(temp_file.name, temp_file)
             return_state = verify_handler._coerce_parquet_data_type(temp_file)
             verify_handler.file_tracker.set_state(temp_file.name, return_state)
-            self.assertEqual(return_state, StateTracker.NO_CHANGES_NEEDED)
+            self.assertEqual(return_state, cstates.no_changes_needed)
             bill_metadata = verify_handler.file_tracker._create_bill_date_metadata()
-            self.assertTrue(bill_metadata.get(CONTEXT_KEY_MAPPING["successful"]))
+            self.assertTrue(bill_metadata.get(ConversionContextKeys.successful))
 
     def test_coerce_parquet_data_type_coerce_needed(self):
         """Test that files created through reindex are fixed correctly."""
@@ -153,7 +154,7 @@ class TestVerifyParquetFiles(MasuTestCase):
         verify_handler = self.create_default_verify_handler()
         verify_handler.file_tracker.add_local_file(filename, temp_file)
         return_state = verify_handler._coerce_parquet_data_type(temp_file)
-        self.assertEqual(return_state, StateTracker.COERCE_REQUIRED)
+        self.assertEqual(return_state, cstates.coerce_required)
         verify_handler.file_tracker.set_state(filename, return_state)
         files_need_updating = verify_handler.file_tracker.get_files_that_need_updated()
         self.assertTrue(files_need_updating.get(filename))
@@ -176,15 +177,15 @@ class TestVerifyParquetFiles(MasuTestCase):
             verify_handler.file_tracker.add_local_file(temp_file.name, temp_file)
             return_state = verify_handler._coerce_parquet_data_type(temp_file)
             verify_handler.file_tracker.set_state(temp_file.name, return_state)
-            self.assertEqual(return_state, StateTracker.FAILED_DTYPE_CONVERSION)
+            self.assertEqual(return_state, cstates.conversion_failed)
             verify_handler.file_tracker._check_if_complete()
             self.default_provider.refresh_from_db()
-            conversion_metadata = self.default_provider.additional_context.get(CONTEXT_KEY_MAPPING["metadata"])
+            conversion_metadata = self.default_provider.additional_context.get(ConversionContextKeys.metadata)
             self.assertIsNotNone(conversion_metadata)
             bill_metadata = conversion_metadata.get(verify_handler.file_tracker.bill_date_str)
             self.assertIsNotNone(bill_metadata)
-            self.assertFalse(bill_metadata.get(CONTEXT_KEY_MAPPING["successful"]), True)
-            self.assertIsNotNone(bill_metadata.get(CONTEXT_KEY_MAPPING["failed_files"]))
+            self.assertFalse(bill_metadata.get(ConversionContextKeys.successful), True)
+            self.assertIsNotNone(bill_metadata.get(ConversionContextKeys.failed_files))
             # confirm nothing would be sent to s3
             self.assertEqual(verify_handler.file_tracker.get_files_that_need_updated(), {})
             # confirm that it should be retried on next run
