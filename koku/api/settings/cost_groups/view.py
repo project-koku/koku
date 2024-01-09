@@ -97,7 +97,6 @@ class CostGroupsView(APIView):
 
 class CostGroupsAddView(CostGroupsView):
     def put(self, request: Request) -> Response:
-        # FIXME: If any projects are already in the target group, no projects are updated
         serializer = CostGroupProjectSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
 
