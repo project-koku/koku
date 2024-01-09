@@ -64,7 +64,6 @@ class SUBSDataMessenger:
             if self.local_prov:
                 return "", tenant_id
             subscription_id = credentials.get("subscription_id")
-            tenant_id = credentials.get("tenant_id")
             client_id = credentials.get("client_id")
             client_secret = credentials.get("client_secret")
             _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
