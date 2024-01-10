@@ -70,7 +70,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "invoice_month": invoice_month,
                 }
 
-                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
+                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
@@ -406,7 +406,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql_params["invoice_month"] = invoice_month
                 sql = pkgutil.get_data("masu.database", f"sql/gcp/openshift/{table_name}.sql")
                 sql = sql.decode("utf-8")
-                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
+                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_ocp_on_gcp_ui_summary_tables_trino(
         self, start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, tables=OCPGCP_UI_SUMMARY_TABLES

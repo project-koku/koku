@@ -195,7 +195,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "schema": self.schema,
                 "source_uuid": source_uuid,
             }
-            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_ocp_on_azure_ui_summary_tables(self, sql_params, tables=OCPAZURE_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""

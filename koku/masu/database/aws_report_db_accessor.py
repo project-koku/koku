@@ -94,7 +94,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 table_name,
                 sql,
                 sql_params,
-                operation="DELETE/INSERT",
+                operation="INSERT",
             )
 
     def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
