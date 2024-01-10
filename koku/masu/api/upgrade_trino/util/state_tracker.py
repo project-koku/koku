@@ -103,6 +103,7 @@ class StateTracker:
                 )
             )
         self._clean_local_files()
+        return simulate_info
 
     def _clean_local_files(self):
         for file_path in self.local_files.values():

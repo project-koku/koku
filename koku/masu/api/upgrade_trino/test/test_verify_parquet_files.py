@@ -73,6 +73,12 @@ class TestVerifyParquetFiles(MasuTestCase):
             }
         }
 
+    def verify_correct_types(self, temp_file, verify_handler):
+        table = pq.read_table(temp_file)
+        schema = table.schema
+        for field in schema:
+            self.assertEqual(field.type, verify_handler.required_columns.get(field.name))
+
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.StateTracker._clean_local_files")
     @patch("masu.api.upgrade_trino.util.verify_parquet_files.get_s3_resource")
     def test_retrieve_verify_reload_s3_parquet(self, mock_s3_resource, _):
@@ -114,11 +120,8 @@ class TestVerifyParquetFiles(MasuTestCase):
                 VerifyParquetFiles.local_path = self.temp_dir
                 verify_handler.retrieve_verify_reload_s3_parquet()
                 mock_bucket.upload_fileobj.assert_called()
-                table = pq.read_table(temp_file)
-                schema = table.schema
-                for field in schema:
-                    self.assertEqual(field.type, verify_handler.required_columns.get(field.name))
-                os.remove(temp_file)
+                self.verify_correct_types(temp_file, verify_handler)
+                # Test that the additional context is set correctly
                 provider.refresh_from_db()
                 self.assertEqual(
                     provider.additional_context, self.build_expected_additional_context(verify_handler, True)
@@ -126,7 +129,41 @@ class TestVerifyParquetFiles(MasuTestCase):
                 conversion_metadata = provider.additional_context.get(ConversionContextKeys.metadata)
                 self.assertFalse(verify_handler.file_tracker.add_to_queue(conversion_metadata))
 
-    def test_coerce_parquet_data_type_no_changes_needed(self):
+    def test_double_to_timestamp_transformation_with_reindex(self):
+        """Test double to datetime transformation with values"""
+        file_data = {
+            "float": [1.1, 2.2, 3.3],
+            "string": ["A", "B", "C"],
+            "unrequired_column": ["a", "b", "c"],
+        }
+        test_file = "transformation_test.parquet"
+        data_frame = pd.DataFrame(file_data)
+        data_frame = data_frame.reindex(columns=self.required_columns)
+        temp_file = os.path.join(self.temp_dir, test_file)
+        data_frame.to_parquet(temp_file, **self.panda_kwargs)
+        verify_handler = self.create_default_verify_handler()
+        verify_handler._perform_transformation_double_to_timestamp(temp_file, ["datetime"])
+        self.verify_correct_types(temp_file, verify_handler)
+
+    def test_double_to_timestamp_transformation_with_values(self):
+        """Test double to datetime transformation with values"""
+        file_data = {
+            "float": [1.1, 2.2, 3.3],
+            "string": ["A", "B", "C"],
+            "datetime": [1.1, 2.2, 3.3],
+            "unrequired_column": ["a", "b", "c"],
+        }
+        test_file = "transformation_test.parquet"
+        data_frame = pd.DataFrame(file_data)
+        data_frame = data_frame.reindex(columns=self.required_columns)
+        temp_file = os.path.join(self.temp_dir, test_file)
+        data_frame.to_parquet(temp_file, **self.panda_kwargs)
+        verify_handler = self.create_default_verify_handler()
+        verify_handler._perform_transformation_double_to_timestamp(temp_file, ["datetime"])
+        self.verify_correct_types(temp_file, verify_handler)
+
+    @patch("masu.api.upgrade_trino.util.verify_parquet_files.StateTracker._clean_local_files")
+    def test_coerce_parquet_data_type_no_changes_needed(self, _):
         """Test a parquet file with correct dtypes."""
         file_data = {
             "float": [1.1, 2.2, 3.3],
@@ -143,6 +180,9 @@ class TestVerifyParquetFiles(MasuTestCase):
             self.assertEqual(return_state, cstates.no_changes_needed)
             bill_metadata = verify_handler.file_tracker._create_bill_date_metadata()
             self.assertTrue(bill_metadata.get(ConversionContextKeys.successful))
+            # Test that generated messages would contain these files.
+            simulated_messages = verify_handler.file_tracker.generate_simulate_messages()
+            self.assertIn(str(temp_file.name), simulated_messages.get("Files that have all correct data_types."))
 
     def test_coerce_parquet_data_type_coerce_needed(self):
         """Test that files created through reindex are fixed correctly."""
@@ -158,11 +198,13 @@ class TestVerifyParquetFiles(MasuTestCase):
         verify_handler.file_tracker.set_state(filename, return_state)
         files_need_updating = verify_handler.file_tracker.get_files_that_need_updated()
         self.assertTrue(files_need_updating.get(filename))
-        table = pq.read_table(temp_file)
-        schema = table.schema
-        for field in schema:
-            self.assertEqual(field.type, self.expected_pyarrow_dtypes.get(field.name))
-        os.remove(temp_file)
+        self.verify_correct_types(temp_file, verify_handler)
+        # Test that generated messages would contain these files.
+        simulated_messages = verify_handler.file_tracker.generate_simulate_messages()
+        self.assertIn(filename, simulated_messages.get("Files that need to be updated."))
+        # Test delete clean local files.
+        verify_handler.file_tracker._clean_local_files()
+        self.assertFalse(os.path.exists(temp_file))
 
     def test_coerce_parquet_data_type_failed_to_coerce(self):
         """Test a parquet file with correct dtypes."""
