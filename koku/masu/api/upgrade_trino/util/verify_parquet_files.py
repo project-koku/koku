@@ -33,7 +33,8 @@ class VerifyParquetFiles:
         self.provider_uuid = uuid.UUID(provider_uuid)
         self.provider_type = provider_type.replace("-local", "")
         self.simulate = simulate
-        self.bill_date = self._bill_date(bill_date)
+        self.bill_date_time = self._bill_date_time(bill_date)
+        self.bill_date = self.bill_date_time.date()
         self.file_tracker = StateTracker(provider_uuid, self.bill_date)
         self.report_types = self._set_report_types()
         self.required_columns = self._set_pyarrow_types(cleaned_column_mapping)
@@ -45,10 +46,10 @@ class VerifyParquetFiles:
             "bill_date": self.bill_date,
         }
 
-    def _bill_date(self, bill_date):
+    def _bill_date_time(self, bill_date):
         """bill_date"""
         if isinstance(bill_date, str):
-            return ciso8601.parse_datetime(bill_date).replace(tzinfo=None).date()
+            return ciso8601.parse_datetime(bill_date).replace(tzinfo=None)
         return bill_date
 
     def _set_pyarrow_types(self, cleaned_column_mapping):
@@ -205,7 +206,7 @@ class VerifyParquetFiles:
             if field.name in field_names:
                 # if len is 0 here we get an empty list, if it does
                 # have a value for the field, overwrite it with bill_date
-                replaced_values = [self.bill_date] * len(table[field.name])
+                replaced_values = [self.bill_date_time] * len(table[field.name])
                 correct_data_type = self.required_columns.get(field.name)
                 corrected_column = pa.array(replaced_values, type=correct_data_type)
                 field = pa.field(field.name, corrected_column.type)
