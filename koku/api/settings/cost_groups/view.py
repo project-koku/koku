@@ -70,24 +70,6 @@ class CostGroupsView(APIView):
 
         return paginator.paginated_response
 
-    def put(self, request: Request) -> Response:
-        serializer = CostGroupProjectSerializer(data=request.data, many=True)
-        serializer.is_valid(raise_exception=True)
-
-        projects = put_openshift_namespaces(serializer.validated_data)
-        self._summarize_current_month(request.user.customer.schema_name, projects)
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def delete(self, request: Request) -> Response:
-        serializer = CostGroupProjectSerializer(data=request.data, many=True)
-        serializer.is_valid(raise_exception=True)
-
-        projects = delete_openshift_namespaces(serializer.validated_data)
-        self._summarize_current_month(request.user.customer.schema_name, projects)
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     def _summarize_current_month(self, schema_name: str, projects: list[dict[str, str]]) -> list[str]:
         """Resummarize OCP data for the current month."""
         projects_to_summarize = [proj["project"] for proj in projects]
@@ -111,3 +93,25 @@ class CostGroupsView(APIView):
             async_ids.append(str(async_result))
 
         return async_ids
+
+
+class CostGroupsAddView(CostGroupsView):
+    def put(self, request: Request) -> Response:
+        serializer = CostGroupProjectSerializer(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        projects = put_openshift_namespaces(serializer.validated_data)
+        self._summarize_current_month(request.user.customer.schema_name, projects)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CostGroupsRemoveView(CostGroupsView):
+    def put(self, request: Request) -> Response:
+        serializer = CostGroupProjectSerializer(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        projects = delete_openshift_namespaces(serializer.validated_data)
+        self._summarize_current_month(request.user.customer.schema_name, projects)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

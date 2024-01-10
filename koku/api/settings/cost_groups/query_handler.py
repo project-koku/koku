@@ -55,24 +55,25 @@ def _remove_default_projects(projects: list[dict[str, str]]) -> list[dict[str, s
 def put_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     projects = _remove_default_projects(projects)
 
-    # Build mapping of cost groups to cost category IDs in order to easiy get
+    # Build mapping of cost groups to cost category IDs in order to easily get
     # the ID of the cost group to update
     cost_groups = {item["name"]: item["id"] for item in OpenshiftCostCategory.objects.values("name", "id")}
 
-    namespaces_to_create = [
-        OpenshiftCostCategoryNamespace(
-            namespace=new_project["project"],
-            system_default=False,
-            cost_category_id=cost_groups[new_project["group"]],
-        )
-        for new_project in projects
-    ]
-    try:
-        # Perform bulk create
-        OpenshiftCostCategoryNamespace.objects.bulk_create(namespaces_to_create)
-    except IntegrityError as e:
-        # Handle IntegrityError (e.g., if a unique constraint is violated)
-        LOG.warning(f"IntegrityError: {e}")
+    # TODO: With Django 4.2, we can move back to using bulk_updates() since it allows updating conflicts
+    #       https://docs.djangoproject.com/en/4.2/ref/models/querysets/#bulk-create
+    for new_project in projects:
+        try:
+            OpenshiftCostCategoryNamespace.objects.update_or_create(
+                namespace=new_project["project"],
+                system_default=False,
+                cost_category_id=cost_groups[new_project["group"]],
+            )
+        except IntegrityError as e:
+            # The project already exists. Move it to a different cost group.
+            LOG.warning(f"IntegrityError: {e}")
+            OpenshiftCostCategoryNamespace.objects.filter(namespace=new_project["project"]).update(
+                cost_category_id=cost_groups[new_project["group"]]
+            )
 
     return projects
 
@@ -80,7 +81,7 @@ def put_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, s
 def delete_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     projects = _remove_default_projects(projects)
     projects_to_delete = [item["project"] for item in projects]
-    deleted_count, _ = (
+    deleted_count, deletions = (
         OpenshiftCostCategoryNamespace.objects.filter(namespace__in=projects_to_delete)
         .exclude(system_default=True)
         .delete()
