@@ -64,11 +64,11 @@ class StateTracker:
 
          {s3_object_key: local_file_path} for
         """
-        mapping = {}
-        for s3_obj_key, state in self.tracker.items():
-            if state == cstates.coerce_required:
-                mapping[s3_obj_key] = self.local_files.get(s3_obj_key)
-        return mapping
+       return {
+            s3_obj_key: self.local_files.get(s3_obj_key) 
+            for s3_obj_key, state in self.tracker.items() 
+            if state == cstates.coerce_required
+        }
 
     def generate_simulate_messages(self):
         """
@@ -107,8 +107,7 @@ class StateTracker:
 
     def _clean_local_files(self):
         for file_path in self.local_files.values():
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            file_path.unlink(missing_ok=True)
 
     def _create_bill_date_metadata(self):
         # Check for incomplete files

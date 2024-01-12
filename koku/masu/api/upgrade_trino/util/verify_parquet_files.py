@@ -150,7 +150,7 @@ class VerifyParquetFiles:
                 s3_object_key = s3_object.key
                 self.logging_context[self.S3_OBJ_LOG_KEY] = s3_object_key
                 self.file_tracker.set_state(s3_object_key, cstates.found_s3_file)
-                local_file_path = os.path.join(self.local_path, os.path.basename(s3_object_key))
+                local_file_path = self.local_path.joinpath(os.path.basename(s3_object_key))
                 LOG.info(
                     log_json(
                         self.provider_uuid,
