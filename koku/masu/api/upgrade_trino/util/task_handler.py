@@ -67,10 +67,10 @@ class FixParquetTaskHandler:
             if simulate.lower() == "true":
                 kwargs["simulate"] = True
 
-        if not kwargs["provider_type"] and not kwargs["provider_uuid"]:
+        if not kwargs.get("provider_type") and not kwargs.get("provider_uuid"):
             raise RequiredParametersError("provider_uuid or provider_type must be supplied")
 
-        if not kwargs["start_date"]:
+        if not kwargs.get("start_date"):
             raise RequiredParametersError("start_date must be supplied as a parameter.")
 
         kwargs["cleaned_column_mapping"] = cls.clean_column_names(kwargs["provider_type"])

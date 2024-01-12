@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from collections import namedtuple
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
@@ -117,7 +118,7 @@ class TestVerifyParquetFiles(MasuTestCase):
                     filter_side_effect.append([])
                 mock_bucket.objects.filter.side_effect = filter_side_effect
                 mock_bucket.download_file.return_value = temp_file
-                VerifyParquetFiles.local_path = self.temp_dir
+                VerifyParquetFiles.local_path = Path(self.temp_dir)
                 verify_handler.retrieve_verify_reload_s3_parquet()
                 mock_bucket.upload_fileobj.assert_called()
                 self.verify_correct_types(temp_file, verify_handler)
@@ -192,7 +193,7 @@ class TestVerifyParquetFiles(MasuTestCase):
         temp_file = os.path.join(self.temp_dir, f"test{self.suffix}")
         data_frame.to_parquet(temp_file, **self.panda_kwargs)
         verify_handler = self.create_default_verify_handler()
-        verify_handler.file_tracker.add_local_file(filename, temp_file)
+        verify_handler.file_tracker.add_local_file(filename, Path(temp_file))
         return_state = verify_handler._coerce_parquet_data_type(temp_file)
         self.assertEqual(return_state, ConversionStates.coerce_required)
         verify_handler.file_tracker.set_state(filename, return_state)
@@ -359,7 +360,7 @@ class TestVerifyParquetFiles(MasuTestCase):
             filter_side_effect.append([])
         mock_bucket.objects.filter.side_effect = filter_side_effect
         mock_bucket.download_file.return_value = temp_file
-        VerifyParquetFiles.local_path = self.temp_dir
+        VerifyParquetFiles.local_path = Path(self.temp_dir)
         verify_handler.retrieve_verify_reload_s3_parquet()
         mock_bucket.upload_fileobj.assert_not_called()
         os.remove(temp_file)
