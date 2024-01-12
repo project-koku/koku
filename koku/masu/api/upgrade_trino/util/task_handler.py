@@ -28,7 +28,7 @@ class RequiredParametersError(Exception):
     """Handle require parameters error."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class FixParquetTaskHandler:
     start_date: Optional[str] = field(default=None)
     provider_uuid: Optional[str] = field(default=None)
@@ -48,32 +48,33 @@ class FixParquetTaskHandler:
     @classmethod
     def from_query_params(cls, query_params: QueryDict) -> "FixParquetTaskHandler":
         """Create an instance from query parameters."""
-        reprocess_kwargs = cls()
+        kwargs = {}
         if start_date := query_params.get("start_date"):
             if start_date:
-                reprocess_kwargs.start_date = parser.parse(start_date).replace(day=1)
+                kwargs["start_date"] = parser.parse(start_date).replace(day=1)
 
         if provider_uuid := query_params.get("provider_uuid"):
             provider = Provider.objects.filter(uuid=provider_uuid).first()
             if not provider:
                 raise RequiredParametersError(f"The provider_uuid {provider_uuid} does not exist.")
-            reprocess_kwargs.provider_uuid = provider_uuid
-            reprocess_kwargs.provider_type = provider.type
+            kwargs["provider_uuid"] = provider_uuid
+            kwargs["provider_type"] = provider.type
 
         if provider_type := query_params.get("provider_type"):
-            reprocess_kwargs.provider_type = provider_type
+            kwargs["provider_type"] = provider_type
 
         if simulate := query_params.get("simulate"):
             if simulate.lower() == "true":
-                reprocess_kwargs.simulate = True
+                kwargs["simulate"] = True
 
-        if not reprocess_kwargs.provider_type and not reprocess_kwargs.provider_uuid:
+        if not kwargs["provider_type"] and not kwargs["provider_uuid"]:
             raise RequiredParametersError("provider_uuid or provider_type must be supplied")
-        if not reprocess_kwargs.start_date:
+
+        if not kwargs["start_date"]:
             raise RequiredParametersError("start_date must be supplied as a parameter.")
 
-        reprocess_kwargs.cleaned_column_mapping = reprocess_kwargs.clean_column_names(reprocess_kwargs.provider_type)
-        return reprocess_kwargs
+        kwargs["cleaned_column_mapping"] = cls.clean_column_names(kwargs["provider_type"])
+        return cls(**kwargs)
 
     @classmethod
     def clean_column_names(cls, provider_type):

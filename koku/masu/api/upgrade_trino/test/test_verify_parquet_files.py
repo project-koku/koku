@@ -16,7 +16,7 @@ import pyarrow.parquet as pq
 
 from api.utils import DateHelper
 from masu.api.upgrade_trino.util.constants import ConversionContextKeys
-from masu.api.upgrade_trino.util.constants import ConversionStates as cstates
+from masu.api.upgrade_trino.util.constants import ConversionStates
 from masu.api.upgrade_trino.util.constants import CONVERTER_VERSION
 from masu.api.upgrade_trino.util.task_handler import FixParquetTaskHandler
 from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
@@ -177,7 +177,7 @@ class TestVerifyParquetFiles(MasuTestCase):
             verify_handler.file_tracker.add_local_file(temp_file.name, temp_file)
             return_state = verify_handler._coerce_parquet_data_type(temp_file)
             verify_handler.file_tracker.set_state(temp_file.name, return_state)
-            self.assertEqual(return_state, cstates.no_changes_needed)
+            self.assertEqual(return_state, ConversionStates.no_changes_needed)
             bill_metadata = verify_handler.file_tracker._create_bill_date_metadata()
             self.assertTrue(bill_metadata.get(ConversionContextKeys.successful))
             # Test that generated messages would contain these files.
@@ -194,7 +194,7 @@ class TestVerifyParquetFiles(MasuTestCase):
         verify_handler = self.create_default_verify_handler()
         verify_handler.file_tracker.add_local_file(filename, temp_file)
         return_state = verify_handler._coerce_parquet_data_type(temp_file)
-        self.assertEqual(return_state, cstates.coerce_required)
+        self.assertEqual(return_state, ConversionStates.coerce_required)
         verify_handler.file_tracker.set_state(filename, return_state)
         files_need_updating = verify_handler.file_tracker.get_files_that_need_updated()
         self.assertTrue(files_need_updating.get(filename))
@@ -219,7 +219,7 @@ class TestVerifyParquetFiles(MasuTestCase):
             verify_handler.file_tracker.add_local_file(temp_file.name, temp_file)
             return_state = verify_handler._coerce_parquet_data_type(temp_file)
             verify_handler.file_tracker.set_state(temp_file.name, return_state)
-            self.assertEqual(return_state, cstates.conversion_failed)
+            self.assertEqual(return_state, ConversionStates.conversion_failed)
             verify_handler.file_tracker._check_if_complete()
             self.default_provider.refresh_from_db()
             conversion_metadata = self.default_provider.additional_context.get(ConversionContextKeys.metadata)
