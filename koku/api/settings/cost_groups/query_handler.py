@@ -9,6 +9,7 @@ from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -40,10 +41,10 @@ def _remove_default_projects(projects: list[dict[str, str]]) -> list[dict[str, s
 
     scrubbed_projects = []
     for request in projects:
-        if request["project_name"] in exact_matches:
+        if request["project"] in exact_matches:
             continue
 
-        if any(request["project_name"].startswith(prefix.replace("%", "")) for prefix in prefix_matches):
+        if any(request["project"].startswith(prefix.replace("%", "")) for prefix in prefix_matches):
             continue
 
         scrubbed_projects.append(request)
@@ -54,32 +55,33 @@ def _remove_default_projects(projects: list[dict[str, str]]) -> list[dict[str, s
 def put_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     projects = _remove_default_projects(projects)
 
-    # Build mapping of cost groups to cost category IDs in order to easiy get
+    # Build mapping of cost groups to cost category IDs in order to easily get
     # the ID of the cost group to update
     cost_groups = {item["name"]: item["id"] for item in OpenshiftCostCategory.objects.values("name", "id")}
 
-    namespaces_to_create = [
-        OpenshiftCostCategoryNamespace(
-            namespace=new_project["project_name"],
-            system_default=False,
-            cost_category_id=cost_groups[new_project["group"]],
-        )
-        for new_project in projects
-    ]
-    try:
-        # Perform bulk create
-        OpenshiftCostCategoryNamespace.objects.bulk_create(namespaces_to_create)
-    except IntegrityError as e:
-        # Handle IntegrityError (e.g., if a unique constraint is violated)
-        LOG.warning(f"IntegrityError: {e}")
+    # TODO: With Django 4.2, we can move back to using bulk_updates() since it allows updating conflicts
+    #       https://docs.djangoproject.com/en/4.2/ref/models/querysets/#bulk-create
+    for new_project in projects:
+        try:
+            OpenshiftCostCategoryNamespace.objects.update_or_create(
+                namespace=new_project["project"],
+                system_default=False,
+                cost_category_id=cost_groups[new_project["group"]],
+            )
+        except IntegrityError as e:
+            # The project already exists. Move it to a different cost group.
+            LOG.warning(f"IntegrityError: {e}")
+            OpenshiftCostCategoryNamespace.objects.filter(namespace=new_project["project"]).update(
+                cost_category_id=cost_groups[new_project["group"]]
+            )
 
     return projects
 
 
 def delete_openshift_namespaces(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     projects = _remove_default_projects(projects)
-    projects_to_delete = [item["project_name"] for item in projects]
-    deleted_count, _ = (
+    projects_to_delete = [item["project"] for item in projects]
+    deleted_count, deletions = (
         OpenshiftCostCategoryNamespace.objects.filter(namespace__in=projects_to_delete)
         .exclude(system_default=True)
         .delete()
@@ -97,7 +99,8 @@ class CostGroupsQueryHandler:
         {
             "group": MappingProxyType({"field": "group", "operation": "icontains"}),
             "default": MappingProxyType({"field": "default", "operation": "exact"}),
-            "project_name": MappingProxyType({"field": "project_name", "operation": "icontains"}),
+            "project": MappingProxyType({"field": "project", "operation": "icontains"}),
+            "cluster": MappingProxyType({"field": "clusters", "operation": "icontains"}),
         }
     )
 
@@ -110,7 +113,7 @@ class CostGroupsQueryHandler:
         self.dh = DateHelper()
         self.filters = QueryFilterCollection()
         self.exclusion = QueryFilterCollection()
-        self._default_order_by = ["project_name"]
+        self._default_order_by = ["project"]
 
         self._set_filters_or_exclusion()
 
@@ -167,14 +170,14 @@ class CostGroupsQueryHandler:
         default_value = Value(None, output_field=CharField())
         if field_name == "default":
             default_value = Value(True)
-        return When(project_name="Worker unallocated", then=default_value)
+        return When(project="Worker unallocated", then=default_value)
 
     def build_when_conditions(self, cost_group_projects, field_name):
         """Builds when conditions given a field name in the cost_group_projects."""
         # __like is a custom django lookup we added to perform a postgresql LIKE
         when_conditions = []
         for project in cost_group_projects:
-            when_conditions.append(When(project_name__like=project["project_name"], then=Value(project[field_name])))
+            when_conditions.append(When(project__like=project["project"], then=Value(project[field_name])))
         when_conditions.append(self._add_worker_unallocated(field_name))
         return when_conditions
 
@@ -182,19 +185,19 @@ class CostGroupsQueryHandler:
         """Executes a query to grab the information we need for the api return."""
         # This query builds the information we need for our when conditions
         cost_group_projects = OpenshiftCostCategoryNamespace.objects.annotate(
-            project_name=F("namespace"),
+            project=F("namespace"),
             default=F("system_default"),
             group=F("cost_category__name"),
-        ).values("project_name", "default", "group")
+        ).values("project", "default", "group")
 
         ocp_summary_query = (
-            OCPProject.objects.values(project_name=F("project"))
+            OCPProject.objects.values("project")
             .annotate(
                 group=Case(*self.build_when_conditions(cost_group_projects, "group")),
                 default=Case(*self.build_when_conditions(cost_group_projects, "default")),
-                clusters=ArrayAgg(F("cluster__cluster_alias"), distinct=True),
+                clusters=ArrayAgg(Coalesce(F("cluster__cluster_alias"), F("cluster__cluster_id")), distinct=True),
             )
-            .values("project_name", "group", "clusters", "default")
+            .values("project", "group", "clusters", "default")
             .distinct()
         )
 

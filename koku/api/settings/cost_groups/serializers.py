@@ -9,6 +9,7 @@ from api.report.serializers import ExcludeSerializer
 from api.report.serializers import FilterSerializer
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
+from api.report.serializers import StringOrListField
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategory
 
@@ -16,17 +17,19 @@ from reporting.provider.ocp.models import OpenshiftCostCategory
 class CostGroupFilterSerializer(FilterSerializer):
     """Serializer for Cost Group Settings."""
 
-    project_name = serializers.CharField(required=False)
-    group = serializers.CharField(required=False)
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    group = StringOrListField(child=serializers.CharField(), required=False)
     default = serializers.BooleanField(required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class CostGroupExcludeSerializer(ExcludeSerializer):
     """Serializer for Cost Group Settings."""
 
-    project_name = serializers.CharField(required=False)
+    project = serializers.CharField(required=False)
     group = serializers.CharField(required=False)
     default = serializers.BooleanField(required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class CostGroupOrderSerializer(OrderSerializer):
@@ -34,7 +37,7 @@ class CostGroupOrderSerializer(OrderSerializer):
 
     ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"))
 
-    project_name = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
+    project = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     group = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     default = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
 
@@ -46,11 +49,11 @@ class CostGroupQueryParamSerializer(ReportQueryParamSerializer):
     EXCLUDE_SERIALIZER = CostGroupExcludeSerializer
     ORDER_BY_SERIALIZER = CostGroupOrderSerializer
 
-    order_by_allowlist = frozenset(("project_name", "group", "default"))
+    order_by_allowlist = frozenset(("project", "group", "default"))
 
 
 class CostGroupProjectSerializer(serializers.Serializer):
-    project_name = serializers.CharField()
+    project = serializers.CharField()
     group = serializers.CharField()
 
     def _is_valid_field_value(self, model, data: str, field_name: str) -> None:
@@ -70,7 +73,7 @@ class CostGroupProjectSerializer(serializers.Serializer):
 
             raise serializers.ValidationError(msg)
 
-    def validate_project_name(self, data):
+    def validate_project(self, data):
         self._is_valid_field_value(OCPProject, data, "project")
 
         return data

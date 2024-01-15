@@ -117,6 +117,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         self.creation_processing_time = self.provider_created_timestamp.replace(
             microsecond=0, second=0, minute=0, hour=0
         ) - timedelta(days=1)
+        if self.provider_type == Provider.PROVIDER_AZURE:
+            # Since Azure works on days with complete data, use -2 days for initial processing as -1 wont be complete
+            self.creation_processing_time = self.creation_processing_time - timedelta(days=1)
         self.tracing_id = tracing_id
         self.s3_resource = get_s3_resource(
             settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
@@ -149,11 +152,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 # and we want to gather new data we have not processed yet
                 # so we add one second to the last timestamp to ensure the time range processed
                 # is all new data
-                if self.provider_type != Provider.PROVIDER_AZURE:
-                    lpt_dict[rid] = latest_time + timedelta(seconds=1)
-                # Azure is daily timestamps so we do not need to increase this by 1 since this was the previous end
-                else:
-                    lpt_dict[rid] = latest_time
+                lpt_dict[rid] = latest_time + timedelta(seconds=1)
         return lpt_dict
 
     def determine_latest_processed_time_for_provider(self, rid, year, month):

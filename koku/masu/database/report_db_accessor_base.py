@@ -92,18 +92,20 @@ class ReportDBAccessorBase:
     def _execute_raw_sql_query(self, table, sql, bind_params=None, operation="UPDATE"):
         """Run a SQL statement via a cursor."""
         LOG.info(log_json(msg=f"triggering {operation}", table=table))
+        row_count = None
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             t1 = time.time()
             try:
                 cursor.execute(sql, params=bind_params)
+                row_count = cursor.rowcount
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
                 LOG.error(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
                 raise db_exc from exc
 
         running_time = time.time() - t1
-        LOG.info(log_json(msg=f"finished {operation}", table=table, running_time=running_time))
+        LOG.info(log_json(msg=f"finished {operation}", row_count=row_count, table=table, running_time=running_time))
 
     def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""

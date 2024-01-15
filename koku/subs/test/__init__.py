@@ -19,4 +19,5 @@ class SUBSTestCase(IamTestCase):
         cls.aws_provider_type = Provider.PROVIDER_AWS_LOCAL
 
         cls.azure_provider = Provider.objects.filter(type=Provider.PROVIDER_AZURE_LOCAL).first()
+        cls.azure_tenant = cls.azure_provider.account.get("credentials").get("tenant_id")
         cls.azure_provider_type = Provider.PROVIDER_AZURE_LOCAL

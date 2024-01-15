@@ -295,7 +295,6 @@ class OpenshiftCostCategory(models.Model):
     description = models.TextField()
     source_type = models.TextField()
     system_default = models.BooleanField(null=False, default=False)
-    namespace = ArrayField(models.TextField())
     label = ArrayField(models.TextField())
 
 
