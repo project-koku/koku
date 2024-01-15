@@ -205,6 +205,11 @@ class ReportQueryHandler(QueryHandler):
         """Determine if we are working with an AWS API."""
         return "aws" in self.parameters.request.path
 
+    @property
+    def is_azure(self):
+        """Determine if we are working with an Azure API."""
+        return "azure" in self.parameters.request.path
+
     def initialize_totals(self):
         """Initialize the total response column values."""
         query_sum = {}
@@ -1123,6 +1128,8 @@ class ReportQueryHandler(QueryHandler):
         )
         if self.is_aws and "account" in self.parameters.url_data:
             ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
+        if self.is_azure and "subscription_guid" in self.parameters.url_data:
+            ranks = ranks.annotate(**{"subscription_name": F("subscription_name")})
         if self.is_openshift:
             ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
 
@@ -1168,6 +1175,10 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
+        if self.is_azure and "subscription_guid" in group_by:
+            drop_columns.add("subscription_name")
+        if self.is_azure and "subscription_guid" not in group_by:
+            rank_data_frame.drop(columns=["subscription_name"], errors="ignore")
 
         agg_fields = {}
         for col in [col for col in self.report_annotations if "units" in col]:
@@ -1227,7 +1238,6 @@ class ReportQueryHandler(QueryHandler):
 
         # Finally replace any remaining NaN with None for JSON compatibility
         data_frame = data_frame.replace({np.nan: None})
-
         return data_frame.to_dict("records")
 
     def _aggregate_ranks_over_limit(self, data_frame, group_by):
@@ -1265,6 +1275,8 @@ class ReportQueryHandler(QueryHandler):
                     others_data_frame["default_project"] = "False"
         if self.is_aws and "account" in group_by:
             others_data_frame["account_alias"] = other_str
+        elif self.is_azure and "subscription_guid" in group_by:
+            others_data_frame["subscription_name"] = other_str
         elif "gcp_project" in group_by:
             others_data_frame["gcp_project_alias"] = other_str
 
