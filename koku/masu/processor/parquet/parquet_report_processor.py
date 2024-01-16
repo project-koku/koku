@@ -492,11 +492,11 @@ class ParquetReportProcessor:
             processor.create_schema()
         if not processor.table_exists():
             processor.create_table(partition_map=partition_map)
-        if not daily:
-            processor.create_bill(bill_date=bill_date)
+        self.trino_table_exists[self.report_type] = True
         processor.get_or_create_postgres_partition(bill_date=bill_date)
         processor.sync_hive_partitions()
-        self.trino_table_exists[self.report_type] = True
+        if not daily:
+            processor.create_bill(bill_date=bill_date)
 
     def check_required_columns_for_ingress_reports(self, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
