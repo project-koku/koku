@@ -50,6 +50,9 @@ class TrinoStatementExecError(Exception):
             f"Parameters: {self.sql_params}"
         )
 
+    def __reduce__(self):
+        return (self.__class__, (self.statement, self.statement_number, self.sql_params, self._trino_error))
+
     @property
     def error_code(self) -> t.Optional[int]:
         return self._trino_error.error_code
