@@ -33,5 +33,5 @@ class TagMapping(models.Model):
         db_table = "reporting_tagmapping"
         unique_together = ("parent", "child")
 
-    parent = models.ForeignKey("EnabledTagKeys", on_delete=models.CASCADE, related_name="children")
-    child = models.OneToOneField("EnabledTagKeys", on_delete=models.CASCADE, related_name="parent")
+    parent = models.ForeignKey("EnabledTagKeys", on_delete=models.CASCADE, related_name="parent")
+    child = models.OneToOneField("EnabledTagKeys", on_delete=models.CASCADE, related_name="child")
