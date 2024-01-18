@@ -57,7 +57,8 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.filter(billing_period_start__gte=start_date)
         if end_date:
             bills = bills.filter(billing_period_start__lte=end_date)
-
+        # ordering by id (PK) so the first bill is the same as .first() would return
+        bills = bills.order_by("id")
         bills = list(bills.all())
 
     return bills
