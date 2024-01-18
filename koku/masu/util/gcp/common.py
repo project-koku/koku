@@ -57,9 +57,9 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.filter(billing_period_start__gte=start_date)
         if end_date:
             bills = bills.filter(billing_period_start__lte=end_date)
-        # ordering by id (PK) so the first bill is the same as .first() would return
-        bills = bills.order_by("id")
-        bills = list(bills.all())
+        # postgres doesn't always return this query in the same order, ordering by ID (PK) will
+        # ensure that any list iteration or indexing is always doen in the same order
+        bills = list(bills.order_by("id").all())
 
     return bills
 
