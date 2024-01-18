@@ -159,11 +159,27 @@ class SUBSDataMessenger:
         self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, tenant_id
     ):
         """Adds azure_tenant_id to the base subs dict."""
-        subs_dict = self.build_subs_dict(
-            instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
-        )
-        subs_dict["azure_tenant_id"] = tenant_id
-        return subs_dict
+        return {
+            "event_id": str(uuid.uuid4()),
+            "event_source": "cost-management",
+            "event_type": "snapshot",
+            "account_number": self.account_id,
+            "org_id": self.org_id,
+            "service_type": "RHEL System",
+            "instance_id": instance_id,
+            "timestamp": tstamp,
+            "expiration": expiration,
+            "measurements": [{"value": cpu_count, "uom": "vCPUs"}],
+            "cloud_provider": self.provider_type,
+            "hardware_type": "Cloud",
+            "product_ids": product_ids,
+            "role": role,
+            "sla": sla,
+            "usage": usage,
+            "billing_provider": self.provider_type.lower(),
+            "azure_subscription_id": billing_account_id,
+            "azure_tenant_id": tenant_id,
+        }
 
     def process_azure_row(self, row):
         """Process an Azure row into subs kafka messages."""
