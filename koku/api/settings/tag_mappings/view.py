@@ -7,14 +7,14 @@ from rest_framework.request import Request
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.tags.serializers import SettingsTagSerializer
-from reporting.provider.all.models import ParentTagKeys
+from reporting.provider.all.models import TagMapping
 
 # from reporting.provider.all.models import ChildTagKeys
 # from reporting.provider.all.models import EnabledTagKeys
 
 
 class SettingsTagMappingView(generics.GenericAPIView):
-    queryset = ParentTagKeys.objects.all()
+    queryset = TagMapping.objects.all()
     serializer_class = SettingsTagSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
