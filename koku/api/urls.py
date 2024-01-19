@@ -94,6 +94,7 @@ from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
 from api.views import SettingsEnableTagView
 from api.views import SettingsTagMappingView
+from api.views import SettingsTagMappingAddView
 from api.views import SettingsTagView
 from api.views import SettingsView
 from api.views import StatusView
@@ -109,7 +110,6 @@ from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
-
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
@@ -369,6 +369,7 @@ urlpatterns = [
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
     path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
     path("settings/tag_mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
+    path("settings/tag_mappings/add", SettingsTagMappingAddView.as_view(), name="tags-mapping-add"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
