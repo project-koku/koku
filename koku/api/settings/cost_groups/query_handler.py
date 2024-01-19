@@ -16,6 +16,7 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_params import QueryParameters
 from api.utils import DateHelper
+from common.sentinel import Sentinel
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategory
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
@@ -134,16 +135,16 @@ class CostGroupsQueryHandler:
 
     def _check_parameters_for_filter_param(self, q_param) -> None:
         """Populate the query filter collections."""
-        filter_values = self.parameters.get_filter(q_param, list())
-        if filter_values:
+        filter_values = self.parameters.get_filter(q_param, Sentinel)
+        if filter_values is not Sentinel:
             for item in filter_values if isinstance(filter_values, list) else [filter_values]:
                 q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
                 self.filters.add(q_filter)
 
     def _check_parameters_for_exclude_param(self, q_param):
         """Populate the exclude collections."""
-        exclude_values = self.parameters.get_exclude(q_param, list())
-        if exclude_values:
+        exclude_values = self.parameters.get_exclude(q_param, Sentinel)
+        if exclude_values is not Sentinel:
             for item in exclude_values if isinstance(exclude_values, list) else [exclude_values]:
                 q_filter = QueryFilter(parameter=item, **self._filter_map[q_param])
                 if q_param in ["group", "default"]:
@@ -158,6 +159,7 @@ class CostGroupsQueryHandler:
         for q_param in self._filter_map:
             self._check_parameters_for_filter_param(q_param)
             self._check_parameters_for_exclude_param(q_param)
+
         self.exclusion = self.exclusion.compose(logical_operator="or")
         self.filters = self.filters.compose()
 
