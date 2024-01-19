@@ -2,6 +2,8 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import logging
+
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -23,8 +25,10 @@ from api.utils import DateHelper
 from masu.processor import is_customer_large
 from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
-from masu.processor.tasks import update_summary_tables
 from reporting.provider.ocp.models import OCPProject
+from reporting_common.models import DelayedCeleryTasks
+
+LOG = logging.getLogger(__name__)
 
 
 class CostGroupsView(APIView):
@@ -79,14 +83,22 @@ class CostGroupsView(APIView):
             .distinct()
         )
         async_ids = []
+        # Option Two:
+        # TODO: The removed expired records would be replaced
+        # by a scheduler that woke up and ran this.
+        DelayedCeleryTasks.remove_expired_records()
         for provider_uuid in provider_uuids:
-            async_result = update_summary_tables.s(
-                schema_name,
-                provider_type=Provider.PROVIDER_OCP,
+            DelayedCeleryTasks.create_or_reset_timeout(
+                task_name="masu.processor.tasks.update_summary_tables",
+                task_args=[schema_name],
+                task_kwargs={
+                    "provider_type": Provider.PROVIDER_OCP,
+                    "provider_uuid": str(provider_uuid),
+                    "start_date": str(self._date_helper.this_month_start),
+                },
                 provider_uuid=provider_uuid,
-                start_date=self._date_helper.this_month_start,
-            ).apply_async(queue=ocp_queue)
-            async_ids.append(str(async_result))
+                queue_name=ocp_queue,
+            )
 
         return async_ids
 

@@ -34,6 +34,7 @@ OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
 OPENSHIFT_GCP_CACHE_PREFIX = "openshift-gcp-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 SOURCES_CACHE_PREFIX = "sources"
+DELAYED_RESUMMARY_PREFIX = "delayed_resummary"
 
 
 def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None):
