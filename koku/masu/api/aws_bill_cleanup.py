@@ -1,14 +1,11 @@
 #
-# Copyright 2022 Red Hat Inc.
+# Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""View for report_data endpoint."""
-# flake8: noqa
 import logging
 from collections import defaultdict
 from uuid import uuid4
 
-import ciso8601
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -20,7 +17,6 @@ from rest_framework.settings import api_settings
 
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.processor import is_customer_large
 from masu.processor.tasks import cleanup_aws_bills as cleanup_aws_bills_task
 from masu.processor.tasks import PRIORITY_QUEUE
@@ -37,6 +33,7 @@ REPORT_DATA_KEY = "cleanup_aws_bills Task IDs"
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def aws_bill_cleanup(request):
+    """Cleanup AWS bills with a NULL payer account_id."""
     params = request.query_params
     schema_name = params.get("schema")
     bill_date = params.get("bill_date")
@@ -53,8 +50,8 @@ def aws_bill_cleanup(request):
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     if schema_name:
-        providers = Provider.objects.filter(customer__schema_name=schema_name).filter(
-            type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]
+        providers = Provider.objects.filter(
+            customer__schema_name=schema_name, type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]
         )
     else:
         providers = Provider.objects.filter(type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL])

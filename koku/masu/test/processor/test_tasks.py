@@ -49,6 +49,7 @@ from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.tasks import autovacuum_tune_schema
+from masu.processor.tasks import cleanup_aws_bills
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
@@ -70,6 +71,7 @@ from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from reporting.ingress.models import IngressReports
+from reporting.models import AWSCostEntryBill
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
@@ -642,6 +644,30 @@ class TestProcessorTasks(MasuTestCase):
         mock_trino.assert_has_calls(expected_calls, any_order=True)
         mock_s3_delete.assert_called()
         mock_process.assert_called()
+
+    @patch("masu.processor.tasks.cascade_delete")
+    def test_cleanup_aws_bills(self, mock_delete):
+        """Test that a bill with an empty payer account id does run a delete."""
+        bill_start_date = "2023-12-01"
+        bill_end_date = "2023-12-31"
+        with schema_context(self.schema):
+            aws_bill = AWSCostEntryBill.objects.create(
+                billing_period_start=bill_start_date,
+                billing_period_end=bill_end_date,
+                payer_account_id=None,
+                provider_id=self.aws_provider.uuid,
+            )
+            bill_date = "2023-12-01"
+            cleanup_aws_bills(self.schema, self.aws_provider.uuid, bill_date)
+            mock_delete.assert_called_once()
+            aws_bill.delete()
+
+    @patch("masu.processor.tasks.cascade_delete")
+    def test_cleanup_aws_bills_no_bills(self, mock_delete):
+        """Test that no bill with an empty payer account id does not run a delete."""
+        bill_date = "2023-12-01"
+        cleanup_aws_bills(self.schema, self.aws_provider.uuid, bill_date)
+        mock_delete.assert_not_called()
 
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
