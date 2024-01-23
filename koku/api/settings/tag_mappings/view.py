@@ -2,24 +2,19 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
+from rest_framework import status
 from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .serializers import TagMappingSerializer
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from reporting.provider.all.models import TagMapping
-from rest_framework.response import Response
-from .serializers import TagMappingSerializer
-from rest_framework.views import APIView
-from rest_framework import status
-
-
-# from reporting.provider.all.models import ChildTagKeys
-# from reporting.provider.all.models import EnabledTagKeys
 
 
 class SettingsTagMappingView(generics.GenericAPIView):
     queryset = TagMapping.objects.all()
-    # needed to change to this serializer because the first was raising an error
     serializer_class = TagMappingSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
@@ -32,6 +27,17 @@ class SettingsTagMappingView(generics.GenericAPIView):
         paginator = ListPaginator(serializer.data, request)
         response = paginator.paginated_response
 
+        # (FIXME): Lucas
+        # This return structure doesn't currently match what we told
+        # Dan we would return in our api doc.
+
+        # data": [
+        #     {
+        #         "parent": "b02c8a2b-b0d7-493b-a85a-190e81ed1623",
+        #         "child": "fbaf9863-6168-428e-812a-d0f1feab8eb6"
+        #     }
+        # ]
+
         return response
 
 
@@ -41,9 +47,14 @@ class SettingsTagMappingChildAddView(APIView):
 
     def put(self, request):
         try:
-            uuid = request.data.get('uuid')
+            uuid = request.data.get("uuid")
             if uuid:
                 tag_mapping = TagMapping.objects.get(uuid=uuid)
+                # FIXME: Lucas
+                # Our api spec document says that the data needs to accept a list of children
+                # Also, it is likely that dan will be sending us a list of strings.
+                # Example payload
+                # dat ={"parent":"uuid_str","child":["uuid_str"]}
                 serializer = TagMappingSerializer(tag_mapping, data=request.data)
             else:
                 serializer = TagMappingSerializer(data=request.data)

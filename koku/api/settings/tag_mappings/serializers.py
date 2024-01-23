@@ -4,28 +4,25 @@
 #
 """Serializers for Tag Mappings."""
 from rest_framework import serializers
+
 from reporting.provider.all.models import TagMapping
+
+# FIXME Lucas
+# You had the same class twice, not sure which one you need
+# class TagMappingSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = TagMapping
+#         fields = ["parent", "child"]
 
 
 class TagMappingSerializer(serializers.ModelSerializer):
     class Meta:
         model = TagMapping
-        fields = ['parent', 'child']
-
-        from rest_framework import serializers
-
-
-from reporting.provider.all.models import TagMapping
-
-
-class TagMappingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TagMapping
-        fields = ['parent', 'child']
+        fields = ["parent", "child"]
 
     def validate(self, data):
-        parent = data.get('parent')
-        child = data.get('child')
+        parent = data.get("parent")
+        child = data.get("child")
 
         if TagMapping.objects.filter(child=parent).exists():
             raise serializers.ValidationError("A child can't become a parent.")
