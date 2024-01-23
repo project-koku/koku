@@ -101,7 +101,7 @@ class ReportDBAccessorBase:
                 row_count = cursor.rowcount
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
-                LOG.error(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
+                LOG.warning(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
                 raise db_exc from exc
 
         running_time = time.time() - t1
