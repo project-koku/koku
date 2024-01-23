@@ -19,7 +19,7 @@ class SettingsTagMappingViewTestCase(IamTestCase):
 
     def test_put_method_invalid_uuid(self):
         """Test the put method for the tag mapping view with an invalid uuid"""
-        url = reverse("tags-mapping-add")
+        url = reverse("tags-mapping-child-add")
         data = {"parent": "1816f1f8-b71c-49d9-8584-c781b95524de", "child": "553cf5b2-92a1-496a-bbaf-9fb470f17f00"}
 
         response = self.client.put(url, data, format="json", **self.headers)

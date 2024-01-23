@@ -35,7 +35,7 @@ class SettingsTagMappingView(generics.GenericAPIView):
         return response
 
 
-class SettingsTagMappingAddView(APIView):
+class SettingsTagMappingChildAddView(APIView):
     permission_classes = (SettingsAccessPermission,)
     serializer_class = TagMappingSerializer
 

@@ -94,7 +94,7 @@ from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
 from api.views import SettingsEnableTagView
 from api.views import SettingsTagMappingView
-from api.views import SettingsTagMappingAddView
+from api.views import SettingsTagMappingChildAddView
 from api.views import SettingsTagView
 from api.views import SettingsView
 from api.views import StatusView
@@ -369,7 +369,7 @@ urlpatterns = [
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
     path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
     path("settings/tag_mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
-    path("settings/tag_mappings/add", SettingsTagMappingAddView.as_view(), name="tags-mapping-add"),
+    path("settings/tag_mappings/child/add", SettingsTagMappingChildAddView.as_view(), name="tags-mapping-child-add"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
