@@ -73,17 +73,38 @@ class TestCostGroupsAPI(IamTestCase):
 
     def test_get_cost_groups_filters(self):
         """Basic test to exercise the API endpoint"""
-        parameters = ({"group": self.default_cost_group}, {"default": True}, {"project": OCP_PLATFORM_NAMESPACE}, {})
+        parameters = (
+            {"group": self.default_cost_group},
+            {"default": True},
+            {"project": OCP_PLATFORM_NAMESPACE},
+            {},
+        )
         for parameter in parameters:
             with self.subTest(parameter=parameter):
                 for filter_option, filter_value in parameter.items():
                     param = {f"filter[{filter_option}]": filter_value}
                     with schema_context(self.schema_name):
                         response = self.client.get(self.url, param, **self.headers)
-                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+
                     data = response.data.get("data")
+
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
                     for item in data:
                         self.assertEqual(item.get(filter_option), filter_value)
+
+    def test_get_cost_groups_not_default(self):
+        """Test that filtering for non-default groups returns only items with
+        null and False values"""
+
+        param = {"filter[default]": "0"}
+        with schema_context(self.schema_name):
+            response = self.client.get(self.url, param, **self.headers)
+
+        data = response.data.get("data")
+        result = {item.get("default") for item in data}
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(result.issubset((None, False)))
 
     def test_get_cost_groups_filter_cluster(self):
         """Basic test to exercise the API endpoint"""
