@@ -22,6 +22,7 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
@@ -121,6 +122,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "markup": markup_value or 0,
             "bill_id": bill_id,
+            "tag_mapping_feature": is_feature_cost_3592_tag_mapping_enabled(self.schema),
         }
 
         self._execute_trino_raw_sql_query(
