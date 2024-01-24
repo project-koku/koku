@@ -4,30 +4,38 @@
 #
 """Serializers for Tag Mappings."""
 from rest_framework import serializers
-
-from reporting.provider.all.models import TagMapping
-
-# FIXME Lucas
-# You had the same class twice, not sure which one you need
-# class TagMappingSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = TagMapping
-#         fields = ["parent", "child"]
+from reporting.provider.all.models import TagMapping, EnabledTagKeys
 
 
-class TagMappingSerializer(serializers.ModelSerializer):
+class EnabledTagKeysSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TagMapping
-        fields = ["parent", "child"]
+        model = EnabledTagKeys
+        fields = ["uuid", "key", "enabled", "provider_type"]
+
+
+class TagMappingSerializer(serializers.Serializer):
+    parent = EnabledTagKeysSerializer()
+    child = EnabledTagKeysSerializer()
+
+    def to_representation(self, instance):
+        return {
+            "parent": EnabledTagKeysSerializer(instance.parent).data,
+            "child": EnabledTagKeysSerializer(instance.child).data,
+        }
 
     def validate(self, data):
-        parent = data.get("parent")
-        child = data.get("child")
+        parent = data["parent"]
+        child = data["child"]
 
-        if TagMapping.objects.filter(child=parent).exists():
+        if TagMapping.objects.filter(child=parent["uuid"]).exists():
             raise serializers.ValidationError("A child can't become a parent.")
 
-        if TagMapping.objects.filter(parent=child).exists():
+        if TagMapping.objects.filter(parent=child["uuid"]).exists():
             raise serializers.ValidationError("A parent can't become a child.")
 
         return data
+
+
+class TagMappingListSerializer(serializers.Serializer):
+    def to_representation(self, instance):
+        return {"data": [TagMappingSerializer(item).data for item in instance]}
