@@ -17,6 +17,17 @@ objects:
     dependencies:
       - koku
     envName: ${ENV_NAME}
+    kafkaTopics:
+    - topicName: platform.sources.event-stream
+    - topicName: platform.upload.announce
+    - topicName: platform.upload.validation
+    - topicName: platform.notifications.ingress
+    - topicName: hccm.ros.events
+    - topicName: platform.rhsm-subscriptions.service-instance-ingress
+    objectStore:
+    - ${S3_BUCKET_NAME}
+    - ${S3_ROS_BUCKET_NAME}
+    - ${S3_SUBS_BUCKET_NAME}
     jobs:
     - name: script-runner-${IMAGE_TAG}-${CJI_INVOCATION}
       podSpec:
@@ -76,6 +87,12 @@ objects:
           value: ${MGMT_IMAGE_TAG}
         - name: AWS_BILL_CLEAN_DATE
           value: ${AWS_BILL_CLEAN_DATE}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: REQUESTED_ROS_BUCKET
+          value: ${S3_ROS_BUCKET_NAME}
+        - name: REQUESTED_SUBS_BUCKET
+          value: ${S3_SUBS_BUCKET_NAME}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
@@ -178,3 +195,9 @@ parameters:
 - description: Date to clean AWS Bills
   name: AWS_BILL_CLEAN_DATE
   value: ""
+- name: S3_BUCKET_NAME
+  value: koku-eph-s3
+- name: S3_ROS_BUCKET_NAME
+  value: ros-eph-s3
+- name: S3_SUBS_BUCKET_NAME
+  value: subs-eph-s3
