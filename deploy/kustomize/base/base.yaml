@@ -140,7 +140,7 @@ objects:
   metadata:
     name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
   spec:
-    appName: koku-cji
+    appName: koku
     jobs:
       - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
 
