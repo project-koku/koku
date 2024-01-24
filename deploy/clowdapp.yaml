@@ -4207,7 +4207,7 @@ objects:
           requests:
             cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
             memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
-    - disabled: ${MGMT_JOB_DISABLED}
+    - disabled: ${{MGMT_JOB_DISABLED}}
       name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
       podSpec:
         args:
