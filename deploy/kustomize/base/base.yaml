@@ -132,6 +132,18 @@ objects:
     jobs:
       - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
 
+# ====================================================
+#      koku Management CJI
+# ====================================================
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
+  spec:
+    appName: koku-cji
+    jobs:
+      - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
+
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
