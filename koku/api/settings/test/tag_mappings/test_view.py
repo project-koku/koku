@@ -15,12 +15,41 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         """Test the get method for the tag mapping view"""
         url = reverse("tags-mapping")
         response = self.client.get(url, **self.headers)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_put_method_invalid_uuid(self):
         """Test the put method for the tag mapping view with an invalid uuid"""
         url = reverse("tags-mapping-child-add")
-        data = {"parent": "1816f1f8-b71c-49d9-8584-c781b95524de", "child": "553cf5b2-92a1-496a-bbaf-9fb470f17f00"}
+        data = {"parent": "invalid-uuid", "child": "invalid-uuid-2"}
 
         response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_method_validate_parent(self):
+        """Test if a parent can be added as a child."""
+        url = reverse("tags-mapping-child-add")
+
+        # Adding sample uuids
+        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "child": "1b78ba6d-e933-47d5-b99b-4261e2508162"}
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        # Adding a parent as child
+        data = {"parent": "29f738e4-38f4-4ed8-a9f4-beed48165222", "child": "f08751bf-e104-4813-bd48-dd46d98ce9cc"}
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_method_validate_child(self):
+        """Test if a child can be added as a parent."""
+        url = reverse("tags-mapping-child-add")
+
+        # Adding sample uuids
+        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "child": "1b78ba6d-e933-47d5-b99b-4261e2508162"}
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        # Adding a child as parent
+        data = {"parent": "1b78ba6d-e933-47d5-b99b-4261e2508162", "child": "29f738e4-38f4-4ed8-a9f4-beed48165222"}
+        response = self.client.put(url, data, format="json", **self.headers)
+
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
