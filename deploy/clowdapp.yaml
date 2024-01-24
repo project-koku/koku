@@ -4444,7 +4444,7 @@ parameters:
   value: ""
 - description: Management Command Job Disabled
   name: MGMT_JOB_DISABLED
-  value: "True"
+  value: "true"
 - displayName: Memory Request
   name: KOKU_MGMT_MEMORY_REQUEST
   required: true
