@@ -27,7 +27,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
 from koku import celery_app
-from koku.database import cascade_delete
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -61,7 +60,6 @@ from masu.util.common import get_path_prefix
 from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 from reporting.ingress.models import IngressReports
-from reporting.models import AWSCostEntryBill
 from reporting_common.models import CostUsageReportStatus
 
 
@@ -1176,27 +1174,3 @@ def process_daily_openshift_on_cloud(
 
             file_name = f"ocp_on_{provider_type}_{i}"
             processor.process(file_name, [data_frame])
-
-
-@celery_app.task(name="masu.celery.tasks.cleanup_aws_bills", queue=PRIORITY_QUEUE)
-def cleanup_aws_bills(schema_name, provider_uuid, bill_date, tracing_id=None):
-    context = {
-        "schema_name": schema_name,
-        "provider_uuid": provider_uuid,
-        "bill_date": bill_date,
-    }
-    with schema_context(schema_name):
-        bills = AWSCostEntryBill.objects.filter(
-            provider_id=provider_uuid, payer_account_id=None, billing_period_start=bill_date
-        )
-        if not bills:
-            LOG.info(log_json(tracing_id, msg="no bills found with empty payer account", context=context))
-            return
-        context["bill_count"] = len(bills)
-        LOG.info(
-            log_json(
-                tracing_id, msg="bills found with empty payer account, beginning cascade deletes", context=context
-            )
-        )
-        cascade_delete(bills.query.model, bills)
-        LOG.info(log_json(tracing_id, msg="cascade deletes completed", context=context))

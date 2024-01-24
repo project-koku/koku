@@ -11,7 +11,6 @@ from masu.api.manifest.views import ManifestView
 from masu.api.sources.views import SourcesViewSet
 from masu.api.trino import trino_ui
 from masu.api.views import additional_context
-from masu.api.views import aws_bill_cleanup
 from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
 from masu.api.views import celery_queue_tasks
@@ -61,7 +60,6 @@ urlpatterns = [
     path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
-    path("aws_bill_cleanup/", aws_bill_cleanup, name="aws_bill_cleanup"),
     path("trino/query/", trino_query, name="trino_query"),
     path("trino/api/", trino_ui, name="trino_ui"),
     path("notification/", notification, name="notification"),
