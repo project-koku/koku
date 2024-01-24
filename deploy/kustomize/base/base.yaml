@@ -323,6 +323,22 @@ parameters:
   name: MGMT_IMAGE
   required: true
   value: quay.io/cloudservices/koku
+- displayName: Memory Request
+  name: KOKU_MGMT_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- displayName: Memory Limit
+  name: KOKU_MGMT_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- displayName: CPU Request
+  name: KOKU_MGMT_CPU_REQUEST
+  required: true
+  value: "2"
+- displayName: CPU Limit
+  name: KOKU_MGMT_CPU_LIMIT
+  required: true
+  value: "3"
 - description: Management Command Invocation Iterator
   name: MGMT_INVOCATION
   required: true
