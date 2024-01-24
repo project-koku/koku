@@ -4207,31 +4207,6 @@ objects:
           requests:
             cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
             memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
-    - name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
-      podSpec:
-        args:
-        - /bin/bash
-        - -c
-        - python $APP_ROOT/koku/manage.py ${MGMT_COMMAND}
-        env:
-        - name: CLOWDER_ENABLED
-          value: ${CLOWDER_ENABLED}
-        - name: DEVELOPMENT
-          value: ${DEVELOPMENT}
-        - name: MGMT_IMAGE
-          value: ${MGMT_IMAGE}
-        - name: MGMT_IMAGE_TAG
-          value: ${MGMT_IMAGE_TAG}
-        - name: AWS_BILL_CLEAN_DATE
-          value: ${AWS_BILL_CLEAN_DATE}
-        image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
-        resources:
-          limits:
-            cpu: ${KOKU_MGMT_CPU_LIMIT}
-            memory: ${KOKU_MGMT_MEMORY_LIMIT}
-          requests:
-            cpu: ${KOKU_MGMT_CPU_REQUEST}
-            memory: ${KOKU_MGMT_MEMORY_REQUEST}
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -4254,14 +4229,6 @@ objects:
     appName: koku
     jobs:
     - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
-  spec:
-    appName: koku
-    jobs:
-    - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
@@ -4427,41 +4394,6 @@ parameters:
 - name: TENANT_MULTIPROCESSING_CHUNKS
   required: true
   value: "2"
-- description: Management Command Image Tag
-  name: MGMT_IMAGE_TAG
-  required: true
-  value: latest
-- description: Management Command Image
-  name: MGMT_IMAGE
-  required: true
-  value: quay.io/cloudservices/koku
-- displayName: Memory Request
-  name: KOKU_MGMT_MEMORY_REQUEST
-  required: true
-  value: 1Gi
-- displayName: Memory Limit
-  name: KOKU_MGMT_MEMORY_LIMIT
-  required: true
-  value: 2Gi
-- displayName: CPU Request
-  name: KOKU_MGMT_CPU_REQUEST
-  required: true
-  value: "2"
-- displayName: CPU Limit
-  name: KOKU_MGMT_CPU_LIMIT
-  required: true
-  value: "3"
-- description: Management Command Invocation Iterator
-  name: MGMT_INVOCATION
-  required: true
-  value: "00"
-- description: Management Command
-  name: MGMT_COMMAND
-  required: true
-  value: ""
-- description: Date to clean AWS Bills
-  name: AWS_BILL_CLEAN_DATE
-  value: ""
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
