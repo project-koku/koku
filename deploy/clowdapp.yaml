@@ -4207,6 +4207,30 @@ objects:
           requests:
             cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
             memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
+    - disabled: ${MGMT_JOB_DISABLED}
+      name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
+      podSpec:
+        args:
+        - /bin/bash
+        - -c
+        - python $APP_ROOT/koku/manage.py ${MGMT_COMMAND}
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: MGMT_IMAGE
+          value: ${MGMT_IMAGE}
+        - name: MGMT_IMAGE_TAG
+          value: ${MGMT_IMAGE_TAG}
+        image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${KOKU_MGMT_CPU_LIMIT}
+            memory: ${KOKU_MGMT_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_MGMT_CPU_REQUEST}
+            memory: ${KOKU_MGMT_MEMORY_REQUEST}
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -4394,6 +4418,41 @@ parameters:
 - name: TENANT_MULTIPROCESSING_CHUNKS
   required: true
   value: "2"
+- description: Management Command Image Tag
+  name: MGMT_IMAGE_TAG
+  required: true
+  value: latest
+- description: Management Command Image
+  name: MGMT_IMAGE
+  required: true
+  value: quay.io/cloudservices/koku
+- description: Management Command Invocation Iterator
+  name: MGMT_INVOCATION
+  required: true
+  value: "00"
+- description: Management Command
+  name: MGMT_COMMAND
+  required: true
+  value: ""
+- description: Management Command Job Disabled
+  name: MGMT_JOB_DISABLED
+  value: true
+- displayName: Memory Request
+  name: KOKU_MGMT_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- displayName: Memory Limit
+  name: KOKU_MGMT_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- displayName: CPU Request
+  name: KOKU_MGMT_CPU_REQUEST
+  required: true
+  value: "2"
+- displayName: CPU Limit
+  name: KOKU_MGMT_CPU_LIMIT
+  required: true
+  value: "3"
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
