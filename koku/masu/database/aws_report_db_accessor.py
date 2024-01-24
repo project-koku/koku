@@ -273,6 +273,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
+            "tag_mapping_feature": is_feature_cost_3592_tag_mapping_enabled(self.schema),
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
