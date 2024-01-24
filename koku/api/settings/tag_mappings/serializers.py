@@ -8,9 +8,11 @@ from reporting.provider.all.models import TagMapping, EnabledTagKeys
 
 
 class EnabledTagKeysSerializer(serializers.ModelSerializer):
+    source_type = serializers.CharField(source='provider_type')
+
     class Meta:
         model = EnabledTagKeys
-        fields = ["uuid", "key", "enabled", "provider_type"]
+        fields = ["uuid", "key", "source_type"]
 
 
 class TagMappingSerializer(serializers.Serializer):
