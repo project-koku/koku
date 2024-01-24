@@ -11,6 +11,7 @@ objects:
   spec:
     database:
       sharedDbAppName: koku
+    inMemoryDb: true
     # Use Unleash server
     featureFlags: true
     dependencies:
