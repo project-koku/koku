@@ -93,7 +93,6 @@ objects:
     #      koku Management Command Job
     # ====================================================
     - name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
-      disabled: ${{MGMT_JOB_DISABLED}}
       podSpec:
         image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
         resources:
@@ -332,9 +331,6 @@ parameters:
 - description: Management Command
   name: MGMT_COMMAND
   value: ""
-- description: Management Command Job Disabled
-  name: MGMT_JOB_DISABLED
-  value: "true"
 - displayName: Memory Request
   name: KOKU_MGMT_MEMORY_REQUEST
   required: true

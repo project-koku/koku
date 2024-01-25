@@ -4207,8 +4207,7 @@ objects:
           requests:
             cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
             memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
-    - disabled: ${{MGMT_JOB_DISABLED}}
-      name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
+    - name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
       podSpec:
         args:
         - /bin/bash
@@ -4441,9 +4440,6 @@ parameters:
 - description: Management Command
   name: MGMT_COMMAND
   value: ""
-- description: Management Command Job Disabled
-  name: MGMT_JOB_DISABLED
-  value: "true"
 - displayName: Memory Request
   name: KOKU_MGMT_MEMORY_REQUEST
   required: true
