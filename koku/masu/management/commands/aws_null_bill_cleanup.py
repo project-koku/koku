@@ -9,11 +9,13 @@ from dateutil.relativedelta import relativedelta
 from django.core.management.base import BaseCommand
 from django_tenants.utils import schema_context
 
-from api.common import log_json
 from api.provider.models import Provider
 from koku.database import cascade_delete
+from masu.processor import is_customer_large
+from masu.processor.tasks import PRIORITY_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE_XL
+from masu.processor.tasks import update_summary_tables
 from reporting.models import AWSCostEntryBill
-
 
 LOG = logging.getLogger(__name__)
 
@@ -31,15 +33,14 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, delete: bool, **kwargs: Any) -> None:
         if not delete:
-            LOG.info(log_json(msg="In dry run mode (--delete not passed)"))
+            LOG.info(msg="In dry run mode (--delete not passed)")
         else:
-            LOG.info(log_json(msg="DELETING BILLS (--delete passed)"))
+            LOG.info(msg="DELETING BILLS (--delete passed)")
         cleanup_aws_bills(delete)
 
 
 def cleanup_aws_bills(delete):
     """Deletes AWS Bills with a null payer account ID for January 2024 back through October 2023."""
-    SUMMARY_URL_TEMPLATE = "api/cost-management/v1/report_data/?schema={}&provider_uuid={}&start_date={}&end_date={}"
     DATE_FORMAT = "%Y-%m-%d"
     initial_date = parser.parse("2024-01-01T00:00:00+00:00")
     total_cleaned_bills = 0
@@ -57,29 +58,36 @@ def cleanup_aws_bills(delete):
                 bills = AWSCostEntryBill.objects.filter(
                     provider_id=provider_uuid, payer_account_id=None, billing_period_start=start_date
                 )
-                summary_url = SUMMARY_URL_TEMPLATE.format(
-                    schema, provider_uuid, start_date.strftime(DATE_FORMAT), end_date.strftime(DATE_FORMAT)
-                )
+                if bills:
+                    queue_name = PRIORITY_QUEUE_XL if is_customer_large(schema) else PRIORITY_QUEUE
+                    num_bills = len(bills)
+                    total_cleaned_bills += num_bills
+                    if delete:
+                        formatted_start = start_date.strftime(DATE_FORMAT)
+                        formatted_end = end_date.strftime(DATE_FORMAT)
+                        cascade_delete(bills.query.model, bills)
+                        async_result = update_summary_tables.s(
+                            schema,
+                            prov.type,
+                            provider_uuid,
+                            formatted_start,
+                            end_date=formatted_end,
+                            queue_name=queue_name,
+                            ocp_on_cloud=True,
+                        ).apply_async(queue=queue_name)
+                        LOG.info(
+                            f"Deletes completed and summary triggered for provider {provider_uuid} "
+                            f"with start {formatted_start} and end {formatted_end}, task_id: {async_result.id}"
+                        )
+
+                    else:
+                        bill_ids = [bill.id for bill in bills]
+                        LOG.info(f"bills {bill_ids} would be deleted for provider: {provider_uuid}")
                 start_date = start_date - relativedelta(months=1)
                 end_date = start_date + relativedelta(day=31)
-                if not bills:
-                    continue
-                num_bills = len(bills)
-                total_cleaned_bills += num_bills
-                if delete:
-                    cascade_delete(bills.query.model, bills)
-                    LOG.info(log_json(msg="Deletes completed and ready for summary", summary_url=summary_url))
-
-                else:
-                    bill_ids = [bill.id for bill in bills]
-                    LOG.info(log_json(msg=f"bills {bill_ids} would be deleted for provider: {provider_uuid}"))
 
     if delete:
-        LOG.info(log_json(msg=f"{total_cleaned_bills} bills deleted across {total_cleaned_providers} providers."))
+        LOG.info(f"{total_cleaned_bills} bills deleted across {total_cleaned_providers} providers.")
 
     else:
-        LOG.info(
-            log_json(
-                msg=f"DRY RUN: {total_cleaned_bills} bills would be deleted across {total_cleaned_providers} providers."
-            )
-        )
+        LOG.info(f"DRY RUN: {total_cleaned_bills} bills would be deleted across {total_cleaned_providers} providers.")
