@@ -2,7 +2,7 @@
     "openapi": "3.0.0",
     "info": {
         "description": "Access your cloud and OpenShift data you integrated with cost management.",
-        "version": "1.0.2",
+        "version": "1",
         "title": "Cost Management",
         "license": {
             "name": "AGPL-3.0",
