@@ -1,5 +1,6 @@
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -11,7 +12,7 @@ from .query_handler import format_tag_mapping_relationship
 from .serializers import TagMappingSerializer
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
-from reporting.provider.all.models import TagMapping
+from reporting.provider.all.models import TagMapping, EnabledTagKeys
 
 
 class SettingsTagMappingView(generics.GenericAPIView):
@@ -35,24 +36,35 @@ class SettingsTagMappingChildAddView(APIView):
     permission_classes = (SettingsAccessPermission,)
     serializer_class = TagMappingSerializer
 
+    @transaction.atomic
     def put(self, request):
         try:
-            uuid = request.data.get("uuid")
-            if uuid:
-                tag_mapping = TagMapping.objects.get(uuid=uuid)
-                # FIXME: Lucas
-                # Our api spec document says that the data needs to accept a list of children
-                # Also, it is likely that dan will be sending us a list of strings.
-                # Example payload
-                # dat ={"parent":"uuid_str","child":["uuid_str"]}
-                serializer = TagMappingSerializer(tag_mapping, data=request.data)
-            else:
-                serializer = TagMappingSerializer(data=request.data)
+            parent_uuid = request.data.get("parent")
+            children_uuids = request.data.get("children", [])
 
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+            parent = EnabledTagKeys.objects.get(uuid=parent_uuid)
+            children = EnabledTagKeys.objects.filter(uuid__in=children_uuids)
 
+            if not parent or not children.exists():
+                return Response({"detail": "Invalid parent or children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Validate if parent can be a child in any existing mappings
+            if TagMapping.objects.filter(child=parent_uuid).exists():
+                return Response({"detail": "A child can't become a parent."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Validate if children can be parents in any existing mappings
+            if TagMapping.objects.filter(parent__in=children_uuids).exists():
+                return Response({"detail": "A parent can't become a child."}, status=status.HTTP_400_BAD_REQUEST)
+
+            with transaction.atomic():
+                # Create TagMapping for each child
+                for child in children:
+                    TagMapping.objects.create(parent=parent, child=child)
+
+            # Serialize and return the created TagMapping
+            serializer = TagMappingSerializer(TagMapping.objects.filter(parent=parent), many=True)
+            
             return Response(serializer.data, status=status.HTTP_200_OK)
 
-        except TagMapping.DoesNotExist:
-            return Response({"detail": "TagMapping not found."}, status=status.HTTP_404_NOT_FOUND)
+        except EnabledTagKeys.DoesNotExist:
+            return Response({"detail": "Invalid parent or children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
