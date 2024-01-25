@@ -4440,7 +4440,6 @@ parameters:
   value: "00"
 - description: Management Command
   name: MGMT_COMMAND
-  required: true
   value: ""
 - description: Management Command Job Disabled
   name: MGMT_JOB_DISABLED
