@@ -7,6 +7,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .query_handler import format_tag_mapping_relationship
 from .serializers import TagMappingSerializer
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
@@ -23,20 +24,9 @@ class SettingsTagMappingView(generics.GenericAPIView):
     def get(self, request: Request, **kwargs):
         filtered_qset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(filtered_qset, many=True)
-
         paginator = ListPaginator(serializer.data, request)
         response = paginator.paginated_response
-
-        # (FIXME): Lucas
-        # This return structure doesn't currently match what we told
-        # Dan we would return in our api doc.
-
-        # data": [
-        #     {
-        #         "parent": "b02c8a2b-b0d7-493b-a85a-190e81ed1623",
-        #         "child": "fbaf9863-6168-428e-812a-d0f1feab8eb6"
-        #     }
-        # ]
+        response = format_tag_mapping_relationship(response)
 
         return response
 
