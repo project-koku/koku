@@ -342,11 +342,11 @@ parameters:
 - displayName: CPU Request
   name: KOKU_MGMT_CPU_REQUEST
   required: true
-  value: "2"
+  value: "200m"
 - displayName: CPU Limit
   name: KOKU_MGMT_CPU_LIMIT
   required: true
-  value: "3"
+  value: "500m"
 
 - displayName: App domain
   name: APP_DOMAIN
