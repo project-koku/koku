@@ -4688,9 +4688,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4738,9 +4735,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4821,9 +4815,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4871,9 +4862,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4954,9 +4942,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5004,9 +4989,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5087,9 +5069,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5137,9 +5116,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5220,9 +5196,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5270,9 +5243,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5928,15 +5898,6 @@
                 },
                 "example": {
                     "enabled": false
-                }
-            },
-            "OCPTagsFilter": {
-                "in": "query",
-                "name": "cluster",
-                "required": false,
-                "description": "The cluster_id or cluster_alias to filter on",
-                "schema": {
-                    "$ref": "#/components/schemas/cluster"
                 }
             },
             "QueryGroupBy": {
