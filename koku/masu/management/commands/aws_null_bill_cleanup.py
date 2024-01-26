@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+from datetime import datetime
 from typing import Any
 
-from dateutil import parser
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django_tenants.utils import schema_context
 
@@ -18,6 +19,14 @@ from masu.processor.tasks import update_summary_tables
 from reporting.models import AWSCostEntryBill
 
 LOG = logging.getLogger(__name__)
+DATE_FORMAT = "%Y-%m-%d"
+DATETIMES = (
+    datetime(2024, 1, 1, tzinfo=settings.UTC),
+    datetime(2023, 12, 1, tzinfo=settings.UTC),
+    datetime(2023, 11, 1, tzinfo=settings.UTC),
+    datetime(2023, 10, 1, tzinfo=settings.UTC),
+    datetime(2023, 9, 1, tzinfo=settings.UTC),
+)
 
 
 class Command(BaseCommand):
@@ -32,36 +41,42 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, delete: bool, **kwargs: Any) -> None:
-        if not delete:
-            LOG.info(msg="In dry run mode (--delete not passed)")
-        else:
+        if delete:
             LOG.info(msg="DELETING BILLS (--delete passed)")
-        cleanup_aws_bills(delete)
+        else:
+            LOG.info(msg="In dry run mode (--delete not passed)")
+
+        total_cleaned_bills, total_cleaned_providers = cleanup_aws_bills(delete)
+
+        if delete:
+            LOG.info(f"{total_cleaned_bills} bills deleted across {total_cleaned_providers} providers.")
+        else:
+            LOG.info(
+                f"DRY RUN: {total_cleaned_bills} bills would be deleted across {total_cleaned_providers} providers."
+            )
 
 
-def cleanup_aws_bills(delete):
-    """Deletes AWS Bills with a null payer account ID for January 2024 back through October 2023."""
-    DATE_FORMAT = "%Y-%m-%d"
-    initial_date = parser.parse("2024-01-01T00:00:00+00:00")
+def cleanup_aws_bills(delete: bool) -> (int, int):
+    """Deletes AWS Bills with a null payer account ID."""
     total_cleaned_bills = 0
     total_cleaned_providers = 0
     providers = Provider.objects.filter(type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL])
-    for prov in providers:
-        schema = prov.customer.schema_name
-        provider_uuid = prov.uuid
-        total_cleaned_providers += 1
-        start_date = initial_date
-        # adding a relative delta of day=31 will not cross a month boundary whereas days=31 would
+    for start_date in DATETIMES:
         end_date = start_date + relativedelta(day=31)
-        with schema_context(schema):
-            while start_date >= parser.parse("2023-10-01T00:00:00+00:00"):
-                bills = AWSCostEntryBill.objects.filter(
-                    provider_id=provider_uuid, payer_account_id=None, billing_period_start=start_date
-                )
-                if bills:
+
+        for prov in providers:
+            schema = prov.customer.schema_name
+            provider_uuid = prov.uuid
+            total_cleaned_providers += 1
+
+            with schema_context(schema):
+                if bills := AWSCostEntryBill.objects.filter(
+                    provider_id=provider_uuid,
+                    payer_account_id=None,
+                    billing_period_start=start_date,
+                ):
                     queue_name = PRIORITY_QUEUE_XL if is_customer_large(schema) else PRIORITY_QUEUE
-                    num_bills = len(bills)
-                    total_cleaned_bills += num_bills
+                    total_cleaned_bills += len(bills)
                     if delete:
                         formatted_start = start_date.strftime(DATE_FORMAT)
                         formatted_end = end_date.strftime(DATE_FORMAT)
@@ -83,11 +98,5 @@ def cleanup_aws_bills(delete):
                     else:
                         bill_ids = [bill.id for bill in bills]
                         LOG.info(f"bills {bill_ids} would be deleted for provider: {provider_uuid}")
-                start_date = start_date - relativedelta(months=1)
-                end_date = start_date + relativedelta(day=31)
 
-    if delete:
-        LOG.info(f"{total_cleaned_bills} bills deleted across {total_cleaned_providers} providers.")
-
-    else:
-        LOG.info(f"DRY RUN: {total_cleaned_bills} bills would be deleted across {total_cleaned_providers} providers.")
+    return total_cleaned_bills, total_cleaned_providers
