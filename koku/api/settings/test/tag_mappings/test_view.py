@@ -62,3 +62,37 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         response = self.client.put(url, data, format="json", **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_put_method_remove_children(self):
+        """Test removing children."""
+
+        # Adding sample uuids
+        url = reverse("tags-mapping-child-add")
+        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "children": ["1b78ba6d-e933-47d5-b99b-4261e2508162",
+                                                                               "649908c9-49a6-4f3f-9c2d-663d1adf60b0",
+                                                                               "8437233a-cbb2-4472-937f-381cc56dfec6"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        # Removing children
+        url = reverse("tags-mapping-child-remove")
+        data = {"ids": ["1b78ba6d-e933-47d5-b99b-4261e2508162", "649908c9-49a6-4f3f-9c2d-663d1adf60b0"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_put_method_remove_parent(self):
+        """Test removing children."""
+
+        # Adding sample uuids
+        url = reverse("tags-mapping-child-add")
+        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "children": ["1b78ba6d-e933-47d5-b99b-4261e2508162",
+                                                                               "649908c9-49a6-4f3f-9c2d-663d1adf60b0",
+                                                                               "8437233a-cbb2-4472-937f-381cc56dfec6"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        # Removing parent
+        url = reverse("tags-mapping-parent-remove")
+        data = {"ids": ["f08751bf-e104-4813-bd48-dd46d98ce9cc"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

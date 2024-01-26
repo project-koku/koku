@@ -63,8 +63,34 @@ class SettingsTagMappingChildAddView(APIView):
 
             # Serialize and return the created TagMapping
             serializer = TagMappingSerializer(TagMapping.objects.filter(parent=parent), many=True)
-            
+
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except EnabledTagKeys.DoesNotExist:
             return Response({"detail": "Invalid parent or children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SettingsTagMappingChildRemoveView(APIView):
+    permission_classes = (SettingsAccessPermission,)
+
+    def put(self, request: Request):
+        children_uuids = request.data.get("ids", [])
+        if not EnabledTagKeys.objects.filter(uuid__in=children_uuids).exists():
+            return Response({"detail": "Invalid children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
+
+        TagMapping.objects.filter(child__in=children_uuids).delete()
+
+        return Response({"detail": "Children deleted successfully."}, status=status.HTTP_200_OK)
+
+
+class SettingsTagMappingParentRemoveView(APIView):
+    permission_classes = (SettingsAccessPermission,)
+
+    def put(self, request: Request):
+        parents_uuid = request.data.get("ids", [])
+        if not EnabledTagKeys.objects.filter(uuid__in=parents_uuid).exists():
+            return Response({"detail": "Invalid parents UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
+
+        TagMapping.objects.filter(parent__in=parents_uuid).delete()
+
+        return Response({"detail": "Parents deleted successfully."}, status=status.HTTP_200_OK)
