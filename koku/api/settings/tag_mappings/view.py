@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .query_handler import format_tag_mapping_relationship
-from .serializers import TagMappingSerializer
+from .serializers import TagMappingSerializer, EnabledTagKeysSerializer
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from reporting.provider.all.models import TagMapping, EnabledTagKeys
@@ -28,6 +28,22 @@ class SettingsTagMappingView(generics.GenericAPIView):
         paginator = ListPaginator(serializer.data, request)
         response = paginator.paginated_response
         response = format_tag_mapping_relationship(response)
+
+        return response
+
+
+class SettingsTagMappingChildView(generics.GenericAPIView):
+    queryset = EnabledTagKeys.objects.exclude(parent__isnull=False).exclude(child__parent__isnull=False)
+    serializer_class = EnabledTagKeysSerializer
+    permission_classes = (SettingsAccessPermission,)
+    filter_backends = (DjangoFilterBackend,)
+
+    @method_decorator(never_cache)
+    def get(self, request: Request, **kwargs):
+        filtered_qset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(filtered_qset, many=True)
+        paginator = ListPaginator(serializer.data, request)
+        response = paginator.paginated_response
 
         return response
 

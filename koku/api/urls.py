@@ -96,6 +96,7 @@ from api.views import SettingsEnableTagView
 from api.views import SettingsTagMappingChildAddView
 from api.views import SettingsTagMappingChildRemoveView
 from api.views import SettingsTagMappingParentRemoveView
+from api.views import SettingsTagMappingChildView
 from api.views import SettingsTagMappingView
 from api.views import SettingsTagView
 from api.views import SettingsView
@@ -371,6 +372,7 @@ urlpatterns = [
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
     path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
     path("settings/tag_mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
+    path("settings/tag_mappings/child/", SettingsTagMappingChildView.as_view(), name="tags-mapping-child"),
     path("settings/tag_mappings/child/add/", SettingsTagMappingChildAddView.as_view(), name="tags-mapping-child-add"),
     path("settings/tag_mappings/child/remove/", SettingsTagMappingChildRemoveView.as_view(),
          name="tags-mapping-child-remove"),
