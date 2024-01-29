@@ -33,6 +33,7 @@ from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from pandas.api.types import CategoricalDtype
 
@@ -712,13 +713,15 @@ class ReportQueryHandler(QueryHandler):
             When(project__startswith="kube-", then=Value("default")),
             When(project="openshift", then=Value("default")),
             When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
-            When(cost_category_id__isnull=False, then=F("cost_category__name")),
         ]
+
+        if self._category:
+            whens.append(When(project__in=self._category, then=Concat(Value("category_"), F("cost_category__name"))))
 
         return query_data.annotate(
             classification=Case(
                 *whens,
-                default=Value(""),
+                default=Value("project"),
                 output_field=CharField(),
             )
         )
