@@ -143,12 +143,12 @@ class ExpiredDataRemoverTest(MasuTestCase):
             uuids = []
             uuids_to_be_deleted = []
             for date in dates:
-                manifest_creation_datetime = current_month
-                manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=2)
+                creation_datetime = current_month
+                manifest_updated_datetime = creation_datetime + relativedelta(days=2)
                 uuid = uuid4()
                 data = {
                     "assembly_id": uuid,
-                    "manifest_creation_datetime": manifest_creation_datetime,
+                    "creation_datetime": creation_datetime,
                     "manifest_updated_datetime": manifest_updated_datetime,
                     "billing_period_start_datetime": date,
                     "num_total_files": 1,
@@ -180,7 +180,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         day_before_cutoff = expiration_date - relativedelta(days=1)
         day_before_cutoff_data = {
             "assembly_id": uuid4(),
-            "manifest_creation_datetime": None,
+            "creation_datetime": None,
             "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
             "num_total_files": 1,
@@ -221,13 +221,13 @@ class ExpiredDataRemoverTest(MasuTestCase):
         ]
         manifest_uuids = []
         manifest_uuids_to_be_deleted = []
-        manifest_creation_datetime = current_month
-        manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=2)
+        creation_datetime = current_month
+        manifest_updated_datetime = creation_datetime + relativedelta(days=2)
         for fixture_record in fixture_records:
             manifest_uuid = uuid4()
             data = {
                 "assembly_id": manifest_uuid,
-                "manifest_creation_datetime": manifest_creation_datetime,
+                "creation_datetime": creation_datetime,
                 "manifest_updated_datetime": manifest_updated_datetime,
                 "billing_period_start_datetime": fixture_record[1],
                 "num_total_files": 1,
@@ -259,7 +259,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         day_before_cutoff_data = {
             "id": manifest_id,
             "assembly_id": uuid4(),
-            "manifest_creation_datetime": None,
+            "creation_datetime": None,
             "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
             "num_total_files": 1,
@@ -272,7 +272,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "CostUsageReportStatus",
             _quantity=manifest_entry.num_total_files,
             manifest_id=manifest_id,
-            last_completed_datetime=timezone.now(),
+            completed_datetime=timezone.now(),
         )
 
         count_records = CostUsageReportManifest.objects.count()

@@ -143,7 +143,7 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
     """
     already_processed = False
     if stats := CostUsageReportStatus.objects.filter(report_name=file_name, manifest_id=manifest_id).first():
-        already_processed = stats.last_completed_datetime
+        already_processed = stats.completed_datetime
         if already_processed:
             msg = f"Report {file_name} has already been processed."
         else:

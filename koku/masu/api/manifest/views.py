@@ -47,7 +47,7 @@ class ManifestInvalidFilterException(APIException):
 class ManifestView(viewsets.ModelViewSet):
     """Manifest View class."""
 
-    queryset = CostUsageReportManifest.objects.all().order_by("-manifest_creation_datetime")
+    queryset = CostUsageReportManifest.objects.all().order_by("-creation_datetime")
     serializer_class = ManifestSerializer
     permission_classes = [ManifestPermission]
     http_method_names = ["get"]
@@ -86,7 +86,7 @@ class ManifestView(viewsets.ModelViewSet):
             pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
             response = self.check_pagnation(pagination)
         if request.GET.get("timestamp") == "asc":
-            self.queryset = self.queryset.order_by("manifest_creation_datetime")
+            self.queryset = self.queryset.order_by("creation_datetime")
             pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
             response = self.check_pagnation(pagination)
         if response is not None:
