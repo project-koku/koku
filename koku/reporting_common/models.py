@@ -16,16 +16,20 @@ class CostUsageReportManifest(models.Model):
         unique_together = ("provider", "assembly_id")
 
     assembly_id = models.TextField()
-    manifest_creation_datetime = models.DateTimeField(null=True, default=timezone.now)
+    creation_datetime = models.DateTimeField(null=True, default=timezone.now)
+    # manifest_updated_datetime will be removed when we start utilizing the state field.
     manifest_updated_datetime = models.DateTimeField(null=True, default=timezone.now)
-    # Completed should indicate that our reporting materialzed views have refreshed
-    manifest_completed_datetime = models.DateTimeField(null=True)
-    # This timestamp indicates the last time the manifest was modified on the data source's end, not ours.
-    manifest_modified_datetime = models.DateTimeField(null=True)
+    # completed_datetime should indicate that our reporting materialzed views have refreshed
+    completed_datetime = models.DateTimeField(null=True)
+    # export_datetime indicates the last time the _data-source_ modified the data
+    export_datetime = models.DateTimeField(null=True)
+    # always `select_for_update` when updating the state field
+    state = models.JSONField(default=dict, null=True)
     billing_period_start_datetime = models.DateTimeField()
     num_total_files = models.IntegerField()
+    # s3_csv_cleared used in AWS/Azure to indicate csv's have been cleared for daily archive processing
     s3_csv_cleared = models.BooleanField(default=False, null=True)
-    # New daily archives for AWS/Azure set this to False when finalizing a bill
+    # s3_parquet_cleared used to indicate parquet files have been cleared prior to csv to parquet conversion
     s3_parquet_cleared = models.BooleanField(default=True, null=True)
     # Indicates what initial date to start at for daily processing
     daily_archive_start_date = models.DateTimeField(null=True)
@@ -37,9 +41,9 @@ class CostUsageReportManifest(models.Model):
     operator_daily_reports = models.BooleanField(null=True, default=False)
     cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
-    export_time = models.DateTimeField(null=True)
-    last_reports = models.JSONField(default=dict, null=True)
+    # report_tracker is additional context for OCI/GCP/OCP for managing file counts and file names
     report_tracker = models.JSONField(default=dict, null=True)
+    # s3_parquet_cleared_tracker is additional parquet context for OCP daily operator payloads
     s3_parquet_cleared_tracker = models.JSONField(default=dict, null=True)
 
 
@@ -53,8 +57,8 @@ class CostUsageReportStatus(models.Model):
 
     manifest = models.ForeignKey("CostUsageReportManifest", null=True, on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False)
-    last_completed_datetime = models.DateTimeField(null=True)
-    last_started_datetime = models.DateTimeField(null=True)
+    completed_datetime = models.DateTimeField(null=True)
+    started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
 
     def update_last_started_datetime(self):
