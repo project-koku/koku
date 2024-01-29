@@ -1,8 +1,8 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Cost Management",
-        "version": "1.0.2",
+        "description": "Access your cloud and OpenShift data you integrated with cost management.",
+        "version": "v1",
         "title": "Cost Management",
         "license": {
             "name": "AGPL-3.0",
@@ -6103,7 +6103,7 @@
         "securitySchemes": {
             "basic_auth": {
                 "type": "http",
-                "description": "The userid/password is needed when accessing this API externally",
+                "description": "Use service account authentication to access this API. See the cost management documentation for details.",
                 "scheme": "basic"
             }
         },
