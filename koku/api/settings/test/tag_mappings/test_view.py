@@ -18,6 +18,24 @@ class SettingsTagMappingViewTestCase(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_get_child(self):
+        """Test the get method for the tag mapping Child view"""
+        url = reverse("tags-mapping-child")
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_child_with_filter(self):
+        """Test the get method for the tag mapping Child view with a filter"""
+        url = reverse("tags-mapping-child") + "?source_type=aWs"
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Check that the response data is filtered correctly
+        for item in response.data['data']:
+            self.assertEqual(item['source_type'], 'AWS')
+
     def test_put_method_invalid_uuid(self):
         """Test the put method for the tag mapping view with an invalid uuid"""
         url = reverse("tags-mapping-child-add")
