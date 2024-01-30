@@ -372,14 +372,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         try:
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
         except TrinoStatementExecError as trino_exc:
-            if "one or more partitions already exist" in str(trino_exc).lower():
+            if trino_exc.error_name == "ALREADY_EXISTS":
                 LOG.warning(
                     log_json(
                         ctx=self.extract_context_from_sql_params(sql_params),
-                        msg=getattr(trino_exc.__cause__, "message", None),
-                        error_type=getattr(trino_exc.__cause__, "error_type", None),
-                        error_name=getattr(trino_exc.__cause__, "error_name", None),
-                        query_id=getattr(trino_exc.__cause__, "query_id", None),
+                        msg=trino_exc.message,
+                        error_type=trino_exc.error_type,
+                        error_name=trino_exc.error_name,
+                        query_id=trino_exc.query_id,
                     )
                 )
             else:

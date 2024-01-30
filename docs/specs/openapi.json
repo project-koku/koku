@@ -1,8 +1,8 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Cost Management",
-        "version": "1.0.2",
+        "description": "Access your cloud and OpenShift data you integrated with cost management.",
+        "version": "v1",
         "title": "Cost Management",
         "license": {
             "name": "AGPL-3.0",
@@ -1112,7 +1112,8 @@
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getOpenShiftCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -4687,9 +4688,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4737,9 +4735,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4820,9 +4815,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4870,9 +4862,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4953,9 +4942,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5003,9 +4989,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5086,9 +5069,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5136,9 +5116,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5219,9 +5196,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5269,9 +5243,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5593,7 +5564,9 @@
                         }
                     }
                 }
-            },
+            }
+        },
+        "/settings/cost/groups/add/": {
             "put": {
                 "tags": [
                     "Settings",
@@ -5619,14 +5592,19 @@
                         }
                     }
                 }
-            },
-            "delete": {
+            }
+        },
+        "/settings/cost-groups/remove/": {
+            "put": {
                 "tags": [
                     "Settings",
                     "Cost Groups"
                 ],
-                "summary": "Remove projects from a coust group",
-                "operationId": "deleteSettingsCostGroups",
+                "summary": "Remove projects from a cost group",
+                "operationId": "putSettingsCostGroupsRemove",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
                 "responses": {
                     "204": {
                         "description": "Cost groups updated"
@@ -5827,10 +5805,10 @@
                 }
             },
         "/recommendations/openshift": {
-            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift"
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift"
         },
         "/recommendations/openshift/{recommendation-id}": {
-            "$ref": "https://raw.githubusercontent.com/RedHatInsights/ros-ocp-backend/main/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
         }
     },
     "externalDocs": {
@@ -5904,7 +5882,8 @@
                 "description": "String to indicate end date of date range.",
                 "schema": {
                     "type": "string",
-                    "example": "1970-01-01"
+                    "format": "date",
+                    "example": "2023-01-01"
                 }
             },
             "QueryFilter": {
@@ -5916,37 +5895,37 @@
                 "explode": true,
                 "schema": {
                     "type": "object"
-                }
-            },
-            "OCPTagsFilter": {
-                "in": "query",
-                "name": "cluster",
-                "required": false,
-                "description": "The cluster_id or cluster_alias to filter on",
-                "schema": {
-                    "$ref": "#/components/schemas/cluster"
+                },
+                "example": {
+                    "enabled": false
                 }
             },
             "QueryGroupBy": {
                 "name": "group_by",
                 "required": false,
                 "in": "query",
-                "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                "description": "The grouping to apply to the report as a URL encoded dictionary. The syntax is group_by[parameter]=value except for tags, which use group_by[tag:key]=value.",
                 "style": "deepObject",
                 "explode": true,
                 "schema": {
                     "type": "object"
+                },
+                "example": {
+                    "tag:my_tag": "*"
                 }
             },
             "QueryOrderBy": {
                 "name": "order_by",
                 "required": false,
                 "in": "query",
-                "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                "description": "The ordering to apply to the report as a URL encoded dictionary. The syntax is order_by[field]=order. Use 'asc' for ascending and 'desc' for descending.",
                 "style": "deepObject",
                 "explode": true,
                 "schema": {
                     "type": "object"
+                },
+                "example": {
+                    "project": "desc"
                 }
             },
             "QueryOffset": {
@@ -5998,7 +5977,8 @@
                 "description": "String to indicate start date of date range.",
                 "schema": {
                     "type": "string",
-                    "example": "1970-01-01"
+                    "format": "date",
+                    "example": "2023-01-01"
                 }
             },
             "QueryType": {
@@ -6123,7 +6103,7 @@
         "securitySchemes": {
             "basic_auth": {
                 "type": "http",
-                "description": "The userid/password is needed when accessing this API externally",
+                "description": "Use service account authentication to access this API. See the cost management documentation for details.",
                 "scheme": "basic"
             }
         },
