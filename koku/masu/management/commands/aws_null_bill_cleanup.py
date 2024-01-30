@@ -57,7 +57,7 @@ class Command(BaseCommand):
             LOG.info(f"DRY RUN: {total_cleaned_bills} bills would be deleted.")
 
 
-def cleanup_aws_bills(delete: bool) -> (int):
+def cleanup_aws_bills(delete: bool) -> int:
     """Deletes AWS Bills with a null payer account ID."""
     total_cleaned_bills = 0
     providers = Provider.objects.filter(type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL])
