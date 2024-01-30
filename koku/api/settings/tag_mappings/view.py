@@ -1,6 +1,7 @@
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.db import transaction
+from django_filters import CharFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -13,6 +14,20 @@ from .serializers import TagMappingSerializer, EnabledTagKeysSerializer
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from reporting.provider.all.models import TagMapping, EnabledTagKeys
+from ..utils import SettingsFilter, NonValidatedMultipleChoiceFilter
+
+
+class SettingsTagMappingFilter(SettingsFilter):
+    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
+    source_type = CharFilter(method='filter_by_source_type')
+
+    class Meta:
+        model = EnabledTagKeys
+        fields = ("key", "source_type")
+        default_ordering = ["key", "-enabled"]
+
+    def filter_by_source_type(self, queryset, name, value):
+        return queryset.filter(provider_type__iexact=value)
 
 
 class SettingsTagMappingView(generics.GenericAPIView):
@@ -37,6 +52,7 @@ class SettingsTagMappingChildView(generics.GenericAPIView):
     serializer_class = EnabledTagKeysSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
+    filterset_class = SettingsTagMappingFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
