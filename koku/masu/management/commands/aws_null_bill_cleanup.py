@@ -49,20 +49,17 @@ class Command(BaseCommand):
         else:
             LOG.info(msg="In dry run mode (--delete not passed)")
 
-        total_cleaned_bills, total_cleaned_providers = cleanup_aws_bills(delete)
+        total_cleaned_bills = cleanup_aws_bills(delete)
 
         if delete:
-            LOG.info(f"{total_cleaned_bills} bills deleted across {total_cleaned_providers} providers.")
+            LOG.info(f"{total_cleaned_bills} bills deleted.")
         else:
-            LOG.info(
-                f"DRY RUN: {total_cleaned_bills} bills would be deleted across {total_cleaned_providers} providers."
-            )
+            LOG.info(f"DRY RUN: {total_cleaned_bills} bills would be deleted.")
 
 
-def cleanup_aws_bills(delete: bool) -> (int, int):
+def cleanup_aws_bills(delete: bool) -> (int):
     """Deletes AWS Bills with a null payer account ID."""
     total_cleaned_bills = 0
-    total_cleaned_providers = 0
     providers = Provider.objects.filter(type__in=[Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL])
     for start_date in DATETIMES:
         end_date = start_date + relativedelta(day=31)
@@ -70,7 +67,6 @@ def cleanup_aws_bills(delete: bool) -> (int, int):
         for prov in providers:
             schema = prov.customer.schema_name
             provider_uuid = prov.uuid
-            total_cleaned_providers += 1
 
             with schema_context(schema):
                 if bills := AWSCostEntryBill.objects.filter(
@@ -102,4 +98,4 @@ def cleanup_aws_bills(delete: bool) -> (int, int):
                         bill_ids = [bill.id for bill in bills]
                         LOG.info(f"bills {bill_ids} would be deleted for provider: {provider_uuid}")
 
-    return total_cleaned_bills, total_cleaned_providers
+    return total_cleaned_bills
