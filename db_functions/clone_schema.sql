@@ -509,21 +509,16 @@ BEGIN
     END IF;
 
     /*
-     * Create sequence owner links
+     * Set sequence
      */
     IF cardinality(sequence_owner_info) > 0
     THEN
         IF _verbose
         THEN
-            RAISE INFO 'Setting sequence ownership for objects in %', dst_schema;
+            RAISE INFO 'Set current value for sequence objects in %', dst_schema;
         END IF;
         FOREACH jobject IN ARRAY sequence_owner_info
         LOOP
-            IF _verbose
-            THEN
-                RAISE INFO '    Update primary key default for %.%', dst_schema, quote_ident(jobject->>'owner_object'::text);
-            END IF;
-
             EXECUTE FORMAT('SELECT setval(''%s.%I'', (SELECT max(%I) FROM %s.%I));',
                         dst_schema,
                         jobject->>'sequence_name'::text,
