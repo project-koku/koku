@@ -13,7 +13,6 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Q
 from django.db.models import Sum
-from django.db.models import TextField
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
@@ -279,7 +278,7 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "cost_group": Coalesce(F("cost_category__name"), Value("None", output_field=TextField())),
+                            "cost_group": F("cost_category__name"),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
