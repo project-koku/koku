@@ -348,7 +348,6 @@ urlpatterns = [
     ),
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
-    # path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
     path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
     path("settings/cost-groups/add/", CostGroupsAddView.as_view(), name="settings-cost-groups-add"),
