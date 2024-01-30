@@ -65,7 +65,7 @@ class OCPFilterSerializer(BaseFilterSerializer):
 
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
 
-    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim")
+    _opfields = ("project", "cluster", "node", "infrastructures", "category", "persistentvolumeclaim", "storageclass")
 
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
@@ -73,6 +73,7 @@ class OCPFilterSerializer(BaseFilterSerializer):
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
     category = StringOrListField(child=serializers.CharField(), required=False)
     persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
+    storageclass = StringOrListField(child=serializers.CharField(), required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -170,11 +171,6 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
         ):
             error["delta"] = _("Cannot use distributed_cost delta without grouping by project.")
             raise serializers.ValidationError(error)
-        # multiple group bys involving pvc only allow for project as the secondary key.
-        if "persistentvolumeclaim" in data.get("group_by", {}):
-            if len(data.get("group_by", {})) > 1 and "project" not in data.get("group_by", {}):
-                error["group_by"] = _("Multiple group bys with persistenvolumeclaim must contain project.")
-                raise serializers.ValidationError(error)
         return data
 
     def validate_delta(self, value):

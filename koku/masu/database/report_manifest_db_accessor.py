@@ -15,41 +15,36 @@ from django.db.models import Value
 from django.db.models.expressions import Window
 from django.db.models.functions import Cast
 from django.db.models.functions import RowNumber
-from django_tenants.utils import schema_context
+from django.utils import timezone
 
 from api.common import log_json
-from masu.database.koku_database_access import KokuDBAccess
-from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
 
 
-class ReportManifestDBAccessor(KokuDBAccess):
+class ReportManifestDBAccessor:
     """Class to interact with the koku database for CUR processing statistics."""
 
-    def __init__(self):
-        """Access the AWS report manifest database table."""
-        self._schema = "public"
-        super().__init__(self._schema)
-        self._table = CostUsageReportManifest
-        self.date_accessor = DateAccessor()
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
 
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
-        return self._get_db_obj_query().filter(provider_id=provider_uuid, assembly_id=assembly_id).first()
+        return CostUsageReportManifest.objects.filter(provider_id=provider_uuid, assembly_id=assembly_id).first()
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
-        with schema_context(self._schema):
-            query = self._get_db_obj_query()
-            return query.filter(id=manifest_id).first()
+        return CostUsageReportManifest.objects.filter(id=manifest_id).first()
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
         if manifest:
-            updated_datetime = self.date_accessor.today_with_timezone("UTC")
+            updated_datetime = timezone.now()
             ctx = {
                 "manifest_id": manifest.id,
                 "assembly_id": manifest.assembly_id,
@@ -63,9 +58,9 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def mark_manifests_as_completed(self, manifest_list):
         """Update the completed timestamp."""
-        completed_datetime = self.date_accessor.today_with_timezone("UTC")
+        completed_datetime = timezone.now()
         if manifest_list:
-            bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
+            bulk_manifest_query = CostUsageReportManifest.objects.filter(id__in=manifest_list)
             for manifest in bulk_manifest_query:
                 ctx = {
                     "manifest_id": manifest.id,
@@ -84,30 +79,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest:
             manifest.num_total_files = set_num_of_files
             manifest.save(update_fields=["num_total_files"])
-
-    def add(self, **kwargs) -> CostUsageReportManifest:
-        """
-        Add a new row to the CUR stats database.
-
-        Args:
-            kwargs (dict): Fields containing CUR Manifest attributes.
-                Valid keys are: assembly_id,
-                                billing_period_start_datetime,
-                                num_total_files,
-                                provider_uuid,
-        Returns:
-            None
-
-        """
-        if "manifest_creation_datetime" not in kwargs:
-            kwargs["manifest_creation_datetime"] = self.date_accessor.today_with_timezone("UTC")
-
-        # The Django model insists on calling this field provider_id
-        if "provider_uuid" in kwargs:
-            uuid = kwargs.pop("provider_uuid")
-            kwargs["provider_id"] = uuid
-
-        return super().add(**kwargs)
 
     def manifest_ready_for_summary(self, manifest_id):
         """Determine if the manifest is ready to summarize."""
@@ -241,7 +212,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
             log_json(
                 msg=f"s3 bucket should be cleared: {result}",
                 manifest_uuid=manifest.assembly_id,
-                schema=self.schema,
             )
         )
         return result

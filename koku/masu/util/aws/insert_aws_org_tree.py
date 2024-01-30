@@ -10,7 +10,7 @@ from datetime import timedelta
 import ciso8601
 from django_tenants.utils import schema_context
 
-from masu.database.provider_db_accessor import ProviderDBAccessor
+from api.provider.models import Provider
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -34,12 +34,7 @@ class InsertAwsOrgTree:
         self.today_accounts = []
         self.today_orgs = []
         self.account_alias_mapping = {}
-        self.provider = self.get_provider(provider_uuid)
-
-    def get_provider(self, provider_uuid):
-        """Returns the provider given the provider_uuid."""
-        with ProviderDBAccessor(provider_uuid) as provider_accessor:
-            return provider_accessor.get_provider()
+        self.provider = Provider.objects.get(uuid=provider_uuid)
 
     def calculate_date(self, day_delta):
         """Calculate the date based off of a delta and a range start date."""

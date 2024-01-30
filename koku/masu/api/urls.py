@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Describes the urls and patterns for the API application."""
+from django.conf import settings
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
@@ -12,6 +13,7 @@ from masu.api.trino import trino_ui
 from masu.api.views import additional_context
 from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
+from masu.api.views import celery_queue_tasks
 from masu.api.views import cleanup
 from masu.api.views import clear_celery_queues
 from masu.api.views import crawl_account_hierarchy
@@ -21,9 +23,11 @@ from masu.api.views import download_report
 from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
 from masu.api.views import explain_query
+from masu.api.views import fix_parquet
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
+from masu.api.views import ingest_ocp_payload
 from masu.api.views import ingress_reports
 from masu.api.views import lockinfo
 from masu.api.views import notification
@@ -43,7 +47,9 @@ from masu.api.views import update_openshift_on_cloud
 ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 
+
 urlpatterns = [
+    path("fix_parquet/", fix_parquet, name="fix_parquet"),
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
     path("ingress_reports/", ingress_reports, name="ingress_reports"),
@@ -63,6 +69,7 @@ urlpatterns = [
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("additional_context/", additional_context, name="additional_context"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
+    path("celery_queue_tasks/", celery_queue_tasks, name="celery_queue_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
     path("manifests/", ManifestView.as_view({"get": "get_all_manifests"}), name="all_manifests"),
@@ -102,5 +109,10 @@ urlpatterns = [
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
 ]
+
+if settings.DEBUG:
+    urlpatterns += [
+        path("ingest_ocp_payload/", ingest_ocp_payload, name="local ocp ingress"),
+    ]
 
 urlpatterns += ROUTER.urls

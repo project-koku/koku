@@ -82,10 +82,10 @@ class CostModelCostUpdaterTest(MasuTestCase):
         with self.assertRaises(CostModelCostUpdaterError):
             CostModelCostUpdater(self.schema, self.ocp_test_provider_uuid)
 
-    @patch("masu.processor.cost_model_cost_updater.ProviderDBAccessor.get_provider", return_value=None)
-    def test_unknown_provider(self, mock_accessor):
+    def test_unknown_provider(self):
         """Test no exception when initializing unknown provider."""
         try:
-            CostModelCostUpdater(self.schema, self.unkown_test_provider_uuid)
+            updater = CostModelCostUpdater(self.schema, self.unkown_test_provider_uuid)
         except Exception as err:
             self.fail(f"Failed with exception: {err}")
+        self.assertIsNone(updater._updater)

@@ -14,16 +14,18 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
+from model_bakery import baker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import AWS_REGIONS
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -174,12 +176,14 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar.extractall(fake_bucket)
         test_report_date = datetime(year=2018, month=8, day=7)
         fake_data_source = {"bucket": fake_bucket}
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
+        filename = "test_local_bucket.tar.gz"
+        with patch.object(DateHelper, "now", return_value=test_report_date):
             with patch("masu.external.downloader.aws.aws_report_downloader.open"):
                 with patch(
                     "masu.external.downloader.aws_local.aws_local_report_downloader.create_daily_archives",
                     return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
                 ):
+                    baker.make(CostUsageReportStatus, manifest_id=1, report_name=filename)
                     report_downloader = ReportDownloader(
                         self.fake_customer_name,
                         self.credentials,
@@ -192,7 +196,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                         "date": test_report_date.date(),
                         "manifest_id": 1,
                         "comporession": "GZIP",
-                        "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
+                        "current_file": f"./koku/masu/test/data/{filename}",
                     }
                     report_downloader.download_report(report_context)
         expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
@@ -280,7 +284,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._get_manifest")
     def test_get_manifest_context_for_date(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
         downloader = AWSLocalReportDownloader(
             self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
@@ -297,7 +301,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 "reportKeys": report_keys,
                 "billingPeriod": {"start": start_str},
             },
-            DateAccessor().today(),
+            self.dh.now,
         )
 
         result = downloader.get_manifest_context_for_date(current_month)
@@ -311,12 +315,12 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader._get_manifest")
     def test_get_manifest_context_for_date_no_manifest(self, mock_manifest, mock_delete):
         """Test that the manifest is read."""
-        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        current_month = self.dh.this_month_start
         downloader = AWSLocalReportDownloader(
             self.fake_customer_name, self.credentials, self.data_source, provider_uuid=self.aws_provider_uuid
         )
 
-        mock_manifest.return_value = ("", {"reportKeys": []}, DateAccessor().today())
+        mock_manifest.return_value = ("", {"reportKeys": []}, self.dh.now)
 
         result = downloader.get_manifest_context_for_date(current_month)
         self.assertEqual(result, {})

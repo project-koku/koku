@@ -5,6 +5,7 @@
 """Models for AWS cost entry tables."""
 from uuid import uuid4
 
+import pandas as pd
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
@@ -32,36 +33,37 @@ TRINO_LINE_ITEM_TABLE = "aws_line_items"
 TRINO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
 TRINO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
 
-TRINO_REQUIRED_COLUMNS = (
-    "bill/BillingEntity",
-    "lineItem/UsageStartDate",
-    "lineItem/ProductCode",
-    "product/productFamily",
-    "product/ProductName",
-    "lineItem/UsageAccountId",
-    "lineItem/LegalEntity",
-    "lineItem/LineItemDescription",
-    "lineItem/LineItemType",
-    "lineItem/AvailabilityZone",
-    "product/region",
-    "product/instanceType",
-    "pricing/unit",
-    "lineItem/UsageAmount",
-    "lineItem/NormalizationFactor",
-    "lineItem/NormalizedUsageAmount",
-    "lineItem/CurrencyCode",
-    "lineItem/UnblendedRate",
-    "lineItem/UnblendedCost",
-    "lineItem/BlendedRate",
-    "lineItem/BlendedCost",
-    "savingsPlan/SavingsPlanEffectiveCost",
-    "pricing/publicOnDemandCost",
-    "pricing/publicOnDemandRate",
-    "lineItem/ResourceId",
-    "resourceTags",
-    "costCategory",
-    "savingsPlan/SavingsPlanEffectiveCost",
-)
+TRINO_REQUIRED_COLUMNS = {
+    "bill/BillingEntity": "",
+    "lineItem/UsageStartDate": pd.NaT,
+    "lineItem/ProductCode": "",
+    "product/productFamily": "",
+    "product/ProductName": "",
+    "lineItem/UsageAccountId": "",
+    "lineItem/LegalEntity": "",
+    "lineItem/LineItemDescription": "",
+    "lineItem/LineItemType": "",
+    "lineItem/AvailabilityZone": "",
+    "product/region": "",
+    "product/instanceType": "",
+    "product/physicalCores": "",
+    "product/vcpu": "",
+    "pricing/unit": "",
+    "lineItem/UsageAmount": 0.0,
+    "lineItem/NormalizationFactor": 0.0,
+    "lineItem/NormalizedUsageAmount": 0.0,
+    "lineItem/CurrencyCode": "",
+    "lineItem/UnblendedRate": 0.0,
+    "lineItem/UnblendedCost": 0.0,
+    "lineItem/BlendedRate": 0.0,
+    "lineItem/BlendedCost": 0.0,
+    "savingsPlan/SavingsPlanEffectiveCost": 0.0,
+    "pricing/publicOnDemandCost": 0.0,
+    "pricing/publicOnDemandRate": 0.0,
+    "lineItem/ResourceId": "",
+    "resourceTags": "",
+    "costCategory": "",
+}
 
 
 class AWSCostEntryBill(models.Model):
@@ -242,19 +244,6 @@ class AWSOrganizationalUnit(models.Model):
                 self.deleted_timestamp,
             )
         )
-
-
-class AWSEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for AWSEnabledTagKeys."""
-
-        indexes = [models.Index(fields=["key", "enabled"], name="aws_enabled_key_index")]
-        db_table = "reporting_awsenabledtagkeys"
-
-    key = models.CharField(max_length=253, primary_key=True)
-    enabled = models.BooleanField(default=True)
 
 
 class AWSCategorySummary(models.Model):

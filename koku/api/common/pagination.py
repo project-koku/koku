@@ -195,13 +195,7 @@ class ForecastListPaginator(ListPaginator):
 
     default_limit = DateHelper().this_month_end.day
 
-
-class AWSForecastListPaginator(ListPaginator):
-    """A paginator that applies a default limit based on days in month."""
-
-    default_limit = DateHelper().this_month_end.day
-
-    def __init__(self, data_set, request, cost_type):
+    def __init__(self, data_set, request, cost_type=None):
         """Initialize the paginator."""
         self.cost_type = cost_type
         self.data_set = data_set
@@ -212,21 +206,12 @@ class AWSForecastListPaginator(ListPaginator):
 
     def get_paginated_response(self, data):
         """Override pagination output."""
-        meta = self._default_meta
+        response = super().get_paginated_response(data)
+
         if self.cost_type:
-            meta["cost_type"] = self.cost_type
-        return Response(
-            {
-                "meta": meta,
-                "links": {
-                    "first": self.get_first_link(),
-                    "next": self.get_next_link(),
-                    "previous": self.get_previous_link(),
-                    "last": self.get_last_link(),
-                },
-                "data": data,
-            }
-        )
+            response.data["meta"]["cost_type"] = self.cost_type
+
+        return response
 
 
 class ReportRankedPagination(ReportPagination):

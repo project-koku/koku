@@ -63,8 +63,33 @@ class TagsSettings(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.total_record_length, meta["count"])
+        self.assertTrue({"enabled_tags_count", "enabled_tags_limit"}.issubset(meta))
         self.assertTrue(len(data) > 0)
         self.assertTrue(returned_keys == set(self.keys))
+
+    def test_get_tags_null_param_value(self):
+        test_matrix = (
+            # Custom syntax
+            {"filter": "filter[source_type]"},
+            {"filter": "filter[provider_type]"},
+            {"filter": "filter[key]"},
+            {"filter": "filter[uuid]"},
+            {"filter": "filter[enabled]", "expected_status": status.HTTP_200_OK},
+            # Standard syntax
+            {"filter": "source_type"},
+            {"filter": "provider_type"},
+            {"filter": "key"},
+            {"filter": "uuid"},
+            {"filter": "enabled", "expected_status": status.HTTP_200_OK},
+        )
+        tags_url = reverse("settings-tags")
+        for test_case in test_matrix:
+            with schema_context(self.schema_name):
+                client = rest_framework.test.APIClient()
+                response = client.get(tags_url, {test_case["filter"]: "\x00"}, **self.headers)
+
+            expected_status = test_case.get("expected_status", status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.status_code, expected_status, response.data)
 
     def test_get_tags_filtering(self):
         test_matrix = (
@@ -249,7 +274,7 @@ class TagsSettings(IamTestCase):
             client = rest_framework.test.APIClient()
             response = client.get(tags_url, {"filter[source_type]": "aws"}, **self.headers)
 
-        error_detail = response.data.get("errors", [{}])[0].get("detail").lower()
+        error_detail = response.data.get("errors", [{}])[0].get("detail", "").lower()
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("select a valid choice", error_detail)

@@ -22,6 +22,11 @@ from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
 from koku.env import ENVIRONMENT
 
 
+OCP_ON_AWS_CLUSTER_ID = "OCP-on-AWS"
+OCP_ON_AZURE_CLUSTER_ID = "OCP-on-Azure"
+OCP_ON_GCP_CLUSTER_ID = "OCP-on-GCP"
+OCP_ON_PREM_CLUSTER_ID = "OCP-on-Prem"
+
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
 LOG = logging.getLogger(__name__)
 
@@ -89,25 +94,21 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         tree_yaml = read_yaml.import_yaml(yaml_file_path="dev/scripts/aws_org_tree.yml")
                         day_list = tree_yaml["account_structure"]["days"]
                         bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
-                        ocp_on_aws_cluster_id = "OCP-on-AWS"
-                        ocp_on_azure_cluster_id = "OCP-on-Azure"
-                        ocp_on_gcp_cluster_id = "OCP-on-GCP"
-                        ocp_on_prem_cluster_id = "OCP-on-Prem"
 
                         ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
-                            ocp_on_aws_cluster_id, on_cloud=True
+                            OCP_ON_AWS_CLUSTER_ID, on_cloud=True
                         )
 
                         (
                             ocp_on_azure_ocp_provider,
                             ocp_on_azure_report_periods,
-                        ) = bakery_data_loader.load_openshift_data(ocp_on_azure_cluster_id, on_cloud=True)
+                        ) = bakery_data_loader.load_openshift_data(OCP_ON_AZURE_CLUSTER_ID, on_cloud=True)
 
                         ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
-                            ocp_on_gcp_cluster_id, on_cloud=True
+                            OCP_ON_GCP_CLUSTER_ID, on_cloud=True
                         )
 
-                        bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
+                        bakery_data_loader.load_openshift_data(OCP_ON_PREM_CLUSTER_ID, on_cloud=False)
 
                         aws_bills = bakery_data_loader.load_aws_data(
                             linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
@@ -119,16 +120,16 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         gcp_bills = bakery_data_loader.load_gcp_data(linked_openshift_provider=ocp_on_gcp_ocp_provider)
 
                         bakery_data_loader.load_openshift_on_cloud_data(
-                            Provider.PROVIDER_AWS_LOCAL, ocp_on_aws_cluster_id, aws_bills, ocp_on_aws_report_periods
+                            Provider.PROVIDER_AWS_LOCAL, OCP_ON_AWS_CLUSTER_ID, aws_bills, ocp_on_aws_report_periods
                         )
                         bakery_data_loader.load_openshift_on_cloud_data(
                             Provider.PROVIDER_AZURE_LOCAL,
-                            ocp_on_azure_cluster_id,
+                            OCP_ON_AZURE_CLUSTER_ID,
                             azure_bills,
                             ocp_on_azure_report_periods,
                         )
                         bakery_data_loader.load_openshift_on_cloud_data(
-                            Provider.PROVIDER_GCP_LOCAL, ocp_on_gcp_cluster_id, gcp_bills, ocp_on_gcp_report_periods
+                            Provider.PROVIDER_GCP_LOCAL, OCP_ON_GCP_CLUSTER_ID, gcp_bills, ocp_on_gcp_report_periods
                         )
 
                         # OCI

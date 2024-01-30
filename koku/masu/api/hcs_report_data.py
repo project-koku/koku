@@ -18,10 +18,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.provider.models import Provider
 from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data
 from hcs.tasks import HCS_QUEUE
-from masu.database.provider_db_accessor import ProviderDBAccessor
 
 
 LOG = logging.getLogger(__name__)
@@ -51,12 +51,24 @@ def hcs_report_data(request):
             errmsg = "provider_uuid must be supplied as a parameter"
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+        if schema_name is None:
+            return Response({error_msg_key: "schema is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
+
         if provider_type is None:
-            with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                LOG.debug(f"PROVIDER: {provider_accessor.provider}")
-                provider = provider_accessor.get_type()
+            p = Provider.objects.get(uuid=provider_uuid)
+            LOG.debug(f"PROVIDER: {p}")
+            provider = p.type
         else:
             provider = provider_type
+
+        if provider is None:
+            return Response({error_msg_key: "unable to determine provider type"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if provider_type and provider_type != provider:
+            return Response(
+                {error_msg_key: "provider_uuid and provider_type have mismatched provider types"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         start_date = (
             ciso8601.parse_datetime(start_date).replace(tzinfo=settings.UTC)
@@ -78,18 +90,6 @@ def hcs_report_data(request):
             start_date = start.date().strftime("%Y%m%d")
             end_date = end.date().strftime("%Y%m%d")
             months[i] = (start_date, end_date)
-
-        if schema_name is None:
-            return Response({error_msg_key: "schema is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if provider is None:
-            return Response({error_msg_key: "unable to determine provider type"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if provider_type and provider_type != provider:
-            return Response(
-                {error_msg_key: "provider_uuid and provider_type have mismatched provider types"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         for month in months:
             async_result = collect_hcs_report_data.s(

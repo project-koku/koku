@@ -10,16 +10,6 @@ from koku.env import ENVIRONMENT
 class Config:
     """Configuration for service."""
 
-    # SOURCES_TOPIC = ENVIRONMENT.get_value("SOURCES_KAFKA_TOPIC", default="platform.sources.event-stream")
-    SOURCES_TOPIC = CONFIGURATOR.get_kafka_topic("platform.sources.event-stream")
-
-    SOURCES_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
-    SOURCES_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
-    SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
-    SOURCES_KAFKA_SASL = CONFIGURATOR.get_kafka_sasl()
-    SOURCES_KAFKA_CACERT = CONFIGURATOR.get_kafka_cacert()
-    SOURCES_KAFKA_AUTHTYPE = CONFIGURATOR.get_kafka_authtype()
-
     SOURCES_API_HOST = CONFIGURATOR.get_endpoint_host("sources-api", "svc", "localhost")
     SOURCES_API_PORT = CONFIGURATOR.get_endpoint_port("sources-api", "svc", "3000")
     SOURCES_API_URL = f"http://{SOURCES_API_HOST}:{SOURCES_API_PORT}"
@@ -50,3 +40,13 @@ class Config:
     SOURCES_PSK = ENVIRONMENT.get_value("SOURCES_PSK", default="sources-psk")
 
     RETRY_SECONDS = ENVIRONMENT.int("RETRY_SECONDS", default=10)
+
+    SOURCES_FAKE_SERVICE_ACCOUNT_HEADER = ENVIRONMENT.get_value(
+        "SOURCES_FAKE_SERVICE_ACCOUNT_HEADER",
+        default=(
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjMzMzMzMzM"
+            "iLCAidHlwZSI6ICJTZXJ2aWNlQWNjb3VudCIsICJzZXJ2aWNlX2FjY291bnQiOiB7InVzZXJuYW1lIjo"
+            "gIjBiYjI5MTM1LWQ2ZDEtNDc4Yi1iNWI2LTZiZDEyOWNiNmQ1ZCJ9LCAiaW50ZXJuYWwiOiB7Im9yZ19p"
+            "ZCI6ICIzMzMzMzMzIn19fQ=="
+        ),
+    )

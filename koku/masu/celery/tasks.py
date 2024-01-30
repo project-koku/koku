@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
+import json
 import logging
 import math
 
@@ -11,6 +12,10 @@ from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django_tenants.utils import schema_context
+from requests.adapters import HTTPAdapter
+from requests.exceptions import HTTPError
+from requests.exceptions import RetryError
+from urllib3.util.retry import Retry
 
 from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
@@ -25,16 +30,17 @@ from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from koku.notifications import NotificationService
+from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
@@ -53,6 +59,12 @@ PROVIDER_REPORT_TYPE_MAP = {
 }
 
 
+@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=GET_REPORT_FILES_QUEUE)
+def fix_parquet_data_types(*args, **kwargs):
+    verify_parquet = VerifyParquetFiles(*args, **kwargs)
+    verify_parquet.retrieve_verify_reload_s3_parquet()
+
+
 @celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
@@ -64,8 +76,7 @@ def check_report_updates(*args, **kwargs):
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
-    today = DateAccessor().today()
-    LOG.info("Removing expired data at %s", str(today))
+    LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
 
@@ -330,13 +341,27 @@ def get_daily_currency_rates():
     rate_metrics = {}
 
     url = settings.CURRENCY_URL
+    retries = Retry(
+        total=5,
+        allowed_methods={"GET"},
+        backoff_factor=0.5,
+        status_forcelist=[500, 502, 503, 504],
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+
     # Retrieve conversion rates from URL
     try:
-        data = requests.get(url).json()
-    except Exception as e:
+        response = session.get(url)
+        response.raise_for_status()
+    except (HTTPError, RetryError) as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
+
         return rate_metrics
+
+    data = response.json()
+
     rates = data["rates"]
     # Update conversion rates in database
     for curr_type in rates.keys():
@@ -366,27 +391,20 @@ def crawl_account_hierarchy(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in polling_accounts:
-        account = provider.account
         crawler = None
 
         # Look for a known crawler class to handle this provider
-        if account.get("provider_type") == Provider.PROVIDER_AWS:
-            crawler = AWSOrgUnitCrawler(account)
+        if provider.type == Provider.PROVIDER_AWS:
+            crawler = AWSOrgUnitCrawler(provider)
 
         if crawler:
             LOG.info(
-                "Starting account hierarchy crawler for type {} with provider_uuid: {}".format(
-                    account.get("provider_type"), account.get("provider_uuid")
-                )
+                f"Starting account hierarchy crawler for type {provider.type} with provider_uuid: {provider.uuid}"
             )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
-            LOG.info(
-                "No known crawler for account with provider_uuid: {} of type {}".format(
-                    account.get("provider_uuid"), account.get("provider_type")
-                )
-            )
+            LOG.info(f"No known crawler for account with provider_uuid: {provider.uuid} of type {provider.type}")
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
 
@@ -404,39 +422,35 @@ def check_cost_model_status(provider_uuid=None):
             return
     else:
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
-    LOG.info("Cost model status check found %s providers to scan" % len(providers))
+    LOG.info(f"Cost model status check found {len(providers)} providers to scan")
     processed = 0
     skipped = 0
     for provider in providers:
-        account = provider.account
-        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider.uuid)
-        if cost_model_map.cost_model:
-            skipped += 1
-        else:
-            NotificationService().cost_model_notification(account)
-            processed += 1
+        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+            if cmdba.cost_model:
+                skipped += 1
+                continue
+        NotificationService().cost_model_notification(provider)
+        processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 
 @celery_app.task(name="masu.celery.tasks.check_for_stale_ocp_source", queue=DEFAULT)
 def check_for_stale_ocp_source(provider_uuid=None):
     """Scheduled task to initiate source check and fire notifications."""
-    manifest_accessor = ReportManifestDBAccessor()
-    if provider_uuid:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime(provider_uuid)
-    else:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime()
+    with ReportManifestDBAccessor() as accessor:
+        manifest_data = accessor.get_last_manifest_upload_datetime(provider_uuid)
     if manifest_data:
-        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
+        LOG.info(f"Openshift stale cluster check found {len(manifest_data)} clusters to scan")
         processed = 0
         skipped = 0
-        today = DateAccessor().today()
-        check_date = DateHelper().n_days_ago(today, 3)
+        dh = DateHelper()
+        check_date = dh.n_days_ago(dh.now, 3)
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                account = Provider.objects.get(uuid=data.get("provider_id")).account
-                NotificationService().ocp_stale_source_notification(account)
+                provider = Provider.objects.get(uuid=data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(provider)
                 processed += 1
             else:
                 skipped += 1
@@ -508,3 +522,42 @@ def collect_queue_metrics(self):
             gauge.set(length)
     LOG.debug(f"Celery queue backlog info: {queue_len}")
     return queue_len
+
+
+@celery_app.task(name="masu.celery.tasks.get_celery_queue_items", bind=True, queue=DEFAULT)
+def get_celery_queue_items(self, queue_name=None, task_name=None):
+    """
+    Collect info on tasks in the celery queues.
+
+    Parameters:
+        queue_name (str): A specific queue to check task info for
+        task_name (str): A specific task to get info for
+
+    """
+    queue_tasks = {}
+    with celery_app.pool.acquire(block=True) as conn:
+        if queue_name:
+            queue_tasks[queue_name] = conn.default_channel.client.lrange(queue_name, 0, -1)
+        else:
+            for queue in QUEUES:
+                queue_tasks[queue] = conn.default_channel.client.lrange(queue, 0, -1)
+
+    decoded_tasks = {}
+    for queue, tasks in queue_tasks.items():
+        task_list = []
+        for task in tasks:
+            j = json.loads(task)
+            t_header = j.get("headers", {})
+            t_name = t_header.get("task", "")
+            if task_name and t_name != task_name:
+                continue
+            t_info = {
+                "name": t_name,
+                "id": t_header.get("id", ""),
+                "args": t_header.get("argsrepr", ""),
+                "kwargs": t_header.get("kwargsrepr", ""),
+            }
+            task_list.append(t_info)
+        decoded_tasks[queue] = task_list
+
+    return decoded_tasks

@@ -47,7 +47,7 @@ class DownloaderInterface(ABC):
 
         Args:
             key (String): A key that can locate a report file.
-            stored_etag (String): ReportStatsDBAccessor file identifier.
+            stored_etag (String): CostUsageReportStatus file identifier.
             manifest_id (String): Report manifest identifier
             start_date (DateTime): Report start date time
 

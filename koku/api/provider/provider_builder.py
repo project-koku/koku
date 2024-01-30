@@ -94,6 +94,10 @@ class ProviderBuilder:
                 username = identity.get("system", {}).get("cluster_id")
                 email = ""
 
+            if identity_type == "ServiceAccount":
+                username = identity.get("service_account", {}).get("username")
+                email = ""
+
             try:
                 customer = Customer.objects.filter(org_id=self.org_id).get()
             except Customer.DoesNotExist:

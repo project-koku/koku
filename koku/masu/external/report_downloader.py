@@ -5,12 +5,8 @@
 """Provider external interface for koku to consume."""
 import logging
 
-from dateutil.relativedelta import relativedelta
-
 from api.common import log_json
 from api.provider.models import Provider
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
@@ -22,7 +18,6 @@ from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLo
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from reporting_common.models import CostUsageReportStatus
@@ -101,7 +96,6 @@ class ReportDownloader:
             Provider.PROVIDER_OCI: OCIReportDownloader,
             Provider.PROVIDER_OCI_LOCAL: OCILocalReportDownloader,
             Provider.PROVIDER_IBM: IBMReportDownloader,
-            Provider.PROVIDER_OCP: OCPReportDownloader,
         }
         if self.provider_type in downloader_map:
             return downloader_map[self.provider_type](
@@ -116,27 +110,6 @@ class ReportDownloader:
                 ingress_reports=self.ingress_reports,
             )
         return None
-
-    def get_reports(self, number_of_months=2):
-        """
-        Download cost usage reports.
-
-        Args:
-            (Int) Number of monthly reports to download.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        reports = []
-        try:
-            current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-            for month in reversed(range(number_of_months)):
-                calculated_month = current_month + relativedelta(months=-month)
-                reports += self.download_report(calculated_month)
-        except Exception as err:
-            raise ReportDownloaderError(str(err))
-        return reports
 
     def is_report_processed(self, report_name, manifest_id):
         """Check if report_name has completed processing.
@@ -188,16 +161,30 @@ class ReportDownloader:
             LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
             return {}
 
-        with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
-            stored_etag = stats_recorder.get_etag()
-            try:
-                file_name, etag, _, split_files, date_range = self._downloader.download_file(
-                    report, stored_etag, manifest_id=manifest_id, start_date=date_time
+        stats_recorder = CostUsageReportStatus.objects.filter(
+            report_name=local_file_name, manifest_id=manifest_id
+        ).first()
+        if not stats_recorder:
+            LOG.info(
+                log_json(
+                    self.tracing_id,
+                    msg="no CostUsageReportStatus found",
+                    context=self.context,
+                    report_name=local_file_name,
+                    manifest_id=manifest_id,
                 )
-                stats_recorder.update(etag=etag)
-            except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
-                LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
-                return {}
+            )
+            return {}
+
+        try:
+            file_name, etag, _, split_files, date_range = self._downloader.download_file(
+                report, stats_recorder.etag, manifest_id=manifest_id, start_date=date_time
+            )
+            stats_recorder.etag = etag
+            stats_recorder.save(update_fields=["etag"])
+        except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
+            LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
+            return {}
 
         # The create_table flag is used by the ParquetReportProcessor
         # to create a Hive/Trino table.
@@ -214,7 +201,4 @@ class ReportDownloader:
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
         }
-        if self.provider_type == Provider.PROVIDER_OCP:
-            report["split_files"] = list(split_files)
-            report["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
         return report

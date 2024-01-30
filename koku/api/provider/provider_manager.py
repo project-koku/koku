@@ -11,6 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models.signals import post_delete
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django_tenants.utils import tenant_context
 
@@ -21,6 +22,8 @@ from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from api.utils import DateHelper
 from cost_models.models import CostModelMap
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
+from koku.cache import SOURCES_CACHE_PREFIX
 from koku.database import execute_delete_sql
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
@@ -288,6 +291,14 @@ class ProviderManager:
                 raise err
             err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
             raise ProviderProcessingError(err_msg) from err
+
+
+@receiver(post_save, sender=Provider)
+def provider_post_save_refresh_cache(*args, **kwargs):
+    """Invalidate sources view cache after provider save."""
+    provider: Provider = kwargs["instance"]
+    if customer := provider.customer:
+        invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
 
 
 @receiver(post_delete, sender=Provider)

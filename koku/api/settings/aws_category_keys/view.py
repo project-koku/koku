@@ -6,7 +6,6 @@ import logging
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from django_filters import MultipleChoiceFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -19,6 +18,7 @@ from api.common.permissions.settings_access import SettingsAccessPermission
 from api.provider.models import Provider
 from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeyIDSerializer
 from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeySerializer
+from api.settings.utils import NonValidatedMultipleChoiceFilter
 from api.settings.utils import SettingsFilter
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 class SettingsAWSCategoryFilter(SettingsFilter):
-    key = MultipleChoiceFilter(lookup_expr="icontains")
+    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
 
     class Meta:
         model = AWSEnabledCategoryKeys

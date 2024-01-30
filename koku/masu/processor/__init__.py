@@ -103,20 +103,6 @@ def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
 
 
-def is_aws_category_settings_enabled(account):  # pragma: no cover
-    """Enable aws category settings."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.enable_aws_category_settings", context, fallback_development_true
-    )
-
-
-def is_ddf_tag_form_disabled():  # pragma: no cover
-    """Disable ingress rate limiting"""
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ddf-tag-form")
-
-
 def is_source_disabled(source_uuid):  # pragma: no cover
     """
     Disable source processing

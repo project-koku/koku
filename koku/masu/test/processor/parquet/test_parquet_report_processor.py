@@ -14,11 +14,10 @@ from unittest.mock import PropertyMock
 import faker
 import pandas as pd
 from django_tenants.utils import schema_context
+from rest_framework.exceptions import ValidationError
 
 from api.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
-from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -32,10 +31,12 @@ from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProces
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
 from masu.util.aws.aws_post_processor import AWSPostProcessor
+from masu.util.aws.common import RECOMMENDED_COLUMNS
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
 from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
+from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -48,7 +49,7 @@ class TestParquetReportProcessor(MasuTestCase):
         super().setUpClass()
         cls.fake = faker.Faker()
         cls.fake_uuid = "d4703b6e-cd1f-4253-bfd4-32bdeaf24f97"
-        cls.today = DateHelper().today
+        cls.today = cls.dh.today
         cls.yesterday = cls.today - timedelta(days=1)
 
     def setUp(self):
@@ -59,7 +60,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.tracing_id = 1
         self.manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first().id
         self.ocp_manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=False).first().id
-        self.start_date = DateHelper().today
+        self.start_date = self.today
         self.report_name = "koku-1.csv.gz"
         self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
         self.report_processor = ParquetReportProcessor(
@@ -68,7 +69,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
         )
         self.report_processor_gcp = ParquetReportProcessor(
             schema_name=self.schema,
@@ -76,19 +77,16 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP_LOCAL,
             manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
         )
         ingress_uuid = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.ingress_report_dict = {
             "uuid": ingress_uuid,
-            "created_timestamp": DateHelper().today,
+            "created_timestamp": self.today,
             "completed_timestamp": None,
             "reports_list": ["test"],
             "source": self.aws_provider,
         }
-        self.ingress_report_accessor = IngressReportDBAccessor(self.schema)
-        with schema_context(self.schema):
-            self.added_ingress_report = self.ingress_report_accessor.add(**self.ingress_report_dict)
         self.report_processor_ingress = ParquetReportProcessor(
             schema_name=self.schema,
             report_path=self.report_path,
@@ -97,7 +95,7 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             ingress_reports=["test.csv"],
             ingress_reports_uuid=ingress_uuid,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
         )
 
     def test_tracing_id(self):
@@ -161,7 +159,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.aws_provider_uuid,
             provider_type=Provider.PROVIDER_AWS_LOCAL,
             manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
         )
         self.assertEqual(report_processor.file_extension, CSV_EXT)
 
@@ -172,7 +170,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid=self.aws_provider_uuid,
                 provider_type=Provider.PROVIDER_AWS_LOCAL,
                 manifest_id=self.manifest_id,
-                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+                context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
             )
             report_processor.file_extension
 
@@ -185,8 +183,18 @@ class TestParquetReportProcessor(MasuTestCase):
                 "expected": AWSPostProcessor,
             },
             {
+                "provider_uuid": str(self.aws_provider_uuid),
+                "provider_type": Provider.PROVIDER_AWS_LOCAL,
+                "expected": AWSPostProcessor,
+            },
+            {
                 "provider_uuid": str(self.azure_provider_uuid),
                 "provider_type": Provider.PROVIDER_AZURE,
+                "expected": AzurePostProcessor,
+            },
+            {
+                "provider_uuid": str(self.azure_provider_uuid),
+                "provider_type": Provider.PROVIDER_AZURE_LOCAL,
                 "expected": AzurePostProcessor,
             },
             {
@@ -213,14 +221,14 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid=test.get("provider_uuid"),
                 provider_type=test.get("provider_type"),
                 manifest_id=self.manifest_id,
-                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+                context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
             )
             with patch.object(
                 ParquetReportProcessor,
                 "report_type",
                 return_value="pod_usage",
             ):
-                self.assertIsInstance(report_processor._set_post_processor(), test.get("expected"))
+                self.assertIsInstance(report_processor.post_processor, test.get("expected"))
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -229,20 +237,17 @@ class TestParquetReportProcessor(MasuTestCase):
         _, __, result = self.report_processor_ingress.convert_csv_to_parquet(Path("file.csv.gz"))
         self.assertFalse(result)
 
-    def test_unknown_provider_post_processor(self):
-        """Test that nothing is returned"""
-        report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
-            report_path=self.report_path,
-            provider_uuid="123456",
-            provider_type="unknown_provider",
-            manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
-        )
-        dataframe, daily, success = report_processor.convert_csv_to_parquet("csv_filename.csv.gz")
-        self.assertIsNone(dataframe)
-        self.assertIsNone(daily)
-        self.assertFalse(success)
+    def test_unknown_provider(self):
+        """Test that invalid provider-type raises ParquetReportProcessorError."""
+        with self.assertRaises(ParquetReportProcessorError):
+            ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid="123456",
+                provider_type="unknown_provider",
+                manifest_id=self.manifest_id,
+                context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
+            )
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
@@ -349,7 +354,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 manifest_id=self.manifest_id,
                 context={
                     "tracing_id": self.tracing_id,
-                    "start_date": DateHelper().today,
+                    "start_date": self.today,
                     "create_table": True,
                 },
             )
@@ -363,7 +368,7 @@ class TestParquetReportProcessor(MasuTestCase):
             "masu.processor.parquet.parquet_report_processor.open"
         ), patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"), patch.object(
             ParquetReportProcessor,
-            "_set_post_processor",
+            "post_processor",
             return_value=OCPPostProcessor(self.schema, "pod_usage"),
         ), patch.object(
             ParquetReportProcessor, "create_parquet_table"
@@ -376,7 +381,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 manifest_id=self.ocp_manifest_id,
                 context={
                     "tracing_id": self.tracing_id,
-                    "start_date": DateHelper().today,
+                    "start_date": self.today,
                     "create_table": True,
                 },
             )
@@ -477,7 +482,7 @@ class TestParquetReportProcessor(MasuTestCase):
                     provider_uuid=provider_uuid,
                     provider_type=provider_type,
                     manifest_id=self.manifest_id,
-                    context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+                    context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
                 )
                 report_processor.create_parquet_table(output_file, daily=test.get("daily"))
                 if test.get("daily"):
@@ -547,7 +552,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
             manifest_id=self.ocp_manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "split_files": file_list},
+            context={"tracing_id": self.tracing_id, "start_date": self.today, "split_files": file_list},
         )
         ocp_processor.process()
         mock_convert.assert_called()
@@ -574,7 +579,7 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP,
             manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "split_files": file_list},
+            context={"tracing_id": self.tracing_id, "start_date": self.today, "split_files": file_list},
         )
 
         with patch.object(ParquetReportProcessor, "convert_to_parquet") as mock_convert:
@@ -617,7 +622,7 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.ocp_manifest_id,
             context={
                 "tracing_id": self.tracing_id,
-                "start_date": DateHelper().today,
+                "start_date": self.today,
                 "ocp_files_to_process": {
                     filename.stem: {
                         "meta_reportdatestart": "2023-01-01",
@@ -651,7 +656,7 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.ocp_manifest_id,
             context={
                 "tracing_id": self.tracing_id,
-                "start_date": DateHelper().today,
+                "start_date": self.today,
                 "ocp_files_to_process": {
                     filename.stem: {
                         "meta_reportdatestart": "2023-01-01",
@@ -680,7 +685,7 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.ocp_manifest_id,
             context={
                 "tracing_id": self.tracing_id,
-                "start_date": DateHelper().today,
+                "start_date": self.today,
                 "ocp_files_to_process": {
                     filename.stem: {
                         "meta_reportdatestart": expected_meta["ReportDateStart"],
@@ -707,7 +712,7 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.ocp_manifest_id,
             context={
                 "tracing_id": self.tracing_id,
-                "start_date": DateHelper().today,
+                "start_date": self.today,
                 "ocp_files_to_process": {
                     filename.stem: {
                         "meta_reportdatestart": expected_meta["ReportDateStart"],
@@ -733,7 +738,7 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={
                 "tracing_id": self.tracing_id,
-                "start_date": DateHelper().today,
+                "start_date": self.today,
             },
         )
         meta = report_processor.get_metadata(filename.stem)
@@ -752,9 +757,91 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={
                 "tracing_id": self.tracing_id,
-                "start_date": DateHelper().today,
+                "start_date": self.today,
             },
         )
         expected_result = ("manifestid", expected_meta["ManifestId"])
         result = report_processor.get_metadata_kv(filename.stem)
         self.assertTupleEqual(result, expected_result)
+
+    @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
+    def test_check_required_columns_for_ingress_reports_validation_error(self, mock_check_cols):
+        mock_check_cols.return_value = False
+        filename = Path("pod_usage.count.csv")
+        with schema_context(self.schema):
+            ingress_report = IngressReports(
+                **{
+                    "uuid": self.aws_provider_uuid,
+                    "created_timestamp": self.dh.today,
+                    "completed_timestamp": None,
+                    "reports_list": ["test"],
+                    "source": self.aws_provider,
+                }
+            )
+            ingress_report.save()
+            report_processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=filename,
+                provider_uuid=self.aws_provider_uuid,
+                provider_type=Provider.PROVIDER_AWS,
+                manifest_id=self.manifest_id,
+                context={
+                    "tracing_id": self.tracing_id,
+                    "start_date": self.today,
+                },
+                ingress_reports_uuid=ingress_report.uuid,
+            )
+            with self.assertRaises(ValidationError):
+                report_processor.check_required_columns_for_ingress_reports(["not required cols"])
+
+            ingress_report.refresh_from_db()
+            self.assertIn("missing required columns", ingress_report.status)
+
+    @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
+    def test_check_required_columns_for_ingress_reports(self, mock_check_cols):
+        mock_check_cols.return_value = False
+        filename = Path("pod_usage.count.csv")
+        with schema_context(self.schema):
+            ingress_report = IngressReports(
+                **{
+                    "uuid": self.aws_provider_uuid,
+                    "created_timestamp": self.dh.today,
+                    "completed_timestamp": None,
+                    "reports_list": ["test"],
+                    "source": self.aws_provider,
+                }
+            )
+            ingress_report.save()
+            report_processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=filename,
+                provider_uuid=self.aws_provider_uuid,
+                provider_type=Provider.PROVIDER_AWS,
+                manifest_id=self.manifest_id,
+                context={
+                    "tracing_id": self.tracing_id,
+                    "start_date": self.today,
+                },
+                ingress_reports_uuid=ingress_report.uuid,
+            )
+            result = report_processor.check_required_columns_for_ingress_reports(RECOMMENDED_COLUMNS)
+            self.assertIsNone(result)
+
+    @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
+    def test_check_required_columns_for_ingress_reports_disabled_check(self, mock_check_cols):
+        mock_check_cols.return_value = True
+        filename = Path("pod_usage.count.csv")
+        report_processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=filename,
+            provider_uuid=self.aws_provider_uuid,
+            provider_type=Provider.PROVIDER_AWS,
+            manifest_id=self.manifest_id,
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": self.today,
+            },
+            ingress_reports_uuid=None,
+        )
+        result = report_processor.check_required_columns_for_ingress_reports(RECOMMENDED_COLUMNS)
+        self.assertIsNone(result)

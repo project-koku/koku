@@ -1,8 +1,8 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Cost Management",
-        "version": "1.0.2",
+        "description": "Access your cloud and OpenShift data you integrated with cost management.",
+        "version": "v1",
         "title": "Cost Management",
         "license": {
             "name": "AGPL-3.0",
@@ -56,6 +56,10 @@
         {
             "name": "Status",
             "description": "Operations about status"
+        },
+        {
+            "name": "Optimizations",
+            "description": "Resource Optimization for Openshift"
         }
     ],
     "paths": {
@@ -1108,7 +1112,8 @@
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getOpenShiftCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -4683,9 +4688,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4733,9 +4735,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4816,9 +4815,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4866,9 +4862,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4949,9 +4942,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4999,9 +4989,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5082,9 +5069,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5132,9 +5116,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5215,9 +5196,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5265,9 +5243,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5548,6 +5523,105 @@
                 }]
             }
         },
+        "/settings/cost-groups/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Query which projects belong to which cost groups",
+                "operationId": "getSettingsCostGroups",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OpenShift projects and the current cost group",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostGroupsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/cost/groups/add/": {
+            "put": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Add projects to a cost group",
+                "operationId": "putSettingsCostGroups",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/cost-groups/remove/": {
+            "put": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Remove projects from a cost group",
+                "operationId": "putSettingsCostGroupsRemove",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/settings/tags/": {
             "get": {
                 "tags": [
@@ -5729,8 +5803,14 @@
                         "basic_auth": []
                     }]
                 }
-            }
+            },
+        "/recommendations/openshift": {
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift"
         },
+        "/recommendations/openshift/{recommendation-id}": {
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
+        }
+    },
     "externalDocs": {
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
@@ -5797,16 +5877,17 @@
                 }
             },
             "QueryEndDate": {
-                "name": "QueryEndDate",
+                "name": "end_date",
                 "in": "query",
                 "description": "String to indicate end date of date range.",
                 "schema": {
                     "type": "string",
-                    "example": "1970-01-01"
+                    "format": "date",
+                    "example": "2023-01-01"
                 }
             },
             "QueryFilter": {
-                "name": "QueryFilter",
+                "name": "filter",
                 "required": false,
                 "in": "query",
                 "description": "The filter to apply to the report as a URL encoded dictionary.",
@@ -5814,37 +5895,37 @@
                 "explode": true,
                 "schema": {
                     "type": "object"
-                }
-            },
-            "OCPTagsFilter": {
-                "in": "query",
-                "name": "cluster",
-                "required": false,
-                "description": "The cluster_id or cluster_alias to filter on",
-                "schema": {
-                    "$ref": "#/components/schemas/cluster"
+                },
+                "example": {
+                    "enabled": false
                 }
             },
             "QueryGroupBy": {
                 "name": "group_by",
                 "required": false,
                 "in": "query",
-                "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                "description": "The grouping to apply to the report as a URL encoded dictionary. The syntax is group_by[parameter]=value except for tags, which use group_by[tag:key]=value.",
                 "style": "deepObject",
                 "explode": true,
                 "schema": {
                     "type": "object"
+                },
+                "example": {
+                    "tag:my_tag": "*"
                 }
             },
             "QueryOrderBy": {
                 "name": "order_by",
                 "required": false,
                 "in": "query",
-                "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                "description": "The ordering to apply to the report as a URL encoded dictionary. The syntax is order_by[field]=order. Use 'asc' for ascending and 'desc' for descending.",
                 "style": "deepObject",
                 "explode": true,
                 "schema": {
                     "type": "object"
+                },
+                "example": {
+                    "project": "desc"
                 }
             },
             "QueryOffset": {
@@ -5891,12 +5972,13 @@
                 }
             },
             "QueryStartDate": {
-                "name": "QueryStartDate",
+                "name": "start_date",
                 "in": "query",
                 "description": "String to indicate start date of date range.",
                 "schema": {
                     "type": "string",
-                    "example": "1970-01-01"
+                    "format": "date",
+                    "example": "2023-01-01"
                 }
             },
             "QueryType": {
@@ -5983,16 +6065,79 @@
                         }
                     }
                 }
+            },
+            "CostGroupsBody": {
+                "description": "List of project name and cost group",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "project": {
+                                        "type": "string"
+                                    },
+                                    "group": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "example": [
+                                {
+                                    "project": "accounting",
+                                    "group": "Platform"
+                                },
+                                {
+                                    "project": "infra",
+                                    "group": "Platform"
+                                }
+                            ]
+                        }
+                    }
+                }
             }
         },
         "securitySchemes": {
             "basic_auth": {
                 "type": "http",
-                "description": "The userid/password is needed when accessing this API externally",
+                "description": "Use service account authentication to access this API. See the cost management documentation for details.",
                 "scheme": "basic"
             }
         },
         "schemas": {
+            "CostGroupsResponse": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "project": {
+                                    "type": "string"
+                                },
+                                "group": {
+                                    "type": "string"
+                                },
+                                "default": {
+                                    "type": "boolean"
+                                },
+                                "clusters": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "CostModel": {
                 "properties": {
                     "name": {

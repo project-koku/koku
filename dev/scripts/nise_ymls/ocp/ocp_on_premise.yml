@@ -285,7 +285,7 @@ generators:
             NewDelhi:
               pods:
                 - pod:
-                  pod_name: pod_name12
+                  pod_name: multi_pvc
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
@@ -294,14 +294,69 @@ generators:
                   labels: label_application:Istio|label_stage:Development|label_group:Engineering
               volumes:
                 - volume:
-                  volume_name: pvc-volume_12
+                  volume_name: multi_pvc_1
                   storage_class: hostpath
                   volume_request_gig: 20
                   labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name12_data
-                    pod_name: pod_name12
+                    volume_claim_name: multi_pvc_1_data
+                    pod_name: multi_pvc
+                    labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                    capacity_gig: 20
+                - volume:
+                  volume_name: multi_pvc_2
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: multi_pvc_2_data
+                    pod_name: multi_pvc
+                    labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                    capacity_gig: 20
+                - volume:
+                  volume_name: multi_pvc_3
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: multi_pvc_3_data
+                    pod_name: multi_pvc
+                    labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                    capacity_gig: 20
+                - volume:
+                  volume_name: multi_pvc_4
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: multi_pvc_4_data
+                    pod_name: multi_pvc
+                    labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                    capacity_gig: 20
+                - volume:
+                  volume_name: multi_pvc_5
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: multi_pvc_5_data
+                    pod_name: multi_pvc
+                    labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                    capacity_gig: 20
+                - volume:
+                  volume_name: multi_pvc_6
+                  storage_class: hostpath
+                  volume_request_gig: 20
+                  labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: multi_pvc_6_data
+                    pod_name: multi_pvc
                     labels: label_environment:Development|label_app:Istio|label_version:Development|label_storageclass:silver
                     capacity_gig: 20
         - node:

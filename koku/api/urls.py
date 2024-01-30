@@ -8,6 +8,7 @@ from django.urls import path
 from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
+from api.common.deprecate_view import deprecate_view
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -29,6 +30,9 @@ from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
+from api.views import CostGroupsAddView
+from api.views import CostGroupsRemoveView
+from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
@@ -345,8 +349,11 @@ urlpatterns = [
     ),
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
-    path("settings/", SettingsView.as_view(), name="settings"),
+    path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
+    path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
+    path("settings/cost-groups/add/", CostGroupsAddView.as_view(), name="settings-cost-groups-add"),
+    path("settings/cost-groups/remove/", CostGroupsRemoveView.as_view(), name="settings-cost-groups-remove"),
     path(
         "settings/aws_category_keys/enable/",
         SettingsEnableAWSCategoryKeyView.as_view(),

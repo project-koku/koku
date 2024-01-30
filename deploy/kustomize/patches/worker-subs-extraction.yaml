@@ -101,12 +101,18 @@
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         - name: ENABLE_SUBS_DEBUG
           value: ${ENABLE_SUBS_DEBUG}
+        - name: ENABLE_SUBS_PROVIDER_TYPES
+          value: ${ENABLE_SUBS_PROVIDER_TYPES}
       livenessProbe:
         httpGet:
           path: /livez

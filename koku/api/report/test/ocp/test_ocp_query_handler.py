@@ -255,7 +255,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test the volume capacities of a daily volume report with various group bys matches expected"""
         base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         group_bys = [["cluster"], ["project"], ["cluster", "project"]]
-        GB_MAP = {"project": "namespace", "cluster": "cluster_id", "node": "node"}
+        GB_MAP = {"project": "namespace", "cluster": "cluster_id"}
         with tenant_context(self.tenant):
             for group_by in group_bys:
                 url_group_by = "".join([f"&group_by[{gb}]=*" for gb in group_by])

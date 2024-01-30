@@ -28,7 +28,6 @@ from django_prometheus.middleware import Metrics
 from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
 from django_tenants.middleware import TenantMainMiddleware
-from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
 
@@ -40,7 +39,6 @@ from api.iam.models import User
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
 from api.iam.serializers import UserSerializer
-from api.settings.utils import generate_doc_link
 from api.utils import DateHelper
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
@@ -110,26 +108,6 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
 
     def process_exception(self, request, exception):
         if isinstance(exception, (Tenant.DoesNotExist, ProgrammingError)):
-            if (
-                settings.ROOT_URLCONF == "koku.urls"
-                and request.path in reverse("settings")
-                and (not schema_exists(request.tenant.schema_name) or request.tenant.schema_name == "public")
-            ):
-
-                doc_link = generate_doc_link("/")
-
-                err_page = {
-                    "name": "middleware.settings.err",
-                    "component": "error-state",
-                    "errorTitle": "Configuration Error",
-                    "errorDescription": f"Before adding settings you must create a Source for Cost Management. "
-                    f"<br /><span><a href={doc_link}>[Learn more]</a></span>",
-                }
-
-                return JsonResponse(
-                    [{"fields": [err_page], "formProps": {"showFormControls": False}}], safe=False, status=200
-                )
-
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 
@@ -363,13 +341,22 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
         account = json_rh_auth.get("identity", {}).get("account_number")
         org_id = json_rh_auth.get("identity", {}).get("org_id")
-        user = json_rh_auth.get("identity", {}).get("user", {})
-        username = user.get("username")
-        email = user.get("email")
-        is_admin = user.get("is_org_admin")
+        token_type = str(json_rh_auth.get("identity", {}).get("type", "user")).lower()
+        user = None
+        email = None
+        is_admin = False
         req_id = None
+        if token_type == "user":
+            user = json_rh_auth.get("identity", {}).get("user", {})
+            username = user.get("username")
+            email = user.get("email")
+            is_admin = user.get("is_org_admin")
+        else:
+            service_account = json_rh_auth.get("identity", {}).get("service_account", {})
+            username = service_account.get("username")
+            email = ""
 
-        if username and email and org_id:
+        if username and email is not None and org_id:
             # Get request ID
             req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
             # Check for customer creation & user creation

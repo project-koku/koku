@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import ProhibitNullCharactersValidator
 from django.db.models import QuerySet
 from django_filters import MultipleChoiceFilter
 from django_filters.fields import MultipleChoiceField
@@ -15,24 +16,28 @@ from django_tenants.utils import schema_context
 from querystring_parser import parser
 from rest_framework.exceptions import ValidationError
 
-from api.currency.currencies import CURRENCIES
 from api.currency.currencies import VALID_CURRENCIES
 from api.report.constants import URL_ENCODED_SAFE
-from api.settings.default_settings import DEFAULT_USER_SETTINGS
-from api.user_settings.settings import COST_TYPES
+from api.settings.settings import COST_TYPES
+from api.settings.settings import DEFAULT_USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
 
 """Utilities for Settings."""
-SETTINGS_PREFIX = "api.settings"
-OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
-OPENSHIFT_TAG_MGMT_SETTINGS_PREFIX = f"{OPENSHIFT_SETTINGS_PREFIX}.tag-management"
 
 
 class NonValidatingMultipleChoiceField(MultipleChoiceField):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validators.append(ProhibitNullCharactersValidator())
+
     def validate(self, value):
-        pass
+        if isinstance(value, str):
+            self.run_validators(value)
+        else:
+            for val in value:
+                self.run_validators(val)
 
 
 class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
@@ -152,9 +157,12 @@ class SettingsFilter(FilterSet):
             # values and update the cleaned_data, which is used for filtering.
             for name, value in filter_params.items():
                 try:
+                    self.filters[name].field.validate(value)
                     self.form.cleaned_data[name] = self.filters[name].field.to_python(value)
                 except DjangoValidationError as vexc:
-                    raise ValidationError(vexc.message % vexc.params)
+                    message = vexc.error_list[0].message
+                    params = vexc.error_list[0].params
+                    raise ValidationError(message % params)
 
             order_by = self._get_order_by(self._translate_fields(query_params.get("order_by")))
 
@@ -162,97 +170,6 @@ class SettingsFilter(FilterSet):
             return super().filter_queryset(queryset).order_by(*order_by)
         except FieldError as fexc:
             raise ValidationError(str(fexc))
-
-
-def create_subform(name, title, fields):
-    """
-    Create a subfrom for the settings.
-
-    Args:
-        (String) name - unique name for subform.
-        (String) title - Display title.
-        (List) fields - List of field components.
-
-    Returns:
-        (Dict) - Subform component.
-    """
-    subform = {"title": title, "name": name, "fields": fields, "component": "sub-form"}
-    return subform
-
-
-def create_plain_text(name, label, variant):
-    """
-    Create a plain text field for the settings.
-
-    Args:
-        (String) name - unique name for switch.
-        (String) label - Display text.
-        (String) variant - plain text variant. I have no idea why they call it that way.
-                           But, it is actually HTML element that will wrap the text (label).
-
-    Returns:
-        [Dict] - plain text component.
-    """
-    plain_text = {"component": "plain-text", "label": label, "name": name, "variant": variant}
-    return plain_text
-
-
-def create_plain_text_with_doc(name, label, doc_link):
-    """
-    Create a plain text field with links for the settings.
-
-    Args:
-        (String) name - unique name for switch.
-        (String) label - Display text.
-        (Dict) doc_link - documentation props.
-
-    Returns:
-        [Dict] - plain text with links component.
-    """
-    plain_text = {"component": "plain-text-with-links", "text": label, "linkProps": [doc_link], "name": name}
-    return plain_text
-
-
-def generate_doc_link(path):
-    """
-    Generate cost management link to a given path.
-
-    Args:
-        (String) path - path to the documentation.
-    """
-    return f"https://access.redhat.com/documentation/en-us/cost_management_service/2023/{path}"
-
-
-def create_dual_list_select(name, left_options=[], right_options=[], **kwargs):
-    """
-    Create a dual-list-select for the settings.
-
-    Args:
-        (String) name - unique name for switch.
-        (List) left_options - List of dictionaries.
-        (List) right_options - List of dictionaries.
-
-    Returns:
-        [Dict] - Subform component.
-    """
-    dual_list_select = {"component": "dual-list-select", "name": name}
-    dual_list_select.update(**kwargs)
-    return dual_list_select
-
-
-def create_select(name, **kwargs):
-    """
-    Create a select for the settings.
-
-    Args:
-        (String) name - unique name for switch.
-
-    Returns:
-        [Dict] - Subform component.
-    """
-    select = {"component": "select", "name": name}
-    select.update(**kwargs)
-    return select
 
 
 """Common utilities and helpers for general user settings."""
@@ -267,49 +184,13 @@ def set_default_user_settings():
     UserSettings.objects.create(settings=default_settings)
 
 
-"""Common utilities and helpers for Currency."""
-
-
-def get_selected_currency_or_setup(schema):
-    """
-    get currency and/or setup initial currency
-
-    Args:
-        (schema) - user settings schema.
-
-    Returns:
-        (schema) - currency.
-    """
-    with schema_context(schema):
-        if not UserSettings.objects.exists():
-            set_currency(schema)
-        currency = UserSettings.objects.all().first().settings["currency"]
-        return currency
-
-
-def get_currency_options():
-    """
-    get currency options
-
-    Returns:
-        (dict) - options.
-    """
-    return [
-        dict(
-            value=currency.get("code"),
-            label=f"{currency.get('code')} ({currency.get('symbol')}) - {currency.get('name')}",
-        )
-        for currency in CURRENCIES
-    ]
-
-
 def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
     """
     set currency
 
     Args:
         (schema) - user settings schema.
-        (currency_code) - currency code based on supported currencies(api.user_settings.settings.currencies)
+        (currency_code) - currency code based on supported currencies(api.settings.settings.currencies)
 
     Returns:
         (schema) - user settings.
@@ -330,40 +211,6 @@ def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
 
 
 """Common utilities and helpers for Cost_type."""
-
-
-def get_selected_cost_type_or_setup(schema):
-    """
-    get cost_type and/or setup initial currency
-
-    Args:
-        (schema) - user_settings schema.
-
-    Returns:
-        (schema) - user_settings.
-    """
-    with schema_context(schema):
-        if not UserSettings.objects.exists():
-            set_default_user_settings()
-        cost_type = UserSettings.objects.all().first().settings["cost_type"]
-        return cost_type
-
-
-def get_cost_type_options():
-    """
-    get cost type options
-
-    Returns:
-        (dict) - options.
-    """
-    return [
-        dict(
-            value=cost_type.get("code"),
-            label=f"{cost_type.get('name')}",
-            description=f"{cost_type.get('description')}",
-        )
-        for cost_type in COST_TYPES
-    ]
 
 
 def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
