@@ -93,7 +93,7 @@ class Tenant(TenantMixin):
         "_verbose boolean DEFAULT false"
         ")"
     )
-    _CLONE_SCHEMA_FUNC_SHA256 = "ca31203705f4485213f11f0fd6686d492d29857a5240026f6f992737ce1823cf"
+    _CLONE_SCHEMA_FUNC_SHA256 = "ed7b51b32757ce22797bba83c7c17de7fbf54f7112173677ddac6d47a8ce8bdf"
 
     # Override the mixin domain url to make it nullable, non-unique
     domain_url = None
