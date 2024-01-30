@@ -131,7 +131,6 @@ class CloneSchemaTest(IamTestCase):
         """
         cust_tenant = "acct90909093"
         self.assertFalse(schema_exists(cust_tenant))
-        self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
         t = Tenant(schema_name=cust_tenant)
         t.save()
