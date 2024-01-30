@@ -4443,19 +4443,19 @@ parameters:
 - displayName: Memory Request
   name: KOKU_MGMT_MEMORY_REQUEST
   required: true
-  value: 1Gi
+  value: 20Mi
 - displayName: Memory Limit
   name: KOKU_MGMT_MEMORY_LIMIT
   required: true
-  value: 2Gi
+  value: 20Mi
 - displayName: CPU Request
   name: KOKU_MGMT_CPU_REQUEST
   required: true
-  value: 200m
+  value: 10m
 - displayName: CPU Limit
   name: KOKU_MGMT_CPU_LIMIT
   required: true
-  value: 500m
+  value: 10m
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
