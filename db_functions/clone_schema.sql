@@ -389,48 +389,6 @@ BEGIN
     EXECUTE 'CREATE SCHEMA ' || dst_schema || ' ;';
 
     /*
-     * Create sequences
-     */
---     IF cardinality(sequence_objects) > 0
---     THEN
---         IF _verbose
---         THEN
---             RAISE INFO 'Creating sequences for %', dst_schema;
---         END IF;
---         FOREACH jobject IN ARRAY sequence_objects
---         LOOP
---             IF _verbose
---             THEN
---                 RAISE INFO '    %.%', dst_schema, quote_ident(jobject->>'sequence_name'::text);
---             END IF;
---             EXECUTE FORMAT('CREATE SEQUENCE IF NOT EXISTS %s.%I AS %s START WITH %s INCREMENT BY %s MINVALUE %s MAXVALUE %s CACHE %s %s ;',
---                         dst_schema,
---                         jobject->>'sequence_name'::text,
---                         jobject->>'sequence_type'::text,
---                         jobject->>'sequence_start'::text,
---                         jobject->>'sequence_inc'::text,
---                         jobject->>'sequence_min'::text,
---                         jobject->>'sequence_max'::text,
---                         jobject->>'sequence_cache'::text,
---                         jobject->>'sequence_cycle');
---
---             IF copy_data OR
---             (jobject->>'sequence_name' ~ 'partitioned_tables'::text) OR
---             (jobject->>'sequence_name' ~ 'django_migrations'::text)
---             THEN
---                 EXECUTE 'SELECT setval(''' || dst_schema || '.' || quote_ident(jobject->>'sequence_name') || '''::regclass, '::text ||
---                         '(SELECT last_value + 1 FROM ' ||
---                         src_schema || '.' || quote_ident(jobject->>'sequence_name') || ') );'::text;
---             END IF;
---         END LOOP;
---     ELSE
---         IF _verbose
---         THEN
---             RAISE INFO 'No sequences for %', dst_schema;
---         END IF;
---     END IF;
-
-    /*
      * Create tables
      */
     IF cardinality(table_objects) > 0
@@ -519,6 +477,11 @@ BEGIN
         END IF;
         FOREACH jobject IN ARRAY sequence_owner_info
         LOOP
+            IF _verbose
+            THEN
+                RAISE INFO '    Update primary key default for %.%', dst_schema, quote_ident(jobject->>'owner_object'::text);
+            END IF;
+
             EXECUTE FORMAT('SELECT setval(''%s.%I'', (SELECT max(%I) FROM %s.%I));',
                         dst_schema,
                         jobject->>'sequence_name'::text,
