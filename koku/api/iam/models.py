@@ -16,10 +16,10 @@ from django_tenants.models import TenantMixin
 from django_tenants.postgresql_backend.base import is_valid_schema_name
 from django_tenants.utils import schema_exists
 
+from common.helpers import get_function_hash
 from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
-
 
 LOG = logging.getLogger(__name__)
 
@@ -115,7 +115,18 @@ class Tenant(TenantMixin):
                 conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SCHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
             )
         else:
-            LOG.info("Clone function exists")
+            LOG.info(f'Clone function "{self._CLONE_SCHEMA_FUNC_NAME}" exists. Not creating.')
+
+        LOG.info(f'Verify clone function "{self._CLONE_SCHEMA_FUNC_NAME}" is up to date')
+        if (hash := get_function_hash(conn, self._CLONE_SCHEMA_FUNC_NAME)) != self._CLONE_SCHEMA_FUNC_SHA256:
+            LOG.info(f'Updating function "{self._CLONE_SCHEMA_FUNC_NAME}"')
+            apply_sql_file(conn.schema_editor(), self._CLONE_SCHEMA_FUNC_FILENAME, literal_placeholder=True)
+            LOG.info(
+                f'Updated function "{self._CLONE_SCHEMA_FUNC_NAME}": '
+                f"{get_function_hash(conn, self._CLONE_SCHEMA_FUNC_NAME)}"
+            )
+        else:
+            LOG.info(f'Clone function "{self._CLONE_SCHEMA_FUNC_NAME}" is already up to date: {hash}')
 
         return res
 
