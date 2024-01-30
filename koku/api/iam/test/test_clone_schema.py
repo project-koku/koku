@@ -16,18 +16,15 @@ from .iam_test_case import IamTestCase
 from koku.database import dbfunc_exists
 
 
-_CLONE_FUNC_SCHEMA = Tenant._CLONE_SCHEMA_FUNC_SCHEMA
-_CLONE_FUNC_SIG = Tenant._CLONE_SCHEMA_FUNC_SIG
-_CLONE_FUNC_NAME = Tenant._CLONE_SHEMA_FUNC_NAME
-
-
 def _verify_clone_func():
-    return dbfunc_exists(conn, _CLONE_FUNC_SCHEMA, _CLONE_FUNC_NAME, _CLONE_FUNC_SIG)
+    return dbfunc_exists(
+        conn, Tenant._CLONE_SCHEMA_FUNC_SCHEMA, Tenant._CLONE_SCHEMA_FUNC_NAME, Tenant._CLONE_SCHEMA_FUNC_SIG
+    )
 
 
 def _drop_clone_func():
     sql = f"""
-drop function if exists {_CLONE_FUNC_SIG.replace(' DEFAULT false', '')} ;
+drop function if exists {Tenant._CLONE_SCHEMA_FUNC_SIG.replace(' DEFAULT false', '')} ;
 """
     with conn.cursor() as cur:
         cur.execute(sql, None)
