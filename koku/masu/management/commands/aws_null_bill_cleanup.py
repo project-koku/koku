@@ -12,6 +12,7 @@ from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from koku.database import cascade_delete
+from koku.feature_flags import UNLEASH_CLIENT
 from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE_XL
@@ -41,6 +42,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, delete: bool, **kwargs: Any) -> None:
+        LOG.info("Initializing UNLEASH_CLIENT for bill cleanup.")
+        UNLEASH_CLIENT.initialize_client()
         if delete:
             LOG.info(msg="DELETING BILLS (--delete passed)")
         else:
