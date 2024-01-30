@@ -509,7 +509,7 @@ BEGIN
     END IF;
 
     /*
-     * Set sequence
+     * Set sequence value
      */
     IF cardinality(sequence_owner_info) > 0
     THEN
