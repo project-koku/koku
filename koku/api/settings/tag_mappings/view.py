@@ -64,6 +64,23 @@ class SettingsTagMappingChildView(generics.GenericAPIView):
         return response
 
 
+class SettingsTagMappingParentView(generics.GenericAPIView):
+    queryset = EnabledTagKeys.objects.exclude(child__parent__isnull=False)
+    serializer_class = EnabledTagKeysSerializer
+    permission_classes = (SettingsAccessPermission,)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = SettingsTagMappingFilter
+
+    @method_decorator(never_cache)
+    def get(self, request: Request, **kwargs):
+        filtered_qset = self.filter_queryset(self.get_queryset())
+        serializer = self.serializer_class(filtered_qset, many=True)
+        paginator = ListPaginator(serializer.data, request)
+        response = paginator.paginated_response
+
+        return response
+
+
 class SettingsTagMappingChildAddView(APIView):
     permission_classes = (SettingsAccessPermission,)
     serializer_class = TagMappingSerializer
