@@ -10,6 +10,7 @@ IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
+IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER}"
 
 # Get bonfire helper scripts
 CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
@@ -35,6 +36,7 @@ OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
 OCI_CLI_USER_EPH=$(jq -r '."oci-cli-user"' < oci-creds.json | base64 -d)
 OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-cli-fingerprint"' < oci-creds.json | base64 -d)
 OCI_CLI_TENANCY_EPH=$(jq -r '."oci-cli-tenancy"' < oci-creds.json | base64 -d)
+IQE_IBUTSU_SOURCE="cost-ephemeral-${IMAGE_TAG}"
 
 bonfire deploy \
     ${APP_NAME} \

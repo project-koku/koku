@@ -19,7 +19,6 @@ from django.test import TestCase
 from django.urls import reverse
 
 from sources.api.status import ApplicationStatus
-from sources.api.status import check_kafka_connection
 from sources.api.status import check_sources_connection
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClientError
@@ -70,17 +69,6 @@ class StatusAPITest(TestCase):
                     with patch("sources.api.status.check_sources_connection", return_value=sources):
                         response = self.client.get(reverse("server-status"))
                         self.assertEqual(response.status_code, HTTPStatus.FAILED_DEPENDENCY)
-
-    def test_check_kafka_connection(self):
-        """Test check kafka connections."""
-        with patch("kafka.BrokerConnection.connect_blocking", return_value=False):
-            result = check_kafka_connection()
-            self.assertFalse(result)
-        with patch("kafka.BrokerConnection.connect_blocking", return_value=True):
-            with patch("kafka.BrokerConnection.close") as mock_close:
-                result = check_kafka_connection()
-                mock_close.assert_called()
-                self.assertTrue(result)
 
     def test_check_sources_connection(self):
         """Test check sources connections."""
@@ -171,7 +159,7 @@ class StatusAPITest(TestCase):
             ApplicationStatus().startup()
             self.assertIn(expected, logger.output)
 
-    @patch("masu.external.date_accessor.DateAccessor.today")
+    @patch("sources.api.status.DateHelper.now", new_callable=PropertyMock)
     def test_get_datetime(self, mock_date):
         """Test the startup method for datetime."""
         mock_date_string = "2018-07-25 10:41:59.993536"

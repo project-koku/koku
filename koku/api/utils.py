@@ -81,17 +81,14 @@ def merge_dicts(*list_of_dicts):
 class DateHelper:
     """Helper class with convenience functions."""
 
-    def __init__(self, utc=False):
+    def __init__(self):
         """Initialize when now is."""
-        if utc:
-            self._now = datetime.datetime.now(tz=settings.UTC)
-        else:
-            self._now = timezone.now()
+        self._now = None
 
     @property
     def now(self):
         """Return current time at timezone."""
-        return timezone.now()
+        return self._now or timezone.now()
 
     @property
     def now_utc(self):
@@ -116,7 +113,7 @@ class DateHelper:
     @property
     def this_hour(self):
         """Datetime of top of the current hour."""
-        return self._now.replace(microsecond=0, second=0, minute=0)
+        return self.now.replace(microsecond=0, second=0, minute=0)
 
     @property
     def next_hour(self):
@@ -133,7 +130,7 @@ class DateHelper:
     @property
     def today(self):
         """Datetime of midnight today."""
-        return self._now.replace(microsecond=0, second=0, minute=0, hour=0)
+        return self.now.replace(microsecond=0, second=0, minute=0, hour=0)
 
     @property
     def yesterday(self):
@@ -283,9 +280,8 @@ class DateHelper:
         days = (end_midnight - start_midnight + self.one_day).days
 
         # built-in range(start, end, step) requires (start < end) == True
-        day_range = range(days, 0) if days < 0 else range(0, days)
-        output = [start_midnight + datetime.timedelta(i) for i in day_range]
-        return output
+        day_range = range(days, 0) if days < 0 else range(days)
+        return [start_midnight + datetime.timedelta(i) for i in day_range]
 
     def list_months(self, start_date, end_date):
         """Return a list of months from the start date til the end date.

@@ -146,12 +146,18 @@ class OCPPostProcessor:
         new_cols = report.get("new_required_columns")
         for col in new_cols:
             if col not in daily_data_frame:
-                daily_data_frame[col] = None
+                daily_data_frame[col] = pd.Series(dtype=pd.StringDtype(storage="pyarrow"))
 
         return daily_data_frame
 
     def process_dataframe(self, data_frame):
-        label_columns = {"pod_labels", "volume_labels", "namespace_labels", "node_labels"}
+        label_columns = {
+            "pod_labels",
+            "persistentvolume_labels",
+            "persistentvolumeclaim_labels",
+            "namespace_labels",
+            "node_labels",
+        }
         df_columns = set(data_frame.columns)
         columns_to_grab = df_columns.intersection(label_columns)
         label_key_set = set()

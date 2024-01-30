@@ -151,7 +151,7 @@ class ProviderModelTest(MasuTestCase):
         """Test that the pollable manager returns OCP providers with DEBUG=True"""
         all_providers_count = Provider.objects.count()
         pollable = Provider.polling_objects.get_polling_batch(0)
-        self.assertEqual(pollable.count(), all_providers_count)
+        self.assertLess(pollable.count(), all_providers_count)
 
     def test_get_pollable_providers_with_timestamps(self):
         """Test that the pollable manager returns non-OCP providers only."""

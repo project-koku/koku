@@ -5,17 +5,19 @@
 """Test the Orchestrator object."""
 import logging
 import random
+from datetime import date
+from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
 import faker
 
 from api.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.orchestrator import get_billing_month_start
+from masu.processor.orchestrator import get_billing_months
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
@@ -214,7 +216,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_not_called()
 
@@ -244,7 +246,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_called()
 
@@ -266,7 +268,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_not_called()
 
@@ -298,7 +300,7 @@ class OrchestratorTest(MasuTestCase):
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
-                DateAccessor().get_billing_months(1)[0],
+                get_billing_months(1)[0],
             )
             if test.get("expect_chord_called"):
                 mock_task.assert_called()
@@ -360,7 +362,7 @@ class OrchestratorTest(MasuTestCase):
                     "AWS-local",
                     account.get("schema_name"),
                     account.get("provider_uuid"),
-                    DateAccessor().get_billing_months(1)[0],
+                    get_billing_months(1)[0],
                 )
                 summary_actual_queue = mock_task.call_args.args[0].options.get("queue")
                 hcs_actual_queue = mock_task.call_args.args[1].options.get("queue")
@@ -400,7 +402,7 @@ class OrchestratorTest(MasuTestCase):
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
-                DateAccessor().get_billing_months(1)[0],
+                get_billing_months(1)[0],
             )
             if test.get("expect_chord_called"):
                 mock_chord.assert_called()
@@ -412,8 +414,8 @@ class OrchestratorTest(MasuTestCase):
                 mock_group.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
-    def test_get_reports(self, fake_accessor, mock_inspect):
+    @patch("masu.processor.orchestrator.check_provider_setup_complete")
+    def test_get_reports(self, mock_check_setup_complete, mock_inspect):
         """Test get_reports for combinations of setup_complete and ingest override."""
         initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         test_matrix = [
@@ -424,7 +426,7 @@ class OrchestratorTest(MasuTestCase):
         ]
         for test in test_matrix:
             test_months = test.get("test_months")
-            fake_accessor.return_value = test.get("get_setup_complete")
+            mock_check_setup_complete.return_value = test.get("get_setup_complete")
             Config.INGEST_OVERRIDE = test.get("ingest_override")
             Config.INITIAL_INGEST_NUM_MONTHS = test_months
 
@@ -437,9 +439,8 @@ class OrchestratorTest(MasuTestCase):
         Config.INGEST_OVERRIDE = False
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
 
-        dh = DateHelper()
-        expected = [dh.this_month_start.date()]
-        orchestrator = Orchestrator(bill_date=dh.today)
+        expected = [self.dh.this_month_start.date()]
+        orchestrator = Orchestrator(bill_date=self.dh.today)
         result = orchestrator.get_reports(self.aws_provider_uuid)
         self.assertEqual(result, expected)
 
@@ -468,3 +469,47 @@ class OrchestratorTest(MasuTestCase):
         p = o.get_polling_batch()
         self.assertGreater(len(p), 0)
         self.assertEqual(len(p), expected_providers.count())
+
+    def test_get_billing_months(self):
+        """Test get_billing_months"""
+        # test that num_months = 1 returns the current month
+        result = get_billing_months(1)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result, [self.dh.this_month_start.date()])
+
+        # test that num_months = 2 returns 2 months and assert the order is latest month first
+        result = get_billing_months(2)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result, [self.dh.this_month_start.date(), self.dh.last_month_start.date()])
+
+        # test that num_month = 5 returns 5 unique entires and that the first index is the current month
+        result = get_billing_months(5)
+        self.assertEqual(len(set(result)), 5)
+        self.assertEqual(result[0], self.dh.this_month_start.date())
+
+    def test_get_billing_month_start(self):
+        """Test get_billing_month_start returns the first of the month in the date provided."""
+        today = self.dh.today
+        result = get_billing_month_start(str(today))
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        result = get_billing_month_start(today)
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        result = get_billing_month_start(today.date())
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        test_input = datetime(year=2020, month=6, day=25)
+        expected = date(year=2020, month=6, day=1)
+        result = get_billing_month_start("20200625")
+        self.assertEqual(result, expected)
+        result = get_billing_month_start("2020-06-25")
+        self.assertEqual(result, expected)
+        result = get_billing_month_start("2020-6-25")
+        self.assertEqual(result, expected)
+
+        result = get_billing_month_start(test_input)
+        self.assertEqual(result, expected)
+
+        result = get_billing_month_start(test_input.date())
+        self.assertEqual(result, expected)

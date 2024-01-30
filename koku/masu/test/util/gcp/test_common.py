@@ -10,8 +10,6 @@ from dateutil.relativedelta import relativedelta
 from django_tenants.utils import schema_context
 
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.util.gcp import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -38,20 +36,15 @@ class TestGCPUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_date(self):
         """Test that bill IDs are returned for an GCP provider with start date."""
-        date_accessor = DateAccessor()
-
-        with ProviderDBAccessor(provider_uuid=self.gcp_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with GCPReportDBAccessor(schema=self.schema) as accessor:
-
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__gte=end_date.date()).all()
+                bills = bills.filter(billing_period_start__gte=end_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.gcp_provider_uuid, self.schema, start_date=end_date)
@@ -62,20 +55,15 @@ class TestGCPUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_end_date(self):
         """Test that bill IDs are returned for an GCP provider with end date."""
-        date_accessor = DateAccessor()
-
-        with ProviderDBAccessor(provider_uuid=self.gcp_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with GCPReportDBAccessor(schema=self.schema) as accessor:
-
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__lte=start_date.date()).all()
+                bills = bills.filter(billing_period_start__lte=start_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.gcp_provider_uuid, self.schema, end_date=start_date)
@@ -86,23 +74,16 @@ class TestGCPUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_and_end_date(self):
         """Test that bill IDs are returned for an GCP provider with both dates."""
-        date_accessor = DateAccessor()
-
-        with ProviderDBAccessor(provider_uuid=self.gcp_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with GCPReportDBAccessor(schema=self.schema) as accessor:
-
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider_uuid)
             with schema_context(self.schema):
                 bills = (
-                    bills.filter(billing_period_start__gte=start_date.date())
-                    .filter(billing_period_start__lte=end_date.date())
-                    .all()
+                    bills.filter(billing_period_start__gte=start_date).filter(billing_period_start__lte=end_date).all()
                 )
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
@@ -151,15 +132,13 @@ class TestGCPUtils(MasuTestCase):
             },
         ]
 
-        df = pd.DataFrame(data)
-
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
 
         # kubernetes-io-cluster matching, 2 results should come back with no matched tags
         self.assertEqual(matched_df.shape[0], 2)
 
         matched_tags = [{"key": "other_value"}]
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
         # tag matching
         result = matched_df[matched_df["resourceid"] == "id2"]["matched_tag"] == '"key": "other_value"'
         self.assertTrue(result.bool())
@@ -169,13 +148,19 @@ class TestGCPUtils(MasuTestCase):
 
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
 
         # kubernetes-io-cluster matching, 2 results should come back but no matched tags
         self.assertEqual(matched_df.shape[0], 2)
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+        # COST-4543 - ensure we don't fail when dropping `tmp_ocp_matched`
+        try:
+            utils.match_openshift_resources_and_labels(pd.DataFrame(data), {}, [])
+        except Exception as err:
+            self.fail(f"failed matching: {err}")
 
     def test_match_openshift_resources(self):
         """Test that OCP on GCP matching occurs."""
@@ -184,8 +169,9 @@ class TestGCPUtils(MasuTestCase):
                 "resource_ids": [],
                 "cluster_id": "ocp-gcp-cluster",
                 "cluster_alias": "my-ocp-cluster",
-                "nodes": ["id1", "id2", "id3"],
+                "nodes": ["node1", "node2", "node3"],
                 "projects": [],
+                "provider_uuid": "2e26f8a7-42db-4a11-a0b1-f3084cd11e60",
             }
         ]
 
@@ -194,21 +180,21 @@ class TestGCPUtils(MasuTestCase):
             {
                 "resourceid": "id1",
                 "pretaxcost": 1,
-                "resource_name": "resource_1",
+                "resource_name": "node1",
                 "global_resource_name": "global_resource_1",
                 "labels": '{"key": "other_value"}',
             },
             {
                 "resourceid": "id2",
                 "pretaxcost": 1,
-                "resource_name": "resource_2",
+                "resource_name": "node3",
                 "global_resource_name": "global_resource_2",
                 "labels": '{"key": "other_value"}',
             },
             {
                 "resourceid": "id3",
                 "pretaxcost": 1,
-                "resource_name": "resource_2",
+                "resource_name": "node3",
                 "global_resource_name": "global_resource_3",
                 "labels": '{"key": "other_value"}',
             },
@@ -220,8 +206,10 @@ class TestGCPUtils(MasuTestCase):
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
         with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-            utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+            matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
             self.assertIn(expected_log, logger.output[0])
+
+        self.assertEqual(matched_df.shape[0], 3)
 
     def test_deduplicate_reports_for_gcp(self):
         """Test the deduplication of reports for gcp."""

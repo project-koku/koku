@@ -140,7 +140,7 @@ class StatusAPITest(TestCase):
             self.assertIn(expected, logger.output)
 
     @patch("masu.api.status.celery_app")
-    @patch("masu.external.date_accessor.DateAccessor.today")
+    @patch("masu.api.status.DateHelper.now", new_callable=PropertyMock)
     def test_get_datetime(self, mock_date, mock_celery):
         """Test the startup method for datetime."""
         mock_date_string = "2018-07-25 10:41:59.993536"

@@ -5,6 +5,7 @@
 """Models for OCI cost entry tables."""
 from uuid import uuid4
 
+import pandas as pd
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
@@ -28,38 +29,40 @@ UI_SUMMARY_TABLES = (
 TRINO_LINE_ITEM_TABLE_MAP = {"cost": "oci_cost_line_items", "usage": "oci_usage_line_items"}
 TRINO_LINE_ITEM_DAILY_TABLE_MAP = {"cost": "oci_cost_line_items_daily", "usage": "oci_usage_line_items_daily"}
 
-TRINO_REQUIRED_COLUMNS = (
-    "lineItem/referenceNo",
-    "lineItem/tenantId",
-    "lineItem/intervalUsageStart",
-    "lineItem/intervalUsageEnd",
-    "product/service",
-    "product/resource",
-    "product/compartmentId",
-    "product/compartmentName",
-    "product/region",
-    "product/availabilityDomain",
-    "product/resourceId",
-    "usage/consumedQuantity",
-    "usage/billedQuantity",
-    "usage/billedQuantityOverage",
-    "usage/consumedQuantityUnits",
-    "usage/consumedQuantityMeasure",
-    "cost/subscriptionId",
-    "cost/productSku",
-    "product/Description",
-    "cost/unitPrice",
-    "cost/unitPriceOverage",
-    "cost/myCost",
-    "cost/myCostOverage",
-    "cost/currencyCode",
-    "cost/billingUnitReadable",
-    "cost/skuUnitDescription",
-    "cost/overageFlag",
-    "lineItem/isCorrection",
-    "lineItem/backreferenceNo",
-    "tags",
-)
+# These defaults need to match the numeric & date columns in OCIReportParquetProcessor
+# because that is how we build the trino schema
+TRINO_REQUIRED_COLUMNS = {
+    "lineItem/referenceNo": "",
+    "lineItem/tenantId": "",
+    "lineItem/intervalUsageStart": pd.NaT,
+    "lineItem/intervalUsageEnd": pd.NaT,
+    "product/service": "",
+    "product/resource": "",
+    "product/compartmentId": "",
+    "product/compartmentName": "",
+    "product/region": "",
+    "product/availabilityDomain": "",
+    "product/resourceId": "",
+    "usage/consumedQuantity": 0.0,
+    "usage/billedQuantity": "",
+    "usage/billedQuantityOverage": "",
+    "usage/consumedQuantityUnits": "",
+    "usage/consumedQuantityMeasure": "",
+    "cost/subscriptionId": "",
+    "cost/productSku": "",
+    "product/Description": "",
+    "cost/unitPrice": "",
+    "cost/unitPriceOverage": "",
+    "cost/myCost": 0.0,
+    "cost/myCostOverage": "",
+    "cost/currencyCode": "",
+    "cost/billingUnitReadable": "",
+    "cost/skuUnitDescription": "",
+    "cost/overageFlag": "",
+    "lineItem/isCorrection": "",
+    "lineItem/backreferenceNo": "",
+    "tags": "",
+}
 
 
 class OCICostEntryBill(models.Model):
