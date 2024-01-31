@@ -12,7 +12,6 @@ from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.deprecated_settings.settings import Settings
 from api.provider.models import Provider
 from api.query_params import QueryParameters
 from api.settings.cost_groups.query_handler import CostGroupsQueryHandler
@@ -26,9 +25,6 @@ from masu.processor.tasks import OCP_QUEUE
 from masu.processor.tasks import OCP_QUEUE_XL
 from masu.processor.tasks import update_summary_tables
 from reporting.provider.ocp.models import OCPProject
-
-
-SETTINGS_GENERATORS = {"settings": Settings}
 
 
 class CostGroupsView(APIView):
