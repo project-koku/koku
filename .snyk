@@ -1,0 +1,23 @@
+# Snyk (https://snyk.io) policy file
+
+exclude:
+    global:
+        # Exclude a single file. For example, - test.spec.js
+        #    - file_name.ext
+        # Exclude a single directory. For example, - src/lib
+        #    - source/directory_name
+        # Exclude any file with a specific extension in the specific directory. For example, - tests/.js
+        #    - directory_name/.ext
+        # Exclude files with a specific ending in any directory. For example, - “*.spec.js”
+            - "*tests?*.py"
+            - "*.html"
+            - "*.ya?ml"
+            - "*.json"
+        # Exclude files in directories that have the same name with a different ending, like “test” and “tests”. The last character before the question mark is optional. For example, - tests?/
+            - directory_name?/
+        # Exclude all files and directories in a specific directory. For example, - tests/
+            - ci/**
+            - dashboards/**
+            - dev/**
+            - grafana/**
+            - testing/**
