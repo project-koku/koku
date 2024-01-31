@@ -1,8 +1,7 @@
+# Copyright 2022 Adam Johnson
 #
-# Copyright 2024 Red Hat Inc.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 #
-# Adapted from:
 # "Migrate PostgreSQL IDs from serial to identity after upgrading to Django 4.1"
 # https://adamj.eu/tech/2022/10/21/migrate-postgresql-ids-serial-identity-django-4.1/
 from __future__ import annotations
