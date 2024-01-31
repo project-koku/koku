@@ -711,8 +711,10 @@ class ReportQueryHandler(QueryHandler):
         whens = [
             When(project__startswith="openshift-", then=Value("default")),
             When(project__startswith="kube-", then=Value("default")),
+            When(project="openshift", then=Value("default")),
             When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
         ]
+
         if self._category:
             whens.append(When(project__in=self._category, then=Concat(Value("category_"), F("cost_category__name"))))
 
