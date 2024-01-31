@@ -19,6 +19,16 @@ from ..utils import SettingsFilter, NonValidatedMultipleChoiceFilter
 
 class SettingsTagMappingFilter(SettingsFilter):
     key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
+
+    # TODO - Filter by source_type
+    class Meta:
+        model = TagMapping
+        fields = ("parent", "child")
+        default_ordering = ["parent", "-child"]
+
+
+class SettingsEnabledTagKeysFilter(SettingsFilter):
+    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
     source_type = CharFilter(method='filter_by_source_type')
 
     class Meta:
@@ -35,6 +45,7 @@ class SettingsTagMappingView(generics.GenericAPIView):
     serializer_class = TagMappingSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
+    filterset_class = SettingsTagMappingFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
@@ -52,7 +63,7 @@ class SettingsTagMappingChildView(generics.GenericAPIView):
     serializer_class = EnabledTagKeysSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = SettingsTagMappingFilter
+    filterset_class = SettingsEnabledTagKeysFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
@@ -69,7 +80,7 @@ class SettingsTagMappingParentView(generics.GenericAPIView):
     serializer_class = EnabledTagKeysSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = SettingsTagMappingFilter
+    filterset_class = SettingsEnabledTagKeysFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
