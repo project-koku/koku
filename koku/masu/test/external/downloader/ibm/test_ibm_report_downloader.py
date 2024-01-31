@@ -184,7 +184,7 @@ class IBMReportDownloaderTest(MasuTestCase):
     ):
         timestamp = "download_timestamp"
         dhInstance = MagicMock()
-        dhInstance._now.strftime = MagicMock(return_value=timestamp)
+        dhInstance.now.strftime = MagicMock(return_value=timestamp)
         date_helper_mock.return_value = dhInstance
         expected_etag = "etag"
         key = f"uuid_date_{expected_etag}.csv"

@@ -57,8 +57,9 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.filter(billing_period_start__gte=start_date)
         if end_date:
             bills = bills.filter(billing_period_start__lte=end_date)
-
-        bills = list(bills.all())
+        # postgres doesn't always return this query in the same order, ordering by ID (PK) will
+        # ensure that any list iteration or indexing is always done in the same order
+        bills = list(bills.order_by("id").all())
 
     return bills
 
@@ -68,22 +69,28 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     tags = data_frame["labels"]
     tags = tags.str.lower()
     resource_id_df = data_frame.get("resource_name")
-    match_columns = []
+    match_by_resource_id = resource_id_df.any()
 
-    for i, cluster_topology in enumerate(cluster_topologies):
-        match_col_name = f"ocp_matched_{i}"
+    # instantiate an empty column which can be updated over each topology
+    data_frame["ocp_source_uuid"] = ""
+
+    # use this column to track matched ocp sources. only rows where this column
+    # is True will update the `ocp_source_uuid` column. After iterating the
+    # topologies, this tmp column is dropped.
+    tmp_match_col_name = "tmp_ocp_matched"
+
+    for cluster_topology in cluster_topologies:
         cluster_id = cluster_topology.get("cluster_id", "")
         cluster_alias = cluster_topology.get("cluster_alias", "")
         nodes = list(filter(None, cluster_topology.get("nodes", [])))
         volumes = list(filter(None, cluster_topology.get("persistent_volumes", [])))
         matchable_resources = nodes + volumes
 
-        if resource_id_df.any():
+        if match_by_resource_id:
             LOG.info("Matching OpenShift on GCP by resource ID.")
-            matching_check = "|".join(matchable_resources)
-            if not matching_check:
+            if not matchable_resources:
                 continue
-            ocp_matched = resource_id_df.str.contains(matching_check)
+            ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
         else:
             LOG.info("Matching OpenShift on GCP by labels.")
             cluster_strings = [
@@ -92,16 +99,12 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             ocp_matched = tags.str.contains("|".join(cluster_strings))
 
         # Add in OCP Cluster these resources matched to
-        data_frame[match_col_name] = ocp_matched
-        data_frame.loc[data_frame[match_col_name] == True, "ocp_source_uuid"] = cluster_topology.get(  # noqa: E712
-            "provider_uuid"
-        )
-        match_columns.append(match_col_name)
+        data_frame[tmp_match_col_name] = ocp_matched
+        data_frame.loc[data_frame[tmp_match_col_name], "ocp_source_uuid"] = cluster_topology.get("provider_uuid")
 
     # Consildate the columns per cluster into a single column
-    data_frame.loc[data_frame["ocp_source_uuid"].notnull(), "ocp_matched"] = True
-    data_frame = data_frame.drop(columns=match_columns)
-    data_frame["ocp_source_uuid"].fillna(value="", inplace=True)
+    data_frame["ocp_matched"] = data_frame["ocp_source_uuid"].str.len() > 0
+    data_frame = data_frame.drop(columns=tmp_match_col_name, errors="ignore")
 
     special_case_tag_matched = tags.str.contains(
         "|".join(

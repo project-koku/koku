@@ -116,7 +116,7 @@ class OCIReportDownloaderTest(MasuTestCase):
 
         test_report = MagicMock()
         test_report.name = self.test_cost_report_name
-        test_report.time_created = self.dh._now
+        test_report.time_created = self.dh.now
         list_objects_res = MagicMock()
         list_objects_res.data.objects = [test_report]
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)

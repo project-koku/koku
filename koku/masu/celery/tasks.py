@@ -30,16 +30,17 @@ from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from koku.notifications import NotificationService
+from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
@@ -58,6 +59,12 @@ PROVIDER_REPORT_TYPE_MAP = {
 }
 
 
+@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=GET_REPORT_FILES_QUEUE)
+def fix_parquet_data_types(*args, **kwargs):
+    verify_parquet = VerifyParquetFiles(*args, **kwargs)
+    verify_parquet.retrieve_verify_reload_s3_parquet()
+
+
 @celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
 def check_report_updates(*args, **kwargs):
     """Scheduled task to initiate scanning process on a regular interval."""
@@ -69,8 +76,7 @@ def check_report_updates(*args, **kwargs):
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
-    today = DateAccessor().today()
-    LOG.info("Removing expired data at %s", str(today))
+    LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
 
@@ -416,16 +422,16 @@ def check_cost_model_status(provider_uuid=None):
             return
     else:
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
-    LOG.info("Cost model status check found %s providers to scan" % len(providers))
+    LOG.info(f"Cost model status check found {len(providers)} providers to scan")
     processed = 0
     skipped = 0
     for provider in providers:
-        cost_model_map = CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid)
-        if cost_model_map.cost_model:
-            skipped += 1
-        else:
-            NotificationService().cost_model_notification(provider)
-            processed += 1
+        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+            if cmdba.cost_model:
+                skipped += 1
+                continue
+        NotificationService().cost_model_notification(provider)
+        processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 
@@ -438,8 +444,8 @@ def check_for_stale_ocp_source(provider_uuid=None):
         LOG.info(f"Openshift stale cluster check found {len(manifest_data)} clusters to scan")
         processed = 0
         skipped = 0
-        today = DateAccessor().today()
-        check_date = DateHelper().n_days_ago(today, 3)
+        dh = DateHelper()
+        check_date = dh.n_days_ago(dh.now, 3)
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:

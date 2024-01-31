@@ -15,12 +15,12 @@ from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from api.utils import DateHelper
-from koku.database import get_model
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import OCITagsSummary
 from reporting_common.models import CostUsageReportManifest
@@ -43,30 +43,26 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
-        summary_table_name = OCI_CUR_TABLE_MAP["line_item_daily_summary"]
-        summary_table = get_model(summary_table_name)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.oci_provider.uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            summary_entry = OCICostEntryLineItemDailySummary.objects.all().aggregate(
+                Min("usage_start"), Max("usage_start")
+            )
             start_date = summary_entry["usage_start__min"]
             end_date = summary_entry["usage_start__max"]
 
-        query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
-            expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
+            expected_markup = OCICostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
                 markup=Sum(F("cost") * decimal.Decimal(0.1))
             )
             expected_markup = expected_markup.get("markup")
 
         self.accessor.populate_markup_cost(decimal.Decimal(0.1), start_date, end_date, bill_ids)
         with schema_context(self.schema):
-            query = (
-                self.accessor._get_db_obj_query(summary_table_name)
-                .filter(cost_entry_bill__in=bill_ids)
-                .aggregate(Sum("markup_cost"))
+            query = OCICostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
+                Sum("markup_cost")
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
@@ -74,9 +70,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
         with schema_context(self.schema):
-            table_name = OCI_CUR_TABLE_MAP["bill"]
-            query = self.accessor._get_db_obj_query(table_name)
-            first_entry = query.first()
+            first_entry = OCICostEntryBill.objects.first()
 
             # Verify that the result is returned for cutoff_date == billing_period_start
             cutoff_date = first_entry.billing_period_start
@@ -161,25 +155,6 @@ class OCIReportDBAccessorTest(MasuTestCase):
                     self.assertEqual([key_to_keep.key], tag_keys)
                 else:
                     self.assertEqual([], tag_keys)
-
-    def test_delete_line_item_daily_summary_entries_for_date_range(self):
-        """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
-            start_date = OCICostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
-            end_date = start_date
-
-        table_query = OCICostEntryLineItemDailySummary.objects.filter(
-            source_uuid=self.oci_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-        )
-        with schema_context(self.schema):
-            self.assertNotEqual(table_query.count(), 0)
-
-        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
-            self.oci_provider_uuid, start_date, end_date
-        )
-
-        with schema_context(self.schema):
-            self.assertEqual(table_query.count(), 0)
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, OCICostEntryLineItemDailySummary)

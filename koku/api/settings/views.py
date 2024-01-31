@@ -20,9 +20,9 @@ from rest_framework.views import APIView
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.provider.models import Provider
-from api.settings.serializer import UserSettingSerializer
-from api.settings.serializer import UserSettingUpdateCostTypeSerializer
-from api.settings.serializer import UserSettingUpdateCurrencySerializer
+from api.settings.serializers import UserSettingSerializer
+from api.settings.serializers import UserSettingUpdateCostTypeSerializer
+from api.settings.serializers import UserSettingUpdateCurrencySerializer
 from api.settings.settings import COST_TYPES
 from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency

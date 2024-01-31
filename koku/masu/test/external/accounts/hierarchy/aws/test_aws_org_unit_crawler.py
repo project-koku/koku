@@ -282,7 +282,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         # nullifies the deleted_timestamp
         with schema_context(self.schema):
             ou_to_update = AWSOrganizationalUnit.objects.filter(org_unit_id="R_001")
-            ou_to_update.update(deleted_timestamp=unit_crawler._date_accessor.today())
+            ou_to_update.update(deleted_timestamp=self.dh.today)
         updated_ou = unit_crawler._save_aws_org_method(root_ou, "unit_path", 0, root_account)
         with schema_context(self.schema):
             cur_count = AWSOrganizationalUnit.objects.count()
@@ -335,7 +335,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
 
         # Change created date to two_days_ago
         with schema_context(self.schema):
-            two_days_ago = (unit_crawler._date_accessor.today() - timedelta(2)).strftime("%Y-%m-%d")
+            two_days_ago = (self.dh.today - timedelta(2)).strftime("%Y-%m-%d")
             for node in created_nodes:
                 node.created_timestamp = two_days_ago
                 node.save()
@@ -363,7 +363,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._delete_aws_org_unit("sub_org_unit_1_Fake")
 
         with schema_context(self.schema):
-            yesterday = (unit_crawler._date_accessor.today() - timedelta(1)).strftime("%Y-%m-%d")
+            yesterday = (self.dh.today - timedelta(1)).strftime("%Y-%m-%d")
             for node in created_nodes:
                 node.created_timestamp = yesterday
                 node.save()
@@ -381,7 +381,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         unit_crawler._save_aws_org_method(sub_org_unit_2, "R_001&OU_3000", 1, None)
 
         with schema_context(self.schema):
-            today = unit_crawler._date_accessor.today().strftime("%Y-%m-%d")
+            today = self.dh.today.strftime("%Y-%m-%d")
             curr_count = AWSOrganizationalUnit.objects.filter(created_timestamp__lte=today).count()
             deleted_count = AWSOrganizationalUnit.objects.filter(deleted_timestamp__lte=today).count()
             self.assertEqual(curr_count, 9)

@@ -71,7 +71,6 @@ class IamTestCase(TestCase):
     """Parent Class for IAM test cases."""
 
     fake = Faker()
-    dh = DateHelper()
     baker = baker
 
     @classmethod
@@ -81,6 +80,7 @@ class IamTestCase(TestCase):
         post_save.disconnect(storage_callback, sender=Sources)
         post_save.disconnect(provider_post_save_refresh_cache, sender=Provider)
 
+        cls.dh = DateHelper()
         cls.customer_data = cls._create_customer_data()
         cls.user_data = cls._create_user_data()
         cls.request_context = cls._create_request_context(cls.customer_data, cls.user_data)

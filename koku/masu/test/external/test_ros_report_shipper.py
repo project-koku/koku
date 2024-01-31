@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import json
-from unittest import TestCase
 from unittest.mock import patch
 
 from botocore.exceptions import EndpointConnectionError
+from django.test import TestCase
 from model_bakery import baker
 
 from api.utils import DateHelper

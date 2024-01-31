@@ -31,7 +31,6 @@ objects:
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
-    - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
     - topicName: hccm.ros.events
@@ -90,7 +89,32 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
-
+    # ====================================================
+    #      koku Management Command Job
+    # ====================================================
+    - name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
+      podSpec:
+        image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${KOKU_MGMT_CPU_LIMIT}
+            memory: ${KOKU_MGMT_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_MGMT_CPU_REQUEST}
+            memory: ${KOKU_MGMT_MEMORY_REQUEST}
+        args:
+        - /bin/bash
+        - -c
+        - ${MGMT_COMMAND}
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: MGMT_IMAGE
+          value: ${MGMT_IMAGE}
+        - name: MGMT_IMAGE_TAG
+          value: ${MGMT_IMAGE_TAG}
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
@@ -106,6 +130,18 @@ objects:
     appName: koku
     jobs:
       - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
+
+# ====================================================
+#      koku Management CJI
+# ====================================================
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
+  spec:
+    appName: koku
+    jobs:
+      - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
 
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
@@ -279,6 +315,38 @@ parameters:
 - name: TENANT_MULTIPROCESSING_CHUNKS
   required: True
   value: "2"
+
+- description: Management Command Image Tag
+  name: MGMT_IMAGE_TAG
+  required: true
+  value: latest
+- description: Management Command Image
+  name: MGMT_IMAGE
+  required: true
+  value: quay.io/cloudservices/koku
+- description: Management Command Invocation Iterator
+  name: MGMT_INVOCATION
+  required: true
+  value: "00"
+- description: Management Command
+  name: MGMT_COMMAND
+  value: "echo 'No Command to Run'"
+- displayName: Memory Request
+  name: KOKU_MGMT_MEMORY_REQUEST
+  required: true
+  value: 20Mi
+- displayName: Memory Limit
+  name: KOKU_MGMT_MEMORY_LIMIT
+  required: true
+  value: 20Mi
+- displayName: CPU Request
+  name: KOKU_MGMT_CPU_REQUEST
+  required: true
+  value: "10m"
+- displayName: CPU Limit
+  name: KOKU_MGMT_CPU_LIMIT
+  required: true
+  value: "10m"
 
 - displayName: App domain
   name: APP_DOMAIN
@@ -538,3 +606,11 @@ parameters:
   displayName: Enable SUBS Debug
   name: ENABLE_SUBS_DEBUG
   value: "False"
+- description: Enable ROS Kafka Debug
+  displayName: Enable ROS Debug
+  name: ENABLE_ROS_DEBUG
+  value: "False"
+- description: Enable SUBS Provider Types for Processing
+  displayname: Enable SUBS Provider Types
+  name: ENABLE_SUBS_PROVIDER_TYPES
+  value: "AWS"

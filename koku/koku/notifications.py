@@ -11,7 +11,7 @@ import uuid
 from api.provider.models import Provider
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
-from masu.config import Config
+from kafka_utils.utils import NOTIFICATION_TOPIC
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ class NotificationService:
             None
         """
         producer = get_producer()
-        producer.produce(Config.NOTIFICATION_TOPIC, value=msg, callback=delivery_callback)
+        producer.produce(NOTIFICATION_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
 
     def cost_model_notification(self, provider: Provider):

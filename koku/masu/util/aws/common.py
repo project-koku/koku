@@ -498,8 +498,9 @@ def get_bills_from_provider(
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:
                 bills = bills.filter(billing_period_start__lte=end_date)
-
-            bills = list(bills.all())
+            # postgres doesn't always return this query in the same order, ordering by ID (PK) will
+            # ensure that any list iteration or indexing is always done in the same order
+            bills = list(bills.order_by("id").all())
 
     return bills
 
@@ -880,14 +881,14 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     resource_ids = tuple(resource_ids)
     data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["lineitem_resourceid"]
-    if not resource_id_df.isna().values.all():
+    if not resource_id_df.eq("").all():
         LOG.info("Matching OpenShift on AWS by resource ID.")
         resource_id_matched = resource_id_df.str.endswith(resource_ids)
         data_frame["resource_id_matched"] = resource_id_matched
 
     data_frame["special_case_tag_matched"] = False
     tags = data_frame["resourcetags"]
-    if not tags.isna().values.all():
+    if not tags.eq("").all():
         tags = tags.str.lower()
         LOG.info("Matching OpenShift on AWS by tags.")
         special_case_tag_matched = tags.str.contains(
@@ -903,7 +904,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             tag_values.extend(list(tag.values()))
 
         any_tag_matched = None
-        if not tags.isna().values.all():
+        if not tags.eq("").all():
             tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
             data_frame["tag_matched"] = tag_matched
             any_tag_matched = tag_matched.any()

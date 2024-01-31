@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from dateutil import parser
 from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -315,7 +316,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         LOG.info(log_json(msg="updating ocp_on_cloud_updated_datetime OpenShift report periods", **context))
         with schema_context(self._schema):
-            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.ocp_on_cloud_updated_datetime = timezone.now()
             report_period.save()
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
@@ -450,7 +451,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         LOG.info(log_json(msg="updating ocp_on_cloud_updated_datetime OpenShift report periods", **context))
         with schema_context(self._schema):
-            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.ocp_on_cloud_updated_datetime = timezone.now()
             report_period.save()
 
     def update_gcp_summary_tables(self, openshift_provider_uuid, gcp_provider_uuid, start_date, end_date):
@@ -576,5 +577,5 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             )
         )
         with schema_context(self._schema):
-            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.ocp_on_cloud_updated_datetime = timezone.now()
             report_period.save()

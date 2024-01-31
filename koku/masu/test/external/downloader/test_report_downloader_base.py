@@ -10,7 +10,6 @@ from django.db.utils import IntegrityError
 from faker import Faker
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.test import MasuTestCase
@@ -30,7 +29,6 @@ class ReportDownloaderBaseTest(MasuTestCase):
         super().setUpClass()
         cls.fake = Faker()
         cls.patch_path = True
-        cls.date_accessor = DateAccessor()
         cls.assembly_id = cls.fake.pystr()
         cls.report_name = f"{cls.assembly_id}_file_1.csv.gz"
 
@@ -39,7 +37,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
         super().setUp()
         self.cache_key = self.fake.word()
         self.downloader = ReportDownloaderBase(provider_uuid=self.aws_provider_uuid, cache_key=self.cache_key)
-        self.billing_start = self.date_accessor.today_with_timezone("UTC").replace(day=1)
+        self.billing_start = self.dh.this_month_start
         self.manifest_dict = {
             "assembly_id": self.assembly_id,
             "billing_period_start_datetime": self.billing_start,
@@ -62,6 +60,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
                 last_started_datetime=None,
                 manifest_id=self.manifest_id,
             )
+        self.today = self.dh.today
 
     def test_report_downloader_base_no_path(self):
         """Test report downloader download_path."""
@@ -86,9 +85,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
         mock_manifest_objects.filter.return_value.first.side_effect = [None, self.manifest]
         mock_manifest_objects.get_or_create.side_effect = IntegrityError()
-        manifest_id = self.downloader._process_manifest_db_record(
-            self.assembly_id, self.billing_start, 2, DateAccessor().today()
-        )
+        manifest_id = self.downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, self.today)
         self.assertEqual(manifest_id, self.manifest.id)
 
     @patch("reporting_common.models.CostUsageReportManifest.objects")
@@ -97,9 +94,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
         mock_manifest_objects.filter.return_value.first.side_effect = [None, None]
         mock_manifest_objects.get_or_create.side_effect = IntegrityError()
         with self.assertRaises(IntegrityError):
-            self.downloader._process_manifest_db_record(
-                self.assembly_id, self.billing_start, 2, DateAccessor().today()
-            )
+            self.downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, self.today)
 
     @patch("reporting_common.models.CostUsageReportManifest.objects")
     def test_process_manifest_db_record_race_race_no_provider(self, mock_manifest_objects):
@@ -108,9 +103,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
         mock_manifest_objects.get_or_create.side_effect = IntegrityError()
         with self.assertRaises(ReportDownloaderError):
             self.downloader._provider_uuid = self.unkown_test_provider_uuid
-            self.downloader._process_manifest_db_record(
-                self.assembly_id, self.billing_start, 2, DateAccessor().today()
-            )
+            self.downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, self.today)
 
     @patch("reporting_common.models.CostUsageReportManifest.objects")
     def test_process_manifest_db_record_race_no_provider(self, mock_manifest_objects):
@@ -123,7 +116,7 @@ DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present
         )
         downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
         with self.assertRaises(ReportDownloaderError):
-            downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())
+            downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, self.today)
 
     def test_process_manifest_db_record_file_num_changed(self):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
@@ -134,9 +127,7 @@ DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present
             etag="etag",
             manifest=self.manifest,
         )
-        manifest_id = self.downloader._process_manifest_db_record(
-            self.assembly_id, self.billing_start, 3, DateAccessor().today()
-        )
+        manifest_id = self.downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 3, self.today)
         self.assertEqual(manifest_id, self.manifest.id)
         with ReportManifestDBAccessor() as manifest_accessor:
             result_manifest = manifest_accessor.get_manifest_by_id(manifest_id)

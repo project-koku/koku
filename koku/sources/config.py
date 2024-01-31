@@ -10,16 +10,6 @@ from koku.env import ENVIRONMENT
 class Config:
     """Configuration for service."""
 
-    # SOURCES_TOPIC = ENVIRONMENT.get_value("SOURCES_KAFKA_TOPIC", default="platform.sources.event-stream")
-    SOURCES_TOPIC = CONFIGURATOR.get_kafka_topic("platform.sources.event-stream")
-
-    SOURCES_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
-    SOURCES_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
-    SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
-    SOURCES_KAFKA_SASL = CONFIGURATOR.get_kafka_sasl()
-    SOURCES_KAFKA_CACERT = CONFIGURATOR.get_kafka_cacert()
-    SOURCES_KAFKA_AUTHTYPE = CONFIGURATOR.get_kafka_authtype()
-
     SOURCES_API_HOST = CONFIGURATOR.get_endpoint_host("sources-api", "svc", "localhost")
     SOURCES_API_PORT = CONFIGURATOR.get_endpoint_port("sources-api", "svc", "3000")
     SOURCES_API_URL = f"http://{SOURCES_API_HOST}:{SOURCES_API_PORT}"

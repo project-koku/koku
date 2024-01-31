@@ -295,8 +295,20 @@ class OpenshiftCostCategory(models.Model):
     description = models.TextField()
     source_type = models.TextField()
     system_default = models.BooleanField(null=False, default=False)
-    namespace = ArrayField(models.TextField())
     label = ArrayField(models.TextField())
+
+
+class OpenshiftCostCategoryNamespace(models.Model):
+    """Namespaces to bucket to category."""
+
+    class Meta:
+        """Meta for cost category namespaces."""
+
+        db_table = "reporting_ocp_cost_category_namespace"
+
+    namespace = models.TextField(unique=True)
+    system_default = models.BooleanField(null=False, default=False)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE)
 
 
 class OCPProject(models.Model):

@@ -70,6 +70,7 @@ from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from reporting.ingress.models import IngressReports
+from reporting.models import OCPUsageLineItemDailySummary
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -736,12 +737,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             synchronous=True,
         )
 
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(self.ocp_provider.uuid)
         with schema_context(self.schema):
             cluster_id = usage_period_qry.first().cluster_id
 
-            items = self.ocp_accessor._get_db_obj_query(table_name).filter(
+            items = OCPUsageLineItemDailySummary.objects.filter(
                 usage_start__gte=start_date,
                 usage_start__lte=end_date,
                 cluster_id=cluster_id,
@@ -752,8 +752,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.assertNotEqual(item.infrastructure_usage_cost.get("cpu"), 0)
                 self.assertNotEqual(item.infrastructure_usage_cost.get("memory"), 0)
 
-            storage_summary_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-            items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
+            items = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=cluster_id,
                 data_source="Storage",
                 infrastructure_raw_cost__isnull=True,
