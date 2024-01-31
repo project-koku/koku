@@ -4,31 +4,6 @@ from django.db import migrations
 from django.db import models
 
 
-def populate_manifest_fields(apps, schema_editor):
-    CostUsageReportManifest = apps.get_model("reporting_common", "costusagereportmanifest")
-
-    CostUsageReportManifest.objects.filter(completed_datetime__isnull=True).update(
-        completed_datetime=models.F("manifest_completed_datetime")
-    )
-    CostUsageReportManifest.objects.filter(creation_datetime__isnull=False).update(
-        creation_datetime=models.F("manifest_creation_datetime")
-    )
-    CostUsageReportManifest.objects.filter(export_datetime__isnull=True).update(
-        export_datetime=models.F("manifest_modified_datetime")
-    )
-
-
-def populate_report_status_fields(apps, schema_editor):
-    CostUsageReportManifest = apps.get_model("reporting_common", "costusagereportstatus")
-
-    CostUsageReportManifest.objects.filter(completed_datetime__isnull=True).update(
-        completed_datetime=models.F("last_completed_datetime")
-    )
-    CostUsageReportManifest.objects.filter(started_datetime__isnull=True).update(
-        started_datetime=models.F("last_started_datetime")
-    )
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -66,6 +41,4 @@ class Migration(migrations.Migration):
             name="completed_datetime",
             field=models.DateTimeField(null=True),
         ),
-        migrations.RunPython(populate_manifest_fields),
-        migrations.RunPython(populate_report_status_fields),
     ]
