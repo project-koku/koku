@@ -271,6 +271,7 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
+                            "cost_group": F("cost_category__name"),
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
