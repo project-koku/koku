@@ -56,8 +56,8 @@ class ReportDownloaderBaseTest(MasuTestCase):
             self.baker.make(
                 CostUsageReportStatus,
                 report_name=f"{self.assembly_id}_file_{i}.csv.gz",
-                last_completed_datetime=None,
-                last_started_datetime=None,
+                completed_datetime=None,
+                started_datetime=None,
                 manifest_id=self.manifest_id,
             )
         self.today = self.dh.today
@@ -122,8 +122,8 @@ DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
         CostUsageReportStatus.objects.create(
             report_name="fake_report.csv",
-            last_completed_datetime=self.billing_start,
-            last_started_datetime=self.billing_start,
+            completed_datetime=self.billing_start,
+            started_datetime=self.billing_start,
             etag="etag",
             manifest=self.manifest,
         )

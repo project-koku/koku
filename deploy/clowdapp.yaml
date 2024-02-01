@@ -1293,6 +1293,7 @@ objects:
           requests:
             cpu: ${WORKER_CELERY_CPU_REQUEST}
             memory: ${WORKER_CELERY_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -1486,6 +1487,7 @@ objects:
           requests:
             cpu: ${WORKER_COST_MODEL_CPU_REQUEST}
             memory: ${WORKER_COST_MODEL_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -1679,6 +1681,7 @@ objects:
           requests:
             cpu: ${WORKER_COST_MODEL_XL_CPU_REQUEST}
             memory: ${WORKER_COST_MODEL_XL_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -1876,6 +1879,7 @@ objects:
           requests:
             cpu: ${WORKER_DOWNLOAD_CPU_REQUEST}
             memory: ${WORKER_DOWNLOAD_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -2073,6 +2077,7 @@ objects:
           requests:
             cpu: ${WORKER_DOWNLOAD_XL_CPU_REQUEST}
             memory: ${WORKER_DOWNLOAD_XL_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -2268,6 +2273,7 @@ objects:
           requests:
             cpu: ${WORKER_OCP_CPU_REQUEST}
             memory: ${WORKER_OCP_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -2463,6 +2469,7 @@ objects:
           requests:
             cpu: ${WORKER_OCP_XL_CPU_REQUEST}
             memory: ${WORKER_OCP_XL_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -2660,6 +2667,7 @@ objects:
           requests:
             cpu: ${WORKER_PRIORITY_CPU_REQUEST}
             memory: ${WORKER_PRIORITY_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -2857,6 +2865,7 @@ objects:
           requests:
             cpu: ${WORKER_PRIORITY_XL_CPU_REQUEST}
             memory: ${WORKER_PRIORITY_XL_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -3050,6 +3059,7 @@ objects:
           requests:
             cpu: ${WORKER_REFRESH_CPU_REQUEST}
             memory: ${WORKER_REFRESH_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -3243,6 +3253,7 @@ objects:
           requests:
             cpu: ${WORKER_REFRESH_XL_CPU_REQUEST}
             memory: ${WORKER_REFRESH_XL_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -3436,6 +3447,7 @@ objects:
           requests:
             cpu: ${WORKER_SUMMARY_CPU_REQUEST}
             memory: ${WORKER_SUMMARY_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -3629,6 +3641,7 @@ objects:
           requests:
             cpu: ${WORKER_SUMMARY_XL_CPU_REQUEST}
             memory: ${WORKER_SUMMARY_XL_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -3824,6 +3837,7 @@ objects:
           requests:
             cpu: ${WORKER_HCS_CPU_REQUEST}
             memory: ${WORKER_HCS_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -3990,6 +4004,7 @@ objects:
           requests:
             cpu: ${WORKER_SUBS_EXTRACTION_CPU_REQUEST}
             memory: ${WORKER_SUBS_EXTRACTION_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
@@ -4145,6 +4160,7 @@ objects:
           requests:
             cpu: ${WORKER_SUBS_TRANSMISSION_CPU_REQUEST}
             memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST}
+        terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /var/tmp/masu/
           name: koku-worker-data

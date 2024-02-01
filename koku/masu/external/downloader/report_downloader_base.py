@@ -73,9 +73,7 @@ class ReportDownloaderBase:
                 manifest_id = manifest.id
         return manifest_id
 
-    def _process_manifest_db_record(
-        self, assembly_id, billing_start, num_of_files, manifest_modified_datetime, **kwargs
-    ):
+    def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files, export_datetime, **kwargs):
         """Insert or update the manifest DB record."""
         msg = f"Inserting/updating manifest in database for assembly_id: {assembly_id}"
         LOG.info(log_json(self.tracing_id, msg=msg))
@@ -89,7 +87,7 @@ class ReportDownloaderBase:
                 "billing_period_start_datetime": billing_start,
                 "num_total_files": num_of_files,
                 "provider_uuid": self._provider_uuid,
-                "manifest_modified_datetime": manifest_modified_datetime,
+                "export_datetime": export_datetime,
             }
             # the provider uuid must go in `provider_id`. Explicitly set `provider_uuid` above in case
             # kwargs contains it. Then we update the key here:
