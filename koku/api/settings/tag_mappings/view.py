@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.db import transaction
@@ -19,12 +20,19 @@ from ..utils import SettingsFilter, NonValidatedMultipleChoiceFilter
 
 class SettingsTagMappingFilter(SettingsFilter):
     key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
+    source_type = CharFilter(method='filter_by_source_type')
 
-    # TODO - Filter by source_type
     class Meta:
         model = TagMapping
         fields = ("parent", "child")
         default_ordering = ["parent", "-child"]
+
+    def filter_by_source_type(self, queryset, name, value):
+        # return queryset.filter(Q(parent__provider_type=value) | Q(child__provider_type=value))
+        print("Before filter: ", queryset.query)
+        queryset = queryset.filter(Q(parent__provider_type=value) | Q(child__provider_type=value))
+        print("After filter: ", queryset.query)
+        return queryset
 
 
 class SettingsEnabledTagKeysFilter(SettingsFilter):
