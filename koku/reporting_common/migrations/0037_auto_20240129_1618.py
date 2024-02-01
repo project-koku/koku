@@ -5,7 +5,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting_common", "0036_auto_20240129_1604"),
+        ("reporting_common", "0037_manifest_report_data_migration"),
     ]
 
     operations = [
