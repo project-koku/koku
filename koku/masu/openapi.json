@@ -2663,15 +2663,14 @@
         "required": [
           "id",
           "assembly_id",
-          "manifest_creation_datetime",
+          "creation_datetime",
           "manifest_updated_datetime",
-          "manifest_completed_datetime",
-          "manifest_modified_datetime",
+          "completed_datetime",
+          "export_datetime",
           "billing_period_start_datetime",
           "provider_id",
           "s3_csv_cleared",
-          "s3_parquet_cleared",
-          "export_time"
+          "s3_parquet_cleared"
         ],
         "properties": {
           "id": {
@@ -2680,7 +2679,7 @@
           "assembly_id": {
             "type": "string"
           },
-          "manifest_creation_datetime": {
+          "creation_datetime": {
             "enum": [
               "year-month-day:time"
             ]
@@ -2690,12 +2689,12 @@
               "year-month-day:time"
             ]
           },
-          "manifest_completed_datetime": {
+          "completed_datetime": {
             "enum": [
               "year-month-day:time"
             ]
           },
-          "manifest_modified_datetime": {
+          "export_datetime": {
             "enum": [
               "year-month-day:time"
             ]
@@ -2716,11 +2715,6 @@
           },
           "operator_version": {
             "type": "string"
-          },
-          "export_time": {
-            "enum": [
-              "year-month-day:time"
-            ]
           }
         }
       },
@@ -2749,8 +2743,8 @@
         "required": [
           "id",
           "report_name",
-          "last_completed_datetime",
-          "last_started_datetime"
+          "completed_datetime",
+          "started_datetime"
         ],
         "properties": {
           "id": {
@@ -2762,12 +2756,12 @@
           "assembly_id": {
             "type": "string"
           },
-          "last_completed_datetime": {
+          "completed_datetime": {
             "enum": [
               "year-month-day:time"
             ]
           },
-          "last_started_datetime": {
+          "started_datetime": {
             "enum": [
               "year-month-day:time"
             ]

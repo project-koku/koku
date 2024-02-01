@@ -19,7 +19,7 @@ from masu.test import MasuTestCase
 @override_settings(ROOT_URLCONF="masu.urls")
 class TestUpgradeTrinoView(MasuTestCase):
     ENDPOINT = "fix_parquet"
-    bill_date = datetime.datetime(2024, 1, 1, 0, 0)
+    bill_date = datetime.datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_required_parameters_failure(self, _):

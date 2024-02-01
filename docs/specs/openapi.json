@@ -4065,8 +4065,8 @@
                                             "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
                                             "billing_period_start": "2019-01-01T00:00:00.000Z",
                                             "files_processed": "1/1",
-                                            "last_process_start_date": "2019-01-07T21:50:58.000Z",
-                                            "last_process_complete_date": "2019-01-07T21:51:01.000Z",
+                                            "process_start_date": "2019-01-07T21:50:58.000Z",
+                                            "process_complete_date": "2019-01-07T21:51:01.000Z",
                                             "summary_data_creation_datetime": "2019-01-07T21:51:32.000Z",
                                             "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
                                         }]
