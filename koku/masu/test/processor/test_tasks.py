@@ -205,8 +205,8 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats.update_last_started_datetime.assert_called()
-        mock_stats.set_last_completed_datetime.assert_called()
+        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
         self.aws_provider.refresh_from_db()
         self.assertTrue(self.aws_provider.setup_complete)
@@ -237,8 +237,8 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats.update_last_started_datetime.assert_called()
-        mock_stats.set_last_completed_datetime.assert_called()
+        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
         shutil.rmtree(report_dir)
 
@@ -264,8 +264,8 @@ class ProcessReportFileTests(MasuTestCase):
         with self.assertRaises(ReportProcessorError):
             _process_report_file(schema_name, provider, report_dict)
 
-        mock_stats.update_last_started_datetime.assert_called()
-        mock_stats.set_last_completed_datetime.assert_not_called()
+        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_completed_datetime.assert_not_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
@@ -290,8 +290,8 @@ class ProcessReportFileTests(MasuTestCase):
         with self.assertRaises(NotImplementedError):
             _process_report_file(schema_name, provider, report_dict)
 
-        mock_stats.update_last_started_datetime.assert_called()
-        mock_stats.set_last_completed_datetime.assert_called()
+        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_completed_datetime.assert_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
@@ -319,8 +319,8 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats.update_last_started_datetime.assert_called()
-        mock_stats.set_last_completed_datetime.assert_called()
+        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_not_called()
         shutil.rmtree(report_dir)
 
@@ -1106,14 +1106,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.CostUsageReportStatus.objects")
     def test_record_report_status(self, mock_stats):
         mock_stats.filter.return_value.first.return_value = mock_stats
-        mock_stats.last_completed_datetime = True
+        mock_stats.completed_datetime = True
         manifest_id = 1
         file_name = "testfile.csv"
         request_id = 3
         already_processed = record_report_status(manifest_id, file_name, request_id)
         self.assertTrue(already_processed)
 
-        mock_stats.last_completed_datetime = False
+        mock_stats.completed_datetime = False
         already_processed = record_report_status(manifest_id, file_name, request_id)
         self.assertFalse(already_processed)
 
@@ -1249,7 +1249,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
         manifest = CostUsageReportManifest.objects.filter(id=manifest.id).first()
         self.assertGreater(provider.data_updated_timestamp, initial_update_time)
-        self.assertIsNotNone(manifest.manifest_completed_datetime)
+        self.assertIsNotNone(manifest.completed_datetime)
 
     def test_mark_manifest_complete_no_manifest(self):
         """Test that we mark a manifest complete."""

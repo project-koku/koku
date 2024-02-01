@@ -114,7 +114,7 @@ class ReportDownloader:
     def is_report_processed(self, report_name, manifest_id):
         """Check if report_name has completed processing.
 
-        Filter by the report name and then check the last_completed_datetime.
+        Filter by the report name and then check the completed_datetime.
         If the date is not null, the report has been processed, and this method returns True.
         Otherwise returns False.
 
@@ -122,7 +122,7 @@ class ReportDownloader:
         return CostUsageReportStatus.objects.filter(
             manifest_id=manifest_id,
             report_name=report_name,
-            last_completed_datetime__isnull=False,
+            completed_datetime__isnull=False,
         ).exists()
 
     def download_manifest(self, date):

@@ -52,7 +52,7 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
 
     file_name = Path(report_path).name
     report_stats = CostUsageReportStatus.objects.get(report_name=file_name, manifest_id=manifest_id)
-    report_stats.update_last_started_datetime()
+    report_stats.update_started_datetime()
 
     try:
         processor = ReportProcessor(
@@ -69,13 +69,13 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
 
         result = processor.process()
     except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-        report_stats.clear_last_started_datetime()
+        report_stats.clear_started_datetime()
         raise processing_error
     except NotImplementedError as err:
-        report_stats.set_last_completed_datetime()
+        report_stats.set_completed_datetime()
         raise err
 
-    report_stats.set_last_completed_datetime()
+    report_stats.set_completed_datetime()
 
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
