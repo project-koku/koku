@@ -62,26 +62,26 @@ class CostUsageReportStatus(models.Model):
     started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
 
-    def update_last_started_datetime(self):
+    def update_started_datetime(self):
         """
-        Update the last_started_datetime field to the current date and time.
+        Update the started_datetime field to the current date and time.
         """
-        self.last_started_datetime = timezone.now()
-        self.save(update_fields=["last_started_datetime"])
+        self.started_datetime = timezone.now()
+        self.save(update_fields=["started_datetime"])
 
-    def clear_last_started_datetime(self):
+    def clear_started_datetime(self):
         """
-        Clear the last_started_datetime field to the current date and time.
+        Clear the started_datetime field to the current date and time.
         """
-        self.last_started_datetime = None
-        self.save(update_fields=["last_started_datetime"])
+        self.started_datetime = None
+        self.save(update_fields=["started_datetime"])
 
-    def set_last_completed_datetime(self):
+    def set_completed_datetime(self):
         """
-        Set the last_completed_datetime field to the current date and time.
+        Set the completed_datetime field to the current date and time.
         """
-        self.last_completed_datetime = timezone.now()
-        self.save(update_fields=["last_completed_datetime"])
+        self.completed_datetime = timezone.now()
+        self.save(update_fields=["completed_datetime"])
 
 
 class RegionMapping(models.Model):

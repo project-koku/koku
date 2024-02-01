@@ -96,7 +96,7 @@ class ProviderManager:
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
             billing_period_start_datetime=self.date_helper.this_month_start,
-            manifest_completed_datetime__isnull=False,
+            completed_datetime__isnull=False,
         ).exists()
 
     def get_previous_month_data_exists(self):
@@ -104,14 +104,12 @@ class ProviderManager:
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
             billing_period_start_datetime=self.date_helper.last_month_start,
-            manifest_completed_datetime__isnull=False,
+            completed_datetime__isnull=False,
         ).exists()
 
     def get_any_data_exists(self):
         """Get  data avaiability status."""
-        return CostUsageReportManifest.objects.filter(
-            provider=self._uuid, manifest_completed_datetime__isnull=False
-        ).exists()
+        return CostUsageReportManifest.objects.filter(provider=self._uuid, completed_datetime__isnull=False).exists()
 
     def get_is_provider_processing(self):
         """Return a bool determining if the source is currently processing."""
@@ -119,8 +117,8 @@ class ProviderManager:
         days_to_check = [today - timedelta(days=1), today, today + timedelta(days=1)]
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            manifest_creation_datetime__date__in=days_to_check,
-            manifest_completed_datetime__isnull=True,
+            creation_datetime__date__in=days_to_check,
+            completed_datetime__isnull=True,
         ).exists()
 
     def get_infrastructure_info(self):
@@ -185,7 +183,7 @@ class ProviderManager:
             month_stats = []
             stats_query = CostUsageReportManifest.objects.filter(
                 provider=self.model, billing_period_start_datetime=month
-            ).order_by("manifest_creation_datetime")
+            ).order_by("creation_datetime")
 
             if self.model.type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
                 clusters = Provider.objects.filter(
@@ -227,25 +225,25 @@ class ProviderManager:
         status["billing_period_start"] = provider_manifest.billing_period_start_datetime.date()
 
         num_processed_files = CostUsageReportStatus.objects.filter(
-            manifest_id=provider_manifest.id, last_completed_datetime__isnull=False
+            manifest_id=provider_manifest.id, completed_datetime__isnull=False
         ).count()
         status["files_processed"] = f"{num_processed_files}/{provider_manifest.num_total_files}"
 
-        last_process_start_date = None
-        last_process_complete_date = None
-        last_manifest_complete_datetime = None
-        if provider_manifest.manifest_completed_datetime:
-            last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(DATE_TIME_FORMAT)
-        if provider_manifest.manifest_modified_datetime:
-            manifest_modified_datetime = provider_manifest.manifest_modified_datetime.strftime(DATE_TIME_FORMAT)
-        if report_status and report_status.last_started_datetime:
-            last_process_start_date = report_status.last_started_datetime.strftime(DATE_TIME_FORMAT)
-        if report_status and report_status.last_completed_datetime:
-            last_process_complete_date = report_status.last_completed_datetime.strftime(DATE_TIME_FORMAT)
-        status["last_process_start_date"] = last_process_start_date
-        status["last_process_complete_date"] = last_process_complete_date
-        status["last_manifest_complete_date"] = last_manifest_complete_datetime
-        status["manifest_modified_datetime"] = manifest_modified_datetime
+        process_start_date = None
+        process_complete_date = None
+        manifest_complete_datetime = None
+        if provider_manifest.completed_datetime:
+            manifest_complete_datetime = provider_manifest.completed_datetime.strftime(DATE_TIME_FORMAT)
+        if provider_manifest.export_datetime:
+            export_datetime = provider_manifest.export_datetime.strftime(DATE_TIME_FORMAT)
+        if report_status and report_status.started_datetime:
+            process_start_date = report_status.started_datetime.strftime(DATE_TIME_FORMAT)
+        if report_status and report_status.completed_datetime:
+            process_complete_date = report_status.completed_datetime.strftime(DATE_TIME_FORMAT)
+        status["process_start_date"] = process_start_date
+        status["process_complete_date"] = process_complete_date
+        status["manifest_complete_date"] = manifest_complete_datetime
+        status["export_datetime"] = export_datetime
 
         return status
 

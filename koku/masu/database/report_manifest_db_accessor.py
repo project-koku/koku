@@ -66,10 +66,10 @@ class ReportManifestDBAccessor:
                     "manifest_id": manifest.id,
                     "assembly_id": manifest.assembly_id,
                     "provider_uuid": manifest.provider_id,
-                    "manifest_completed_datetime": completed_datetime,
+                    "completed_datetime": completed_datetime,
                 }
                 LOG.info(log_json(msg="marking manifest complete", context=ctx))
-                manifest.manifest_completed_datetime = completed_datetime
+                manifest.completed_datetime = completed_datetime
                 manifest.save()
                 LOG.info(log_json(msg="manifest marked complete", context=ctx))
 
@@ -82,7 +82,7 @@ class ReportManifestDBAccessor:
 
     def manifest_ready_for_summary(self, manifest_id):
         """Determine if the manifest is ready to summarize."""
-        return not self.is_last_completed_datetime_null(manifest_id)
+        return not self.is_completed_datetime_null(manifest_id)
 
     def number_of_files(self, manifest_id):
         """Return the number of files in a manifest."""
@@ -90,20 +90,18 @@ class ReportManifestDBAccessor:
 
     def number_of_files_processed(self, manifest_id):
         """Return the number of files processed in a manifest."""
-        return CostUsageReportStatus.objects.filter(
-            manifest_id=manifest_id, last_completed_datetime__isnull=False
-        ).count()
+        return CostUsageReportStatus.objects.filter(manifest_id=manifest_id, completed_datetime__isnull=False).count()
 
-    def is_last_completed_datetime_null(self, manifest_id):
-        """Determine if nulls exist in last_completed_datetime for manifest_id.
+    def is_completed_datetime_null(self, manifest_id):
+        """Determine if nulls exist in completed_datetime for manifest_id.
 
         If the record does not exist, that is equivalent to a null completed datetime.
-        Return True if record either doesn't exist or if null `last_completed_datetime`.
+        Return True if record either doesn't exist or if null `completed_datetime`.
         Return False otherwise.
 
         """
         if record := CostUsageReportStatus.objects.filter(manifest_id=manifest_id):
-            return record.filter(last_completed_datetime__isnull=True).exists()
+            return record.filter(completed_datetime__isnull=True).exists()
         return True
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
@@ -119,7 +117,7 @@ class ReportManifestDBAccessor:
         return (
             CostUsageReportManifest.objects.filter(**filters)
             .values("provider_id")
-            .annotate(most_recent_manifest=Max("manifest_creation_datetime"))
+            .annotate(most_recent_manifest=Max("creation_datetime"))
         )
 
     def get_last_seen_manifest_ids(self, bill_date):
@@ -135,7 +133,7 @@ class ReportManifestDBAccessor:
                 row_number=Window(
                     expression=RowNumber(),
                     partition_by=F("provider_id"),
-                    order_by=F("manifest_creation_datetime").desc(),
+                    order_by=F("creation_datetime").desc(),
                 )
             )
             .order_by("row_number")

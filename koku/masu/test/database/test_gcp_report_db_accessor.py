@@ -52,8 +52,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
         invoice_month = "202011"
         CostUsageReportStatus.objects.create(
             report_name=f"{invoice_month}_{etag}_{expected_start_date}:{expected_end_date}.csv",
-            last_completed_datetime=today_date,
-            last_started_datetime=today_date,
+            completed_datetime=today_date,
+            started_datetime=today_date,
             etag=etag,
             manifest=self.manifest,
         )
