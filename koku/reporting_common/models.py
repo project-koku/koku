@@ -19,7 +19,8 @@ class CostUsageReportManifest(models.Model):
     creation_datetime = models.DateTimeField(null=True, default=timezone.now)
     # manifest_updated_datetime will be removed when we start utilizing the state field.
     manifest_updated_datetime = models.DateTimeField(null=True, default=timezone.now)
-    # completed_datetime should indicate that our reporting materialzed views have refreshed
+    creation_datetime = models.DateTimeField(null=True, default=timezone.now)
+    # completed_datetime indicates that our reporting tables have completed updating with current data
     completed_datetime = models.DateTimeField(null=True)
     # export_datetime indicates the last time the _data-source_ modified the data
     export_datetime = models.DateTimeField(null=True)
