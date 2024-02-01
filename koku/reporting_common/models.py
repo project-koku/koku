@@ -16,7 +16,6 @@ class CostUsageReportManifest(models.Model):
         unique_together = ("provider", "assembly_id")
 
     assembly_id = models.TextField()
-    creation_datetime = models.DateTimeField(null=True, default=timezone.now)
     # manifest_updated_datetime will be removed when we start utilizing the state field.
     manifest_updated_datetime = models.DateTimeField(null=True, default=timezone.now)
     creation_datetime = models.DateTimeField(null=True, default=timezone.now)
