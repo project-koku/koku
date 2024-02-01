@@ -23,7 +23,7 @@ class CostUsageReportManifest(models.Model):
     # This timestamp indicates the last time the manifest was modified on the data source's end, not ours.
     manifest_modified_datetime = models.DateTimeField(null=True)
     creation_datetime = models.DateTimeField(null=True, default=timezone.now)
-    # completed_datetime should indicate that our reporting materialzed views have refreshed
+    # completed_datetime indicates that our reporting tables have completed updating with current data
     completed_datetime = models.DateTimeField(null=True)
     # export_datetime indicates the last time the _data-source_ modified the data
     export_datetime = models.DateTimeField(null=True)
