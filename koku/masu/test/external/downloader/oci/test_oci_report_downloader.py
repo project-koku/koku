@@ -230,25 +230,25 @@ class OCIReportDownloaderTest(MasuTestCase):
         local_name = downloader.get_local_file_for_report(report_name)
         self.assertEqual(local_name, expected_report_name)
 
-    def test_get_last_reports(self):
+    def test_get_report_tracker(self):
         """Assert collecting dict of last reports downloaded."""
         downloader = self.create_oci_downloader_with_mocked_values()
         expected_reports = {"usage": "", "cost": ""}
-        result_reports = downloader.get_last_reports("assembly")
+        result_reports = downloader.get_report_tracker("assembly")
         self.assertEqual(expected_reports, result_reports)
 
     @patch.object(ReportManifestDBAccessor, "get_manifest_by_id")
-    def test_update_last_reports(self, mock_get_manifest_by_id):
+    def test_update_report_tracker(self, mock_get_manifest_by_id):
         """Assert updating dict of last reports downloaded."""
 
         test_manifest = MagicMock()
         test_manifest.manifest_id = 1
-        test_manifest.last_reports = {"cost": "test_cost_report.csv", "usage": self.test_usage_report_name}
+        test_manifest.report_tracker = {"cost": "test_cost_report.csv", "usage": self.test_usage_report_name}
         expected_reports = {"cost": self.test_cost_report_name, "usage": self.test_usage_report_name}
         mock_get_manifest_by_id.return_value = test_manifest
 
         downloader = self.create_oci_downloader_with_mocked_values()
-        result_reports = downloader.update_last_reports(
+        result_reports = downloader.update_report_tracker(
             "cost", self.test_cost_report_name, test_manifest.get("manifest_id")
         )
         self.assertEqual(expected_reports, result_reports)

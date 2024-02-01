@@ -146,8 +146,8 @@ class ReportDownloaderTest(MasuTestCase):
         """Test if given report_name has been processed.
 
         1. look for non-existent report-name in DB: `is_report_processed` returns False.
-        2. look for existing report-name with null last_completed_datetime: `is_report_processed` returns False.
-        3. look for existing report-name with not null last_completed_datetime: `is_report_processed` returns True.
+        2. look for existing report-name with null completed_datetime: `is_report_processed` returns False.
+        3. look for existing report-name with not null completed_datetime: `is_report_processed` returns True.
 
         """
         manifest_id = 99
@@ -156,12 +156,10 @@ class ReportDownloaderTest(MasuTestCase):
         self.assertFalse(downloader.is_report_processed(report_name, manifest_id))
 
         baker.make(CostUsageReportManifest, id=manifest_id)
-        baker.make(
-            CostUsageReportStatus, report_name=report_name, manifest_id=manifest_id, last_completed_datetime=None
-        )
+        baker.make(CostUsageReportStatus, report_name=report_name, manifest_id=manifest_id, completed_datetime=None)
         self.assertFalse(downloader.is_report_processed(report_name, manifest_id))
 
-        CostUsageReportStatus.objects.update(last_completed_datetime=FAKE.date())
+        CostUsageReportStatus.objects.update(completed_datetime=FAKE.date())
         self.assertTrue(downloader.is_report_processed(report_name, manifest_id))
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")

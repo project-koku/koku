@@ -139,7 +139,7 @@ class ProviderManagerTest(IamTestCase):
             CostUsageReportManifest,
             provider=provider,
             billing_period_start_datetime=DateHelper().this_month_start,
-            manifest_completed_datetime=DateHelper().today,
+            completed_datetime=DateHelper().today,
         )
 
         # Get Provider Manager
@@ -180,7 +180,7 @@ class ProviderManagerTest(IamTestCase):
             CostUsageReportManifest,
             provider=provider,
             billing_period_start_datetime=DateHelper().last_month_start,
-            manifest_completed_datetime=DateHelper().last_month_end,
+            completed_datetime=DateHelper().last_month_end,
         )
 
         # Get Provider Manager
@@ -574,9 +574,9 @@ class ProviderManagerTest(IamTestCase):
                 self.assertIsNotNone(manifest.get("assembly_id"))
                 self.assertIsNotNone(manifest.get("files_processed"))
                 self.assertEqual(manifest.get("billing_period_start"), key_date_obj.date())
-                self.assertGreater(parser.parse(manifest.get("last_process_start_date")), key_date_obj)
-                self.assertGreater(parser.parse(manifest.get("last_process_complete_date")), key_date_obj)
-                self.assertGreater(parser.parse(manifest.get("last_manifest_complete_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("process_start_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("process_complete_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("manifest_complete_date")), key_date_obj)
 
     def test_provider_statistics_ocp_on_cloud(self):
         """Test that the provider statistics method returns report stats."""
