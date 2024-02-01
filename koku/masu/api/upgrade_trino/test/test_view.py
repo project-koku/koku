@@ -19,7 +19,7 @@ from masu.test import MasuTestCase
 @override_settings(ROOT_URLCONF="masu.urls")
 class TestUpgradeTrinoView(MasuTestCase):
     ENDPOINT = "fix_parquet"
-    bill_date = datetime.datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    bill_date = datetime.datetime(2024, 1, 1, 0, 0)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_required_parameters_failure(self, _):
@@ -48,7 +48,10 @@ class TestUpgradeTrinoView(MasuTestCase):
         cleaned_column_mapping = FixParquetTaskHandler.clean_column_names(self.aws_provider.type)
         for parameters in acceptable_parameters:
             with self.subTest(parameters=parameters):
-                with patch("masu.celery.tasks.fix_parquet_data_types.apply_async") as patch_celery:
+                with (
+                    patch("masu.celery.tasks.fix_parquet_data_types.apply_async") as patch_celery,
+                    patch("api.utils.timezone.now", return_value=datetime.datetime(2024, 1, 15, 0, 0, 0)),
+                ):
                     response = self.client.get(reverse(self.ENDPOINT), parameters)
                     self.assertEqual(response.status_code, 200)
                     simulate = parameters.get("simulate", False)
