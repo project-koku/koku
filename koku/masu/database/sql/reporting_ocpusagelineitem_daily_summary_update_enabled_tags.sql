@@ -31,3 +31,5 @@ from (
     for update
 ) as upd
 where lids.uuid = upd.uuid
+    and usage_start >= date({{start_date}})
+    and usage_start <= date({{end_date}})
