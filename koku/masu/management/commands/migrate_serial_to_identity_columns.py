@@ -5,7 +5,6 @@
 #
 # "Migrate PostgreSQL IDs from serial to identity after upgrading to Django 4.1"
 # https://adamj.eu/tech/2022/10/21/migrate-postgresql-ids-serial-identity-django-4.1/
-
 import argparse
 import textwrap
 from collections.abc import Callable
