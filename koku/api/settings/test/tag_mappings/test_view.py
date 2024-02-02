@@ -18,6 +18,26 @@ class SettingsTagMappingViewTestCase(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_get_method_with_filter(self):
+        """Test the get method for the tag mapping view with a filter"""
+        url = reverse("tags-mapping") + "?source_type=aWs"
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Check that the response data is filtered correctly (with AWS example)
+        for item in response.data['data']:
+            self.assertEqual(item['source_type'], 'AWS')
+
+        url = reverse("tags-mapping") + "?source_type=ocP"
+        response = self.client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Check that the response data is filtered correctly (with OCP example)
+        for item in response.data['data']:
+            self.assertEqual(item['source_type'], 'OCP')
+
     def test_get_child(self):
         """Test the get method for the tag mapping Child view"""
         url = reverse("tags-mapping-child")
