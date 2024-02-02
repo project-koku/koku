@@ -28,11 +28,7 @@ class SettingsTagMappingFilter(SettingsFilter):
         default_ordering = ["parent", "-child"]
 
     def filter_by_source_type(self, queryset, name, value):
-        # return queryset.filter(Q(parent__provider_type=value) | Q(child__provider_type=value))
-        print("Before filter: ", queryset.query)
-        queryset = queryset.filter(Q(parent__provider_type=value) | Q(child__provider_type=value))
-        print("After filter: ", queryset.query)
-        return queryset
+        return queryset.filter(Q(parent__provider_type__iexact=value) | Q(child__provider_type__iexact=value))
 
 
 class SettingsEnabledTagKeysFilter(SettingsFilter):
