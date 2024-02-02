@@ -165,7 +165,7 @@ class OCPProviderMap(ProviderMap):
                 "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
                 "report_type": {
                     "costs": {
-                        "tag_column": "pod_labels",
+                        "tag_column": "all_labels",
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -215,7 +215,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "costs_by_project": {
-                        "tag_column": "pod_labels",
+                        "tag_column": "all_labels",
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
