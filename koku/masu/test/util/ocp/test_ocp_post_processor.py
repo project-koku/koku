@@ -109,35 +109,41 @@ class TestOCPPostProcessor(MasuTestCase):
             self.assertEqual(second_day.shape[0], 1)
 
             if report_type == "pod_usage":
-                self.assertTrue((first_day["pod_usage_cpu_core_seconds"] == usage * 2).bool())
-                self.assertTrue((first_day["pod_usage_memory_byte_seconds"] == usage * 2).bool())
-                self.assertTrue((first_day["node_capacity_cpu_cores"] == capacity).bool())
+                self.assertTrue((first_day["pod_usage_cpu_core_seconds"] == usage * 2).any(bool_only=True))
+                self.assertTrue((first_day["pod_usage_memory_byte_seconds"] == usage * 2).any(bool_only=True))
+                self.assertTrue((first_day["node_capacity_cpu_cores"] == capacity).any(bool_only=True))
 
-                self.assertTrue((second_day["pod_usage_cpu_core_seconds"] == usage).bool())
-                self.assertTrue((second_day["pod_usage_memory_byte_seconds"] == usage).bool())
-                self.assertTrue((second_day["node_capacity_cpu_cores"] == capacity).bool())
+                self.assertTrue((second_day["pod_usage_cpu_core_seconds"] == usage).any(bool_only=True))
+                self.assertTrue((second_day["pod_usage_memory_byte_seconds"] == usage).any(bool_only=True))
+                self.assertTrue((second_day["node_capacity_cpu_cores"] == capacity).any(bool_only=True))
             elif report_type == "storage_usage":
-                self.assertTrue((first_day["persistentvolumeclaim_usage_byte_seconds"] == usage * 2).bool())
-                self.assertTrue((first_day["volume_request_storage_byte_seconds"] == usage * 2).bool())
-                self.assertTrue((first_day["persistentvolumeclaim_capacity_byte_seconds"] == capacity * 2).bool())
-                self.assertTrue((first_day["persistentvolumeclaim_capacity_bytes"] == capacity).bool())
+                self.assertTrue(
+                    (first_day["persistentvolumeclaim_usage_byte_seconds"] == usage * 2).any(bool_only=True)
+                )
+                self.assertTrue((first_day["volume_request_storage_byte_seconds"] == usage * 2).any(bool_only=True))
+                self.assertTrue(
+                    (first_day["persistentvolumeclaim_capacity_byte_seconds"] == capacity * 2).any(bool_only=True)
+                )
+                self.assertTrue((first_day["persistentvolumeclaim_capacity_bytes"] == capacity).any(bool_only=True))
 
-                self.assertTrue((second_day["persistentvolumeclaim_usage_byte_seconds"] == usage).bool())
-                self.assertTrue((second_day["volume_request_storage_byte_seconds"] == usage).bool())
-                self.assertTrue((second_day["persistentvolumeclaim_capacity_byte_seconds"] == capacity).bool())
-                self.assertTrue((second_day["persistentvolumeclaim_capacity_bytes"] == capacity).bool())
+                self.assertTrue((second_day["persistentvolumeclaim_usage_byte_seconds"] == usage).any(bool_only=True))
+                self.assertTrue((second_day["volume_request_storage_byte_seconds"] == usage).any(bool_only=True))
+                self.assertTrue(
+                    (second_day["persistentvolumeclaim_capacity_byte_seconds"] == capacity).any(bool_only=True)
+                )
+                self.assertTrue((second_day["persistentvolumeclaim_capacity_bytes"] == capacity).any(bool_only=True))
             elif report_type == "node_labels":
-                self.assertTrue((first_day["node"] == node).bool())
-                self.assertTrue((first_day["node_labels"] == label).bool())
+                self.assertTrue((first_day["node"] == node).any(bool_only=True))
+                self.assertTrue((first_day["node_labels"] == label).any(bool_only=True))
 
-                self.assertTrue((second_day["node"] == node).bool())
-                self.assertTrue((second_day["node_labels"] == label).bool())
+                self.assertTrue((second_day["node"] == node).any(bool_only=True))
+                self.assertTrue((second_day["node_labels"] == label).any(bool_only=True))
             elif report_type == "namespace_labels":
-                self.assertTrue((first_day["namespace"] == namespace).bool())
-                self.assertTrue((first_day["namespace_labels"] == label).bool())
+                self.assertTrue((first_day["namespace"] == namespace).any(bool_only=True))
+                self.assertTrue((first_day["namespace_labels"] == label).any(bool_only=True))
 
-                self.assertTrue((second_day["namespace"] == namespace).bool())
-                self.assertTrue((second_day["namespace_labels"] == label).bool())
+                self.assertTrue((second_day["namespace"] == namespace).any(bool_only=True))
+                self.assertTrue((second_day["namespace_labels"] == label).any(bool_only=True))
 
     def test_ocp_process_dataframe(self):
         """Test the unique tag key processing for OpenShift."""
