@@ -56,7 +56,7 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
     elif grep -E "ocp-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="(test_api_ocp or test_api_cost_model_ocp or aws_ingest_multi) and not ocp_on_gcp and not ocp_on_azure and not ocp_on_cloud"
-        export IQE_MARKER_EXPRESSION="cost_required and not outage"
+        export IQE_MARKER_EXPRESSION="cost_smoke and not cost_exclude_ocp_smokes"
     elif grep -E "hot-fix-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_hotfix"
