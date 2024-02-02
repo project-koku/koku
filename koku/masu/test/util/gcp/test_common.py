@@ -141,10 +141,10 @@ class TestGCPUtils(MasuTestCase):
         matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
         # tag matching
         result = matched_df[matched_df["resourceid"] == "id2"]["matched_tag"] == '"key": "other_value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id3"]["matched_tag"] == '"key": "other_value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
