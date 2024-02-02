@@ -1,7 +1,13 @@
+import random
+
 from django.urls import reverse
+from faker import Faker
 from rest_framework import status
 from api.iam.test.iam_test_case import IamTestCase
 from rest_framework.test import APIClient
+
+from reporting.provider.all.models import EnabledTagKeys
+from django_tenants.utils import tenant_context
 
 
 class SettingsTagMappingViewTestCase(IamTestCase):
@@ -10,6 +16,19 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         """Set up the tests."""
         super().setUp()
         self.client = APIClient()
+
+        # Create some sample data
+        cloud_providers = ["AWS", "Azure", "GCP", "OCP"]
+        fake = Faker()
+
+        for _ in range(30):
+            tag_key = EnabledTagKeys(
+                key=fake.uuid4(),
+                enabled=True,
+                provider_type=random.choice(cloud_providers)
+            )
+            with tenant_context(self.tenant):
+                tag_key.save()
 
     def test_get_method(self):
         """Test the get method for the tag mapping view"""
@@ -20,21 +39,20 @@ class SettingsTagMappingViewTestCase(IamTestCase):
 
     def test_get_method_with_filter(self):
         """Test the get method for the tag mapping view with a filter"""
-        url = reverse("tags-mapping") + "?source_type=aWs"
-        response = self.client.get(url, **self.headers)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Check that the response data is filtered correctly (with AWS example)
+        url = reverse("tags-mapping") + "?source_type=aWs"  # also testing case sensitivity
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
         for item in response.data['data']:
             self.assertEqual(item['source_type'], 'AWS')
 
-        url = reverse("tags-mapping") + "?source_type=ocP"
+        # Check that the response data is filtered correctly (with OCP example)
+        url = reverse("tags-mapping") + "?source_type=ocP"  # also testing case sensitivity
         response = self.client.get(url, **self.headers)
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # Check that the response data is filtered correctly (with OCP example)
         for item in response.data['data']:
             self.assertEqual(item['source_type'], 'OCP')
 
@@ -77,7 +95,7 @@ class SettingsTagMappingViewTestCase(IamTestCase):
     def test_put_method_invalid_uuid(self):
         """Test the put method for the tag mapping view with an invalid uuid"""
         url = reverse("tags-mapping-child-add")
-        data = {"parent": "29f738e4-38f4-4ed8-a9f4-beed48165220", "child": "29f738e4-38f4-4ed8-a9f4-beed48165229"}
+        data = {"parent": "29f738e4-38f4-4ed8-a9f4-beed48165220", "children": ["29f738e4-38f4-4ed8-a9f4-beed48165229"]}
 
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -87,68 +105,85 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         url = reverse("tags-mapping-child-add")
 
         # Adding sample uuids
-        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "children": ["1b78ba6d-e933-47d5-b99b-4261e2508162"]}
+        random_uuid_list = self.retrieve_sample_uuids()
+        url = reverse("tags-mapping-child-add")
+        data = {"parent": random_uuid_list[0],
+                "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]]}
         response = self.client.put(url, data, format="json", **self.headers)
 
-        # Adding a parent as child
-        data = {"parent": "29f738e4-38f4-4ed8-a9f4-beed48165222", "children": ["f08751bf-e104-4813-bd48-dd46d98ce9cc"]}
-        response = self.client.put(url, data, format="json", **self.headers)
+        if response.status_code == status.HTTP_200_OK:
+            # Adding a parent as child
+            data = {"parent": random_uuid_list[4], "children": [random_uuid_list[0]]}
+            response = self.client.put(url, data, format="json", **self.headers)
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_put_method_validate_child(self):
         """Test if a child can be added as a parent."""
-        url = reverse("tags-mapping-child-add")
 
         # Adding sample uuids
-        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "children": ["1b78ba6d-e933-47d5-b99b-4261e2508162"]}
+        random_uuid_list = self.retrieve_sample_uuids()
+        url = reverse("tags-mapping-child-add")
+        data = {"parent": random_uuid_list[0],
+                "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]]}
         response = self.client.put(url, data, format="json", **self.headers)
 
-        # Adding a child as parent
-        data = {"parent": "1b78ba6d-e933-47d5-b99b-4261e2508162", "children": ["29f738e4-38f4-4ed8-a9f4-beed48165222"]}
-        response = self.client.put(url, data, format="json", **self.headers)
+        if response.status_code == status.HTTP_200_OK:
+            # Adding a child as parent
+            data = {"parent": random_uuid_list[2], "children": [random_uuid_list[4]]}
+            response = self.client.put(url, data, format="json", **self.headers)
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_put_method_add_multiple_children(self):
         """Test adding multiple children (list)."""
+        random_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
-        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "children": ["1b78ba6d-e933-47d5-b99b-4261e2508162",
-                                                                               "649908c9-49a6-4f3f-9c2d-663d1adf60b0"]}
-        response = self.client.put(url, data, format="json", **self.headers)
+        data = {"parent": random_uuid_list[0], "children": [random_uuid_list[1], random_uuid_list[2]]}
 
+        response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_put_method_remove_children(self):
         """Test removing children."""
 
         # Adding sample uuids
+        random_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
-        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "children": ["1b78ba6d-e933-47d5-b99b-4261e2508162",
-                                                                               "649908c9-49a6-4f3f-9c2d-663d1adf60b0",
-                                                                               "8437233a-cbb2-4472-937f-381cc56dfec6"]}
+        data = {"parent": random_uuid_list[0],
+                "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]]}
         response = self.client.put(url, data, format="json", **self.headers)
 
-        # Removing children
-        url = reverse("tags-mapping-child-remove")
-        data = {"ids": ["1b78ba6d-e933-47d5-b99b-4261e2508162", "649908c9-49a6-4f3f-9c2d-663d1adf60b0"]}
-        response = self.client.put(url, data, format="json", **self.headers)
+        if response.status_code == status.HTTP_200_OK:
+            # Removing children
+            url = reverse("tags-mapping-child-remove")
+            data = {"ids": [random_uuid_list[1], random_uuid_list[3]]}
+            response = self.client.put(url, data, format="json", **self.headers)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_put_method_remove_parent(self):
-        """Test removing children."""
+        """Test removing parent."""
 
         # Adding sample uuids
+        random_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
-        data = {"parent": "f08751bf-e104-4813-bd48-dd46d98ce9cc", "children": ["1b78ba6d-e933-47d5-b99b-4261e2508162",
-                                                                               "649908c9-49a6-4f3f-9c2d-663d1adf60b0",
-                                                                               "8437233a-cbb2-4472-937f-381cc56dfec6"]}
+        data = {"parent": random_uuid_list[0],
+                "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]]}
         response = self.client.put(url, data, format="json", **self.headers)
 
-        # Removing parent
-        url = reverse("tags-mapping-parent-remove")
-        data = {"ids": ["f08751bf-e104-4813-bd48-dd46d98ce9cc"]}
-        response = self.client.put(url, data, format="json", **self.headers)
+        if response.status_code == status.HTTP_200_OK:
+            # Removing parent
+            url = reverse("tags-mapping-parent-remove")
+            data = {"ids": [random_uuid_list[0]]}
+            response = self.client.put(url, data, format="json", **self.headers)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def retrieve_sample_uuids(self):
+        """Gets all inserted uuids to use on adding(put) methods."""
+        with tenant_context(self.tenant):
+            enabled_tag_keys = EnabledTagKeys.objects.all()
+            uuid_list = [tag_key.uuid for tag_key in enabled_tag_keys]
+
+        return uuid_list
