@@ -11,6 +11,7 @@ import psutil
 from api.common import log_json
 from api.provider.models import Provider
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
@@ -51,9 +52,10 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     LOG.debug(log_json(tracing_id, msg=mem_msg, context=context))
 
     file_name = Path(report_path).name
-    report_stats = CostUsageReportStatus.objects.get(report_name=file_name, manifest_id=manifest_id)
-    report_stats.update_started_datetime()
-
+    report_status = CostUsageReportStatus.objects.get(report_name=file_name, manifest_id=manifest_id)
+    report_status.update_status(CostUsageReportStatus.STATUS_PROCESSING)
+    report_status.set_started_datetime()
+    ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "start")
     try:
         processor = ReportProcessor(
             schema_name=schema_name,
@@ -68,14 +70,16 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         )
 
         result = processor.process()
-    except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-        report_stats.clear_started_datetime()
+    except (ReportProcessorError, ParquetReportProcessorError, ReportProcessorDBError) as processing_error:
+        report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
+        ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "failed")
         raise processing_error
     except NotImplementedError as err:
-        report_stats.set_completed_datetime()
+        report_status.update_status(CostUsageReportStatus.STATUS_DONE)
+        ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "failed")
         raise err
 
-    report_stats.set_completed_datetime()
+    report_status.update_status(CostUsageReportStatus.STATUS_DONE)
 
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
@@ -91,4 +95,6 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     p = Provider.objects.get(uuid=provider_uuid)
     p.set_setup_complete()
 
+    report_status.update_status(CostUsageReportStatus.STATUS_DONE)
+    ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "end")
     return result

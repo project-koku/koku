@@ -41,6 +41,7 @@ from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -96,6 +97,9 @@ class ParquetReportProcessor:
 
         self.split_files = [Path(file) for file in self._context.get("split_files") or []]
         self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
+        self.report_status = CostUsageReportStatus.objects.get(
+            report_name=Path(self._report_file).name, manifest_id=self.manifest_id
+        )
 
     @property
     def schema_name(self):
@@ -412,6 +416,7 @@ class ParquetReportProcessor:
         of temporary AWS S3 connectivity issues because it is relatively important
         for us to convert the archived data.
         """
+        self.report_status.update_status(CostUsageReportStatus.STATUS_PROCESSING)
         parquet_base_filename = ""
 
         if self.csv_path_s3 is None or self.parquet_path_s3 is None or self.local_path is None:
@@ -461,8 +466,7 @@ class ParquetReportProcessor:
                         filename=csv_filename,
                     )
                 )
-                failed_conversion.append(csv_filename)
-                continue
+                raise ParquetReportProcessorError
             if self.provider_type == Provider.PROVIDER_OCI:
                 file_specific_start_date = str(csv_filename).split(".")[1]
                 self.start_date = file_specific_start_date
@@ -471,17 +475,15 @@ class ParquetReportProcessor:
             if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_frame)
             if not success:
-                failed_conversion.append(csv_filename)
-
-        if failed_conversion:
-            LOG.warn(
-                log_json(
-                    self.tracing_id,
-                    msg="failed to convert files to parquet",
-                    context=self.error_context,
-                    file_list=failed_conversion,
+                LOG.warn(
+                    log_json(
+                        self.tracing_id,
+                        msg="failed to convert files to parquet",
+                        context=self.error_context,
+                        file_list=failed_conversion,
+                    )
                 )
-            )
+                raise ParquetReportProcessorError
         return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
@@ -572,6 +574,7 @@ class ParquetReportProcessor:
                 ),
                 exc_info=err,
             )
+            self.report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
             return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True

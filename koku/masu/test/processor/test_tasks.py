@@ -205,7 +205,7 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
         self.aws_provider.refresh_from_db()
@@ -237,7 +237,7 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
         shutil.rmtree(report_dir)
@@ -264,7 +264,7 @@ class ProcessReportFileTests(MasuTestCase):
         with self.assertRaises(ReportProcessorError):
             _process_report_file(schema_name, provider, report_dict)
 
-        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_not_called()
         shutil.rmtree(report_dir)
 
@@ -290,7 +290,7 @@ class ProcessReportFileTests(MasuTestCase):
         with self.assertRaises(NotImplementedError):
             _process_report_file(schema_name, provider, report_dict)
 
-        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_called()
         shutil.rmtree(report_dir)
 
@@ -319,7 +319,7 @@ class ProcessReportFileTests(MasuTestCase):
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
-        mock_stats.update_started_datetime.assert_called()
+        mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_not_called()
         shutil.rmtree(report_dir)

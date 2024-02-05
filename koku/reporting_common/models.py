@@ -56,6 +56,26 @@ class CostUsageReportManifest(models.Model):
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
+    STATUS_FAILED = 1
+    STATUS_DOWNLOADING = 2
+    STATUS_PROCESSING = 3
+    STATUS_OCP_CLOUD_PROCESSING = 4
+    STATUS_DONE = 5
+
+    STATUS_CHOICES = (
+        (STATUS_DOWNLOADING, "Downloading"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_OCP_CLOUD_PROCESSING, "OCP-Cloud-Processing"),
+        (STATUS_DONE, "Done"),
+        (STATUS_FAILED, "Failed"),
+    )
+
+    FAILED_STATUS_CHOICES = (
+        (STATUS_DOWNLOADING, "Downloading"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_OCP_CLOUD_PROCESSING, "OCP-Cloud-Processing"),
+    )
+
     class Meta:
         """Meta for CostUsageReportStatus."""
 
@@ -68,19 +88,17 @@ class CostUsageReportStatus(models.Model):
     completed_datetime = models.DateTimeField(null=True)
     started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
+    # id of the task processing this report
+    celery_task_id = models.UUIDField(null=True)
+    # Current status of processing report
+    status = models.IntegerField(choices=STATUS_CHOICES, default=STATUS_DOWNLOADING)
+    failed_status = models.IntegerField(choices=FAILED_STATUS_CHOICES, null=True)
 
-    def update_started_datetime(self):
+    def set_started_datetime(self):
         """
-        Update the started_datetime field to the current date and time.
+        Set the started_datetime field to the current date and time.
         """
         self.started_datetime = timezone.now()
-        self.save(update_fields=["started_datetime"])
-
-    def clear_started_datetime(self):
-        """
-        Clear the started_datetime field to the current date and time.
-        """
-        self.started_datetime = None
         self.save(update_fields=["started_datetime"])
 
     def set_completed_datetime(self):
@@ -89,6 +107,31 @@ class CostUsageReportStatus(models.Model):
         """
         self.completed_datetime = timezone.now()
         self.save(update_fields=["completed_datetime"])
+
+    def set_celery_task_id(self, task_id):
+        """
+        Set celery_task_id field to match the report task id.
+        """
+        self.celery_task_id = task_id
+        self.save(update_fields=["celery_task_id"])
+
+    def update_status(self, status_id):
+        """
+        Update the status of the current report.
+        """
+        if status_id == self.STATUS_DONE:
+            self.set_completed_datetime()
+        elif status_id == self.STATUS_FAILED:
+            self.set_failed_status(self.status)
+        self.status = status_id
+        self.save(update_fields=["status"])
+
+    def set_failed_status(self, failed_status_id):
+        """
+        Set the failed state of a processing report.
+        """
+        self.failed_status = failed_status_id
+        self.save(update_fields=["failed_status"])
 
 
 class RegionMapping(models.Model):

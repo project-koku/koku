@@ -4,6 +4,7 @@
 #
 """Report manifest database accessor for cost usage reports."""
 import logging
+from datetime import datetime
 
 from django.db import transaction
 from django.db.models import DateField
@@ -79,6 +80,21 @@ class ReportManifestDBAccessor:
         if manifest:
             manifest.num_total_files = set_num_of_files
             manifest.save(update_fields=["num_total_files"])
+
+    def update_manifest_state(self, manifest_id, step, interval):
+        """Update the number of files for manifest."""
+        with transaction.atomic():  # prevent collisions
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if manifest:
+                time_now = timezone.now()
+                if not manifest.state.get(step):
+                    manifest.state[step] = {}
+                manifest.state[step][interval] = time_now.isoformat()
+                if interval == "end" or interval == "failed":
+                    manifest.state[step]["time_taken_seconds"] = (
+                        time_now - datetime.fromisoformat(manifest.state[step]["start"])
+                    ).seconds
+                manifest.save(update_fields=["state"])
 
     def manifest_ready_for_summary(self, manifest_id):
         """Determine if the manifest is ready to summarize."""

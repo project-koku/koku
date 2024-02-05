@@ -24,32 +24,20 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.manifest.save()
         self.report_name = self.fake.name
 
-    def test_update_started_datetime(self):
-        """Test update_started_datetime sets the started_datetime."""
+    def test_set_started_datetime(self):
+        """Test set_started_datetime sets the started_datetime."""
         stats = CostUsageReportStatus(
             report_name=self.report_name,
             manifest_id=self.manifest.id,
         )
         stats.save()
         self.assertIsNone(stats.started_datetime)
-        stats.update_started_datetime()
+        stats.set_started_datetime()
         self.assertIsNotNone(stats.started_datetime)
 
         old_datetime = stats.started_datetime
-        stats.update_started_datetime()
+        stats.set_started_datetime()
         self.assertNotEqual(stats.started_datetime, old_datetime)
-
-    def test_clear_started_datetime(self):
-        """Test clear_started_datetime deletes the started_datetime."""
-        stats = CostUsageReportStatus(
-            report_name=self.report_name,
-            manifest_id=self.manifest.id,
-            started_datetime=timezone.now(),
-        )
-        stats.save()
-        self.assertIsNotNone(stats.started_datetime)
-        stats.clear_started_datetime()
-        self.assertIsNone(stats.started_datetime)
 
     def test_set_completed_datetime(self):
         """Test set_completed_datetime set the completed_datetime."""
