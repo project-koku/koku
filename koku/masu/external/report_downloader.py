@@ -186,6 +186,7 @@ class ReportDownloader:
             report_status.save(update_fields=["etag"])
         except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
             ReportManifestDBAccessor().update_manifest_state(manifest_id, "download", "failed")
+            report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
             LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
             return {}
 

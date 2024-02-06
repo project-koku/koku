@@ -243,7 +243,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             )
             return
 
-        self.report_status.update_status(CostUsageReportStatus.STATUS_OCP_ON_CLOUD_PROCESSING)
+        self.report_status.update_status(CostUsageReportStatus.STATUS_OCP_CLOUD_PROCESSING)
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
             if self.provider_type == Provider.PROVIDER_GCP:

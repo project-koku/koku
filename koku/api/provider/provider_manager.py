@@ -109,6 +109,7 @@ class ProviderManager:
 
     def get_downloading_state(self):
         """Get latest manifest downloading state."""
+        state = "Pending"
         manifest = CostUsageReportManifest.objects.filter(
             provider=self._uuid,
             billing_period_start_datetime=self.date_helper.this_month_start,
@@ -119,12 +120,11 @@ class ProviderManager:
                     state = "in-progress"
                 if manifest.state.get("download").get("end"):
                     state = "complete"
-                else:
-                    state = "pending"
             return state
 
     def get_processing_state(self):
         """Get latest manifest processing state."""
+        state = "pending"
         manifest = CostUsageReportManifest.objects.filter(
             provider=self._uuid,
             billing_period_start_datetime=self.date_helper.this_month_start,
@@ -135,12 +135,11 @@ class ProviderManager:
                     state = "in-progress"
                 if manifest.state.get("processing").get("end"):
                     state = "complete"
-                else:
-                    state = "pending"
             return state
 
     def get_summary_state(self):
         """Get latest manifest summary state."""
+        state = "pending"
         manifest = CostUsageReportManifest.objects.filter(
             provider=self._uuid,
             billing_period_start_datetime=self.date_helper.this_month_start,
@@ -151,8 +150,6 @@ class ProviderManager:
                     state = "in-progress"
                 if manifest.state.get("summary").get("end"):
                     state = "complete"
-                else:
-                    state = "pending"
             return state
 
     def get_any_data_exists(self):

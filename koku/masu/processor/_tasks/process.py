@@ -75,11 +75,9 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "failed")
         raise processing_error
     except NotImplementedError as err:
-        report_status.update_status(CostUsageReportStatus.STATUS_DONE)
+        report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
         ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "failed")
         raise err
-
-    report_status.update_status(CostUsageReportStatus.STATUS_DONE)
 
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)

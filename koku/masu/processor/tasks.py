@@ -203,6 +203,7 @@ def get_report_files(  # noqa: C901
         report_file = report_context.get("key")
         cache_key = f"{provider_uuid}:{report_file}"
         WorkerCache().add_task_to_cache(cache_key)
+        # Get the task ID and add it to the report_context for tracking
         report_context["task_id"] = get_report_files.request.id
         try:
             # The real download task happens in _get_report_files
@@ -518,8 +519,6 @@ def update_summary_tables(  # noqa: C901
     )
 
     try:
-        # Set summary start time
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, "summary", "start")
         updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_summary_tables(
             start_date, end_date, tracing_id, invoice_month=invoice_month
@@ -528,7 +527,7 @@ def update_summary_tables(  # noqa: C901
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
-        # Set summary start time
+        # Set summary failed time
         ReportManifestDBAccessor().update_manifest_state(manifest_id, "summary", "failed")
 
     except ReportSummaryUpdaterProviderNotFoundError as ex:
@@ -540,7 +539,7 @@ def update_summary_tables(  # noqa: C901
             ),
             exc_info=ex,
         )
-        # Set summary start time
+        # Set summary failed time
         ReportManifestDBAccessor().update_manifest_state(manifest_id, "summary", "failed")
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)

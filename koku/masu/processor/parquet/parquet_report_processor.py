@@ -416,7 +416,6 @@ class ParquetReportProcessor:
         of temporary AWS S3 connectivity issues because it is relatively important
         for us to convert the archived data.
         """
-        self.report_status.update_status(CostUsageReportStatus.STATUS_PROCESSING)
         parquet_base_filename = ""
 
         if self.csv_path_s3 is None or self.parquet_path_s3 is None or self.local_path is None:
