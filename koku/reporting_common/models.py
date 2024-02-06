@@ -101,6 +101,13 @@ class CostUsageReportStatus(models.Model):
         self.started_datetime = timezone.now()
         self.save(update_fields=["started_datetime"])
 
+    def clear_started_datetime(self):
+        """
+        Clear the started_datetime field to the current date and time.
+        """
+        self.started_datetime = None
+        self.save(update_fields=["started_datetime"])
+
     def set_completed_datetime(self):
         """
         Set the completed_datetime field to the current date and time.

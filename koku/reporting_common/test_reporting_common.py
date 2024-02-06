@@ -39,6 +39,18 @@ class TestCostUsageReportStatus(MasuTestCase):
         stats.set_started_datetime()
         self.assertNotEqual(stats.started_datetime, old_datetime)
 
+    def test_clear_started_datetime(self):
+        """Test clear_started_datetime deletes the started_datetime."""
+        stats = CostUsageReportStatus(
+            report_name=self.report_name,
+            manifest_id=self.manifest.id,
+            started_datetime=timezone.now(),
+        )
+        stats.save()
+        self.assertIsNotNone(stats.started_datetime)
+        stats.clear_started_datetime()
+        self.assertIsNone(stats.started_datetime)
+
     def test_set_completed_datetime(self):
         """Test set_completed_datetime set the completed_datetime."""
         stats = CostUsageReportStatus(

@@ -120,7 +120,7 @@ class ReportProcessor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames, self.manifest_id)
             return daily_data_frames != []
         except ReportsAlreadyProcessed:
-            report_status.update_status(CostUsageReportStatus.STATUS_COMPLETE)
+            report_status.update_status(CostUsageReportStatus.STATUS_DONE)
             LOG.info(log_json(msg="report already processed", context=self.context))
             return True
         except (InterfaceError, DjangoInterfaceError) as err:
