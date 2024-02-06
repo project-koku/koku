@@ -29,6 +29,7 @@ from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
+from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
@@ -400,6 +401,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
             return
+        with schema_context(self.schema):
+            # Early return check to see if they have any tag mappings set.
+            if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_AWS).exists():
+                LOG.debug("No tag mappings for AWS.")
+                return
+
         table_name = self._table_map["line_item_daily_summary"]
         sql = pkgutil.get_data("masu.database", "sql/aws/tag_mapping/update_daily_summary_with_tag_mapping.sql")
         sql = sql.decode("utf-8")
