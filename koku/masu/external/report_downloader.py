@@ -165,7 +165,6 @@ class ReportDownloader:
         report_status = CostUsageReportStatus.objects.filter(
             report_name=local_file_name, manifest_id=manifest_id
         ).first()
-        report_status.set_celery_task_id(report_context.get("task_id"))
         if not report_status:
             LOG.info(
                 log_json(
@@ -177,6 +176,7 @@ class ReportDownloader:
                 )
             )
             return {}
+        report_status.set_celery_task_id(report_context.get("task_id"))
 
         try:
             file_name, etag, _, split_files, date_range = self._downloader.download_file(

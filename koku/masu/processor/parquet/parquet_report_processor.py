@@ -97,9 +97,10 @@ class ParquetReportProcessor:
 
         self.split_files = [Path(file) for file in self._context.get("split_files") or []]
         self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
-        self.report_status = CostUsageReportStatus.objects.get(
-            report_name=Path(self._report_file).name, manifest_id=self.manifest_id
-        )
+        if self.manifest_id:
+            self.report_status = CostUsageReportStatus.objects.get(
+                report_name=Path(self._report_file).name, manifest_id=self.manifest_id
+            )
 
     @property
     def schema_name(self):
