@@ -122,7 +122,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "month": start_date.strftime("%m"),
             "markup": markup_value or 0,
             "bill_id": bill_id,
-            "tag_mapping_feature": is_feature_cost_3592_tag_mapping_enabled(self.schema),
         }
 
         self._execute_trino_raw_sql_query(
@@ -273,7 +272,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
-            "tag_mapping_feature": is_feature_cost_3592_tag_mapping_enabled(self.schema),
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
@@ -364,21 +362,46 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, bill_ids):
-        """Populate the enabled tag key table.
+    # Note: This doesn't seem to be used.
+    # def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, bill_ids):
+    #     """Populate the enabled tag key table.
+
+    #     Args:
+    #         start_date (datetime.date) The date to start populating the table.
+    #         end_date (datetime.date) The date to end on.
+    #         bill_ids (list) A list of bill IDs.
+
+    #     Returns
+    #         (None)
+    #     """
+    #     table_name = self._table_map["line_item_daily_summary"]
+    #     sql = pkgutil.get_data(
+    #         "masu.database", "sql/reporting_awscostentryline_item_daily_summary_update_enabled_tags.sql"
+    #     )
+    #     sql = sql.decode("utf-8")
+    #     sql_params = {
+    #         "start_date": start_date,
+    #         "end_date": end_date,
+    #         "bill_ids": bill_ids,
+    #         "schema": self.schema,
+    #     }
+    # self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
+
+    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids):
+        """
+        Updates the line item daily summary table with tag mapping pieces.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
             bill_ids (list) A list of bill IDs.
-
-        Returns
+        Returns:
             (None)
         """
+        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
+            return
         table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data(
-            "masu.database", "sql/reporting_awscostentryline_item_daily_summary_update_enabled_tags.sql"
-        )
+        sql = pkgutil.get_data("masu.database", "sql/aws/tag_mapping/update_daily_summary_with_tag_mapping.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,

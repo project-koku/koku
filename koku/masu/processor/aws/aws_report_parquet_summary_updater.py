@@ -104,6 +104,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
 
             # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
+            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()

@@ -34,28 +34,11 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
     markup_cost_savingsplan,
     markup_cost_amortized
 )
-with cte_pg_tag_mapping as (
-{% if tag_mapping_feature %}
-    SELECT
-        map_agg(original_key, replacement_key) as tag_map
-    FROM (
-        SELECT DISTINCT
-            enabledtagkeys.key AS original_key,
-            COALESCE(parent_tags.key, enabledtagkeys.key) AS replacement_key
-        FROM
-            postgres.org1234567.reporting_enabledtagkeys AS enabledtagkeys
-            LEFT JOIN postgres.org1234567.reporting_tagmapping AS tag_mapping ON enabledtagkeys.uuid = tag_mapping.child_id
-            LEFT JOIN postgres.org1234567.reporting_enabledtagkeys AS parent_tags ON tag_mapping.parent_id = parent_tags.uuid
-        WHERE
-            enabledtagkeys.enabled = TRUE
-            AND enabledtagkeys.provider_type = 'AWS'
-    ) AS subquery
-{% else %}
+with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
       from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
      where enabled = true
      and provider_type = 'AWS'
-{% endif %}
 )
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
@@ -82,24 +65,12 @@ SELECT uuid() as uuid,
     cast(calculated_amortized_cost AS decimal(33, 9)),
     cast(public_on_demand_cost AS decimal(24,9)),
     cast(public_on_demand_rate AS decimal(24,9)),
-    {% if tag_mapping_feature %}
-    cast(transform_keys(
-        cast(json_parse(tags) as map(varchar, varchar)),
-        (k, v) ->
-            CASE
-                WHEN contains(map_keys(tag_map), k) AND tag_map[k] IS NOT NULL
-                THEN tag_map[k]
-                ELSE k
-            END
-    ) as json) as tag_mappings,
-    {% else %}
     cast(
         map_filter(
             cast(json_parse(tags) as map(varchar, varchar)),
-            (k,v) -> contains(tag_map.keys, k)
+            (k,v) -> contains(pek.keys, k)
         ) as json
      ) as tags,
-    {% endif %}
     json_parse(costcategory) as cost_category,
     aa.id as account_alias_id,
     ou.id as organizational_unit_id,
@@ -163,7 +134,7 @@ FROM (
         product_instancetype,
         pricing_unit
 ) AS ds
-CROSS JOIN cte_pg_tag_mapping AS tag_map
+CROSS JOIN cte_pg_enabled_keys AS pek
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON ds.usage_account_id = aa.account_id
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
