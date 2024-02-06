@@ -21,28 +21,9 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.aws.common import get_s3_resource
 from reporting.models import SubsIDMap
 from reporting.models import SubsLastProcessed
-from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE as AWS_TABLE
-from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE as AZURE_TABLE
 
 
 LOG = logging.getLogger(__name__)
-
-TABLE_MAP = {
-    Provider.PROVIDER_AWS: AWS_TABLE,
-    Provider.PROVIDER_AZURE: AZURE_TABLE,
-}
-
-RECORD_FILTER_MAP = {
-    Provider.PROVIDER_AWS: (
-        " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') "
-        "AND product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
-    ),
-    Provider.PROVIDER_AZURE: (
-        " metercategory = 'Virtual Machines' AND chargetype = 'Usage' "
-        "AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL "
-        "AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL"
-    ),
-}
 
 
 class SUBSDataExtractor(ReportDBAccessorBase):
@@ -62,9 +43,6 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
         )
         self.context = context
-        # The following variables all change depending on the provider type to run the correct SQL
-        self.table = TABLE_MAP.get(self.provider_type)
-        self.provider_where_clause = RECORD_FILTER_MAP.get(self.provider_type)
 
     @cached_property
     def subs_s3_path(self):
