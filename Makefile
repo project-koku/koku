@@ -268,9 +268,6 @@ unleash-import-drop:
 	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
 	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
 
-scan_project:
-	./sonarqube.sh
-
 clowdapp: kustomize
 	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
 
