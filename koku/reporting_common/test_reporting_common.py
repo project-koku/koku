@@ -62,3 +62,47 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertIsNone(stats.completed_datetime)
         stats.set_completed_datetime()
         self.assertIsNotNone(stats.completed_datetime)
+
+    def test_set_celery_task_id(self):
+        """
+        Test setting celery_task_id field to match the report task id.
+        """
+        task_id = "aabfdddb-4ed5-421e-a041-532b45daf532"
+        stats = CostUsageReportStatus(
+            report_name=self.report_name,
+            manifest_id=self.manifest.id,
+            started_datetime=timezone.now(),
+        )
+        stats.save()
+        self.assertIsNotNone(stats.set_celery_task_id)
+        stats.set_celery_task_id(task_id)
+        self.assertEqual(stats.celery_task_id, task_id)
+
+    def test_update_status(self):
+        """
+        Test updating the status of the current report.
+        """
+        stats = CostUsageReportStatus(
+            report_name=self.report_name,
+            manifest_id=self.manifest.id,
+            started_datetime=timezone.now(),
+        )
+        stats.save()
+        self.assertEqual(stats.status, CostUsageReportStatus.STATUS_DOWNLOADING)
+        stats.update_status(CostUsageReportStatus.STATUS_DONE)
+        self.assertEqual(stats.status, CostUsageReportStatus.STATUS_DONE)
+
+    def test_set_failed_status(self):
+        """
+        Test setting the failed state of a processing report.
+        """
+        stats = CostUsageReportStatus(
+            report_name=self.report_name,
+            manifest_id=self.manifest.id,
+            started_datetime=timezone.now(),
+        )
+        stats.save()
+        self.assertIsNone(stats.failed_status)
+        stats.update_status(CostUsageReportStatus.STATUS_FAILED)
+        self.assertIsNotNone(stats.failed_status)
+        self.assertEqual(stats.status, CostUsageReportStatus.STATUS_FAILED)
