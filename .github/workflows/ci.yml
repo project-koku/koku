@@ -273,7 +273,7 @@ jobs:
           file: ./coverage.xml
           flags: unittests
           name: Python-${{ matrix.python-version}}
-          token: ${{ secrets.CODECOV_TOKEN }}
+          # token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
 
       - name: Set Codecov job status on skipped tests
