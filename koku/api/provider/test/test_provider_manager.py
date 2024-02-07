@@ -126,6 +126,48 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         self.assertFalse(manager.get_paused_status())
 
+    def test_get_downloading_state(self):
+        """test getting the current state of downloading."""
+        # Create Provider
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertEqual(manager.get_downloading_state(), "Pending")
+
+    def test_get_processing_state(self):
+        """test getting the current state of processing."""
+        # Create Provider
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertEqual(manager.get_processing_state(), "Pending")
+
+    def test_get_summary_state(self):
+        """test getting the current state of summary."""
+        # Create Provider
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertEqual(manager.get_summary_state(), "Pending")
+
     def test_data_flags(self):
         """Test the data status flag."""
         # Get Provider UUID

@@ -120,7 +120,7 @@ class ProviderManager:
                     state = "in-progress"
                 if manifest.state.get("download").get("end"):
                     state = "complete"
-            return state
+        return state
 
     def get_processing_state(self):
         """Get latest manifest processing state."""
@@ -135,7 +135,7 @@ class ProviderManager:
                     state = "in-progress"
                 if manifest.state.get("processing").get("end"):
                     state = "complete"
-            return state
+        return state
 
     def get_summary_state(self):
         """Get latest manifest summary state."""
@@ -150,7 +150,7 @@ class ProviderManager:
                     state = "in-progress"
                 if manifest.state.get("summary").get("end"):
                     state = "complete"
-            return state
+        return state
 
     def get_any_data_exists(self):
         """Get  data avaiability status."""
