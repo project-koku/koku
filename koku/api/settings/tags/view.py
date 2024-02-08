@@ -75,7 +75,6 @@ class SettingsTagUpdateView(APIView):
         objects = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
         if response := self._check_limit(objects):
             return response
-        # (TODO: Lucas) Add check here to see if child or parent
         objects.update(enabled=self.enabled)
         EnabledTagKeys.objects.bulk_update(objects, ["enabled"])
 
@@ -85,7 +84,6 @@ class SettingsTagUpdateView(APIView):
 class SettingsEnableTagView(SettingsTagUpdateView):
     enabled = True
 
-    # TODO: (Lucas) You could follow this one as an example.
     def _check_limit(self, qs: QuerySet) -> t.Optional[Response]:
         if Config.ENABLED_TAG_LIMIT > 0:
             # Only count UUIDs requested to be enabled that are currently disabled.
