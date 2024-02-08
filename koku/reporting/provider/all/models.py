@@ -25,7 +25,10 @@ class EnabledTagKeys(models.Model):
 
 
 class TagMapping(models.Model):
-    """A mapping of parent to child relationships."""
+    """This model encompasses a hierarchical mapping of parent-to-child relationships,
+    offering a mechanism for customers to substitute the child's key with the parent's
+    key within the daily summary table.
+    """
 
     class Meta:
         """Meta for TagMapping."""
