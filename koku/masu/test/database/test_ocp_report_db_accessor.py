@@ -18,9 +18,7 @@ from django.db.models import Sum
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoUserError
 
-from api.iam.test.iam_test_case import FakeTrinoConn
 from api.provider.models import Provider
-from koku import trino_database as trino_db
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -152,32 +150,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_sql_query.side_effect = TrinoStatementExecError("SELECT * from table", 1, {}, trino_error)
 
             acc.populate_line_item_daily_summary_table_trino(
-                start_date, end_date, report_period_id, cluster_id, cluster_alias, source
-            )
-
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.report_db_accessor_base.trino_db.connect")
-    def test_populate_line_item_daily_summary_table_trino_preprocess_exception(
-        self, mock_connect, mock_get_data, mock_table_exists
-    ):
-        """
-        Test that OCP trino processing converts datetime to date for start, end dates
-        """
-        trino_conn = FakeTrinoConn()
-        mock_table_exists.return_value = True
-        mock_connect.return_value = trino_conn
-        mock_get_data.return_value = b"""
-select * from eek where val1 in {{report_period_id}} ;
-"""
-        start_date = "2020-01-01"
-        end_date = "2020-02-01"
-        report_period_id = (1, 2)  # This should generate a preprocessor error
-        cluster_id = "ocp-cluster"
-        cluster_alias = "OCP FTW"
-        source = self.provider_uuid
-        with self.assertRaises(trino_db.PreprocessStatementError):
-            self.accessor.populate_line_item_daily_summary_table_trino(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
 

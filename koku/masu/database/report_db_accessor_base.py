@@ -39,7 +39,7 @@ class ReportDBAccessorBase:
         self.schema = schema
 
         self.date_helper = DateHelper()
-        self.prepare_query = JinjaSql().prepare_query
+        self.prepare_query = JinjaSql(param_style="format").prepare_query
         self.trino_prepare_query = JinjaSql(param_style="qmark").prepare_query
 
     def __enter__(self):

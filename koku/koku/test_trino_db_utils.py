@@ -54,20 +54,10 @@ drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
             "int_data": 255,
             "txt_data": "This is a test",
         }
-        results = executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
+        results = executescript(
+            conn, sqlscript, params=params, preprocessor=JinjaSql(param_style="format").prepare_query
+        )
         self.assertEqual(results, [["eek"], ["eek"], ["eek"], ["eek"], ["eek"], ["eek"]])
-
-    def test_executescript_preprocessor_error(self):
-        """
-        Test executescript will raise a preprocessor error
-        """
-        conn = FakeTrinoConn()
-        sqlscript = """
-select * from eek where val1 in {{val_list}};
-"""
-        params = {"val_list": (1, 2, 3, 4, 5)}
-        with self.assertRaises(PreprocessStatementError):
-            executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
 
     def test_executescript_no_preprocessor_error(self):
         """
