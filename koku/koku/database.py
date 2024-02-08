@@ -579,7 +579,7 @@ class SQLScriptAtomicExecutorMixin:
     """This mixin accetps a jinja_sql sql script and parameters (dict) and process each statement
     in the script individually for better logging within PostgreSQL"""
 
-    DEFAULT_SQL_RENDERER = JinjaSql()
+    DEFAULT_SQL_RENDERER = JinjaSql(param_style="format")
     DEFAULT_SQL_RENDERER_METHOD = DEFAULT_SQL_RENDERER.prepare_query
 
     def _execute_processing_script(
