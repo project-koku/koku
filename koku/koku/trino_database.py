@@ -16,10 +16,6 @@ NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
-class PreprocessStatementError(Exception):
-    pass
-
-
 class TrinoStatementExecError(Exception):
     def __init__(
         self,

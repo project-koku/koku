@@ -10,7 +10,6 @@ from api.iam.test.iam_test_case import FakeTrinoCur
 from api.iam.test.iam_test_case import IamTestCase
 from koku.trino_database import connect
 from koku.trino_database import executescript
-from koku.trino_database import PreprocessStatementError
 from koku.trino_database import TrinoStatementExecError
 
 
@@ -94,19 +93,6 @@ select a from b;
             executescript(FakeTrinoConn(), "SELECT x from y")
 
         self.assertIn("WARNING:koku.trino_database:Trino Query Error", logger.output[0])
-
-    def test_preprocessor_error(self):
-        def t_preprocessor(*args):
-            raise TypeError("This is a test")
-
-        sqlscript = """
-select x from y;
-select a from b;
-"""
-        params = {"eek": 1}
-        conn = FakeTrinoConn()
-        with self.assertRaises(PreprocessStatementError):
-            executescript(conn, sqlscript, params=params, preprocessor=t_preprocessor)
 
     def test_executescript_error(self):
         def t_exec_error(*args, **kwargs):
