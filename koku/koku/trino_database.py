@@ -106,6 +106,7 @@ def connect(**connect_args):
         ),
         "schema": connect_args["schema"],
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
+        "max_attempts": 9,  # based on exponential backoff used in the trino lib, 9 max retries with take ~100 seconds
     }
     return trino.dbapi.connect(**trino_connect_args)
 
