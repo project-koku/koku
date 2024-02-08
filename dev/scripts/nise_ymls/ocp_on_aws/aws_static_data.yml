@@ -10,6 +10,8 @@ generators:
       tags:
         resourceTags/user:version: prod
         resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:Mapping: a1
+        resourceTags/user:Map: a2
       cost_category:
         costCategory/env: prod
       instance_type:
@@ -36,6 +38,8 @@ generators:
         resourceTags/user:com_redhat_rhel_sla: self-support
         resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
         resourceTags/user:com_redhat_rhel_usage: disaster Recovery
+        resourceTags/user:Mapping: b1
+        resourceTags/user:Map: b2
       cost_category:
         costCategory/env: prod
       instance_type:
@@ -61,6 +65,8 @@ generators:
         resourceTags/user:com_REDHAT_rhel: RHEL 7 ELS
         resourceTags/user:com_redhat_rhel_sla: Standard
         resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
+        resourceTags/user:Mapping: c1
+        resourceTags/user:Map: c2
       cost_category:
         costCategory/env: stage
         costCategory/Organization: Ninja
@@ -83,6 +89,8 @@ generators:
       tags:
         resourceTags/user:version: master
         resourceTags/user:dashed-key-on-aws: dashed-value
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
         costCategory/Organization: Ninja
@@ -103,6 +111,8 @@ generators:
       rate: 0.05
       tags:
         resourceTags/user:storageclass: charlie
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: stage
         costCategory/Organization: Ninja
@@ -113,6 +123,8 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: bravo
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: stage
   - EBSGenerator:
@@ -124,6 +136,8 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: delta
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
   - EBSGenerator:
@@ -135,6 +149,8 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: epsilon
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
   - EBSGenerator:
@@ -146,6 +162,8 @@ generators:
       rate: 0.01
       tags:
         resourceTags/user:storageclass: gamma
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
   - RDSGenerator:
@@ -153,6 +171,8 @@ generators:
       end_date: {{end_date}}
       tags:
         resourceTags/user:app: analytics
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - VPCGenerator:
@@ -160,6 +180,8 @@ generators:
       end_date: {{end_date}}
       tags:
         resourceTags/user:app: cost
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - Route53Generator:
@@ -168,6 +190,8 @@ generators:
       # product_family: DNS Zone
       tags:
         resourceTags/user:app: catalog
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
   - Route53Generator:
@@ -176,12 +200,16 @@ generators:
       product_family: DNS Query
       tags:
         resourceTags/user:app: cost
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - Route53Generator:
       product_family: DNS Query
       tags:
         resourceTags/user:app: analytics
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
   - DataTransferGenerator:
@@ -189,6 +217,8 @@ generators:
       resource_id: i-55555555
       tags:
         resourceTags/user:app: analytics
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - DataTransferGenerator:
@@ -198,6 +228,8 @@ generators:
       resource_id: i-55555556
       tags:
         resourceTags/user:app: cost
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
   - DataTransferGenerator:
@@ -207,6 +239,8 @@ generators:
       resource_id: i-55555557
       tags:
         resourceTags/user:app: catalog
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - DataTransferGenerator:
@@ -216,6 +250,8 @@ generators:
       resource_id: i-55555558
       tags:
         resourceTags/user:app: catalog
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
         costCategory/Organization: Ninja
@@ -226,6 +262,8 @@ generators:
       resource_id: i-55555559
       tags:
         resourceTags/user:app: cost
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: ephemeral
   - DataTransferGenerator:
@@ -235,6 +273,8 @@ generators:
       product_name: Amazon DynamoDB
       tags:
         resourceTags/user:app: catalog
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - DataTransferGenerator:
@@ -244,6 +284,8 @@ generators:
       product_name: Amazon DynamoDB
       tags:
         resourceTags/user:app: catalog
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - DataTransferGenerator:
@@ -255,6 +297,8 @@ generators:
       product_name: Amazon DynamoDB
       tags:
         resourceTags/user:app: catalog
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
         costCategory/Organization: Ninja
@@ -267,6 +311,8 @@ generators:
       product_name: Amazon Relational Database Service
       tags:
         resourceTags/user:app: analytics
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
       cost_category:
         costCategory/env: prod
   - MarketplaceGenerator:
