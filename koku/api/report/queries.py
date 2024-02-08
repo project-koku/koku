@@ -1128,6 +1128,7 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
 
+        # TODO: assess impact to ranking with this change
         ranks = ranks.annotate(rank=rank_by_total)
 
         rankings = []
