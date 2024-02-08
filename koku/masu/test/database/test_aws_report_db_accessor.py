@@ -246,8 +246,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
-        # We don't actually use update_line_item_daily_summary_with_enabled_tags
-        # for aws it is accomplished on the Trino side.
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
 
