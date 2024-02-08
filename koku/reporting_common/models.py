@@ -4,7 +4,41 @@
 #
 """Models for shared reporting tables."""
 from django.db import models
+from django.db.models import IntegerChoices
 from django.utils import timezone
+
+from common.enum import StrEnum
+
+
+class ReportStep(IntegerChoices):
+    DOWNLOADING = 3
+    PROCESSING = 4
+    OCP_CLOUD_PROCESSING = (5, "OCP-Cloud-Processing")
+
+
+class Status(IntegerChoices):
+    DONE = 1
+    FAILED = 2
+
+
+class CombinedChoices(IntegerChoices):
+    DOWNLOADING = ReportStep.DOWNLOADING
+    PROCESSING = ReportStep.PROCESSING
+    OCP_CLOUD_PROCESSING = ReportStep.OCP_CLOUD_PROCESSING
+    DONE = Status.DONE
+    FAILED = Status.FAILED
+
+
+class ManifestStep(StrEnum):
+    DOWNLOAD = "download"
+    PROCESSING = "processing"
+    SUMMARY = "summary"
+
+
+class ManifestState(StrEnum):
+    START = "start"
+    END = "end"
+    FALILED = "failed"
 
 
 class CostUsageReportManifest(models.Model):
@@ -56,26 +90,6 @@ class CostUsageReportManifest(models.Model):
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
-    STATUS_FAILED = 1
-    STATUS_DOWNLOADING = 2
-    STATUS_PROCESSING = 3
-    STATUS_OCP_CLOUD_PROCESSING = 4
-    STATUS_DONE = 5
-
-    STATUS_CHOICES = (
-        (STATUS_DOWNLOADING, "Downloading"),
-        (STATUS_PROCESSING, "Processing"),
-        (STATUS_OCP_CLOUD_PROCESSING, "OCP-Cloud-Processing"),
-        (STATUS_DONE, "Done"),
-        (STATUS_FAILED, "Failed"),
-    )
-
-    FAILED_STATUS_CHOICES = (
-        (STATUS_DOWNLOADING, "Downloading"),
-        (STATUS_PROCESSING, "Processing"),
-        (STATUS_OCP_CLOUD_PROCESSING, "OCP-Cloud-Processing"),
-    )
-
     class Meta:
         """Meta for CostUsageReportStatus."""
 
@@ -91,8 +105,8 @@ class CostUsageReportStatus(models.Model):
     # id of the task processing this report
     celery_task_id = models.UUIDField(null=True)
     # Current status of processing report
-    status = models.IntegerField(choices=STATUS_CHOICES, default=STATUS_DOWNLOADING)
-    failed_status = models.IntegerField(choices=FAILED_STATUS_CHOICES, null=True)
+    status = models.IntegerField(choices=CombinedChoices.choices, default=ReportStep.DOWNLOADING)
+    failed_status = models.IntegerField(choices=ReportStep.choices, null=True)
 
     def set_started_datetime(self):
         """
@@ -126,9 +140,9 @@ class CostUsageReportStatus(models.Model):
         """
         Update the status of the current report.
         """
-        if status_id == self.STATUS_DONE:
+        if status_id == Status.DONE:
             self.set_completed_datetime()
-        elif status_id == self.STATUS_FAILED:
+        elif status_id == Status.FAILED:
             self.set_failed_status(self.status)
         self.status = status_id
         self.save(update_fields=["status"])

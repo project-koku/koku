@@ -41,6 +41,7 @@ from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
+from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
 
 
@@ -488,17 +489,19 @@ class ParquetReportProcessor:
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
-        processor = self._get_report_processor(parquet_file, daily=daily)
-        bill_date = self.start_date.replace(day=1)
-        if not processor.schema_exists():
-            processor.create_schema()
-        if not processor.table_exists():
-            processor.create_table(partition_map=partition_map)
-        self.trino_table_exists[self.report_type] = True
-        processor.get_or_create_postgres_partition(bill_date=bill_date)
-        processor.sync_hive_partitions()
-        if not daily:
-            processor.create_bill(bill_date=bill_date)
+        # Skip empty files, if we have no storage report data we cant create the table
+        if parquet_file != "":
+            processor = self._get_report_processor(parquet_file, daily=daily)
+            bill_date = self.start_date.replace(day=1)
+            if not processor.schema_exists():
+                processor.create_schema()
+            if not processor.table_exists():
+                processor.create_table(partition_map=partition_map)
+            self.trino_table_exists[self.report_type] = True
+            processor.get_or_create_postgres_partition(bill_date=bill_date)
+            processor.sync_hive_partitions()
+            if not daily:
+                processor.create_bill(bill_date=bill_date)
 
     def check_required_columns_for_ingress_reports(self, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
@@ -561,6 +564,7 @@ class ParquetReportProcessor:
                     )
                 )
                 self.post_processor.finalize_post_processing()
+            LOG.info(f"\n\n REPORT TYPE: {self.report_type} \n\n")
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_filepath)
 
@@ -574,7 +578,7 @@ class ParquetReportProcessor:
                 ),
                 exc_info=err,
             )
-            self.report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
+            self.report_status.update_status(CombinedChoices.FAILED)
             return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True

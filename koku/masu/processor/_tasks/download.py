@@ -11,6 +11,8 @@ from api.common import log_json
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.report_downloader import ReportDownloader
+from reporting_common.models import ManifestState
+from reporting_common.models import ManifestStep
 
 LOG = logging.getLogger(__name__)
 
@@ -68,7 +70,9 @@ def _get_report_files(
     function_name = "masu.processor._tasks.download._get_report_files"
     LOG.info(log_json(tracing_id, msg="downloading report", context=context))
     # Set download start time
-    ReportManifestDBAccessor().update_manifest_state(report_context["manifest_id"], "download", "start")
+    ReportManifestDBAccessor().update_manifest_state(
+        report_context["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.START
+    )
     try:
         disk = psutil.disk_usage(Config.DATA_DIR)
         disk_msg = f"{function_name}: Available disk space: {disk.free} bytes ({100 - disk.percent}%)"

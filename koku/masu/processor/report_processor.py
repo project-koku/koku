@@ -16,6 +16,7 @@ from koku.database_exc import get_extended_exception_by_type
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ReportsAlreadyProcessed
+from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
@@ -120,17 +121,17 @@ class ReportProcessor:
                 self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames, self.manifest_id)
             return daily_data_frames != []
         except ReportsAlreadyProcessed:
-            report_status.update_status(CostUsageReportStatus.STATUS_DONE)
+            report_status.update_status(CombinedChoices.DONE)
             LOG.info(log_json(msg="report already processed", context=self.context))
             return True
         except (InterfaceError, DjangoInterfaceError) as err:
-            report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
+            report_status.update_status(CombinedChoices.FAILED)
             raise ReportProcessorDBError(f"Interface error: {err}") from err
         except OperationalError as o_err:
-            report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
+            report_status.update_status(CombinedChoices.FAILED)
             db_exc = get_extended_exception_by_type(o_err)
             LOG.error(log_json(self.tracing_id, msg=f"Operation error: {db_exc}", context=db_exc.as_dict()))
             raise db_exc from o_err
         except Exception as err:
-            report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
+            report_status.update_status(CombinedChoices.FAILED)
             raise ReportProcessorError(f"Unknown processor error: {err}") from err

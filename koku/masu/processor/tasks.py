@@ -61,6 +61,8 @@ from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import ManifestState
+from reporting_common.models import ManifestStep
 
 
 LOG = logging.getLogger(__name__)
@@ -222,7 +224,9 @@ def get_report_files(  # noqa: C901
             worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             WorkerCache().remove_task_from_cache(cache_key)
             LOG.warning(log_json(tracing_id, msg=str(err), context=context), exc_info=err)
-            ReportManifestDBAccessor().update_manifest_state(report_context["manifest_id"], "download", "failed")
+            ReportManifestDBAccessor().update_manifest_state(
+                report_context["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.FALILED
+            )
             return
 
         if report_dict:
@@ -262,12 +266,16 @@ def get_report_files(  # noqa: C901
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
-            ReportManifestDBAccessor().update_manifest_state(report_context["manifest_id"], "processing", "failed")
+            ReportManifestDBAccessor().update_manifest_state(
+                report_context["manifest_id"], ManifestStep.PROCESSING, ManifestState.FALILED
+            )
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
             LOG.info(log_json(tracing_id, msg=f"Not implemented error: {err}", context=context))
-            ReportManifestDBAccessor().update_manifest_state(report_context["manifest_id"], "processing", "failed")
+            ReportManifestDBAccessor().update_manifest_state(
+                report_context["manifest_id"], ManifestStep.PROCESSING, ManifestState.FALILED
+            )
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
@@ -388,7 +396,9 @@ def summarize_reports(  # noqa: C901
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
             # Set summary start time
-            manifest_accesor.update_manifest_state(report.get("manifest_id"), "summary", "start")
+            manifest_accesor.update_manifest_state(
+                report.get("manifest_id"), ManifestStep.SUMMARY, ManifestState.START
+            )
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
             if is_customer_large(report.get("schema_name")):
                 fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
@@ -528,7 +538,7 @@ def update_summary_tables(  # noqa: C901
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
         # Set summary failed time
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, "summary", "failed")
+        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
 
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
@@ -540,7 +550,7 @@ def update_summary_tables(  # noqa: C901
             exc_info=ex,
         )
         # Set summary failed time
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, "summary", "failed")
+        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         return

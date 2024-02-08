@@ -14,6 +14,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import ManifestState
+from reporting_common.models import ManifestStep
 
 FAKE = Faker()
 
@@ -78,8 +80,8 @@ class ReportManifestDBAccessorTest(MasuTestCase):
     def test_update_manifest_state_end(self):
         """Test updating the manifest state."""
         before_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
-        self.manifest_accessor.update_manifest_state(self.manifest.id, "download", "start")
-        self.manifest_accessor.update_manifest_state(self.manifest.id, "download", "end")
+        self.manifest_accessor.update_manifest_state(self.manifest.id, ManifestStep.DOWNLOAD, ManifestState.START)
+        self.manifest_accessor.update_manifest_state(self.manifest.id, ManifestStep.DOWNLOAD, ManifestState.END)
         after_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
         self.assertNotEqual(before_state.state, after_state.state)
         self.assertIn("end", after_state.state.get("download"))

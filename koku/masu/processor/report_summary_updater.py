@@ -18,6 +18,8 @@ from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParqu
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
+from reporting_common.models import ManifestState
+from reporting_common.models import ManifestStep
 
 LOG = logging.getLogger(__name__)
 REPORT_SUMMARY_UPDATER_DICT = {
@@ -148,7 +150,7 @@ class ReportSummaryUpdater:
 
         LOG.info(log_json(tracing_id, msg="summary processing complete", context=context))
         # Mark manifest summary complete time
-        ReportManifestDBAccessor().update_manifest_state(self._manifest.id, "summary", "end")
+        ReportManifestDBAccessor().update_manifest_state(self._manifest.id, ManifestStep.SUMMARY, ManifestState.END)
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
 
@@ -210,7 +212,6 @@ class ReportSummaryUpdater:
                 tracing_id, msg=f"OpenShift on {infra_provider_type} summary processing starting", context=context
             )
         )
-        ReportManifestDBAccessor().update_manifest_state(self._manifest.id, "ocp-on-cloud-summary", "start")
 
         try:
             self._ocp_cloud_updater.update_summary_tables(
@@ -221,7 +222,6 @@ class ReportSummaryUpdater:
                     tracing_id, msg=f"OpenShift on {infra_provider_type} summary processing complete", context=context
                 )
             )
-            ReportManifestDBAccessor().update_manifest_state(self._manifest.id, "ocp-on-cloud-summary", "end")
             invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex)) from ex

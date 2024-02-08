@@ -127,8 +127,8 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         self.assertFalse(manager.get_paused_status())
 
-    def test_get_downloading_state(self):
-        """test getting the current state of downloading."""
+    def test_get_state(self):
+        """test getting the current state for ingest."""
         # Create Provider
         provider_name = "sample_provider"
         with patch("masu.celery.tasks.check_report_updates"):
@@ -139,7 +139,7 @@ class ProviderManagerTest(IamTestCase):
 
         # Get Provider Manager
         manager = ProviderManager(provider_uuid)
-        self.assertEqual(manager.get_downloading_state(), "pending")
+        self.assertEqual(manager.get_state().get("download"), "pending")
 
         with patch("reporting_common.models.CostUsageReportManifest.objects") as mock_object:
             mock_manifest = MagicMock()
@@ -148,65 +148,11 @@ class ProviderManagerTest(IamTestCase):
             mock_manifest_state.get.return_value = {"start": True}
             mock_manifest.state = mock_manifest_state
             manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_downloading_state(), "in-progress")
+            self.assertEqual(manager.get_state().get("download"), "in-progress")
 
         with patch("reporting_common.models.CostUsageReportManifest.objects"):
             manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_downloading_state(), "complete")
-
-    def test_get_processing_state(self):
-        """test getting the current state of processing."""
-        # Create Provider
-        provider_name = "sample_provider"
-        with patch("masu.celery.tasks.check_report_updates"):
-            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
-
-        # Get Provider UUID
-        provider_uuid = provider.uuid
-
-        # Get Provider Manager
-        manager = ProviderManager(provider_uuid)
-        self.assertEqual(manager.get_processing_state(), "pending")
-
-        with patch("reporting_common.models.CostUsageReportManifest.objects") as mock_object:
-            mock_manifest = MagicMock()
-            mock_object.filter.return_value.first.return_value = mock_manifest
-            mock_manifest_state = MagicMock()
-            mock_manifest_state.get.return_value = {"start": True}
-            mock_manifest.state = mock_manifest_state
-            manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_processing_state(), "in-progress")
-
-        with patch("reporting_common.models.CostUsageReportManifest.objects"):
-            manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_processing_state(), "complete")
-
-    def test_get_summary_state(self):
-        """test getting the current state of summary."""
-        # Create Provider
-        provider_name = "sample_provider"
-        with patch("masu.celery.tasks.check_report_updates"):
-            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
-
-        # Get Provider UUID
-        provider_uuid = provider.uuid
-
-        # Get Provider Manager
-        manager = ProviderManager(provider_uuid)
-        self.assertEqual(manager.get_summary_state(), "pending")
-
-        with patch("reporting_common.models.CostUsageReportManifest.objects") as mock_object:
-            mock_manifest = MagicMock()
-            mock_object.filter.return_value.first.return_value = mock_manifest
-            mock_manifest_state = MagicMock()
-            mock_manifest_state.get.return_value = {"start": True}
-            mock_manifest.state = mock_manifest_state
-            manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_summary_state(), "in-progress")
-
-        with patch("reporting_common.models.CostUsageReportManifest.objects"):
-            manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_summary_state(), "complete")
+            self.assertEqual(manager.get_state().get("download"), "complete")
 
     def test_data_flags(self):
         """Test the data status flag."""

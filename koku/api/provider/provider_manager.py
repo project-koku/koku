@@ -107,50 +107,25 @@ class ProviderManager:
             completed_datetime__isnull=False,
         ).exists()
 
-    def get_downloading_state(self):
-        """Get latest manifest downloading state."""
-        state = "pending"
+    def get_state(self):
+        """Get latest manifest state."""
+        states = {
+            "download": "pending",
+            "processing": "pending",
+            "summary": "pending",
+        }
         manifest = CostUsageReportManifest.objects.filter(
             provider=self._uuid,
             billing_period_start_datetime=self.date_helper.this_month_start,
         ).first()
         if manifest:
-            if manifest.state.get("download"):
-                if manifest.state.get("download").get("start"):
-                    state = "in-progress"
-                if manifest.state.get("download").get("end"):
-                    state = "complete"
-        return state
-
-    def get_processing_state(self):
-        """Get latest manifest processing state."""
-        state = "pending"
-        manifest = CostUsageReportManifest.objects.filter(
-            provider=self._uuid,
-            billing_period_start_datetime=self.date_helper.this_month_start,
-        ).first()
-        if manifest:
-            if manifest.state.get("processing"):
-                if manifest.state.get("processing").get("start"):
-                    state = "in-progress"
-                if manifest.state.get("processing").get("end"):
-                    state = "complete"
-        return state
-
-    def get_summary_state(self):
-        """Get latest manifest summary state."""
-        state = "pending"
-        manifest = CostUsageReportManifest.objects.filter(
-            provider=self._uuid,
-            billing_period_start_datetime=self.date_helper.this_month_start,
-        ).first()
-        if manifest:
-            if manifest.state.get("summary"):
-                if manifest.state.get("summary").get("start"):
-                    state = "in-progress"
-                if manifest.state.get("summary").get("end"):
-                    state = "complete"
-        return state
+            for key in states.keys():
+                if manifest.state.get(key):
+                    if manifest.state[key].get("start"):
+                        states[key] = "in-progress"
+                    if manifest.state[key].get("end"):
+                        states[key] = "complete"
+        return states
 
     def get_any_data_exists(self):
         """Get  data avaiability status."""

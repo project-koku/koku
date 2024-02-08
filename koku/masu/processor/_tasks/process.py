@@ -15,7 +15,10 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
+from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import ManifestState
+from reporting_common.models import ManifestStep
 
 LOG = logging.getLogger(__name__)
 
@@ -53,9 +56,9 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
 
     file_name = Path(report_path).name
     report_status = CostUsageReportStatus.objects.get(report_name=file_name, manifest_id=manifest_id)
-    report_status.update_status(CostUsageReportStatus.STATUS_PROCESSING)
+    report_status.update_status(CombinedChoices.PROCESSING)
     report_status.set_started_datetime()
-    ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "start")
+    ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.START)
     try:
         processor = ReportProcessor(
             schema_name=schema_name,
@@ -72,13 +75,13 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
         result = processor.process()
     except (ReportProcessorError, ParquetReportProcessorError, ReportProcessorDBError) as processing_error:
         report_status.clear_started_datetime()
-        report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "failed")
+        report_status.update_status(CombinedChoices.FAILED)
+        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.FALILED)
         raise processing_error
     except NotImplementedError as err:
         report_status.set_completed_datetime()
-        report_status.update_status(CostUsageReportStatus.STATUS_FAILED)
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "failed")
+        report_status.update_status(CombinedChoices.FAILED)
+        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.FALILED)
         raise err
 
     report_status.set_completed_datetime()
@@ -97,6 +100,6 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     p = Provider.objects.get(uuid=provider_uuid)
     p.set_setup_complete()
 
-    report_status.update_status(CostUsageReportStatus.STATUS_DONE)
-    ReportManifestDBAccessor().update_manifest_state(manifest_id, "processing", "end")
+    report_status.update_status(CombinedChoices.DONE)
+    ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.END)
     return result

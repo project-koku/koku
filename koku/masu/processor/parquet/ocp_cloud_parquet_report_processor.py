@@ -28,7 +28,7 @@ from masu.util.aws.common import match_openshift_resources_and_labels as aws_mat
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 from reporting.provider.all.models import EnabledTagKeys
-from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import CombinedChoices
 
 LOG = logging.getLogger(__name__)
 
@@ -243,7 +243,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             )
             return
 
-        self.report_status.update_status(CostUsageReportStatus.STATUS_OCP_CLOUD_PROCESSING)
+        self.report_status.update_status(CombinedChoices.OCP_CLOUD_PROCESSING)
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
             if self.provider_type == Provider.PROVIDER_GCP:

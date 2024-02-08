@@ -56,6 +56,8 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import ManifestState
+from reporting_common.models import ManifestStep
 
 
 LOG = logging.getLogger(__name__)
@@ -450,7 +452,9 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     # Save Manifest
     report_meta["manifest_id"] = create_cost_and_usage_report_manifest(provider.uuid, report_meta)
-    ReportManifestDBAccessor().update_manifest_state(report_meta["manifest_id"], "download", "start")
+    ReportManifestDBAccessor().update_manifest_state(
+        report_meta["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.START
+    )
 
     # Copy report payload
     report_metas = []
@@ -494,7 +498,9 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             LOG.debug(log_json(manifest_uuid, msg=msg, context=context))
     # Remove temporary directory and files
     shutil.rmtree(payload_path.parent)
-    ReportManifestDBAccessor().update_manifest_state(report_meta["manifest_id"], "download", "end")
+    ReportManifestDBAccessor().update_manifest_state(
+        report_meta["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.END
+    )
     return report_metas, manifest_uuid
 
 
@@ -709,6 +715,7 @@ def process_report(request_id, report):
         "start_date": date,
         "create_table": True,
     }
+    LOG.info(f"\n\n FILES: {report_dict} \n\n")
     try:
         return _process_report_file(schema_name, provider_type, report_dict)
     except NotImplementedError as err:

@@ -88,9 +88,9 @@ class TestCostUsageReportStatus(MasuTestCase):
             started_datetime=timezone.now(),
         )
         stats.save()
-        self.assertEqual(stats.status, CostUsageReportStatus.STATUS_DOWNLOADING)
-        stats.update_status(CostUsageReportStatus.STATUS_DONE)
-        self.assertEqual(stats.status, CostUsageReportStatus.STATUS_DONE)
+        self.assertEqual(stats.status, CostUsageReportStatus.Status.DOWNLOADING)
+        stats.update_status(CostUsageReportStatus.Status.DONE)
+        self.assertEqual(stats.status, CostUsageReportStatus.Status.DONE)
 
     def test_set_failed_status(self):
         """
@@ -103,6 +103,6 @@ class TestCostUsageReportStatus(MasuTestCase):
         )
         stats.save()
         self.assertIsNone(stats.failed_status)
-        stats.update_status(CostUsageReportStatus.STATUS_FAILED)
+        stats.update_status(CostUsageReportStatus.Status.FAILED)
         self.assertIsNotNone(stats.failed_status)
-        self.assertEqual(stats.status, CostUsageReportStatus.STATUS_FAILED)
+        self.assertEqual(stats.status, CostUsageReportStatus.Status.FAILED)

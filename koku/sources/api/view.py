@@ -260,9 +260,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["paused"] = manager.get_paused_status()
                 source["current_month_data"] = manager.get_current_month_data_exists()
                 source["previous_month_data"] = manager.get_previous_month_data_exists()
-                source["download_status"] = manager.get_downloading_state()
-                source["processing_status"] = manager.get_processing_state()
-                source["summary_status"] = manager.get_summary_state()
+                source["status"] = manager.get_state()
                 source["has_data"] = manager.get_any_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_info()
                 source["cost_models"] = [
