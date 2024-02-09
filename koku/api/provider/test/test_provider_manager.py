@@ -143,7 +143,7 @@ class ProviderManagerTest(IamTestCase):
 
         with patch("reporting_common.models.CostUsageReportManifest.objects") as mock_object:
             mock_manifest = MagicMock()
-            mock_object.filter.return_value.first.return_value = mock_manifest
+            mock_object.filter.return_value.latest.return_value = mock_manifest
             mock_manifest_state = MagicMock()
             mock_manifest_state.get.return_value = {"start": True}
             mock_manifest.state = mock_manifest_state

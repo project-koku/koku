@@ -225,7 +225,7 @@ def get_report_files(  # noqa: C901
             WorkerCache().remove_task_from_cache(cache_key)
             LOG.warning(log_json(tracing_id, msg=str(err), context=context), exc_info=err)
             ReportManifestDBAccessor().update_manifest_state(
-                report_context["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.FALILED
+                ManifestStep.DOWNLOAD, ManifestState.FALILED, report_context["manifest_id"]
             )
             return
 
@@ -267,14 +267,14 @@ def get_report_files(  # noqa: C901
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
             ReportManifestDBAccessor().update_manifest_state(
-                report_context["manifest_id"], ManifestStep.PROCESSING, ManifestState.FALILED
+                ManifestStep.PROCESSING, ManifestState.FALILED, report_context["manifest_id"]
             )
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
             LOG.info(log_json(tracing_id, msg=f"Not implemented error: {err}", context=context))
             ReportManifestDBAccessor().update_manifest_state(
-                report_context["manifest_id"], ManifestStep.PROCESSING, ManifestState.FALILED
+                ManifestStep.PROCESSING, ManifestState.FALILED, report_context["manifest_id"]
             )
             WorkerCache().remove_task_from_cache(cache_key)
 
@@ -397,7 +397,7 @@ def summarize_reports(  # noqa: C901
         with ReportManifestDBAccessor() as manifest_accesor:
             # Set summary start time
             manifest_accesor.update_manifest_state(
-                report.get("manifest_id"), ManifestStep.SUMMARY, ManifestState.START
+                ManifestStep.SUMMARY, ManifestState.START, report.get("manifest_id")
             )
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
             if is_customer_large(report.get("schema_name")):
@@ -538,8 +538,7 @@ def update_summary_tables(  # noqa: C901
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
         # Set summary failed time
-        if manifest_id:
-            ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.FALILED, manifest_id)
 
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
@@ -551,8 +550,7 @@ def update_summary_tables(  # noqa: C901
             exc_info=ex,
         )
         # Set summary failed time
-        if manifest_id:
-            ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.FALILED, manifest_id)
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         return
@@ -575,8 +573,7 @@ def update_summary_tables(  # noqa: C901
             cost_model = cost_model_accessor.cost_model
 
     # Mark manifest summary complete time
-    if manifest_id:
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.END)
+    ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.END, manifest_id)
 
     # Create queued tasks for each OpenShift on Cloud cluster
     delete_signature_list = []

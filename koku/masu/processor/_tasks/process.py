@@ -58,7 +58,7 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     report_status = CostUsageReportStatus.objects.get(report_name=file_name, manifest_id=manifest_id)
     report_status.update_status(CombinedChoices.PROCESSING)
     report_status.set_started_datetime()
-    ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.START)
+    ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.START, manifest_id)
     try:
         processor = ReportProcessor(
             schema_name=schema_name,
@@ -76,12 +76,12 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     except (ReportProcessorError, ParquetReportProcessorError, ReportProcessorDBError) as processing_error:
         report_status.clear_started_datetime()
         report_status.update_status(CombinedChoices.FAILED)
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.FALILED)
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.FALILED, manifest_id)
         raise processing_error
     except NotImplementedError as err:
         report_status.set_completed_datetime()
         report_status.update_status(CombinedChoices.FAILED)
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.FALILED)
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.FALILED, manifest_id)
         raise err
 
     report_status.set_completed_datetime()
@@ -101,5 +101,5 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     p.set_setup_complete()
 
     report_status.update_status(CombinedChoices.DONE)
-    ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.PROCESSING, ManifestState.END)
+    ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.END, manifest_id)
     return result

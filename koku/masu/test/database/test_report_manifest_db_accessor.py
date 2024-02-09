@@ -72,7 +72,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
     def test_update_manifest_state(self):
         """Test updating the manifest state."""
         before_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
-        self.manifest_accessor.update_manifest_state(self.manifest.id, "testing", "start")
+        self.manifest_accessor.update_manifest_state("testing", "start", self.manifest.id)
         after_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
         self.assertNotEqual(before_state.state, after_state.state)
         self.assertIn("testing", after_state.state)
@@ -80,8 +80,8 @@ class ReportManifestDBAccessorTest(MasuTestCase):
     def test_update_manifest_state_end(self):
         """Test updating the manifest state."""
         before_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
-        self.manifest_accessor.update_manifest_state(self.manifest.id, ManifestStep.DOWNLOAD, ManifestState.START)
-        self.manifest_accessor.update_manifest_state(self.manifest.id, ManifestStep.DOWNLOAD, ManifestState.END)
+        self.manifest_accessor.update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.START, self.manifest.id)
+        self.manifest_accessor.update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.END, self.manifest.id)
         after_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
         self.assertNotEqual(before_state.state, after_state.state)
         self.assertIn("end", after_state.state.get("download"))

@@ -71,7 +71,7 @@ def _get_report_files(
     LOG.info(log_json(tracing_id, msg="downloading report", context=context))
     # Set download start time
     ReportManifestDBAccessor().update_manifest_state(
-        report_context["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.START
+        ManifestStep.DOWNLOAD, ManifestState.START, report_context["manifest_id"]
     )
     try:
         disk = psutil.disk_usage(Config.DATA_DIR)

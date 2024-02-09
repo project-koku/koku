@@ -453,7 +453,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     # Save Manifest
     report_meta["manifest_id"] = create_cost_and_usage_report_manifest(provider.uuid, report_meta)
     ReportManifestDBAccessor().update_manifest_state(
-        report_meta["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.START
+        ManifestStep.DOWNLOAD, ManifestState.START, report_meta["manifest_id"]
     )
 
     # Copy report payload
@@ -499,7 +499,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     # Remove temporary directory and files
     shutil.rmtree(payload_path.parent)
     ReportManifestDBAccessor().update_manifest_state(
-        report_meta["manifest_id"], ManifestStep.DOWNLOAD, ManifestState.END
+        ManifestStep.DOWNLOAD, ManifestState.END, report_meta["manifest_id"]
     )
     return report_metas, manifest_uuid
 

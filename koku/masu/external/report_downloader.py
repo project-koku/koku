@@ -188,7 +188,7 @@ class ReportDownloader:
             report_status.etag = etag
             report_status.save(update_fields=["etag"])
         except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
-            ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.DOWNLOAD, ManifestState.FALILED)
+            ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.FALILED, manifest_id)
             report_status.update_status(CombinedChoices.FAILED)
             LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
             return {}
@@ -208,5 +208,5 @@ class ReportDownloader:
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
         }
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.DOWNLOAD, ManifestState.END)
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.END, manifest_id)
         return report
