@@ -1224,8 +1224,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
-    def test_update_summary_tables(self, mock_updater, mock_complete):
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_update_summary_tables(self, mock_select_for_update, mock_updater, mock_complete):
         """Test that this task runs."""
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.today.date()
         mock_updater.return_value = (start_date, end_date)
@@ -1351,8 +1354,10 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_summary_tables_worker_throttled(
         self,
+        mock_select_for_update,
         mock_inspect,
         mock_lock,
         mock_release,
@@ -1364,6 +1369,8 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_ocp_on_cloud,
     ):
         """Test that the worker cache is used."""
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
         start_date = self.dh.this_month_start
