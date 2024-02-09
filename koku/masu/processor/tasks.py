@@ -538,7 +538,8 @@ def update_summary_tables(  # noqa: C901
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
         # Set summary failed time
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
+        if manifest_id:
+            ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
 
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
@@ -550,7 +551,8 @@ def update_summary_tables(  # noqa: C901
             exc_info=ex,
         )
         # Set summary failed time
-        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
+        if manifest_id:
+            ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.FALILED)
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         return
@@ -573,7 +575,8 @@ def update_summary_tables(  # noqa: C901
             cost_model = cost_model_accessor.cost_model
 
     # Mark manifest summary complete time
-    ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.END)
+    if manifest_id:
+        ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.END)
 
     # Create queued tasks for each OpenShift on Cloud cluster
     delete_signature_list = []

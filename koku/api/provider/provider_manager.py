@@ -114,11 +114,12 @@ class ProviderManager:
             "processing": "pending",
             "summary": "pending",
         }
-        manifest = CostUsageReportManifest.objects.filter(
+        manifests = CostUsageReportManifest.objects.filter(
             provider=self._uuid,
             billing_period_start_datetime=self.date_helper.this_month_start,
-        ).first()
-        if manifest:
+        )
+        if manifests:
+            manifest = manifests.latest("creation_datetime")
             for key in states.keys():
                 if manifest.state.get(key):
                     if manifest.state.get(key).get("start"):
