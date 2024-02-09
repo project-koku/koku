@@ -69,9 +69,9 @@ class GCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -95,9 +95,9 @@ class GCPProviderMap(ProviderMap):
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -128,9 +128,9 @@ class GCPProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -154,9 +154,9 @@ class GCPProviderMap(ProviderMap):
                             ),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -192,9 +192,9 @@ class GCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -218,9 +218,9 @@ class GCPProviderMap(ProviderMap):
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -243,9 +243,9 @@ class GCPProviderMap(ProviderMap):
                         "annotations": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -269,9 +269,9 @@ class GCPProviderMap(ProviderMap):
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -291,7 +291,7 @@ class GCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("hour")),
+                            "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
@@ -299,13 +299,13 @@ class GCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
                             {"field": "instance_type", "operation": "isnull", "parameter": False},
-                            {"field": "unit", "operation": "exact", "parameter": "hour"},
+                            {"field": "unit", "operation": "exact", "parameter": "Hrs"},
                         ],
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
-                        "usage_units_fallback": "hour",
+                        "usage_units_fallback": "Hrs",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                         # COST-3043
@@ -326,9 +326,9 @@ class GCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -352,9 +352,9 @@ class GCPProviderMap(ProviderMap):
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -386,9 +386,9 @@ class GCPProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -412,9 +412,9 @@ class GCPProviderMap(ProviderMap):
                             ),
                             "cost_total": Sum(
                                 (
-                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -425,14 +425,15 @@ class GCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
+                            # COST-4392: gibibyite month to gigabyte month conversion
+                            "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
-                        "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
+                        "filter": [{"field": "unit", "operation": "exact", "parameter": "GB-Mo"}],
                         "conditionals": {
                             GCPCostEntryLineItemDailySummary: {
                                 "filter": [
@@ -447,7 +448,7 @@ class GCPProviderMap(ProviderMap):
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
-                        "usage_units_fallback": "gibibyte month",
+                        "usage_units_fallback": "GB-Mo",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
