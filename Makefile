@@ -615,3 +615,7 @@ restore-local-db-dir:
 
 get-release-commit:
 	@$(PYTHON) $(SCRIPTDIR)/get-release-commit.py
+
+.PHONY: scan-project
+scan-project:
+	@$(PYTHON) $(SCRIPTDIR)/snyk-scan.py $(path)
