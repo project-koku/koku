@@ -18,8 +18,6 @@ from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParqu
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
-from reporting_common.models import ManifestState
-from reporting_common.models import ManifestStep
 
 LOG = logging.getLogger(__name__)
 REPORT_SUMMARY_UPDATER_DICT = {
@@ -149,8 +147,6 @@ class ReportSummaryUpdater:
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 
         LOG.info(log_json(tracing_id, msg="summary processing complete", context=context))
-        # Mark manifest summary complete time
-        ReportManifestDBAccessor().update_manifest_state(self._manifest.id, ManifestStep.SUMMARY, ManifestState.END)
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
 

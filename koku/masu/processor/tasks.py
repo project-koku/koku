@@ -572,6 +572,9 @@ def update_summary_tables(  # noqa: C901
         with CostModelDBAccessor(schema, provider_uuid) as cost_model_accessor:
             cost_model = cost_model_accessor.cost_model
 
+    # Mark manifest summary complete time
+    ReportManifestDBAccessor().update_manifest_state(manifest_id, ManifestStep.SUMMARY, ManifestState.END)
+
     # Create queued tasks for each OpenShift on Cloud cluster
     delete_signature_list = []
     if ocp_on_cloud_infra_map:
