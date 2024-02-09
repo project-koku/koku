@@ -6,6 +6,7 @@
 from django.utils import timezone
 
 from masu.test import MasuTestCase
+from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -88,9 +89,9 @@ class TestCostUsageReportStatus(MasuTestCase):
             started_datetime=timezone.now(),
         )
         stats.save()
-        self.assertEqual(stats.status, CostUsageReportStatus.Status.DOWNLOADING)
-        stats.update_status(CostUsageReportStatus.Status.DONE)
-        self.assertEqual(stats.status, CostUsageReportStatus.Status.DONE)
+        self.assertEqual(stats.status, CombinedChoices.DOWNLOADING)
+        stats.update_status(CombinedChoices.DONE)
+        self.assertEqual(stats.status, CombinedChoices.DONE)
 
     def test_set_failed_status(self):
         """
@@ -103,6 +104,6 @@ class TestCostUsageReportStatus(MasuTestCase):
         )
         stats.save()
         self.assertIsNone(stats.failed_status)
-        stats.update_status(CostUsageReportStatus.Status.FAILED)
+        stats.update_status(CombinedChoices.FAILED)
         self.assertIsNotNone(stats.failed_status)
-        self.assertEqual(stats.status, CostUsageReportStatus.Status.FAILED)
+        self.assertEqual(stats.status, CombinedChoices.FAILED)

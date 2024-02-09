@@ -121,9 +121,9 @@ class ProviderManager:
         if manifest:
             for key in states.keys():
                 if manifest.state.get(key):
-                    if manifest.state[key].get("start"):
+                    if manifest.state.get(key).get("start"):
                         states[key] = "in-progress"
-                    if manifest.state[key].get("end"):
+                    if manifest.state.get(key).get("end"):
                         states[key] = "complete"
         return states
 

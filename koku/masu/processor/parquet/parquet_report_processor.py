@@ -564,7 +564,6 @@ class ParquetReportProcessor:
                     )
                 )
                 self.post_processor.finalize_post_processing()
-            LOG.info(f"\n\n REPORT TYPE: {self.report_type} \n\n")
             if self.create_table and not self.trino_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_filepath)
 
