@@ -498,8 +498,9 @@ def get_bills_from_provider(
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:
                 bills = bills.filter(billing_period_start__lte=end_date)
-
-            bills = list(bills.all())
+            # postgres doesn't always return this query in the same order, ordering by ID (PK) will
+            # ensure that any list iteration or indexing is always done in the same order
+            bills = list(bills.order_by("id").all())
 
     return bills
 

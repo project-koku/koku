@@ -39,13 +39,16 @@ class ExtendedDBException(Exception):
     REGEXP = None
 
     def __init__(self, db_exception, query_limit=128):
+        self._db_exception = db_exception
+        self.query_limit = query_limit
+
         _db_exception = get_driver_exception(db_exception)
         if not isinstance(_db_exception, DatabaseError):
             raise TypeError(
                 "This wrapper class only works on type <psycopg2.errors.DatabaseError> "
                 + f"(Got {type(_db_exception).__name__})"
             )
-        self.query_limit = query_limit
+
         self.ingest_exception(_db_exception)
         self.parse_exception()
         self.get_extended_info()
@@ -55,6 +58,9 @@ class ExtendedDBException(Exception):
 
     def __repr__(self):
         return str(self)
+
+    def __reduce__(self):
+        return (self.__class__, (self._db_exception, self.query_limit))
 
     def ingest_exception(self, db_exception):
         self.db_exception_type = type(db_exception)

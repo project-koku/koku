@@ -56,8 +56,8 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         before_count = CostUsageReportStatus.objects.filter(manifest_id=self.manifest.id).count()
         CostUsageReportStatus.objects.create(
             report_name="fake_report.csv",
-            last_completed_datetime=self.billing_start,
-            last_started_datetime=self.billing_start,
+            completed_datetime=self.billing_start,
+            started_datetime=self.billing_start,
             etag="etag",
             manifest=self.manifest,
         )
@@ -122,7 +122,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
             "CostUsageReportStatus",
             _quantity=manifest_dict2.get("num_total_files"),
             manifest_id=manifest2.id,
-            last_completed_datetime=timezone.now(),
+            completed_datetime=timezone.now(),
         )
 
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
@@ -148,17 +148,17 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         assembly_ids = self.manifest_accessor.get_last_seen_manifest_ids(self.billing_start)
         self.assertEqual(assembly_ids, [str(self.manifest.assembly_id)])
 
-    def test_is_last_completed_datetime_null(self):
+    def test_is_completed_datetime_null(self):
         """Test is last completed datetime is null."""
         manifest_id = 123456789
-        self.assertTrue(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
+        self.assertTrue(ReportManifestDBAccessor().is_completed_datetime_null(manifest_id))
         self.baker.make(CostUsageReportManifest, id=manifest_id)
-        self.baker.make(CostUsageReportStatus, manifest_id=manifest_id, last_completed_datetime=None)
-        self.assertTrue(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
+        self.baker.make(CostUsageReportStatus, manifest_id=manifest_id, completed_datetime=None)
+        self.assertTrue(ReportManifestDBAccessor().is_completed_datetime_null(manifest_id))
 
-        CostUsageReportStatus.objects.filter(manifest_id=manifest_id).update(last_completed_datetime=FAKE.date())
+        CostUsageReportStatus.objects.filter(manifest_id=manifest_id).update(completed_datetime=FAKE.date())
 
-        self.assertFalse(ReportManifestDBAccessor().is_last_completed_datetime_null(manifest_id))
+        self.assertFalse(ReportManifestDBAccessor().is_completed_datetime_null(manifest_id))
 
     def test_get_s3_csv_cleared(self):
         """Test that s3 CSV clear status is reported."""

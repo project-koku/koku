@@ -136,7 +136,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "sla": sla,
             "usage": usage,
             "billing_provider": "aws",
-            "billing_account_id": lineitem_usageaccountid,
+            "azure_subscription_id": lineitem_usageaccountid,
             "azure_tenant_id": tenant_id,
         }
         with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
@@ -266,15 +266,11 @@ class TestSUBSDataMessenger(SUBSTestCase):
     @patch("subs.subs_data_messenger.os.remove")
     @patch("subs.subs_data_messenger.get_producer")
     @patch("subs.subs_data_messenger.csv.DictReader")
-    @patch("subs.subs_data_messenger.SUBSDataMessenger.build_subs_dict")
-    def test_process_and_send_subs_message_azure_with_id(
-        self, mock_msg_builder, mock_reader, mock_producer, mock_remove, mock_azure_id
-    ):
+    def test_process_and_send_subs_message_azure_with_id(self, mock_reader, mock_producer, mock_remove, mock_azure_id):
         """Tests that the proper functions are called when running process_and_send_subs_message with Azure provider."""
         upload_keys = ["fake_key"]
         self.azure_messenger.date_map = defaultdict(list)
         mock_azure_id.return_value = ("string1", "string2")
-        mock_msg_builder.return_value = defaultdict(str)
         mock_reader.return_value = [
             {
                 "resourceid": "i-55555556",
@@ -299,7 +295,6 @@ class TestSUBSDataMessenger(SUBSTestCase):
         with patch("builtins.open", mock_op):
             self.azure_messenger.process_and_send_subs_message(upload_keys)
         mock_azure_id.assert_called_once()
-        self.assertEqual(mock_msg_builder.call_count, 4)
         self.assertEqual(mock_producer.call_count, 4)
 
     @patch("subs.subs_data_messenger.SUBSDataMessenger.determine_azure_instance_and_tenant_id")
