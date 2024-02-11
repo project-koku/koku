@@ -1,7 +1,7 @@
+from django.db import transaction
 from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from django.db import transaction
 from django_filters import CharFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
@@ -10,17 +10,20 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..utils import NonValidatedMultipleChoiceFilter
+from ..utils import SettingsFilter
 from .query_handler import format_tag_mapping_relationship
-from .serializers import TagMappingSerializer, EnabledTagKeysSerializer
+from .serializers import EnabledTagKeysSerializer
+from .serializers import TagMappingSerializer
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
-from reporting.provider.all.models import TagMapping, EnabledTagKeys
-from ..utils import SettingsFilter, NonValidatedMultipleChoiceFilter
+from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 
 
 class SettingsTagMappingFilter(SettingsFilter):
     key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
-    source_type = CharFilter(method='filter_by_source_type')
+    source_type = CharFilter(method="filter_by_source_type")
 
     class Meta:
         model = TagMapping
@@ -33,7 +36,7 @@ class SettingsTagMappingFilter(SettingsFilter):
 
 class SettingsEnabledTagKeysFilter(SettingsFilter):
     key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
-    source_type = CharFilter(method='filter_by_source_type')
+    source_type = CharFilter(method="filter_by_source_type")
 
     class Meta:
         model = EnabledTagKeys

@@ -8,11 +8,7 @@ from rest_framework.response import Response
 
 def format_tag_mapping_relationship(original_response):
     original_data = original_response.data
-    formatted_data = {
-        "meta": original_data["meta"],
-        "links": original_data["links"],
-        "data": []
-    }
+    formatted_data = {"meta": original_data["meta"], "links": original_data["links"], "data": []}
     parent_dict = {}
 
     for item in original_data["data"]:

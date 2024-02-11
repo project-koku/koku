@@ -4,11 +4,13 @@
 #
 """Serializers for Tag Mappings."""
 from rest_framework import serializers
-from reporting.provider.all.models import TagMapping, EnabledTagKeys
+
+from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 
 
 class EnabledTagKeysSerializer(serializers.ModelSerializer):
-    source_type = serializers.CharField(source='provider_type')
+    source_type = serializers.CharField(source="provider_type")
 
     class Meta:
         model = EnabledTagKeys
