@@ -354,7 +354,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
                     ).update(markup_cost=(F("unblended_cost") * markup))
 
-    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids):
+    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids=None):
         """
         Updates the line item daily summary table with tag mapping pieces.
 
