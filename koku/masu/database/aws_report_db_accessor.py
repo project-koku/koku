@@ -354,52 +354,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
                     ).update(markup_cost=(F("unblended_cost") * markup))
 
-    def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
-        """Populate the enabled tag key table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
-
-        Returns
-            (None)
-        """
-        table_name = "reporting_enabledtagkeys"
-        sql = pkgutil.get_data("masu.database", "sql/reporting_awsenabledtagkeys.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
-    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, bill_ids):
-        """Populate the enabled tag key table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
-
-        Returns
-            (None)
-        """
-        table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data(
-            "masu.database", "sql/reporting_awscostentryline_item_daily_summary_update_enabled_tags.sql"
-        )
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids):
         """
         Updates the line item daily summary table with tag mapping pieces.
