@@ -66,7 +66,8 @@ class SettingsTagMappingView(generics.GenericAPIView):
 
 
 class SettingsTagMappingChildView(generics.GenericAPIView):
-    queryset = EnabledTagKeys.objects.exclude(parent__isnull=False).exclude(child__parent__isnull=False)
+    queryset = EnabledTagKeys.objects.exclude(parent__isnull=False).exclude(child__parent__isnull=False).filter(
+        enabled=True)
     serializer_class = EnabledTagKeysSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
@@ -83,7 +84,7 @@ class SettingsTagMappingChildView(generics.GenericAPIView):
 
 
 class SettingsTagMappingParentView(generics.GenericAPIView):
-    queryset = EnabledTagKeys.objects.exclude(child__parent__isnull=False)
+    queryset = EnabledTagKeys.objects.exclude(child__parent__isnull=False).filter(enabled=True)
     serializer_class = EnabledTagKeysSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
@@ -109,11 +110,16 @@ class SettingsTagMappingChildAddView(APIView):
             parent_uuid = request.data.get("parent")
             children_uuids = request.data.get("children", [])
 
-            parent = EnabledTagKeys.objects.get(uuid=parent_uuid)
-            children = EnabledTagKeys.objects.filter(uuid__in=children_uuids)
+            parent = EnabledTagKeys.objects.get(uuid=parent_uuid, enabled=True)
+            children = EnabledTagKeys.objects.filter(uuid__in=children_uuids, enabled=True)
 
             if not parent or not children.exists():
                 return Response({"detail": "Invalid parent or children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if any of the children_uuids are already in TagMapping
+            if TagMapping.objects.filter(child__uuid__in=children_uuids).exists():
+                return Response({"detail": "Some child UUIDs are already inserted in TagMapping."},
+                                status=status.HTTP_400_BAD_REQUEST)
 
             # Validate if parent can be a child in any existing mappings
             if TagMapping.objects.filter(child=parent_uuid).exists():
@@ -131,7 +137,7 @@ class SettingsTagMappingChildAddView(APIView):
             # Serialize and return the created TagMapping
             serializer = TagMappingSerializer(TagMapping.objects.filter(parent=parent), many=True)
 
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
 
         except EnabledTagKeys.DoesNotExist:
             return Response({"detail": "Invalid parent or children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
@@ -147,7 +153,8 @@ class SettingsTagMappingChildRemoveView(APIView):
 
         TagMapping.objects.filter(child__in=children_uuids).delete()
 
-        return Response({"detail": "Children deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Children deleted successfully."},
+                        status=status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
 
 
 class SettingsTagMappingParentRemoveView(APIView):
@@ -160,4 +167,5 @@ class SettingsTagMappingParentRemoveView(APIView):
 
         TagMapping.objects.filter(parent__in=parents_uuid).delete()
 
-        return Response({"detail": "Parents deleted successfully."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Parents deleted successfully."},
+                        status=status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
