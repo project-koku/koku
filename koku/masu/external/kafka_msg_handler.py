@@ -715,7 +715,6 @@ def process_report(request_id, report):
         "start_date": date,
         "create_table": True,
     }
-    LOG.info(f"\n\n FILES: {report_dict} \n\n")
     try:
         return _process_report_file(schema_name, provider_type, report_dict)
     except NotImplementedError as err:

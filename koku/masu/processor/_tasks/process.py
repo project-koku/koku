@@ -76,12 +76,12 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
     except (ReportProcessorError, ParquetReportProcessorError, ReportProcessorDBError) as processing_error:
         report_status.clear_started_datetime()
         report_status.update_status(CombinedChoices.FAILED)
-        ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.FALILED, manifest_id)
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.FAILED, manifest_id)
         raise processing_error
     except NotImplementedError as err:
         report_status.set_completed_datetime()
         report_status.update_status(CombinedChoices.FAILED)
-        ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.FALILED, manifest_id)
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.PROCESSING, ManifestState.FAILED, manifest_id)
         raise err
 
     report_status.set_completed_datetime()

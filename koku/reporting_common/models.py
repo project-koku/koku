@@ -38,7 +38,7 @@ class ManifestStep(StrEnum):
 class ManifestState(StrEnum):
     START = "start"
     END = "end"
-    FALILED = "failed"
+    FAILED = "failed"
 
 
 class CostUsageReportManifest(models.Model):
