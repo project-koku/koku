@@ -30,6 +30,7 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import ManifestStep
 
 DATE_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG = logging.getLogger(__name__)
@@ -110,9 +111,9 @@ class ProviderManager:
     def get_state(self):
         """Get latest manifest state."""
         states = {
-            "download": "pending",
-            "processing": "pending",
-            "summary": "pending",
+            ManifestStep.DOWNLOAD: "pending",
+            ManifestStep.PROCESSING: "pending",
+            ManifestStep.SUMMARY: "pending",
         }
         manifests = CostUsageReportManifest.objects.filter(
             provider=self._uuid,
