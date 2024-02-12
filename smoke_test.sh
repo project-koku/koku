@@ -36,6 +36,7 @@ OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
 OCI_CLI_USER_EPH=$(jq -r '."oci-cli-user"' < oci-creds.json | base64 -d)
 OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-cli-fingerprint"' < oci-creds.json | base64 -d)
 OCI_CLI_TENANCY_EPH=$(jq -r '."oci-cli-tenancy"' < oci-creds.json | base64 -d)
+
 IQE_IBUTSU_SOURCE="cost-ephemeral-${IMAGE_TAG}"
 
 bonfire deploy \
