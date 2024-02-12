@@ -1,7 +1,7 @@
 SELECT
     resource_id,
     CASE
-        WHEN max_date < date_add('day', -2, now()) THEN max_date
+        WHEN max_date < date_add('day', -1, current_date) THEN max_date
         ELSE date_add('day', -1, max_date)
     END
 FROM (
