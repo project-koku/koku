@@ -111,7 +111,7 @@ class EnabledTagView(APIView):
                 msg = f"Disabled tags for schema: {schema_name}."
                 LOG.info(msg)
             elif action.lower() == "remove_stale":
-                jinja_sql = JinjaSql(param_style="format")
+                jinja_sql = JinjaSql()
                 sql = pkgutil.get_data(
                     "masu.database",
                     f"sql/{PROVIDER_TYPE_TO_FILE_PATH.get(provider_type)}/remove_stale_enabled_tags.sql",
