@@ -117,9 +117,6 @@ class TestSettingsTagMappingView(IamTestCase):
             "children": [self.enabled_uuid_list[1], self.enabled_uuid_list[2], self.enabled_uuid_list[3]],
         }
         response = self.client.put(url, data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # No new children to add
-        response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_put_method_add_multiple_children(self):

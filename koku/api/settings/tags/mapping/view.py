@@ -13,14 +13,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ...utils import NonValidatedMultipleChoiceFilter
-from ...utils import SettingsFilter
-from .query_handler import format_tag_mapping_relationship
-from .serializers import AddChildSerializer
-from .serializers import EnabledTagKeysSerializer
-from .serializers import TagMappingSerializer
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
+from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
+from api.settings.tags.mapping.serializers import AddChildSerializer
+from api.settings.tags.mapping.serializers import EnabledTagKeysSerializer
+from api.settings.tags.mapping.serializers import TagMappingSerializer
+from api.settings.utils import NonValidatedMultipleChoiceFilter
+from api.settings.utils import SettingsFilter
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
