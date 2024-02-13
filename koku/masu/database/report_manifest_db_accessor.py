@@ -21,6 +21,7 @@ from django.utils import timezone
 from api.common import log_json
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import ManifestState
 
 LOG = logging.getLogger(__name__)
 

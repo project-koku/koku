@@ -11,8 +11,8 @@ from api.common import log_json
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.report_downloader import ReportDownloader
-from reporting_common.models import ManifestState
-from reporting_common.models import ManifestStep
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 LOG = logging.getLogger(__name__)
 

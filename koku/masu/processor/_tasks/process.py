@@ -17,8 +17,8 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
-from reporting_common.models import ManifestState
-from reporting_common.models import ManifestStep
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 LOG = logging.getLogger(__name__)
 

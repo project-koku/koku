@@ -14,8 +14,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-from reporting_common.models import ManifestState
-from reporting_common.models import ManifestStep
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 FAKE = Faker()
 

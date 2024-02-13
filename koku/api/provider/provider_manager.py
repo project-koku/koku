@@ -30,7 +30,8 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-from reporting_common.models import ManifestStep
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 DATE_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG = logging.getLogger(__name__)
@@ -46,6 +47,12 @@ class ProviderManagerError(Exception):
 
 class ProviderManagerAuthorizationError(ProviderManagerError):
     """User does not have authorization to perform ProviderManager actions."""
+
+    pass
+
+
+class ManifestDoesNotExist(Exception):
+    """Manifest does not exist."""
 
     pass
 
@@ -119,18 +126,18 @@ class ProviderManager:
             manifest = CostUsageReportManifest.objects.filter(
                 provider=self._uuid,
                 billing_period_start_datetime=self.date_helper.this_month_start,
-            ).filter(creation_datetime__isnull=False).latest("creation_datetime")
-        except DoesNotExist:
+                creation_datetime__isnull=False,
+            ).latest("creation_datetime")
+        except CostUsageReportManifest.DoesNotExist:
             return states
-            
+
         for key in states:
             if current_state := manifest.state.get(key):
                 if current_state.get(ManifestState.END):
                     states[key] = ManifestState.COMPLETE
                 elif current_state.get(ManifestState.START):
                     states[key] = ManifestState.IN_PROGRESS
-                    
-        return states
+
         return states
 
     def get_any_data_exists(self):
