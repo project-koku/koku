@@ -164,8 +164,11 @@ class ReportDownloaderTest(MasuTestCase):
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
-    def test_download_reports(self, mock_dl_init, mock_dl):
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_download_reports(self, mock_select_for_update, mock_dl_init, mock_dl):
         """Test download reports."""
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
         manifest_id = 99
         baker.make(CostUsageReportManifest, id=manifest_id)
@@ -257,8 +260,11 @@ class ReportDownloaderTest(MasuTestCase):
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file")
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
-    def test_download_reports_download_error(self, mock_dl_init, mock_dl):
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_download_reports_download_error(self, mock_select_for_update, mock_dl_init, mock_dl):
         """Test download reports when an error is encountered."""
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
         manifest_id = 99
         baker.make(CostUsageReportManifest, id=manifest_id)

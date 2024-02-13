@@ -247,6 +247,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["paused"] = False
                 source["current_month_data"] = False
                 source["previous_month_data"] = False
+                source["status"] = False
                 source["has_data"] = False
                 source["infrastructure"] = {}
                 source["cost_models"] = []
@@ -257,6 +258,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["paused"] = manager.get_paused_status()
                 source["current_month_data"] = manager.get_current_month_data_exists()
                 source["previous_month_data"] = manager.get_previous_month_data_exists()
+                source["status"] = manager.get_state()
                 source["has_data"] = manager.get_any_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_info()
                 source["cost_models"] = [
@@ -281,6 +283,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["paused"] = False
             response.data["current_month_data"] = False
             response.data["previous_month_data"] = False
+            response.data["status"] = False
             response.data["has_data"] = False
             response.data["infrastructure"] = {}
             response.data["cost_models"] = []
@@ -290,6 +293,7 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["paused"] = manager.get_paused_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
             response.data["previous_month_data"] = manager.get_previous_month_data_exists()
+            response.data["status"] = manager.get_state()
             response.data["has_data"] = manager.get_any_data_exists()
 
             response.data["infrastructure"] = manager.get_infrastructure_info()

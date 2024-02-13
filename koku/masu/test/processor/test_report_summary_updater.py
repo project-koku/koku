@@ -96,12 +96,15 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsInstance(updater._updater, OCIReportParquetSummaryUpdater)
 
     @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
-    def test_update_openshift_on_cloud_summary_tables(self, mock_update):
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_update_openshift_on_cloud_summary_tables(self, mock_select_for_update, mock_update):
         """Test that we run OCP on Cloud summary."""
         start_date = self.dh.this_month_start
         end_date = self.dh.today
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
 
-        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid, manifest_id=1)
         updater.update_openshift_on_cloud_summary_tables(
             start_date,
             end_date,
@@ -128,7 +131,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         mock_update.reset_mock()
 
-        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid, manifest_id=1)
         mock_update.side_effect = Exception
         with self.assertRaises(ReportSummaryUpdaterCloudError):
             updater.update_openshift_on_cloud_summary_tables(
