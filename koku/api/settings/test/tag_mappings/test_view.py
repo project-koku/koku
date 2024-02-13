@@ -1,12 +1,15 @@
+import json
 import random
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from faker import Faker
 from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.settings.tag_mappings.query_handler import format_tag_mapping_relationship
 from api.settings.tag_mappings.view import SettingsTagMappingFilter
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -214,29 +217,72 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         # Call the filter_by_source_type method with 'test_filter' as the value
         if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
             result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
-            self.assertNotEquals(len(result), 0)
+            self.assertNotEqual(len(result), 0)
 
             test_filter = "random"
             result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
             self.assertEqual(len(result), 0)
 
-    def test_get_method_formatting(self):
+    def test_format_tag_mapping_relationship(self):
         """Test the get method format for the tag mapping view"""
 
-        # Adding sample uuids
-        random_uuid_list = self.retrieve_sample_uuids()
-        url = reverse("tags-mapping-child-add")
-        data = {
-            "parent": random_uuid_list[0],
-            "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]],
-        }
-        response = self.client.put(url, data, format="json", **self.headers)
+        sample_data = """{
+            "meta": {
+                "count": 3,
+                "limit": 3,
+                "offset": 0
+            },
+            "links": {
+                "first": "/api/cost-management/v1/settings/tag_mappings/?limit=3&offset=0",
+                "next": null,
+                "previous": null,
+                "last": "/api/cost-management/v1/settings/tag_mappings/?limit=3&offset=0"
+            },
+            "data": [
+                {
+                    "parent": {
+                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                        "key": "storageclass",
+                        "source_type": "Azure"
+                    },
+                    "child": {
+                        "uuid": "787d0e27-bf01-4f1e-91da-4148d9acae82",
+                        "key": "environment",
+                        "source_type": "Azure"
+                    }
+                },
+                {
+                    "parent": {
+                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                        "key": "storageclass",
+                        "source_type": "Azure"
+                    },
+                    "child": {
+                        "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
+                        "key": "CreatedOn",
+                        "source_type": "OCI"
+                    }
+                },
+                {
+                    "parent": {
+                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                        "key": "storageclass",
+                        "source_type": "Azure"
+                    },
+                    "child": {
+                        "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
+                        "key": "free-tier-retained",
+                        "source_type": "OCI"
+                    }
+                }
+            ]
+        }"""
 
-        if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
-            url = reverse("tags-mapping")
-            response = self.client.get(url, **self.headers)
+        json_data = json.loads(sample_data)
+        response = Response(json_data)
+        result = format_tag_mapping_relationship(response)
 
-            # Check if the key is 'children' and not 'child'
-            for item in response.data["data"]:
-                self.assertIn("children", item["parent"])
-                self.assertNotIn("child", item["parent"])
+        # Check if the key is 'children' and not 'child'
+        for item in result.data["data"]:
+            self.assertIn("children", item["parent"])
+            self.assertNotIn("child", item["parent"])
