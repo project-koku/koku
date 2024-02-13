@@ -309,7 +309,7 @@ class ModelBakeryDataLoader(DataLoader):
         bills = []
         provider_type = Provider.PROVIDER_GCP_LOCAL
         credentials = {"project_id": "test_project_id"}
-        billing_source = {"table_id": "test_table_id", "dataset": "test_dataset"}
+        billing_source = {"table_id": "resource", "dataset": "test_dataset"}
         account_id = "123456789"
         provider = self.create_provider(
             provider_type, credentials, billing_source, "test-gcp", linked_openshift_provider=linked_openshift_provider

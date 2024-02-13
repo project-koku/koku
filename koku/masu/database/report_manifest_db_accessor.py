@@ -5,6 +5,7 @@
 """Report manifest database accessor for cost usage reports."""
 import logging
 
+from django.db import transaction
 from django.db.models import DateField
 from django.db.models import DateTimeField
 from django.db.models import F
@@ -14,41 +15,36 @@ from django.db.models import Value
 from django.db.models.expressions import Window
 from django.db.models.functions import Cast
 from django.db.models.functions import RowNumber
-from django_tenants.utils import schema_context
+from django.utils import timezone
 
 from api.common import log_json
-from masu.database.koku_database_access import KokuDBAccess
-from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
 
 
-class ReportManifestDBAccessor(KokuDBAccess):
+class ReportManifestDBAccessor:
     """Class to interact with the koku database for CUR processing statistics."""
 
-    def __init__(self):
-        """Access the AWS report manifest database table."""
-        self._schema = "public"
-        super().__init__(self._schema)
-        self._table = CostUsageReportManifest
-        self.date_accessor = DateAccessor()
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
 
     def get_manifest(self, assembly_id, provider_uuid):
         """Get the manifest associated with the provided provider and id."""
-        return self._get_db_obj_query().filter(provider_id=provider_uuid, assembly_id=assembly_id).first()
+        return CostUsageReportManifest.objects.filter(provider_id=provider_uuid, assembly_id=assembly_id).first()
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
-        with schema_context(self._schema):
-            query = self._get_db_obj_query()
-            return query.filter(id=manifest_id).first()
+        return CostUsageReportManifest.objects.filter(id=manifest_id).first()
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
         if manifest:
-            updated_datetime = self.date_accessor.today_with_timezone("UTC")
+            updated_datetime = timezone.now()
             ctx = {
                 "manifest_id": manifest.id,
                 "assembly_id": manifest.assembly_id,
@@ -57,23 +53,23 @@ class ReportManifestDBAccessor(KokuDBAccess):
             }
             LOG.info(log_json(msg="marking manifest updated", context=ctx))
             manifest.manifest_updated_datetime = updated_datetime
-            manifest.save()
+            manifest.save(update_fields=["manifest_updated_datetime"])
             LOG.info(log_json(msg="manifest marked updated", context=ctx))
 
     def mark_manifests_as_completed(self, manifest_list):
         """Update the completed timestamp."""
-        completed_datetime = self.date_accessor.today_with_timezone("UTC")
+        completed_datetime = timezone.now()
         if manifest_list:
-            bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
+            bulk_manifest_query = CostUsageReportManifest.objects.filter(id__in=manifest_list)
             for manifest in bulk_manifest_query:
                 ctx = {
                     "manifest_id": manifest.id,
                     "assembly_id": manifest.assembly_id,
                     "provider_uuid": manifest.provider_id,
-                    "manifest_completed_datetime": completed_datetime,
+                    "completed_datetime": completed_datetime,
                 }
                 LOG.info(log_json(msg="marking manifest complete", context=ctx))
-                manifest.manifest_completed_datetime = completed_datetime
+                manifest.completed_datetime = completed_datetime
                 manifest.save()
                 LOG.info(log_json(msg="manifest marked complete", context=ctx))
 
@@ -82,35 +78,11 @@ class ReportManifestDBAccessor(KokuDBAccess):
         set_num_of_files = CostUsageReportStatus.objects.filter(manifest_id=manifest.id).count()
         if manifest:
             manifest.num_total_files = set_num_of_files
-            manifest.save()
-
-    def add(self, **kwargs) -> CostUsageReportManifest:
-        """
-        Add a new row to the CUR stats database.
-
-        Args:
-            kwargs (dict): Fields containing CUR Manifest attributes.
-                Valid keys are: assembly_id,
-                                billing_period_start_datetime,
-                                num_total_files,
-                                provider_uuid,
-        Returns:
-            None
-
-        """
-        if "manifest_creation_datetime" not in kwargs:
-            kwargs["manifest_creation_datetime"] = self.date_accessor.today_with_timezone("UTC")
-
-        # The Django model insists on calling this field provider_id
-        if "provider_uuid" in kwargs:
-            uuid = kwargs.pop("provider_uuid")
-            kwargs["provider_id"] = uuid
-
-        return super().add(**kwargs)
+            manifest.save(update_fields=["num_total_files"])
 
     def manifest_ready_for_summary(self, manifest_id):
         """Determine if the manifest is ready to summarize."""
-        return not self.is_last_completed_datetime_null(manifest_id)
+        return not self.is_completed_datetime_null(manifest_id)
 
     def number_of_files(self, manifest_id):
         """Return the number of files in a manifest."""
@@ -118,20 +90,18 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def number_of_files_processed(self, manifest_id):
         """Return the number of files processed in a manifest."""
-        return CostUsageReportStatus.objects.filter(
-            manifest_id=manifest_id, last_completed_datetime__isnull=False
-        ).count()
+        return CostUsageReportStatus.objects.filter(manifest_id=manifest_id, completed_datetime__isnull=False).count()
 
-    def is_last_completed_datetime_null(self, manifest_id):
-        """Determine if nulls exist in last_completed_datetime for manifest_id.
+    def is_completed_datetime_null(self, manifest_id):
+        """Determine if nulls exist in completed_datetime for manifest_id.
 
         If the record does not exist, that is equivalent to a null completed datetime.
-        Return True if record either doesn't exist or if null `last_completed_datetime`.
+        Return True if record either doesn't exist or if null `completed_datetime`.
         Return False otherwise.
 
         """
         if record := CostUsageReportStatus.objects.filter(manifest_id=manifest_id):
-            return record.filter(last_completed_datetime__isnull=True).exists()
+            return record.filter(completed_datetime__isnull=True).exists()
         return True
 
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
@@ -147,7 +117,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         return (
             CostUsageReportManifest.objects.filter(**filters)
             .values("provider_id")
-            .annotate(most_recent_manifest=Max("manifest_creation_datetime"))
+            .annotate(most_recent_manifest=Max("creation_datetime"))
         )
 
     def get_last_seen_manifest_ids(self, bill_date):
@@ -163,7 +133,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
                 row_number=Window(
                     expression=RowNumber(),
                     partition_by=F("provider_id"),
-                    order_by=F("manifest_creation_datetime").desc(),
+                    order_by=F("creation_datetime").desc(),
                 )
             )
             .order_by("row_number")
@@ -221,7 +191,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Mark CSV files have been cleared from S3 for this manifest."""
         if manifest:
             manifest.s3_csv_cleared = True
-            manifest.save()
+            manifest.save(update_fields=["s3_csv_cleared"])
 
     def should_s3_parquet_be_cleared(self, manifest: CostUsageReportManifest) -> bool:
         """
@@ -240,28 +210,78 @@ class ReportManifestDBAccessor(KokuDBAccess):
             log_json(
                 msg=f"s3 bucket should be cleared: {result}",
                 manifest_uuid=manifest.assembly_id,
-                schema=self.schema,
             )
         )
         return result
 
-    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type: str = None) -> bool:
+    def get_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_key: str = None) -> bool:
         """Return whether we have cleared CSV files from S3 for this manifest."""
         if not manifest:
             return False
-        if manifest.cluster_id and report_type:
-            return manifest.s3_parquet_cleared_tracker.get(report_type)
+        if manifest.cluster_id and report_key:
+            return manifest.s3_parquet_cleared_tracker.get(report_key)
         return manifest.s3_parquet_cleared
 
-    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_type: str = None) -> None:
+    def mark_s3_parquet_cleared(self, manifest: CostUsageReportManifest, report_key: str = None) -> None:
         """Mark Parquet files have been cleared from S3 for this manifest."""
         if not manifest:
             return
-        if manifest.cluster_id and report_type:
-            manifest.s3_parquet_cleared_tracker[report_type] = True
+        if manifest.cluster_id and report_key:
+            manifest.s3_parquet_cleared_tracker[report_key] = True
+            update_fields = ["s3_parquet_cleared_tracker"]
         else:
             manifest.s3_parquet_cleared = True
-        manifest.save()
+            update_fields = ["s3_parquet_cleared"]
+        manifest.save(update_fields=update_fields)
+
+    def mark_s3_parquet_to_be_cleared(self, manifest_id):
+        """Mark manifest to clear parquet files."""
+        manifest = self.get_manifest_by_id(manifest_id)
+        if manifest:
+            # Set this to false to reprocesses a full month of files for AWS/Azure
+            manifest.s3_parquet_cleared = False
+            manifest.save(update_fields=["s3_parquet_cleared"])
+
+    def set_manifest_daily_start_date(self, manifest_id, date):
+        """
+        Mark manifest processing daily archive start date.
+        Used to prevent grabbing different starts from partial processed data
+        """
+        date.replace(tzinfo=None)
+        # Be race condition aware
+        with transaction.atomic():
+            # Check one last time another worker has not set this already
+            check_processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+            if check_processing_date:
+                return check_processing_date
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if manifest:
+                manifest.daily_archive_start_date = date
+                manifest.save(update_fields=["daily_archive_start_date"])
+                return date
+
+    def get_manifest_daily_start_date(self, manifest_id):
+        """
+        Get manifest processing daily archive start date.
+        Used to prevent grabbing different starts from partial processed data
+        """
+        manifest = self.get_manifest_by_id(manifest_id)
+        if manifest:
+            if manifest.daily_archive_start_date:
+                return manifest.daily_archive_start_date.replace(tzinfo=None)
+
+    def update_and_get_day_file(self, day, manifest_id):
+        with transaction.atomic():
+            # With split payloads, we could have a race condition trying to update the `report_tracker`.
+            # using a transaction and `select_for_update` should minimize the risk of multiple
+            # workers trying to update this field at the same time by locking the manifest during update.
+            manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
+            if not manifest.report_tracker.get(day):
+                manifest.report_tracker[day] = 0
+            counter = manifest.report_tracker[day]
+            manifest.report_tracker[day] = counter + 1
+            manifest.save(update_fields=["report_tracker"])
+            return f"{day}_manifestid-{manifest_id}_{counter}.csv"
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""

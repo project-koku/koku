@@ -23,6 +23,14 @@ class StandardResultsSetPagination(LimitOffsetPagination):
     default_limit = 10
     max_limit = 1000
 
+    @property
+    def _default_meta(self) -> dict[str, int]:
+        return {
+            "count": self.count,
+            "limit": self.limit,
+            "offset": self.offset,
+        }
+
     @staticmethod
     def link_rewrite(request, link):
         """Rewrite the link based on the path header to only provide partial url."""
@@ -73,7 +81,7 @@ class StandardResultsSetPagination(LimitOffsetPagination):
         """Override pagination output."""
         return Response(
             {
-                "meta": {"count": self.count},
+                "meta": self._default_meta,
                 "links": {
                     "first": self.get_first_link(),
                     "next": self.get_next_link(),
@@ -162,7 +170,7 @@ class ReportPagination(StandardResultsSetPagination):
         """Override pagination output."""
         paginated_data = data.pop("data", [])
         filter_limit = data.get("filter", {}).get("limit", 0)
-        meta = {"count": self.count}
+        meta = self._default_meta
         if self.others:
             others = 0
             if self.others > filter_limit:
@@ -187,13 +195,7 @@ class ForecastListPaginator(ListPaginator):
 
     default_limit = DateHelper().this_month_end.day
 
-
-class AWSForecastListPaginator(ListPaginator):
-    """A paginator that applies a default limit based on days in month."""
-
-    default_limit = DateHelper().this_month_end.day
-
-    def __init__(self, data_set, request, cost_type):
+    def __init__(self, data_set, request, cost_type=None):
         """Initialize the paginator."""
         self.cost_type = cost_type
         self.data_set = data_set
@@ -204,21 +206,12 @@ class AWSForecastListPaginator(ListPaginator):
 
     def get_paginated_response(self, data):
         """Override pagination output."""
-        meta = {"count": self.count}
+        response = super().get_paginated_response(data)
+
         if self.cost_type:
-            meta["cost_type"] = self.cost_type
-        return Response(
-            {
-                "meta": meta,
-                "links": {
-                    "first": self.get_first_link(),
-                    "next": self.get_next_link(),
-                    "previous": self.get_previous_link(),
-                    "last": self.get_last_link(),
-                },
-                "data": data,
-            }
-        )
+            response.data["meta"]["cost_type"] = self.cost_type
+
+        return response
 
 
 class ReportRankedPagination(ReportPagination):

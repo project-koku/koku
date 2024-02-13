@@ -7,18 +7,19 @@ import logging
 import re
 from datetime import datetime
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.utils import timezone
+from model_bakery import baker
 
 from api.provider.models import Provider
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.expired_data_remover import ExpiredDataRemoverError
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -95,7 +96,8 @@ class ExpiredDataRemoverTest(MasuTestCase):
             },
         ]
         for test_case in date_matrix:
-            with patch.object(DateAccessor, "today", return_value=test_case.get("current_date")):
+            with patch("masu.processor.expired_data_remover.DateHelper.today", new_callable=PropertyMock) as mock_dh:
+                mock_dh.return_value = test_case.get("current_date")
                 retention_policy = test_case.get("months_to_keep")
                 if retention_policy:
                     remover = ExpiredDataRemover(self.schema, Provider.PROVIDER_AWS, retention_policy)
@@ -141,12 +143,12 @@ class ExpiredDataRemoverTest(MasuTestCase):
             uuids = []
             uuids_to_be_deleted = []
             for date in dates:
-                manifest_creation_datetime = current_month
-                manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=2)
+                creation_datetime = current_month
+                manifest_updated_datetime = creation_datetime + relativedelta(days=2)
                 uuid = uuid4()
                 data = {
                     "assembly_id": uuid,
-                    "manifest_creation_datetime": manifest_creation_datetime,
+                    "creation_datetime": creation_datetime,
                     "manifest_updated_datetime": manifest_updated_datetime,
                     "billing_period_start_datetime": date,
                     "num_total_files": 1,
@@ -178,7 +180,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         day_before_cutoff = expiration_date - relativedelta(days=1)
         day_before_cutoff_data = {
             "assembly_id": uuid4(),
-            "manifest_creation_datetime": None,
+            "creation_datetime": None,
             "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
             "num_total_files": 1,
@@ -219,13 +221,13 @@ class ExpiredDataRemoverTest(MasuTestCase):
         ]
         manifest_uuids = []
         manifest_uuids_to_be_deleted = []
-        manifest_creation_datetime = current_month
-        manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=2)
+        creation_datetime = current_month
+        manifest_updated_datetime = creation_datetime + relativedelta(days=2)
         for fixture_record in fixture_records:
             manifest_uuid = uuid4()
             data = {
                 "assembly_id": manifest_uuid,
-                "manifest_creation_datetime": manifest_creation_datetime,
+                "creation_datetime": creation_datetime,
                 "manifest_updated_datetime": manifest_updated_datetime,
                 "billing_period_start_datetime": fixture_record[1],
                 "num_total_files": 1,
@@ -257,7 +259,7 @@ class ExpiredDataRemoverTest(MasuTestCase):
         day_before_cutoff_data = {
             "id": manifest_id,
             "assembly_id": uuid4(),
-            "manifest_creation_datetime": None,
+            "creation_datetime": None,
             "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
             "num_total_files": 1,
@@ -265,11 +267,13 @@ class ExpiredDataRemoverTest(MasuTestCase):
         }
         manifest_entry = CostUsageReportManifest(**day_before_cutoff_data)
         manifest_entry.save()
-        manifest_helper = ManifestCreationHelper(
-            manifest_id, manifest_entry.num_total_files, manifest_entry.assembly_id
+
+        baker.make(
+            "CostUsageReportStatus",
+            _quantity=manifest_entry.num_total_files,
+            manifest_id=manifest_id,
+            completed_datetime=timezone.now(),
         )
-        manifest_helper.generate_test_report_files()
-        manifest_helper.process_all_files()
 
         count_records = CostUsageReportManifest.objects.count()
         with self.assertLogs(logger="masu.processor.expired_data_remover", level="INFO") as cm:

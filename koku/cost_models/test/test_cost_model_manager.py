@@ -96,7 +96,7 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(cost_model_map.first().provider_uuid, provider_uuid)
             self.assertEqual(
                 CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
-                [{"uuid": str(provider_uuid), "name": "sample_provider"}],
+                [{"uuid": str(provider_uuid), "name": "sample_provider", "last_processed": None}],
             )
 
     def test_create_second_cost_model_same_provider(self):
@@ -107,7 +107,9 @@ class CostModelManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name}]
+        provider_names_uuids = [
+            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+        ]
         metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = Provider.PROVIDER_OCP
         tiered_rates = [{"unit": "USD", "value": 0.22}]

@@ -163,6 +163,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     node,
     resource_id,
     pod_labels,
+    all_labels,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_effective_usage_cpu_core_hours,
@@ -254,6 +255,7 @@ SELECT uuid,
     node,
     resource_id,
     pod_labels,
+    pod_labels as all_labels,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_effective_usage_cpu_core_hours,
@@ -282,10 +284,10 @@ SELECT uuid,
     cast(cost_model_memory_cost as decimal),
     cast(cost_model_volume_cost as decimal),
     monthly_cost_type,
-    cat.id as cost_category_id
+    cat_ns.cost_category_id as cost_category_id
 FROM cte_unallocated AS uc
-LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-    ON uc.namespace LIKE ANY(cat.namespace)
+LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+    ON uc.namespace LIKE cat_ns.namespace
 ;
 
 DROP TABLE label_filtered_daily_summary

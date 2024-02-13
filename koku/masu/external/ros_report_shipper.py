@@ -16,10 +16,11 @@ from api.common import log_json
 from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
+from kafka_utils.utils import ROS_TOPIC
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.util.ocp import common as utils
 
 
 LOG = logging.getLogger(__name__)
@@ -39,7 +40,9 @@ def get_ros_s3_client():  # pragma: no cover
 def generate_s3_object_url(client, upload_key):  # pragma: no cover
     """Generate an accessible URL for an S3 object with an expiration time of 48 hours"""
     return client.generate_presigned_url(
-        ClientMethod="get_object", Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key}, ExpiresIn=172800
+        ClientMethod="get_object",
+        Params={"Bucket": settings.S3_ROS_BUCKET_NAME, "Key": upload_key},
+        ExpiresIn=masu_config.ROS_URL_EXPIRATION,
     )
 
 
@@ -48,21 +51,30 @@ class ROSReportShipper:
 
     def __init__(
         self,
+        provider,
         report_meta,
         b64_identity,
         context,
     ):
+        self.provider = provider
         self.b64_identity = b64_identity
         self.manifest_id = report_meta["manifest_id"]
         self.context = context | {"manifest_id": self.manifest_id}
+        self.source_id = str(report_meta["source_id"])
         self.provider_uuid = str(report_meta["provider_uuid"])
         self.request_id = report_meta["request_id"]
         self.schema_name = report_meta["schema_name"]
+        version = report_meta.get("version")
         self.metadata = {
             "account": context["account"],
             "org_id": context["org_id"],
-            "source_id": self.provider_uuid,
+            "source_id": self.source_id,
+            "provider_uuid": self.provider_uuid,
             "cluster_uuid": report_meta["cluster_id"],
+            "operator_version": utils.OPERATOR_VERSIONS.get(
+                version,
+                version,  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
+            ),
         }
         self.s3_client = get_ros_s3_client()
         self.dh = DateHelper()
@@ -94,7 +106,10 @@ class ROSReportShipper:
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
-        if not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context):
+        if (
+            not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context)
+            and not settings.ENABLE_ROS_DEBUG
+        ):
             msg = "ROS report handling gated by unleash - not sending kafka msg"
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
@@ -127,17 +142,15 @@ class ROSReportShipper:
     def send_kafka_message(self, msg):
         """Sends a kafka message to the ROS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
-        producer.produce(masu_config.ROS_TOPIC, value=msg, callback=delivery_callback)
+        producer.produce(ROS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
 
     def build_ros_msg(self, presigned_urls, upload_keys):
         """Gathers the relevant information for the kafka message and returns the message to be delivered."""
-        with ProviderDBAccessor(self.provider_uuid) as provider_accessor:
-            cluster_alias = provider_accessor.get_provider_name()
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,
-            "metadata": self.metadata | {"cluster_alias": cluster_alias},
+            "metadata": self.metadata | {"cluster_alias": self.provider.name},
             "files": presigned_urls,
             "object_keys": upload_keys,
         }

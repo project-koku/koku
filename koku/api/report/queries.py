@@ -636,6 +636,7 @@ class ReportQueryHandler(QueryHandler):
             if not group_data:
                 group_data = self.parameters.get_group_by("or:" + item)
             if group_data:
+                group_pos = None
                 try:
                     group_pos = self.parameters.url_data.index(item)
                 except ValueError:
@@ -710,8 +711,10 @@ class ReportQueryHandler(QueryHandler):
         whens = [
             When(project__startswith="openshift-", then=Value("default")),
             When(project__startswith="kube-", then=Value("default")),
+            When(project="openshift", then=Value("default")),
             When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
         ]
+
         if self._category:
             whens.append(When(project__in=self._category, then=Concat(Value("category_"), F("cost_category__name"))))
 
@@ -1002,6 +1005,7 @@ class ReportQueryHandler(QueryHandler):
             "infra_total",
             "cost_total",
             "cost_total_distributed",
+            "storage_class",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
@@ -1133,7 +1137,7 @@ class ReportQueryHandler(QueryHandler):
                 distinct_ranks.append(rank)
         return self._ranked_list(data, distinct_ranks, set(rank_annotations))
 
-    def _ranked_list(self, data_list, ranks, rank_fields=None):
+    def _ranked_list(self, data_list, ranks, rank_fields=None):  # noqa C901
         """Get list of ranked items less than top.
 
         Args:
@@ -1193,8 +1197,17 @@ class ReportQueryHandler(QueryHandler):
 
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
+        account_aliases = None
+        merge_on = group_by + ["date"]
+        if self.is_aws and "account" in group_by:
+            account_aliases = data_frame[["account", "account_alias"]]
+            account_aliases = account_aliases.drop_duplicates(subset="account")
         data_frame.drop(columns=drop_columns, inplace=True, errors="ignore")
-        data_frame = data_frame.merge(ranks_by_day, how="right", on=(group_by + ["date"]))
+        data_frame = data_frame.merge(ranks_by_day, how="right", on=merge_on)
+
+        if self.is_aws and "account" in group_by:
+            data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
+            data_frame = data_frame.merge(account_aliases, on="account", how="left")
 
         if is_offset:
             data_frame = data_frame[

@@ -6,16 +6,15 @@
 import copy
 import logging
 
-from django_tenants.utils import schema_context
+from django.db import transaction
 
 from api.metrics import constants as metric_constants
 from cost_models.models import CostModel
-from masu.database.koku_database_access import KokuDBAccess
 
 LOG = logging.getLogger(__name__)
 
 
-class CostModelDBAccessor(KokuDBAccess):
+class CostModelDBAccessor:
     """Class to interact with customer reporting tables."""
 
     def __init__(self, schema, provider_uuid):
@@ -26,16 +25,26 @@ class CostModelDBAccessor(KokuDBAccess):
             provider_uuid (str): Provider uuid
 
         """
-        super().__init__(schema)
+        self.schema = schema
         self.provider_uuid = provider_uuid
         self._cost_model = None
+
+    def __enter__(self):
+        """Enter context manager."""
+        connection = transaction.get_connection()
+        connection.set_schema(self.schema)
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        """Context manager reset schema to public and exit."""
+        connection = transaction.get_connection()
+        connection.set_schema_to_public()
 
     @property
     def cost_model(self):
         """Return the cost model database object."""
         if self._cost_model is None:
-            with schema_context(self.schema):
-                self._cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
+            self._cost_model = CostModel.objects.filter(costmodelmap__provider_uuid=self.provider_uuid).first()
         return self._cost_model
 
     @property

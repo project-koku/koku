@@ -330,7 +330,7 @@ class UserAccessViewTest(IamTestCase):
     def test_openshift_view_query_read_for_aws(self):
         """Test user-access view query for aws with openshift permissions."""
         url = reverse("user-access")
-        query_url = f"{url}?type=aws"
+        query_url = f"{url}?type=AWS"
         response = self.client.get(query_url, **self.headers)
 
         self.assertFalse(response.data.get("data"))

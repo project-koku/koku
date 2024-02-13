@@ -50,8 +50,10 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
         """Delete a source."""
         schema_name = request.user.customer.schema_name
+        account_number = request.user.customer.account_id
+        org_id = request.user.customer.org_id
         source = self.get_object()
-        manager = ProviderBuilder(request.user.identity_header.get("encoded"))
+        manager = ProviderBuilder(request.user.identity_header.get("encoded"), account_number, org_id)
         for _ in range(5):
             try:
                 manager.destroy_provider(source.koku_uuid)

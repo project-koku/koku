@@ -16,7 +16,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.user_settings.settings import USER_SETTINGS
+from api.settings.settings import USER_SETTINGS
 from api.utils import DateHelper
 from api.utils import get_account_settings
 from api.utils import get_cost_type

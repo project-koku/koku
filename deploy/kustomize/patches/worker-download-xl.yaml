@@ -39,6 +39,12 @@
               optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -59,6 +65,8 @@
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: PANDAS_COLUMN_BATCH_SIZE
+          value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
@@ -105,6 +113,12 @@
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
@@ -148,6 +162,7 @@
         successThreshold: 1
         failureThreshold: 5
         timeoutSeconds: 10
+      terminationGracePeriodSeconds: 3600
       resources:
         limits:
           cpu: ${WORKER_DOWNLOAD_XL_CPU_LIMIT}

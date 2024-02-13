@@ -11,8 +11,6 @@ import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
-from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.accounts_accessor import AccountsAccessor
 from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -42,9 +40,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
-
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
     if not provider:
         err_msg = "Provider UUID is not associated with a given provider."
         LOG.warning(err_msg)
@@ -61,8 +57,9 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.filter(billing_period_start__gte=start_date)
         if end_date:
             bills = bills.filter(billing_period_start__lte=end_date)
-
-        bills = list(bills.all())
+        # postgres doesn't always return this query in the same order, ordering by ID (PK) will
+        # ensure that any list iteration or indexing is always done in the same order
+        bills = list(bills.order_by("id").all())
 
     return bills
 
@@ -72,18 +69,27 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     tags = data_frame["labels"]
     tags = tags.str.lower()
     resource_id_df = data_frame.get("resource_name")
-    match_columns = []
+    match_by_resource_id = resource_id_df.any()
 
-    for i, cluster_topology in enumerate(cluster_topologies):
-        match_col_name = f"ocp_matched_{i}"
+    # instantiate an empty column which can be updated over each topology
+    data_frame["ocp_source_uuid"] = ""
+
+    # use this column to track matched ocp sources. only rows where this column
+    # is True will update the `ocp_source_uuid` column. After iterating the
+    # topologies, this tmp column is dropped.
+    tmp_match_col_name = "tmp_ocp_matched"
+
+    for cluster_topology in cluster_topologies:
         cluster_id = cluster_topology.get("cluster_id", "")
         cluster_alias = cluster_topology.get("cluster_alias", "")
-        nodes = cluster_topology.get("nodes", [])
-        volumes = cluster_topology.get("persistent_volumes", [])
+        nodes = list(filter(None, cluster_topology.get("nodes", [])))
+        volumes = list(filter(None, cluster_topology.get("persistent_volumes", [])))
         matchable_resources = nodes + volumes
 
-        if resource_id_df.any():
+        if match_by_resource_id:
             LOG.info("Matching OpenShift on GCP by resource ID.")
+            if not matchable_resources:
+                continue
             ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
         else:
             LOG.info("Matching OpenShift on GCP by labels.")
@@ -93,16 +99,12 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             ocp_matched = tags.str.contains("|".join(cluster_strings))
 
         # Add in OCP Cluster these resources matched to
-        data_frame[match_col_name] = ocp_matched
-        data_frame.loc[data_frame[match_col_name] == True, "ocp_source_uuid"] = cluster_topology.get(  # noqa: E712
-            "provider_uuid"
-        )
-        match_columns.append(match_col_name)
+        data_frame[tmp_match_col_name] = ocp_matched
+        data_frame.loc[data_frame[tmp_match_col_name], "ocp_source_uuid"] = cluster_topology.get("provider_uuid")
 
     # Consildate the columns per cluster into a single column
-    data_frame.loc[data_frame["ocp_source_uuid"].notnull(), "ocp_matched"] = True
-    data_frame = data_frame.drop(columns=match_columns)
-    data_frame["ocp_source_uuid"].fillna(value="", inplace=True)
+    data_frame["ocp_matched"] = data_frame["ocp_source_uuid"].str.len() > 0
+    data_frame = data_frame.drop(columns=tmp_match_col_name, errors="ignore")
 
     special_case_tag_matched = tags.str.contains(
         "|".join(
@@ -199,26 +201,24 @@ def deduplicate_reports_for_gcp(report_list):
 
 def check_resource_level(gcp_provider_uuid):
     LOG.info("Fetching account for checking unleash resource level")
-    account = AccountsAccessor().get_accounts(gcp_provider_uuid)
-    if account != []:
-        if is_gcp_resource_matching_disabled(account[0].get("schema_name")):
-            LOG.info(f"GCP resource matching disabled for {account[0].get('schema_name')}")
+    if provider := Provider.objects.filter(uuid=gcp_provider_uuid).first():
+        account = provider.account
+        if is_gcp_resource_matching_disabled(account.get("schema_name")):
+            LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
             return False
     else:
         LOG.info("Account not returned, source likely has processing suspended.")
         return False
-    with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
-        source = provider_accessor.get_data_source()
-        if source:
-            if not source.get("storage_only"):
-                if "resource" in source.get("table_id"):
-                    LOG.info("OCP GCP matching set to resource level")
-                    return True
-            else:
-                LOG.info("Storage only source defaults to resource level only")
+    if source := provider.account.get("data_source"):
+        if not source.get("storage_only"):
+            if "resource" in source.get("table_id"):
+                LOG.info("OCP GCP matching set to resource level")
                 return True
-        LOG.info("Defaulting to GCP tag matching")
-        return False
+        else:
+            LOG.info("Storage only source defaults to resource level only")
+            return True
+    LOG.info("Defaulting to GCP tag matching")
+    return False
 
 
 def add_label_columns(data_frame):

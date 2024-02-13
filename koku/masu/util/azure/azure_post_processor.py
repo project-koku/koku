@@ -1,13 +1,19 @@
 import json
+import logging
 
 import ciso8601
+import pandas
 from numpy import nan
 
 from api.models import Provider
+from masu.util.azure.common import INGRESS_ALT_COLUMNS
+from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import populate_enabled_tag_rows_with_limit
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
-from reporting.provider.azure.models import TRINO_COLUMNS
+from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS
+
+LOG = logging.getLogger(__name__)
 
 
 def azure_json_converter(tag_str):
@@ -42,68 +48,6 @@ def azure_date_converter(date):
 
 
 class AzurePostProcessor:
-
-    INGRESS_REQUIRED_COLUMNS = {
-        "SubscriptionGuid",
-        "ResourceGroup",
-        "ResourceLocation",
-        "UsageDateTime",
-        "MeterCategory",
-        "MeterSubcategory",
-        "MeterId",
-        "MeterName",
-        "MeterRegion",
-        "UsageQuantity",
-        "ResourceRate",
-        "PreTaxCost",
-        "ConsumedService",
-        "ResourceType",
-        "InstanceId",
-        "OfferId",
-        "AdditionalInfo",
-        "ServiceInfo1",
-        "ServiceInfo2",
-        "ServiceName",
-        "ServiceTier",
-        "Currency",
-        "UnitOfMeasure",
-    }
-
-    INGRESS_ALT_COLUMNS = {
-        "SubscriptionId",
-        "ResourceGroup",
-        "ResourceLocation",
-        "Date",
-        "MeterCategory",
-        "MeterSubCategory",
-        "MeterId",
-        "MeterName",
-        "MeterRegion",
-        "UnitOfMeasure",
-        "Quantity",
-        "EffectivePrice",
-        "CostInBillingCurrency",
-        "ConsumedService",
-        "ResourceId",
-        "OfferId",
-        "AdditionalInfo",
-        "ServiceInfo1",
-        "ServiceInfo2",
-        "ResourceName",
-        "ReservationId",
-        "ReservationName",
-        "UnitPrice",
-        "PublisherType",
-        "PublisherName",
-        "ChargeType",
-        "BillingAccountId",
-        "BillingAccountName",
-        "BillingCurrencyCode",
-        "BillingPeriodStartDate",
-        "BillingPeriodEndDate",
-        "ServiceFamily",
-    }
-
     def __init__(self, schema):
         self.schema = schema
         self.enabled_tag_keys = set()
@@ -112,9 +56,9 @@ class AzurePostProcessor:
         """
         Checks the required columns for ingress.
         """
-        if not set(col_names).issuperset(self.INGRESS_REQUIRED_COLUMNS):
-            if not set(col_names).issuperset(self.INGRESS_ALT_COLUMNS):
-                missing_columns = [x for x in self.INGRESS_REQUIRED_COLUMNS if x not in col_names]
+        if not set(col_names).issuperset(INGRESS_REQUIRED_COLUMNS):
+            if not set(col_names).issuperset(INGRESS_ALT_COLUMNS):
+                missing_columns = [x for x in INGRESS_REQUIRED_COLUMNS if x not in col_names]
                 return missing_columns
         return None
 
@@ -160,15 +104,14 @@ class AzurePostProcessor:
 
         data_frame = data_frame.rename(columns=column_name_map)
 
-        columns = set(data_frame)
-        columns = set(TRINO_COLUMNS).union(columns)
-        columns = sorted(columns)
-
-        data_frame = data_frame.reindex(columns=columns)
+        missing = set(TRINO_REQUIRED_COLUMNS).difference(data_frame)
+        to_add = {k: TRINO_REQUIRED_COLUMNS[k] for k in missing}
+        data_frame = data_frame.assign(**to_add)
 
         unique_tags = set()
-        for tags_json in data_frame["tags"]:
-            unique_tags.update(json.loads(tags_json))
+        for tags_json in data_frame["tags"].values:
+            if pandas.notnull(tags_json):
+                unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
         return data_frame, self._generate_daily_data(data_frame)
 

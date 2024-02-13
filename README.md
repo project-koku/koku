@@ -1,10 +1,8 @@
 # Koku README
 
 [![license](https://img.shields.io/github/license/project-koku/koku.svg)](https://github.com/project-koku/koku/blob/main/LICENSE)
-[![Unittests](https://github.com/project-koku/koku/workflows/Unit%20Tests/badge.svg)](https://github.com/project-koku/koku/actions)
+[![CI](https://github.com/project-koku/koku/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/project-koku/koku/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/project-koku/koku/branch/main/graph/badge.svg)](https://codecov.io/gh/project-koku/koku)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=coverage)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
 
 ## About
 
@@ -20,7 +18,7 @@ This project is developed using Python 3.11. Make sure you have at least this ve
 
 ### Prerequisites
 
-- Docker
+- Docker or Rancher Desktop
 - (macOS only) [Install Homebrew](https://brew.sh/)
 
 ## Development
@@ -75,7 +73,7 @@ do the following:
 
 ### Developing with Docker Compose
 
-This will explain how to start the server and its dependencies usin Docker, create AWS/OCP sources, and view reports. This will not cover all API or scenarios but should give you an end-to-end flow.
+This will explain how to start the server and its dependencies using Docker (or Rancher Desktop), create AWS/OCP sources, and view reports. This will not cover all API or scenarios but should give you an end-to-end flow.
 
 #### Starting Koku using Docker Compose
 

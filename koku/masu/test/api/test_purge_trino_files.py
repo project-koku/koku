@@ -6,6 +6,7 @@
 from unittest.mock import ANY
 from unittest.mock import patch
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from celery.result import AsyncResult
 from django.test.utils import override_settings
@@ -44,7 +45,7 @@ class PurgeTrinoFilesTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_provider_uuid_does_not_exist(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
-        fake_uuid = "12345"
+        fake_uuid = uuid4()
         params = {"provider_uuid": fake_uuid}
         query_string = urlencode(params)
         url = reverse("purge_trino_files") + "?" + query_string

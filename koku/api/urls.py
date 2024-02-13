@@ -8,6 +8,7 @@ from django.urls import path
 from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
+from api.common.deprecate_view import SunsetView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -29,6 +30,9 @@ from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
+from api.views import CostGroupsAddView
+from api.views import CostGroupsRemoveView
+from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
@@ -86,8 +90,10 @@ from api.views import openapi
 from api.views import ResourceTypeView
 from api.views import SettingsAWSCategoryKeyView
 from api.views import SettingsDisableAWSCategoryKeyView
+from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
-from api.views import SettingsView
+from api.views import SettingsEnableTagView
+from api.views import SettingsTagView
 from api.views import StatusView
 from api.views import UserAccessView
 from api.views import UserCostTypeSettings
@@ -342,8 +348,10 @@ urlpatterns = [
     ),
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
-    path("settings/", SettingsView.as_view(), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
+    path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
+    path("settings/cost-groups/add/", CostGroupsAddView.as_view(), name="settings-cost-groups-add"),
+    path("settings/cost-groups/remove/", CostGroupsRemoveView.as_view(), name="settings-cost-groups-remove"),
     path(
         "settings/aws_category_keys/enable/",
         SettingsEnableAWSCategoryKeyView.as_view(),
@@ -354,6 +362,9 @@ urlpatterns = [
         SettingsDisableAWSCategoryKeyView.as_view(),
         name="settings-aws-category-keys-disable",
     ),
+    path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
+    path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
+    path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
@@ -470,5 +481,8 @@ urlpatterns = [
         ),
         name="reports-openshift-gcp-storage",
     ),
+    # Sunset paths
+    # These endpoints have been removed from the codebase
+    path("settings/", SunsetView, name="settings"),
 ]
 urlpatterns += ROUTER.urls

@@ -3,22 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Report Processing Orchestrator."""
+import copy
 import logging
+from datetime import datetime
 
 from celery import chord
 from celery import group
+from dateutil import parser
+from dateutil.relativedelta import relativedelta
+from django.conf import settings
 
 from api.common import log_json
-from api.models import Provider
+from api.provider.models import check_provider_setup_complete
+from api.provider.models import Provider
 from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
-from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.account_label import AccountLabel
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
-from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_cloud_source_processing_disabled
@@ -34,10 +35,40 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
+from masu.util.aws.common import update_account_aliases
 from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
 
+
 LOG = logging.getLogger(__name__)
+
+
+def get_billing_month_start(in_date):
+    """Return the start of the month for the input."""
+    if isinstance(in_date, str):
+        return parser.parse(in_date).replace(day=1).date()
+    elif isinstance(in_date, datetime):
+        return in_date.replace(day=1).date()
+    else:
+        return in_date.replace(day=1)
+
+
+def get_billing_months(number_of_months):
+    """Return a list of datetimes for the number of months to ingest
+
+    Args:
+        number_of_months (int) The the number of months (bills) to ingest.
+
+    Returns:
+        (list) of datetime.datetime objects in YYYY-MM-DD format.
+        example: ["2020-01-01", "2020-02-01"]
+    """
+    months = []
+    current_month = DateHelper().this_month_start
+    for month in range(number_of_months):
+        calculated_month = current_month + relativedelta(months=-month)
+        months.append(calculated_month.date())
+    return months
 
 
 class Orchestrator:
@@ -52,89 +83,51 @@ class Orchestrator:
 
     def __init__(
         self,
-        billing_source=None,
         provider_uuid=None,
         provider_type=None,
-        scheduled=False,
         bill_date=None,
         queue_name=None,
         **kwargs,
     ):
-        """
-        Orchestrator for processing.
-
-        Args:
-            billing_source (String): Individual account to retrieve.
-
-        """
+        self.dh = DateHelper()
         self.worker_cache = WorkerCache()
-        self.billing_source = billing_source
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
         self.provider_type = provider_type
-        self.scheduled = scheduled
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
-        self._accounts, self._polling_accounts = self.get_accounts(
-            self.billing_source,
-            self.provider_uuid,
-            self.provider_type,
-            self.scheduled,
-        )
         self._summarize_reports = kwargs.get("summarize_reports", True)
 
-    @staticmethod
-    def get_accounts(billing_source=None, provider_uuid=None, provider_type=None, scheduled=False):
-        """
-        Prepare a list of accounts for the orchestrator to get CUR from.
+    def get_polling_batch(self):
+        if self.provider_uuid:
+            providers = Provider.objects.filter(uuid=self.provider_uuid)
+        else:
+            filters = {}
+            if self.provider_type:
+                filters["type"] = self.provider_type
+            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE, filters=filters)
 
-        If billing_source is not provided all accounts will be returned, otherwise
-        only the account for the provided billing_source will be returned.
-
-        Still a work in progress, but works for now.
-
-        Args:
-            billing_source (String): Individual account to retrieve.
-            provider_uuid  (String): Individual provider UUID.
-            provider_type  (String): Specific provider type.
-
-        Returns:
-            [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
-
-        """
-        all_accounts = []
-        polling_accounts = []
-        try:
-            all_accounts = AccountsAccessor().get_accounts(provider_uuid, provider_type, scheduled)
-        except AccountsAccessorError as error:
-            LOG.error("Unable to get accounts. Error: %s", str(error))
-
-        if billing_source:
-            for account in all_accounts:
-                if billing_source == account.get("billing_source"):
-                    all_accounts = [account]
-
-        for account in all_accounts:
-            schema_name = account.get("schema_name")
-            if is_cloud_source_processing_disabled(schema_name) and not provider_uuid:
-                LOG.info(log_json("get_accounts", msg="processing disabled for schema", schema=schema_name))
+        batch = []
+        for provider in providers:
+            provider.polling_timestamp = self.dh.now
+            provider.save(update_fields=["polling_timestamp"])
+            schema_name = provider.account.get("schema_name")
+            if is_cloud_source_processing_disabled(schema_name):
+                LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
                 continue
-            if is_source_disabled(provider_uuid):
+            if is_source_disabled(provider.uuid):
                 LOG.info(
                     log_json(
-                        "get_accounts",
+                        "get_polling_batch",
                         msg="processing disabled for source",
                         schema=schema_name,
-                        provider_uuid=provider_uuid,
+                        provider_uuid=provider.uuid,
                     )
                 )
                 continue
-
-            if AccountsAccessor().is_polling_account(account):
-                polling_accounts.append(account)
-
-        return all_accounts, polling_accounts
+            batch.append(provider)
+        return batch
 
     def get_reports(self, provider_uuid):
         """
@@ -147,24 +140,29 @@ class Orchestrator:
             (List) List of datetime objects.
 
         """
-        with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
-            reports_processed = provider_accessor.get_setup_complete()
-
         if self.bill_date:
             if self.ingress_reports:
                 bill_date = f"{self.bill_date}01"
-                return [DateAccessor().get_billing_month_start(bill_date)]
-            return [DateAccessor().get_billing_month_start(self.bill_date)]
+                return [get_billing_month_start(bill_date)]
+            return [get_billing_month_start(self.bill_date)]
 
-        if Config.INGEST_OVERRIDE or not reports_processed:
+        if Config.INGEST_OVERRIDE or not check_provider_setup_complete(provider_uuid):
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
         else:
             number_of_months = 2
 
-        return sorted(DateAccessor().get_billing_months(number_of_months), reverse=True)
+        return get_billing_months(number_of_months)
 
     def start_manifest_processing(  # noqa: C901
-        self, customer_name, credentials, data_source, provider_type, schema_name, provider_uuid, report_month
+        self,
+        customer_name,
+        credentials,
+        data_source,
+        provider_type,
+        schema_name,
+        provider_uuid,
+        report_month,
+        **kwargs,
     ):
         """
         Start processing an account's manifest for the specified report_month.
@@ -210,6 +208,7 @@ class Orchestrator:
         # only GCP and OCI return more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
         report_tasks = []
+        LOG.info(log_json("start_manifest_processing", msg="creating manifest list", schema=schema_name))
         for manifest in manifest_list:
             tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
             report_files = manifest.get("files", [])
@@ -301,6 +300,15 @@ class Orchestrator:
                 LOG.info(log_json(tracing_id, msg="download queued", schema=schema_name))
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
+        LOG.info(
+            log_json(
+                "start_manifest_processing",
+                msg="created manifest list",
+                report_tasks=report_tasks,
+                summarize_reports=self._summarize_reports,
+                schema=schema_name,
+            )
+        )
         if report_tasks:
             if self._summarize_reports:
                 reports_tasks_queued = True
@@ -308,10 +316,32 @@ class Orchestrator:
                 summary_task = summarize_reports.s(
                     manifest_list=manifest_list, ingress_report_uuid=self.ingress_report_uuid
                 ).set(queue=SUMMARY_QUEUE)
-                subs_task = extract_subs_data_from_reports.s().set(queue=SUBS_EXTRACTION_QUEUE)
+                LOG.info(
+                    log_json(
+                        "start_manifest_processing",
+                        msg="created summary_task signature",
+                        schema=schema_name,
+                        summary_task=str(summary_task),
+                        hcs_task=str(hcs_task),
+                    )
+                )
+                # data source contains fields from applications.extra and metered is the key that gates subs processing.
+                subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
+                    queue=SUBS_EXTRACTION_QUEUE
+                )
+                LOG.info(log_json("start_manifest_processing", msg="created subs_task signature", schema=schema_name))
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
+                LOG.info(
+                    log_json(
+                        "start_manifest_processing",
+                        msg="created chord with group",
+                        async_id=str(async_id),
+                        schema=schema_name,
+                    )
+                )
             else:
                 async_id = group(report_tasks)()
+
             LOG.info(log_json(tracing_id, msg=f"Manifest Processing Async ID: {async_id}", schema=schema_name))
 
         return manifest_list, reports_tasks_queued
@@ -321,21 +351,25 @@ class Orchestrator:
         Select the correct prepare function based on source type for processing each account.
 
         """
-        for account in self._polling_accounts:
-            provider_uuid = account.get("provider_uuid")
-            provider_type = account.get("provider_type")
+        providers = self.get_polling_batch()
+        if not providers:
+            LOG.info(log_json(msg="no accounts to be polled"))
 
-            if provider_type in [
+        LOG.info(log_json(msg="polling accounts", count=len(providers)))
+        for provider in providers:
+            LOG.info(log_json(msg="polling for account", provider_uuid=provider.uuid))
+
+            if provider.type in [
                 Provider.PROVIDER_OCI,
                 Provider.PROVIDER_OCI_LOCAL,
                 Provider.PROVIDER_GCP,
                 Provider.PROVIDER_GCP_LOCAL,
             ]:
-                self.prepare_continuous_report_sources(account, provider_uuid)
+                self.prepare_continuous_report_sources(provider)
             else:
-                self.prepare_monthly_report_sources(account, provider_uuid)
+                self.prepare_monthly_report_sources(provider)
 
-    def prepare_monthly_report_sources(self, account, provider_uuid):
+    def prepare_monthly_report_sources(self, provider: Provider):
         """
         Prepare processing for source types that have monthly billing reports AWS/Azure.
 
@@ -343,24 +377,25 @@ class Orchestrator:
         Any report it finds are queued to the appropriate celery task to download
         and process those reports.
         """
-        tracing_id = provider_uuid
+        tracing_id = provider.uuid
+        account = copy.deepcopy(provider.account)
         schema = account.get("schema_name")
         accounts_labeled = False
-        report_months = self.get_reports(provider_uuid)
+        report_months = self.get_reports(provider.uuid)
         for month in report_months:
             LOG.info(
                 log_json(
                     tracing_id,
                     msg=f"getting {month.strftime('%B %Y')} report files",
                     schema=schema,
-                    provider_uuid=provider_uuid,
+                    provider_uuid=provider.uuid,
                 )
             )
             account["report_month"] = month
             try:
                 LOG.info(
                     log_json(
-                        tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider_uuid
+                        tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid
                     )
                 )
                 _, reports_tasks_queued = self.start_manifest_processing(**account)
@@ -369,49 +404,42 @@ class Orchestrator:
                         tracing_id,
                         msg=f"manifest processing tasks queued: {reports_tasks_queued}",
                         schema=schema,
-                        provider_uuid=provider_uuid,
+                        provider_uuid=provider.uuid,
                     )
                 )
 
                 # update labels
                 if reports_tasks_queued and not accounts_labeled:
+                    if provider.type not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+                        continue
                     LOG.info(
                         log_json(
                             tracing_id,
-                            msg="running AccountLabel to get account aliases",
+                            msg="updating account aliases",
                             schema=schema,
-                            provider_uuid=provider_uuid,
+                            provider_uuid=provider.uuid,
                         )
                     )
-                    labeler = AccountLabel(
-                        auth=account.get("credentials"),
-                        schema=account.get("schema_name"),
-                        provider_type=account.get("provider_type"),
-                    )
-                    account_number, label = labeler.get_label_details()
-                    accounts_labeled = True
-                    if account_number:
-                        LOG.info(
-                            log_json(
-                                tracing_id,
-                                msg="account labels updated",
-                                schema=schema,
-                                provider_uuid=provider_uuid,
-                                account=account_number,
-                                label=label,
-                            )
+                    update_account_aliases(provider)
+                    LOG.info(
+                        log_json(
+                            tracing_id,
+                            msg="done updating account aliases",
+                            schema=schema,
+                            provider_uuid=provider.uuid,
                         )
+                    )
 
             except ReportDownloaderError as err:
-                LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+                LOG.warning(f"Unable to download manifest for provider: {provider.uuid}. Error: {str(err)}.")
                 continue
             except Exception as err:
                 # Broad exception catching is important here because any errors thrown can
                 # block all subsequent account processing.
-                LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+                LOG.error(f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.")
                 continue
 
-    def prepare_continuous_report_sources(self, account, provider_uuid):
+    def prepare_continuous_report_sources(self, provider: Provider):
         """
         Prepare processing for source types that have continious reports GCP/OCI.
 
@@ -419,18 +447,18 @@ class Orchestrator:
         Any report it finds are queued to the appropriate celery task to download
         and process those reports.
         """
-        tracing_id = provider_uuid
+        tracing_id = provider.uuid
+        account = copy.deepcopy(provider.account)
         schema = account.get("schema_name")
-        LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider_uuid))
-        dh = DateHelper()
+        LOG.info(log_json(tracing_id, msg="getting latest report files", schema=schema, provider_uuid=provider.uuid))
         if self.ingress_reports:
-            start_date = DateAccessor().get_billing_month_start(f"{self.bill_date}01")
+            start_date = get_billing_month_start(f"{self.bill_date}01")
         else:
-            start_date = dh.today
+            start_date = self.dh.today
         account["report_month"] = start_date
         try:
             LOG.info(
-                log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider_uuid)
+                log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid)
             )
             _, reports_tasks_queued = self.start_manifest_processing(**account)
             LOG.info(
@@ -438,15 +466,15 @@ class Orchestrator:
                     tracing_id,
                     msg=f"manifest processing tasks queued: {reports_tasks_queued}",
                     schema=schema,
-                    provider_uuid=provider_uuid,
+                    provider_uuid=provider.uuid,
                 )
             )
         except ReportDownloaderError as err:
-            LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+            LOG.warning(f"Unable to download manifest for provider: {provider.uuid}. Error: {str(err)}.")
         except Exception as err:
             # Broad exception catching is important here because any errors thrown can
             # block all subsequent account processing.
-            LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+            LOG.error(f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.")
 
     def remove_expired_report_data(self, simulate=False):
         """
@@ -460,7 +488,7 @@ class Orchestrator:
 
         """
         async_results = []
-        for account in self._accounts:
+        for account in Provider.objects.get_accounts():
             LOG.info("Calling remove_expired_data with account: %s", account)
             async_result = remove_expired_data.delay(
                 schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate

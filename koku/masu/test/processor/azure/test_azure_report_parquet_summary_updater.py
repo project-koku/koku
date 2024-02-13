@@ -6,6 +6,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+import ciso8601
 from django.conf import settings
 from django_tenants.utils import schema_context
 
@@ -35,9 +36,11 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         # Previous month
         start_str = (self.dh.last_month_end - timedelta(days=3)).isoformat()
         end_str = self.dh.last_month_end.isoformat()
+        expected_start = ciso8601.parse_datetime(start_str).date()
+        expected_end = ciso8601.parse_datetime(end_str).date()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
-        self.assertEqual(start, self.dh.last_month_start.date())
-        self.assertEqual(end, self.dh.last_month_end.date())
+        self.assertEqual(start, expected_start)
+        self.assertEqual(end, expected_end)
 
         # Current month
         with ReportManifestDBAccessor() as manifest_accessor:

@@ -58,8 +58,8 @@ class OCPReportViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
-        cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs")
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh.now, 9)
+        cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs", cls.schema_name)
         cls.cost_term = (
             cls.provider_map.cloud_infrastructure_cost
             + cls.provider_map.markup_cost
@@ -1126,15 +1126,14 @@ class OCPReportViewTest(IamTestCase):
             labels = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .filter(pod_labels__has_key=filter_key)
-                .values(*["pod_labels"])
+                .values(*["all_labels"])
                 .all()
             )
-            label_of_interest = labels[0]
-            filter_value = label_of_interest.get("pod_labels", {}).get(filter_key)
-
+            label_of_interest = labels[1]
+            filter_value = label_of_interest.get("all_labels", {}).get(filter_key)
+            tag_filter = {f"all_labels__{filter_key}": filter_value, "usage_start__gte": self.ten_days_ago.date()}
             totals = (
-                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
-                .filter(**{f"pod_labels__{filter_key}": filter_value})
+                OCPUsageLineItemDailySummary.objects.filter(**tag_filter)
                 .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
                 .aggregate(cost=self.cost_term)
             )

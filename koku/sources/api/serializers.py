@@ -118,9 +118,9 @@ class AdminSourcesSerializer(SourcesSerializer):
     def create(self, validated_data):
         """Create a source from validated data."""
         auth_header = get_auth_header(self.context.get("request"))
-        manager = ProviderBuilder(auth_header)
         validated_data["auth_header"] = auth_header
         source = Sources.objects.create(**validated_data)
+        manager = ProviderBuilder(source.auth_header, source.account_id, source.org_id)
         try:
             provider = manager.create_provider_from_source(source)
         except SkipStatusPush:

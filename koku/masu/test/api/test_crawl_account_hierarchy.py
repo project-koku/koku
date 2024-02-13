@@ -6,6 +6,7 @@
 from datetime import datetime
 from unittest.mock import patch
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -106,7 +107,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_crawl_account_hierarchy_bad_provider_uuid(self, _):
         """Test the GET crawl_account_hierarchy endpoint with bad provider uuid."""
-        bad_provider_uuid = "bad_provider_uuid"
+        bad_provider_uuid = uuid4()
         params = {"provider_uuid": bad_provider_uuid}
         query_string = urlencode(params)
         url = reverse("crawl_account_hierarchy") + "?" + query_string

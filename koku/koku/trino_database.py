@@ -1,9 +1,11 @@
 import logging
 import os
 import re
+import typing as t
 
 import sqlparse
 import trino
+from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
 
@@ -14,12 +16,66 @@ NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
-class PreprocessStatementError(Exception):
-    pass
-
-
 class TrinoStatementExecError(Exception):
-    pass
+    def __init__(
+        self,
+        statement: str,
+        statement_number: int,
+        sql_params: dict[str, t.Any],
+        trino_error: t.Optional[TrinoQueryError] = None,
+    ):
+        self.statement = statement
+        self.statement_number = statement_number
+        self.sql_params = sql_params
+        self._trino_error = trino_error
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"type={self.error_type}, "
+            f"name={self.error_name}, "
+            f"message={self.message}, "
+            f"query_id={self.query_id})"
+        )
+
+    def __str__(self):
+        return (
+            f"Trino Query Error ({self._trino_error.__class__.__name__}) : "
+            f"{self._trino_error} statement number {self.statement_number}{os.linesep}"
+            f"Statement: {self.statement}{os.linesep}"
+            f"Parameters: {self.sql_params}"
+        )
+
+    def __reduce__(self):
+        return (self.__class__, (self.statement, self.statement_number, self.sql_params, self._trino_error))
+
+    @property
+    def error_code(self) -> t.Optional[int]:
+        return self._trino_error.error_code
+
+    @property
+    def error_name(self) -> t.Optional[str]:
+        return self._trino_error.error_name
+
+    @property
+    def error_type(self) -> t.Optional[str]:
+        return self._trino_error.error_type
+
+    @property
+    def error_exception(self) -> t.Optional[str]:
+        return self._trino_error.error_exception
+
+    @property
+    def failure_info(self) -> t.Optional[dict[str, t.Any]]:
+        return self._trino_error.failure_info
+
+    @property
+    def message(self) -> str:
+        return self._trino_error.message
+
+    @property
+    def query_id(self) -> t.Optional[str]:
+        return self._trino_error.query_id
 
 
 def connect(**connect_args):
@@ -46,6 +102,7 @@ def connect(**connect_args):
         ),
         "schema": connect_args["schema"],
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
+        "max_attempts": 9,  # based on exponential backoff used in the trino lib, 9 max retries with take ~100 seconds
     }
     return trino.dbapi.connect(**trino_connect_args)
 
@@ -76,17 +133,8 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
             p_stmt = p_stmt.removesuffix(";")
             # This is typically for jinjasql templated sql
             if preprocessor and params:
-                try:
-                    stmt, s_params = preprocessor(p_stmt, params)
-                except Exception as e:
-                    LOG.warning(
-                        f"Preprocessor Error ({e.__class__.__name__}) : {str(e)}{os.linesep}"
-                        + f"Statement template : {p_stmt}"
-                        + os.linesep
-                        + f"Parameters : {params}"
-                    )
-                    exc_type = e.__class__.__name__
-                    raise PreprocessStatementError(f"{exc_type} :: {e}") from e
+                stmt, s_params = preprocessor(p_stmt, params)
+                LOG.debug(f"processed templated sql:\n\tstmt: {stmt}\n\ts_params: {s_params}")
             else:
                 stmt, s_params = p_stmt, params
 
@@ -94,15 +142,15 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 cur = trino_conn.cursor()
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
-            except Exception as e:
-                exc_msg = (
-                    f"Trino Query Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}{os.linesep}"
-                    + f"Statement: {stmt}"
-                    + os.linesep
-                    + f"Parameters: {s_params}"
+            except TrinoQueryError as trino_exc:
+                trino_statement_error = TrinoStatementExecError(
+                    statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
                 )
-                LOG.warning(exc_msg)
-                raise TrinoStatementExecError(exc_msg) from e
+                LOG.warning(f"{trino_statement_error!s}")
+                raise trino_statement_error from trino_exc
+            except Exception as exc:
+                LOG.warning(str(exc))
+                raise
 
             all_results.extend(results)
 

@@ -107,7 +107,9 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
             models.Index(fields=["monthly_cost_type"], name="monthly_cost_type_idx"),
             models.Index(fields=["cost_model_rate_type"], name="cost_model_rate_type_idx"),
+            GinIndex(fields=["all_labels"], name="all_labels_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
+            GinIndex(fields=["volume_labels"], name="volume_labels_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True)
@@ -144,6 +146,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     persistentvolume = models.CharField(max_length=253, null=True)
     storageclass = models.CharField(max_length=253, null=True)
     volume_labels = JSONField(null=True)
+    all_labels = JSONField(null=True)
     persistentvolumeclaim_capacity_gigabyte = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
@@ -234,20 +237,6 @@ class OCPStorageVolumeLabelSummary(models.Model):
     node = models.TextField(null=True)
 
 
-class OCPEnabledTagKeys(models.Model):
-    """A collection of the current enabled tag keys."""
-
-    class Meta:
-        """Meta for OCPEnabledTagKeys."""
-
-        db_table = "reporting_ocpenabledtagkeys"
-        indexes = [models.Index(name="ocp_enabled_covering_ix", fields=["key", "enabled"])]
-
-    id = models.BigAutoField(primary_key=True)
-    key = models.CharField(max_length=253, unique=True)
-    enabled = models.BooleanField(null=False, default=False)
-
-
 class OCPCluster(models.Model):
     """All clusters for a tenant."""
 
@@ -306,8 +295,20 @@ class OpenshiftCostCategory(models.Model):
     description = models.TextField()
     source_type = models.TextField()
     system_default = models.BooleanField(null=False, default=False)
-    namespace = ArrayField(models.TextField())
     label = ArrayField(models.TextField())
+
+
+class OpenshiftCostCategoryNamespace(models.Model):
+    """Namespaces to bucket to category."""
+
+    class Meta:
+        """Meta for cost category namespaces."""
+
+        db_table = "reporting_ocp_cost_category_namespace"
+
+    namespace = models.TextField(unique=True)
+    system_default = models.BooleanField(null=False, default=False)
+    cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE)
 
 
 class OCPProject(models.Model):
@@ -673,6 +674,8 @@ class OCPVolumeSummaryP(models.Model):
     supplementary_usage_cost = JSONField(null=True)
     supplementary_monthly_cost_json = JSONField(null=True)
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
     persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     source_uuid = models.ForeignKey(
@@ -733,6 +736,8 @@ class OCPVolumeSummaryByProjectP(models.Model):
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
     raw_currency = models.TextField(null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
 
     # Simplified Cost Model Cost terms
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)

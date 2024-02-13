@@ -122,5 +122,8 @@ class CostModelManager:
         providers_query = CostModelMap.objects.filter(cost_model=self._model)
         provider_uuids = [provider.provider_uuid for provider in providers_query]
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
-        provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name} for provider in providers_qs_list]
+        provider_names_uuids = [
+            {"uuid": str(provider.uuid), "name": provider.name, "last_processed": provider.data_updated_timestamp}
+            for provider in providers_qs_list
+        ]
         return provider_names_uuids

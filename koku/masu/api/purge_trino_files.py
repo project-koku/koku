@@ -14,10 +14,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.celery.tasks import purge_manifest_records
 from masu.celery.tasks import purge_s3_files
-from masu.database.provider_collector import ProviderCollector
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 
 
@@ -48,12 +48,10 @@ def purge_trino_files(request):  # noqa: C901
         errmsg = "Parameter missing. Required: provider_uuid, schema, bill date"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
     provider_uuid = params.get("provider_uuid")
-    with ProviderCollector() as collector:
-        all_providers = collector.get_provider_uuid_map()
-        provider = all_providers.get(str(provider_uuid))
-        if not provider:
-            errmsg = f"The provider_uuid {provider_uuid} does not exist."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if not provider:
+        errmsg = f"The provider_uuid {provider_uuid} does not exist."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     provider_type = provider.type
     schema = params.get("schema")
@@ -75,7 +73,7 @@ def purge_trino_files(request):  # noqa: C901
     # Use ParquetReportProcessor to build s3 paths
     pq_processor_object = ParquetReportProcessor(
         schema_name=schema,
-        report_path=None,
+        report_path="",
         provider_uuid=provider_uuid,
         provider_type=provider_type,
         manifest_id=None,
@@ -84,18 +82,20 @@ def purge_trino_files(request):  # noqa: C901
     if start_date and end_date:
         invoice_month = str(DateHelper().invoice_month_from_bill_date(bill_date))
         dates = DateHelper().list_days(start_date, end_date)
+        path = None
+        if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            path = f"/{invoice_month}_"
         s3_csv_path = []
         s3_parquet_path = []
         s3_daily_parquet_path = []
         s3_daily_openshift_path = []
         for date in dates:
+            path = path + f"{date}" if path else f"/{date.date()}"
             date = date.date()
-            s3_csv_path.append(pq_processor_object.csv_path_s3 + f"/{invoice_month}_{date}")
-            s3_parquet_path.append(pq_processor_object.parquet_path_s3 + f"/{invoice_month}_{date}")
-            s3_daily_parquet_path.append(pq_processor_object.parquet_daily_path_s3 + f"/{invoice_month}_{date}")
-            s3_daily_openshift_path.append(
-                pq_processor_object.parquet_ocp_on_cloud_path_s3 + f"/{invoice_month}_{date}"
-            )
+            s3_csv_path.append(pq_processor_object.csv_path_s3 + path)
+            s3_parquet_path.append(pq_processor_object.parquet_path_s3 + path)
+            s3_daily_parquet_path.append(pq_processor_object.parquet_daily_path_s3 + path)
+            s3_daily_openshift_path.append(pq_processor_object.parquet_ocp_on_cloud_path_s3 + path)
         path_info = {
             "s3_csv_path": s3_csv_path,
             "s3_parquet_path": s3_parquet_path,

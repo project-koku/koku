@@ -126,6 +126,7 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         kwargs = {
             "provider": self.provider,
             "report_type": parameters.report_type,
+            "schema_name": parameters.tenant.schema_name,
             "cost_type": parameters.cost_type,
         }
         if markup_cost := AWS_MARKUP_COST.get(parameters.cost_type):

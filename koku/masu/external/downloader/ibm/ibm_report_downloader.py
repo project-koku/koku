@@ -109,7 +109,7 @@ def create_daily_archives(
     s3_csv_path = get_path_prefix(account, Provider.PROVIDER_IBM, provider_uuid, start_date, Config.CSV_DATA_TYPE)
     # add day to S3 CSV path because the IBM report is monthly and we want to diff between two days
     s3_csv_path = f"{s3_csv_path}/day={start_date.strftime('%d')}"
-    copy_local_report_file_to_s3_bucket(request_id, s3_csv_path, file_path, filename, manifest_id, start_date, context)
+    copy_local_report_file_to_s3_bucket(request_id, s3_csv_path, file_path, filename, manifest_id, context)
     return [file_path]
 
 
@@ -163,7 +163,7 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_names_count = 0
         etag = util.generate_etag(date)
         assembly_id = util.generate_assembly_id([self._provider_uuid, etag, date])
-        manifest_id = self._process_manifest_db_record(assembly_id, date, file_names_count, dh._now)
+        manifest_id = self._process_manifest_db_record(assembly_id, date, file_names_count, dh.now)
         filenames = [dict(key=f"{date}_{etag}.csv", local_file=f"{date}_{etag}.csv")]
         return dict(manifest_id=manifest_id, assembly_id=assembly_id, compression=UNCOMPRESSED, files=filenames)
 
@@ -186,7 +186,7 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         Args:
             key (String): A key that can locate a report file.
-            stored_etag (String): ReportStatsDBAccessor file identifier.
+            stored_etag (String): CostUsageReportStatus file identifier.
             manifest_id (String): Report manifest identifier
             start_date (DateTime): Report start date time
 
@@ -195,7 +195,7 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         dh = DateHelper()
-        download_timestamp = dh._now.strftime("%Y-%m-%d-%H-%M-%S")
+        download_timestamp = dh.now.strftime("%Y-%m-%d-%H-%M-%S")
         directory_path = f"{DATA_DIR}/{self.customer_name}/ibm/{download_timestamp}"
         full_local_path = f"{directory_path}/{key}"
 

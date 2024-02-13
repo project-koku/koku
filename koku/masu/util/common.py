@@ -16,6 +16,7 @@ from tempfile import gettempdir
 from threading import RLock
 from uuid import uuid4
 
+import pandas as pd
 from dateutil import parser
 from dateutil.rrule import DAILY
 from dateutil.rrule import rrule
@@ -24,11 +25,8 @@ from django_tenants.utils import schema_context
 
 import koku.trino_database as trino_db
 from api.common import log_json
-from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
-from masu.external import LISTEN_INGEST
-from masu.external import POLL_INGEST
 from reporting.provider.all.models import EnabledTagKeys
 
 LOG = logging.getLogger(__name__)
@@ -62,24 +60,6 @@ def stringify_json_data(data):
         return str(data)
 
     return data
-
-
-def ingest_method_for_provider(provider):
-    """Return the ingest method for provider."""
-    ingest_map = {
-        Provider.PROVIDER_AWS: POLL_INGEST,
-        Provider.PROVIDER_AWS_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_AZURE: POLL_INGEST,
-        Provider.PROVIDER_AZURE_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_GCP: POLL_INGEST,
-        Provider.PROVIDER_GCP_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_IBM: POLL_INGEST,
-        Provider.PROVIDER_IBM_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_OCI: POLL_INGEST,
-        Provider.PROVIDER_OCI_LOCAL: POLL_INGEST,
-        Provider.PROVIDER_OCP: LISTEN_INGEST,
-    }
-    return ingest_map.get(provider)
 
 
 def month_date_range_tuple(for_date_time):
@@ -406,59 +386,6 @@ def populate_enabled_tag_rows_with_limit(schema: str, tags: set[str, ...], provi
             EnabledTagKeys.objects.bulk_create(new_records, ignore_conflicts=True)
 
 
-# TODO: Remove with settings deprecation COST-3797
-def update_enabled_keys(schema, enabled_keys_model, enabled_keys, provider_type=None):  # noqa: C901
-    ctx = {"schema": schema, "model": enabled_keys_model._meta.model_name, "enabled_keys": enabled_keys}
-    LOG.info(log_json(msg="updating enabled tag keys records", context=ctx))
-    changed = False
-
-    enabled_keys_set = set(enabled_keys)
-    update_keys_enabled = []
-    update_keys_disabled = []
-
-    with schema_context(schema):
-        if provider_type:
-            key_objects = enabled_keys_model.objects.filter(provider_type=provider_type)
-        else:
-            key_objects = enabled_keys_model.objects.all()
-        for key in key_objects:
-            if key.key in enabled_keys_set:
-                if not key.enabled:
-                    update_keys_enabled.append(key.key)
-            else:
-                update_keys_disabled.append(key.key)
-
-        # When we are in create mode, we do not want to change the state of existing keys
-        if update_keys_enabled or update_keys_disabled:
-            changed = True
-            if update_keys_enabled:
-                LOG.info(
-                    log_json(msg="updating keys to ENABLED", keys_to_update=len(update_keys_enabled), context=ctx)
-                )
-                if provider_type:
-                    enabled_keys_model.objects.filter(key__in=update_keys_enabled, provider_type=provider_type).update(
-                        enabled=True
-                    )
-                else:
-                    enabled_keys_model.objects.filter(key__in=update_keys_enabled).update(enabled=True)
-
-            if update_keys_disabled:
-                LOG.info(
-                    log_json(msg="updating keys to DISABLED", keys_to_update=len(update_keys_disabled), context=ctx)
-                )
-                if provider_type:
-                    enabled_keys_model.objects.filter(
-                        key__in=update_keys_disabled, provider_type=provider_type
-                    ).update(enabled=False)
-                else:
-                    enabled_keys_model.objects.filter(key__in=update_keys_disabled).update(enabled=False)
-
-    if not changed:
-        LOG.info(log_json(msg="no enabled keys updated", context=ctx))
-
-    return changed
-
-
 def execute_trino_query(schema_name, sql, params=None):
     """Execute Trino SQL."""
     connection = trino_db.connect(schema=schema_name)
@@ -516,3 +443,28 @@ class SingletonMeta(type):
                 instance = super().__call__(*args, **kwargs)
                 cls._instances[cls] = instance
         return cls._instances[cls]
+
+
+def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_id, context):
+    """Add optional columns to columns list if they exists in files"""
+    for fetch_column in fetch_columns:
+        try:
+            data_frame = pd.read_csv(
+                local_file, usecols=lambda col: col.lower().startswith(fetch_column.lower()), nrows=0
+            )
+            header_chunks = chunk_columns(data_frame.columns, settings.PANDAS_COLUMN_BATCH_SIZE)
+            # Chunk out the headers for excessive tag git statcolumn counts
+            for header_chunk in header_chunks:
+                data_frame = pd.read_csv(local_file, usecols=header_chunk)
+                data_frame = data_frame.dropna(axis=1, how="all")
+                fetch_cols = data_frame.columns
+                for col in fetch_cols:
+                    current_columns.add(col)
+        except ValueError:
+            LOG.info(log_json(tracing_id, msg=f"customer has no {fetch_column} data to parse", context=context))
+    return current_columns
+
+
+def chunk_columns(col_list, chunk_count):
+    for i in range(0, len(col_list), chunk_count):
+        yield list(col_list[i : i + chunk_count])

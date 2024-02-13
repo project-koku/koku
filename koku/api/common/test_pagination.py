@@ -143,6 +143,8 @@ class ReportPaginationTest(TestCase):
         self.assertIn("data", response_data)
         self.assertIn("count", meta)
         self.assertIn("total", meta)
+        self.assertIn("limit", meta)
+        self.assertIn("offset", meta)
         self.assertIn("first", links)
         self.assertIn("next", links)
         self.assertIn("previous", links)

@@ -5,19 +5,19 @@
 """Test the Orchestrator object."""
 import logging
 import random
+from datetime import date
+from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
 
 import faker
 
 from api.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
-from masu.external.accounts_accessor import AccountsAccessor
-from masu.external.accounts_accessor import AccountsAccessorError
-from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.orchestrator import get_billing_month_start
+from masu.processor.orchestrator import get_billing_months
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
@@ -76,73 +76,16 @@ class OrchestratorTest(MasuTestCase):
             },
         ]
 
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")  # noqa: C901
-    def test_initializer(self, mock_inspect):  # noqa: C901
-        """Test to init."""
-        orchestrator = Orchestrator()
-        provider_count = Provider.objects.filter(active=True).count()
-        if len(orchestrator._accounts) != provider_count:
-            self.fail("Unexpected number of test accounts")
-
-        for account in orchestrator._accounts:
-            with self.subTest(provider_type=account.get("provider_type")):
-                if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.aws_credentials)
-                    self.assertEqual(account.get("data_source"), self.aws_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") == Provider.PROVIDER_OCP:
-                    self.assertIn(account.get("credentials"), self.ocp_credentials)
-                    self.assertEqual(account.get("data_source"), self.ocp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.azure_credentials)
-                    self.assertEqual(account.get("data_source"), self.azure_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.gcp_credentials)
-                    self.assertEqual(account.get("data_source"), self.gcp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
-                    self.assertEqual(account.get("data_source"), self.oci_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                else:
-                    self.fail("Unexpected provider")
-
-        # Result is 4 because that matches the number of non OCP sources
-        if len(orchestrator._polling_accounts) != 4:
-            self.fail("Unexpected number of listener test accounts")
-
-        for account in orchestrator._polling_accounts:
-            with self.subTest(provider_type=account.get("provider_type")):
-                if account.get("provider_type") in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.aws_credentials)
-                    self.assertEqual(account.get("data_source"), self.aws_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.azure_credentials)
-                    self.assertEqual(account.get("data_source"), self.azure_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                    self.assertEqual(account.get("credentials"), self.gcp_credentials)
-                    self.assertEqual(account.get("data_source"), self.gcp_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
-                    self.assertEqual(account.get("data_source"), self.oci_data_source)
-                    self.assertEqual(account.get("customer_name"), self.schema)
-                else:
-                    self.fail("Unexpected provider")
-
-    @patch("masu.processor.orchestrator.AccountLabel")
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", return_value=FakeDownloader)
-    @patch("masu.external.accounts_accessor.AccountsAccessor.get_accounts", return_value=[])
-    def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor, mock_inspect, mock_account_labler):
+    def test_prepare_no_accounts(self, mock_downloader, mock_inspect, mock_account_alias_updater):
         """Test downloading cost usage reports."""
         orchestrator = Orchestrator()
         reports = orchestrator.prepare()
 
         self.assertIsNone(reports)
-        mock_account_labler.assert_not_called()
+        mock_account_alias_updater.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch(
@@ -158,42 +101,8 @@ class OrchestratorTest(MasuTestCase):
             provider.polling_timestamp = None
             provider.save()
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
-            orchestrator.get_accounts()
+            orchestrator.get_polling_batch()
             self.assertIn(expected_result, captured_logs.output[0])
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_all_accounts(self, mock_accessor, mock_inspect):
-        """Test initializing orchestrator with forced billing source."""
-        mock_accessor.return_value = self.mock_accounts
-        orchestrator_all = Orchestrator()
-        self.assertEqual(orchestrator_all._accounts, self.mock_accounts)
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_with_billing_source(self, mock_accessor, mock_inspect):
-        """Test initializing orchestrator with forced billing source."""
-        mock_accessor.return_value = self.mock_accounts
-
-        fake_source = random.choice(self.mock_accounts)
-
-        individual = Orchestrator(fake_source.get("data_source"))
-        self.assertEqual(len(individual._accounts), len(self.mock_accounts))
-        data_sources = []
-        for mocked in self.mock_accounts:
-            data_sources.append(mocked.get("data_source"))
-        for found_account in individual._accounts:
-            self.assertIn(found_account.get("data_source"), data_sources)
-
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
-    def test_init_all_accounts_error(self, mock_accessor, mock_inspect):
-        """Test initializing orchestrator accounts error."""
-        mock_accessor.side_effect = AccountsAccessorError("Sample timeout error")
-        try:
-            Orchestrator()
-        except Exception:
-            self.fail("unexpected error")
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(ExpiredDataRemover, "remove")
@@ -217,74 +126,75 @@ class OrchestratorTest(MasuTestCase):
             self.assertIn(expected.format(async_id), logger.output)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(AccountsAccessor, "get_accounts")
     @patch.object(ExpiredDataRemover, "remove")
     @patch("masu.processor.orchestrator.remove_expired_data.apply_async", return_value=True)
-    def test_remove_expired_report_data_no_accounts(self, mock_task, mock_remover, mock_accessor, mock_inspect):
+    def test_remove_expired_report_data_no_accounts(self, mock_task, mock_remover, mock_inspect):
         """Test removing expired report data with no accounts."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
-        mock_accessor.return_value = []
 
-        orchestrator = Orchestrator()
-        results = orchestrator.remove_expired_report_data()
+        with patch("api.provider.models.Provider.objects", return_value=[]):
+            orchestrator = Orchestrator()
+            results = orchestrator.remove_expired_report_data()
 
         self.assertEqual(results, [])
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=ReportDownloaderError)
-    def test_prepare_w_downloader_error(self, mock_task, mock_labeler, mock_inspect):
+    def test_prepare_w_downloader_error(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() handles downloader errors."""
 
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_called()
-        mock_labeler.assert_not_called()
+        mock_account_alias_updater.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=Exception)
-    def test_prepare_w_exception(self, mock_task, mock_labeler, mock_inspect):
+    def test_prepare_w_exception(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() handles broad exceptions."""
 
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_called()
-        mock_labeler.assert_not_called()
+        mock_account_alias_updater.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
-    def test_prepare_w_manifest_processing_successful(self, mock_task, mock_labeler, mock_inspect):
+    def test_prepare_w_manifest_processing_successful(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
-        mock_labeler().get_label_details.return_value = (True, True)
+        # mock_account_alias_updater().get_label_details.return_value = (True, True)
 
         orchestrator = Orchestrator()
         orchestrator.prepare()
-        mock_labeler.assert_called()
+        mock_account_alias_updater.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
-    def test_prepare_w_ingress_reports_processing_successful(self, mock_task, mock_labeler, mock_inspect):
+    def test_prepare_w_ingress_reports_processing_successful(
+        self, mock_task, mock_account_alias_updater, mock_inspect
+    ):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
-        mock_labeler().get_label_details.return_value = (True, True)
+        # mock_account_alias_updater().get_label_details.return_value = (True, True)
         ingress_reports = ["test"]
 
         orchestrator = Orchestrator(ingress_reports=ingress_reports, bill_date="202302")
         orchestrator.prepare()
-        mock_labeler.assert_called()
+        mock_account_alias_updater.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.orchestrator.AccountLabel", spec=True)
+    @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.get_report_files.apply_async", return_value=True)
-    def test_prepare_w_no_manifest_found(self, mock_task, mock_labeler, mock_inspect):
+    def test_prepare_w_no_manifest_found(self, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() is skipped when no manifest is found."""
         orchestrator = Orchestrator()
         orchestrator.prepare()
         mock_task.assert_not_called()
-        mock_labeler.assert_not_called()
+        mock_account_alias_updater.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.record_report_status", return_value=True)
@@ -306,7 +216,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_not_called()
 
@@ -336,7 +246,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_called()
 
@@ -358,7 +268,7 @@ class OrchestratorTest(MasuTestCase):
             "AWS-local",
             account.get("schema_name"),
             account.get("provider_uuid"),
-            DateAccessor().get_billing_months(1)[0],
+            get_billing_months(1)[0],
         )
         mock_chord.assert_not_called()
 
@@ -390,7 +300,7 @@ class OrchestratorTest(MasuTestCase):
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
-                DateAccessor().get_billing_months(1)[0],
+                get_billing_months(1)[0],
             )
             if test.get("expect_chord_called"):
                 mock_task.assert_called()
@@ -452,7 +362,7 @@ class OrchestratorTest(MasuTestCase):
                     "AWS-local",
                     account.get("schema_name"),
                     account.get("provider_uuid"),
-                    DateAccessor().get_billing_months(1)[0],
+                    get_billing_months(1)[0],
                 )
                 summary_actual_queue = mock_task.call_args.args[0].options.get("queue")
                 hcs_actual_queue = mock_task.call_args.args[1].options.get("queue")
@@ -492,7 +402,7 @@ class OrchestratorTest(MasuTestCase):
                 "AWS-local",
                 account.get("schema_name"),
                 account.get("provider_uuid"),
-                DateAccessor().get_billing_months(1)[0],
+                get_billing_months(1)[0],
             )
             if test.get("expect_chord_called"):
                 mock_chord.assert_called()
@@ -504,8 +414,8 @@ class OrchestratorTest(MasuTestCase):
                 mock_group.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
-    def test_get_reports(self, fake_accessor, mock_inspect):
+    @patch("masu.processor.orchestrator.check_provider_setup_complete")
+    def test_get_reports(self, mock_check_setup_complete, mock_inspect):
         """Test get_reports for combinations of setup_complete and ingest override."""
         initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         test_matrix = [
@@ -516,7 +426,7 @@ class OrchestratorTest(MasuTestCase):
         ]
         for test in test_matrix:
             test_months = test.get("test_months")
-            fake_accessor.return_value = test.get("get_setup_complete")
+            mock_check_setup_complete.return_value = test.get("get_setup_complete")
             Config.INGEST_OVERRIDE = test.get("ingest_override")
             Config.INITIAL_INGEST_NUM_MONTHS = test_months
 
@@ -529,8 +439,77 @@ class OrchestratorTest(MasuTestCase):
         Config.INGEST_OVERRIDE = False
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
 
-        dh = DateHelper()
-        expected = [dh.this_month_start.date()]
-        orchestrator = Orchestrator(bill_date=dh.today)
+        expected = [self.dh.this_month_start.date()]
+        orchestrator = Orchestrator(bill_date=self.dh.today)
         result = orchestrator.get_reports(self.aws_provider_uuid)
+        self.assertEqual(result, expected)
+
+    @patch("masu.processor.orchestrator.WorkerCache")
+    def test_orchestrator_args_polling_batch(self, *args):
+        """Test that args to Orchestrator change the polling-batch result"""
+        # providing a UUID overrides the polling timestamp
+        o = Orchestrator(provider_uuid=self.aws_provider_uuid)
+        p = o.get_polling_batch()
+        self.assertEqual(len(p), 1)
+
+        # provider provider-type does NOT override polling timestamp
+        # so this query will provide zero pollable providers
+        o = Orchestrator(provider_type="AWS-local")
+        p = o.get_polling_batch()
+        self.assertEqual(len(p), 0)
+
+        # here we demonstrate the filtering only returns AWS-local
+        # and returns based on the polling timestamp
+        expected_providers = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL)
+        p = expected_providers[0]
+        p.polling_timestamp = None
+        p.save()
+
+        o = Orchestrator(provider_type="AWS-local")
+        p = o.get_polling_batch()
+        self.assertGreater(len(p), 0)
+        self.assertEqual(len(p), expected_providers.count())
+
+    def test_get_billing_months(self):
+        """Test get_billing_months"""
+        # test that num_months = 1 returns the current month
+        result = get_billing_months(1)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result, [self.dh.this_month_start.date()])
+
+        # test that num_months = 2 returns 2 months and assert the order is latest month first
+        result = get_billing_months(2)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result, [self.dh.this_month_start.date(), self.dh.last_month_start.date()])
+
+        # test that num_month = 5 returns 5 unique entires and that the first index is the current month
+        result = get_billing_months(5)
+        self.assertEqual(len(set(result)), 5)
+        self.assertEqual(result[0], self.dh.this_month_start.date())
+
+    def test_get_billing_month_start(self):
+        """Test get_billing_month_start returns the first of the month in the date provided."""
+        today = self.dh.today
+        result = get_billing_month_start(str(today))
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        result = get_billing_month_start(today)
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        result = get_billing_month_start(today.date())
+        self.assertEqual(result, self.dh.this_month_start.date())
+
+        test_input = datetime(year=2020, month=6, day=25)
+        expected = date(year=2020, month=6, day=1)
+        result = get_billing_month_start("20200625")
+        self.assertEqual(result, expected)
+        result = get_billing_month_start("2020-06-25")
+        self.assertEqual(result, expected)
+        result = get_billing_month_start("2020-6-25")
+        self.assertEqual(result, expected)
+
+        result = get_billing_month_start(test_input)
+        self.assertEqual(result, expected)
+
+        result = get_billing_month_start(test_input.date())
         self.assertEqual(result, expected)

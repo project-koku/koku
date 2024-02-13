@@ -25,13 +25,14 @@ from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Sources
 from kafka_utils.utils import get_consumer
+from kafka_utils.utils import is_kafka_connected
+from kafka_utils.utils import SOURCES_TOPIC
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import SOURCES_HTTP_CLIENT_ERROR_COUNTER
 from masu.prometheus_stats import SOURCES_KAFKA_LOOP_RETRY
 from masu.prometheus_stats import SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER
 from providers.provider_errors import SkipStatusPush
 from sources import storage
-from sources.api.status import check_kafka_connection
 from sources.config import Config
 from sources.kafka_message_processor import create_msg_processor
 from sources.kafka_message_processor import SourcesMessageError
@@ -184,10 +185,12 @@ def execute_koku_provider_op(msg):
         None
 
     """
-    provider = msg.get("provider")
+    provider: Sources = msg.get("provider")
     operation = msg.get("operation")
-    account_coordinator = SourcesProviderCoordinator(provider.source_id, provider.auth_header)
-    sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id, provider.account_id)
+    account_coordinator = SourcesProviderCoordinator(
+        provider.source_id, provider.auth_header, provider.account_id, provider.org_id
+    )
+    sources_client = SourcesHTTPClient(provider.auth_header, provider.source_id, provider.account_id, provider.org_id)
 
     try:
         if operation == "create":
@@ -200,7 +203,9 @@ def execute_koku_provider_op(msg):
             LOG.info(f"[provider_operation] updated provider {instance.uuid} for source_id: {provider.source_id}")
         elif operation == "destroy":
             LOG.info(f"[provider_operation] destroying Koku Provider for source_id: {provider.source_id}")
-            delete_source.delay(provider.source_id, provider.auth_header, provider.koku_uuid)
+            delete_source.delay(
+                provider.source_id, provider.auth_header, provider.koku_uuid, provider.account_id, provider.org_id
+            )
             LOG.info(
                 f"[provider_operation] destroy provider task queued for provider {provider.koku_uuid}"
                 f" for source_id: {provider.source_id}"
@@ -243,7 +248,7 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
         "enable.auto.commit": False,
     }
     consumer = get_consumer(kafka_conf)
-    consumer.subscribe([Config.SOURCES_TOPIC])
+    consumer.subscribe([SOURCES_TOPIC])
     LOG.info("Listener started.  Waiting for messages...")
     while True:
         msg_list = consumer.consume()
@@ -274,7 +279,7 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
         try:
             msg_processor = create_msg_processor(kaf_msg, application_source_id)
             if msg_processor and msg_processor.source_id and msg_processor.auth_header:
-                tp = TopicPartition(Config.SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
+                tp = TopicPartition(SOURCES_TOPIC, msg_processor.partition, msg_processor.offset)
                 if not msg_processor.msg_for_cost_mgmt():
                     LOG.info("Event not associated with cost-management.")
                     consumer.commit()
@@ -325,27 +330,6 @@ def backoff(interval, maximum=120):
     wait = min(maximum, (2**interval)) + random.random()
     LOG.info("Sleeping for %.2f seconds.", wait)
     time.sleep(wait)
-
-
-def is_kafka_connected():  # pragma: no cover
-    """
-    Check connectability to Kafka messenger.
-
-    This method will block sources integration initialization until
-    Kafka is connected.
-    """
-    count = 0
-    result = False
-    while not result:
-        result = check_kafka_connection()
-        if result:
-            LOG.info("Test connection to Kafka was successful.")
-        else:
-            LOG.error(f"Unable to connect to Kafka server [{Config.SOURCES_KAFKA_HOST}:{Config.SOURCES_KAFKA_PORT}].")
-            KAFKA_CONNECTION_ERRORS_COUNTER.inc()
-            backoff(count)
-            count += 1
-    return result
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()

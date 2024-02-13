@@ -18,6 +18,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.oci.oci_report_downloader import create_monthly_archives
 from masu.external.downloader.oci.oci_report_downloader import DATA_DIR
+from masu.external.downloader.oci.oci_report_downloader import divide_csv_monthly
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloaderError
 from masu.test import MasuTestCase
@@ -115,7 +116,7 @@ class OCIReportDownloaderTest(MasuTestCase):
 
         test_report = MagicMock()
         test_report.name = self.test_cost_report_name
-        test_report.time_created = self.dh._now
+        test_report.time_created = self.dh.now
         list_objects_res = MagicMock()
         list_objects_res.data.objects = [test_report]
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=self.provider_uuid)
@@ -229,25 +230,25 @@ class OCIReportDownloaderTest(MasuTestCase):
         local_name = downloader.get_local_file_for_report(report_name)
         self.assertEqual(local_name, expected_report_name)
 
-    def test_get_last_reports(self):
+    def test_get_report_tracker(self):
         """Assert collecting dict of last reports downloaded."""
         downloader = self.create_oci_downloader_with_mocked_values()
         expected_reports = {"usage": "", "cost": ""}
-        result_reports = downloader.get_last_reports("assembly")
+        result_reports = downloader.get_report_tracker("assembly")
         self.assertEqual(expected_reports, result_reports)
 
     @patch.object(ReportManifestDBAccessor, "get_manifest_by_id")
-    def test_update_last_reports(self, mock_get_manifest_by_id):
+    def test_update_report_tracker(self, mock_get_manifest_by_id):
         """Assert updating dict of last reports downloaded."""
 
         test_manifest = MagicMock()
         test_manifest.manifest_id = 1
-        test_manifest.last_reports = {"cost": "test_cost_report.csv", "usage": self.test_usage_report_name}
+        test_manifest.report_tracker = {"cost": "test_cost_report.csv", "usage": self.test_usage_report_name}
         expected_reports = {"cost": self.test_cost_report_name, "usage": self.test_usage_report_name}
         mock_get_manifest_by_id.return_value = test_manifest
 
         downloader = self.create_oci_downloader_with_mocked_values()
-        result_reports = downloader.update_last_reports(
+        result_reports = downloader.update_report_tracker(
             "cost", self.test_cost_report_name, test_manifest.get("manifest_id")
         )
         self.assertEqual(expected_reports, result_reports)
@@ -331,3 +332,29 @@ class OCIReportDownloaderTest(MasuTestCase):
         downloader = self.create_oci_downloader_with_mocked_values()
         client = downloader._get_oci_client("region")
         self.assertIsNotNone(client)
+
+    @patch("masu.external.downloader.oci.oci_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_divide_csv_monthly_leading_zeros(self, mock_s3):
+        """Test if the divide_csv_monthly function will keep the leading zeros."""
+
+        # Use the processor example for data:
+        file_name = self.test_cost_report_name
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(self.cost_file_path, temp_path)
+        uuid = uuid4()
+
+        with patch("masu.external.downloader.oci.oci_report_downloader.uuid.uuid4", return_value=uuid):
+            monthly_files, date_range = divide_csv_monthly(
+                temp_path,
+                file_name,
+            )
+
+            for file in monthly_files:
+                print(file["filepath"])
+                with open(file["filepath"]) as csv_file:
+                    csv = csv_file.readlines()
+                    print(csv)
+                self.assertIn("015649487", csv[1].split(","))
+
+            os.remove(temp_path)

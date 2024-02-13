@@ -149,6 +149,7 @@ class AdminSourcesSerializerTests(IamTestCase):
             "billing_source": {"data_source": {"bucket": "first-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "org1234567",
+            "org_id": "org1234567",
             "offset": 10,
         }
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
@@ -174,6 +175,7 @@ class AdminSourcesSerializerTests(IamTestCase):
                             "billing_source": {"data_source": {"dataset": "first-dataset"}},
                             "auth_header": Config.SOURCES_FAKE_HEADER,
                             "account_id": "org1234567",
+                            "org_id": "org1234567",
                             "offset": 10,
                         }
                     )

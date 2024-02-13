@@ -2,135 +2,208 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the Settings views."""
-import random
-from unittest import skip
-
+"""Test the Metrics views."""
 from django.urls import reverse
 from django_tenants.utils import schema_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.models import Provider
-from api.utils import DateHelper
-from reporting.models import OCPAWSTagsSummary
-from reporting.provider.all.models import EnabledTagKeys
+from api.iam.test.iam_test_case import RbacPermissions
+from api.settings.settings import COST_TYPES
+from api.settings.settings import USER_SETTINGS
+from api.settings.utils import set_cost_type
+from api.settings.utils import set_currency
 
 
-class SettingsViewTest(IamTestCase):
-    """Tests for the settings view."""
+class AccountSettingsViewTest(IamTestCase):
+    """Tests for the user settings views"""
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up the test class."""
-        super().setUpClass()
-        cls.dh = DateHelper()
+    def setUp(self):
+        """Set up the account settings view tests."""
+        super().setUp()
+        self.client = APIClient()
 
-    def get_settings(self):
-        """Request settings from API."""
-        url = reverse("settings")
+    def test_account_settings(self):
+        """Test grabbing a user settings"""
+        url = reverse("account-settings")
         client = APIClient()
-        response = client.get(url, **self.headers)
-        return response
-
-    def post_settings(self, body):
-        """Request settings from API."""
-        url = reverse("settings")
-        client = APIClient()
-        response = client.post(url, data=body, format="json", **self.headers)
-        return response
-
-    def get_duallist_from_response(self, response):
-        """Utility to get dual list object from response."""
-        data = response.data
-        self.assertIsNotNone(data)
-        self.assertEqual(len(data), 1)
-        primary_object = data[0]
-        tg_mngmnt_subform_fields = primary_object.get("fields")
-        self.assertIsNotNone(tg_mngmnt_subform_fields)
-        fields_len = 12
-        self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
-        for element in tg_mngmnt_subform_fields:
-            component_name = element.get("component")
-            if component_name == f'{"dual-list-select"}':
-                return element
-
-    def test_get_settings_tag_enabled(self):
-        """Test that a GET settings call returns expected format."""
-        test_matrix = [
-            {"name": "openshift", "label": "OpenShift labels"},
-            {"name": "aws", "label": "Amazon Web Services tags"},
-            {"name": "azure", "label": "Azure tags"},
-            {"name": "gcp", "label": "Google Cloud Platform tags"},
-        ]
-
-        response = self.get_settings()
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        duallist = self.get_duallist_from_response(response)
-        all_enabled_tags = duallist.get("initialValue")
-
-        for test in test_matrix:
-            with self.subTest(test=test):
-                available = []
-                enabled_tags = []
-
-                # get available tags
-                for option in duallist.get("options"):
-                    if option.get("label") == test.get("label"):
-                        children = option.get("children")
-                        available = [key_obj.get("label") for key_obj in children]
-
-                for enabled in all_enabled_tags:
-                    split = enabled.split("-")
-                    test_name = split[0]
-                    tag_name = "-".join(split[1:])
-                    if test_name == test.get("name"):
-                        enabled_tags.append(tag_name)
-                        self.assertIn(tag_name, available)
-
-    @skip("Revisit this test")
-    def test_post_settings_tag_enabled(self):
-        """Test settings POST calls change enabled tags"""
+        expected = {"cost_type": "calculated_amortized_cost", "currency": "JPY"}
+        new_cost_type = "calculated_amortized_cost"
+        new_currency = "JPY"
         with schema_context(self.schema_name):
-            tags = OCPAWSTagsSummary.objects.distinct("key").values_list("key", flat=True)
-            aws_list = [f"aws-{tag}" for tag in tags]
-            tags = (
-                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP)
-                .distinct("key")
-                .values_list("key", flat=True)
-            )
-            ocp_list = [f"openshift-{tag}" for tag in tags]
-            keys_list = aws_list + ocp_list
-            max_idx = len(keys_list)
+            set_cost_type(self.schema_name, cost_type_code=new_cost_type)
+            set_currency(self.schema_name, currency_code=new_currency)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        for _ in ["test01", "test02", "test03", "test04"]:
-            enabled_tags = list(set(random.choices(keys_list, k=random.randint(0, max_idx))))
-            with self.subTest(enabled_tags=enabled_tags):
-                body = {"api": {"settings": {"tag-management": {"enabled": enabled_tags}}}}
-                response = self.post_settings(body)
+            data = response.data["data"]
+            self.assertEqual(data, expected)
+
+    def test_account_settings_defaults(self):
+        """Test grabbing a user settings without settings used returns default settings"""
+        url = reverse("account-settings")
+        client = APIClient()
+        expected = USER_SETTINGS["settings"]
+        with schema_context(self.schema_name):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            data = response.data["data"]
+            self.assertEqual(data, expected)
+
+    def test_account_setting(self):
+        """Test grabbing a specified user setting"""
+        url = "%scurrency/" % reverse("account-settings")
+        client = APIClient()
+        expected = {"currency": "USD"}
+        with schema_context(self.schema_name):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            data = response.data["data"]
+            self.assertEqual(data, expected)
+
+    def test_account_setting_currency_put(self):
+        """Test grabbing a specified user setting"""
+        url = "%scurrency/" % reverse("account-settings")
+        client = APIClient()
+        data = {"currency": "EUR"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_account_setting_cost_type_put(self):
+        """Test grabbing a specified user setting"""
+        url = "%scost-type/" % reverse("account-settings")
+        client = APIClient()
+        data = {"cost_type": "calculated_amortized_cost"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_account_setting_put_unknown_setting(self):
+        """Test grabbing a specified user setting"""
+        url = "%sunknown/" % reverse("account-settings")
+        client = APIClient()
+        data = {"cost_type": "calculated_amortized_cost"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_account_setting_put_unknown_cost_type(self):
+        """Test grabbing a specified user setting"""
+        url = "%scost-type/" % reverse("account-settings")
+        client = APIClient()
+        data = {"cost_type": "unknown"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_account_setting_put_unknown_currency(self):
+        """Test grabbing a specified user setting"""
+        url = "%scurrency/" % reverse("account-settings")
+        client = APIClient()
+        data = {"currency": "unknown"}
+        with schema_context(self.schema_name):
+            response = client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_account_setting_invalid(self):
+        """Test grabbing a specified user setting invalid setting"""
+        url = "%sinvalid/" % reverse("account-settings")
+        client = APIClient()
+        with schema_context(self.schema_name):
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class UserSettingsCostViewTest(IamTestCase):
+    """Tests for the cost-type view."""
+
+    def setUp(self):
+        """Set up the user settings cost_type view tests."""
+        super().setUp()
+        self.client = APIClient()
+
+    def test_no_userset_cost_type(self):
+        """Test that a list GET call returns the supported cost_types with meta data cost-type=default."""
+        qs = "?limit=20"
+        url = reverse("cost-type") + qs
+
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.data
+        self.assertEqual(data.get("data"), COST_TYPES)
+
+
+class AccountSettingsViewTestRBACTest(IamTestCase):
+    def setUp(self):
+        """Set up the account settings view tests."""
+        super().setUp()
+        self.client = APIClient()
+        self.base_url = reverse("account-settings")
+        self.account_settings = {"currency": "USD", "cost-type": "blended_cost"}
+
+    no_access = {"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}}
+    read = {"settings": {"read": ["*"]}}
+    write = {"settings": {"write": ["*"]}}
+    read_write = {"settings": {"read": ["*"], "write": ["*"]}}
+
+    # deprecated permissions
+    @RbacPermissions(no_access)
+    def test_no_access_to_get_request(self):
+        for acct_setting in self.account_settings:
+            with self.subTest(acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(read)
+    def test_read_accesss_to_get_request(self):
+        for acct_setting in self.account_settings:
+            with self.subTest(acct_setting=acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-                response = self.get_settings()
+    @RbacPermissions(read)
+    def test_read_access_to_put_request(self):
+        for acct_setting, value in self.account_settings.items():
+            with self.subTest(acct_setting=acct_setting, value=value):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                data = {acct_setting.replace("-", "_"): value}
+                response = client.put(url, data, format="json", **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(write)
+    def test_write_on_put_request(self):
+        for acct_setting, value in self.account_settings.items():
+            with self.subTest(acct_setting=acct_setting, value=value):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                data = {acct_setting.replace("-", "_"): value}
+                response = client.put(url, data, format="json", **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    @RbacPermissions(write)
+    def test_write_on_get_request(self):
+        for acct_setting in self.account_settings:
+            with self.subTest(acct_setting=acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions(read_write)
+    def test_read_and_write_on_get_request(self):
+        for acct_setting in self.account_settings:
+            with self.subTest(acct_setting=acct_setting):
+                url = self.base_url + f"{acct_setting}/"
+                client = APIClient()
+                response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-                duallist = self.get_duallist_from_response(response)
-                resp_enabled_tags = duallist.get("initialValue")
-                self.assertEqual(len(resp_enabled_tags), len(enabled_tags))
-
-                for tag in enabled_tags:
-                    self.assertIn(tag, resp_enabled_tags)
-
-    def test_post_settings_ocp_tag_enabled_invalid_tag(self):
-        """Test setting OCP tags as enabled with invalid tag key."""
-        tag = "gcp-Invalid_tag_key_test"
-
-        body = {"api": {"settings": {"tag-management": {"enabled": [tag]}}}}
-        response = self.post_settings(body)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_post_settings_bad_format(self):
-        """Test settings with bad post format."""
-        body = []
-        response = self.post_settings(body)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

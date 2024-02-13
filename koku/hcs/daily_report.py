@@ -8,7 +8,6 @@ import logging
 from api.common import log_json
 from hcs.database.report_db_accessor import HCSReportDBAccessor
 from hcs.exceptions import HCSTableNotFoundError
-from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range
 
 LOG = logging.getLogger(__name__)
@@ -22,7 +21,6 @@ class ReportHCS:
         self._schema_name = schema_name
         self._provider = provider.removesuffix("-local")
         self._provider_uuid = provider_uuid
-        self._date_accessor = DateAccessor()
         self._tracing_id = tracing_id
 
     def generate_report(self, start_date, end_date, finalize=False):

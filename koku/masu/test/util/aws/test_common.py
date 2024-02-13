@@ -7,6 +7,7 @@ import random
 from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock
+from unittest.mock import mock_open
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
@@ -21,15 +22,14 @@ from faker import Faker
 from api.provider.models import Provider
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import AWS_REGIONS
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
 from masu.test.external.downloader.aws.test_aws_report_downloader import FakeSession
 from masu.util.aws import common as utils
 from masu.util.common import get_path_prefix
+from reporting.models import AWSAccountAlias
 from reporting.models import AWSCostEntryBill
 
 # the cn endpoints aren't supported by moto, so filter them out
@@ -166,7 +166,7 @@ class TestAWSUtils(MasuTestCase):
         mock_client = Mock()
         mock_client.list_account_aliases.return_value = {"AccountAliases": [mock_alias]}
         session.client.return_value = mock_client
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider, session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_alias, account_alias)
 
@@ -182,7 +182,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, mock_session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider, mock_session)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -198,7 +198,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(arn)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(arn, self.aws_provider)
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
@@ -218,7 +218,7 @@ class TestAWSUtils(MasuTestCase):
         mock_paginator.paginate.return_value = paginated_results
         mock_client.get_paginator.return_value = mock_paginator
         session.client.return_value = mock_client
-        accounts = utils.get_account_names_by_organization(arn, session)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider, session)
         self.assertEqual(accounts, expected)
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -233,7 +233,7 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(arn, mock_session)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider, mock_session)
         self.assertEqual(accounts, [])
 
     @patch("masu.util.aws.common.get_assume_role_session")
@@ -248,8 +248,62 @@ class TestAWSUtils(MasuTestCase):
         credentials = {"role_arn": role_arn}
         arn = utils.AwsArn(credentials)
 
-        accounts = utils.get_account_names_by_organization(arn)
+        accounts = utils.get_account_names_by_organization(arn, self.aws_provider)
         self.assertEqual(accounts, [])
+
+    def test_update_account_aliases_no_aliases(self):
+        with schema_context(self.schema):
+            orig_count = AWSAccountAlias.objects.all().count()
+
+            mock_account_id = self.account_id
+
+            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
+                "masu.util.aws.common.get_account_names_by_organization"
+            ):
+                mock_get.return_value = (mock_account_id, mock_account_id)
+                utils.update_account_aliases(self.aws_provider)
+
+            after_count = AWSAccountAlias.objects.all().count()
+            self.assertEqual(orig_count + 1, after_count)
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id, account_alias=mock_account_id))
+
+    def test_update_account_aliases_with_aliases(self):
+        with schema_context(self.schema):
+            orig_count = AWSAccountAlias.objects.all().count()
+
+            mock_account_id = self.account_id
+            mock_alias = "mock_alias"
+
+            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
+                "masu.util.aws.common.get_account_names_by_organization"
+            ):
+                mock_get.return_value = (mock_account_id, mock_alias)
+                utils.update_account_aliases(self.aws_provider)
+
+            after_count = AWSAccountAlias.objects.all().count()
+            self.assertEqual(orig_count + 1, after_count)
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id, account_alias=mock_alias))
+
+    def test_update_account_aliases_with_aliases_and_orgs(self):
+        with schema_context(self.schema):
+            orig_count = AWSAccountAlias.objects.all().count()
+
+            mock_account_id = self.account_id
+            mock_account_id2 = fake_aws_account_id()
+            mock_alias = "mock_alias"
+            mock_alias2 = "mock_alias2"
+
+            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
+                "masu.util.aws.common.get_account_names_by_organization"
+            ) as mock_get_orgs:
+                mock_get.return_value = (mock_account_id, mock_alias)
+                mock_get_orgs.return_value = [{"id": mock_account_id2, "name": mock_alias2}]
+                utils.update_account_aliases(self.aws_provider)
+
+            after_count = AWSAccountAlias.objects.all().count()
+            self.assertEqual(orig_count + 2, after_count)
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id, account_alias=mock_alias))
+            self.assertTrue(AWSAccountAlias.objects.get(account_id=mock_account_id2, account_alias=mock_alias2))
 
     def test_get_assembly_id_from_cur_key(self):
         """Test get_assembly_id_from_cur_key is successful."""
@@ -291,20 +345,15 @@ class TestAWSUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_date(self):
         """Test that bill IDs are returned for an AWS provider with start date."""
-        date_accessor = DateAccessor()
-
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__gte=end_date.date()).all()
+                bills = bills.filter(billing_period_start__gte=end_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.aws_provider_uuid, self.schema, start_date=end_date)
@@ -315,20 +364,15 @@ class TestAWSUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_end_date(self):
         """Test that bill IDs are returned for an AWS provider with end date."""
-        date_accessor = DateAccessor()
-
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__lte=start_date.date()).all()
+                bills = bills.filter(billing_period_start__lte=start_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.aws_provider_uuid, self.schema, end_date=start_date)
@@ -339,23 +383,16 @@ class TestAWSUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_and_end_date(self):
         """Test that bill IDs are returned for an AWS provider with both dates."""
-        date_accessor = DateAccessor()
-
-        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
+            bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = (
-                    bills.filter(billing_period_start__gte=start_date.date())
-                    .filter(billing_period_start__lte=end_date.date())
-                    .all()
+                    bills.filter(billing_period_start__gte=start_date).filter(billing_period_start__lte=end_date).all()
                 )
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
@@ -367,6 +404,28 @@ class TestAWSUtils(MasuTestCase):
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
+    def test_safe_str_int_conversion_valid_int_str(self):
+        """Test safe_str_int_conversion with valid integer str."""
+
+        test_int_str_lst = ["5", "8", "13", "21"]
+
+        for int_str in test_int_str_lst:
+            expected_resp = int(int_str)
+            with self.subTest(int_str=int_str):
+                test_resp = utils.safe_str_int_conversion(int_str)
+            self.assertIsInstance(test_resp, int)
+            self.assertEqual(expected_resp, test_resp)
+
+    def test_safe_str_int_conversion_invalid_int_str(self):
+        """Test safe_str_int_conversion with invalid integer str."""
+
+        test_invalid_int_str_lst = ["", "  ", "None", None, "invalid string"]
+
+        for invalid_int_str in test_invalid_int_str_lst:
+            with self.subTest(invalid_str=invalid_int_str):
+                test_resp = utils.safe_str_int_conversion(invalid_int_str)
+                self.assertIsNone(test_resp)
+
     def test_filter_s3_objects_less_than(self):
         """Test filter_s3_objects_less_than."""
         metadata_key = "number-of-hours-in-report"
@@ -374,18 +433,27 @@ class TestAWSUtils(MasuTestCase):
 
         metadata = PropertyMock(
             side_effect=[
-                {metadata_key: "18", "extra": "this will NOT be filtered"},
+                {metadata_key: "12", "extra": "this will not be filtered"},
+                {metadata_key: "18", "extra": "this will not be filtered"},
+                {metadata_key: "invalid", "extra": "this will be filtered"},
+                {metadata_key: None, "extra": "this WILL be filtered"},
                 {metadata_key: "25", "extra": "this WILL be filtered"},
             ]
         )
 
-        keys = [18, 25]
+        keys = [12, 18, 25]
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             type(mock_s3.return_value.Object.return_value).metadata = metadata
             filtered = utils.filter_s3_objects_less_than(
                 "request_id", keys, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
-            self.assertListEqual(filtered, [18])
+            self.assertListEqual(filtered, [12, 18])
+
+    def test_filter_s3_objects_less_than_with_error(self):
+        """Test filter_s3_objects_less_than with error."""
+
+        metadata_key = "number-of-hours-in-report"
+        metadata_value = "24"
 
         metadata = PropertyMock(
             side_effect=[{metadata_key: "18", "extra": "this will NOT be filtered"}, ClientError({}, "test")]
@@ -408,8 +476,7 @@ class TestAWSUtils(MasuTestCase):
         )
         self.assertEqual(removed, [])
 
-        date_accessor = DateAccessor()
-        start_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+        start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(
             "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
         )
@@ -453,6 +520,60 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertListEqual(removed, [])
 
+    def test_clear_s3_files(self):
+        """Test clearing s3 files."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        context = {"account": self.account_id, "provider_type": self.aws_provider.type}
+        start_date = self.dh.this_month_start.replace(tzinfo=None)
+        s3_csv_path = get_path_prefix(
+            self.account_id, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, Config.CSV_DATA_TYPE
+        )
+        expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+        not_expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                utils.clear_s3_files(
+                    s3_csv_path, self.aws_provider_uuid, start_date, "manifestid", 1, context, "requiest_id"
+                )
+                mock_delete.assert_called
+
+    def test_clear_s3_files_gcp(self):
+        """Test clearing s3 GCP ingress files."""
+        metadata_key = "manifestid"
+        metadata_value = "manifest_id"
+        prov_uuid = self.gcp_provider_uuid
+        prov_type = self.gcp_provider.type
+        context = {"account": self.account_id, "provider_type": prov_type}
+        start_date = self.dh.this_month_start.replace(tzinfo=None)
+        s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
+        expected_key = "not_matching_key"
+        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
+        not_matching_summary = Mock()
+        not_matching_summary.Object.return_value = mock_object
+        not_expected_key = "matching_key"
+        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
+        matching_summary = Mock()
+        matching_summary.Object.return_value = mock_object
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
+                not_matching_summary,
+                matching_summary,
+            ]
+            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                utils.clear_s3_files(s3_csv_path, prov_uuid, start_date, "manifestid", 1, context, "requiest_id")
+                mock_delete.assert_called
+
     def test_remove_s3_objects_matching_metadata(self):
         """Test remove_s3_objects_matching_metadata."""
         metadata_key = "manifestid"
@@ -462,8 +583,7 @@ class TestAWSUtils(MasuTestCase):
         )
         self.assertEqual(removed, [])
 
-        date_accessor = DateAccessor()
-        start_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+        start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(
             "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
         )
@@ -519,16 +639,22 @@ class TestAWSUtils(MasuTestCase):
             upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
             self.assertIsNone(upload)
 
-    def test_copy_hcs_data_to_s3_bucket(self):
-        """Test copy_hcs_data_to_s3_bucket."""
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNotNone(upload)
-
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNone(upload)
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket")
+    def test_copy_local_hcs_report_file_to_s3_bucket_with_finalize(self, mock_copy):
+        """Test that the proper metadata is used when a finalized date is passed in with the finalize option"""
+        fake_request_id = "fake_id"
+        fake_s3_path = "fake_path"
+        fake_filename = "fake_filename"
+        expected_metadata = {"finalized": "True", "finalized-date": "2023-08-15"}
+        expected_context = {}
+        mock_op = mock_open(read_data="x,y,z")
+        with patch("builtins.open", mock_op):
+            utils.copy_local_hcs_report_file_to_s3_bucket(
+                fake_request_id, fake_s3_path, fake_filename, fake_filename, True, "2023-08-15", expected_context
+            )
+        mock_copy.assert_called_once_with(
+            fake_request_id, fake_s3_path, fake_filename, mock_op(), expected_metadata, expected_context
+        )
 
     def test_match_openshift_resources_and_labels(self):
         """Test OCP on AWS data matching."""
@@ -613,6 +739,74 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+    def test_match_openshift_labels_with_nan_resources(self):
+        """Test OCP on AWS data matching."""
+        cluster_topology = [
+            {
+                "resource_ids": ["id1", "id2", "id3"],
+                "cluster_id": self.ocp_cluster_id,
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": [],
+                "projects": [],
+            }
+        ]
+
+        matched_tags = [{"key": "value"}]
+        data = [
+            {"lineitem_resourceid": "", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
+        ]
+
+        df = pd.DataFrame(data)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # tag matching
+        result = matched_df["matched_tag"] == '"key": "value"'
+        self.assertTrue(result.bool())
+
+    def test_match_openshift_resource_with_nan_labels(self):
+        """Test OCP on AWS data matching."""
+        cluster_topology = [
+            {
+                "resource_ids": ["id1", "id2", "id3"],
+                "cluster_id": self.ocp_cluster_id,
+                "cluster_alias": "my-ocp-cluster",
+                "nodes": [],
+                "projects": [],
+            }
+        ]
+
+        matched_tags = [{"key": "value"}]
+        data = [
+            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": ""},
+        ]
+
+        df = pd.DataFrame(data)
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # resource id matching
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        self.assertTrue(result.bool())
+
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_get_or_clear_daily_s3_by_date(self, mock_resource):
+        """test getting daily archive start date"""
+        start_date = self.dh.this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
+        end_date = self.dh.this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+            return_value=None,
+        ):
+            result = utils.get_or_clear_daily_s3_by_date(
+                "None",
+                "provider_uuid",
+                start_date,
+                end_date,
+                1,
+                {"account": "test", "provider_type": "AWS"},
+                "request_id",
+            )
+            self.assertEqual(result, start_date)
 
 
 class AwsArnTest(TestCase):

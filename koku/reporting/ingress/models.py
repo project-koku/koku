@@ -8,6 +8,10 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db import transaction
+from django.utils import timezone
+
+from api.common import log_json
+
 
 LOG = logging.getLogger(__name__)
 
@@ -22,6 +26,7 @@ class IngressReports(models.Model):
     bill_year = models.CharField(max_length=4, blank=False)
     bill_month = models.CharField(max_length=2, blank=False)
     status = models.TextField(default="pending")
+    schema_name = models.ForeignKey("api.Customer", to_field="schema_name", null=True, on_delete=models.PROTECT)
 
     def __str__(self):
         """Get the string representation."""
@@ -54,3 +59,28 @@ class IngressReports(models.Model):
                 .set(queue="download")
                 .apply_async()
             )
+
+    def mark_completed(self):
+        self.status = "Completed"
+        self.completed_timestamp = timezone.now()
+        self.save(update_fields=["completed_timestamp", "status"])
+        LOG.info(
+            log_json(
+                msg="marking ingress report complete",
+                ingress_report=self.uuid,
+                provider_uuid=self.source.uuid,
+            )
+        )
+
+    def set_status(self, status):
+        """Update the status field for ingress reports."""
+        self.status = status
+        self.save(update_fields=["status"])
+        LOG.info(
+            log_json(
+                msg="updating ingress report status",
+                ingress_report=self.uuid,
+                provider_uuid=self.source.uuid,
+                status=status,
+            )
+        )

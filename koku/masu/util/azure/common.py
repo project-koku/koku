@@ -15,10 +15,70 @@ from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.ocp.common import match_openshift_labels
 
 LOG = logging.getLogger(__name__)
+
+INGRESS_REQUIRED_COLUMNS = {
+    "SubscriptionGuid",
+    "ResourceGroup",
+    "ResourceLocation",
+    "UsageDateTime",
+    "MeterCategory",
+    "MeterSubcategory",
+    "MeterId",
+    "MeterName",
+    "MeterRegion",
+    "UsageQuantity",
+    "ResourceRate",
+    "PreTaxCost",
+    "ConsumedService",
+    "ResourceType",
+    "InstanceId",
+    "OfferId",
+    "AdditionalInfo",
+    "ServiceInfo1",
+    "ServiceInfo2",
+    "ServiceName",
+    "ServiceTier",
+    "Currency",
+    "UnitOfMeasure",
+}
+
+INGRESS_ALT_COLUMNS = {
+    "SubscriptionId",
+    "ResourceGroup",
+    "ResourceLocation",
+    "Date",
+    "MeterCategory",
+    "MeterSubCategory",
+    "MeterId",
+    "MeterName",
+    "MeterRegion",
+    "UnitOfMeasure",
+    "Quantity",
+    "EffectivePrice",
+    "CostInBillingCurrency",
+    "ConsumedService",
+    "ResourceId",
+    "OfferId",
+    "AdditionalInfo",
+    "ServiceInfo1",
+    "ServiceInfo2",
+    "ResourceName",
+    "ReservationId",
+    "ReservationName",
+    "UnitPrice",
+    "PublisherType",
+    "PublisherName",
+    "ChargeType",
+    "BillingAccountId",
+    "BillingAccountName",
+    "BillingCurrencyCode",
+    "BillingPeriodStartDate",
+    "BillingPeriodEndDate",
+    "ServiceFamily",
+}
 
 
 class AzureBlobExtension(Enum):
@@ -88,8 +148,11 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(end_date, (datetime.datetime, datetime.date)):
         end_date = end_date.strftime("%Y-%m-%d")
 
-    with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider = provider_accessor.get_provider()
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if not provider:
+        err_msg = "Provider UUID is not associated with a given provider."
+        LOG.warning(err_msg)
+        return []
 
     if provider.type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         err_msg = f"Provider UUID is not an Azure type.  It is {provider.type}"
@@ -103,8 +166,9 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:
                 bills = bills.filter(billing_period_start__lte=end_date)
-
-            bills = list(bills.all())
+            # postgres doesn't always return this query in the same order, ordering by ID (PK) will
+            # ensure that any list iteration or indexing is always done in the same order
+            bills = list(bills.order_by("id").all())
 
     return bills
 
@@ -116,21 +180,25 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         cluster_topology.get("persistent_volumes", []) for cluster_topology in cluster_topologies
     )
     matchable_resources = list(nodes) + list(volumes)
+    data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["resourceid"]
-    if resource_id_df.isna().values.all():
+    if resource_id_df.eq("").all():
         resource_id_df = data_frame["instanceid"]
 
-    LOG.info("Matching OpenShift on Azure by resource ID.")
-    resource_id_matched = resource_id_df.str.contains("|".join(matchable_resources))
-    data_frame["resource_id_matched"] = resource_id_matched
+    if not resource_id_df.eq("").all():
+        LOG.info("Matching OpenShift on Azure by resource ID.")
+        resource_id_matched = resource_id_df.str.contains("|".join(matchable_resources))
+        data_frame["resource_id_matched"] = resource_id_matched
 
+    data_frame["special_case_tag_matched"] = False
     tags = data_frame["tags"]
-    tags = tags.str.lower()
-
-    special_case_tag_matched = tags.str.contains(
-        "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
-    )
-    data_frame["special_case_tag_matched"] = special_case_tag_matched
+    if not tags.eq("").all():
+        tags = tags.str.lower()
+        LOG.info("Matching OpenShift on Azure by tags.")
+        special_case_tag_matched = tags.str.contains(
+            "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+        )
+        data_frame["special_case_tag_matched"] = special_case_tag_matched
 
     if matched_tags:
         tag_keys = []
@@ -139,9 +207,11 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             tag_keys.extend(list(tag.keys()))
             tag_values.extend(list(tag.values()))
 
-        tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
-        data_frame["tag_matched"] = tag_matched
-        any_tag_matched = tag_matched.any()
+        any_tag_matched = None
+        if not tags.eq("").all():
+            tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
+            data_frame["tag_matched"] = tag_matched
+            any_tag_matched = tag_matched.any()
 
         if any_tag_matched:
             tag_df = pd.concat([tags, tag_matched], axis=1)
@@ -154,6 +224,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             data_frame["matched_tag"] = matched_tag
             data_frame["matched_tag"].fillna(value="", inplace=True)
         else:
+            data_frame["tag_matched"] = False
             data_frame["matched_tag"] = ""
     else:
         data_frame["tag_matched"] = False

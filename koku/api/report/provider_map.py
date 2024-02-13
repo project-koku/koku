@@ -54,10 +54,11 @@ class ProviderMap:
         prov = self.provider_data(provider)
         return prov.get("report_type").get(report_type)
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._provider = provider
         self._report_type = report_type
+        self._schema_name = schema_name
         self._provider_map = self.provider_data(provider)
         self._report_type_map = self.report_type_data(report_type, provider)
 

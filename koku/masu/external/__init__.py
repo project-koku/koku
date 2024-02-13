@@ -3,10 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Initializer for external module."""
-# Ingest Methods
-POLL_INGEST = "poll-ingest"
-LISTEN_INGEST = "listen-ingest"
-
 # Compression formats
 UNCOMPRESSED = "PLAIN"
 GZIP_COMPRESSED = "GZIP"

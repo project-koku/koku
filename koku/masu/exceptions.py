@@ -17,9 +17,5 @@ class MasuConfigurationError(Exception):
     """Masu Configuration Error."""
 
 
-class CURAccountsInterfaceError(Exception):
-    """CURAccountsInterface error."""
-
-
 class HasherError(Exception):
     """Hasher Utility class error."""

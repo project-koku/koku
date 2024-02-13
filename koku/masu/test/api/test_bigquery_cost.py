@@ -6,6 +6,7 @@
 from collections import OrderedDict
 from unittest.mock import patch
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -69,7 +70,7 @@ class BigQueryCostTest(MasuTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_bigquery_request_with_bad_provider_uuid(self, _):
         """Test the GET bigquery_cost endpoint with incorrect provider uuid."""
-        provider_uuid = 1234
+        provider_uuid = uuid4()
         params = {"provider_uuid": provider_uuid}
         query_string = urlencode(params)
         url = reverse("bigquery_cost") + "?" + query_string

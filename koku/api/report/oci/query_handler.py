@@ -55,7 +55,9 @@ class OCIReportQueryHandler(ReportQueryHandler):
         try:
             getattr(self, "_mapper")
         except AttributeError:
-            self._mapper = OCIProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = OCIProviderMap(
+                provider=self.provider, report_type=parameters.report_type, schema_name=parameters.tenant.schema_name
+            )
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")

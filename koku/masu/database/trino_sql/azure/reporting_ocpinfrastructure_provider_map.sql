@@ -1,6 +1,6 @@
 
 WITH cte_azure_instances AS (
-    SELECT DISTINCT split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) as instance,
+    SELECT DISTINCT split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) as instance,
         azure.source
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     WHERE coalesce(azure.date, azure.usagedatetime) >= {{start_date}}

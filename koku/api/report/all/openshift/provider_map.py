@@ -30,7 +30,7 @@ from reporting.models import OCPAllStorageSummaryPT
 class OCPAllProviderMap(ProviderMap):
     """OCP on All Infrastructure Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._mapping = [
             {
@@ -777,4 +777,4 @@ class OCPAllProviderMap(ProviderMap):
                 ("account", "service"): OCPAllNetworkSummaryPT,
             },
         }
-        super().__init__(provider, report_type)
+        super().__init__(provider, report_type, schema_name)

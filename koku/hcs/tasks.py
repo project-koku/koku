@@ -19,7 +19,6 @@ from koku import celery_app
 from koku import settings
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -119,19 +118,13 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
 
     for report in reports_deduplicated:
+        if report.get("provider_type") == Provider.PROVIDER_OCP:
+            return
         start_date = None
         end_date = None
-        if report.get("start") and report.get("end"):
-            LOG.info("using start and end dates from the manifest for HCS processing")
-            start_date = parser.parse(report.get("start")).date()
-            end_date = parser.parse(report.get("end")).date()
-        else:
-            # GCP and OCI set report start and report end, AWS/Azure do not
-            date_tuple = get_start_and_end_from_manifest_id(report.get("manifest_id"))
-            if not date_tuple:
-                LOG.debug(f"SKIPPING REPORT, no manifest found: {report}")
-                continue
-            start_date, end_date = date_tuple
+        LOG.info("using start and end dates from the manifest for HCS processing")
+        start_date = parser.parse(report.get("start")).date()
+        end_date = parser.parse(report.get("end")).date()
         schema_name = report.get("schema_name")
         provider_type = report.get("provider_type")
         provider_uuid = report.get("provider_uuid")
@@ -180,12 +173,13 @@ def collect_hcs_report_data(
         None
     """
     schema_name = check_schema_name(schema_name)
+    dh = DateHelper()
 
     if start_date is None:
-        start_date = DateAccessor().today() - datetime.timedelta(days=2)
+        start_date = dh.today - datetime.timedelta(days=2)
 
     if end_date is None:
-        end_date = DateAccessor().today()
+        end_date = dh.today
 
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
@@ -243,8 +237,7 @@ def collect_hcs_report_finalization(  # noqa: C901
         LOG.info(log_json(tracing_id, msg=f"schema_name provided: {schema_name} is not HCS enabled"))
         return
 
-    finalization_date = DateAccessor().today()
-    finalization_date = finalization_date.replace(day=1)
+    finalization_date = DateHelper().this_month_start
 
     if month and year:
         finalization_date = finalization_date.replace(year=int(year), month=int(month)) + relativedelta(months=1)

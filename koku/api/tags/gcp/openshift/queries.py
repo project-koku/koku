@@ -53,7 +53,9 @@ class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
 
         """
         self._parameters = parameters
-        self._mapper = OCPGCPProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._mapper = OCPGCPProviderMap(
+            provider=self.provider, report_type=parameters.report_type, schema_name=parameters.tenant.schema_name
+        )
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
         # super() needs to be called after _mapper is set

@@ -6,19 +6,21 @@
 import datetime
 import logging
 import os
+from functools import cached_property
 from pathlib import Path
 
 import pandas as pd
 from dateutil import parser
 from django.conf import settings
+from django_tenants.utils import schema_context
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
-from masu.database.ingress_report_db_accessor import IngressReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import check_ingress_columns
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -38,6 +40,7 @@ from masu.util.oci.common import detect_type as oci_detect_type
 from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
+from reporting.ingress.models import IngressReports
 
 
 LOG = logging.getLogger(__name__)
@@ -78,8 +81,8 @@ class ParquetReportProcessor:
             context = {}
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
-        self._report_file = report_path
-        self._provider_type = provider_type
+        self._report_file = Path(report_path)
+        self.provider_type = provider_type
         self._manifest_id = manifest_id
         self._context = context
         self.start_date = self._context.get("start_date")
@@ -91,8 +94,8 @@ class ParquetReportProcessor:
         self.ingress_reports = ingress_reports
         self.ingress_reports_uuid = ingress_reports_uuid
 
-        self.metadata_start_date: str = self._context.get("metadata_start_date")
-        self.metadata_end_date: str = self._context.get("metadata_end_date")
+        self.split_files = [Path(file) for file in self._context.get("split_files") or []]
+        self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
 
     @property
     def schema_name(self):
@@ -116,9 +119,24 @@ class ParquetReportProcessor:
     @property
     def provider_type(self):
         """The provider type."""
+        return self._provider_type
+
+    @provider_type.setter
+    def provider_type(self, value: str):
+        """Set the provider type."""
         # Remove local from string so we can store local/test and real sources
         # together in S3/Trino
-        return self._provider_type.replace("-local", "")
+        self._provider_type = value.replace("-local", "")
+        # validate the type
+        if self._provider_type not in {
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_OCI,
+            Provider.PROVIDER_OCP,
+        }:
+            msg = f"no ReportParquetProcessor for provider type {self._provider_type}"
+            raise ParquetReportProcessorError(msg)
 
     @property
     def manifest_id(self):
@@ -133,7 +151,12 @@ class ParquetReportProcessor:
     @property
     def file_list(self):
         """The list of files to process, often if a full CSV has been broken into smaller files."""
-        return self._context.get("split_files") or [self._report_file]
+        return self.split_files or [self._report_file]
+
+    @property
+    def split_file_list(self):
+        """Always return split files."""
+        return self.split_files
 
     @property
     def error_context(self):
@@ -181,9 +204,10 @@ class ParquetReportProcessor:
     def file_extension(self):
         """File format compression."""
         first_file = self.file_list[0]
-        if first_file.lower().endswith(CSV_EXT):
+        filename = first_file.name.lower()
+        if filename.endswith(CSV_EXT):
             return CSV_EXT
-        elif first_file.lower().endswith(CSV_GZIP_EXT):
+        elif filename.endswith(CSV_GZIP_EXT):
             return CSV_GZIP_EXT
         else:
             msg = f"file {first_file} is not valid CSV - conversion to parquet skipped"
@@ -255,8 +279,8 @@ class ParquetReportProcessor:
 
     @property
     def local_path(self):
-        local_path = f"{Config.TMP_DIR}/{self.account}/{self.provider_uuid}"
-        Path(local_path).mkdir(parents=True, exist_ok=True)
+        local_path = Path(Config.TMP_DIR, self.account, self.provider_uuid)
+        local_path.mkdir(parents=True, exist_ok=True)
         return local_path
 
     @property
@@ -267,63 +291,60 @@ class ParquetReportProcessor:
             else get_s3_objects_not_matching_metadata
         )
 
-    def _set_post_processor(self):
+    @cached_property
+    def post_processor(self):
         """Post processor based on provider type."""
-        post_processor = None
-        if self.provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-            post_processor = AWSPostProcessor(schema=self._schema_name)
-        elif self.provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
-            post_processor = AzurePostProcessor(schema=self.schema_name)
-        elif self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            post_processor = GCPPostProcessor(schema=self._schema_name)
-        elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
-            post_processor = OCIPostProcessor(schema=self._schema_name)
+        if self.provider_type == Provider.PROVIDER_AWS:
+            return AWSPostProcessor(schema=self._schema_name)
+        elif self.provider_type == Provider.PROVIDER_AZURE:
+            return AzurePostProcessor(schema=self.schema_name)
+        elif self.provider_type == Provider.PROVIDER_GCP:
+            return GCPPostProcessor(schema=self._schema_name)
+        elif self.provider_type == Provider.PROVIDER_OCI:
+            return OCIPostProcessor(schema=self._schema_name)
         elif self.provider_type == Provider.PROVIDER_OCP:
-            post_processor = OCPPostProcessor(schema=self._schema_name, report_type=self.report_type)
-        return post_processor
+            return OCPPostProcessor(schema=self._schema_name, report_type=self.report_type)
 
-    def _set_report_processor(self, parquet_file, daily=False):
+    def _get_report_processor(self, parquet_file, daily=False):
         """Return the correct ReportParquetProcessor."""
         s3_hive_table_path = get_hive_table_path(
             self.account, self.provider_type, report_type=self.report_type, daily=daily
         )
-        processor = None
-        if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            processor = AWSReportParquetProcessor(
+        if self.provider_type == Provider.PROVIDER_AWS:
+            return AWSReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
             )
-        elif self.provider_type in (Provider.PROVIDER_OCP,):
-            processor = OCPReportParquetProcessor(
+        elif self.provider_type == Provider.PROVIDER_OCP:
+            return OCPReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file, self.report_type
             )
-        elif self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            processor = AzureReportParquetProcessor(
+        elif self.provider_type == Provider.PROVIDER_AZURE:
+            return AzureReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
             )
-        elif self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            processor = GCPReportParquetProcessor(
+        elif self.provider_type == Provider.PROVIDER_GCP:
+            return GCPReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
             )
-        elif self.provider_type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
-            processor = OCIReportParquetProcessor(
+        elif self.provider_type == Provider.PROVIDER_OCI:
+            return OCIReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file, self.report_type
             )
-        if processor is None:
-            msg = f"There is no ReportParquetProcessor for provider type {self.provider_type}"
-            raise ParquetReportProcessorError(msg)
 
-        return processor
-
-    def prepare_parquet_s3(self):
+    def prepare_parquet_s3(self, filename: os.PathLike):
 
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
-        # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
+        parquet_cleared_key = ""
+        if self.provider_type == Provider.PROVIDER_OCP:
+            parquet_cleared_key = filename.stem.rsplit(".", 1)[0]
+
+        # AWS and Azure should remove files when running final bills
         # OCP operators that send daily report files must wipe s3 before copying to prevent duplication
         if (
             not manifest_accessor.should_s3_parquet_be_cleared(manifest)
-            or manifest_accessor.get_s3_parquet_cleared(manifest, self.report_type)
+            or manifest_accessor.get_s3_parquet_cleared(manifest, parquet_cleared_key)
             or self.provider_type
             in (
                 Provider.PROVIDER_GCP,
@@ -334,7 +355,7 @@ class ParquetReportProcessor:
         ):
             return
 
-        metadata_key, metadata_value = self.get_metadata_kv()
+        metadata_key, metadata_value = self.get_metadata_kv(filename.stem)
 
         to_delete = self.parquet_file_getter(
             self.tracing_id,
@@ -364,20 +385,20 @@ class ParquetReportProcessor:
 
         if self.provider_type == Provider.PROVIDER_OCP and to_delete:
             # filter the report
-            LOG.warning(log_json(msg="files to delete pre filter", to_delete=to_delete))
+            LOG.info(log_json(msg="files to delete pre filter", to_delete=to_delete))
             to_delete = filter_s3_objects_less_than(
                 self.tracing_id,
                 to_delete,
                 metadata_key="reportnumhours",
-                metadata_value_check=self.metadata_end_date[11:13],
+                metadata_value_check=self.ocp_files_to_process[filename.stem]["meta_reportnumhours"],
                 context=self.error_context,
             )
-            LOG.warning(log_json(msg="files to delete post filter", to_delete=to_delete))
+            LOG.info(log_json(msg="files to delete post filter", to_delete=to_delete))
             if not to_delete:
                 raise ReportsAlreadyProcessed
 
         delete_s3_objects(self.tracing_id, to_delete, self.error_context)
-        manifest_accessor.mark_s3_parquet_cleared(manifest, self.report_type)
+        manifest_accessor.mark_s3_parquet_cleared(manifest, parquet_cleared_key)
         LOG.info(log_json(msg="removed s3 files and marked manifest s3_parquet_cleared", context=self._context))
 
     def convert_to_parquet(self):  # noqa: C901
@@ -406,11 +427,31 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
-        self.prepare_parquet_s3()
-
         failed_conversion = []
         daily_data_frames = []
-        for csv_filename in self.file_list:
+        file_list = self.file_list
+
+        # Azure and AWS should now always have split daily files
+        if self.provider_type in [
+            Provider.PROVIDER_AWS,
+            Provider.PROVIDER_AWS_LOCAL,
+            Provider.PROVIDER_AZURE,
+            Provider.PROVIDER_AZURE_LOCAL,
+        ]:
+            file_list = self.split_file_list
+
+        if not file_list:
+            LOG.warn(
+                log_json(
+                    self.tracing_id,
+                    msg="no split files to convert to parquet",
+                    context=self.error_context,
+                )
+            )
+            return parquet_base_filename, daily_data_frames
+
+        for csv_filename in file_list:
+            self.prepare_parquet_s3(Path(csv_filename))
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 LOG.warn(
                     log_json(
@@ -423,7 +464,7 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
             if self.provider_type == Provider.PROVIDER_OCI:
-                file_specific_start_date = csv_filename.split(".")[1]
+                file_specific_start_date = str(csv_filename).split(".")[1]
                 self.start_date = file_specific_start_date
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
@@ -445,40 +486,33 @@ class ParquetReportProcessor:
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
-        processor = self._set_report_processor(parquet_file, daily=daily)
+        processor = self._get_report_processor(parquet_file, daily=daily)
         bill_date = self.start_date.replace(day=1)
         if not processor.schema_exists():
             processor.create_schema()
         if not processor.table_exists():
             processor.create_table(partition_map=partition_map)
-        if not daily:
-            processor.create_bill(bill_date=bill_date)
+        self.trino_table_exists[self.report_type] = True
         processor.get_or_create_postgres_partition(bill_date=bill_date)
         processor.sync_hive_partitions()
-        self.trino_table_exists[self.report_type] = True
+        if not daily:
+            processor.create_bill(bill_date=bill_date)
 
-    def check_required_columns_for_ingress_reports(self, post_processor, col_names):
+    def check_required_columns_for_ingress_reports(self, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
-        if missing_cols := post_processor.check_ingress_required_columns(col_names):
-            message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
-            if self.ingress_reports_uuid:
-                with IngressReportDBAccessor(self.schema_name) as ingressreport_accessor:
-                    ingressreport_accessor.update_ingress_report_status(self.ingress_reports_uuid, message)
-            raise ValidationError(message, code="Missing_columns")
+        if not check_ingress_columns(self.schema_name):
+            if missing_cols := self.post_processor.check_ingress_required_columns(col_names):
+                message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
+                with schema_context(self.schema_name):
+                    report = IngressReports.objects.get(uuid=self.ingress_reports_uuid)
+                    report.set_status(message)
+                raise ValidationError(message, code="Missing_columns")
 
-    def convert_csv_to_parquet(self, csv_filename):  # noqa: C901
+    def convert_csv_to_parquet(self, csv_filename: os.PathLike):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
-        post_processor = self._set_post_processor()
-        if not post_processor:
-            LOG.warn(
-                log_json(self.tracing_id, msg="unrecongized provider type - cannot convert csv", context=self._context)
-            )
-            return None, None, False
-
         daily_data_frames = []
-        _, csv_name = os.path.split(csv_filename)
-        parquet_file = None
-        parquet_base_filename = csv_name.replace(self.file_extension, "")
+        parquet_filepath = ""
+        parquet_base_filename = csv_filename.name.replace(self.file_extension, "")
         kwargs = {}
         if self.file_extension == CSV_GZIP_EXT:
             kwargs["compression"] = "gzip"
@@ -490,18 +524,18 @@ class ParquetReportProcessor:
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
             if self.ingress_reports:
-                self.check_required_columns_for_ingress_reports(post_processor, col_names)
+                self.check_required_columns_for_ingress_reports(col_names)
 
-            csv_converters, kwargs = post_processor.get_column_converters(col_names, kwargs)
+            csv_converters, kwargs = self.post_processor.get_column_converters(col_names, kwargs)
             with pd.read_csv(
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
                 for i, data_frame in enumerate(reader):
                     if data_frame.empty:
                         continue
-                    parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
-                    parquet_file = f"{self.local_path}/{parquet_filename}"
-                    data_frame, daily_frames = post_processor.process_dataframe(data_frame)
+                    parquet_filename_suffix = f"_{i}{PARQUET_EXT}"
+                    parquet_filepath = f"{self.local_path}/{parquet_base_filename}{parquet_filename_suffix}"
+                    data_frame, daily_frames = self.post_processor.process_dataframe(data_frame)
                     daily_data_frames.append(daily_frames)
                     LOG.info(
                         log_json(
@@ -511,7 +545,9 @@ class ParquetReportProcessor:
                             file_name=csv_filename,
                         )
                     )
-                    success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
+                    success = self._write_parquet_to_file(
+                        parquet_filepath, parquet_base_filename, parquet_filename_suffix, data_frame
+                    )
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
                 LOG.info(
@@ -522,9 +558,9 @@ class ParquetReportProcessor:
                         file_name=csv_filename,
                     )
                 )
-                post_processor.finalize_post_processing()
+                self.post_processor.finalize_post_processing()
             if self.create_table and not self.trino_table_exists.get(self.report_type):
-                self.create_parquet_table(parquet_file)
+                self.create_parquet_table(parquet_filepath)
 
         except Exception as err:
             LOG.warn(
@@ -544,9 +580,11 @@ class ParquetReportProcessor:
         """Create a parquet file for daily aggregated data."""
         file_path = None
         for i, data_frame in enumerate(data_frames):
-            file_name = f"{parquet_base_filename}_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
-            file_path = f"{self.local_path}/{file_name}"
-            self._write_parquet_to_file(file_path, file_name, data_frame, file_type=DAILY_FILE_TYPE)
+            file_name_suffix = f"_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
+            file_path = f"{self.local_path}/{parquet_base_filename}{file_name_suffix}"
+            self._write_parquet_to_file(
+                file_path, parquet_base_filename, file_name_suffix, data_frame, file_type=DAILY_FILE_TYPE
+            )
         if file_path:
             self.create_parquet_table(file_path, daily=True)
 
@@ -586,20 +624,21 @@ class ParquetReportProcessor:
 
         return get_path_prefix(**kwargs)
 
-    def get_metadata(self) -> dict:
+    def get_metadata(self, filename) -> dict:
         metadata = {"ManifestId": str(self.manifest_id)}
         if self._provider_type == Provider.PROVIDER_OCP:
-            metadata["ReportDateStart"] = self.metadata_start_date
-            metadata["ReportNumHours"] = self.metadata_end_date[11:13]
+            metadata["ReportDateStart"] = self.ocp_files_to_process[filename]["meta_reportdatestart"]
+            metadata["ReportNumHours"] = self.ocp_files_to_process[filename]["meta_reportnumhours"]
         return metadata
 
-    def get_metadata_kv(self) -> tuple[str, str]:
+    def get_metadata_kv(self, filename) -> tuple[str, str]:
         if self._provider_type == Provider.PROVIDER_OCP:
-            return ("reportdatestart", self.metadata_start_date)
+            return ("reportdatestart", self.ocp_files_to_process[filename]["meta_reportdatestart"])
         return ("manifestid", str(self.manifest_id))
 
-    def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
+    def _write_parquet_to_file(self, file_path, file_name_base, file_name_suffix, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
+        file_name = file_name_base + file_name_suffix
         if self._provider_type in {Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL}:
             # We need to determine the parquet file path based off
             # of the start of the invoice month and usage start for GCP.
@@ -607,7 +646,7 @@ class ParquetReportProcessor:
         else:
             s3_path = self._determin_s3_path(file_type)
         data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
-        metadata = self.get_metadata()
+        metadata = self.get_metadata(file_name_base)
         try:
             with open(file_path, "rb") as fin:
                 copy_data_to_s3_bucket(
