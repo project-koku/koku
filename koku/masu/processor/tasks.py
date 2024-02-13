@@ -115,13 +115,17 @@ def record_all_manifest_files(manifest_id, report_files, tracing_id):
         try:
             _, created = CostUsageReportStatus.objects.get_or_create(report_name=report, manifest_id=manifest_id)
             LOG.debug(log_json(tracing_id, msg=f"Logging {report} for manifest ID: {manifest_id}, created: {created}"))
-        except IntegrityError:
+        except IntegrityError as exc:
             # OCP records the entire file list for a new manifest when the listener
             # recieves a payload.  With multiple listeners it is possilbe for
             # two listeners to recieve a report file for the same manifest at
             # roughly the same time.  In that case the report file may already
             # exist and an IntegrityError would be thrown.
-            LOG.debug(log_json(tracing_id, msg=f"Report {report} has already been recorded."))
+            #
+            # Monitor to see how many log messages this creates. If it is too many, we can
+            # change it back to debug, but that runs the risk of swallowing valuable
+            # information when we need it.
+            LOG.warning(log_json(tracing_id, msg=f"Report {report} has already been recorded.", exc_info=repr(exc)))
 
 
 def record_report_status(manifest_id, file_name, tracing_id, context={}):
