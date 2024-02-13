@@ -14,6 +14,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 FAKE = Faker()
 
@@ -66,6 +68,24 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         updated_manifest = self.manifest_accessor.get_manifest_by_id(self.manifest.id)
         self.assertNotEqual(before_count, after_count)
         self.assertEqual(updated_manifest.num_total_files, after_count)
+
+    def test_update_manifest_state(self):
+        """Test updating the manifest state."""
+        before_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
+        self.manifest_accessor.update_manifest_state("testing", "start", self.manifest.id)
+        after_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
+        self.assertNotEqual(before_state.state, after_state.state)
+        self.assertIn("testing", after_state.state)
+
+    def test_update_manifest_state_end(self):
+        """Test updating the manifest state."""
+        before_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
+        self.manifest_accessor.update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.START, self.manifest.id)
+        self.manifest_accessor.update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.END, self.manifest.id)
+        after_state = CostUsageReportManifest.objects.filter(id=self.manifest.id).first()
+        self.assertNotEqual(before_state.state, after_state.state)
+        self.assertIn("end", after_state.state.get("download"))
+        self.assertIn("time_taken_seconds", after_state.state.get("download"))
 
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""

@@ -169,8 +169,11 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                             self.assertEqual(report_downloader.report_name, self.fake_report_name)
                             self.assertIsNone(report_downloader.report_prefix)
 
-    def test_download_bucket_with_prefix(self):
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_download_bucket_with_prefix(self, mock_select_for_update):
         """Test to verify that basic report downloading works."""
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         fake_bucket = tempfile.mkdtemp()
         mytar = TarFile.open("./koku/masu/test/data/test_local_bucket_prefix.tar.gz")
         mytar.extractall(fake_bucket)

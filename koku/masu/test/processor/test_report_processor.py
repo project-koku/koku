@@ -18,7 +18,8 @@ class ReportProcessorTest(MasuTestCase):
 
     @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=(1, 1))
     @patch("masu.processor.report_processor.OCPCloudParquetReportProcessor.process", return_value=2)
-    def test_aws_process(self, mock_ocp_cloud_process, mock_parquet_process):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_aws_process(self, mock_status, mock_ocp_cloud_process, mock_parquet_process):
         """Test to process for AWS."""
         processor = ReportProcessor(
             schema_name=self.schema,
@@ -35,7 +36,8 @@ class ReportProcessorTest(MasuTestCase):
 
     @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=(1, []))
     @patch("masu.processor.report_processor.OCPCloudParquetReportProcessor.process", return_value=2)
-    def test_aws_process_returns_false(self, mock_ocp_cloud_process, mock_parquet_process):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_aws_process_returns_false(self, mock_status, mock_ocp_cloud_process, mock_parquet_process):
         """Test to check no data frames returned from process."""
         processor = ReportProcessor(
             schema_name=self.schema,
@@ -49,7 +51,8 @@ class ReportProcessorTest(MasuTestCase):
         result = processor.process()
         self.assertFalse(result)
 
-    def test_set_processor_parquet(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_set_processor_parquet(self, mock_status):
         """Test that the Parquet class is returned."""
         processor = ReportProcessor(
             schema_name=self.schema,
@@ -62,7 +65,8 @@ class ReportProcessorTest(MasuTestCase):
         )
         self.assertIsInstance(processor._processor, ParquetReportProcessor)
 
-    def test_ocp_on_cloud_processor(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_ocp_on_cloud_processor(self, mock_status):
         """Test that we return the right class."""
 
         processor = ReportProcessor(
@@ -91,7 +95,8 @@ class ReportProcessorTest(MasuTestCase):
         "masu.processor.report_processor.ParquetReportProcessor.process",
         side_effect=ReportsAlreadyProcessed("test error"),
     )
-    def test_ocp_process(self, mock_parquet_process):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_ocp_process(self, mock_status, mock_parquet_process):
         """Test to process for AWS."""
         processor = ReportProcessor(
             schema_name=self.schema,
