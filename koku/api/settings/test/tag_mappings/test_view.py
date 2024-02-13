@@ -146,7 +146,7 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         data = {"parent": random_uuid_list[0], "children": [random_uuid_list[1], random_uuid_list[2]]}
 
         response = self.client.put(url, data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
 
     def test_put_method_remove_children(self):
         """Test removing children."""
@@ -160,13 +160,13 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         }
         response = self.client.put(url, data, format="json", **self.headers)
 
-        if response.status_code == status.HTTP_200_OK:
+        if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
             # Removing children
             url = reverse("tags-mapping-child-remove")
             data = {"ids": [random_uuid_list[1], random_uuid_list[3]]}
             response = self.client.put(url, data, format="json", **self.headers)
 
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.status_code, status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
 
     def test_put_method_remove_parent(self):
         """Test removing parent."""
@@ -180,13 +180,13 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         }
         response = self.client.put(url, data, format="json", **self.headers)
 
-        if response.status_code == status.HTTP_200_OK:
+        if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
             # Removing parent
             url = reverse("tags-mapping-parent-remove")
             data = {"ids": [random_uuid_list[0]]}
             response = self.client.put(url, data, format="json", **self.headers)
 
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.status_code, status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
 
     def retrieve_sample_uuids(self):
         """Gets all inserted uuids to use on adding(put) methods."""
