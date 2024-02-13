@@ -75,6 +75,7 @@ class SettingsTagUpdateView(APIView):
         objects = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
         if response := self._check_limit(objects):
             return response
+
         objects.update(enabled=self.enabled)
         EnabledTagKeys.objects.bulk_update(objects, ["enabled"])
 

@@ -1,3 +1,7 @@
+#
+# Copyright 2024 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache

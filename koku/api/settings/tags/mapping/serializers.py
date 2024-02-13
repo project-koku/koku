@@ -1,5 +1,5 @@
 #
-# Copyright 2023 Red Hat Inc.
+# Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for Tag Mappings."""
