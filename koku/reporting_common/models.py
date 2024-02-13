@@ -6,6 +6,10 @@
 from django.db import models
 from django.utils import timezone
 
+from reporting_common.states import CombinedChoices
+from reporting_common.states import ReportStep
+from reporting_common.states import Status
+
 
 class CostUsageReportManifest(models.Model):
     """Information gathered from a cost usage report manifest file."""
@@ -60,10 +64,15 @@ class CostUsageReportStatus(models.Model):
     completed_datetime = models.DateTimeField(null=True)
     started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
+    # id of the task processing this report
+    celery_task_id = models.UUIDField(null=True)
+    # Current status of processing report
+    status = models.IntegerField(choices=CombinedChoices.choices, default=ReportStep.DOWNLOADING)
+    failed_status = models.IntegerField(choices=ReportStep.choices, null=True)
 
-    def update_started_datetime(self):
+    def set_started_datetime(self):
         """
-        Update the started_datetime field to the current date and time.
+        Set the started_datetime field to the current date and time.
         """
         self.started_datetime = timezone.now()
         self.save(update_fields=["started_datetime"])
@@ -81,6 +90,31 @@ class CostUsageReportStatus(models.Model):
         """
         self.completed_datetime = timezone.now()
         self.save(update_fields=["completed_datetime"])
+
+    def set_celery_task_id(self, task_id):
+        """
+        Set celery_task_id field to match the report task id.
+        """
+        self.celery_task_id = task_id
+        self.save(update_fields=["celery_task_id"])
+
+    def update_status(self, status_id):
+        """
+        Update the status of the current report.
+        """
+        if status_id == Status.DONE:
+            self.set_completed_datetime()
+        elif status_id == Status.FAILED:
+            self.set_failed_status(self.status)
+        self.status = status_id
+        self.save(update_fields=["status"])
+
+    def set_failed_status(self, failed_status_id):
+        """
+        Set the failed state of a processing report.
+        """
+        self.failed_status = failed_status_id
+        self.save(update_fields=["failed_status"])
 
 
 class RegionMapping(models.Model):

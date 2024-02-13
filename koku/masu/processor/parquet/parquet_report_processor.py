@@ -41,6 +41,8 @@ from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
+from reporting_common.models import CombinedChoices
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -96,6 +98,10 @@ class ParquetReportProcessor:
 
         self.split_files = [Path(file) for file in self._context.get("split_files") or []]
         self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
+        if self.manifest_id:
+            self.report_status = CostUsageReportStatus.objects.get(
+                report_name=Path(self._report_file).name, manifest_id=self.manifest_id
+            )
 
     @property
     def schema_name(self):
@@ -461,8 +467,7 @@ class ParquetReportProcessor:
                         filename=csv_filename,
                     )
                 )
-                failed_conversion.append(csv_filename)
-                continue
+                raise ParquetReportProcessorError
             if self.provider_type == Provider.PROVIDER_OCI:
                 file_specific_start_date = str(csv_filename).split(".")[1]
                 self.start_date = file_specific_start_date
@@ -471,32 +476,32 @@ class ParquetReportProcessor:
             if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_frame)
             if not success:
-                failed_conversion.append(csv_filename)
-
-        if failed_conversion:
-            LOG.warn(
-                log_json(
-                    self.tracing_id,
-                    msg="failed to convert files to parquet",
-                    context=self.error_context,
-                    file_list=failed_conversion,
+                LOG.warn(
+                    log_json(
+                        self.tracing_id,
+                        msg="failed to convert files to parquet",
+                        context=self.error_context,
+                        file_list=failed_conversion,
+                    )
                 )
-            )
+                raise ParquetReportProcessorError
         return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
-        processor = self._get_report_processor(parquet_file, daily=daily)
-        bill_date = self.start_date.replace(day=1)
-        if not processor.schema_exists():
-            processor.create_schema()
-        if not processor.table_exists():
-            processor.create_table(partition_map=partition_map)
-        self.trino_table_exists[self.report_type] = True
-        processor.get_or_create_postgres_partition(bill_date=bill_date)
-        processor.sync_hive_partitions()
-        if not daily:
-            processor.create_bill(bill_date=bill_date)
+        # Skip empty files, if we have no storage report data we can't create the table
+        if parquet_file:
+            processor = self._get_report_processor(parquet_file, daily=daily)
+            bill_date = self.start_date.replace(day=1)
+            if not processor.schema_exists():
+                processor.create_schema()
+            if not processor.table_exists():
+                processor.create_table(partition_map=partition_map)
+            self.trino_table_exists[self.report_type] = True
+            processor.get_or_create_postgres_partition(bill_date=bill_date)
+            processor.sync_hive_partitions()
+            if not daily:
+                processor.create_bill(bill_date=bill_date)
 
     def check_required_columns_for_ingress_reports(self, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
@@ -572,6 +577,7 @@ class ParquetReportProcessor:
                 ),
                 exc_info=err,
             )
+            self.report_status.update_status(CombinedChoices.FAILED)
             return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True

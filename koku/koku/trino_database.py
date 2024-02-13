@@ -16,10 +16,6 @@ NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
-class PreprocessStatementError(Exception):
-    pass
-
-
 class TrinoStatementExecError(Exception):
     def __init__(
         self,
@@ -106,6 +102,7 @@ def connect(**connect_args):
         ),
         "schema": connect_args["schema"],
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
+        "max_attempts": 9,  # based on exponential backoff used in the trino lib, 9 max retries with take ~100 seconds
     }
     return trino.dbapi.connect(**trino_connect_args)
 
@@ -136,16 +133,8 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
             p_stmt = p_stmt.removesuffix(";")
             # This is typically for jinjasql templated sql
             if preprocessor and params:
-                try:
-                    stmt, s_params = preprocessor(p_stmt, params)
-                except Exception as exc:
-                    LOG.warning(
-                        f"Preprocessor Error ({exc.__class__.__name__}) : {exc}{os.linesep}"
-                        f"Statement template : {p_stmt}{os.linesep}"
-                        f"Parameters : {params}"
-                    )
-                    exc_type = exc.__class__.__name__
-                    raise PreprocessStatementError(f"{exc_type} :: {exc}") from exc
+                stmt, s_params = preprocessor(p_stmt, params)
+                LOG.debug(f"processed templated sql:\n\tstmt: {stmt}\n\ts_params: {s_params}")
             else:
                 stmt, s_params = p_stmt, params
 

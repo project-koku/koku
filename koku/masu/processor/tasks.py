@@ -61,6 +61,8 @@ from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 LOG = logging.getLogger(__name__)
@@ -203,8 +205,10 @@ def get_report_files(  # noqa: C901
         report_file = report_context.get("key")
         cache_key = f"{provider_uuid}:{report_file}"
         WorkerCache().add_task_to_cache(cache_key)
-
+        # Get the task ID and add it to the report_context for tracking
+        report_context["task_id"] = get_report_files.request.id
         try:
+            # The real download task happens in _get_report_files
             report_dict = _get_report_files(
                 tracing_id,
                 customer_name,
@@ -220,6 +224,9 @@ def get_report_files(  # noqa: C901
             worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             WorkerCache().remove_task_from_cache(cache_key)
             LOG.warning(log_json(tracing_id, msg=str(err), context=context), exc_info=err)
+            ReportManifestDBAccessor().update_manifest_state(
+                ManifestStep.DOWNLOAD, ManifestState.FAILED, report_context["manifest_id"]
+            )
             return
 
         if report_dict:
@@ -251,6 +258,7 @@ def get_report_files(  # noqa: C901
             report_dict["tracing_id"] = tracing_id
             report_dict["provider_type"] = provider_type
 
+            # The real processing (convert to parquet and push to S3) happens in _process_report_file
             result = _process_report_file(
                 schema_name, provider_type, report_dict, ingress_reports, ingress_reports_uuid
             )
@@ -258,10 +266,16 @@ def get_report_files(  # noqa: C901
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
+            ReportManifestDBAccessor().update_manifest_state(
+                ManifestStep.PROCESSING, ManifestState.FAILED, report_context["manifest_id"]
+            )
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
             LOG.info(log_json(tracing_id, msg=f"Not implemented error: {err}", context=context))
+            ReportManifestDBAccessor().update_manifest_state(
+                ManifestStep.PROCESSING, ManifestState.FAILED, report_context["manifest_id"]
+            )
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
@@ -381,6 +395,10 @@ def summarize_reports(  # noqa: C901
         # Updater classes for when full-month summarization is
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
+            # Set summary start time
+            manifest_accesor.update_manifest_state(
+                ManifestStep.SUMMARY, ManifestState.START, report.get("manifest_id")
+            )
             fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
             if is_customer_large(report.get("schema_name")):
                 fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
@@ -519,6 +537,8 @@ def update_summary_tables(  # noqa: C901
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
+        # Set summary failed time
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.FAILED, manifest_id)
 
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
@@ -529,6 +549,8 @@ def update_summary_tables(  # noqa: C901
             ),
             exc_info=ex,
         )
+        # Set summary failed time
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.FAILED, manifest_id)
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         return
@@ -549,6 +571,9 @@ def update_summary_tables(  # noqa: C901
     else:
         with CostModelDBAccessor(schema, provider_uuid) as cost_model_accessor:
             cost_model = cost_model_accessor.cost_model
+
+    # Mark manifest summary complete time
+    ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.END, manifest_id)
 
     # Create queued tasks for each OpenShift on Cloud cluster
     delete_signature_list = []

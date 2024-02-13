@@ -219,6 +219,7 @@ class Orchestrator:
 
             if manifest:
                 LOG.debug("Saving all manifest file names.")
+                # This creates all the initial report status entries
                 record_all_manifest_files(
                     manifest["manifest_id"],
                     [report.get("local_file") for report in manifest.get("files", [])],
