@@ -4,18 +4,31 @@
 #
 """Views for Masu API `manifest`."""
 from django.forms.models import model_to_dict
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
+from django_filters import BooleanFilter
+from django_filters import ChoiceFilter
+from django_filters import DateFromToRangeFilter
+from django_filters import FilterSet
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
+from api.common.filters import CharListFilter
 from api.provider.models import Provider
+from masu.api.manifest.serializers import CustomSerializer
 from masu.api.manifest.serializers import ManifestSerializer
 from masu.api.manifest.serializers import UsageReportStatusSerializer
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import ManifestState
+from reporting_common.models import ManifestStep
+from reporting_common.models import Status
 
 
 class ManifestPermission(permissions.BasePermission):
@@ -149,3 +162,101 @@ class ManifestView(viewsets.ModelViewSet):
             raise ManifestException("Invalid manifest id or report status id")
         queryset = UsageReportStatusSerializer(queryset, many=True).data
         return Response(queryset)
+
+
+def manifest_failed_filter(queryset, name, value):
+    """A custom filter to return manfests that did or did not fail based on the boolean value of failed."""
+    filters = {}
+    for step in ManifestStep:
+        # if the failed field IS NULL then the manifest did not fail so we have to inverse the search criteria.
+        filters[f"state__{step}__{ManifestState.FAILED}__isnull"] = not value
+    return queryset.filter(**filters)
+
+
+def manifest_running_filter(queryset, name, value):
+    """A custom filter to return manfests that are running tasks."""
+    for step in ManifestStep:
+        queryset = queryset.filter(**{f"state__{step}__{ManifestState.END}__isnull": value})
+    return queryset
+
+
+class ManifestFilter(FilterSet):
+    """Custom Manifest filters."""
+
+    account_id = CharListFilter(
+        field_name="provider__customer__account_id", lookup_expr="provider__customer__account_id__icontains"
+    )
+    org_id = CharListFilter(
+        field_name="provider__customer__org_id", lookup_expr="provider__customer__org_id__icontains"
+    )
+    schema_name = CharListFilter(
+        field_name="provider__customer__schema_name", lookup_expr="provider__customer__schema_name__icontains"
+    )
+    created = DateFromToRangeFilter(field_name="creation_datetime")
+    updated = DateFromToRangeFilter(field_name="manifest_updated_datetime")
+    completed = DateFromToRangeFilter(field_name="completed_datetime")
+    manifest_failed = BooleanFilter(method=manifest_failed_filter)
+    manifest_running = BooleanFilter(method=manifest_running_filter)
+
+    class Meta:
+        model = CostUsageReportManifest
+        fields = [
+            "provider",
+            "account_id",
+            "org_id",
+            "schema_name",
+            "created",
+            "updated",
+            "completed",
+            "manifest_failed",
+            "manifest_running",
+        ]
+
+
+class UsageReportStatusFilter(FilterSet):
+    """Custom Report Status filters."""
+
+    status = ChoiceFilter(choices=Status.choices)
+
+    class Meta:
+        model = CostUsageReportStatus
+        fields = [
+            "status",
+            "manifest",
+            "celery_task_id",
+        ]
+
+
+class ManifestStatusViewSet(viewsets.ReadOnlyModelViewSet):
+    """A viewset for Manifests."""
+
+    queryset = CostUsageReportManifest.objects.all()
+    serializer_class = ManifestSerializer
+    permission_classes = [ManifestPermission]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ManifestFilter
+    http_method_names = ["get"]
+
+    def retrieve(self, request, pk=None):
+        queryset = self.get_queryset()
+        queryset = self.filter_queryset(queryset)
+        try:
+            obj = get_object_or_404(queryset, pk=pk)
+        except ValueError:
+            raise Http404
+        failed_reports = list(CostUsageReportStatus.objects.filter(manifest_id=pk, status=Status.FAILED))
+        data = {"manifest": obj, "failed_reports": failed_reports}
+        serializer = CustomSerializer(data)
+        return Response(serializer.data)
+
+    @action(methods=["get"], detail=True, filterset_class=UsageReportStatusFilter)
+    def reports(self, request, pk=None):
+        """Get reports for a specified manifest."""
+        queryset = self.filter_queryset(CostUsageReportStatus.objects.filter(manifest_id=pk).order_by("id"))
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = UsageReportStatusSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = UsageReportStatusSerializer(queryset, many=True)
+        return Response(serializer.data)

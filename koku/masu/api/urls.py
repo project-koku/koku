@@ -30,6 +30,7 @@ from masu.api.views import hcs_report_finalization
 from masu.api.views import ingest_ocp_payload
 from masu.api.views import ingress_reports
 from masu.api.views import lockinfo
+from masu.api.views import ManifestStatusViewSet
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
 from masu.api.views import process_openshift_on_cloud
@@ -46,6 +47,7 @@ from masu.api.views import update_openshift_on_cloud
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
+ROUTER.register(r"manifest", ManifestStatusViewSet, basename="manifest")
 
 
 urlpatterns = [
