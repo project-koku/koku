@@ -7,7 +7,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from reporting.provider.all.models import EnabledTagKeys
+from api.settings.tag_mappings.view import SettingsTagMappingFilter
+from reporting.provider.all.models import EnabledTagKeys, TagMapping
 
 
 class SettingsTagMappingViewTestCase(IamTestCase):
@@ -190,3 +191,27 @@ class SettingsTagMappingViewTestCase(IamTestCase):
             uuid_list = [tag_key.uuid for tag_key in enabled_tag_keys]
 
         return uuid_list
+
+    def test_filter_by_source_type(self):
+        """Test the filter by source_type."""
+
+        filter = SettingsTagMappingFilter()
+
+        # Adding sample uuids
+        random_uuid_list = self.retrieve_sample_uuids()
+        url = reverse("tags-mapping-child-add")
+        data = {
+            "parent": random_uuid_list[0],
+            "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]],
+        }
+        response = self.client.put(url, data, format="json", **self.headers)
+
+        # Get an already inserted provider type to check if the filter is working
+        parent_provider_types = TagMapping.objects.values_list('parent__provider_type', flat=True).distinct()
+        test_filter = parent_provider_types[0]
+
+        # Call the filter_by_source_type method with 'test_filter' as the value
+        result = filter.filter_by_source_type(TagMapping.objects.all(), 'provider_type', test_filter)
+        if response.status_code == status.HTTP_200_OK:
+            self.assertIn(result, filter)
+            self.assertNotIn(result, "random-provider-type")
