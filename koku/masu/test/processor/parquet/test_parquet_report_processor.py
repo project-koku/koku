@@ -114,7 +114,8 @@ class TestParquetReportProcessor(MasuTestCase):
             )
             report_processor.tracing_id
 
-    def test_start_date(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_start_date(self, mock_stats):
         """Test that the start_date property is handled."""
         self.assertIsInstance(self.report_processor.start_date, datetime.date)
 
@@ -149,7 +150,8 @@ class TestParquetReportProcessor(MasuTestCase):
             )
             report_processor.start_date
 
-    def test_file_extension(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_file_extension(self, mock_stats):
         """Test that the file_extension property is handled."""
         self.assertEqual(self.report_processor.file_extension, CSV_GZIP_EXT)
 
@@ -298,7 +300,8 @@ class TestParquetReportProcessor(MasuTestCase):
 
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
-    def test_convert_csv_to_parquet(self, mock_remove, mock_exists):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_convert_csv_to_parquet(self, mock_stats, mock_remove, mock_exists):
         """Test convert_csv_to_parquet."""
         _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv"))
         self.assertFalse(result)
@@ -362,7 +365,8 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertTrue(result)
             shutil.rmtree(local_path, ignore_errors=True)
 
-    def test_convert_csv_to_parquet_report_type_already_processed(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_convert_csv_to_parquet_report_type_already_processed(self, mock_stats):
         """Test that we don't re-create a table when we already have created this run."""
         with patch("masu.processor.parquet.parquet_report_processor.pd"), patch(
             "masu.processor.parquet.parquet_report_processor.open"
@@ -397,8 +401,10 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ReportParquetProcessorBase, "schema_exists")
     @patch.object(ReportParquetProcessorBase, "create_schema")
     @patch.object(ReportParquetProcessorBase, "create_table")
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     def test_create_parquet_table(
         self,
+        mock_stats,
         mock_create_table,
         mock_create_schema,
         mock_schema_exists,
@@ -558,8 +564,9 @@ class TestParquetReportProcessor(MasuTestCase):
         mock_convert.assert_called()
 
     @patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket")
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     @patch.object(ParquetReportProcessor, "create_parquet_table")
-    def test_process_gcp(self, mock_create_table, mock_s3_copy):
+    def test_process_gcp(self, mock_create_table, mock_stats, mock_s3_copy):
         """Test the processor for GCP."""
 
         report_path = "/tmp/original_csv.csv"
@@ -587,11 +594,9 @@ class TestParquetReportProcessor(MasuTestCase):
             gcp_processor.process()
             mock_convert.assert_called()
 
-        gcp_processor.process()
-
-        self.assertFalse(os.path.exists(report_path))
-        for path in file_list:
             self.assertFalse(os.path.exists(report_path))
+            for path in file_list:
+                self.assertFalse(os.path.exists(report_path))
 
     @patch.object(ParquetReportProcessor, "create_parquet_table")
     @patch.object(ParquetReportProcessor, "_write_parquet_to_file")
@@ -606,7 +611,10 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
     @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
-    def test_prepare_parquet_s3_ocp_files_reports_already_processed(self, mock_s3_getter, mock_s3_filter, *_):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_prepare_parquet_s3_ocp_files_reports_already_processed(
+        self, mock_stats, mock_s3_getter, mock_s3_filter, *_
+    ):
         """Test raising ReportsAlreadyProcessed."""
         mock_s3_getter.return_value = ["file1"]
         mock_s3_filter.return_value = []
@@ -640,7 +648,8 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
     @patch("masu.processor.parquet.parquet_report_processor.filter_s3_objects_less_than")
     @patch.object(ParquetReportProcessor, "parquet_file_getter")
-    def test_prepare_parquet_s3_ocp_files_reports_to_delete(self, mock_s3_getter, mock_s3_filter, *_):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_prepare_parquet_s3_ocp_files_reports_to_delete(self, mock_stats, mock_s3_getter, mock_s3_filter, *_):
         """Test that s3-parquet-tracker is updated when a we delete s3 files."""
         mock_s3_getter.return_value = ["file1"]
         mock_s3_filter.return_value = ["file1"]
@@ -670,7 +679,8 @@ class TestParquetReportProcessor(MasuTestCase):
         manifest = CostUsageReportManifest.objects.get(id=self.ocp_manifest_id)
         self.assertTrue(manifest.s3_parquet_cleared_tracker["pod_usage"])
 
-    def test_get_metadata_ocp(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_get_metadata_ocp(self, mock_stats):
         filename = Path("pod_usage.count.csv")
         expected_meta = {
             "ManifestId": str(self.ocp_manifest_id),
@@ -697,7 +707,8 @@ class TestParquetReportProcessor(MasuTestCase):
         meta = report_processor.get_metadata(filename.stem)
         self.assertDictEqual(meta, expected_meta)
 
-    def test_get_metadata_kv_ocp(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_get_metadata_kv_ocp(self, mock_stats):
         filename = Path("pod_usage.count.csv")
         expected_meta = {
             "ManifestId": str(self.ocp_manifest_id),
@@ -725,7 +736,8 @@ class TestParquetReportProcessor(MasuTestCase):
         result = report_processor.get_metadata_kv(filename.stem)
         self.assertTupleEqual(result, expected_result)
 
-    def test_get_metadata_notocp(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_get_metadata_notocp(self, mock_stats):
         filename = Path("pod_usage.count.csv")
         expected_meta = {
             "ManifestId": str(self.manifest_id),
@@ -744,7 +756,8 @@ class TestParquetReportProcessor(MasuTestCase):
         meta = report_processor.get_metadata(filename.stem)
         self.assertDictEqual(meta, expected_meta)
 
-    def test_get_metadata_kv_notocp(self):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_get_metadata_kv_notocp(self, mock_stats):
         filename = Path("pod_usage.count.csv")
         expected_meta = {
             "ManifestId": str(self.manifest_id),
@@ -765,7 +778,8 @@ class TestParquetReportProcessor(MasuTestCase):
         self.assertTupleEqual(result, expected_result)
 
     @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
-    def test_check_required_columns_for_ingress_reports_validation_error(self, mock_check_cols):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_check_required_columns_for_ingress_reports_validation_error(self, mock_stats, mock_check_cols):
         mock_check_cols.return_value = False
         filename = Path("pod_usage.count.csv")
         with schema_context(self.schema):
@@ -798,7 +812,8 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertIn("missing required columns", ingress_report.status)
 
     @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
-    def test_check_required_columns_for_ingress_reports(self, mock_check_cols):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_check_required_columns_for_ingress_reports(self, mock_stats, mock_check_cols):
         mock_check_cols.return_value = False
         filename = Path("pod_usage.count.csv")
         with schema_context(self.schema):
@@ -828,7 +843,8 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertIsNone(result)
 
     @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
-    def test_check_required_columns_for_ingress_reports_disabled_check(self, mock_check_cols):
+    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
+    def test_check_required_columns_for_ingress_reports_disabled_check(self, mock_stats, mock_check_cols):
         mock_check_cols.return_value = True
         filename = Path("pod_usage.count.csv")
         report_processor = ParquetReportProcessor(

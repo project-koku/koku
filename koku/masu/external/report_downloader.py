@@ -7,6 +7,7 @@ import logging
 
 from api.common import log_json
 from api.provider.models import Provider
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
@@ -20,7 +21,10 @@ from masu.external.downloader.oci.oci_report_downloader import OCIReportDownload
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
+from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 LOG = logging.getLogger(__name__)
@@ -161,10 +165,10 @@ class ReportDownloader:
             LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
             return {}
 
-        stats_recorder = CostUsageReportStatus.objects.filter(
+        report_status = CostUsageReportStatus.objects.filter(
             report_name=local_file_name, manifest_id=manifest_id
         ).first()
-        if not stats_recorder:
+        if not report_status:
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -175,14 +179,17 @@ class ReportDownloader:
                 )
             )
             return {}
+        report_status.set_celery_task_id(report_context.get("task_id"))
 
         try:
             file_name, etag, _, split_files, date_range = self._downloader.download_file(
-                report, stats_recorder.etag, manifest_id=manifest_id, start_date=date_time
+                report, report_status.etag, manifest_id=manifest_id, start_date=date_time
             )
-            stats_recorder.etag = etag
-            stats_recorder.save(update_fields=["etag"])
+            report_status.etag = etag
+            report_status.save(update_fields=["etag"])
         except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
+            ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.FAILED, manifest_id)
+            report_status.update_status(CombinedChoices.FAILED)
             LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
             return {}
 
@@ -201,4 +208,5 @@ class ReportDownloader:
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
         }
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.END, manifest_id)
         return report
