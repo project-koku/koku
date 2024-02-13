@@ -212,10 +212,13 @@ class SettingsTagMappingViewTestCase(IamTestCase):
         test_filter = parent_provider_types[0]
 
         # Call the filter_by_source_type method with 'test_filter' as the value
-        result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
-        if response.status_code == status.HTTP_200_OK:
-            self.assertIn(result, filter)
-            self.assertNotIn(result, "random-provider-type")
+        if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
+            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
+            self.assertNotEquals(len(result), 0)
+
+            test_filter = "random"
+            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
+            self.assertEqual(len(result), 0)
 
     def test_get_method_formatting(self):
         """Test the get method format for the tag mapping view"""
