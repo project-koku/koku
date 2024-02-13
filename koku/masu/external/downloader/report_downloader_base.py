@@ -115,9 +115,4 @@ class ReportDownloaderBase:
             LOG.warning(log_json(self.tracing_id, msg=msg, context=self.context))
             raise IntegrityError(msg)
 
-        with ReportManifestDBAccessor() as manifest_accessor:
-            if num_of_files != manifest_entry.num_total_files:
-                manifest_accessor.update_number_of_files_for_manifest(manifest_entry)
-            manifest_accessor.mark_manifest_as_updated(manifest_entry)
-
         return manifest_entry.id

@@ -86,17 +86,6 @@ def _process_report_file(schema_name, provider, report_dict, ingress_reports=Non
 
     report_status.set_completed_datetime()
 
-    with ReportManifestDBAccessor() as manifest_accesor:
-        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-        if manifest:
-            manifest_accesor.mark_manifest_as_updated(manifest)
-        else:
-            LOG.error(
-                log_json(
-                    tracing_id, msg=f"Unable to find manifest for ID: {manifest_id}, file {file_name}", context=context
-                )
-            )
-
     p = Provider.objects.get(uuid=provider_uuid)
     p.set_setup_complete()
 
