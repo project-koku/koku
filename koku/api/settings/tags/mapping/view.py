@@ -10,8 +10,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..utils import NonValidatedMultipleChoiceFilter
-from ..utils import SettingsFilter
+from ...utils import NonValidatedMultipleChoiceFilter
+from ...utils import SettingsFilter
 from .query_handler import format_tag_mapping_relationship
 from .serializers import EnabledTagKeysSerializer
 from .serializers import TagMappingSerializer
@@ -140,7 +140,7 @@ class SettingsTagMappingChildAddView(APIView):
             # Serialize and return the created TagMapping
             serializer = TagMappingSerializer(TagMapping.objects.filter(parent=parent), many=True)
 
-            return Response(serializer.data, status=status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
+            return Response(serializer.data, status=status.HTTP_204_NO_CONTENT)
 
         except EnabledTagKeys.DoesNotExist:
             return Response({"detail": "Invalid parent or children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
@@ -156,9 +156,7 @@ class SettingsTagMappingChildRemoveView(APIView):
 
         TagMapping.objects.filter(child__in=children_uuids).delete()
 
-        return Response(
-            {"detail": "Children deleted successfully."}, status=status.HTTP_203_NON_AUTHORITATIVE_INFORMATION
-        )
+        return Response({"detail": "Children deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 class SettingsTagMappingParentRemoveView(APIView):
@@ -171,6 +169,4 @@ class SettingsTagMappingParentRemoveView(APIView):
 
         TagMapping.objects.filter(parent__in=parents_uuid).delete()
 
-        return Response(
-            {"detail": "Parents deleted successfully."}, status=status.HTTP_203_NON_AUTHORITATIVE_INFORMATION
-        )
+        return Response({"detail": "Parents deleted successfully."}, status=status.HTTP_204_NO_CONTENT)

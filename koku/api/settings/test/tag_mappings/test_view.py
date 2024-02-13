@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.settings.tag_mappings.query_handler import format_tag_mapping_relationship
-from api.settings.tag_mappings.view import SettingsTagMappingFilter
+from koku.api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
+from koku.api.settings.tags.mapping.view import SettingsTagMappingFilter
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
@@ -146,7 +146,7 @@ class TestSettingsTagMappingView(IamTestCase):
         data = {"parent": random_uuid_list[0], "children": [random_uuid_list[1], random_uuid_list[2]]}
 
         response = self.client.put(url, data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_put_method_remove_children(self):
         """Test removing children."""
@@ -160,13 +160,13 @@ class TestSettingsTagMappingView(IamTestCase):
         }
         response = self.client.put(url, data, format="json", **self.headers)
 
-        if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
+        if response.status_code == status.HTTP_204_NO_CONTENT:
             # Removing children
             url = reverse("tags-mapping-child-remove")
             data = {"ids": [random_uuid_list[1], random_uuid_list[3]]}
             response = self.client.put(url, data, format="json", **self.headers)
 
-            self.assertEqual(response.status_code, status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_put_method_remove_parent(self):
         """Test removing parent."""
@@ -180,12 +180,12 @@ class TestSettingsTagMappingView(IamTestCase):
         }
         response = self.client.put(url, data, format="json", **self.headers)
 
-        if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
+        if response.status_code == status.HTTP_204_NO_CONTENT:
             # Removing parent
             url = reverse("tags-mapping-parent-remove")
             data = {"ids": [random_uuid_list[0]]}
             response = self.client.put(url, data, format="json", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             self.assertEqual(response.data["detail"], "Parents deleted successfully.")
 
     def retrieve_sample_uuids(self):
@@ -215,7 +215,7 @@ class TestSettingsTagMappingView(IamTestCase):
         test_filter = parent_provider_types[0]
 
         # Call the filter_by_source_type method with 'test_filter' as the value
-        if response.status_code == status.HTTP_203_NON_AUTHORITATIVE_INFORMATION:
+        if response.status_code == status.HTTP_204_NO_CONTENT:
             result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
             self.assertNotEqual(len(result), 0)
 
@@ -233,10 +233,10 @@ class TestSettingsTagMappingView(IamTestCase):
                 "offset": 0
             },
             "links": {
-                "first": "/api/cost-management/v1/settings/tag_mappings/?limit=3&offset=0",
+                "first": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0",
                 "next": null,
                 "previous": null,
-                "last": "/api/cost-management/v1/settings/tag_mappings/?limit=3&offset=0"
+                "last": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0"
             },
             "data": [
                 {

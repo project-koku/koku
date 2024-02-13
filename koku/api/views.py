@@ -76,12 +76,6 @@ from api.settings.aws_category_keys.view import SettingsEnableAWSCategoryKeyView
 from api.settings.cost_groups.view import CostGroupsAddView
 from api.settings.cost_groups.view import CostGroupsRemoveView
 from api.settings.cost_groups.view import CostGroupsView
-from api.settings.tag_mappings.view import SettingsTagMappingChildAddView
-from api.settings.tag_mappings.view import SettingsTagMappingChildRemoveView
-from api.settings.tag_mappings.view import SettingsTagMappingChildView
-from api.settings.tag_mappings.view import SettingsTagMappingParentRemoveView
-from api.settings.tag_mappings.view import SettingsTagMappingParentView
-from api.settings.tag_mappings.view import SettingsTagMappingView
 from api.settings.tags.view import SettingsDisableTagView
 from api.settings.tags.view import SettingsEnableTagView
 from api.settings.tags.view import SettingsTagView
@@ -98,3 +92,9 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.oci.view import OCITagView
 from api.tags.ocp.view import OCPTagView
 from api.user_access.view import UserAccessView
+from koku.api.settings.tags.mapping.view import SettingsTagMappingChildAddView
+from koku.api.settings.tags.mapping.view import SettingsTagMappingChildRemoveView
+from koku.api.settings.tags.mapping.view import SettingsTagMappingChildView
+from koku.api.settings.tags.mapping.view import SettingsTagMappingParentRemoveView
+from koku.api.settings.tags.mapping.view import SettingsTagMappingParentView
+from koku.api.settings.tags.mapping.view import SettingsTagMappingView
