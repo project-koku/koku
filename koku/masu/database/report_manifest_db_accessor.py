@@ -91,9 +91,9 @@ class ReportManifestDBAccessor:
                     if not manifest.state.get(step):
                         manifest.state[step] = {}
                     manifest.state[step][interval] = time_now.isoformat()
-                    if interval == "end" or interval == "failed":
+                    if interval == ManifestState.END or interval == ManifestState.FAILED:
                         manifest.state[step]["time_taken_seconds"] = (
-                            time_now - datetime.fromisoformat(manifest.state[step]["start"])
+                            time_now - datetime.fromisoformat(manifest.state[step][ManifestState.START])
                         ).seconds
                     manifest.save(update_fields=["state"])
 
