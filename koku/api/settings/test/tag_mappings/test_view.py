@@ -185,8 +185,8 @@ class SettingsTagMappingViewTestCase(IamTestCase):
             url = reverse("tags-mapping-parent-remove")
             data = {"ids": [random_uuid_list[0]]}
             response = self.client.put(url, data, format="json", **self.headers)
-
             self.assertEqual(response.status_code, status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
+            self.assertEqual(response.data["detail"], "Parents deleted successfully.")
 
     def retrieve_sample_uuids(self):
         """Gets all inserted uuids to use on adding(put) methods."""
