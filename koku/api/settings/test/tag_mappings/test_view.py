@@ -15,7 +15,7 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
 
-class SettingsTagMappingViewTestCase(IamTestCase):
+class TestSettingsTagMappingView(IamTestCase):
     def setUp(self):
         """Set up the tests."""
         super().setUp()
