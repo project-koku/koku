@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for Tag Mappings."""
+from django.db.models import Q
 from rest_framework import serializers
 
 from reporting.provider.all.models import EnabledTagKeys
@@ -27,16 +28,33 @@ class TagMappingSerializer(serializers.Serializer):
             "child": EnabledTagKeysSerializer(instance.child).data,
         }
 
+
+class AddChildSerializer(serializers.Serializer):
+    parent = serializers.UUIDField()
+    children = serializers.ListField(child=serializers.UUIDField())
+
     def validate(self, data):
-        parent = data["parent"]
-        child = data["child"]
+        """This function validates the options and returns the enabled tag rows."""
+        children_list = data["children"]
+        combined_list = [data["parent"]] + children_list
+        mappings = TagMapping.objects.filter(Q(parent__uuid__in=combined_list) | Q(child__uuid__in=combined_list))
+        for tag_mapping in mappings:
+            if tag_mapping.parent.uuid in children_list:
+                raise serializers.ValidationError("A parent can't become a child.")
+            if tag_mapping.child.uuid == data["parent"]:
+                raise serializers.ValidationError("A child can't become a parent.")
+            if tag_mapping.child.uuid in children_list:
+                children_list.remove(tag_mapping.child.uuid)
+                combined_list.remove(tag_mapping.child.uuid)
+        if len(children_list) == 0:
+            raise serializers.ValidationError("No new children to add.")
 
-        if TagMapping.objects.filter(child=parent["uuid"]).exists():
-            raise serializers.ValidationError("A child can't become a parent.")
+        enabled_rows = EnabledTagKeys.objects.filter(uuid__in=combined_list, enabled=True)
+        if len(combined_list) != enabled_rows.count():
+            # Ensure that the parent & child uuids are enabled.
+            raise serializers.ValidationError("Invalid or disabled uuid provided.")
 
-        if TagMapping.objects.filter(parent=child["uuid"]).exists():
-            raise serializers.ValidationError("A parent can't become a child.")
-
+        data["children"] = children_list
         return data
 
 

@@ -1,16 +1,14 @@
 import json
-import random
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
-from faker import Faker
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from koku.api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
-from koku.api.settings.tags.mapping.view import SettingsTagMappingFilter
+from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
+from api.settings.tags.mapping.view import SettingsTagMappingFilter
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
@@ -21,14 +19,8 @@ class TestSettingsTagMappingView(IamTestCase):
         super().setUp()
         self.client = APIClient()
 
-        # Create some sample data
-        cloud_providers = ["AWS", "Azure", "GCP", "OCP"]
-        fake = Faker()
-
-        for _ in range(30):
-            tag_key = EnabledTagKeys(key=fake.uuid4(), enabled=True, provider_type=random.choice(cloud_providers))
-            with tenant_context(self.tenant):
-                tag_key.save()
+        with tenant_context(self.tenant):
+            self.enabled_uuid_list = EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True)
 
     def test_get_method(self):
         """Test the get method for the tag mapping view"""
@@ -105,45 +97,48 @@ class TestSettingsTagMappingView(IamTestCase):
         url = reverse("tags-mapping-child-add")
 
         # Adding sample uuids
-        random_uuid_list = self.retrieve_sample_uuids()
+        self.enabled_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
         data = {
-            "parent": random_uuid_list[0],
-            "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]],
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1], self.enabled_uuid_list[2], self.enabled_uuid_list[3]],
         }
         response = self.client.put(url, data, format="json", **self.headers)
 
-        if response.status_code == status.HTTP_200_OK:
-            # Adding a parent as child
-            data = {"parent": random_uuid_list[4], "children": [random_uuid_list[0]]}
-            response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Adding a parent as child
+        data = {"parent": self.enabled_uuid_list[4], "children": [self.enabled_uuid_list[0]]}
+        response = self.client.put(url, data, format="json", **self.headers)
 
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_put_method_validate_child(self):
         """Test if a child can be added as a parent."""
 
         # Adding sample uuids
-        random_uuid_list = self.retrieve_sample_uuids()
+        self.enabled_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
         data = {
-            "parent": random_uuid_list[0],
-            "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]],
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1], self.enabled_uuid_list[2], self.enabled_uuid_list[3]],
         }
         response = self.client.put(url, data, format="json", **self.headers)
 
-        if response.status_code == status.HTTP_200_OK:
-            # Adding a child as parent
-            data = {"parent": random_uuid_list[2], "children": [random_uuid_list[4]]}
-            response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Adding a child as parent
+        data = {"parent": self.enabled_uuid_list[2], "children": [self.enabled_uuid_list[4]]}
+        response = self.client.put(url, data, format="json", **self.headers)
 
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_put_method_add_multiple_children(self):
         """Test adding multiple children (list)."""
-        random_uuid_list = self.retrieve_sample_uuids()
+        self.enabled_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
-        data = {"parent": random_uuid_list[0], "children": [random_uuid_list[1], random_uuid_list[2]]}
+        data = {
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1], self.enabled_uuid_list[2]],
+        }
 
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -152,41 +147,39 @@ class TestSettingsTagMappingView(IamTestCase):
         """Test removing children."""
 
         # Adding sample uuids
-        random_uuid_list = self.retrieve_sample_uuids()
+        self.enabled_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
         data = {
-            "parent": random_uuid_list[0],
-            "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]],
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1], self.enabled_uuid_list[2], self.enabled_uuid_list[3]],
         }
         response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Removing children
+        url = reverse("tags-mapping-child-remove")
+        data = {"ids": [self.enabled_uuid_list[1], self.enabled_uuid_list[3]]}
+        response = self.client.put(url, data, format="json", **self.headers)
 
-        if response.status_code == status.HTTP_204_NO_CONTENT:
-            # Removing children
-            url = reverse("tags-mapping-child-remove")
-            data = {"ids": [random_uuid_list[1], random_uuid_list[3]]}
-            response = self.client.put(url, data, format="json", **self.headers)
-
-            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_put_method_remove_parent(self):
         """Test removing parent."""
 
         # Adding sample uuids
-        random_uuid_list = self.retrieve_sample_uuids()
+        self.enabled_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
         data = {
-            "parent": random_uuid_list[0],
-            "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]],
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1], self.enabled_uuid_list[2], self.enabled_uuid_list[3]],
         }
         response = self.client.put(url, data, format="json", **self.headers)
-
-        if response.status_code == status.HTTP_204_NO_CONTENT:
-            # Removing parent
-            url = reverse("tags-mapping-parent-remove")
-            data = {"ids": [random_uuid_list[0]]}
-            response = self.client.put(url, data, format="json", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-            self.assertEqual(response.data["detail"], "Parents deleted successfully.")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Removing parent
+        url = reverse("tags-mapping-parent-remove")
+        data = {"ids": [self.enabled_uuid_list[0]]}
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.data["detail"], "Parents deleted successfully.")
 
     def retrieve_sample_uuids(self):
         """Gets all inserted uuids to use on adding(put) methods."""
@@ -202,26 +195,25 @@ class TestSettingsTagMappingView(IamTestCase):
         filter = SettingsTagMappingFilter()
 
         # Adding sample uuids
-        random_uuid_list = self.retrieve_sample_uuids()
+        self.enabled_uuid_list = self.retrieve_sample_uuids()
         url = reverse("tags-mapping-child-add")
         data = {
-            "parent": random_uuid_list[0],
-            "children": [random_uuid_list[1], random_uuid_list[2], random_uuid_list[3]],
+            "parent": self.enabled_uuid_list[0],
+            "children": [self.enabled_uuid_list[1], self.enabled_uuid_list[2], self.enabled_uuid_list[3]],
         }
         response = self.client.put(url, data, format="json", **self.headers)
 
         # Get an already inserted provider type to check if the filter is working
         parent_provider_types = TagMapping.objects.values_list("parent__provider_type", flat=True).distinct()
         test_filter = parent_provider_types[0]
-
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         # Call the filter_by_source_type method with 'test_filter' as the value
-        if response.status_code == status.HTTP_204_NO_CONTENT:
-            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
-            self.assertNotEqual(len(result), 0)
+        result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
+        self.assertNotEqual(len(result), 0)
 
-            test_filter = "random"
-            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
-            self.assertEqual(len(result), 0)
+        test_filter = "random"
+        result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
+        self.assertEqual(len(result), 0)
 
     def test_format_tag_mapping_relationship(self):
         """Test the get method format for the tag mapping view"""
