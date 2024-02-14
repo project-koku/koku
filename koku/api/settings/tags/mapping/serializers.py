@@ -43,11 +43,11 @@ class AddChildSerializer(serializers.Serializer):
         already_children = []
         for tag_mapping in mappings:
             if tag_mapping.parent.uuid in children_list:
-                parent_to_children.append(tag_mapping.parent.uuid)
+                parent_to_children.append(str(tag_mapping.parent.uuid))
             if tag_mapping.child.uuid == data["parent"]:
-                children_to_parent.append(tag_mapping.child.uuid)
+                children_to_parent.append(str(tag_mapping.child.uuid))
             if tag_mapping.child.uuid in children_list:
-                already_children.append(tag_mapping.child.uuid)
+                already_children.append(str(tag_mapping.child.uuid))
         if parent_to_children:
             raise serializers.ValidationError(f"A parent can't become a child. {parent_to_children}")
         if children_to_parent:
@@ -60,7 +60,6 @@ class AddChildSerializer(serializers.Serializer):
             # Ensure that the parent & child uuids are enabled.
             raise serializers.ValidationError("Invalid or disabled uuid provided.")
 
-        data["children"] = children_list
         return data
 
 
