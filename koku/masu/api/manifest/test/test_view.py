@@ -30,7 +30,12 @@ class ManifestViewTests(IamTestCase):
         manifests = CostUsageReportManifest.objects.all()
         self.manifest = CostUsageReportManifest.objects.first()
         self.manifest_count = manifests.count()
-        self.report_status_count = CostUsageReportStatus.objects.filter(manifest_id=self.manifest.id).count()
+        reports = CostUsageReportStatus.objects.all()
+        self.report_status_count = reports.filter(manifest_id=self.manifest.id).count()
+        self.failed_processing_count = reports.filter(
+            manifest_id=self.manifest.id, failed_status=CombinedChoices.PROCESSING
+        ).count()
+        self.done_report_count = reports.filter(manifest_id=self.manifest.id, status=Status.DONE).count()
         self.client = APIClient()
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -90,12 +95,12 @@ class ManifestViewTests(IamTestCase):
     def test_get_status_reports_filters(self):
         """Test the filters on the manifest report status endpoint."""
         url = reverse("manifests-reports", kwargs={"pk": self.manifest.id})
-        filters = {
-            "status": Status.DONE.value,
-            "celery_task_id": str(uuid4()),
-            "failed_status": CombinedChoices.PROCESSING,
-        }
-        for key, value in filters.items():
+        filters = [
+            ("status", Status.DONE.value, self.done_report_count),
+            ("celery_task_id", str(uuid4()), 0),
+            ("failed_status", CombinedChoices.PROCESSING.value, self.failed_processing_count),
+        ]
+        for key, value, expected_count in filters:
             with self.subTest(filter=key):
                 filter_url = url + f"?{key}={value}"
                 response = self.client.get(
@@ -103,4 +108,4 @@ class ManifestViewTests(IamTestCase):
                 )
                 body = response.json()
                 self.assertEqual(response.status_code, 200)
-                self.assertLess(body.get("meta").get("count"), self.report_status_count)
+                self.assertEqual(body.get("meta").get("count"), expected_count)
