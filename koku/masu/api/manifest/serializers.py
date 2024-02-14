@@ -51,7 +51,7 @@ class UsageReportStatusSerializer(serializers.Serializer):
         data = super().to_representation(instance)
         data["status"] = CombinedChoices(data["status"]).label
         if data.get("failed_status"):
-            data["failed_status"] = ReportStep(data["failed_status"])
+            data["failed_status"] = ReportStep(data["failed_status"]).label
         return data
 
 
