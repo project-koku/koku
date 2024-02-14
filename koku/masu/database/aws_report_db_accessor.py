@@ -12,6 +12,7 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.db import connection
 from django.db.models import F
+from django.db.models import Q
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
@@ -22,12 +23,14 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
+from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
@@ -294,14 +297,26 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    def populate_ocp_on_aws_tags_summary_table(self, bill_ids, start_date, end_date):
+    def populate_ocp_on_aws_tag_information(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
-        table_name = self._table_map["ocp_on_aws_tags_summary"]
-
+        sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        # Tag Summary
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
         sql = sql.decode("utf-8")
-        sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
+        self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_tags_summary"], sql, sql_params)
+        # Tag Mapping
+        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
+            return
+        with schema_context(self.schema):
+            # Early return check to see if they have any tag mappings set.
+            if not TagMapping.objects.filter(
+                Q(child__provider_type=Provider.PROVIDER_AWS) | Q(child__provider_type=Provider.PROVIDER_OCP)
+            ).exists():
+                LOG.debug("No tag mappings for AWS.")
+                return
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
+        sql = sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params)
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
@@ -338,6 +353,36 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_model.objects.filter(
                         source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
                     ).update(markup_cost=(F("unblended_cost") * markup))
+
+    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids=None):
+        """
+        Updates the line item daily summary table with tag mapping pieces.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+        Returns:
+            (None)
+        """
+        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
+            return
+        with schema_context(self.schema):
+            # Early return check to see if they have any tag mappings set.
+            if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_AWS).exists():
+                LOG.debug("No tag mappings for AWS.")
+                return
+
+        table_name = self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data("masu.database", "sql/aws/aws_tag_mapping_update_daily_summary.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "bill_ids": bill_ids,
+            "schema": self.schema,
+        }
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def get_openshift_on_cloud_matched_tags(self, aws_bill_id):
         """Return a list of matched tags."""
