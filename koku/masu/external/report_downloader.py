@@ -23,8 +23,8 @@ from masu.external.downloader.report_downloader_base import ReportDownloaderErro
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
-from reporting_common.models import ManifestState
-from reporting_common.models import ManifestStep
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 LOG = logging.getLogger(__name__)

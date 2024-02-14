@@ -56,8 +56,8 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
-from reporting_common.models import ManifestState
-from reporting_common.models import ManifestStep
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 LOG = logging.getLogger(__name__)

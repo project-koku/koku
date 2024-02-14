@@ -61,8 +61,8 @@ from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
-from reporting_common.models import ManifestState
-from reporting_common.models import ManifestStep
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 LOG = logging.getLogger(__name__)

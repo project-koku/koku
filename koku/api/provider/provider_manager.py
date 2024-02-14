@@ -30,6 +30,8 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 DATE_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG = logging.getLogger(__name__)
@@ -45,6 +47,12 @@ class ProviderManagerError(Exception):
 
 class ProviderManagerAuthorizationError(ProviderManagerError):
     """User does not have authorization to perform ProviderManager actions."""
+
+    pass
+
+
+class ManifestDoesNotExist(Exception):
+    """Manifest does not exist."""
 
     pass
 
@@ -110,22 +118,26 @@ class ProviderManager:
     def get_state(self):
         """Get latest manifest state."""
         states = {
-            "download": "pending",
-            "processing": "pending",
-            "summary": "pending",
+            ManifestStep.DOWNLOAD: ManifestState.PENDING,
+            ManifestStep.PROCESSING: ManifestState.PENDING,
+            ManifestStep.SUMMARY: ManifestState.PENDING,
         }
-        manifests = CostUsageReportManifest.objects.filter(
-            provider=self._uuid,
-            billing_period_start_datetime=self.date_helper.this_month_start,
-        )
-        if manifests:
-            manifest = manifests.latest("creation_datetime")
-            for key in states.keys():
-                if manifest.state.get(key):
-                    if manifest.state.get(key).get("start"):
-                        states[key] = "in-progress"
-                    if manifest.state.get(key).get("end"):
-                        states[key] = "complete"
+        try:
+            manifest = CostUsageReportManifest.objects.filter(
+                provider=self._uuid,
+                billing_period_start_datetime=self.date_helper.this_month_start,
+                creation_datetime__isnull=False,
+            ).latest("creation_datetime")
+        except CostUsageReportManifest.DoesNotExist:
+            return states
+
+        for key in states:
+            if current_state := manifest.state.get(key):
+                if current_state.get(ManifestState.END):
+                    states[key] = ManifestState.COMPLETE
+                elif current_state.get(ManifestState.START):
+                    states[key] = ManifestState.IN_PROGRESS
+
         return states
 
     def get_any_data_exists(self):

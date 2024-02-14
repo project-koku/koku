@@ -489,8 +489,8 @@ class ParquetReportProcessor:
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
-        # Skip empty files, if we have no storage report data we cant create the table
-        if parquet_file != "":
+        # Skip empty files, if we have no storage report data we can't create the table
+        if parquet_file:
             processor = self._get_report_processor(parquet_file, daily=daily)
             bill_date = self.start_date.replace(day=1)
             if not processor.schema_exists():
