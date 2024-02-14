@@ -4,7 +4,6 @@
 #
 """Models for shared reporting tables."""
 from django.db import models
-from django.db.models import IntegerChoices
 from django.utils import timezone
 
 from reporting_common.states import CombinedChoices
