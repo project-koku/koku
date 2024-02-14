@@ -48,12 +48,15 @@ class AddChildSerializer(serializers.Serializer):
                 children_to_parent.append(str(tag_mapping.child.uuid))
             if tag_mapping.child.uuid in children_list:
                 already_children.append(str(tag_mapping.child.uuid))
+        errors = []
         if parent_to_children:
-            raise serializers.ValidationError(f"A parent can't become a child. {parent_to_children}")
+            errors.append(serializers.ValidationError(f"a parent cannot become a child: {parent_to_children}"))
         if children_to_parent:
-            raise serializers.ValidationError(f"A child can't become a parent. {children_to_parent}")
+            errors.append(serializers.ValidationError(f"a child cannot become a parent: {children_to_parent}"))
         if already_children:
-            raise serializers.ValidationError(f"Child already linked to a parent. {already_children}")
+           errors.append(serializers.ValidationError(f"child already linked to a parent: {already_children}"))
+        if errors:
+            raise serializers.ValidationError(errors)
 
         enabled_rows = EnabledTagKeys.objects.filter(uuid__in=combined_list, enabled=True)
         if len(combined_list) != enabled_rows.count():
