@@ -7,7 +7,7 @@ from rest_framework import serializers
 
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-from reporting_common.models import Status
+from reporting_common.states import CombinedChoices
 
 
 class ManifestSerializer(serializers.Serializer):
@@ -43,15 +43,17 @@ class UsageReportStatusSerializer(serializers.Serializer):
     started_datetime = serializers.DateTimeField()
     etag = serializers.CharField()
     status = serializers.IntegerField()
-    failed_status = serializers.IntegerField()
+    failed_status = serializers.IntegerField(allow_null=True)
     celery_task_id = serializers.UUIDField()
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["status"] = Status(data["status"]).label
+        data["status"] = CombinedChoices(data["status"]).label
+        if data.get("failed_status"):
+            data["failed_status"] = CombinedChoices(data["failed_status"])
         return data
 
 
-class CustomSerializer(serializers.Serializer):
+class ManifestAndUsageReportSerializer(serializers.Serializer):
     manifest = ManifestSerializer()
     failed_reports = UsageReportStatusSerializer(many=True)
