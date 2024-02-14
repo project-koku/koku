@@ -8,6 +8,7 @@ from rest_framework import serializers
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.states import CombinedChoices
+from reporting_common.states import ReportStep
 
 
 class ManifestSerializer(serializers.Serializer):
@@ -50,7 +51,7 @@ class UsageReportStatusSerializer(serializers.Serializer):
         data = super().to_representation(instance)
         data["status"] = CombinedChoices(data["status"]).label
         if data.get("failed_status"):
-            data["failed_status"] = CombinedChoices(data["failed_status"])
+            data["failed_status"] = ReportStep(data["failed_status"])
         return data
 
 
