@@ -89,6 +89,8 @@ class ReportManifestDBAccessor:
                 manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
                 if manifest:
                     time_now = timezone.now()
+                    if not manifest.state:
+                        manifest.state = {}
                     if not manifest.state.get(step):
                         manifest.state[step] = {}
                     manifest.state[step][interval] = time_now.isoformat()
