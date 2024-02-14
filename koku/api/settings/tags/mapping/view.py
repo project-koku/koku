@@ -128,7 +128,7 @@ class SettingsTagMappingChildRemoveView(APIView):
 
         TagMapping.objects.filter(child__in=children_uuids).delete()
 
-        return Response({"detail": "Children deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SettingsTagMappingParentRemoveView(APIView):
