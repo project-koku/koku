@@ -93,6 +93,12 @@ from api.views import SettingsDisableAWSCategoryKeyView
 from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
 from api.views import SettingsEnableTagView
+from api.views import SettingsTagMappingChildAddView
+from api.views import SettingsTagMappingChildRemoveView
+from api.views import SettingsTagMappingChildView
+from api.views import SettingsTagMappingParentRemoveView
+from api.views import SettingsTagMappingParentView
+from api.views import SettingsTagMappingView
 from api.views import SettingsTagView
 from api.views import StatusView
 from api.views import UserAccessView
@@ -107,7 +113,6 @@ from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
-
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
@@ -365,6 +370,20 @@ urlpatterns = [
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
     path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
+    path("settings/tags/mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
+    path("settings/tags/mappings/child/", SettingsTagMappingChildView.as_view(), name="tags-mapping-child"),
+    path("settings/tags/mappings/parent/", SettingsTagMappingParentView.as_view(), name="tags-mapping-parent"),
+    path("settings/tags/mappings/child/add/", SettingsTagMappingChildAddView.as_view(), name="tags-mapping-child-add"),
+    path(
+        "settings/tags/mappings/child/remove/",
+        SettingsTagMappingChildRemoveView.as_view(),
+        name="tags-mapping-child-remove",
+    ),
+    path(
+        "settings/tags/mappings/parent/remove/",
+        SettingsTagMappingParentRemoveView.as_view(),
+        name="tags-mapping-parent-remove",
+    ),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
