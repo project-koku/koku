@@ -36,10 +36,20 @@ SELECT uuid() as uuid,
     date(usage_start_time) as usage_end,
     nullif(location_region, '') as region,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
-    max(usage_pricing_unit) as unit,
     CASE
+        WHEN max(usage_pricing_unit) = 'hour'
+        THEN 'Hrs'
+        WHEN max(usage_pricing_unit) = 'gibibyte'
+        THEN 'GB'
         WHEN max(usage_pricing_unit) = 'gibibyte month'
-        THEN cast(sum(usage_amount_in_pricing_units) * 1.074 AS decimal(24,9)) -- Convert to gigabyte
+        THEN 'GB-Mo'
+        WHEN max(usage_pricing_unit) = 'gibibyte hour'
+        THEN 'GB-Hours'
+    ELSE max(usage_pricing_unit)
+    END as unit,
+    CASE
+        WHEN max(usage_pricing_unit) = 'gibibyte month' OR max(usage_pricing_unit) = 'gibibyte' OR max(usage_pricing_unit) = 'gibibyte hour'
+        THEN cast(sum(usage_amount_in_pricing_units) * 1.073741824 AS decimal(24,9)) -- Convert to gigabyte
         ELSE cast(sum(usage_amount_in_pricing_units) AS decimal(24,9))
     END as usage_amount,
     json_parse(labels) as tags,
