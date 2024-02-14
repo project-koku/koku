@@ -73,9 +73,9 @@ class OCPGCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -99,9 +99,9 @@ class OCPGCPProviderMap(ProviderMap):
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -132,9 +132,9 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -158,9 +158,9 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "cost_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -197,9 +197,9 @@ class OCPGCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -223,9 +223,9 @@ class OCPGCPProviderMap(ProviderMap):
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -261,9 +261,9 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -287,9 +287,9 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "cost_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -323,9 +323,9 @@ class OCPGCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -349,9 +349,9 @@ class OCPGCPProviderMap(ProviderMap):
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -387,9 +387,9 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "infra_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -413,9 +413,9 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "cost_total": Sum(
                                 (
-                                        Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                        + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
