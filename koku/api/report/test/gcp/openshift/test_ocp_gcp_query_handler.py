@@ -63,7 +63,7 @@ class OCPGCPQueryHandlerTestNoData(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        keys_units = {"usage": "hour", "infrastructure": "USD", "supplementary": "USD", "cost": "USD"}
+        keys_units = {"usage": "Hrs", "infrastructure": "USD", "supplementary": "USD", "cost": "USD"}
         has_total_list = ["cost", "infrastructure", "supplementary"]
         for key, unit in keys_units.items():
             self.assertIsNotNone(total.get(key))
