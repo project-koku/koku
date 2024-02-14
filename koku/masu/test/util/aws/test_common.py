@@ -683,10 +683,10 @@ class TestAWSUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.empty)
@@ -696,10 +696,10 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id5"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
@@ -707,10 +707,10 @@ class TestAWSUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.empty)
@@ -726,10 +726,10 @@ class TestAWSUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.empty)
@@ -762,7 +762,7 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         result = matched_df["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
     def test_match_openshift_resource_with_nan_labels(self):
         """Test OCP on AWS data matching."""
@@ -786,7 +786,7 @@ class TestAWSUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any())
 
     @patch("masu.util.aws.common.get_s3_resource")
     def test_get_or_clear_daily_s3_by_date(self, mock_resource):
