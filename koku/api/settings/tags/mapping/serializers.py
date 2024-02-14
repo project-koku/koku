@@ -50,11 +50,11 @@ class AddChildSerializer(serializers.Serializer):
                 already_children.append(str(tag_mapping.child.uuid))
         errors = []
         if parent_to_children:
-            errors.append(serializers.ValidationError(f"a parent cannot become a child: {parent_to_children}"))
+            errors.append(f"a parent cannot become a child: {parent_to_children}")
         if children_to_parent:
-            errors.append(serializers.ValidationError(f"a child cannot become a parent: {children_to_parent}"))
+            errors.append(f"a child cannot become a parent: {children_to_parent}")
         if already_children:
-           errors.append(serializers.ValidationError(f"child already linked to a parent: {already_children}"))
+            errors.append(f"child already linked to a parent: {already_children}")
         if errors:
             raise serializers.ValidationError(errors)
 
