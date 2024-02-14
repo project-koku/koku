@@ -314,7 +314,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ).exists():
                 LOG.debug("No tag mappings for AWS.")
                 return
-        sql = pkgutil.get_data("masu.database", "sql/tag/mapping/ocpaws_update_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params)
 
@@ -374,7 +374,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return
 
         table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/tag/mapping/aws_update_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/aws_tag_mapping_update_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,
