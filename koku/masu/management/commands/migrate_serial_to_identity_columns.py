@@ -17,6 +17,9 @@ from django.db.backends.utils import CursorWrapper
 from django.db.transaction import atomic
 from psycopg2 import sql
 
+from api.iam.models import Tenant
+from koku.migration_sql_helpers import apply_sql_file
+
 
 class Command(BaseCommand):
     help = "Migrate all tables using 'serial' columns to use 'identity' instead."
@@ -88,6 +91,12 @@ class Command(BaseCommand):
             cursor.execute("SET statement_timeout='3s'")
             for table_name, column_name in column_specs:
                 migrate_serial_to_identity(database, write, self._output, cursor, table_name, column_name)
+
+            if write:
+                self._output("Updating clone_schema SQL function")
+                apply_sql_file(
+                    connections[database].schema_editor(), Tenant._CLONE_SCHEMA_FUNC_FILENAME, literal_placeholder=True
+                )
 
     def _output(self, text: str) -> None:
         self.stdout.write(text)
