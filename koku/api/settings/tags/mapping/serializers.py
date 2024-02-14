@@ -44,7 +44,7 @@ class AddChildSerializer(serializers.Serializer):
             if tag_mapping.child.uuid == data["parent"]:
                 raise serializers.ValidationError("A child can't become a parent.")
             if tag_mapping.child.uuid in children_list:
-                raise serializers.ValidationError("Child already present in data.")
+                raise serializers.ValidationError("Child already linked to a parent.")
 
         enabled_rows = EnabledTagKeys.objects.filter(uuid__in=combined_list, enabled=True)
         if len(combined_list) != enabled_rows.count():
