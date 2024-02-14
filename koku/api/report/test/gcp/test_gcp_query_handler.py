@@ -1274,12 +1274,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 GCPCostSummaryByServiceP,
             ),
             (
-                "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
+                "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,\
+                Application%20Gateway",
                 GCPCostView,
                 GCPCostSummaryByServiceP,
             ),
             (
-                "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[account]=*",  # noqa: E501
+                "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,\
+                Application%20Gateway&group_by[account]=*",
                 GCPCostView,
                 GCPCostSummaryByServiceP,
             ),
