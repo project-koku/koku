@@ -90,8 +90,11 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         self.assertIsNotNone(self.report_downloader)
 
     @patch("masu.util.aws.common.copy_data_to_s3_bucket")
-    def test_download_report(self, *args):
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_download_report(self, mock_select_for_update, *args):
         """Test the top level Azure-Local download_report."""
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         test_report_date = datetime.datetime(year=2019, month=8, day=7)
         with patch.object(DateHelper, "now", return_value=test_report_date):
             filename = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"

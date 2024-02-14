@@ -167,7 +167,7 @@ class ModelBakeryDataLoader(DataLoader):
             cluster_id=cluster_id,
             _fill_optional=True,
         )
-        baker.make("CostUsageReportStatus", manifest=manifest, _fill_optional=True)
+        baker.make("CostUsageReportStatus", manifest=manifest, report_name="koku-1.csv.gz", _fill_optional=True)
         return manifest
 
     def create_bill(self, provider_type, provider, bill_date, **kwargs):
