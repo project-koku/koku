@@ -179,7 +179,8 @@ class TestDBPerformance(IamTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_schema_sizes(self, mok_middl):
         headers = self._get_headers()
-        with patch("masu.api.db_performance.dbp_views.CONFIGURATOR.get_database_name", return_value=connection.settings_dict["NAME"]):
+        test_db_name = connection.settings_dict["NAME"]
+        with patch("masu.api.db_performance.dbp_views.CONFIGURATOR.get_database_name", return_value=test_db_name):
             response = self.client.get(reverse("schema_sizes"), **headers)
 
         self.assertEqual(response.status_code, 200)
@@ -189,7 +190,7 @@ class TestDBPerformance(IamTestCase):
         self.assertNotIn("table_name", html)
 
         headers["HTTP_X_REQUESTED_WITH"] = "XMLHttpRequest"
-        with patch("masu.api.db_performance.dbp_views.CONFIGURATOR.get_database_name", return_value=connection.settings_dict["NAME"]):
+        with patch("masu.api.db_performance.dbp_views.CONFIGURATOR.get_database_name", return_value=test_db_name):
             response = self.client.get(reverse("schema_sizes"), {"top": "5"}, **headers)
 
         html = response.content.decode("utf-8")
@@ -360,7 +361,10 @@ class TestDBPerformance(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_database_list(self, mok_middl):
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbps:
+        with (
+            DBPerformanceStats("KOKU", CONFIGURATOR) as dbps,
+            patch("masu.api.db_performance.dbp_views.APPLICATION_DBNAME", connection.settings_dict["NAME"]),
+        ):
             res = get_database_list(dbps)
             self.assertIn(APPLICATION_DBNAME, res[0])
 
