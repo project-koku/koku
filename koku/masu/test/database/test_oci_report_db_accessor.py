@@ -177,5 +177,5 @@ class OCIReportDBAccessorTest(MasuTestCase):
                     response = self.client.get(url, **self.headers)
                     if response.status_code == status.HTTP_200_OK:
                         unit = response.data["meta"]["total"]["usage"]["units"]
-                        self.assertNotEquals(unit, "TB_MS")
-                        self.assertEquals(unit, "GB-Mo")
+                        self.assertNotEqual(unit, "TB_MS")
+                        self.assertEqual(unit, "GB-Mo")
