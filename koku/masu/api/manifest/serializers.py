@@ -7,6 +7,8 @@ from rest_framework import serializers
 
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import CombinedChoices
+from reporting_common.states import ReportStep
 
 
 class ManifestSerializer(serializers.Serializer):
@@ -26,6 +28,7 @@ class ManifestSerializer(serializers.Serializer):
     s3_csv_cleared = serializers.BooleanField()
     s3_parquet_cleared = serializers.BooleanField()
     operator_version = serializers.CharField()
+    state = serializers.JSONField()
 
 
 class UsageReportStatusSerializer(serializers.Serializer):
@@ -40,3 +43,18 @@ class UsageReportStatusSerializer(serializers.Serializer):
     completed_datetime = serializers.DateTimeField()
     started_datetime = serializers.DateTimeField()
     etag = serializers.CharField()
+    status = serializers.IntegerField()
+    failed_status = serializers.IntegerField(allow_null=True)
+    celery_task_id = serializers.UUIDField()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["status"] = CombinedChoices(data["status"]).label
+        if data.get("failed_status"):
+            data["failed_status"] = ReportStep(data["failed_status"]).label
+        return data
+
+
+class ManifestAndUsageReportSerializer(serializers.Serializer):
+    manifest = ManifestSerializer()
+    failed_reports = UsageReportStatusSerializer(many=True)
