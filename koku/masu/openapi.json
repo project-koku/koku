@@ -81,6 +81,10 @@
     {
       "name": "Additional Context",
       "description": "An endpoint to view & manipulate additional context for the provider."
+    },
+    {
+      "name": "Manifests",
+      "description": "An endpoint to review the status of manifest and reportstatus entries."
     }
   ],
   "paths": {
