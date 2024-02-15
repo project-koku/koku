@@ -133,7 +133,9 @@ class ProviderManager:
 
         for key in states:
             if current_state := manifest.state.get(key):
-                if current_state.get(ManifestState.END):
+                if current_state.get(ManifestState.FAILED):
+                    states[key] = ManifestState.FAILED
+                elif current_state.get(ManifestState.END):
                     states[key] = ManifestState.COMPLETE
                 elif current_state.get(ManifestState.START):
                     states[key] = ManifestState.IN_PROGRESS
