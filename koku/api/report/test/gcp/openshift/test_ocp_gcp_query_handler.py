@@ -1368,7 +1368,8 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                     overall_output = handler.execute_query()
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     opt_dict = overall_output.get("data", [{}])[0]
-                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
+                    if opt_dict.get(f"{exclude_opt}s"):
+                        opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
                     opt_value = opt_dict.get(exclude_opt)
                     self.assertIsNotNone(opt_dict)
                     # Grab filtered value
