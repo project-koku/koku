@@ -51,6 +51,11 @@ SELECT uuid() as uuid,
             86400.0 *
             cast(extract(day from last_day_of_month(date(usage_start))) as integer)
             )
+        WHEN unit = 'TB_MS' THEN (usage_amount * 1024) / 1000.0 / (
+            86400.0 *
+            CAST(EXTRACT(day FROM last_day_of_month(date(usage_start))) AS INTEGER)
+            )
+
         ELSE usage_amount
     END AS decimal(24,9)) AS usage_amount,
     CASE
@@ -58,6 +63,7 @@ SELECT uuid() as uuid,
         WHEN unit = 'BYTES' THEN  'GB-Mo'
         WHEN unit = 'BYTE_MS' THEN  'GB-Mo'
         WHEN unit = 'GB_MS' THEN  'GB-Mo'
+        WHEN unit = 'TB_MS' THEN  'GB-Mo'
         ELSE unit
     END as unit,
     cast(currency AS varchar(10)),
