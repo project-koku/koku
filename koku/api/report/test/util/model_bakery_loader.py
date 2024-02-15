@@ -420,7 +420,7 @@ class ModelBakeryDataLoader(DataLoader):
             project_summary_storage_recipe = "api.report.test.util.ocp_on_aws_project_daily_summary_storage"
             dbaccessor, tags_update_method, ui_update_method = (
                 AWSReportDBAccessor,
-                "populate_ocp_on_aws_tags_summary_table",
+                "populate_ocp_on_aws_tag_information",
                 "populate_ocp_on_aws_ui_summary_tables",
             )
             with schema_context(self.schema):
