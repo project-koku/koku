@@ -43,21 +43,6 @@ class ReportManifestDBAccessor:
         """Get the manifest by id."""
         return CostUsageReportManifest.objects.filter(id=manifest_id).first()
 
-    def mark_manifest_as_updated(self, manifest):
-        """Update the updated timestamp."""
-        if manifest:
-            updated_datetime = timezone.now()
-            ctx = {
-                "manifest_id": manifest.id,
-                "assembly_id": manifest.assembly_id,
-                "provider_uuid": manifest.provider_id,
-                "manifest_updated_datetime": updated_datetime,
-            }
-            LOG.info(log_json(msg="marking manifest updated", context=ctx))
-            manifest.manifest_updated_datetime = updated_datetime
-            manifest.save(update_fields=["manifest_updated_datetime"])
-            LOG.info(log_json(msg="manifest marked updated", context=ctx))
-
     def mark_manifests_as_completed(self, manifest_list):
         """Update the completed timestamp."""
         completed_datetime = timezone.now()
