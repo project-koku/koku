@@ -206,6 +206,25 @@
             ],
             "variants": [],
             "createdAt": "2022-10-31T18:49:38.445Z"
+        },
+        {
+            "name": "cost-management.backend.feature-cost-3592-tag-mapping",
+            "description": "Enable tag mapping feature.",
+            "type": "permission",
+            "project": "default",
+            "enabled": false,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2024-01-23T09:40:54.492Z"
         }
     ],
     "strategies": [
