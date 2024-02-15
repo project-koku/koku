@@ -537,8 +537,6 @@ def update_summary_tables(  # noqa: C901
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
-        # Set summary failed time
-        ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.FAILED, manifest_id)
 
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
@@ -557,6 +555,8 @@ def update_summary_tables(  # noqa: C901
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
+        # Set summary failed time
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, ManifestState.FAILED, manifest_id)
         raise ex
 
     if provider_type != Provider.PROVIDER_OCP:
