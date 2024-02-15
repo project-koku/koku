@@ -442,7 +442,7 @@ class ModelBakeryDataLoader(DataLoader):
             project_summary_storage_recipe = "api.report.test.util.ocp_on_gcp_project_daily_summary_storage"
             dbaccessor, tags_update_method, ui_update_method = (
                 GCPReportDBAccessor,
-                "populate_ocp_on_gcp_tags_summary_table",
+                "populate_ocp_on_gcp_tag_information",
                 "populate_ocp_on_gcp_ui_summary_tables",
             )
             unique_fields = {

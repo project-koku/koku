@@ -555,7 +555,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, gcp_provider_uuid
                 )
-                accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start, end)
+                accessor.populate_ocp_on_gcp_tag_information(gcp_bill_ids, start, end)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
