@@ -239,27 +239,23 @@ if "test" in sys.argv:
 else:
     CACHES = {
         "default": {
-            "BACKEND": "django_redis.cache.RedisCache",
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
+                "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
             },
         },
         "rbac": {
-            "BACKEND": "django_redis.cache.RedisCache",
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
             "TIMEOUT": ENVIRONMENT.get_value("RBAC_CACHE_TIMEOUT", default=300),
             "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
+                "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
+                "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
             },
         },
         "worker": {

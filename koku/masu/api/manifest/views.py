@@ -5,7 +5,7 @@
 """Views for Masu API `manifest`."""
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django_filters import BooleanFilter
 from django_filters import ChoiceFilter
 from django_filters import DateFromToRangeFilter
@@ -43,7 +43,7 @@ class ManifestException(APIException):
     def __init__(self, message):
         """Initialize with status code 404."""
         self.status_code = status.HTTP_404_NOT_FOUND
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 class ManifestInvalidFilterException(APIException):
@@ -52,7 +52,7 @@ class ManifestInvalidFilterException(APIException):
     def __init__(self, message):
         """Initialize with status code 400."""
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 def manifest_failed_filter(queryset, name, value):
