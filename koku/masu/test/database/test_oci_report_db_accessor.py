@@ -11,7 +11,9 @@ from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
+from django.urls import reverse
 from django_tenants.utils import schema_context
+from rest_framework import status
 
 from api.provider.models import Provider
 from api.utils import DateHelper
@@ -161,3 +163,19 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, OCI_CUR_TABLE_MAP)
+
+    def test_tb_ms_unit(self):
+        """Check that the TB_MS unit is properly converted to GB-Mo."""
+        file = "reports_usage-csv_0001000000829494"
+        file_name = f"{file}.csv"
+        file_path = f"./koku/masu/test/data/oci/{file_name}"
+        with open(file_path) as file:
+            csv = file.readlines()
+            for line in csv:
+                if "TB_MS" in line:
+                    url = reverse("reports-oci-storage")
+                    response = self.client.get(url, **self.headers)
+                    if response.status_code == status.HTTP_200_OK:
+                        unit = response.data["meta"]["total"]["usage"]["units"]
+                        self.assertNotEquals(unit, "TB_MS")
+                        self.assertEquals(unit, "GB-Mo")
