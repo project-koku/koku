@@ -167,7 +167,7 @@ class ModelBakeryDataLoader(DataLoader):
             cluster_id=cluster_id,
             _fill_optional=True,
         )
-        baker.make("CostUsageReportStatus", manifest=manifest, _fill_optional=True)
+        baker.make("CostUsageReportStatus", manifest=manifest, report_name="koku-1.csv.gz", _fill_optional=True)
         return manifest
 
     def create_bill(self, provider_type, provider, bill_date, **kwargs):
@@ -420,7 +420,7 @@ class ModelBakeryDataLoader(DataLoader):
             project_summary_storage_recipe = "api.report.test.util.ocp_on_aws_project_daily_summary_storage"
             dbaccessor, tags_update_method, ui_update_method = (
                 AWSReportDBAccessor,
-                "populate_ocp_on_aws_tags_summary_table",
+                "populate_ocp_on_aws_tag_information",
                 "populate_ocp_on_aws_ui_summary_tables",
             )
             with schema_context(self.schema):
