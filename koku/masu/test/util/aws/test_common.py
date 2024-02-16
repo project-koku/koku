@@ -682,16 +682,16 @@ class TestAWSUtils(MasuTestCase):
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
         self.assertTrue(result.any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
         self.assertTrue(result.any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
         # tag matching
@@ -706,16 +706,16 @@ class TestAWSUtils(MasuTestCase):
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
         self.assertTrue(result.any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
         self.assertTrue(result.any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
@@ -725,20 +725,20 @@ class TestAWSUtils(MasuTestCase):
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
         self.assertTrue(result.any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
         self.assertTrue(result.any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
         # tag matching
-        self.assertFalse((matched_df["matched_tag"] != "").any())
+        self.assertFalse(matched_df["matched_tag"].ne("").any())
 
     def test_match_openshift_labels_with_nan_resources(self):
         """Test OCP on AWS data matching."""
@@ -785,7 +785,7 @@ class TestAWSUtils(MasuTestCase):
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
         self.assertTrue(result.any())
 
     @patch("masu.util.aws.common.get_s3_resource")
