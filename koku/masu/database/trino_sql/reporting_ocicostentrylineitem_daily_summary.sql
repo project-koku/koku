@@ -59,7 +59,7 @@ SELECT uuid() as uuid,
         ELSE usage_amount
     END AS decimal(24,9)) AS usage_amount,
     CASE
-        WHEN unit = 'MS' THEN  'Hrs'
+        WHEN unit = 'MS' THEN 'Hrs'
         WHEN unit IN ('BYTES', 'BYTE_MS', 'GB_MS', 'TB_MS') THEN 'GB-Mo'
         ELSE unit
     END as unit,
