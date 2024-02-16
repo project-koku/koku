@@ -303,8 +303,6 @@ UTC = ZoneInfo("UTC")
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = True
 
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
