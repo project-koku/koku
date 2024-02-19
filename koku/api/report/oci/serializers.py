@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCI Report Serializers."""
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext
 from rest_framework import serializers
 
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
@@ -95,6 +95,6 @@ class OCIQueryParamSerializer(ReportQueryParamSerializer):
             data["cost_type"] = get_cost_type(self.context.get("request"))
         error = {}
         if "delta" in data.get("order_by", {}) and "delta" not in data:
-            error["order_by"] = _("Cannot order by delta without a delta param")
+            error["order_by"] = gettext("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
         return data

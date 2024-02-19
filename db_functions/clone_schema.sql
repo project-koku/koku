@@ -11,7 +11,6 @@ CREATE OR REPLACE FUNCTION public.clone_schema(
     _verbose boolean DEFAULT false
 ) RETURNS boolean AS $$
 DECLARE
-    sequence_objects jsonb[];
     sequence_owner_info jsonb[];
     table_objects jsonb[];
     fk_objects jsonb[];
@@ -55,32 +54,6 @@ BEGIN
     /*
      * Gather data for copy
      */
-    /* Sequence objects */
-    IF _verbose THEN
-        RAISE INFO 'Gathering sequence object data from %...', source_schema;
-    END IF;
-
-    SELECT coalesce(array_agg(
-              jsonb_build_object(
-                  'sequence_name', c.relname,
-                  'sequence_type', s.seqtypid::regtype::text,
-                  'sequence_start', s.seqstart,
-                  'sequence_inc', s.seqincrement,
-                  'sequence_max', s.seqmax,
-                  'sequence_min', s.seqmin,
-                  'sequence_cache', s.seqcache,
-                  'sequence_cycle', CASE WHEN s.seqcycle THEN ' CYCLE' ELSE ' NO CYCLE' END::text
-              )
-           ), '{}'::jsonb[])
-      INTO sequence_objects
-      FROM pg_sequence s
-      JOIN pg_class c
-        ON c.oid = s.seqrelid
-     WHERE c.relnamespace = source_schema::regnamespace;
-
-    IF _verbose THEN
-        RAISE INFO '    Got %s schema objects...', cardinality(sequence_objects);
-    END IF;
 
     /* Sequence owner info */
     IF _verbose THEN
@@ -389,48 +362,6 @@ BEGIN
     EXECUTE 'CREATE SCHEMA ' || dst_schema || ' ;';
 
     /*
-     * Create sequences
-     */
-    IF cardinality(sequence_objects) > 0
-    THEN
-        IF _verbose
-        THEN
-            RAISE INFO 'Creating sequences for %', dst_schema;
-        END IF;
-        FOREACH jobject IN ARRAY sequence_objects
-        LOOP
-            IF _verbose
-            THEN
-                RAISE INFO '    %.%', dst_schema, quote_ident(jobject->>'sequence_name'::text);
-            END IF;
-            EXECUTE FORMAT('CREATE SEQUENCE IF NOT EXISTS %s.%I AS %s START WITH %s INCREMENT BY %s MINVALUE %s MAXVALUE %s CACHE %s %s ;',
-                        dst_schema,
-                        jobject->>'sequence_name'::text,
-                        jobject->>'sequence_type'::text,
-                        jobject->>'sequence_start'::text,
-                        jobject->>'sequence_inc'::text,
-                        jobject->>'sequence_min'::text,
-                        jobject->>'sequence_max'::text,
-                        jobject->>'sequence_cache'::text,
-                        jobject->>'sequence_cycle');
-
-            IF copy_data OR
-            (jobject->>'sequence_name' ~ 'partitioned_tables'::text) OR
-            (jobject->>'sequence_name' ~ 'django_migrations'::text)
-            THEN
-                EXECUTE 'SELECT setval(''' || dst_schema || '.' || quote_ident(jobject->>'sequence_name') || '''::regclass, '::text ||
-                        '(SELECT last_value + 1 FROM ' ||
-                        src_schema || '.' || quote_ident(jobject->>'sequence_name') || ') );'::text;
-            END IF;
-        END LOOP;
-    ELSE
-        IF _verbose
-        THEN
-            RAISE INFO 'No sequences for %', dst_schema;
-        END IF;
-    END IF;
-
-    /*
      * Create tables
      */
     IF cardinality(table_objects) > 0
@@ -509,37 +440,27 @@ BEGIN
     END IF;
 
     /*
-     * Create sequence owner links
+     * Set sequence value
      */
     IF cardinality(sequence_owner_info) > 0
     THEN
         IF _verbose
         THEN
-            RAISE INFO 'Setting sequence ownership for objects in %', dst_schema;
+            RAISE INFO 'Set current value for sequence objects in %', dst_schema;
         END IF;
         FOREACH jobject IN ARRAY sequence_owner_info
         LOOP
             IF _verbose
             THEN
-                RAISE INFO '    Update primary key default for %.%', dst_schema, quote_ident(jobject->>'owner_object'::text);
+                RAISE INFO '    Update sequence value for %.%', dst_schema, quote_ident(jobject->>'owner_object'::text);
             END IF;
-            EXECUTE FORMAT('ALTER TABLE %s.%I ALTER COLUMN %I SET DEFAULT nextval( ''%s.%I''::regclass );',
-                        dst_schema,
-                        jobject->>'owner_object'::text,
-                        jobject->>'owner_column'::text,
-                        dst_schema,
-                        jobject->>'sequence_name'::text);
 
-            IF _verbose
-            THEN
-                RAISE INFO '    Update sequence owned-by table column to %."%"', dest_obj, jobject->>'owner_column'::text;
-            END IF;
-            EXECUTE FORMAT('ALTER SEQUENCE %s.%I OWNED BY %s.%I.%I ;',
+            EXECUTE FORMAT('SELECT setval(''%s.%I'', (SELECT max(%I) FROM %s.%I));',
                         dst_schema,
                         jobject->>'sequence_name'::text,
-                        dest_schema,
-                        jobject->>'owner_object'::text,
-                        jobject->>'owner_column'::text);
+                        jobject->>'owner_column'::text,
+                        dst_schema,
+                        jobject->>'owner_object'::text);
         END LOOP;
     ELSE
         IF _verbose

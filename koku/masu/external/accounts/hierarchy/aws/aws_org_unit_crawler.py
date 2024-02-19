@@ -62,9 +62,9 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 if not self.errors_raised:
                     self._mark_nodes_deleted()
         except ParamValidationError as param_error:
-            LOG.warn(msg=error_message, exc_info=param_error)
+            LOG.warning(msg=error_message, exc_info=param_error)
         except ClientError as boto_error:
-            LOG.warn(msg=error_message, exc_info=boto_error)
+            LOG.warning(msg=error_message, exc_info=boto_error)
         except Exception as unknown_error:
             LOG.exception(msg=error_message, exc_info=unknown_error)
 

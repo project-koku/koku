@@ -109,10 +109,10 @@ class TestGCPPostProcessor(MasuTestCase):
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
 
-        self.assertTrue((first_day["cost"] == cost * 2).bool())
-        self.assertTrue((second_day["cost"] == cost).bool())
-        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
-        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+        self.assertTrue((first_day["cost"] == cost * 2).any(bool_only=True))
+        self.assertTrue((second_day["cost"] == cost).any(bool_only=True))
+        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).any(bool_only=True))
+        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).any(bool_only=True))
 
     def test_gcp_generate_daily_w_resource_data(self):
         """Test that we aggregate data at a daily level w/o resource names."""
@@ -195,10 +195,10 @@ class TestGCPPostProcessor(MasuTestCase):
         first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
         second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
 
-        self.assertTrue((first_day["cost"] == cost * 2).bool())
-        self.assertTrue((second_day["cost"] == cost).bool())
-        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
-        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+        self.assertTrue((first_day["cost"] == cost * 2).any(bool_only=True))
+        self.assertTrue((second_day["cost"] == cost).any(bool_only=True))
+        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).any(bool_only=True))
+        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).any(bool_only=True))
 
     def test_gcp_generate_daily_wo_resource_data(self):
         """Test that we aggregate data at a daily level w/o resource names."""
@@ -278,10 +278,10 @@ class TestGCPPostProcessor(MasuTestCase):
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
 
-        self.assertTrue((first_day["cost"] == cost * 2).bool())
-        self.assertTrue((second_day["cost"] == cost).bool())
-        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
-        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+        self.assertTrue((first_day["cost"] == cost * 2).any(bool_only=True))
+        self.assertTrue((second_day["cost"] == cost).any(bool_only=True))
+        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).any(bool_only=True))
+        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).any(bool_only=True))
 
     def test_empty_dataframe_during_daily_data_generation(self):
         """Test an empty dataframe is returned."""
