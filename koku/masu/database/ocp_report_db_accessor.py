@@ -243,8 +243,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for entry in results:
                     # This dictionary is keyed on an OpenShift provider UUID
                     # and the tuple contains
-                    # (Infrastructure Provider UUID, Infrastructure Provider Type)
-                    db_results[entry[0]] = (entry[1], entry[2])
+                    # (Infra Provider UUID, Infra Provider Type, Infra account number, Infra region)
+                    db_results[entry[0]] = (entry[1], entry[2], entry[3], entry[4])
                 if db_results:
                     # An OCP cluster can only run on a single source, so stop here if we found a match
                     return db_results

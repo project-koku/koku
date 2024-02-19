@@ -400,3 +400,14 @@ def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
 
     days_in_month = dh().days_in_month(start_date)
     return Decimal(monthly_rate) / days_in_month
+
+
+def get_latest_operator_version():
+    """Get s the latest operator version we have released based on OPERATOR_VERSIONS dict"""
+    latest_version_num = None
+    for version in OPERATOR_VERSIONS.values():
+        version_num = version.split(":")[-1]
+        version_num = version_num.lstrip("v")
+        if latest_version_num is None or version_num > latest_version_num:
+            latest_version_num = version_num
+    return latest_version_num
