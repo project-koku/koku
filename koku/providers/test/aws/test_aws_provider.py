@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from botocore.exceptions import ClientError
 from django.test import TestCase
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext
 from faker import Faker
 from rest_framework.exceptions import ValidationError
 
@@ -45,7 +45,7 @@ class AWSProviderTestCase(TestCase):
         """Test the error_obj method."""
         test_key = "tkey"
         test_message = "tmessage"
-        expected = {test_key: [_(test_message)]}
+        expected = {test_key: [gettext(test_message)]}
         error = error_obj(test_key, test_message)
         self.assertEqual(error, expected)
 
@@ -122,7 +122,7 @@ class AWSProviderTestCase(TestCase):
         mock_boto3_client.return_value = sts_client
         iam_arn = "arn:aws:s3:::my_s3_bucket"
         credentials = {"role_arn": iam_arn}
-        with self.assertLogs(level=logging.CRITICAL):
+        with self.assertLogs(level=logging.WARNING):
             aws_credentials = _get_sts_access(credentials)
             self.assertIn("aws_access_key_id", aws_credentials)
             self.assertIn("aws_secret_access_key", aws_credentials)
