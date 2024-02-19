@@ -116,6 +116,9 @@ def config():
         "HOST": CONFIGURATOR.get_database_host(),
         "PORT": CONFIGURATOR.get_database_port(),
         "OPTIONS": {"application_name": ENVIRONMENT.get_value("APPLICATION_NAME", default="koku")},
+        "TEST": {
+            "NAME": f"test_{name}",
+        },
     }
 
     database_cert = CONFIGURATOR.get_database_ca()

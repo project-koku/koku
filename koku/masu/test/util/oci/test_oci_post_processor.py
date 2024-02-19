@@ -134,9 +134,9 @@ class TestOCIPostProcessor(MasuTestCase):
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
 
-        self.assertTrue((first_day["cost_mycost"] == cost * 2).bool())
+        self.assertTrue((first_day["cost_mycost"] == cost * 2).any(bool_only=True))
 
-        self.assertTrue((second_day["cost_mycost"] == cost).bool())
+        self.assertTrue((second_day["cost_mycost"] == cost).any(bool_only=True))
 
     def test_oci_post_processor_empty_tags(self):
         """Test that missing columns in a report end up in the data frame."""
@@ -262,9 +262,9 @@ class TestOCIPostProcessor(MasuTestCase):
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
 
-        self.assertTrue((first_day["usage_consumedquantity"] == usageamount * 2).bool())
+        self.assertTrue((first_day["usage_consumedquantity"] == usageamount * 2).any(bool_only=True))
 
-        self.assertTrue((second_day["usage_consumedquantity"] == usageamount).bool())
+        self.assertTrue((second_day["usage_consumedquantity"] == usageamount).any(bool_only=True))
 
     def test_finalize_post_processing(self):
         """Test that the finalize post processing functionality works.

@@ -389,7 +389,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             "files": self.ingress_reports,
         }
         result_manifest = self.gcp_ingress_report_downloader.collect_pseudo_manifests(mock_datetime)
-        self.assertDictContainsSubset(expected_manifest_data, result_manifest)
+        self.assertEqual(result_manifest, result_manifest | expected_manifest_data)
         self.assertIn(mock_date_str, result_manifest["assembly_id"])
 
     def test_get_storage_only_manifest_file(self):
