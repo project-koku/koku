@@ -31,7 +31,7 @@ def _get_sts_access(credentials, region_name=None):
     try:
         arn = AwsArn(credentials)
     except SyntaxError as error:
-        LOG.warn(msg=error_message, exc_info=error)
+        LOG.warning(msg=error_message, exc_info=error)
         return {"aws_access_key_id": None, "aws_secret_access_key": None, "aws_session_token": None}
 
     error_message = f"Unable to assume role with ARN {arn.arn}."
@@ -47,13 +47,13 @@ def _get_sts_access(credentials, region_name=None):
         assumed_role = sts_client.assume_role(**assume_role_kwargs)
         aws_credentials = assumed_role.get("Credentials")
     except ParamValidationError as param_error:
-        LOG.warn(msg=error_message)
+        LOG.warning(msg=error_message)
         LOG.info(param_error)
         # We can't use the exc_info here because it will print
         # a traceback that gets picked up by sentry:
         # https://github.com/project-koku/koku/issues/1483
     except (ClientError, BotoConnectionError, NoCredentialsError) as boto_error:
-        LOG.warn(msg=error_message, exc_info=boto_error)
+        LOG.warning(msg=error_message, exc_info=boto_error)
 
     # return a kwargs-friendly format
     return dict(
@@ -71,7 +71,7 @@ def _check_s3_access(bucket, credentials, region_name="us-east-1"):
         s3_client.head_bucket(Bucket=bucket)
     except (ClientError, BotoConnectionError) as boto_error:
         message = f"Unable to access bucket {bucket} with given credentials."
-        LOG.warn(msg=message, exc_info=boto_error)
+        LOG.warning(msg=message, exc_info=boto_error)
         s3_exists = False
 
     return s3_exists
@@ -90,7 +90,7 @@ def _check_cost_report_access(credential_name, credentials, bucket=None):
     except (ClientError, BotoConnectionError) as boto_error:
         key = ProviderErrors.AWS_NO_REPORT_FOUND
         message = f"Unable to obtain cost and usage report definition data with {credential_name}."
-        LOG.warn(msg=message, exc_info=boto_error)
+        LOG.warning(msg=message, exc_info=boto_error)
         raise serializers.ValidationError(error_obj(key, message))
 
     if reports and bucket:

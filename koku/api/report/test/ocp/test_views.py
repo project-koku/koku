@@ -1255,8 +1255,12 @@ class OCPReportViewTest(IamTestCase):
     def test_execute_query_with_group_by_tag_and_limit(self):
         """Test that data is grouped by tag key and limited."""
         client = APIClient()
-        tag_key = "storageclass"
-        tag_key_plural = f"{tag_key}s"
+        tag_url = reverse("openshift-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-2&key_only=True&filter[enabled]=true"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+        tag_key = tag_keys[0]
+        tag_key_plural = tag_key + "s"
 
         url = reverse("reports-openshift-cpu")
         params = {
