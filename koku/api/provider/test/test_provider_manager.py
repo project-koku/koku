@@ -147,13 +147,19 @@ class ProviderManagerTest(IamTestCase):
             mock_manifest_state = MagicMock()
             mock_manifest_state.get.return_value = {"start": True}
             mock_manifest.state = mock_manifest_state
+            # Get Provider Manager
+            manager = ProviderManager(provider_uuid)
             self.assertEqual(manager.get_state().get("download"), "in-progress")
 
             mock_manifest_state.get.return_value = {"end": True}
             mock_manifest.state = mock_manifest_state
+            # Get Provider Manager
+            manager = ProviderManager(provider_uuid)
             self.assertEqual(manager.get_state().get("download"), "complete")
 
         with patch("reporting_common.models.CostUsageReportManifest.objects"):
+            # Get Provider Manager
+            manager = ProviderManager(provider_uuid)
             self.assertEqual(manager.get_state().get("download"), "failed")
 
     def test_data_flags(self):
