@@ -35,6 +35,7 @@ class OCPReportTypes(Enum):
 
 
 OPERATOR_VERSIONS = {
+    "e3ab976307639acff6cc86e25f90f242c45d7210": "costmanagement-metrics-operator:3.1.0",
     "b5a2c05255069215eb564dcc5c4ec6ca4b33325d": "costmanagement-metrics-operator:3.0.1",
     "47ddcdbbdf3e445536ea3fa8346df0dac3adc3ed": "costmanagement-metrics-operator:3.0.0",
     "5806b175a7b31e6ee112c798fa4222cc652b40a6": "costmanagement-metrics-operator:2.0.0",
@@ -48,6 +49,7 @@ OPERATOR_VERSIONS = {
     "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
     "6f10d07e3af3ea4f073d4ffda9019d8855f52e7f": "costmanagement-metrics-operator:1.1.0",
     "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
+    "b3525a536a402d5bed9b5bbd739fb6a89c8e92e0": "koku-metrics-operator:v3.1.0",
     "8737fb075bdbd63c02e82e6f89056380e9c1e6b6": "koku-metrics-operator:v3.0.1",
     "3a6df53f18e574286a1666e1d26586dc729f0568": "koku-metrics-operator:v3.0.0",
     "26502d500672019af5c11319b558dec873409e38": "koku-metrics-operator:v2.0.0",

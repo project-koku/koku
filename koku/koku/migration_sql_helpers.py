@@ -42,9 +42,12 @@ def apply_sql_file(conn, path, literal_placeholder=False):
     Returns:
         True
     """
-    sqlbuff = open(path).read()
+    with open(path) as file:
+        sqlbuff = file.read()
+
     if literal_placeholder:
         sqlbuff = sqlbuff.replace("%", "%%")
+
     if isinstance(conn, BaseDatabaseSchemaEditor):
         try:
             conn.execute(sqlbuff)

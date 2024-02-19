@@ -360,7 +360,7 @@ class ProviderSerializer(serializers.ModelSerializer):
                 "Cost management does not allow duplicate accounts. "
                 "A source already exists with these details. Edit source settings to configure a new source."
             )
-            LOG.warn(message)
+            LOG.warning(message)
             raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
 
         provider = Provider.objects.create(**validated_data)
@@ -422,7 +422,7 @@ class ProviderSerializer(serializers.ModelSerializer):
                         "Cost management does not allow duplicate accounts. "
                         "A source already exists with these details. Edit source settings to configure a new source."
                     )
-                    LOG.warn(message)
+                    LOG.warning(message)
                     raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
 
             for key in validated_data.keys():
