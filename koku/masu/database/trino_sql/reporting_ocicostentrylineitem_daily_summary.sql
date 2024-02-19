@@ -36,22 +36,22 @@ SELECT uuid() as uuid,
     END AS instance_type,
     resource_ids,
     cast(resource_count AS integer),
-    cast(CASE
-        WHEN unit = 'MS' THEN usage_amount / 3600000.0
-        WHEN unit = 'BYTES' THEN usage_amount / (
+    cast(CASE unit
+        WHEN 'MS' THEN usage_amount / 3600000.0
+        WHEN 'BYTES' THEN usage_amount / (
                 cast(day(last_day_of_month(date(usage_start))) as integer)
             ) *
             power(2, -30)
-        WHEN unit = 'BYTE_MS' THEN usage_amount / 1000.0 / (
+        WHEN 'BYTE_MS' THEN usage_amount / 1000.0 / (
             86400.0 *
             cast(extract(day from last_day_of_month(date(usage_start))) as integer)
             ) *
             power(2, -30)
-        WHEN unit = 'GB_MS' THEN usage_amount / 1000.0 / (
+        WHEN 'GB_MS' THEN usage_amount / 1000.0 / (
             86400.0 *
             cast(extract(day from last_day_of_month(date(usage_start))) as integer)
             )
-        WHEN unit = 'TB_MS' THEN (usage_amount * 1024) / 1000.0 / (
+        WHEN 'TB_MS' THEN (usage_amount * 1024) / 1000.0 / (
             86400.0 *
             CAST(EXTRACT(day FROM last_day_of_month(date(usage_start))) AS INTEGER)
             )
@@ -59,11 +59,8 @@ SELECT uuid() as uuid,
         ELSE usage_amount
     END AS decimal(24,9)) AS usage_amount,
     CASE
-        WHEN unit = 'MS' THEN  'Hrs'
-        WHEN unit = 'BYTES' THEN  'GB-Mo'
-        WHEN unit = 'BYTE_MS' THEN  'GB-Mo'
-        WHEN unit = 'GB_MS' THEN  'GB-Mo'
-        WHEN unit = 'TB_MS' THEN  'GB-Mo'
+        WHEN unit = 'MS' THEN 'Hrs'
+        WHEN unit IN ('BYTES', 'BYTE_MS', 'GB_MS', 'TB_MS') THEN 'GB-Mo'
         ELSE unit
     END as unit,
     cast(currency AS varchar(10)),
