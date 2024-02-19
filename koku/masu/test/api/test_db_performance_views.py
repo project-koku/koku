@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.db import connection
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -25,16 +26,6 @@ from masu.api.db_performance.dbp_views import get_parameter_bool
 from masu.api.db_performance.dbp_views import get_parameter_list
 from masu.api.db_performance.dbp_views import make_db_options
 from masu.api.db_performance.dbp_views import make_pagination
-
-
-TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))
-
-
-def _get_database_name():
-    return f"test_{CONFIGURATOR.get_database_name()}"
-
-
-TEST_CONFIGURATOR.get_database_name = staticmethod(_get_database_name)
 
 
 class _dikt(dict):
@@ -92,13 +83,13 @@ class TestDBPerformance(IamTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_conn_activity(self, mok_middl):
         """Test the stat activity view."""
-        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
-            activity = dbp.get_activity(TEST_CONFIGURATOR.get_database_name())
-        pid = activity[0]["backend_pid"]
-        state = activity[0]["state"]
-        with patch(
-            "koku.configurator.CONFIGURATOR.get_database_name", return_value=TEST_CONFIGURATOR.get_database_name()
-        ):
+
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            activity = dbp.get_activity(connection.settings_dict["NAME"])
+
+        with patch("koku.configurator.CONFIGURATOR.get_database_name", return_value=connection.settings_dict["NAME"]):
+            pid = activity[0]["backend_pid"]
+            state = activity[0]["state"]
             response = self.client.get(reverse("conn_activity"), **self._get_headers())
             html = response.content.decode("utf-8")
             self.assertIn('id="term_action_table"', html)
@@ -186,10 +177,12 @@ class TestDBPerformance(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("koku.configurator.CONFIGURATOR.get_database_name", return_value=TEST_CONFIGURATOR.get_database_name())
-    def test_get_schema_sizes(self, mod_conf, mok_middl):
+    def test_get_schema_sizes(self, mok_middl):
         headers = self._get_headers()
-        response = self.client.get(reverse("schema_sizes"), **headers)
+        test_db_name = connection.settings_dict["NAME"]
+        with patch("masu.api.db_performance.dbp_views.CONFIGURATOR.get_database_name", return_value=test_db_name):
+            response = self.client.get(reverse("schema_sizes"), **headers)
+
         self.assertEqual(response.status_code, 200)
         html = response.content.decode("utf-8")
         self.assertIn("schema_name", html)
@@ -197,7 +190,9 @@ class TestDBPerformance(IamTestCase):
         self.assertNotIn("table_name", html)
 
         headers["HTTP_X_REQUESTED_WITH"] = "XMLHttpRequest"
-        response = self.client.get(reverse("schema_sizes"), {"top": "5"}, **headers)
+        with patch("masu.api.db_performance.dbp_views.CONFIGURATOR.get_database_name", return_value=test_db_name):
+            response = self.client.get(reverse("schema_sizes"), {"top": "5"}, **headers)
+
         html = response.content.decode("utf-8")
         self.assertEqual(response.status_code, 200)
         self.assertIn("schema_name", html)
@@ -366,17 +361,20 @@ class TestDBPerformance(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_database_list(self, mok_middl):
-        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbps:
+        with (
+            DBPerformanceStats("KOKU", CONFIGURATOR) as dbps,
+            patch("masu.api.db_performance.dbp_views.APPLICATION_DBNAME", connection.settings_dict["NAME"]),
+        ):
             res = get_database_list(dbps)
             self.assertIn(APPLICATION_DBNAME, res[0])
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_make_db_options(self, mok_middl):
         request = Mock()
-        target_db = TEST_CONFIGURATOR.get_database_name()
+        target_db = connection.settings_dict["NAME"]
         request.query_params = _dikt(dbname=target_db)
 
-        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbps:
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbps:
             databases = get_database_list(dbps)
             res = make_db_options(databases, target_db, request, "schema_sizes")
             found = False
