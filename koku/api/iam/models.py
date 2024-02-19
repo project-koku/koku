@@ -20,7 +20,6 @@ from koku.database import dbfunc_exists
 from koku.migration_sql_helpers import apply_sql_file
 from koku.migration_sql_helpers import find_db_functions_dir
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -85,9 +84,9 @@ class Tenant(TenantMixin):
     _TEMPLATE_SCHEMA = os.environ.get("TEMPLATE_SCHEMA", "template0")
     _CLONE_SCHEMA_FUNC_FILENAME = os.path.join(find_db_functions_dir(), "clone_schema.sql")
     _CLONE_SCHEMA_FUNC_SCHEMA = "public"
-    _CLONE_SHEMA_FUNC_NAME = "clone_schema"
+    _CLONE_SCHEMA_FUNC_NAME = "clone_schema"
     _CLONE_SCHEMA_FUNC_SIG = (
-        f"{_CLONE_SCHEMA_FUNC_SCHEMA}.{_CLONE_SHEMA_FUNC_NAME}("
+        f"{_CLONE_SCHEMA_FUNC_SCHEMA}.{_CLONE_SCHEMA_FUNC_NAME}("
         "source_schema text, dest_schema text, "
         "copy_data boolean DEFAULT false, "
         "_verbose boolean DEFAULT false"
@@ -102,25 +101,25 @@ class Tenant(TenantMixin):
     auto_create_schema = False
 
     def _check_clone_func(self):
-        LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_SIG}" exists')
+        LOG.info(f'Verify that clone function "{self._CLONE_SCHEMA_FUNC_NAME}" exists')
         res = dbfunc_exists(
-            conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
+            conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SCHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
         )
         if not res:
-            LOG.warning(f'Clone function "{self._CLONE_SCHEMA_FUNC_SIG}" does not exist')
-            LOG.info(f'Creating clone function "{self._CLONE_SCHEMA_FUNC_SIG}"')
+            LOG.warning(f'Clone function "{self._CLONE_SCHEMA_FUNC_NAME}" does not exist')
+            LOG.info(f'Creating clone function "{self._CLONE_SCHEMA_FUNC_NAME}"')
             apply_sql_file(conn.schema_editor(), self._CLONE_SCHEMA_FUNC_FILENAME, literal_placeholder=True)
             res = dbfunc_exists(
-                conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
+                conn, self._CLONE_SCHEMA_FUNC_SCHEMA, self._CLONE_SCHEMA_FUNC_NAME, self._CLONE_SCHEMA_FUNC_SIG
             )
         else:
-            LOG.info("Clone function exists")
+            LOG.info(f'Clone function "{self._CLONE_SCHEMA_FUNC_NAME}" exists. Not creating.')
 
         return res
 
     def _verify_template(self, verbosity=1):
         LOG.info(f'Verify that template schema "{self._TEMPLATE_SCHEMA}" exists')
-        # This is using the teanant table data as the source of truth which can be dangerous.
+        # This is using the tenant table data as the source of truth which can be dangerous.
         # If this becomes unreliable, then the database itself should be the source of truth
         # and extra code must be written to handle the sync of the table data to the state of
         # the database.

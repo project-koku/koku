@@ -10,7 +10,7 @@ from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.views.decorators.cache import cache_page
 from django.views.decorators.cache import never_cache
 from django_filters import FilterSet
@@ -98,7 +98,7 @@ class SourcesException(APIException):
         """Initialize with status code 400."""
         super().__init__()
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {"detail": force_text(error_msg)}
+        self.detail = {"detail": force_str(error_msg)}
 
 
 class SourcesDependencyException(APIException):
@@ -108,7 +108,7 @@ class SourcesDependencyException(APIException):
         """Initialize with status code 424."""
         super().__init__()
         self.status_code = status.HTTP_424_FAILED_DEPENDENCY
-        self.detail = {"detail": force_text(error_msg)}
+        self.detail = {"detail": force_str(error_msg)}
 
 
 class SourcesViewSet(*MIXIN_LIST):
