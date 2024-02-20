@@ -20,7 +20,6 @@ class ManifestSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     assembly_id = serializers.CharField()
     creation_datetime = serializers.DateTimeField()
-    manifest_updated_datetime = serializers.DateTimeField()
     completed_datetime = serializers.DateTimeField()
     export_datetime = serializers.DateTimeField()
     billing_period_start_datetime = serializers.DateTimeField()
