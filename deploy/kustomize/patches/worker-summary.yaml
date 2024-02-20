@@ -97,6 +97,8 @@
           value: ${POLLING_BATCH_SIZE}
         - name: DELAYED_RESUMMARY_TIME
           value: ${DELAYED_RESUMMARY_TIME}
+        - name: DELAYED_RESUMMARY_POLLING_MINUTES
+          value: ${DELAYED_RESUMMARY_POLLING_MINUTES}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT

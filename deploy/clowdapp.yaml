@@ -2592,6 +2592,8 @@ objects:
           value: ${POLLING_BATCH_SIZE}
         - name: DELAYED_RESUMMARY_TIME
           value: ${DELAYED_RESUMMARY_TIME}
+        - name: DELAYED_RESUMMARY_POLLING_MINUTES
+          value: ${DELAYED_RESUMMARY_POLLING_MINUTES}
         - name: TAG_ENABLED_LIMIT
           value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
@@ -2792,6 +2794,8 @@ objects:
           value: ${POLLING_BATCH_SIZE}
         - name: DELAYED_RESUMMARY_TIME
           value: ${DELAYED_RESUMMARY_TIME}
+        - name: DELAYED_RESUMMARY_POLLING_MINUTES
+          value: ${DELAYED_RESUMMARY_POLLING_MINUTES}
         - name: TAG_ENABLED_LIMIT
           value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
@@ -3378,6 +3382,8 @@ objects:
           value: ${POLLING_BATCH_SIZE}
         - name: DELAYED_RESUMMARY_TIME
           value: ${DELAYED_RESUMMARY_TIME}
+        - name: DELAYED_RESUMMARY_POLLING_MINUTES
+          value: ${DELAYED_RESUMMARY_POLLING_MINUTES}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3574,6 +3580,8 @@ objects:
           value: ${POLLING_BATCH_SIZE}
         - name: DELAYED_RESUMMARY_TIME
           value: ${DELAYED_RESUMMARY_TIME}
+        - name: DELAYED_RESUMMARY_POLLING_MINUTES
+          value: ${DELAYED_RESUMMARY_POLLING_MINUTES}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -4643,6 +4651,9 @@ parameters:
 - displayName: Delayed Resummary Time
   name: DELAYED_RESUMMARY_TIME
   value: "3600"
+- displayName: Delayed Resummary Polling Minutes
+  name: DELAYED_SUMMARY_POLLING_MINUTES
+  value: "30"
 - displayName: ROS URL Expiration
   name: ROS_URL_EXPIRATION
   value: "172800"

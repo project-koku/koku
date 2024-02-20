@@ -516,6 +516,9 @@ parameters:
 - displayName: Delayed Resummary Time
   name: DELAYED_RESUMMARY_TIME
   value: "3600" # 1 hour
+- displayName: Delayed Resummary Polling Minutes
+  name: DELAYED_SUMMARY_POLLING_MINUTES
+  value: "30" # 1 hour
 - displayName: ROS URL Expiration
   name: ROS_URL_EXPIRATION
   value: "172800"
