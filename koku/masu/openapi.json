@@ -2654,7 +2654,6 @@
           "id",
           "assembly_id",
           "creation_datetime",
-          "manifest_updated_datetime",
           "completed_datetime",
           "export_datetime",
           "billing_period_start_datetime",
@@ -2672,11 +2671,6 @@
             "type": "string"
           },
           "creation_datetime": {
-            "enum": [
-              "year-month-day:time"
-            ]
-          },
-          "manifest_updated_datetime": {
             "enum": [
               "year-month-day:time"
             ]
