@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
+from api.settings.tags.mapping.query_handler import AddChildQueryHandler
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
 from api.settings.tags.mapping.serializers import AddChildSerializer
 from api.settings.tags.mapping.serializers import EnabledTagKeysSerializer
@@ -111,10 +112,8 @@ class SettingsTagMappingChildAddView(APIView):
     def put(self, request):
         serializer = AddChildSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        parent_row = EnabledTagKeys.objects.get(uuid=serializer.data.get("parent"))
-        children = EnabledTagKeys.objects.filter(uuid__in=serializer.data.get("children"))
-        tag_mappings = [TagMapping(parent=parent_row, child=child_row) for child_row in children]
-        TagMapping.objects.bulk_create(tag_mappings)
+        query_handler = AddChildQueryHandler(serializer)
+        query_handler.bulk_create_tag_mappings(request.user.customer.schema_name)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

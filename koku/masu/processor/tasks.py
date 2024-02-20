@@ -108,6 +108,8 @@ QUEUE_LIST = [
     UPDATE_SUMMARY_TABLES_QUEUE_XL,
 ]
 
+UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
+
 
 def record_all_manifest_files(manifest_id, report_files, tracing_id):
     """Store all report file names for manifest ID."""
@@ -427,7 +429,7 @@ def summarize_reports(  # noqa: C901
                 ).apply_async(queue=queue_name or fallback_queue)
 
 
-@celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
+@celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
 def update_summary_tables(  # noqa: C901
     schema,
     provider_type,

@@ -10,12 +10,13 @@ from django.db import models
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
-from reporting_common.states import CombinedChoices
-from reporting_common.states import ReportStep
-from reporting_common.states import Status
+
 from api.common import log_json
 from koku import celery_app
 from masu.config import Config
+from reporting_common.states import CombinedChoices
+from reporting_common.states import ReportStep
+from reporting_common.states import Status
 
 LOG = logging.getLogger(__name__)
 
