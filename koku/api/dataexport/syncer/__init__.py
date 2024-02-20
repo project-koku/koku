@@ -11,7 +11,7 @@ from dateutil.rrule import DAILY
 from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
 from django.conf import settings
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext
 
 from api.provider.models import Provider
 
@@ -85,7 +85,7 @@ class AwsS3Syncer(SyncerInterface):
             if source_object.storage_class == "GLACIER" and e.response["Error"]["Code"] == "InvalidObjectState":
                 request = {"Days": 2, "GlacierJobParameters": {"Tier": "Standard"}}
                 source_object.restore_object(RestoreRequest=request)
-                LOG.info(_("Glacier Storage restore for %s is in progress."), source_object.key)
+                LOG.info(gettext("Glacier Storage restore for %s is in progress."), source_object.key)
                 raise SyncedFileInColdStorageError(
                     f"Requested file {source_object.key} is currently in AWS Glacier Storage, "
                     f"an request has been made to restore the file."
@@ -93,7 +93,7 @@ class AwsS3Syncer(SyncerInterface):
             # if object cannot be copied because restore is already in progress raise
             # SyncedFileInColdStorageError and wait a while longer
             elif e.response["Error"]["Code"] == "RestoreAlreadyInProgress":
-                LOG.info(_("Glacier Storage restore for %s is in progress."), source_object.key)
+                LOG.info(gettext("Glacier Storage restore for %s is in progress."), source_object.key)
                 raise SyncedFileInColdStorageError(
                     f"Requested file {source_object.key} has not yet been restored from AWS Glacier Storage."
                 )

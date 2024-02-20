@@ -447,7 +447,7 @@ class ParquetReportProcessor:
             file_list = self.split_file_list
 
         if not file_list:
-            LOG.warn(
+            LOG.warning(
                 log_json(
                     self.tracing_id,
                     msg="no split files to convert to parquet",
@@ -459,7 +459,7 @@ class ParquetReportProcessor:
         for csv_filename in file_list:
             self.prepare_parquet_s3(Path(csv_filename))
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
-                LOG.warn(
+                LOG.warning(
                     log_json(
                         self.tracing_id,
                         msg="could not establish report type",
@@ -476,7 +476,7 @@ class ParquetReportProcessor:
             if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_frame)
             if not success:
-                LOG.warn(
+                LOG.warning(
                     log_json(
                         self.tracing_id,
                         msg="failed to convert files to parquet",
@@ -568,7 +568,7 @@ class ParquetReportProcessor:
                 self.create_parquet_table(parquet_filepath)
 
         except Exception as err:
-            LOG.warn(
+            LOG.warning(
                 log_json(
                     self.tracing_id,
                     msg="could not write parquet to temp file",
@@ -663,7 +663,7 @@ class ParquetReportProcessor:
                 )
         except Exception as err:
             s3_key = f"{self.parquet_path_s3}/{file_path}"
-            LOG.warn(
+            LOG.warning(
                 log_json(
                     self.tracing_id,
                     msg="file could not be written to s3",

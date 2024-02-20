@@ -196,7 +196,6 @@ delete-test-customer-data: delete-test-sources delete-cost-models
 test_source=all
 load-test-customer-data:
 	$(SCRIPTDIR)/load_test_customer_data.sh $(test_source) $(start) $(end)
-	$(MAKE) load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
