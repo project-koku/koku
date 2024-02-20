@@ -48,6 +48,7 @@ from masu.util.aws.common import get_s3_resource
 from masu.util.oci.common import OCI_REPORT_TYPES
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import DelayedCeleryTasks
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
@@ -561,3 +562,9 @@ def get_celery_queue_items(self, queue_name=None, task_name=None):
         decoded_tasks[queue] = task_list
 
     return decoded_tasks
+
+
+@celery_app.task(name="masu.celery.tasks.delayed_summary_polling", queue=GET_REPORT_FILES_QUEUE)
+def delayed_summary_polling(*args, **kwargs):
+    """Removes the expired records starting the delayed celery tasks."""
+    DelayedCeleryTasks.remove_expired_records()

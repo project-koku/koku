@@ -206,6 +206,15 @@ app.conf.beat_schedule["finalize_hcs_reports"] = {
     "schedule": crontab(0, 0, day_of_month="15"),
 }
 
+# Specify the frequency for checking delayed summary tasks
+DELAYED_SUMMARY_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_SUMMARY_POLLING_MINUTES", default="30")
+delayed_summary_polling_schedule = crontab(minute=f"*/{DELAYED_SUMMARY_POLLING_MINUTES}")
+app.conf.beat_schedule["source_status_beat"] = {
+    "task": "masu.celery.tasks.delayed_summary_polling",
+    "schedule": delayed_summary_polling_schedule,
+}
+
+
 # Celery timeout if broker is unavailable to avoid blocking indefinitely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 

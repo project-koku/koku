@@ -1,3 +1,7 @@
+#
+# Copyright 2024 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import List
@@ -18,6 +22,9 @@ from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 @dataclass
 class FindTagKeyProviders:
+    """This class given a list of enabled tag key rows will find the
+    provider_uuids associationed with those rows."""
+
     enabled_rows: List[EnabledTagKeys]
 
     def create_provider_type_to_uuid_mapping(self, start_date=DateHelper().this_month_start):

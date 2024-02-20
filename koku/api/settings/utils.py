@@ -5,6 +5,7 @@
 import typing as t
 from copy import deepcopy
 
+from django.conf import settings
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import ProhibitNullCharactersValidator
@@ -40,7 +41,7 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
         queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
 
     for provider_uuid in provider_uuids:
-        DelayedCeleryTasks.create_or_reset_timeout(
+        id = DelayedCeleryTasks.create_or_reset_timeout(
             task_name=UPDATE_SUMMARY_TABLES_TASK,
             task_args=[schema_name],
             task_kwargs={
@@ -51,6 +52,9 @@ def delayed_summarize_current_month(schema_name: str, provider_uuids: list, prov
             provider_uuid=provider_uuid,
             queue_name=queue,
         )
+        if schema_name == settings.QE_SCHEMA:
+            # bypass the wait for QE
+            id.delete()
 
 
 class NonValidatingMultipleChoiceField(MultipleChoiceField):
