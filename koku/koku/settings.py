@@ -15,6 +15,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import logging
 import os
+import socket
 import sys
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
@@ -223,7 +224,12 @@ REDIS_RETRY_ON_TIMEOUT = True
 REDIS_CONNECTION_POOL_KWARGS = {
     "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
     "retry": Retry(ExponentialBackoff(0.5, 5), 5),
-    "retry_on_error": [ConnectionError, ResponseError, TimeoutError],
+    "retry_on_error": [
+        ConnectionError,
+        ResponseError,
+        TimeoutError,
+        socket.timeout,
+    ],
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 
