@@ -35,7 +35,7 @@ class OCPAzureProviderMap(ProviderMap):
         self._mapping = [
             {
                 "provider": Provider.OCP_AZURE,
-                "alias": "subscription_guid",
+                "alias": "subscription_name",
                 "annotations": {"cluster": "cluster_id"},
                 "end_date": "costentrybill__billing_period_start",
                 "filters": {
@@ -47,7 +47,8 @@ class OCPAzureProviderMap(ProviderMap):
                     ],
                     "node": {"field": "node", "operation": "icontains"},
                     "subscription_guid": [
-                        {"field": "subscription_guid", "operation": "icontains", "composition_key": "account_filter"}
+                        {"field": "subscription_guid", "operation": "icontains", "composition_key": "account_filter"},
+                        {"field": "subscription_name", "operation": "icontains", "composition_key": "account_filter"},
                     ],
                     "service_name": {"field": "service_name", "operation": "icontains"},
                     "resource_location": {"field": "resource_location", "operation": "icontains"},

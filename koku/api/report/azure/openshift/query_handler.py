@@ -88,6 +88,11 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query.values(*query_group_by).annotate(**annotations)
 
+            if "subscription_guid" in query_group_by:
+                query_data = query_data.annotate(
+                    subscripton_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
+                )
+
             if is_grouped_by_project(self.parameters):
                 query_data = self._project_classification_annotation(query_data)
             if self._limit and query_data:
