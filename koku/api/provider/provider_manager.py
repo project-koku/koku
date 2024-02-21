@@ -182,11 +182,9 @@ class ProviderManager:
             base_additional_context["operator_version"] = self.manifest.operator_version
             base_additional_context["operator_airgapped"] = self.manifest.operator_airgapped
             base_additional_context["operator_certified"] = self.manifest.operator_certified
-            base_additional_context["operator_update_available"] = (
-                True
-                if self.manifest.operator_version.split(":")[-1].lstrip("v") != utils.get_latest_operator_version()
-                else False
-            )
+            latest_version = utils.get_latest_operator_version()
+            current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
+            base_additional_context["operator_update_available"] = current_version != latest_version
         return base_additional_context
 
     def is_removable_by_user(self, current_user):

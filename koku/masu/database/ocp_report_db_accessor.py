@@ -158,7 +158,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # This dictionary is keyed on an OpenShift provider UUID
             # and the tuple contains
             # (Infrastructure Provider UUID, Infrastructure Provider Type)
-            db_results[entry[0]] = (entry[1], entry[2])
+            db_results[entry[0]] = (entry[1], entry[2], entry[3], entry[4])
 
         return db_results
 

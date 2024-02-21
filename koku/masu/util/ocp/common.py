@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+from packaging.version import Version
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -410,6 +411,6 @@ def get_latest_operator_version():
     for version in OPERATOR_VERSIONS.values():
         version_num = version.split(":")[-1]
         version_num = version_num.lstrip("v")
-        if latest_version_num is None or version_num > latest_version_num:
+        if latest_version_num is None or Version(version_num) > Version(latest_version_num):
             latest_version_num = version_num
     return latest_version_num
