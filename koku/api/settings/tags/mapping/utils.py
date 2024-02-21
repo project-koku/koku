@@ -40,8 +40,6 @@ class FindTagKeyProviders:
             key_sorting[row.provider_type].append(row.key)
 
         for provider_type, key_list in key_sorting.items():
-            if not key_list:
-                continue
             if model := cloud_model_mapping.get(provider_type):
                 provider_uuids = (
                     model.objects.filter(key__in=key_list, cost_entry_bill__billing_period_start=start_date)
