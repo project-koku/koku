@@ -165,6 +165,7 @@ class DelayedCeleryTasks(models.Model):
     timeout_timestamp = models.DateTimeField()
     provider_uuid = models.UUIDField()
     queue_name = models.CharField(max_length=255)
+    metadata = models.JSONField(default=dict, null=True)
 
     def set_task_args(self, args):
         self.task_args = json.dumps(args)
