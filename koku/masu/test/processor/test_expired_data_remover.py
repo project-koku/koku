@@ -144,12 +144,10 @@ class ExpiredDataRemoverTest(MasuTestCase):
             uuids_to_be_deleted = []
             for date in dates:
                 creation_datetime = current_month
-                manifest_updated_datetime = creation_datetime + relativedelta(days=2)
                 uuid = uuid4()
                 data = {
                     "assembly_id": uuid,
                     "creation_datetime": creation_datetime,
-                    "manifest_updated_datetime": manifest_updated_datetime,
                     "billing_period_start_datetime": date,
                     "num_total_files": 1,
                     "provider_id": provider_type_dict[provider_type],
@@ -181,7 +179,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
         day_before_cutoff_data = {
             "assembly_id": uuid4(),
             "creation_datetime": None,
-            "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
             "num_total_files": 1,
             "provider_id": self.aws_provider_uuid,
@@ -222,13 +219,11 @@ class ExpiredDataRemoverTest(MasuTestCase):
         manifest_uuids = []
         manifest_uuids_to_be_deleted = []
         creation_datetime = current_month
-        manifest_updated_datetime = creation_datetime + relativedelta(days=2)
         for fixture_record in fixture_records:
             manifest_uuid = uuid4()
             data = {
                 "assembly_id": manifest_uuid,
                 "creation_datetime": creation_datetime,
-                "manifest_updated_datetime": manifest_updated_datetime,
                 "billing_period_start_datetime": fixture_record[1],
                 "num_total_files": 1,
                 "provider_id": fixture_record[0],
@@ -260,7 +255,6 @@ class ExpiredDataRemoverTest(MasuTestCase):
             "id": manifest_id,
             "assembly_id": uuid4(),
             "creation_datetime": None,
-            "manifest_updated_datetime": None,
             "billing_period_start_datetime": day_before_cutoff,
             "num_total_files": 1,
             "provider_id": self.aws_provider_uuid,
