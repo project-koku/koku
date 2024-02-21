@@ -432,7 +432,7 @@ class ModelBakeryDataLoader(DataLoader):
             project_summary_storage_recipe = "api.report.test.util.ocp_on_azure_project_daily_summary_storage"
             dbaccessor, tags_update_method, ui_update_method = (
                 AzureReportDBAccessor,
-                "populate_ocp_on_azure_tags_summary_table",
+                "populate_ocp_on_azure_tag_information",
                 "populate_ocp_on_azure_ui_summary_tables",
             )
             unique_fields = {"currency": self.currency, "subscription_guid": self.faker.uuid4()}
