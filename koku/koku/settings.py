@@ -24,6 +24,8 @@ from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
 from redis.backoff import ExponentialBackoff
 from redis.exceptions import ConnectionError
+from redis.exceptions import ResponseError
+from redis.exceptions import TimeoutError
 from redis.retry import Retry
 
 from . import database
@@ -221,7 +223,7 @@ REDIS_RETRY_ON_TIMEOUT = True
 REDIS_CONNECTION_POOL_KWARGS = {
     "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
     "retry": Retry(ExponentialBackoff(0.5, 5), 5),
-    "retry_on_error": [ConnectionError],
+    "retry_on_error": [ConnectionError, ResponseError, TimeoutError],
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 
