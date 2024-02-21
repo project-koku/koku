@@ -22,6 +22,9 @@ from zoneinfo import ZoneInfo
 from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import ConnectionError
+from redis.retry import Retry
 
 from . import database
 from . import sentry
@@ -217,6 +220,8 @@ REDIS_HEALTH_CHECK_INTERVAL = 5
 REDIS_RETRY_ON_TIMEOUT = True
 REDIS_CONNECTION_POOL_KWARGS = {
     "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
+    "retry": Retry(ExponentialBackoff(0.5, 5), 5),
+    "retry_on_error": [ConnectionError],
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 
@@ -237,28 +242,18 @@ if "test" in sys.argv:
 else:
     CACHES = {
         "default": {
-            "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             "TIMEOUT": 3_600,  # 1 hour default
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
-            },
+            "OPTIONS": REDIS_CONNECTION_POOL_KWARGS,
         },
         "rbac": {
-            "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
             "TIMEOUT": ENVIRONMENT.get_value("RBAC_CACHE_TIMEOUT", default=300),
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1_000,
-                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
-            },
+            "OPTIONS": REDIS_CONNECTION_POOL_KWARGS,
         },
         "worker": {
             "BACKEND": "django.core.cache.backends.db.DatabaseCache",
