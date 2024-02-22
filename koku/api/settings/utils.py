@@ -24,7 +24,6 @@ from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
 
-
 """Utilities for Settings."""
 
 

@@ -75,9 +75,6 @@ class Config:
     # Limit the number of enabled tags:
     ENABLED_TAG_LIMIT = ENVIRONMENT.int("TAG_ENABLED_LIMIT", default=DEFAULT_ENABLED_TAG_LIMIT)
 
-    # Wait period for the the delay summary queue.
-    DELAYED_RESUMMARY_TIME = ENVIRONMENT.int("DELAYED_RESUMMARY_TIME", default=DEFAULT_ENABLED_TAG_LIMIT)
-
     # Set ROS presigned URL expiration:
     ROS_URL_EXPIRATION = ENVIRONMENT.int("ROS_URL_EXPIRATION", default=DEFAULT_ROS_URL_EXPIRATION)
 

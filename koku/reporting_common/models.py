@@ -6,6 +6,7 @@
 import json
 import logging
 
+from django.conf import settings
 from django.db import models
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
@@ -13,7 +14,6 @@ from django.utils import timezone
 
 from api.common import log_json
 from koku import celery_app
-from masu.config import Config
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
 from reporting_common.states import Status
@@ -197,7 +197,7 @@ class DelayedCeleryTasks(models.Model):
         task_kwargs,
         provider_uuid,
         queue_name,
-        timeout_seconds=Config.DELAYED_RESUMMARY_TIME,
+        timeout_seconds=settings.DELAYED_TASK_TIME,
     ):
         existing_task = cls.objects.filter(task_name=task_name, provider_uuid=provider_uuid).first()
 

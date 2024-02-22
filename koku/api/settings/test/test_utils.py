@@ -15,7 +15,6 @@ class TestUserSettingCommon(MasuTestCase):
 
     def setUp(self):
         """Set up test suite."""
-        super().setUp()
         with schema_context(self.schema):
             UserSettings.objects.all().delete()
 
