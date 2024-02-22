@@ -51,7 +51,7 @@ SELECT uuid_generate_v4() as uuid,
             THEN coalesce(({{rate}}::numeric * usage), 0.0)
         ELSE 0.0
     END as cost_model_volume_cost,
-    'Infastructure' as cost_model_rate_type,
+    'Infrastructure' as cost_model_rate_type,
     {{k_v_pair}}::jsonb as {{labels_field | sqlsafe}},
     {{k_v_pair}}::jsonb as all_labels,
     'Tag' as monthly_cost_type, -- We are borrowing the monthly field here, although this is a daily usage cost
