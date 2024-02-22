@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for shared reporting tables."""
-import json
 import logging
 
 from django.conf import settings
@@ -160,24 +159,12 @@ class DelayedCeleryTasks(models.Model):
         db_table = "delayed_celery_tasks"
 
     task_name = models.CharField(max_length=255)
-    task_args = models.TextField()
-    task_kwargs = models.TextField()
+    task_args = models.JSONField()
+    task_kwargs = models.JSONField()
     timeout_timestamp = models.DateTimeField()
     provider_uuid = models.UUIDField()
     queue_name = models.CharField(max_length=255)
     metadata = models.JSONField(default=dict, null=True)
-
-    def set_task_args(self, args):
-        self.task_args = json.dumps(args)
-
-    def get_task_args(self):
-        return json.loads(self.task_args)
-
-    def set_task_kwargs(self, kwargs):
-        self.task_kwargs = json.dumps(kwargs)
-
-    def get_task_kwargs(self):
-        return json.loads(self.task_kwargs)
 
     def set_timeout(self, timeout_seconds):
         now = timezone.now()
@@ -208,8 +195,8 @@ class DelayedCeleryTasks(models.Model):
 
         new_task = cls(
             task_name=task_name,
-            task_args=json.dumps(task_args),
-            task_kwargs=json.dumps(task_kwargs),
+            task_args=task_args,
+            task_kwargs=task_kwargs,
             provider_uuid=provider_uuid,
             queue_name=queue_name,
         )
@@ -221,14 +208,14 @@ class DelayedCeleryTasks(models.Model):
 # Define the pre_delete signal receiver function
 @receiver(pre_delete, sender=DelayedCeleryTasks)
 def trigger_celery_task(sender, instance, **kwargs):
-    task_args = instance.get_task_args()
-    task_kwargs = instance.get_task_kwargs()
-    result = celery_app.send_task(instance.task_name, args=task_args, kwargs=task_kwargs, queue=instance.queue_name)
+    result = celery_app.send_task(
+        instance.task_name, args=instance.task_args, kwargs=instance.task_kwargs, queue=instance.queue_name
+    )
     log_msg = "Delay period ended, starting task."
     log_context = {
         "task_name": instance.task_name,
-        "task_args": task_args,
-        "task_kwargs": task_kwargs,
+        "task_args": instance.task_args,
+        "task_kwargs": instance.task_kwargs,
         "queue_name": instance.queue_name,
     }
     LOG.info(log_json(tracing_id=result.id, msg=log_msg, context=log_context))
