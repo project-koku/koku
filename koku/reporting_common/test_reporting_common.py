@@ -118,20 +118,6 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertIsNotNone(stats.failed_status)
         self.assertEqual(stats.status, CombinedChoices.FAILED)
 
-    def test_delayed_summary_tasks(self):
-        """
-        Test the delayed summary task model.
-        """
-        delayed_summarize_current_month(self.schema_name, [self.aws_provider_uuid], Provider.PROVIDER_AWS)
-        self.assertTrue(DelayedCeleryTasks.objects.all().count(), 1)
-        row = DelayedCeleryTasks.objects.first()
-        test_arg = ["CthuluTheCrawfish"]
-        row.set_task_args(test_arg)
-        self.assertEqual(row.get_task_args(), test_arg)
-        test_kwargs = {"Nilla": "Roo", "Sushi": "Roll", "Cinna": "Bun", "Fries": "ketchup"}
-        row.set_task_kwargs(test_kwargs)
-        self.assertEqual(row.get_task_kwargs(), test_kwargs)
-
     @patch("reporting_common.utils.is_customer_large")
     def test_delayed_summarize_current_month(self, mock_large_customer):
         mock_large_customer.return_value = False
@@ -152,7 +138,7 @@ class TestCostUsageReportStatus(MasuTestCase):
                     db_entry = DelayedCeleryTasks.objects.get(provider_uuid=test_provider.uuid)
                     self.assertEqual(db_entry.task_name, UPDATE_SUMMARY_TABLES_TASK)
                     self.assertTrue(
-                        db_entry.get_task_kwargs(),
+                        db_entry.task_kwargs,
                         {
                             "provider_type": test_provider_type,
                             "provider_uuid": str(test_provider.uuid),
@@ -160,7 +146,7 @@ class TestCostUsageReportStatus(MasuTestCase):
                         },
                     )
 
-                    self.assertEqual(db_entry.get_task_args(), [self.schema_name])
+                    self.assertEqual(db_entry.task_args, [self.schema_name])
                     self.assertEqual(db_entry.queue_name, UPDATE_SUMMARY_TABLES_QUEUE)
 
     @patch("reporting_common.utils.is_customer_large")
