@@ -1,9 +1,10 @@
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
-from api.settings.tags.mapping.utils import FindTagKeyProviders
+from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
+from reporting_common.models import DelayedCeleryTasks
 
 
 class TestTagMappingUtils(MasuTestCase):
@@ -11,37 +12,25 @@ class TestTagMappingUtils(MasuTestCase):
 
     def setUp(self):
         super().setUp()
-        self.provider_types = [
-            Provider.PROVIDER_AWS,
-            Provider.PROVIDER_AZURE,
-            Provider.PROVIDER_GCP,
-            Provider.PROVIDER_OCI,
-            Provider.PROVIDER_OCP,
-        ]
+        self.test_matrix = {
+            Provider.PROVIDER_AWS: self.aws_provider.uuid,
+            Provider.PROVIDER_AZURE: self.azure_provider.uuid,
+            Provider.PROVIDER_GCP: self.gcp_provider.uuid,
+            Provider.PROVIDER_OCI: self.oci_provider.uuid,
+            Provider.PROVIDER_OCP: self.ocp_provider.uuid,
+        }
 
     def test_find_tag_key_providers(self):
         with tenant_context(self.tenant):
-            for ptype in self.provider_types:
-                with self.subTest(ptype=ptype):
+            for ptype, uuid in self.test_matrix.items():
+                with self.subTest(ptype=ptype, uuid=uuid):
                     keys = list(EnabledTagKeys.objects.filter(provider_type=ptype))
-                    finder = FindTagKeyProviders(keys)
-                    mapping = finder.create_provider_type_to_uuid_mapping()
-                    self.assertTrue(mapping)
-                    for type, uuid_list in mapping.items():
-                        self.assertEqual(ptype, type)
-                        self.assertEqual(len(uuid_list), 1)
-                        test_class_var = f"{ptype.lower()}_provider"
-                        expected_provider = getattr(self, test_class_var, None)
-                        self.assertEqual([expected_provider.uuid], uuid_list)
+                    resummarize_current_month_by_tag_keys(keys, self.schema_name)
+                    self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
 
     def test_multiple_returns(self):
         with tenant_context(self.tenant):
             keys = list(EnabledTagKeys.objects.all())
-            finder = FindTagKeyProviders(keys)
-            mapping = finder.create_provider_type_to_uuid_mapping()
-            self.assertTrue(mapping)
-            for provider_type, uuid_list in mapping.items():
-                self.assertIn(provider_type, self.provider_types)
-                test_class_var = f"{provider_type.lower()}_provider"
-                expected_provider = getattr(self, test_class_var, None)
-                self.assertEqual([expected_provider.uuid], uuid_list)
+            resummarize_current_month_by_tag_keys(keys, self.schema_name)
+            for uuid in self.test_matrix.values():
+                self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
