@@ -90,7 +90,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             if "subscription_guid" in query_group_by:
                 query_data = query_data.annotate(
-                    subscripton_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
+                    subscription_name=Coalesce(F(self._mapper.provider_map.get("alias")), "subscription_guid")
                 )
 
             if is_grouped_by_project(self.parameters):

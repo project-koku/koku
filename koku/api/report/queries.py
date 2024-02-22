@@ -1128,8 +1128,6 @@ class ReportQueryHandler(QueryHandler):
         )
         if self.is_aws and "account" in self.parameters.url_data:
             ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
-        if self.is_azure and "subscription_guid" in self.parameters.url_data:
-            ranks = ranks.annotate(**{"subscription_name": F("subscription_name")})
         if self.is_openshift:
             ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
 
