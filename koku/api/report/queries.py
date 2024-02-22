@@ -1178,10 +1178,6 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
             rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
-        if self.is_azure and "subscription_guid" in group_by:
-            drop_columns.add("subscription_name")
-        if self.is_azure and "subscription_guid" not in group_by:
-            rank_data_frame.drop(columns=["subscription_name"], errors="ignore")
 
         agg_fields = {}
         for col in [col for col in self.report_annotations if "units" in col]:
@@ -1279,8 +1275,6 @@ class ReportQueryHandler(QueryHandler):
                     others_data_frame["default_project"] = "False"
         if self.is_aws and "account" in group_by:
             others_data_frame["account_alias"] = other_str
-        elif self.is_azure and "subscription_guid" in group_by:
-            others_data_frame["subscription_name"] = other_str
         elif "gcp_project" in group_by:
             others_data_frame["gcp_project_alias"] = other_str
 

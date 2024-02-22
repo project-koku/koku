@@ -7,7 +7,6 @@ from collections import OrderedDict
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
-from unittest.mock import PropertyMock
 
 from django.test import TestCase
 from faker import Faker
@@ -586,22 +585,6 @@ class ReportQueryHandlerTest(IamTestCase):
         expected = {"gcp_project": "No-gcp_project", "units": "USD"}
         out_data = handler._apply_group_null_label(data, groups)
         self.assertEqual(expected, out_data)
-
-    @patch("api.report.queries.ReportQueryHandler.is_azure", new_callable=PropertyMock)
-    def test_group_by_ranks_subscription_name(self, mock_is_azure):
-        """Test execute_query for azure subscription name."""
-        # execute query
-        mock_is_azure.return_value = True
-        url = "?group_by[subscription_guid]=*"
-        query_params = self.mocked_query_params(url, OCPAzureCostView)
-        handler = AzureReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        # test query output has sub name
-        for datum in data:
-            for subs in datum.get("subscription_guids"):
-                for value in subs.get("values"):
-                    self.assertIsNotNone(value.get("subscription_name"))
 
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label
