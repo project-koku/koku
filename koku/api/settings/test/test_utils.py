@@ -2,7 +2,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import json
 from unittest.mock import patch
 
 from django_tenants.utils import schema_context
@@ -62,11 +61,16 @@ class TestUserSettingCommon(MasuTestCase):
                     self.assertEqual(DelayedCeleryTasks.objects.all().count(), count)
                     db_entry = DelayedCeleryTasks.objects.get(provider_uuid=test_provider.uuid)
                     self.assertEqual(db_entry.task_name, UPDATE_SUMMARY_TABLES_TASK)
-                    task_kwargs = json.loads(db_entry.task_kwargs)
-                    self.assertEqual(task_kwargs.get("provider_type"), test_provider_type)
-                    self.assertEqual(task_kwargs.get("provider_uuid"), str(test_provider.uuid))
-                    self.assertEqual(task_kwargs.get("start_date"), str(DateHelper().this_month_start))
-                    self.assertEqual(db_entry.task_args, json.dumps([self.schema_name]))
+                    self.assertTrue(
+                        db_entry.get_task_kwargs(),
+                        {
+                            "provider_type": test_provider_type,
+                            "provider_uuid": str(test_provider.uuid),
+                            "start_date": str(DateHelper().this_month_start),
+                        },
+                    )
+
+                    self.assertEqual(db_entry.get_task_args(), [self.schema_name])
                     self.assertEqual(db_entry.queue_name, UPDATE_SUMMARY_TABLES_QUEUE)
 
     @patch("api.settings.utils.is_customer_large")

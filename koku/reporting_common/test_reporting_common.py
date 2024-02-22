@@ -5,10 +5,13 @@
 """Test Reporting Common."""
 from django.utils import timezone
 
+from api.models import Provider
+from api.settings.utils import delayed_summarize_current_month
 from masu.test import MasuTestCase
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import DelayedCeleryTasks
 
 
 class TestCostUsageReportStatus(MasuTestCase):
@@ -107,3 +110,17 @@ class TestCostUsageReportStatus(MasuTestCase):
         stats.update_status(CombinedChoices.FAILED)
         self.assertIsNotNone(stats.failed_status)
         self.assertEqual(stats.status, CombinedChoices.FAILED)
+
+    def test_delayed_summary_tasks(self):
+        """
+        Test the delayed summary task model.
+        """
+        delayed_summarize_current_month(self.schema_name, [self.aws_provider_uuid], Provider.PROVIDER_AWS)
+        self.assertTrue(DelayedCeleryTasks.objects.all().count(), 1)
+        row = DelayedCeleryTasks.objects.first()
+        test_arg = ["CthuluTheCrawfish"]
+        row.set_task_args(test_arg)
+        self.assertEqual(row.get_task_args(), test_arg)
+        test_kwargs = {"Nilla": "Roo", "Sushi": "Roll", "Cinna": "Bun", "Fries": "ketchup"}
+        row.set_task_kwargs(test_kwargs)
+        self.assertEqual(row.get_task_kwargs(), test_kwargs)
