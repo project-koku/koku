@@ -6097,7 +6097,7 @@
                             "tags": [
                                 "Settings"
                             ],
-                            "summary": "Adds child tags to a parent tag.",
+                            "summary": "Removes child tags from mapping.",
                             "operationId": "putSettingsTagsMappingsChildRemove",
                             "requestBody": {
                                 "$ref": "#/components/requestBodies/PutTagsBody"
@@ -6133,7 +6133,7 @@
                                 "tags": [
                                     "Settings"
                                 ],
-                                "summary": "Removes child tags from mapping.",
+                                "summary": "Adds child tags to a parent tag.",
                                 "operationId": "putSettingsTagsMappingsParent",
                                 "requestBody": {
                                     "$ref": "#/components/requestBodies/PutTagsMappingBody"
