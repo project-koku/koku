@@ -513,9 +513,11 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         """Test set_provider_infra_map."""
         infra_uuid = self.aws_provider_uuid
         infra_type = self.aws_provider.type
+        infra_account = "account"
+        infra_region = "east"
         p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
 
-        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        infra_map = {str(p.uuid): (infra_uuid, infra_type, infra_account, infra_region)}
         expected_infra = ProviderInfrastructureMap.objects.get(infrastructure_provider_id=infra_uuid)
 
         updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
@@ -540,12 +542,14 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         """Test set_provider_infra_map does not raise exception when providermap is not found."""
         infra_uuid = self.aws_provider_uuid
         infra_type = self.aws_provider.type
+        infra_account = "account"
+        infra_region = "east"
         p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
 
         mock_map.get_or_create.side_effect = IntegrityError()
         mock_map.filter.return_value.first.return_value = None
 
-        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        infra_map = {str(p.uuid): (infra_uuid, infra_type, infra_account, infra_region)}
 
         updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
         try:
@@ -557,10 +561,12 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         """Test set_provider_infra_map during race condition creating map."""
         infra_uuid = self.aws_provider_uuid
         infra_type = self.aws_provider.type
+        infra_account = "account"
+        infra_region = "east"
         p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
         expected_infra = ProviderInfrastructureMap.objects.get(infrastructure_provider_id=infra_uuid)
 
-        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        infra_map = {str(p.uuid): (infra_uuid, infra_type, infra_account, infra_region)}
         updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
         with patch("masu.processor.ocp.ocp_cloud_updater_base.ProviderInfrastructureMap.objects") as mock_map:
             mock_map.get_or_create.side_effect = IntegrityError()
