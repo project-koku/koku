@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting_common", "0038_auto_20240208_1759"),
+        ("reporting_common", "0039_auto_20240213_1715"),
     ]
 
     operations = [
