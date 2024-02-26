@@ -1394,7 +1394,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                         for group_dict in grouping_list:
                             self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
-                    # self.assertNotEqual(overall_total, excluded_total)
+                    self.assertNotEqual(overall_total, excluded_total)
 
     def test_exclude_instance_types_when_not_returned(self):
         """Test that the exclude feature works for all options."""
