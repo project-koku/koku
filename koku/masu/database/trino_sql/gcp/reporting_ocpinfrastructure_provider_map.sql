@@ -33,7 +33,9 @@
 {% if resource_level %}
     WITH cte_gcp_resource_name AS (
         SELECT DISTINCT gcp.resource_name,
-            gcp.source
+            gcp.source,
+            gcp.project_id,
+            gcp.location_region
         FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
         WHERE gcp.usage_start_time >= {{start_date}}
             AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
@@ -59,7 +61,9 @@
     )
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,
-        api_provider.type as type
+        api_provider.type as type,
+        gcp.project_id as project_id,
+        gcp.location_region as region
     FROM cte_gcp_resource_name AS gcp
     JOIN cte_ocp_nodes AS ocp
         ON strpos(gcp.resource_name, ocp.node) != 0
