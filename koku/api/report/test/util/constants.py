@@ -155,6 +155,7 @@ OCP_CONSTANTS = SameLengthDict(
 )
 
 # OCP-on-Prem Cost Model #
+OCP_TAG_RATE_KEY = "storageclass"
 OCP_ON_PREM_COST_MODEL = {
     "name": "Cost Management OpenShift Cost Model",
     "description": "A cost model of on-premises OpenShift clusters.",
@@ -269,6 +270,16 @@ OCP_ON_PREM_COST_MODEL = {
         {
             "metric": {"name": "pvc_cost_per_month"},
             "tiered_rates": [{"unit": "USD", "value": 20.0, "usage_start": None, "usage_end": None}],
+            "cost_type": "Supplementary",
+        },
+        {
+            "metric": {"name": "node_cost_per_month"},
+            "tag_rates": {
+                "tag_key": OCP_TAG_RATE_KEY,
+                "tag_values": [
+                    {"unit": "USD", "value": 1, "default": False, "tag_value": "fake-value", "description": ""}
+                ],
+            },
             "cost_type": "Supplementary",
         },
     ],

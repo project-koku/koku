@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import json
+from unittest.mock import patch
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
@@ -11,7 +12,9 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.test.util.constants import OCP_TAG_RATE_KEY
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
+from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -24,7 +27,11 @@ class TestSettingsTagMappingView(IamTestCase):
         self.client = APIClient()
 
         with tenant_context(self.tenant):
-            self.enabled_uuid_list = EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True)
+            self.enabled_uuid_list = (
+                EnabledTagKeys.objects.filter(enabled=True)
+                .exclude(key=OCP_TAG_RATE_KEY)
+                .values_list("uuid", flat=True)
+            )
 
     def test_get_method(self):
         """Test the get method for the tag mapping view"""
@@ -45,9 +52,11 @@ class TestSettingsTagMappingView(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         for item in response.data["data"]:
+            if item["key"] == OCP_TAG_RATE_KEY:
+                self.assertTrue(item["cost_model_id"])
             self.assertEqual(item["source_type"], "OCP")
 
-    def test_get_child(self):
+    def test_get_child_tag_key(self):
         """Test the get method for the tag mapping Child view"""
         url = reverse("tags-mapping-child")
         response = self.client.get(url, **self.headers)
@@ -245,3 +254,31 @@ class TestSettingsTagMappingView(IamTestCase):
         for item in result.data["data"]:
             self.assertIn("children", item["parent"])
             self.assertNotIn("child", item["parent"])
+
+    @patch("api.settings.tags.mapping.utils.get_cached_tag_rate_map")
+    def test_cached_tag_rate_mapping(self, mock_get):
+        tag_rate_map = {"Nilla": "Sushi"}
+        mock_get.return_value = tag_rate_map
+        return_value = retrieve_tag_rate_mapping(self.schema_name)
+        self.assertEqual(tag_rate_map, return_value)
+
+    def test_removal_of_unmapped_key(self):
+        """Test that we error when we try to remove an unmapped key."""
+        for url_key in ["tags-mapping-parent-remove", "tags-mapping-child-remove"]:
+            with self.subTest(url_key=url_key):
+                url = reverse(url_key)
+                data = {"ids": [self.enabled_uuid_list[0]]}
+                response = self.client.put(url, data, format="json", **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_adding_a_child_connected_to_a_cost_model(self):
+        """Test that you are not allowed to add a child connected to a cost model."""
+        with tenant_context(self.tenant):
+            tag_rate_row = EnabledTagKeys.objects.get(key=OCP_TAG_RATE_KEY)
+            url = reverse("tags-mapping-child-add")
+            data = {
+                "parent": self.enabled_uuid_list[0],
+                "children": [str(tag_rate_row.uuid)],
+            }
+            response = self.client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
