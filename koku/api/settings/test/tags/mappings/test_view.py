@@ -11,27 +11,22 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
-from api.iam.test.iam_test_case import IamTestCase
-from api.report.test.util.constants import OCP_TAG_RATE_KEY
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
+from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
 
-class TestSettingsTagMappingView(IamTestCase):
+class TestSettingsTagMappingView(MasuTestCase):
     def setUp(self):
         """Set up the tests."""
         super().setUp()
         self.client = APIClient()
 
         with tenant_context(self.tenant):
-            self.enabled_uuid_list = (
-                EnabledTagKeys.objects.filter(enabled=True)
-                .exclude(key=OCP_TAG_RATE_KEY)
-                .values_list("uuid", flat=True)
-            )
+            self.enabled_uuid_list = EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True)
 
     def test_get_method(self):
         """Test the get method for the tag mapping view"""
@@ -52,8 +47,6 @@ class TestSettingsTagMappingView(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         for item in response.data["data"]:
-            if item["key"] == OCP_TAG_RATE_KEY:
-                self.assertTrue(item["cost_model_id"])
             self.assertEqual(item["source_type"], "OCP")
 
     def test_get_child_tag_key(self):
@@ -271,14 +264,30 @@ class TestSettingsTagMappingView(IamTestCase):
                 response = self.client.put(url, data, format="json", **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_adding_a_child_connected_to_a_cost_model(self):
+    @patch("api.settings.tags.mapping.view.retrieve_tag_rate_mapping")
+    def test_adding_a_child_connected_to_a_cost_model(self, mock_tag_rates):
         """Test that you are not allowed to add a child connected to a cost model."""
+
         with tenant_context(self.tenant):
-            tag_rate_row = EnabledTagKeys.objects.get(key=OCP_TAG_RATE_KEY)
+            enabled_row = EnabledTagKeys.objects.get(uuid=self.enabled_uuid_list[1])
+            mock_tag_rates.return_value = {
+                enabled_row.key: {
+                    "provider_uuid": "6cb85968-06bc-4347-b...a46bed185b",
+                    "cost_model_id": "91417cce-4b66-4b41-8...137bdb1620",
+                },
+                "application": {
+                    "provider_uuid": "6cb85968-06bc-4347-b...a46bed185b",
+                    "cost_model_id": "91417cce-4b66-4b41-8...137bdb1620",
+                },
+                "instance-type": {
+                    "provider_uuid": "6cb85968-06bc-4347-b...a46bed185b",
+                    "cost_model_id": "91417cce-4b66-4b41-8...137bdb1620",
+                },
+            }
             url = reverse("tags-mapping-child-add")
             data = {
                 "parent": self.enabled_uuid_list[0],
-                "children": [str(tag_rate_row.uuid)],
+                "children": [str(self.enabled_uuid_list[1])],
             }
             response = self.client.put(url, data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

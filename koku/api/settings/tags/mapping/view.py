@@ -123,6 +123,7 @@ class SettingsTagMappingChildAddView(APIView):
 
     def put(self, request):
         tag_rates = retrieve_tag_rate_mapping(request.user.customer.schema_name)
+        print(tag_rates)
         serializer = AddChildSerializer(data=request.data, context=tag_rates)
         serializer.is_valid(raise_exception=True)
         parent_row = EnabledTagKeys.objects.get(uuid=serializer.data.get("parent"))
