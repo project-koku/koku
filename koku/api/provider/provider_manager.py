@@ -25,6 +25,7 @@ from cost_models.models import CostModelMap
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
 from koku.database import execute_delete_sql
+from masu.util.ocp import common as utils
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -81,6 +82,15 @@ class ProviderManager:
         except ObjectDoesNotExist:
             self.sources_model = None
             LOG.info(f"Provider {str(self._uuid)} has no Sources entry.")
+        try:
+            self.manifest = CostUsageReportManifest.objects.filter(
+                provider=self._uuid,
+                billing_period_start_datetime=self.date_helper.this_month_start,
+                creation_datetime__isnull=False,
+            ).latest("creation_datetime")
+        except CostUsageReportManifest.DoesNotExist:
+            self.manifest = None
+            LOG.info(f"Provider {str(self._uuid)} has no Manifest entry for the current month.")
 
     @staticmethod
     def get_providers_queryset_for_customer(customer):
@@ -115,6 +125,10 @@ class ProviderManager:
             completed_datetime__isnull=False,
         ).exists()
 
+    def get_last_received_data_datetime(self):
+        """Get the latest received data for a provider based on manifest creation datetime"""
+        return self.manifest.creation_datetime if self.manifest else None
+
     def get_state(self):
         """Get latest manifest state."""
         states = {
@@ -122,24 +136,15 @@ class ProviderManager:
             ManifestStep.PROCESSING: ManifestState.PENDING,
             ManifestStep.SUMMARY: ManifestState.PENDING,
         }
-        try:
-            manifest = CostUsageReportManifest.objects.filter(
-                provider=self._uuid,
-                billing_period_start_datetime=self.date_helper.this_month_start,
-                creation_datetime__isnull=False,
-            ).latest("creation_datetime")
-        except CostUsageReportManifest.DoesNotExist:
-            return states
-
-        for key in states:
-            if current_state := manifest.state.get(key):
-                if current_state.get(ManifestState.FAILED):
-                    states[key] = ManifestState.FAILED
-                elif current_state.get(ManifestState.END):
-                    states[key] = ManifestState.COMPLETE
-                elif current_state.get(ManifestState.START):
-                    states[key] = ManifestState.IN_PROGRESS
-
+        if self.manifest:
+            for key in states:
+                if current_state := self.manifest.state.get(key):
+                    if current_state.get(ManifestState.FAILED):
+                        states[key] = ManifestState.FAILED
+                    elif current_state.get(ManifestState.END):
+                        states[key] = ManifestState.COMPLETE
+                    elif current_state.get(ManifestState.START):
+                        states[key] = ManifestState.IN_PROGRESS
         return states
 
     def get_any_data_exists(self):
@@ -160,15 +165,27 @@ class ProviderManager:
         """Get the type/uuid of the infrastructure that the provider is running on."""
         if self.model:
             if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
+                source = Sources.objects.get(koku_uuid=self.model.infrastructure.infrastructure_provider_id)
                 return {
                     "type": self.model.infrastructure.infrastructure_type,
                     "uuid": self.model.infrastructure.infrastructure_provider_id,
+                    "id": source.source_id,
+                    "account": self.model.infrastructure.infrastructure_account,
+                    "region": self.model.infrastructure.infrastructure_region,
                 }
         return {}
 
     def get_additional_context(self):
         """Returns additional context information."""
-        return self.model.additional_context if self.model else {}
+        base_additional_context = self.model.additional_context if self.model else {}
+        if self.manifest and self.model.type == self.model.PROVIDER_OCP:
+            base_additional_context["operator_version"] = self.manifest.operator_version
+            base_additional_context["operator_airgapped"] = self.manifest.operator_airgapped
+            base_additional_context["operator_certified"] = self.manifest.operator_certified
+            latest_version = utils.get_latest_operator_version()
+            current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
+            base_additional_context["operator_update_available"] = current_version != latest_version
+        return base_additional_context
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
