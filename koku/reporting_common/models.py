@@ -20,12 +20,6 @@ class CostUsageReportManifest(models.Model):
         unique_together = ("provider", "assembly_id")
 
     assembly_id = models.TextField()
-    manifest_creation_datetime = models.DateTimeField(null=True, default=timezone.now)
-    manifest_updated_datetime = models.DateTimeField(null=True, default=timezone.now)
-    # Completed should indicate that our reporting materialzed views have refreshed
-    manifest_completed_datetime = models.DateTimeField(null=True)
-    # This timestamp indicates the last time the manifest was modified on the data source's end, not ours.
-    manifest_modified_datetime = models.DateTimeField(null=True)
     creation_datetime = models.DateTimeField(null=True, default=timezone.now)
     # completed_datetime indicates that our reporting tables have completed updating with current data
     completed_datetime = models.DateTimeField(null=True)
@@ -49,8 +43,6 @@ class CostUsageReportManifest(models.Model):
     operator_daily_reports = models.BooleanField(null=True, default=False)
     cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
-    export_time = models.DateTimeField(null=True)
-    last_reports = models.JSONField(default=dict, null=True)
     # report_tracker is additional context for OCI/GCP/OCP for managing file counts and file names
     report_tracker = models.JSONField(default=dict, null=True)
     # s3_parquet_cleared_tracker is additional parquet context for OCP daily operator payloads
@@ -67,8 +59,6 @@ class CostUsageReportStatus(models.Model):
 
     manifest = models.ForeignKey("CostUsageReportManifest", null=True, on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False)
-    last_completed_datetime = models.DateTimeField(null=True)
-    last_started_datetime = models.DateTimeField(null=True)
     completed_datetime = models.DateTimeField(null=True)
     started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
