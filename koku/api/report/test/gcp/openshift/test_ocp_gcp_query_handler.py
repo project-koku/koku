@@ -1405,7 +1405,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             }
             with self.subTest(view=view):
                 if view == OCPGCPStorageView:
-                    filters["unit"] = "gibibyte month"
+                    filters["unit"] = "GB-Mo"
                 with tenant_context(self.tenant):
                     opt_value = (
                         OCPGCPCostLineItemProjectDailySummaryP.objects.filter(**filters)
