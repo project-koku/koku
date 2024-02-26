@@ -93,8 +93,7 @@ class SettingsTagMappingChildView(CostModelAnnotationMixin, generics.GenericAPIV
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
-        annotated_queryset = self.get_annotated_queryset()
-        filtered_qset = self.filter_queryset(annotated_queryset)
+        filtered_qset = self.filter_queryset(self.get_annotated_queryset())
         serializer = self.serializer_class(filtered_qset, many=True)
         paginator = ListPaginator(serializer.data, request)
         response = paginator.paginated_response
@@ -111,8 +110,7 @@ class SettingsTagMappingParentView(CostModelAnnotationMixin, generics.GenericAPI
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
-        annotated_queryset = self.get_annotated_queryset()
-        filtered_qset = self.filter_queryset(annotated_queryset)
+        filtered_qset = self.filter_queryset(self.get_annotated_queryset())
         serializer = self.serializer_class(filtered_qset, many=True)
         paginator = ListPaginator(serializer.data, request)
         response = paginator.paginated_response
