@@ -61,21 +61,21 @@ class OCPReportViewTest(IamTestCase):
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh.now, 9)
         cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs", cls.schema_name)
         cls.cost_term = (
-            cls.provider_map.cloud_infrastructure_cost
-            + cls.provider_map.markup_cost
-            + cls.provider_map.cost_model_cost
+                cls.provider_map.cloud_infrastructure_cost
+                + cls.provider_map.markup_cost
+                + cls.provider_map.cost_model_cost
         )
         cls.cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost_by_project
-            + cls.provider_map.markup_cost_by_project
-            + cls.provider_map.cost_model_cost
+                cls.provider_map.cloud_infrastructure_cost_by_project
+                + cls.provider_map.markup_cost_by_project
+                + cls.provider_map.cost_model_cost
         )
 
         cls.distributed_cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost_by_project
-            + cls.provider_map.markup_cost_by_project
-            + cls.provider_map.cost_model_cost
-            + cls.provider_map.cost_model_distributed_cost_by_project
+                cls.provider_map.cloud_infrastructure_cost_by_project
+                + cls.provider_map.markup_cost_by_project
+                + cls.provider_map.cost_model_cost
+                + cls.provider_map.cost_model_distributed_cost_by_project
         )
 
     def setUp(self):
@@ -318,13 +318,13 @@ class OCPReportViewTest(IamTestCase):
         total = response_json.get("meta", {}).get("total", {})
         data = response_json.get("data", {})
         self.assertTrue("usage" in total)
-        self.assertEqual(total.get("usage", {}).get("units"), "GB-Hours")
+        self.assertEqual(total.get("usage", {}).get("units"), "GiB-Hours")
 
         for item in data:
             if item.get("values"):
                 values = item.get("values")[0]
                 self.assertTrue("usage" in values)
-                self.assertEqual(values.get("usage", {}).get("units"), "GB-Hours")
+                self.assertEqual(values.get("usage", {}).get("units"), "GiB-Hours")
 
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
@@ -697,10 +697,10 @@ class OCPReportViewTest(IamTestCase):
         last_month_end = self.dh.this_month_end - date_delta
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost_by_project
-            + self.provider_map.markup_cost_by_project
-            + self.provider_map.cost_model_cost
-            + self.provider_map.cost_model_distributed_cost_by_project
+                self.provider_map.cloud_infrastructure_cost_by_project
+                + self.provider_map.markup_cost_by_project
+                + self.provider_map.cost_model_cost
+                + self.provider_map.cost_model_distributed_cost_by_project
         )
 
         with tenant_context(self.tenant):
@@ -1067,9 +1067,9 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost
-            + self.provider_map.markup_cost
-            + self.provider_map.cost_model_cpu_cost
+                self.provider_map.cloud_infrastructure_cost
+                + self.provider_map.markup_cost
+                + self.provider_map.cost_model_cpu_cost
         )
 
         with tenant_context(self.tenant):
@@ -1163,9 +1163,9 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost
-            + self.provider_map.markup_cost
-            + self.provider_map.cost_model_cpu_cost
+                self.provider_map.cloud_infrastructure_cost
+                + self.provider_map.markup_cost
+                + self.provider_map.cost_model_cpu_cost
         )
 
         with tenant_context(self.tenant):
@@ -1498,7 +1498,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue("usage" in values)
         self.assertTrue("request" in values)
         self.assertTrue("cost" in values)
-        self.assertEqual(values.get("usage", {}).get("units"), "GB-Mo")
+        self.assertEqual(values.get("usage", {}).get("units"), "GiB-Mo")
 
     def test_execute_query_default_pagination(self):
         """Test that the default pagination works."""
