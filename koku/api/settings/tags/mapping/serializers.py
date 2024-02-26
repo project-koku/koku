@@ -13,7 +13,8 @@ from reporting.provider.all.models import TagMapping
 
 
 class ViewOptionsSerializer(serializers.ModelSerializer):
-    "This serilizer is used to see the valid parent and child options."
+    """Intended to be used in conjuntion with the CostModelAnnotationMixin."""
+
     source_type = serializers.CharField(source="provider_type")
     cost_model_id = serializers.UUIDField()
 
