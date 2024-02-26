@@ -8,11 +8,12 @@ WITH cte_tag_key_mapping AS (
         INNER JOIN {{schema | sqlsafe}}.reporting_enabledtagkeys AS parent_tags ON tag_mapping.parent_id = parent_tags.uuid
     WHERE
         enabledtagkeys.enabled
-        AND enabledtagkeys.provider_type = 'AWS'
+        AND enabledtagkeys.provider_type = 'Azure'
 ),
 cte_update_tag_keys as (
     SELECT
         lids.uuid as uuid,
+        -- lids.tags as origianl_tags, --uncomment to compare
         CASE
             WHEN EXISTS(
                 SELECT 1 FROM cte_tag_key_mapping
@@ -37,7 +38,7 @@ cte_update_tag_keys as (
                 )
         END as update_tags
     FROM
-        {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS lids
+        {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary AS lids
     CROSS JOIN (
         SELECT
             jsonb_object_agg(child_key, parent_key) AS tag_map
@@ -51,7 +52,7 @@ cte_update_tag_keys as (
         AND lids.cost_entry_bill_id in {{ bill_ids | inclause }}
         {% endif %}
 )
-UPDATE {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS lids
+UPDATE {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary AS lids
 SET tags = update_data.update_tags
 FROM cte_update_tag_keys as update_data
 WHERE lids.uuid = update_data.uuid
