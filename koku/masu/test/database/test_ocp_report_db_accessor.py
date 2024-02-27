@@ -15,10 +15,12 @@ from unittest.mock import patch
 from django.conf import settings
 from django.db.models import Q
 from django.db.models import Sum
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoUserError
 
 from api.provider.models import Provider
+from api.report.test.util.constants import OCP_PVC_LABELS
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -27,6 +29,7 @@ from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -1028,3 +1031,68 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertIn(expected_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
             self.assertEqual(len(mock_sql_execute.call_args_list), 2)
+
+    @patch("masu.database.ocp_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
+    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+        """
+        This tests the tag mapping feature.
+        """
+        mock_unleash.return_value = True
+        populated_keys = []
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)
+            for enabled_tag in enabled_tags:
+                tag_count = OCPUsageLineItemDailySummary.objects.filter(
+                    all_labels__has_key=enabled_tag.key,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
+                ).count()
+                if tag_count > 0:
+                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                    populated_keys.append(key_metadata)
+            parent_key, parent_obj, parent_count = populated_keys[0]
+            child_key, child_obj, child_count = populated_keys[1]
+            # Check to see how many of our keys where the parent & child key
+            # were present in the data.
+            value_precedence_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(all_labels__has_key=parent_key) & Q(all_labels__has_key=child_key),
+                usage_start__gte=self.dh.this_month_start,
+                usage_start__lte=self.dh.today,
+            ).count()
+            TagMapping.objects.create(parent=parent_obj, child=child_obj)
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            expected_parent_count = (parent_count + child_count) - value_precedence_count
+            actual_parent_count = OCPUsageLineItemDailySummary.objects.filter(
+                all_labels__has_key=parent_key,
+                usage_start__gte=self.dh.this_month_start,
+                usage_start__lte=self.dh.today,
+            )
+            self.assertEqual(expected_parent_count, actual_parent_count.count())
+            actual_child_count = OCPUsageLineItemDailySummary.objects.filter(
+                all_labels__has_key=child_key,
+                usage_start__gte=self.dh.this_month_start,
+                usage_start__lte=self.dh.today,
+            ).count()
+            self.assertEqual(0, actual_child_count)
+
+            # Test correct value presedence
+            tested = False
+            distinct_values = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+                )
+                .values_list(f"volume_labels__{parent_key}", flat=True)
+                .distinct()
+            )
+            parent_values = []
+            child_values = []
+            for dikt in OCP_PVC_LABELS:
+                parent_values.append(dikt.get(parent_key))
+                child_values.append(dikt.get(child_key))
+            for distinct_value in distinct_values:
+                if distinct_value is None:
+                    continue
+                self.assertIn(distinct_value, parent_values)
+                self.assertNotIn(distinct_value, child_values)
+                tested = True
+            self.assertTrue(tested)

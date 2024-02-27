@@ -13,13 +13,11 @@ WITH cte_tag_key_mapping AS (
 cte_update_tag_keys as (
     SELECT
         lids.uuid as uuid,
-        -- lids.tags as origianl_tags, --uncomment to compare
         CASE
-            WHEN
-                (EXISTS(SELECT 1
-                FROM cte_tag_key_mapping
-                WHERE child_key IN (SELECT jsonb_object_keys(lids.tags))
-                AND parent_key = any(array(SELECT jsonb_object_keys(lids.tags)::text)))) = True
+            WHEN EXISTS(
+                SELECT 1 FROM cte_tag_key_mapping
+                WHERE lids.tags ? child_key
+                AND lids.tags ? parent_key)
             THEN
                 (
                     SELECT jsonb_object_agg(
@@ -56,4 +54,6 @@ cte_update_tag_keys as (
 UPDATE {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS lids
 SET tags = update_data.update_tags
 FROM cte_update_tag_keys as update_data
-WHERE lids.uuid = update_data.uuid;
+WHERE lids.uuid = update_data.uuid
+AND lids.usage_start >= DATE({{start_date}})
+AND lids.usage_start <= DATE({{end_date}});

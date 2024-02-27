@@ -151,7 +151,11 @@ class ModelBakeryDataLoader(DataLoader):
                 )
             if linked_openshift_provider:
                 infra_map = baker.make(
-                    "ProviderInfrastructureMap", infrastructure_type=provider_type, infrastructure_provider=provider
+                    "ProviderInfrastructureMap",
+                    infrastructure_type=provider_type,
+                    infrastructure_provider=provider,
+                    infrastructure_account="account",
+                    infrastructure_region="east",
                 )
                 linked_openshift_provider.infrastructure = infra_map
                 linked_openshift_provider.save()

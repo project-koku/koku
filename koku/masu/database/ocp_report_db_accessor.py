@@ -17,6 +17,7 @@ from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
@@ -26,10 +27,12 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
+from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
@@ -115,6 +118,33 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
+    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
+        """Maps child keys to parent key.
+        Args:
+            start_date (datetime.date) The date to start mapping keys
+            end_date (datetime.date) The date to end on.
+            bill_ids (list) A list of bill IDs.
+        Returns
+            (None)
+        """
+        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
+            return
+        with schema_context(self.schema):
+            # Early return check to see if they have any tag mappings set.
+            if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_OCP).exists():
+                LOG.debug("No tag mappings for OCP.")
+                return
+        table_name = self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data("masu.database", "sql/openshift/ocp_tag_mapping_update_daily_summary.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_ids": report_period_ids,
+            "schema": self.schema,
+        }
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
+
     def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
         """Get the OCP on infrastructure map.
 
@@ -158,7 +188,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             # This dictionary is keyed on an OpenShift provider UUID
             # and the tuple contains
             # (Infrastructure Provider UUID, Infrastructure Provider Type)
-            db_results[entry[0]] = (entry[1], entry[2])
+            db_results[entry[0]] = (entry[1], entry[2], entry[3], entry[4])
 
         return db_results
 
@@ -243,8 +273,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for entry in results:
                     # This dictionary is keyed on an OpenShift provider UUID
                     # and the tuple contains
-                    # (Infrastructure Provider UUID, Infrastructure Provider Type)
-                    db_results[entry[0]] = (entry[1], entry[2])
+                    # (Infra Provider UUID, Infra Provider Type, Infra account number, Infra region)
+                    db_results[entry[0]] = (entry[1], entry[2], entry[3], entry[4])
                 if db_results:
                     # An OCP cluster can only run on a single source, so stop here if we found a match
                     return db_results
