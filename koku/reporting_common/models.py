@@ -162,6 +162,9 @@ class DelayedCeleryTasks(models.Model):
 
     @classmethod
     def trigger_delayed_tasks(cls):
+        """Removes expired records triggering the celery task
+        through the pre_delete signal trigger_celery_task.
+        """
         now = timezone.now()
         expired_records = cls.objects.filter(timeout_timestamp__lt=now)
         expired_records.delete()
@@ -176,9 +179,13 @@ class DelayedCeleryTasks(models.Model):
         queue_name,
         timeout_seconds=settings.DELAYED_TASK_TIME,
     ):
+        """
+        Saves data regarding to the celery task being delayed.
+        """
         existing_task = cls.objects.filter(task_name=task_name, provider_uuid=provider_uuid).first()
 
         if existing_task:
+            # The task already exist extend the timeout.
             existing_task.set_timeout(timeout_seconds)
             existing_task.save()
             return existing_task
@@ -197,6 +204,7 @@ class DelayedCeleryTasks(models.Model):
 
 @receiver(pre_delete, sender=DelayedCeleryTasks)
 def trigger_celery_task(sender, instance, **kwargs):
+    """Triggers celery task prior to removing the rows from the table."""
     result = celery_app.send_task(
         instance.task_name, args=instance.task_args, kwargs=instance.task_kwargs, queue=instance.queue_name
     )
