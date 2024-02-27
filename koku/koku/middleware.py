@@ -19,7 +19,6 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
-from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
@@ -103,15 +102,6 @@ class HttpResponseFailedDependency(JsonResponse):
         super().__init__(data)
 
 
-class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
-    """A middleware to check if schema exists for Tenant."""
-
-    def process_exception(self, request, exception):
-        if isinstance(exception, (Tenant.DoesNotExist, ProgrammingError)):
-            paginator = EmptyResultsSetPagination([], request)
-            return paginator.get_paginated_response()
-
-
 class KokuTenantMiddleware(TenantMainMiddleware):
     """A subclass of the Django-tenants middleware.
     Determines which schema to use based on the customer's schema
@@ -171,6 +161,9 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             # Inherited from superclass. Set the tenant for the request
             request.tenant = self._get_or_create_tenant(request)
             connection.set_tenant(request.tenant)
+        except Tenant.DoesNotExist:
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
 
         except OperationalError as err:
             LOG.error("Request resulted in OperationalError: %s", err)
@@ -187,10 +180,8 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             PermissionDenied: If the user does not have permissions for Cost Management.
 
         """
-
-        username = request.user.username
         if not request.user.admin and request.user.access is None:
-            msg = f"User {username} does not have permissions for Cost Management."
+            msg = f"User {request.user.username} does not have permissions for Cost Management."
             LOG.warning(msg)
             # For /user-access we do not want to raise the exception since the API will
             # return a false boolean response that the platfrom frontend code is expecting.
@@ -212,20 +203,15 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             return tenant
 
         tenant_username = request.user.username
-        schema_name = request.user.customer.schema_name if not is_no_auth(request) else "public"
+        schema_name = "public" if is_no_auth(request) else request.user.customer.schema_name
 
-        try:
-            return self._get_tenant_from_db(tenant_username, schema_name)
-        except Tenant.DoesNotExist:
-            LOG.info("No tenant found. Creating new tenant with public schema.")
-            return self._create_tenant()
+        return self._get_tenant_from_db(tenant_username, schema_name)
 
     def _get_tenant_from_tenant_cache(self, request):
         """Get tenant from tenant cache."""
 
         tenant_username = request.user.username
-        tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
-        return tenant
+        return KokuTenantMiddleware.tenant_cache.get(tenant_username)
 
     def _get_tenant_from_db(self, tenant_username, schema_name):
         """Get tenant with the schema from the database."""
