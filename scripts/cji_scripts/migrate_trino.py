@@ -162,11 +162,11 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = [
-        "azure_openshift_daily_resource_matched_temp",
-        "azure_openshift_daily_tag_matched_temp",
-        "reporting_ocpazurecostlineitem_project_daily_summary_temp",
-    ]
+    # tables_to_drop = [
+    #     "azure_openshift_daily_resource_matched_temp",
+    #     "azure_openshift_daily_tag_matched_temp",
+    #     "reporting_ocpazurecostlineitem_project_daily_summary_temp",
+    # ]
     # columns_to_drop = ["ocp_matched"]
     columns_to_add = {
         "subscription_name": "varchar",
@@ -176,9 +176,11 @@ def main():
         CONNECT_PARAMS["schema"] = schema
         logging.info(f"*** Adding column to tables for schema {schema} ***")
         add_columns_to_table(columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary", CONNECT_PARAMS)
-        logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
-
+        add_columns_to_table(columns_to_add, "azure_openshift_daily_resource_matched_temp", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "azure_openshift_daily_tag_matched_temp", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
+        # logging.info(f"*** Dropping tables {tables_to_drop} for schema {schema} ***")
+        # drop_tables(tables_to_drop, CONNECT_PARAMS)
 
 if __name__ == "__main__":
     main()
