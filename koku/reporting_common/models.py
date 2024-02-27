@@ -161,7 +161,7 @@ class DelayedCeleryTasks(models.Model):
         self.timeout_timestamp = now + timezone.timedelta(seconds=timeout_seconds)
 
     @classmethod
-    def remove_expired_records(cls):
+    def delayed_summary_polling(cls):
         now = timezone.now()
         expired_records = cls.objects.filter(timeout_timestamp__lt=now)
         expired_records.delete()
@@ -195,7 +195,6 @@ class DelayedCeleryTasks(models.Model):
         return new_task
 
 
-# Define the pre_delete signal receiver function
 @receiver(pre_delete, sender=DelayedCeleryTasks)
 def trigger_celery_task(sender, instance, **kwargs):
     result = celery_app.send_task(

@@ -9,13 +9,13 @@ from django.db.models import Func
 
 from api.models import Provider
 from api.utils import DateHelper
+from masu.processor.tasks import delayed_summarize_current_month
 from reporting.models import AWSTagsSummary
 from reporting.models import AzureTagsSummary
 from reporting.models import GCPTagsSummary
 from reporting.models import OCITagsSummary
 from reporting.provider.ocp.models import OCPTagsValues
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting_common.utils import delayed_summarize_current_month
 
 
 def resummarize_current_month_by_tag_keys(enabled_rows, schema_name):
