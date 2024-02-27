@@ -138,6 +138,8 @@
           value: ${CACHE_TIMEOUT}
         - name: TAG_ENABLED_LIMIT
           value: ${TAG_ENABLED_LIMIT}
+        - name: PANDAS_COPY_ON_WRITE
+          value: ${PANDAS_COPY_ON_WRITE}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/

@@ -114,6 +114,8 @@
           value: ${TAG_ENABLED_LIMIT}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
+        - name: PANDAS_COPY_ON_WRITE
+          value: ${PANDAS_COPY_ON_WRITE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
         - name: UNLEASH_CACHE_DIR
