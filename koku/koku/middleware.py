@@ -174,9 +174,6 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             # Inherited from superclass. Set the tenant for the request
             request.tenant = self._get_tenant(request)
             connection.set_tenant(request.tenant)
-        except Tenant.DoesNotExist:
-            request.tenant = self._get_tenant_from_db("public", "public")
-            connection.set_tenant(request.tenant)
 
         except OperationalError as err:
             LOG.error("Request resulted in OperationalError: %s", err)
@@ -233,18 +230,12 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             tenant = Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
             LOG.info(f"Tenant does not exist. username: {tenant_username}. schema: {schema_name}.")
-            raise
+            return Tenant.objects.get(schema_name="public")
 
         if schema_name != "public":
             with KokuTenantMiddleware.tenant_lock:
                 KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
                 LOG.debug(f"Tenant added to cache: {tenant_username}")
-        return tenant
-
-    def _create_tenant(self):
-        """Create tenant"""
-
-        tenant, __ = Tenant.objects.get_or_create(schema_name="public")
         return tenant
 
 
