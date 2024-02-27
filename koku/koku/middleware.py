@@ -102,6 +102,19 @@ class HttpResponseFailedDependency(JsonResponse):
         super().__init__(data)
 
 
+class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
+    """A middleware to check if schema exists for Tenant."""
+
+    def process_exception(self, request, exception):
+        # double check if the Tenant exists
+        schema_name = request.user.customer.schema_name
+        try:
+            Tenant.objects.get(schema_name=schema_name)
+        except Tenant.DoesNotExist:
+            paginator = EmptyResultsSetPagination([], request)
+            return paginator.get_paginated_response()
+
+
 class KokuTenantMiddleware(TenantMainMiddleware):
     """A subclass of the Django-tenants middleware.
     Determines which schema to use based on the customer's schema
@@ -159,11 +172,11 @@ class KokuTenantMiddleware(TenantMainMiddleware):
 
         try:
             # Inherited from superclass. Set the tenant for the request
-            request.tenant = self._get_or_create_tenant(request)
+            request.tenant = self._get_tenant(request)
             connection.set_tenant(request.tenant)
         except Tenant.DoesNotExist:
-            paginator = EmptyResultsSetPagination([], request)
-            return paginator.get_paginated_response()
+            request.tenant = self._get_tenant_from_db("public", "public")
+            connection.set_tenant(request.tenant)
 
         except OperationalError as err:
             LOG.error("Request resulted in OperationalError: %s", err)
@@ -188,7 +201,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             if request.path != reverse("user-access"):
                 raise PermissionDenied(msg)
 
-    def _get_or_create_tenant(self, request):
+    def _get_tenant(self, request):
         """Get or create tenant based on the user's schema.
 
         Args:
