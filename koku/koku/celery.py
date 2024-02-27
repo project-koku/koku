@@ -208,10 +208,10 @@ app.conf.beat_schedule["finalize_hcs_reports"] = {
 
 # Specify the frequency for checking delayed summary tasks
 DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")
-delayed_summary_polling_schedule = crontab(minute=f"*/{DELAYED_TASK_POLLING_MINUTES}")
-app.conf.beat_schedule["source_status_beat"] = {
-    "task": "masu.celery.tasks.delayed_summary_polling",
-    "schedule": delayed_summary_polling_schedule,
+trigger_delayed_tasks_schedule = crontab(minute=f"*/{DELAYED_TASK_POLLING_MINUTES}")
+app.conf.beat_schedule["delayed_tasks_trigger"] = {
+    "task": "masu.celery.tasks.trigger_delayed_tasks",
+    "schedule": trigger_delayed_tasks_schedule,
 }
 
 

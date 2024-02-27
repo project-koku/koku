@@ -10,6 +10,7 @@ from django_tenants.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
+from masu.processor.tasks import delayed_summarize_current_month
 from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE
 from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE_XL
 from masu.processor.tasks import UPDATE_SUMMARY_TABLES_TASK
@@ -18,7 +19,6 @@ from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
-from reporting_common.utils import delayed_summarize_current_month
 
 
 class TestCostUsageReportStatus(MasuTestCase):

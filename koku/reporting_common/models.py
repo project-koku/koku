@@ -161,7 +161,7 @@ class DelayedCeleryTasks(models.Model):
         self.timeout_timestamp = now + timezone.timedelta(seconds=timeout_seconds)
 
     @classmethod
-    def delayed_summary_polling(cls):
+    def trigger_delayed_tasks(cls):
         now = timezone.now()
         expired_records = cls.objects.filter(timeout_timestamp__lt=now)
         expired_records.delete()

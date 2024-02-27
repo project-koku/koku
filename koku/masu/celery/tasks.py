@@ -564,7 +564,7 @@ def get_celery_queue_items(self, queue_name=None, task_name=None):
     return decoded_tasks
 
 
-@celery_app.task(name="masu.celery.tasks.delayed_summary_polling", queue=GET_REPORT_FILES_QUEUE)
-def delayed_summary_polling(*args, **kwargs):
+@celery_app.task(name="masu.celery.tasks.trigger_delayed_tasks", queue=GET_REPORT_FILES_QUEUE)
+def trigger_delayed_tasks(*args, **kwargs):
     """Removes the expired records starting the delayed celery tasks."""
-    DelayedCeleryTasks.delayed_summary_polling()
+    DelayedCeleryTasks.trigger_delayed_tasks()
