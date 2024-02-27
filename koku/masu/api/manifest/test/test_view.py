@@ -81,6 +81,7 @@ class ManifestViewTests(IamTestCase):
             "created_after": (date.today() + timedelta(days=5)).isoformat(),
             "failed": True,
             "running": False,
+            "started": True,
         }
         for key, value in filters.items():
             with self.subTest(filter=key):

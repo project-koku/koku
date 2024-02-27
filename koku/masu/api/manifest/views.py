@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for Masu API `manifest`."""
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_str
@@ -57,17 +58,31 @@ class ManifestInvalidFilterException(APIException):
 
 def manifest_failed_filter(queryset, name, value):
     """A custom filter to return manfests that did or did not fail based on the boolean value of failed."""
-    filters = {}
+    q_objects = None
     for step in ManifestStep:
         # if the failed field IS NULL then the manifest did not fail so we have to inverse the search criteria.
-        filters[f"state__{step}__{ManifestState.FAILED}__isnull"] = not value
-    return queryset.filter(**filters)
+        new_q = Q(**{f"state__{step}__{ManifestState.FAILED}__isnull": not value})
+        if q_objects:
+            q_objects = q_objects | new_q
+        else:
+            q_objects = new_q
+    return queryset.filter(q_objects)
 
 
 def manifest_running_filter(queryset, name, value):
     """A custom filter to return manfests that are running tasks."""
+    queryset = queryset.exclude(state__exact={})
     for step in ManifestStep:
         queryset = queryset.filter(**{f"state__{step}__{ManifestState.END}__isnull": value})
+    return queryset
+
+
+def manifest_started_filter(queryset, name, value):
+    """A custom filter to return manifests that were created but have no state steps."""
+    if value:
+        queryset = queryset.exclude(state__exact={})
+    else:
+        queryset = queryset.filter(state__exact={})
     return queryset
 
 
@@ -87,6 +102,7 @@ class ManifestFilter(FilterSet):
     completed = DateFromToRangeFilter(field_name="completed_datetime")
     failed = BooleanFilter(method=manifest_failed_filter)
     running = BooleanFilter(method=manifest_running_filter)
+    started = BooleanFilter(method=manifest_started_filter)
 
     class Meta:
         model = CostUsageReportManifest
@@ -99,6 +115,7 @@ class ManifestFilter(FilterSet):
             "completed",
             "failed",
             "running",
+            "started",
         ]
 
 
