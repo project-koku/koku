@@ -2,7 +2,9 @@
 {% if aws_provider_uuid or ocp_provider_uuid %}
     SELECT c.provider_id as ocp_uuid,
         p.uuid as infra_uuid,
-        p.type
+        p.type,
+        p.account,
+        p.region
     FROM {{schema | sqlsafe}}.reporting_aws_compute_summary_p as aws
     JOIN {{schema | sqlsafe}}.reporting_ocp_nodes as ocp
         ON ocp.resource_id = ANY(aws.resource_ids)
@@ -20,7 +22,7 @@
         {% if ocp_provider_uuid %}
         AND c.provider_id = {{ocp_provider_uuid}}
         {% endif %}
-    GROUP BY c.provider_id, p.uuid, p.type
+    GROUP BY c.provider_id, p.uuid, p.type, p.account, p.region
 {% endif %}
 
 {% if ocp_provider_uuid  %}
@@ -30,7 +32,9 @@
 {% if azure_provider_uuid or ocp_provider_uuid %}
     SELECT c.provider_id as ocp_uuid,
         p.uuid as infra_uuid,
-        p.type
+        p.type,
+        p.account,
+        p.region
     FROM (
         SELECT azure.source_uuid,
             instance_id
@@ -53,6 +57,6 @@
         {% if ocp_provider_uuid %}
         AND c.provider_id = {{ocp_provider_uuid}}
         {% endif %}
-    GROUP BY c.provider_id, p.uuid, p.type
+    GROUP BY c.provider_id, p.uuid, p.type, p.account, p.region
 
 {% endif %}
