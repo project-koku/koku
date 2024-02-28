@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query handler for Tag Mappings."""
+import textwrap
+
 from django.db import connection
 
 from koku.cache import get_cached_tag_rate_map
