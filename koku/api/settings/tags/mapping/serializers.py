@@ -74,9 +74,6 @@ class AddChildSerializer(serializers.Serializer):
             metadata["child_key"] = intersecting_tag
             errors["child is being used in a cost model:"].append(metadata)
         if errors:
-            formatted_errors = []
-            for log_msg, log_list in errors.items():
-                format_error = [f"{log_msg} {item}" for item in log_list]
-                formatted_errors.append(format_error)
+            formatted_errors = [f"{log_msg} {log_list}" for log_msg, log_list in errors.items()]
             raise serializers.ValidationError(formatted_errors)
         return data
