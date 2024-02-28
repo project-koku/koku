@@ -124,3 +124,16 @@ class SettingsDisableTagView(SettingsTagUpdateView):
         tag_keys = TagMapping.objects.filter(Q(parent__uuid__in=uuid_list) | Q(child__uuid__in=uuid_list))
         if not tag_keys:
             return
+        tracked_errors = set()
+        for tag_key in tag_keys:
+            if str(tag_key.parent.uuid) in uuid_list:
+                tracked_errors.add(str(tag_key.parent.uuid))
+            if str(tag_key.child.uuid) in uuid_list:
+                tracked_errors.add(str(tag_key.child.uuid))
+        return Response(
+            {
+                "error": "Can not disable a key associated with a tag mapping",
+                "ids": tracked_errors,
+            },
+            status=status.HTTP_412_PRECONDITION_FAILED,
+        )
