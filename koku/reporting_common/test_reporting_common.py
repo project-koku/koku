@@ -118,7 +118,7 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertIsNotNone(stats.failed_status)
         self.assertEqual(stats.status, CombinedChoices.FAILED)
 
-    @patch("reporting_common.utils.is_customer_large")
+    @patch("masu.processor.tasks.is_customer_large")
     def test_delayed_summarize_current_month(self, mock_large_customer):
         mock_large_customer.return_value = False
         test_matrix = {
@@ -149,7 +149,7 @@ class TestCostUsageReportStatus(MasuTestCase):
                     self.assertEqual(db_entry.task_args, [self.schema_name])
                     self.assertEqual(db_entry.queue_name, UPDATE_SUMMARY_TABLES_QUEUE)
 
-    @patch("reporting_common.utils.is_customer_large")
+    @patch("masu.processor.tasks.is_customer_large")
     def test_large_customer(self, mock_large_customer):
         mock_large_customer.return_value = True
         delayed_summarize_current_month(self.schema_name, [self.aws_provider.uuid], Provider.PROVIDER_AWS)
