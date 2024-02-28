@@ -76,6 +76,12 @@ from api.settings.aws_category_keys.view import SettingsEnableAWSCategoryKeyView
 from api.settings.cost_groups.view import CostGroupsAddView
 from api.settings.cost_groups.view import CostGroupsRemoveView
 from api.settings.cost_groups.view import CostGroupsView
+from api.settings.tags.mapping.view import SettingsTagMappingChildAddView
+from api.settings.tags.mapping.view import SettingsTagMappingChildRemoveView
+from api.settings.tags.mapping.view import SettingsTagMappingChildView
+from api.settings.tags.mapping.view import SettingsTagMappingParentRemoveView
+from api.settings.tags.mapping.view import SettingsTagMappingParentView
+from api.settings.tags.mapping.view import SettingsTagMappingView
 from api.settings.tags.view import SettingsDisableTagView
 from api.settings.tags.view import SettingsEnableTagView
 from api.settings.tags.view import SettingsTagView

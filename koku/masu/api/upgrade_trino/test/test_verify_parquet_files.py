@@ -125,7 +125,8 @@ class TestVerifyParquetFiles(MasuTestCase):
                 # Test that the additional context is set correctly
                 provider.refresh_from_db()
                 self.assertEqual(
-                    provider.additional_context, self.build_expected_additional_context(verify_handler, True)
+                    provider.additional_context.get("conversion_metadata"),
+                    self.build_expected_additional_context(verify_handler, True).get("conversion_metadata"),
                 )
                 conversion_metadata = provider.additional_context.get(ConversionContextKeys.metadata)
                 self.assertFalse(verify_handler.file_tracker.add_to_queue(conversion_metadata))

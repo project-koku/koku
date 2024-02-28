@@ -87,19 +87,6 @@ class ReportManifestDBAccessorTest(MasuTestCase):
         self.assertIn("end", after_state.state.get("download"))
         self.assertIn("time_taken_seconds", after_state.state.get("download"))
 
-    def test_mark_manifest_as_updated(self):
-        """Test that the manifest is marked updated."""
-        now = self.dh.now
-        self.manifest_accessor.mark_manifest_as_updated(self.manifest)
-        self.assertGreater(self.manifest.manifest_updated_datetime, now)
-
-    def test_mark_manifest_as_updated_none_manifest(self):
-        """Test that a none manifest doesn't update failure."""
-        try:
-            self.manifest_accessor.mark_manifest_as_updated(None)
-        except Exception as err:
-            self.fail(f"Test failed with error: {err}")
-
     def test_mark_manifests_as_completed_none_manifest(self):
         """Test that a none manifest doesn't complete failure."""
         try:

@@ -113,7 +113,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tag_information"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_ui_summary_tables_trino"  # noqa: E501
@@ -178,7 +178,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tag_information"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_ui_summary_tables_trino"  # noqa: E501
@@ -251,7 +251,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     )
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tag_information"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
@@ -320,7 +320,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     )
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
-        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tag_information"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_ui_summary_tables_trino"  # noqa: E501
@@ -513,9 +513,11 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         """Test set_provider_infra_map."""
         infra_uuid = self.aws_provider_uuid
         infra_type = self.aws_provider.type
+        infra_account = "account"
+        infra_region = "east"
         p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
 
-        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        infra_map = {str(p.uuid): (infra_uuid, infra_type, infra_account, infra_region)}
         expected_infra = ProviderInfrastructureMap.objects.get(infrastructure_provider_id=infra_uuid)
 
         updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
@@ -540,12 +542,14 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         """Test set_provider_infra_map does not raise exception when providermap is not found."""
         infra_uuid = self.aws_provider_uuid
         infra_type = self.aws_provider.type
+        infra_account = "account"
+        infra_region = "east"
         p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
 
         mock_map.get_or_create.side_effect = IntegrityError()
         mock_map.filter.return_value.first.return_value = None
 
-        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        infra_map = {str(p.uuid): (infra_uuid, infra_type, infra_account, infra_region)}
 
         updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
         try:
@@ -557,10 +561,12 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         """Test set_provider_infra_map during race condition creating map."""
         infra_uuid = self.aws_provider_uuid
         infra_type = self.aws_provider.type
+        infra_account = "account"
+        infra_region = "east"
         p: Provider = self.baker.make("Provider", type=Provider.PROVIDER_OCP)
         expected_infra = ProviderInfrastructureMap.objects.get(infrastructure_provider_id=infra_uuid)
 
-        infra_map = {str(p.uuid): (infra_uuid, infra_type)}
+        infra_map = {str(p.uuid): (infra_uuid, infra_type, infra_account, infra_region)}
         updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=p, manifest=None)
         with patch("masu.processor.ocp.ocp_cloud_updater_base.ProviderInfrastructureMap.objects") as mock_map:
             mock_map.get_or_create.side_effect = IntegrityError()
@@ -658,3 +664,23 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
         updater.truncate_summary_table_data("table_2023_03")
         mock_truncate.assert_called()
+
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_get_infra_map_ocp(self, mock_get_infra_map):
+        """Test getting infra map for ocp on cloud provider"""
+        start_date = self.dh.last_month_start
+        end_date = self.dh.last_month_end
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.ocp_provider, manifest=None)
+        expected_infra_map = {self.ocp_provider.uuid: ("infra_provider_uuid", "infra_provider_type")}
+        mock_get_infra_map.return_value = expected_infra_map
+        infra_map = updater.get_infra_map(start_date, end_date)
+        mock_get_infra_map.assert_called()
+        self.assertEqual(infra_map, expected_infra_map)
+
+    def test_get_infra_map_aws(self):
+        """Test getting infra map for ocp on cloud provider"""
+        start_date = self.dh.last_month_start
+        end_date = self.dh.last_month_end
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        infra_map = updater.get_infra_map(start_date, end_date)
+        self.assertIn(self.aws_provider_uuid, str(infra_map))

@@ -66,39 +66,6 @@ class OCPCloudUpdaterBase:
                 infra_map[str(provider.uuid)] = (self._provider_uuid, self._provider.type)
         return infra_map
 
-    def _generate_ocp_infra_map_from_sql(self, start_date, end_date):
-        """Get the OCP on X infrastructure map.
-
-        Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
-
-        Returns:
-            infra_map (dict) The OCP infrastructure map.
-
-        """
-        infra_map = {}
-        if self._provider.type == Provider.PROVIDER_OCP:
-            with OCPReportDBAccessor(self._schema) as accessor:
-                infra_map = accessor.get_ocp_infrastructure_map(
-                    start_date, end_date, ocp_provider_uuid=self._provider_uuid
-                )
-        elif self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            with OCPReportDBAccessor(self._schema) as accessor:
-                infra_map = accessor.get_ocp_infrastructure_map(
-                    start_date, end_date, aws_provider_uuid=self._provider_uuid
-                )
-        elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            with OCPReportDBAccessor(self._schema) as accessor:
-                infra_map = accessor.get_ocp_infrastructure_map(
-                    start_date, end_date, azure_provider_uuid=self._provider_uuid
-                )
-
-        # Save to DB
-        self.set_provider_infra_map(infra_map)
-
-        return infra_map
-
     def _generate_ocp_infra_map_from_sql_trino(self, start_date, end_date):
         """Get the OCP on X infrastructure map.
 
@@ -167,11 +134,17 @@ class OCPCloudUpdaterBase:
                 continue
             try:
                 infra, _ = ProviderInfrastructureMap.objects.get_or_create(
-                    infrastructure_provider_id=infra_tuple[0], infrastructure_type=infra_tuple[1]
+                    infrastructure_provider_id=infra_tuple[0],
+                    infrastructure_type=infra_tuple[1],
+                    infrastructure_account=infra_tuple[2],
+                    infrastructure_region=infra_tuple[3],
                 )
             except IntegrityError:
                 infra = ProviderInfrastructureMap.objects.filter(
-                    infrastructure_provider_id=infra_tuple[0], infrastructure_type=infra_tuple[1]
+                    infrastructure_provider_id=infra_tuple[0],
+                    infrastructure_type=infra_tuple[1],
+                    infrastructure_account=infra_tuple[2],
+                    infrastructure_region=infra_tuple[3],
                 ).first()
             if not infra:
                 continue
