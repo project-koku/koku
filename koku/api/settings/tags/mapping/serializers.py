@@ -69,7 +69,8 @@ class AddChildSerializer(serializers.Serializer):
         child_keys = enabled_rows.exclude(uuid=data["parent"]).values_list("key", flat=True)
         intersecting_tags = set(child_keys) & set(self.context.keys())
         for intersecting_tag in intersecting_tags:
-            metadata = self.context[intersecting_tag]
+            metadata = {}
+            metadata["cost_model_id"] = self.context[intersecting_tag].get("cost_model_id")
             metadata["child_key"] = intersecting_tag
             errors["child is being used in a cost model:"].append(metadata)
         if errors:
