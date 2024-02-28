@@ -20,6 +20,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import OCITagsSummary
@@ -161,3 +162,37 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, OCI_CUR_TABLE_MAP)
+
+    @patch("masu.database.oci_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
+    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+        """
+        This tests the tag mapping feature.
+        """
+        mock_unleash.return_value = True
+        populated_keys = []
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI, enabled=True)
+            for enabled_tag in enabled_tags:
+                tag_count = OCICostEntryLineItemDailySummary.objects.filter(
+                    tags__has_key=enabled_tag.key,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
+                ).count()
+                if tag_count > 0:
+                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                    populated_keys.append(key_metadata)
+                if len(populated_keys) == 2:
+                    break
+            parent_key, parent_obj, parent_count = populated_keys[0]
+            child_key, child_obj, child_count = populated_keys[1]
+            TagMapping.objects.create(parent=parent_obj, child=child_obj)
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            expected_parent_count = parent_count + child_count
+            actual_parent_count = OCICostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(expected_parent_count, actual_parent_count)
+            actual_child_count = OCICostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(0, actual_child_count)

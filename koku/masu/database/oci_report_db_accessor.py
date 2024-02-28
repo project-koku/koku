@@ -9,7 +9,6 @@ import uuid
 
 from dateutil.parser import parse
 from django.db.models import F
-from django.db.models import Q
 from django_tenants.utils import schema_context
 
 from api.models import Provider
