@@ -15,7 +15,7 @@ def retrieve_tag_rate_mapping(schema_name):
     if tag_rate_map:
         return tag_rate_map
     with connection.cursor() as cursor:
-        sql = """
+        sql = """\
             WITH cte_ocp_cost_model_rates AS (
                 SELECT
                     uuid,
@@ -45,7 +45,7 @@ def retrieve_tag_rate_mapping(schema_name):
             WHERE enabled_keys.provider_type = 'OCP'
                 AND enabled_keys.enabled = TRUE;
         """
-        cursor.execute(sql)
+        cursor.execute(textwrap.dedent(sql))
         tag_rate_map = cursor.fetchall()
     tag_rate_mapping = {}
     for row in tag_rate_map:
