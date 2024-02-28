@@ -70,6 +70,8 @@ class SourceSerializerTest(MasuTestCase):
                     "id": infrastructure.id,
                     "infrastructure_type": infrastructure.infrastructure_type,
                     "infrastructure_provider_id": infrastructure.infrastructure_provider_id,
+                    "infrastructure_account": infrastructure.infrastructure_account,
+                    "infrastructure_region": infrastructure.infrastructure_region,
                 }
                 infrastructure_serializer = ProviderInfrastructureSerializer(
                     data=infrastructure_data, context=self.request_context
