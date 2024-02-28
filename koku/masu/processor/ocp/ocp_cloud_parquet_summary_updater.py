@@ -118,7 +118,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         if (self.provider_type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids) or (
             self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
         ):
-            infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
+            infra_map = self._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
         return infra_map
 
     def determine_truncates_and_deletes(self, start_date, end_date):
