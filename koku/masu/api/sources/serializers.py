@@ -32,6 +32,8 @@ class ProviderInfrastructureSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     infrastructure_type = serializers.CharField()
     infrastructure_provider_id = serializers.UUIDField()
+    infrastructure_account = serializers.CharField()
+    infrastructure_region = serializers.CharField()
 
 
 class ProviderAuthenticationSerializer(serializers.ModelSerializer):
