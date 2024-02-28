@@ -3,12 +3,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for shared reporting tables."""
+import logging
+
+from django.conf import settings
 from django.db import models
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
+from api.common import log_json
+from koku import celery_app
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
 from reporting_common.states import Status
+
+LOG = logging.getLogger(__name__)
 
 
 class CostUsageReportManifest(models.Model):
@@ -131,3 +140,79 @@ class RegionMapping(models.Model):
 
     region = models.CharField(max_length=32, null=False, unique=True)
     region_name = models.CharField(max_length=64, null=False, unique=True)
+
+
+class DelayedCeleryTasks(models.Model):
+    """This table tracks summary tasks that are delaying execution."""
+
+    class Meta:
+        db_table = "delayed_celery_tasks"
+
+    task_name = models.CharField(max_length=255)
+    task_args = models.JSONField()
+    task_kwargs = models.JSONField()
+    timeout_timestamp = models.DateTimeField()
+    provider_uuid = models.UUIDField()
+    queue_name = models.CharField(max_length=255)
+    metadata = models.JSONField(default=dict, null=True)
+
+    def set_timeout(self, timeout_seconds):
+        now = timezone.now()
+        self.timeout_timestamp = now + timezone.timedelta(seconds=timeout_seconds)
+
+    @classmethod
+    def trigger_delayed_tasks(cls):
+        """Removes expired records triggering the celery task
+        through the pre_delete signal trigger_celery_task.
+        """
+        now = timezone.now()
+        expired_records = cls.objects.filter(timeout_timestamp__lt=now)
+        expired_records.delete()
+
+    @classmethod
+    def create_or_reset_timeout(
+        cls,
+        task_name,
+        task_args,
+        task_kwargs,
+        provider_uuid,
+        queue_name,
+        timeout_seconds=settings.DELAYED_TASK_TIME,
+    ):
+        """
+        Saves data regarding to the celery task being delayed.
+        """
+        existing_task = cls.objects.filter(task_name=task_name, provider_uuid=provider_uuid).first()
+
+        if existing_task:
+            # The task already exist extend the timeout.
+            existing_task.set_timeout(timeout_seconds)
+            existing_task.save()
+            return existing_task
+
+        new_task = cls(
+            task_name=task_name,
+            task_args=task_args,
+            task_kwargs=task_kwargs,
+            provider_uuid=provider_uuid,
+            queue_name=queue_name,
+        )
+        new_task.set_timeout(timeout_seconds)
+        new_task.save()
+        return new_task
+
+
+@receiver(pre_delete, sender=DelayedCeleryTasks)
+def trigger_celery_task(sender, instance, **kwargs):
+    """Triggers celery task prior to removing the rows from the table."""
+    result = celery_app.send_task(
+        instance.task_name, args=instance.task_args, kwargs=instance.task_kwargs, queue=instance.queue_name
+    )
+    log_msg = "Delay period ended, starting task."
+    log_context = {
+        "task_name": instance.task_name,
+        "task_args": instance.task_args,
+        "task_kwargs": instance.task_kwargs,
+        "queue_name": instance.queue_name,
+    }
+    LOG.info(log_json(tracing_id=result.id, msg=log_msg, context=log_context))
