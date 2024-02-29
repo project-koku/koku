@@ -290,7 +290,7 @@ parameters:
 - name: LISTENER_SENTRY_DSN_KEY
   description: (to be replaced with GLITCHTIP_KEY_NAME)
   value: koku-listener-dsn
-- name: ${SOURCE_SENTRY_DSN_KEY}
+- name: SOURCE_SENTRY_DSN_KEY
   description: (to be replaced with GLITCHTIP_KEY_NAME)
   value: sources-sentry-dsn
 
