@@ -20,11 +20,21 @@ SELECT
     WHEN 'self-support' THEN 'Self-Support'
     ELSE 'Premium'
   END as subs_sla,
-  CASE lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel'))
-    WHEN 'rhel 7 els' THEN '69-204'
-    WHEN 'rhel 8 els' THEN '479-204'
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel'))
+    WHEN 'rhel 7 els' THEN
+      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+        WHEN 'sap' THEN '69-204-146'
+        WHEN 'hpc' THEN '76'
+        ELSE '69-204'
+      END
+    WHEN 'rhel 8 els' THEN
+      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+        WHEN 'sap' THEN '479-204-241'
+        WHEN 'hpc' THEN '479'
+        ELSE '479-204'
+      END
     ELSE '479'
-  END as subs_product_ids,
+  END as subs_product_ids
   COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance
 FROM
     hive.{{schema | sqlsafe}}.azure_line_items
