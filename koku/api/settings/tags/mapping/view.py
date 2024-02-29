@@ -23,6 +23,7 @@ from api.settings.tags.mapping.query_handler import format_tag_mapping_relations
 from api.settings.tags.mapping.serializers import AddChildSerializer
 from api.settings.tags.mapping.serializers import TagMappingSerializer
 from api.settings.tags.mapping.serializers import ViewOptionsSerializer
+from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.utils import NonValidatedMultipleChoiceFilter
 from api.settings.utils import SettingsFilter
@@ -126,9 +127,10 @@ class SettingsTagMappingChildAddView(APIView):
         serializer = AddChildSerializer(data=request.data, context=tag_rates)
         serializer.is_valid(raise_exception=True)
         parent_row = EnabledTagKeys.objects.get(uuid=serializer.data.get("parent"))
-        children = EnabledTagKeys.objects.filter(uuid__in=serializer.data.get("children"))
-        tag_mappings = [TagMapping(parent=parent_row, child=child_row) for child_row in children]
+        children_rows = list(EnabledTagKeys.objects.filter(uuid__in=serializer.data.get("children")))
+        tag_mappings = [TagMapping(parent=parent_row, child=child_row) for child_row in children_rows]
         TagMapping.objects.bulk_create(tag_mappings)
+        resummarize_current_month_by_tag_keys(serializer.data.get("children"), request.user.customer.schema_name)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -139,9 +141,8 @@ class SettingsTagMappingChildRemoveView(APIView):
         children_uuids = request.data.get("ids", [])
         if not TagMapping.objects.filter(child__uuid__in=children_uuids).exists():
             return Response({"detail": "Invalid children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
-
         TagMapping.objects.filter(child__in=children_uuids).delete()
-
+        resummarize_current_month_by_tag_keys(children_uuids, request.user.customer.schema_name)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -152,7 +153,6 @@ class SettingsTagMappingParentRemoveView(APIView):
         parents_uuid = request.data.get("ids", [])
         if not TagMapping.objects.filter(parent__uuid__in=parents_uuid).exists():
             return Response({"detail": "Invalid parents UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
-
         TagMapping.objects.filter(parent__in=parents_uuid).delete()
-
+        resummarize_current_month_by_tag_keys(parents_uuid, request.user.customer.schema_name)
         return Response({"detail": "Parents deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
