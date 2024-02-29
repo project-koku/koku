@@ -7,6 +7,8 @@
     ),
     cte_distinct_gcp_labels AS (
     SELECT DISTINCT labels,
+        project_id,
+        location_region,
         source
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{gcp_provider_uuid}}
@@ -15,12 +17,16 @@
     ),
     cte_label_keys AS (
     SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
+        project_id,
+        location_region,
         source
     FROM cte_distinct_gcp_labels
     )
     SELECT ocp.provider_id as ocp_uuid,
         gcp.source as infra_uuid,
-        api_provider.type as type
+        api_provider.type as type,
+        gcp.project_id,
+        gcp.location_region
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
         ON any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_id)

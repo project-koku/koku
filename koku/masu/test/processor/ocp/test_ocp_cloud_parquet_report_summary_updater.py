@@ -664,3 +664,23 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
         updater.truncate_summary_table_data("table_2023_03")
         mock_truncate.assert_called()
+
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_get_infra_map_ocp(self, mock_get_infra_map):
+        """Test getting infra map for ocp on cloud provider"""
+        start_date = self.dh.last_month_start
+        end_date = self.dh.last_month_end
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.ocp_provider, manifest=None)
+        expected_infra_map = {self.ocp_provider.uuid: ("infra_provider_uuid", "infra_provider_type")}
+        mock_get_infra_map.return_value = expected_infra_map
+        infra_map = updater.get_infra_map(start_date, end_date)
+        mock_get_infra_map.assert_called()
+        self.assertEqual(infra_map, expected_infra_map)
+
+    def test_get_infra_map_aws(self):
+        """Test getting infra map for ocp on cloud provider"""
+        start_date = self.dh.last_month_start
+        end_date = self.dh.last_month_end
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        infra_map = updater.get_infra_map(start_date, end_date)
+        self.assertIn(self.aws_provider_uuid, str(infra_map))
