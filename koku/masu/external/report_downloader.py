@@ -9,10 +9,8 @@ from api.common import log_json
 from api.provider.models import Provider
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
-from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
-from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
@@ -187,7 +185,7 @@ class ReportDownloader:
             )
             report_status.etag = etag
             report_status.save(update_fields=["etag"])
-        except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
+        except Exception as error:
             ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.FAILED, manifest_id)
             report_status.update_status(CombinedChoices.FAILED)
             LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
