@@ -74,8 +74,8 @@
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
