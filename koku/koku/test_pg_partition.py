@@ -24,15 +24,6 @@ def _execute(sql, params=None):
     return cur
 
 
-def handle_leap_year_overflow(date, years):
-    try:
-        new_date = date.replace(year=(date.year + years))
-    except ValueError:
-        # If an error occurs, set the day to the last day of the month
-        new_date = (date + timedelta(days=31)).replace(year=(date.year + years), day=1)
-    return new_date
-
-
 def _get_table_partition_info(schema, table):
     sql = """
 select c.relkind,
@@ -920,7 +911,7 @@ select count(*) from {self.schema_name}.{table} ;
         """
         with schema_context(self.schema_name):
             aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
-            year10_usage_start = handle_leap_year_overflow(aws_lids.usage_start, 10)
+            year10_usage_start = aws_lids.usage_start + datetime.timedelta(days=365 * 10)
             aws_lids.usage_start = year10_usage_start
             aws_lids.save()
             year10_count = 0
@@ -963,11 +954,11 @@ select count(*) as num_recs
         """
         with schema_context(self.schema_name):
             aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
-            aws_lids.usage_start = handle_leap_year_overflow(aws_lids.usage_start, 11)
-            aws_lids.usage_start = aws_lids.usage_start.replace(year=(aws_lids.usage_start.year + 11))
+            eleven_years = datetime.timedelta(days=365 * 11)
+            aws_lids.usage_start = aws_lids.usage_start + eleven_years
             aws_lids.save()
             ocp_lids = OCPUsageLineItemDailySummary.objects.order_by("-usage_start")[0]
-            ocp_lids.usage_start = handle_leap_year_overflow(aws_lids.usage_start, 11)
+            ocp_lids.usage_start = ocp_lids.usage_start + eleven_years
             ocp_lids.save()
             with conn.cursor() as cur:
                 cur.execute(
