@@ -636,7 +636,7 @@ class TestAWSUtils(MasuTestCase):
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.return_value.Object.return_value.upload_fileobj.side_effect = ClientError({}, "Error")
-            with self.assertRaises(utils.UploadFailed):
+            with self.assertRaises(utils.UploadError):
                 utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
 
     @patch("masu.util.aws.common.copy_data_to_s3_bucket")

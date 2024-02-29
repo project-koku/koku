@@ -21,6 +21,7 @@ from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.test import MasuTestCase
+from masu.util.common import CreateDailyArchivesError
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
 
@@ -248,9 +249,9 @@ class GCPReportDownloaderTest(MasuTestCase):
         Test that we handle effor while opening csv file.
         """
         with patch("masu.external.downloader.gcp.gcp_report_downloader.pd.read_csv") as mock_open:
-            err_msg = "bad_open"
+            err_msg = "unable to create daily archives from: fake"
             mock_open.side_effect = IOError(err_msg)
-            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+            with self.assertRaisesRegex(CreateDailyArchivesError, err_msg):
                 create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
 
     def test_get_dataset_name(self):
