@@ -2,11 +2,9 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import calendar
 import datetime
 import json
 import uuid
-from datetime import timedelta
 
 from django.db import connection as conn
 from django_tenants.utils import schema_context
@@ -22,6 +20,15 @@ def _execute(sql, params=None):
     cur = conn.cursor()
     cur.execute(sql, params)
     return cur
+
+
+def handle_leap_year_overflow(date, years):
+    future_year = date.year + years
+    try:
+        return date.replace(year=future_year)
+    except ValueError:
+        # If an error occurs, it's probably not a leap year in the future so roll back one day
+        return (date - datetime.timedelta(days=1)).replace(year=future_year)
 
 
 def _get_table_partition_info(schema, table):
@@ -911,7 +918,7 @@ select count(*) from {self.schema_name}.{table} ;
         """
         with schema_context(self.schema_name):
             aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
-            year10_usage_start = aws_lids.usage_start + datetime.timedelta(days=365 * 10)
+            year10_usage_start = handle_leap_year_overflow(aws_lids.usage_start, 10)
             aws_lids.usage_start = year10_usage_start
             aws_lids.save()
             year10_count = 0
@@ -954,11 +961,10 @@ select count(*) as num_recs
         """
         with schema_context(self.schema_name):
             aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
-            eleven_years = datetime.timedelta(days=365 * 11)
-            aws_lids.usage_start = aws_lids.usage_start + eleven_years
+            aws_lids.usage_start = handle_leap_year_overflow(aws_lids.usage_start, 11)
             aws_lids.save()
             ocp_lids = OCPUsageLineItemDailySummary.objects.order_by("-usage_start")[0]
-            ocp_lids.usage_start = ocp_lids.usage_start + eleven_years
+            ocp_lids.usage_start = handle_leap_year_overflow(aws_lids.usage_start, 11)
             ocp_lids.save()
             with conn.cursor() as cur:
                 cur.execute(
@@ -1022,14 +1028,7 @@ select (
                 if new_ocp_lids.usage_start.day < 28
                 else new_ocp_lids.usage_start.day - 1
             )
-            if (
-                ocp_lids.usage_start.month == 2
-                and ocp_lids.usage_start.day == 28
-                and calendar.isleap(ocp_lids.usage_start.year)
-            ):
-                new_ocp_lids.usage_start = ocp_lids.usage_start.replace(day=29)
-            else:
-                new_ocp_lids.usage_start = ocp_lids.usage_start.replace(day=new_day)
+            new_ocp_lids.usage_start = ocp_lids.usage_start.replace(day=new_day)
             new_ocp_lids.save()
 
             with conn.cursor() as cur:
