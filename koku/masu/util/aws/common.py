@@ -153,7 +153,7 @@ DATE_FMT = "%Y-%m-%d"
 # pylint: disable=too-few-public-methods
 
 
-class UploadFailed(Exception):
+class UploadError(Exception):
     """Unable to upload to S3."""
 
 
@@ -540,7 +540,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
     except (EndpointConnectionError, ClientError) as err:
         msg = "unable to copy data to bucket"
         LOG.info(log_json(request_id, msg=msg, context=context, upload_key=upload_key), exc_info=err)
-        raise UploadFailed
+        raise UploadError(msg)
     return upload
 
 
