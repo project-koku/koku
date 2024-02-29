@@ -276,6 +276,23 @@ parameters:
 - name: OCI_CLI_KEY_FILE
   description: OCI Credentials Location
   value: "/etc/oci/oci-credentials.pem"
+- name: GLITCHTIP_SECRET_NAME
+  description: secret containing Glitchtip (or Sentry) credentials
+  value: koku-sentry
+- name: GLITCHTIP_KEY_NAME
+  value: dsn
+- name: API_SENTRY_DSN_KEY
+  description: (to be replaced with GLITCHTIP_KEY_NAME)
+  value: api-sentry-dsn
+- name: CELERY_SENTRY_DSN_KEY
+  description: (to be replaced with GLITCHTIP_KEY_NAME)
+  value: celery-sentry-dsn
+- name: LISTENER_SENTRY_DSN_KEY
+  description: (to be replaced with GLITCHTIP_KEY_NAME)
+  value: koku-listener-dsn
+- name: ${SOURCE_SENTRY_DSN_KEY}
+  description: (to be replaced with GLITCHTIP_KEY_NAME)
+  value: sources-sentry-dsn
 
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
