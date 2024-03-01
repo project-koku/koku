@@ -130,7 +130,7 @@ class SettingsTagMappingChildAddView(APIView):
         children_rows = list(EnabledTagKeys.objects.filter(uuid__in=serializer.data.get("children")))
         tag_mappings = [TagMapping(parent=parent_row, child=child_row) for child_row in children_rows]
         TagMapping.objects.bulk_create(tag_mappings)
-        resummarize_current_month_by_tag_keys(serializer.data.get("children"), request.user.customer.schema_name)
+        resummarize_current_month_by_tag_keys(serializer.data.get("children", []), request.user.customer.schema_name)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
