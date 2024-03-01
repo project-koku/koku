@@ -26,7 +26,7 @@ class TestSettingsTagMappingView(MasuTestCase):
         self.client = APIClient()
 
         with tenant_context(self.tenant):
-            self.enabled_uuid_list = EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True)
+            self.enabled_uuid_list = list(EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True))
 
     def test_get_method(self):
         """Test the get method for the tag mapping view"""
@@ -291,3 +291,9 @@ class TestSettingsTagMappingView(MasuTestCase):
             }
             response = self.client.put(url, data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_empty_child_returns_400(self):
+        """Test empty child returns 400"""
+        data = {"parent": self.enabled_uuid_list[0], "children": []}
+        response = self.client.put(reverse("tags-mapping-child-add"), data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

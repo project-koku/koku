@@ -52,9 +52,9 @@ class AddChildSerializer(serializers.Serializer):
         children_list = data["children"]
         combined_list = [data["parent"]] + children_list
         enabled_rows = EnabledTagKeys.objects.filter(uuid__in=combined_list, enabled=True)
-        if len(combined_list) != enabled_rows.count():
+        if len(combined_list) != enabled_rows.count() or not children_list:
             # Ensure that the parent & child uuids are enabled.
-            raise serializers.ValidationError("Invalid or disabled uuid provided.")
+            raise serializers.ValidationError("Invalid, disabled, or missing uuid provided.")
         mappings = TagMapping.objects.filter(Q(parent__uuid__in=combined_list) | Q(child__uuid__in=combined_list))
         errors = defaultdict(list)
         for tag_mapping in mappings:
