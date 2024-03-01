@@ -52,6 +52,14 @@ class AzurePostProcessor:
         self.schema = schema
         self.enabled_tag_keys = set()
 
+    # Different Azure Cost Exports can have different fields,
+    # this maps some column names to expected names for consistency with TRINO_REQUIRED_COLUMNS
+    COL_TRANSLATION = {
+        "resourcegroupname": "resourcegroup",
+        "instancename": "resourceid",
+        "product": "productname",
+    }
+
     def check_ingress_required_columns(self, col_names):
         """
         Checks the required columns for ingress.
@@ -100,6 +108,7 @@ class AzurePostProcessor:
 
         for column in columns:
             new_col_name = strip_characters_from_column_name(column)
+            new_col_name = self.COL_TRANSLATION.get(new_col_name, new_col_name)
             column_name_map[column] = new_col_name
 
         data_frame = data_frame.rename(columns=column_name_map)
