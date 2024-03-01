@@ -205,11 +205,6 @@ class ReportQueryHandler(QueryHandler):
         """Determine if we are working with an AWS API."""
         return "aws" in self.parameters.request.path
 
-    @property
-    def is_azure(self):
-        """Determine if we are working with an Azure API."""
-        return "azure" in self.parameters.request.path
-
     def initialize_totals(self):
         """Initialize the total response column values."""
         query_sum = {}
