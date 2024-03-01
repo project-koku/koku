@@ -13,6 +13,7 @@ from rest_framework import status
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 
 
 class TagsSettings(IamTestCase):
@@ -394,3 +395,17 @@ class TagsSettings(IamTestCase):
 
         self.assertEqual(enable_response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(get_response.data["meta"]["count"], self.total_record_length)
+
+    def test_disabling_a_mapped_tag(self):
+        """Test that you can not disable a tag that is mapped."""
+        tags_disable_url = reverse("tags-disable")
+        child_row = self.enabled_objs[0]
+        parent_row = self.enabled_objs[1]
+        with schema_context(self.schema_name):
+            TagMapping.objects.create(child=child_row, parent=parent_row)
+            test_matrix = [str(child_row.uuid), str(parent_row.uuid)]
+        for uuid in test_matrix:
+            with self.subTest(uuid=uuid):
+                client = rest_framework.test.APIClient()
+                disable_response = client.put(tags_disable_url, {"ids": [uuid]}, format="json", **self.headers)
+                self.assertEqual(disable_response.status_code, status.HTTP_412_PRECONDITION_FAILED)
