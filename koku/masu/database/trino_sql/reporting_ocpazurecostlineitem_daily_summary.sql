@@ -170,7 +170,7 @@ SELECT cast(uuid() as varchar) as uuid,
         ELSE unitofmeasure
     END) as unit_of_measure,
     sum(coalesce(nullif(azure.quantity, 0), azure.usagequantity)) as usage_quantity,
-    coalesce(nullif(azure.billingcurrencycode, ''), azure.currency) as currency,
+    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
     sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pretax_cost,
     azure.tags,
     max(azure.resource_id_matched) as resource_id_matched,
@@ -190,7 +190,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
     azure.subscriptionname,
     azure.resourcelocation,
-    coalesce(nullif(azure.billingcurrencycode, ''), azure.currency),
+    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
     azure.tags
 ;
 
@@ -242,7 +242,7 @@ SELECT cast(uuid() as varchar) as uuid,
         ELSE unitofmeasure
     END) as unit_of_measure,
     sum(coalesce(nullif(azure.quantity, 0), azure.usagequantity)) as usage_quantity,
-    coalesce(nullif(azure.billingcurrencycode, ''), azure.currency) as currency,
+    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
     sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pretax_cost,
     json_format(
         cast(
@@ -270,7 +270,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
     azure.subscriptionname,
     azure.resourcelocation,
-    coalesce(nullif(azure.billingcurrencycode, ''), azure.currency),
+    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
     13, -- tags
     azure.matched_tag
 ;
