@@ -6,6 +6,7 @@ WITH cte_tag_mapping AS(
     FROM reporting_tagmapping
 )
 DELETE FROM {{schema | sqlsafe}}.reporting_enabledtagkeys etk
+USING cte_tag_mapping tag_map
 WHERE NOT EXISTS (
     SELECT 1
     FROM {{schema | sqlsafe}}.reporting_awstags_summary AS ts
