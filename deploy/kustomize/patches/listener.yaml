@@ -68,8 +68,8 @@
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: koku-listener-dsn
-              name: koku-sentry
+              key: ${LISTENER_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
