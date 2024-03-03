@@ -248,17 +248,18 @@ class TestSettingsTagMappingView(MasuTestCase):
 
     def test_filter_by_parent_and_child(self):
         """Test that you can filter by parent & child."""
-        child, parent = EnabledTagKeys.objects.all()[:2]
-        url = reverse("tags-mapping-child-add")
-        data = {
-            "parent": str(parent.uuid),
-            "children": [str(child.uuid)],
-        }
-        response = self.client.put(url, data, format="json", **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        url = reverse("tags-mapping") + f"?parent={parent.key}"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        url = reverse("tags-mapping") + f"?child={child.key}"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        with tenant_context(self.tenant):
+            child, parent = EnabledTagKeys.objects.all()[:2]
+            url = reverse("tags-mapping-child-add")
+            data = {
+                "parent": str(parent.uuid),
+                "children": [str(child.uuid)],
+            }
+            response = self.client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            url = reverse("tags-mapping") + f"?parent={parent.key}"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            url = reverse("tags-mapping") + f"?child={child.key}"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
