@@ -201,6 +201,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         )
         self.s3_client = self._session.client("s3", **self._region_kwargs)
 
+        self.context["region_name"] = self.region_name or "default"
         self._set_report()
 
     @property
