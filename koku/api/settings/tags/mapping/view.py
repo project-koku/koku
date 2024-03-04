@@ -2,6 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import django_filters
 from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -27,12 +28,13 @@ from reporting.provider.all.models import TagMapping
 
 
 class SettingsTagMappingFilter(SettingsFilter):
-    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
     source_type = CharFilter(method="filter_by_source_type")
+    parent = django_filters.CharFilter(field_name="parent__key", lookup_expr="icontains")
+    child = django_filters.CharFilter(field_name="child__key", lookup_expr="icontains")
 
     class Meta:
         model = TagMapping
-        fields = ("parent", "child")
+        fields = ("parent", "child", "source_type")
         default_ordering = ["parent", "-child"]
 
     def filter_by_source_type(self, queryset, name, value):
@@ -71,9 +73,7 @@ class SettingsTagMappingView(generics.GenericAPIView):
 
 
 class SettingsTagMappingChildView(generics.GenericAPIView):
-    queryset = (
-        EnabledTagKeys.objects.exclude(parent__isnull=False).exclude(child__parent__isnull=False).filter(enabled=True)
-    )
+    queryset = EnabledTagKeys.objects.exclude(parent__isnull=False, child__parent__isnull=False).filter(enabled=True)
     serializer_class = EnabledTagKeysSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
