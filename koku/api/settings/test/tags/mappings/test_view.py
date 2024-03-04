@@ -160,7 +160,6 @@ class TestSettingsTagMappingView(MasuTestCase):
         data = {"ids": [self.enabled_uuid_list[0]]}
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(response.data["detail"], "Parents deleted successfully.")
 
     def test_filter_by_source_type(self):
         """Test the filter by source_type."""
