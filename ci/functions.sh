@@ -9,8 +9,8 @@ SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-cost_smoke}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
-IQE_CJI_TIMEOUT="30m"
-RESERVATION_TIMEOUT="35m"
+IQE_CJI_TIMEOUT="2h"
+RESERVATION_TIMEOUT="2h15m"
 
 
 function get_pr_labels() {
@@ -67,8 +67,8 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_cost_model or ocp_source_raw"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
-        export RESERVATION_TIMEOUT="2h15m"
-        export IQE_CJI_TIMEOUT="2h"
+        export RESERVATION_TIMEOUT="5h15m"
+        export IQE_CJI_TIMEOUT="5h"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
