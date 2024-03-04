@@ -1121,7 +1121,7 @@ class ReportQueryHandler(QueryHandler):
             .annotate(**rank_annotations)
             .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
-        if self.is_aws and "account" in self.parameters.url_data:
+        if self.is_aws and "account" in self._get_group_by():
             ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
         if self.is_openshift:
             ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
