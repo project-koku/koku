@@ -571,7 +571,7 @@ SELECT uuid(),
         WHEN 'gibibyte hour' THEN 'GB-Hours'
         ELSE unit
     END as unit,
-    CASE usage_amount
+    CASE
         WHEN unit in ('gibibyte month', 'gibibyte', 'gibibyte hour')
         THEN cast(usage_amount * 1.073741824 AS decimal(24,9)) -- Convert to gigabyte
         ELSE usage_amount
