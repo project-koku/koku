@@ -263,3 +263,10 @@ class TestSettingsTagMappingView(MasuTestCase):
             url = reverse("tags-mapping") + f"?child={child.key}"
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_order_by_fake_value(self):
+        """Test the get method for the tag mapping view"""
+        url = reverse("tags-mapping")
+        url = url + "?order_by[parent]=FAKE"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
