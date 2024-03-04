@@ -33,7 +33,11 @@ SELECT
         WHEN 'hpc' THEN '479'
         ELSE '479-204'
       END
-    ELSE '479'
+    ELSE
+      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+        WHEN 'sap' THEN '479-241'
+        ELSE '479'
+      END
   END as subs_product_ids
 FROM
   (
