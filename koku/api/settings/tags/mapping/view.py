@@ -2,6 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import django_filters
 from django.db.models import Case
 from django.db.models import Q
 from django.db.models import UUIDField
@@ -41,12 +42,13 @@ class CostModelAnnotationMixin:
 
 
 class SettingsTagMappingFilter(SettingsFilter):
-    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
     source_type = CharFilter(method="filter_by_source_type")
+    parent = django_filters.CharFilter(field_name="parent__key", lookup_expr="icontains")
+    child = django_filters.CharFilter(field_name="child__key", lookup_expr="icontains")
 
     class Meta:
         model = TagMapping
-        fields = ("parent", "child")
+        fields = ("parent", "child", "source_type")
         default_ordering = ["parent", "-child"]
 
     def filter_by_source_type(self, queryset, name, value):
@@ -155,4 +157,4 @@ class SettingsTagMappingParentRemoveView(APIView):
             return Response({"detail": "Invalid parents UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
         TagMapping.objects.filter(parent__in=parents_uuid).delete()
         resummarize_current_month_by_tag_keys(parents_uuid, request.user.customer.schema_name)
-        return Response({"detail": "Parents deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)

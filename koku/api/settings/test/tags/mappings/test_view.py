@@ -297,3 +297,21 @@ class TestSettingsTagMappingView(MasuTestCase):
         data = {"parent": self.enabled_uuid_list[0], "children": []}
         response = self.client.put(reverse("tags-mapping-child-add"), data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_filter_by_parent_and_child(self):
+        """Test that you can filter by parent & child."""
+        with tenant_context(self.tenant):
+            child, parent = EnabledTagKeys.objects.all()[:2]
+            url = reverse("tags-mapping-child-add")
+            data = {
+                "parent": str(parent.uuid),
+                "children": [str(child.uuid)],
+            }
+            response = self.client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            url = reverse("tags-mapping") + f"?parent={parent.key}"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            url = reverse("tags-mapping") + f"?child={child.key}"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
