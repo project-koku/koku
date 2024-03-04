@@ -2,6 +2,8 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import ast
+
 import django_filters
 from django.db.models import Q
 from django.utils.decorators import method_decorator
@@ -28,17 +30,21 @@ from reporting.provider.all.models import TagMapping
 
 
 class SettingsTagMappingFilter(SettingsFilter):
-    source_type = CharFilter(method="filter_by_source_type")
+    source_type = django_filters.CharFilter(field_name="parent__provider_type", method="filter_by_source_type")
     parent = django_filters.CharFilter(field_name="parent__key", lookup_expr="icontains")
     child = django_filters.CharFilter(field_name="child__key", lookup_expr="icontains")
 
     class Meta:
         model = TagMapping
         fields = ("parent", "child", "source_type")
-        default_ordering = ["parent", "-child"]
+        default_ordering = ["parent"]
 
     def filter_by_source_type(self, queryset, name, value):
-        return queryset.filter(Q(parent__provider_type__iexact=value) | Q(child__provider_type__iexact=value))
+        try:
+            value = ast.literal_eval(value)
+        except ValueError:
+            value = [value]
+        return queryset.filter(Q(parent__provider_type__in=value) | Q(child__provider_type__in=value))
 
 
 class SettingsEnabledTagKeysFilter(SettingsFilter):
