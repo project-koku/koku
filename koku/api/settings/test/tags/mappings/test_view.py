@@ -10,21 +10,21 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
-from api.iam.test.iam_test_case import IamTestCase
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
+from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
 
-class TestSettingsTagMappingView(IamTestCase):
+class TestSettingsTagMappingView(MasuTestCase):
     def setUp(self):
         """Set up the tests."""
         super().setUp()
         self.client = APIClient()
 
         with tenant_context(self.tenant):
-            self.enabled_uuid_list = EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True)
+            self.enabled_uuid_list = list(EnabledTagKeys.objects.filter(enabled=True).values_list("uuid", flat=True))
 
     def test_get_method(self):
         """Test the get method for the tag mapping view"""
@@ -47,7 +47,7 @@ class TestSettingsTagMappingView(IamTestCase):
         for item in response.data["data"]:
             self.assertEqual(item["source_type"], "OCP")
 
-    def test_get_child(self):
+    def test_get_child_tag_key(self):
         """Test the get method for the tag mapping Child view"""
         url = reverse("tags-mapping-child")
         response = self.client.get(url, **self.headers)
@@ -245,3 +245,21 @@ class TestSettingsTagMappingView(IamTestCase):
         for item in result.data["data"]:
             self.assertIn("children", item["parent"])
             self.assertNotIn("child", item["parent"])
+
+    def test_filter_by_parent_and_child(self):
+        """Test that you can filter by parent & child."""
+        with tenant_context(self.tenant):
+            child, parent = EnabledTagKeys.objects.all()[:2]
+            url = reverse("tags-mapping-child-add")
+            data = {
+                "parent": str(parent.uuid),
+                "children": [str(child.uuid)],
+            }
+            response = self.client.put(url, data, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+            url = reverse("tags-mapping") + f"?parent={parent.key}"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            url = reverse("tags-mapping") + f"?child={child.key}"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
