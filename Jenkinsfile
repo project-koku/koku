@@ -80,7 +80,7 @@ pipeline {
                     env.IQE_FILTER_EXPRESSION = flags_map['IQE_FILTER_EXPRESSION']
                     env.IQE_MARKER_EXPRESSION = flags_map['IQE_MARKER_EXPRESSION']
                     env.IQE_CJI_TIMEOUT = flags_map['IQE_CJI_TIMEOUT']
-                    env.RESERVATION_TIME = flags_map['RESERVATION_TIME']
+                    env.RESERVATION_TIMEOUT = flags_map['RESERVATION_TIMEOUT']
                 }
             }
         }
