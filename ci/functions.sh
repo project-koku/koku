@@ -9,7 +9,9 @@ SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-cost_smoke}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
-COST_JOB_TIMEOUT="20m"
+IQE_JOB_TIMEOUT="${IQE_JOB_TIMEOUT:-40m}"
+RESERVATION_TIMEOUT="35m"
+
 
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
@@ -65,7 +67,8 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_cost_model or ocp_source_raw"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
-        export COST_JOB_TIMEOUT="2h15m"
+        export RESERVATION_TIMEOUT="2h15m"
+        export IQE_JOB_TIMEOUT="2h"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
@@ -86,7 +89,7 @@ function is_pull_request() {
 function run_smoke_tests_stage() {
     _install_bonfire_tools
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration ${COST_JOB_TIMEOUT})
+    export NAMESPACE=$(bonfire namespace reserve --duration ${RESERVATION_TIMEOUT})
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
