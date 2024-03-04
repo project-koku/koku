@@ -41,7 +41,6 @@ pipeline {
         ARTIFACTS_DIR="${WORKSPACE}/artifacts"
 
         IQE_PLUGINS="cost_management"
-        IQE_CJI_TIMEOUT="120m"
         IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER}"
 
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
@@ -80,6 +79,8 @@ pipeline {
                     env.EXIT_CODE = flags_map['EXIT_CODE']
                     env.IQE_FILTER_EXPRESSION = flags_map['IQE_FILTER_EXPRESSION']
                     env.IQE_MARKER_EXPRESSION = flags_map['IQE_MARKER_EXPRESSION']
+                    env.IQE_CJI_TIMEOUT = flags_map['IQE_CJI_TIMEOUT']
+                    env.RESERVATION_TIME = flags_map['RESERVATION_TIME']
                 }
             }
         }
