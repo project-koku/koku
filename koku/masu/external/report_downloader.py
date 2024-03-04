@@ -21,6 +21,8 @@ from masu.external.downloader.oci.oci_report_downloader import OCIReportDownload
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
+from masu.util.aws.common import UploadError
+from masu.util.common import CreateDailyArchivesError
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.states import ManifestState
@@ -187,7 +189,12 @@ class ReportDownloader:
             )
             report_status.etag = etag
             report_status.save(update_fields=["etag"])
-        except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
+        except (
+            AWSReportDownloaderNoFileError,
+            AzureReportDownloaderError,
+            UploadError,
+            CreateDailyArchivesError,
+        ) as error:
             ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.FAILED, manifest_id)
             report_status.update_status(CombinedChoices.FAILED)
             LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
