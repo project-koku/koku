@@ -1,6 +1,7 @@
 import logging
 import typing as t
 
+from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -20,6 +21,7 @@ from api.settings.utils import NonValidatedMultipleChoiceFilter
 from api.settings.utils import SettingsFilter
 from masu.config import Config
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 
 LOG = logging.getLogger(__name__)
 
@@ -73,6 +75,9 @@ class SettingsTagUpdateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         objects = EnabledTagKeys.objects.filter(uuid__in=uuid_list)
+        if response := self._check_tag_mapping(uuid_list):
+            return response
+
         if response := self._check_limit(objects):
             return response
 
@@ -101,9 +106,34 @@ class SettingsEnableTagView(SettingsTagUpdateView):
                     status=status.HTTP_412_PRECONDITION_FAILED,
                 )
 
+    def _check_tag_mapping(self, qs):
+        # There are protections that prevent
+        # unenabled tags from being added to
+        # TagMapping feature.
+        pass
+
 
 class SettingsDisableTagView(SettingsTagUpdateView):
     enabled = False
 
     def _check_limit(self, qs):
         pass
+
+    def _check_tag_mapping(self, uuid_list) -> t.Optional[Response]:
+        """Checks that a map tag can not be enabled or disabled."""
+        tag_keys = TagMapping.objects.filter(Q(parent__uuid__in=uuid_list) | Q(child__uuid__in=uuid_list))
+        if not tag_keys:
+            return
+        tracked_errors = set()
+        for tag_key in tag_keys:
+            if str(tag_key.parent.uuid) in uuid_list:
+                tracked_errors.add(str(tag_key.parent.uuid))
+            if str(tag_key.child.uuid) in uuid_list:
+                tracked_errors.add(str(tag_key.child.uuid))
+        return Response(
+            {
+                "error": "Can not disable a key associated with a tag mapping",
+                "ids": tracked_errors,
+            },
+            status=status.HTTP_412_PRECONDITION_FAILED,
+        )
