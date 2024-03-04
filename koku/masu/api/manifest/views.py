@@ -72,9 +72,20 @@ def manifest_failed_filter(queryset, name, value):
 def manifest_running_filter(queryset, name, value):
     """A custom filter to return manfests that are running tasks."""
     queryset = queryset.exclude(state__exact={})
+    q_objects = None
     for step in ManifestStep:
-        queryset = queryset.filter(**{f"state__{step}__{ManifestState.END}__isnull": value})
-    return queryset
+        start_q = Q(**{f"state__{step}__{ManifestState.START}__isnull": False})
+        finished_q = Q(**{f"state__{step}__time_taken_seconds__isnull": value})
+        running_step_q = start_q & finished_q
+        if q_objects:
+            if value:
+                q_objects = q_objects | running_step_q
+            else:
+                # Ensures all steps that started have finished
+                q_objects = q_objects & running_step_q
+        else:
+            q_objects = running_step_q
+    return queryset.filter(q_objects)
 
 
 def manifest_started_filter(queryset, name, value):
