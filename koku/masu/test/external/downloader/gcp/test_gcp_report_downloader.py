@@ -246,7 +246,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_error_opening_file(self, mock_s3):
         """
-        Test that we handle effor while opening csv file.
+        Test that we handle error while opening csv file.
         """
         with patch("masu.external.downloader.gcp.gcp_report_downloader.pd.read_csv") as mock_open:
             err_msg = "unable to create daily archives from: fake"
