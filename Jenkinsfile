@@ -60,6 +60,8 @@ pipeline {
                     echo "EXIT_CODE:$EXIT_CODE" >> stage_flags
                     echo "IQE_FILTER_EXPRESSION:$IQE_FILTER_EXPRESSION" >> stage_flags
                     echo "IQE_MARKER_EXPRESSION:$IQE_MARKER_EXPRESSION" >> stage_flags
+                    echo "IQE_CJI_TIMEOUT:$IQE_CJI_TIMEOUT" >> stage_flags
+                    echo "RESERVATION_TIMEOUT:$RESERVATION_TIMEOUT" >> stage_flags
                 '''
                 script {
                     FILE_CONTENTS = readFile('stage_flags')
