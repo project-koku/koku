@@ -9,7 +9,7 @@ SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-cost_smoke}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
-IQE_JOB_TIMEOUT="${IQE_JOB_TIMEOUT:-40m}"
+IQE_CJI_TIMEOUT="${IQE_CJI_TIMEOUT:-40m}"
 RESERVATION_TIMEOUT="35m"
 
 
@@ -68,7 +68,7 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export RESERVATION_TIMEOUT="2h15m"
-        export IQE_JOB_TIMEOUT="2h"
+        export IQE_CJI_TIMEOUT="2h"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
