@@ -80,7 +80,7 @@ def get_processing_date(
     return use_cols, time_interval, process_date
 
 
-def create_daily_archives(
+def create_daily_archives(  # noqa C901
     tracing_id,
     account,
     provider_uuid,
@@ -113,37 +113,42 @@ def create_daily_archives(
     use_cols, time_interval, process_date = get_processing_date(
         local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
     )
-    LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
-    with pd.read_csv(
-        local_file,
-        chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
-        usecols=lambda x: x in use_cols,
-        dtype=pd.StringDtype(storage="pyarrow"),
-    ) as reader:
-        for i, data_frame in enumerate(reader):
-            if data_frame.empty:
-                continue
-            intervals = data_frame[time_interval].unique()
-            for interval in intervals:
-                date = interval.split("T")[0]
-                csv_date = datetime.datetime.strptime(date, "%Y-%m-%d")
-                # Adding end here so we dont bother to process future incomplete days (saving plan data)
-                if csv_date >= process_date and csv_date <= end_date:
-                    dates.add(date)
-            if not dates:
-                continue
-            directory = os.path.dirname(local_file)
-            for date in dates:
-                daily_data = data_frame[data_frame[time_interval].str.match(date)]
-                if daily_data.empty:
+    try:
+        LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
+        with pd.read_csv(
+            local_file,
+            chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
+            usecols=lambda x: x in use_cols,
+            dtype=pd.StringDtype(storage="pyarrow"),
+        ) as reader:
+            for i, data_frame in enumerate(reader):
+                if data_frame.empty:
                     continue
-                day_file = f"{date}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
-                day_filepath = f"{directory}/{day_file}"
-                daily_data.to_csv(day_filepath, index=False, header=True)
-                utils.copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
-                )
-                daily_file_names.append(day_filepath)
+                intervals = data_frame[time_interval].unique()
+                for interval in intervals:
+                    date = interval.split("T")[0]
+                    csv_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+                    # Adding end here so we dont bother to process future incomplete days (saving plan data)
+                    if csv_date >= process_date and csv_date <= end_date:
+                        dates.add(date)
+                if not dates:
+                    continue
+                directory = os.path.dirname(local_file)
+                for date in dates:
+                    daily_data = data_frame[data_frame[time_interval].str.match(date)]
+                    if daily_data.empty:
+                        continue
+                    day_file = f"{date}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
+                    day_filepath = f"{directory}/{day_file}"
+                    daily_data.to_csv(day_filepath, index=False, header=True)
+                    utils.copy_local_report_file_to_s3_bucket(
+                        tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
+                    )
+                    daily_file_names.append(day_filepath)
+    except Exception:
+        msg = f"unable to create daily archives from: {s3_filename}"
+        LOG.info(log_json(tracing_id, msg=msg, context=context))
+        raise com_utils.CreateDailyArchivesError(msg)
     if not dates:
         return [], {}
     date_range = {

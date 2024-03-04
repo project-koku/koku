@@ -32,6 +32,10 @@ from reporting.provider.all.models import EnabledTagKeys
 LOG = logging.getLogger(__name__)
 
 
+class CreateDailyArchivesError(Exception):
+    """Unable to create daily archives."""
+
+
 def extract_uuids_from_string(source_string):
     """
     Extract uuids out of a given source string.
