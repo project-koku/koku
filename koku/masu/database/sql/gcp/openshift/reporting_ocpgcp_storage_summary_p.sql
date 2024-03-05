@@ -31,7 +31,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_storage_summary_p (
         END as unit,
         CASE
             WHEN max(unit) IN ('gibibyte month', 'gibibyte', 'gibibyte hour')
-            THEN sum(usage_amount) * 1.073741824 AS decimal(24,9) -- Convert to gigabyte
+            THEN cast(sum(usage_amount) * 1.073741824 AS decimal(24,9)) -- Convert to gigabyte
             ELSE sum(usage_amount) AS decimal(24,9)
         END as usage_amount,
         account_id,
