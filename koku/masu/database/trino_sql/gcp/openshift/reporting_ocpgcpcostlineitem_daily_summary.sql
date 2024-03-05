@@ -185,8 +185,18 @@ SELECT gcp.uuid as gcp_uuid,
     max(nullif(gcp.sku_id, '')) as sku_id,
     max(nullif(gcp.sku_description, '')) as sku_alias,
     max(nullif(gcp.location_region, '')) as region,
-    max(gcp.usage_pricing_unit) as unit,
-    cast(max(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    CASE max(gcp.usage_pricing_unit)
+        WHEN 'hour' THEN 'Hrs'
+        WHEN 'gibibyte' THEN 'GB'
+        WHEN 'gibibyte month' THEN 'GB-Mo'
+        WHEN 'gibibyte hour' THEN 'GB-Hours'
+        ELSE max(gcp.usage_pricing_unit)
+    END as unit,
+    CASE
+        WHEN max(gcp.usage_pricing_unit) IN ('gibibyte month', 'gibibyte', 'gibibyte hour')
+        THEN cast(max(gcp.usage_amount_in_pricing_units) * 1.073741824 AS decimal(24,9)) -- Convert to gigabyte
+        ELSE cast(max(gcp.usage_amount_in_pricing_units) AS decimal(24,9))
+    END as usage_amount,
     max(gcp.currency) as currency,
     gcp.invoice_month as invoice_month,
     max(daily_credits) as credit_amount,
