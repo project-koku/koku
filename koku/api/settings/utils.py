@@ -73,6 +73,9 @@ class SettingsFilter(FilterSet):
 
                 # Technically we accept "asc" and "desc". Only testing for "desc" to make
                 # the API more resilient.
+                if order not in ["asc", "desc"]:
+                    raise ValidationError(f"Invalid order_by parameter: {order_by_params}")
+
                 prefix = "-" if order.lower().startswith("desc") else ""
                 result.add(f"{prefix}{field}")
 
