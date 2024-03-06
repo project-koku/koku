@@ -2,6 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+"""Query handler for Tag Mappings."""
 from collections import defaultdict
 
 from django.db.models import F
@@ -9,22 +10,27 @@ from django.db.models import Func
 
 from api.models import Provider
 from api.utils import DateHelper
+from cost_models.models import CostModel
+from koku.cache import get_cached_tag_rate_map
+from koku.cache import set_cached_tag_rate_map
 from masu.processor.tasks import delayed_summarize_current_month
 from reporting.models import AWSTagsSummary
 from reporting.models import AzureTagsSummary
 from reporting.models import GCPTagsSummary
 from reporting.models import OCITagsSummary
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
-def resummarize_current_month_by_tag_keys(enabled_rows, schema_name):
+def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
     """Creates a mapping to use for resummarizing sources given tag keys
 
     enabled_rows: List of enabled tag keys rows
     schema_name: Str of the schema name to be used
     start_date: datetime of when to start looking for providers that match the tag key
     """
+
     start_date = DateHelper().this_month_start
     cloud_model_mapping = {
         Provider.PROVIDER_AWS: AWSTagsSummary,
@@ -33,7 +39,7 @@ def resummarize_current_month_by_tag_keys(enabled_rows, schema_name):
         Provider.PROVIDER_OCI: OCITagsSummary,
     }
     key_sorting = defaultdict(list)
-    for row in enabled_rows:
+    for row in EnabledTagKeys.objects.filter(uuid__in=list_of_uuids):
         key_sorting[row.provider_type].append(row.key)
 
     for provider_type, key_list in key_sorting.items():
@@ -58,4 +64,18 @@ def resummarize_current_month_by_tag_keys(enabled_rows, schema_name):
             )
             delayed_summarize_current_month(schema_name, list(provider_uuids), provider_type)
 
-    return provider_type
+
+def retrieve_tag_rate_mapping(schema_name):
+    """Retrieves the tag rate mapping."""
+    tag_rate_map = get_cached_tag_rate_map(schema_name)
+    if tag_rate_map:
+        return tag_rate_map
+    ocp_cost_models = CostModel.objects.filter(source_type=Provider.PROVIDER_OCP)
+    tag_rate_mapping = {}
+    for cost_model in ocp_cost_models:
+        for rate in cost_model.rates:
+            if tag_rate := rate.get("tag_rates"):
+                tag_key = tag_rate.get("tag_key")
+                tag_rate_mapping[tag_key] = {"cost_model_id": str(cost_model.uuid)}
+    set_cached_tag_rate_map(schema_name, tag_rate_mapping)
+    return tag_rate_mapping
