@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for Tag Mappings."""
+from collections import defaultdict
+
 from django.db.models import Q
 from rest_framework import serializers
 
@@ -10,22 +12,34 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
 
-class EnabledTagKeysSerializer(serializers.ModelSerializer):
+class ViewOptionsSerializer(serializers.ModelSerializer):
+    """Intended to be used in conjuntion with the CostModelAnnotationMixin."""
+
     source_type = serializers.CharField(source="provider_type")
+    cost_model_id = serializers.UUIDField()
 
     class Meta:
         model = EnabledTagKeys
-        fields = ["uuid", "key", "source_type"]
+        fields = ["uuid", "key", "source_type", "cost_model_id"]
 
 
 class TagMappingSerializer(serializers.Serializer):
-    parent = EnabledTagKeysSerializer()
-    child = EnabledTagKeysSerializer()
+    class Meta:
+        model = TagMapping
+        fields = ["parent", "child"]
 
     def to_representation(self, instance):
         return {
-            "parent": EnabledTagKeysSerializer(instance.parent).data,
-            "child": EnabledTagKeysSerializer(instance.child).data,
+            "parent": {
+                "uuid": instance.parent.uuid,
+                "key": instance.parent.key,
+                "source_type": instance.parent.provider_type,
+            },
+            "child": {
+                "uuid": instance.child.uuid,
+                "key": instance.child.key,
+                "source_type": instance.child.provider_type,
+            },
         }
 
 
@@ -37,35 +51,29 @@ class AddChildSerializer(serializers.Serializer):
         """This function validates the options and returns the enabled tag rows."""
         children_list = data["children"]
         combined_list = [data["parent"]] + children_list
+        enabled_rows = EnabledTagKeys.objects.filter(uuid__in=combined_list, enabled=True)
+        if len(combined_list) != enabled_rows.count() or not children_list:
+            # Ensure that the parent & child uuids are enabled.
+            raise serializers.ValidationError("Invalid, disabled, or missing uuid provided.")
         mappings = TagMapping.objects.filter(Q(parent__uuid__in=combined_list) | Q(child__uuid__in=combined_list))
-        children_to_parent = []
-        parent_to_children = []
-        already_children = []
+        errors = defaultdict(list)
         for tag_mapping in mappings:
             if tag_mapping.parent.uuid in children_list:
-                parent_to_children.append(str(tag_mapping.parent.uuid))
+                errors["a parent cannot become a child:"].append(str(tag_mapping.parent.uuid))
             if tag_mapping.child.uuid == data["parent"]:
-                children_to_parent.append(str(tag_mapping.child.uuid))
+                errors["a child cannot become a parent:"].append(str(tag_mapping.child.uuid))
             if tag_mapping.child.uuid in children_list:
-                already_children.append(str(tag_mapping.child.uuid))
-        errors = []
-        if parent_to_children:
-            errors.append(f"a parent cannot become a child: {parent_to_children}")
-        if children_to_parent:
-            errors.append(f"a child cannot become a parent: {children_to_parent}")
-        if already_children:
-            errors.append(f"child already linked to a parent: {already_children}")
+                errors["child already linked to a parent:"].append(str(tag_mapping.child.uuid))
+
+        # Checks if a child key is associated with a cost model
+        child_keys = enabled_rows.exclude(uuid=data["parent"]).values_list("key", flat=True)
+        intersecting_tags = set(child_keys) & set(self.context.keys())
+        for intersecting_tag in intersecting_tags:
+            metadata = {}
+            metadata["cost_model_id"] = self.context[intersecting_tag].get("cost_model_id")
+            metadata["child_key"] = intersecting_tag
+            errors["child is being used in a cost model:"].append(metadata)
         if errors:
-            raise serializers.ValidationError(errors)
-
-        enabled_rows = EnabledTagKeys.objects.filter(uuid__in=combined_list, enabled=True)
-        if len(combined_list) != enabled_rows.count():
-            # Ensure that the parent & child uuids are enabled.
-            raise serializers.ValidationError("Invalid or disabled uuid provided.")
-
+            formatted_errors = [f"{log_msg} {log_list}" for log_msg, log_list in errors.items()]
+            raise serializers.ValidationError(formatted_errors)
         return data
-
-
-class TagMappingListSerializer(serializers.Serializer):
-    def to_representation(self, instance):
-        return {"data": [TagMappingSerializer(item).data for item in instance]}
