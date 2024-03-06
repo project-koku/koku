@@ -14,6 +14,7 @@ from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import get_cached_infra_map
 from koku.cache import get_cached_matching_tags
+from koku.cache import get_cached_tag_rate_map
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
@@ -25,6 +26,7 @@ from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import set_cached_infra_map
 from koku.cache import set_cached_matching_tags
+from koku.cache import set_cached_tag_rate_map
 
 
 CACHE_PREFIXES = (
@@ -252,3 +254,12 @@ class KokuCacheTest(IamTestCase):
         self.assertIsNone(initial)
         cached = get_cached_infra_map(schema, provider_type, p_uuid)
         self.assertEqual(cached, infra_map)
+
+    def test_tag_rate_map_cache(self):
+        """Test that getting/setting tag rate map works."""
+        schema = "org1234567"
+        tag_map = {"test_key": {"provider_uuid": self.provider_uuid, "cost_model_id": "fake-id"}}
+        initial = set_cached_tag_rate_map(schema, tag_map)
+        self.assertIsNone(initial)
+        cached = get_cached_tag_rate_map(schema)
+        self.assertEqual(cached, tag_map)
