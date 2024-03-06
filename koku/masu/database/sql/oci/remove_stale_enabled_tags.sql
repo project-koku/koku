@@ -1,8 +1,8 @@
 -- Delete stale enabled keys
 WITH cte_tag_mapping AS(
-    SELECT distinct
+    SELECT
         array_agg(child_id) as children_uuids,
-        array_agg(parent_id) as parent_uuids
+        array_agg(distinct parent_id) as parent_uuids
     FROM reporting_tagmapping
 )
 DELETE FROM {{schema | sqlsafe}}.reporting_enabledtagkeys etk
