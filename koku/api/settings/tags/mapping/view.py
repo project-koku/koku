@@ -2,6 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import django_filters
 from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -19,6 +20,7 @@ from api.settings.tags.mapping.query_handler import format_tag_mapping_relations
 from api.settings.tags.mapping.serializers import AddChildSerializer
 from api.settings.tags.mapping.serializers import EnabledTagKeysSerializer
 from api.settings.tags.mapping.serializers import TagMappingSerializer
+from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.settings.utils import NonValidatedMultipleChoiceFilter
 from api.settings.utils import SettingsFilter
 from reporting.provider.all.models import EnabledTagKeys
@@ -26,12 +28,13 @@ from reporting.provider.all.models import TagMapping
 
 
 class SettingsTagMappingFilter(SettingsFilter):
-    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
     source_type = CharFilter(method="filter_by_source_type")
+    parent = django_filters.CharFilter(field_name="parent__key", lookup_expr="icontains")
+    child = django_filters.CharFilter(field_name="child__key", lookup_expr="icontains")
 
     class Meta:
         model = TagMapping
-        fields = ("parent", "child")
+        fields = ("parent", "child", "source_type")
         default_ordering = ["parent", "-child"]
 
     def filter_by_source_type(self, queryset, name, value):
@@ -70,9 +73,7 @@ class SettingsTagMappingView(generics.GenericAPIView):
 
 
 class SettingsTagMappingChildView(generics.GenericAPIView):
-    queryset = (
-        EnabledTagKeys.objects.exclude(parent__isnull=False).exclude(child__parent__isnull=False).filter(enabled=True)
-    )
+    queryset = EnabledTagKeys.objects.exclude(parent__isnull=False, child__parent__isnull=False).filter(enabled=True)
     serializer_class = EnabledTagKeysSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
@@ -112,9 +113,10 @@ class SettingsTagMappingChildAddView(APIView):
         serializer = AddChildSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         parent_row = EnabledTagKeys.objects.get(uuid=serializer.data.get("parent"))
-        children = EnabledTagKeys.objects.filter(uuid__in=serializer.data.get("children"))
-        tag_mappings = [TagMapping(parent=parent_row, child=child_row) for child_row in children]
+        children_rows = list(EnabledTagKeys.objects.filter(uuid__in=serializer.data.get("children")))
+        tag_mappings = [TagMapping(parent=parent_row, child=child_row) for child_row in children_rows]
         TagMapping.objects.bulk_create(tag_mappings)
+        resummarize_current_month_by_tag_keys(children_rows, request.user.customer.schema_name)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -123,11 +125,11 @@ class SettingsTagMappingChildRemoveView(APIView):
 
     def put(self, request: Request):
         children_uuids = request.data.get("ids", [])
-        if not EnabledTagKeys.objects.filter(uuid__in=children_uuids).exists():
+        enabled_tags = EnabledTagKeys.objects.filter(uuid__in=children_uuids)
+        if not enabled_tags.exists():
             return Response({"detail": "Invalid children UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
-
         TagMapping.objects.filter(child__in=children_uuids).delete()
-
+        resummarize_current_month_by_tag_keys(list(enabled_tags), request.user.customer.schema_name)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -136,9 +138,9 @@ class SettingsTagMappingParentRemoveView(APIView):
 
     def put(self, request: Request):
         parents_uuid = request.data.get("ids", [])
-        if not EnabledTagKeys.objects.filter(uuid__in=parents_uuid).exists():
+        parent_rows = EnabledTagKeys.objects.filter(uuid__in=parents_uuid)
+        if not parent_rows.exists():
             return Response({"detail": "Invalid parents UUIDs."}, status=status.HTTP_400_BAD_REQUEST)
-
         TagMapping.objects.filter(parent__in=parents_uuid).delete()
-
+        resummarize_current_month_by_tag_keys(list(parent_rows), request.user.customer.schema_name)
         return Response({"detail": "Parents deleted successfully."}, status=status.HTTP_204_NO_CONTENT)

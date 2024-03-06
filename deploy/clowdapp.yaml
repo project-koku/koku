@@ -87,8 +87,8 @@ objects:
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: api-sentry-dsn
-              name: koku-sentry
+              key: ${API_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -322,8 +322,8 @@ objects:
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: koku-listener-dsn
-              name: koku-sentry
+              key: ${LISTENER_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
@@ -678,8 +678,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -872,8 +872,8 @@ objects:
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: sources-sentry-dsn
-              name: koku-sentry
+              key: ${SOURCE_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -1047,8 +1047,8 @@ objects:
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: sources-sentry-dsn
-              name: koku-sentry
+              key: ${SOURCE_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -1203,8 +1203,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -1391,8 +1391,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -1585,8 +1585,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -1781,8 +1781,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -1979,8 +1979,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -2175,8 +2175,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -2371,8 +2371,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -2569,8 +2569,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -2590,6 +2590,10 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: DELAYED_TASK_TIME
+          value: ${DELAYED_TASK_TIME}
+        - name: DELAYED_TASK_POLLING_MINUTES
+          value: ${DELAYED_TASK_POLLING_MINUTES}
         - name: TAG_ENABLED_LIMIT
           value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
@@ -2767,8 +2771,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -2788,6 +2792,10 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: DELAYED_TASK_TIME
+          value: ${DELAYED_TASK_TIME}
+        - name: DELAYED_TASK_POLLING_MINUTES
+          value: ${DELAYED_TASK_POLLING_MINUTES}
         - name: TAG_ENABLED_LIMIT
           value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
@@ -2963,8 +2971,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -3157,8 +3165,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -3351,8 +3359,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -3372,6 +3380,10 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: DELAYED_TASK_TIME
+          value: ${DELAYED_TASK_TIME}
+        - name: DELAYED_TASK_POLLING_MINUTES
+          value: ${DELAYED_TASK_POLLING_MINUTES}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3545,8 +3557,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -3566,6 +3578,10 @@ objects:
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: DELAYED_TASK_TIME
+          value: ${DELAYED_TASK_TIME}
+        - name: DELAYED_TASK_POLLING_MINUTES
+          value: ${DELAYED_TASK_POLLING_MINUTES}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -3741,8 +3757,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -3935,8 +3951,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -4093,8 +4109,8 @@ objects:
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${CELERY_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -4403,6 +4419,23 @@ parameters:
 - description: OCI Credentials Location
   name: OCI_CLI_KEY_FILE
   value: /etc/oci/oci-credentials.pem
+- description: secret containing Glitchtip (or Sentry) credentials
+  name: GLITCHTIP_SECRET_NAME
+  value: koku-sentry
+- name: GLITCHTIP_KEY_NAME
+  value: dsn
+- description: (to be replaced with GLITCHTIP_KEY_NAME)
+  name: API_SENTRY_DSN_KEY
+  value: api-sentry-dsn
+- description: (to be replaced with GLITCHTIP_KEY_NAME)
+  name: CELERY_SENTRY_DSN_KEY
+  value: celery-sentry-dsn
+- description: (to be replaced with GLITCHTIP_KEY_NAME)
+  name: LISTENER_SENTRY_DSN_KEY
+  value: koku-listener-dsn
+- description: (to be replaced with GLITCHTIP_KEY_NAME)
+  name: SOURCE_SENTRY_DSN_KEY
+  value: sources-sentry-dsn
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
   required: true
@@ -4632,6 +4665,12 @@ parameters:
 - displayName: Enable Tags Limit
   name: TAG_ENABLED_LIMIT
   value: "200"
+- displayName: Delayed Resummary Time
+  name: DELAYED_TASK_TIME
+  value: "3600"
+- displayName: Delayed Resummary Polling Minutes
+  name: DELAYED_TASK_POLLING_MINUTES
+  value: "30"
 - displayName: ROS URL Expiration
   name: ROS_URL_EXPIRATION
   value: "172800"
