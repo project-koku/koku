@@ -79,9 +79,6 @@ class ManifestViewTests(IamTestCase):
             "org_id": "222222",
             "schema_name": "org222222",
             "created_after": (date.today() + timedelta(days=5)).isoformat(),
-            "failed": True,
-            "running": False,
-            "started": True,
         }
         for key, value in filters.items():
             with self.subTest(filter=key):
@@ -92,6 +89,26 @@ class ManifestViewTests(IamTestCase):
                 body = response.json()
                 self.assertEqual(response.status_code, 200)
                 self.assertLess(body.get("meta").get("count"), self.manifest_count)
+
+    def test_get_manifests_boolean_filters(self):
+        """Test the filters on the manifests endpoint."""
+        url = reverse("manifests-list")
+        filter_keys = ["failed", "running", "started"]
+        values = [True, False]
+        for key in filter_keys:
+            for value in values:
+                with self.subTest(filter=key, value=value):
+                    filter_url = url + f"?{key}={value}"
+                    response = self.client.get(
+                        filter_url, content_type="application/json", **self.request_context["request"].META
+                    )
+                    body = response.json()
+                    self.assertEqual(response.status_code, 200)
+                    count = body.get("meta").get("count")
+                    if key == "started" and not value:
+                        self.assertEqual(count, self.manifest_count)
+                    else:
+                        self.assertLess(count, self.manifest_count)
 
     def test_get_status_reports_filters(self):
         """Test the filters on the manifest report status endpoint."""

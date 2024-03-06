@@ -58,6 +58,7 @@ class ManifestInvalidFilterException(APIException):
 
 def manifest_failed_filter(queryset, name, value):
     """A custom filter to return manfests that did or did not fail based on the boolean value of failed."""
+    queryset = queryset.exclude(state__exact={})
     q_objects = None
     for step in ManifestStep:
         # if the failed field IS NULL then the manifest did not fail so we have to inverse the search criteria.
