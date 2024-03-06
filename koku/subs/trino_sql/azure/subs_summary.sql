@@ -8,6 +8,7 @@ SELECT
   CAST(ceil(coalesce(nullif(quantity, 0), usagequantity)) AS INTEGER) as subs_usage_quantity,
   CASE lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
+    WHEN 'hpc' THEN 'Red Hat Enterprise Linux Compute Node'
     ELSE 'Red Hat Enterprise Linux Server'
   END as subs_role,
   CASE lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_usage'))
@@ -38,7 +39,7 @@ SELECT
         WHEN 'sap' THEN '479-241'
         ELSE '479'
       END
-  END as subs_product_ids
+  END as subs_product_ids,
   COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance
 FROM
     hive.{{schema | sqlsafe}}.azure_line_items

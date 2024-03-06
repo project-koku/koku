@@ -7,7 +7,7 @@ SELECT
   lineitem_resourceid as subs_resource_id,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
-    WHEN 'hpc' THEN 'Red Hat Enterprise Linux Compute'
+    WHEN 'hpc' THEN 'Red Hat Enterprise Linux Compute Node'
     ELSE 'Red Hat Enterprise Linux Server'
   END as subs_role,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_usage'))
