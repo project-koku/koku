@@ -134,7 +134,7 @@ class SUBSDataMessenger:
         self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
     ):
         """Gathers the relevant information for the kafka message and returns a filled dictionary of information."""
-        return {
+        subs_dict = {
             "event_id": str(uuid.uuid4()),
             "event_source": "cost-management",
             "event_type": "snapshot",
@@ -148,18 +148,21 @@ class SUBSDataMessenger:
             "cloud_provider": self.provider_type,
             "hardware_type": "Cloud",
             "product_ids": product_ids,
-            "role": role,
             "sla": sla,
             "usage": usage,
             "billing_provider": self.provider_type.lower(),
             "billing_account_id": billing_account_id,
         }
+        # SAP is identified only through product ids and does not have an associated Role
+        if role != "SAP":
+            subs_dict["role"] = role
+        return subs_dict
 
     def build_azure_subs_dict(
         self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, tenant_id
     ):
         """Adds azure_tenant_id to the base subs dict."""
-        return {
+        subs_dict = {
             "event_id": str(uuid.uuid4()),
             "event_source": "cost-management",
             "event_type": "snapshot",
@@ -173,13 +176,16 @@ class SUBSDataMessenger:
             "cloud_provider": self.provider_type,
             "hardware_type": "Cloud",
             "product_ids": product_ids,
-            "role": role,
             "sla": sla,
             "usage": usage,
             "billing_provider": self.provider_type.lower(),
             "azure_subscription_id": billing_account_id,
             "azure_tenant_id": tenant_id,
         }
+        # SAP is identified only through product ids and does not have an associated Role
+        if role != "SAP":
+            subs_dict["role"] = role
+        return subs_dict
 
     def process_azure_row(self, row):
         """Process an Azure row into subs kafka messages."""
