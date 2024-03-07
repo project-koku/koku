@@ -924,6 +924,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     resource_id=node[1],
                     node_capacity_cpu_cores=node[2],
                     node_role=node[3],
+                    arch=node[4],
                     cluster=cluster,
                 )
             # if the node entry already exists but does not have a role assigned, update the node role
@@ -953,7 +954,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
                     WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
                     ELSE 'worker'
-                END) as node_role
+                END) as node_role,
+                lower(json_extract_scalar(max(node_labels), '$.kubernetes_io_arch')) as arch
             FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
                 ON ocp.node = nl.node
