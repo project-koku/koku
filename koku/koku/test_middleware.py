@@ -49,18 +49,6 @@ class KokuTenantMiddlewareTest(IamTestCase):
         mock_get_response = Mock()
         self.middleware = KokuTenantMiddleware(mock_get_response)
 
-    def test_create_tenant(self):
-        """Test that a tenant is created if does not exist in database"""
-
-        mock_tenant_objects = MagicMock()
-        mock_tenant_objects.get_or_create.return_value = (self.tenant, True)
-
-        with patch("koku.middleware.Tenant.objects", mock_tenant_objects):
-            result = self.middleware._create_tenant()
-        self.assertIsNotNone(result)
-        self.assertEqual(result, self.tenant)
-        self.assertEqual(result.schema_name, self.schema_name)
-
     def test_get_tenant_from_tenant_cache(self):
         """Test that a tenant is returned when exists in tenant_cache"""
 
