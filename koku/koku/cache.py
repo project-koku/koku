@@ -34,6 +34,7 @@ OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
 OPENSHIFT_GCP_CACHE_PREFIX = "openshift-gcp-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
 SOURCES_CACHE_PREFIX = "sources"
+TAG_MAPPING_PREFIX = "tag-mapping"
 
 
 def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None):
@@ -148,3 +149,17 @@ def set_cached_infra_map(schema_name, provider_type, provider_uuid, infra_map):
     cache = caches["default"]
     cache_key = f"OCP-on-{provider_type}:{schema_name}:{provider_uuid}:infra-map"
     cache.set(cache_key, infra_map)
+
+
+def get_cached_tag_rate_map(schema_name):
+    """Return cached tag rate map for tag mapping."""
+    cache = caches["default"]
+    cache_key = f"{TAG_MAPPING_PREFIX}:{schema_name}:tag-rate-map"
+    return cache.get(cache_key)
+
+
+def set_cached_tag_rate_map(schema_name, tag_rate_map):
+    """Return cached OCP on Cloud infra-map if exists."""
+    cache = caches["default"]
+    cache_key = f"{TAG_MAPPING_PREFIX}:{schema_name}:tag-rate-map"
+    cache.set(cache_key, tag_rate_map)

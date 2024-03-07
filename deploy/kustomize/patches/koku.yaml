@@ -85,8 +85,8 @@
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: api-sentry-dsn
-              name: koku-sentry
+              key: ${API_SENTRY_DSN_KEY}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}

@@ -12,7 +12,6 @@ import uuid
 
 from dateutil.parser import parse
 from django.conf import settings
-from django.db import connection
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -144,53 +143,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
-    def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
-        """Get the OCP on infrastructure map.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-
-        Returns
-            (None)
-
-        """
-        # kwargs here allows us to optionally pass in a provider UUID based on
-        # the provider type this is run for
-        ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
-        aws_provider_uuid = kwargs.get("aws_provider_uuid")
-        azure_provider_uuid = kwargs.get("azure_provider_uuid")
-        # In case someone passes this function a string instead of the date object like we asked...
-        # Cast the string into a date object, end_date into date object instead of string
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpinfrastructure_provider_map.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "schema": self.schema,
-            "aws_provider_uuid": aws_provider_uuid,
-            "ocp_provider_uuid": ocp_provider_uuid,
-            "azure_provider_uuid": azure_provider_uuid,
-        }
-        infra_sql, infra_sql_params = self.prepare_query(sql, sql_params)
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(infra_sql, list(infra_sql_params))
-            results = cursor.fetchall()
-
-        db_results = {}
-        for entry in results:
-            # This dictionary is keyed on an OpenShift provider UUID
-            # and the tuple contains
-            # (Infrastructure Provider UUID, Infrastructure Provider Type)
-            db_results[entry[0]] = (entry[1], entry[2], entry[3], entry[4])
-
-        return db_results
 
     def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):  # noqa: C901
         """Get the OCP on infrastructure map.
