@@ -7,6 +7,8 @@ SELECT
   lineitem_resourceid as subs_resource_id,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
+    WHEN 'hpc' THEN 'Red Hat Enterprise Linux Compute Node'
+    WHEN 'sap' THEN 'SAP'
     ELSE 'Red Hat Enterprise Linux Server'
   END as subs_role,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_usage'))
@@ -20,9 +22,23 @@ SELECT
     ELSE 'Premium'
   END as subs_sla,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel'))
-    WHEN 'rhel 7 els' THEN '69-204'
-    WHEN 'rhel 8 els' THEN '479-204'
-    ELSE '479'
+    WHEN 'rhel 7 els' THEN
+      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+        WHEN 'sap' THEN '69-204-146'
+        WHEN 'hpc' THEN '76'
+        ELSE '69-204'
+      END
+    WHEN 'rhel 8 els' THEN
+      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+        WHEN 'sap' THEN '479-204-241'
+        WHEN 'hpc' THEN '479'
+        ELSE '479-204'
+      END
+    ELSE
+      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
+        WHEN 'sap' THEN '479-241'
+        ELSE '479'
+      END
   END as subs_product_ids
 FROM
   (
