@@ -24,13 +24,13 @@ class TestTagMappingUtils(MasuTestCase):
         with tenant_context(self.tenant):
             for ptype, uuid in self.test_matrix.items():
                 with self.subTest(ptype=ptype, uuid=uuid):
-                    keys = list(EnabledTagKeys.objects.filter(provider_type=ptype))
-                    resummarize_current_month_by_tag_keys(keys, self.schema_name)
+                    uuids = EnabledTagKeys.objects.filter(provider_type=ptype).values_list("uuid", flat=True)
+                    resummarize_current_month_by_tag_keys(uuids, self.schema_name)
                     self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
 
     def test_multiple_returns(self):
         with tenant_context(self.tenant):
-            keys = list(EnabledTagKeys.objects.all())
-            resummarize_current_month_by_tag_keys(keys, self.schema_name)
+            uuids = EnabledTagKeys.objects.all().values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name)
             for uuid in self.test_matrix.values():
                 self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
