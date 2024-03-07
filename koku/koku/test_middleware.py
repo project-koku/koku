@@ -15,6 +15,7 @@ from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db.utils import OperationalError
+from django.http import JsonResponse
 from django.test.utils import modify_settings
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -34,8 +35,23 @@ from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
+from koku.middleware import KokuTenantSchemaExistsMiddleware
 from koku.middleware import RequestTimingMiddleware
 from koku.test_rbac import mocked_requests_get_500_text
+
+
+class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
+    def test_process_exception_empty_response(self):
+        """Assert that an exception raised for a non-existent Tenant returns empty result set."""
+        mock_request = MagicMock()
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception)
+        self.assertIsInstance(result, JsonResponse)
+
+    def test_process_exception_not_empty_response(self):
+        """Assert that an exception raised for a valid tenant does not return emtpy result set."""
+        mock_request = self.request_context["request"]
+        result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception)
+        self.assertIsNone(result)
 
 
 class KokuTenantMiddlewareTest(IamTestCase):
