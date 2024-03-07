@@ -102,7 +102,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
         result = self.middleware.process_request(mock_request)
         self.assertIsInstance(result, HttpResponseUnauthorizedRequest)
 
-    @patch("koku.middleware.KokuTenantMiddleware._get_or_create_tenant")
+    @patch("koku.middleware.KokuTenantMiddleware._get_tenant")
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_request_user_access_no_permissions(self, get_access_mock, mock_get_tenant):
         """Test PermissionDenied is not raised for user-access calls"""
@@ -582,7 +582,7 @@ class RequestTimingMiddlewareTest(IamTestCase):
         middleware.process_request(self.request)
         self.assertTrue(hasattr(self.request, "start_time"))
 
-    @patch("koku.middleware.KokuTenantMiddleware._get_or_create_tenant")
+    @patch("koku.middleware.KokuTenantMiddleware._get_tenant")
     def test_process_response(self, mock_get_tenant):
         """Test that the request gets a user."""
 

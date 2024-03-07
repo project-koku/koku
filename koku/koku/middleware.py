@@ -230,6 +230,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             tenant = Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
             LOG.info(f"Tenant does not exist. username: {tenant_username}. schema: {schema_name}.")
+            # the `create` here is only necessary for local dev
             tenant, _ = Tenant.objects.get_or_create(schema_name="public")
             return tenant
 
