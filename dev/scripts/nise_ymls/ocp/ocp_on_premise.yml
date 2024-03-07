@@ -6,7 +6,7 @@ generators:
       nodes:
         - node:
           node_name: compute_1
-          node_labels: label_instance-type:medium
+          node_labels: label_instance-type:medium|label_kubernetes_io_arch:amd64
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -56,7 +56,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_2
-          node_labels: label_instance-type:small
+          node_labels: label_instance-type:small|label_kubernetes_io_arch:arm64
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -106,7 +106,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_3
-          node_labels: label_nodeclass:compute|label_node_role_kubernetes_io:infra|label_instance-type:xsmall
+          node_labels: label_nodeclass:compute|label_node_role_kubernetes_io:infra|label_instance-type:xsmall|label_kubernetes_io_arch:s390x
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -156,7 +156,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_4
-          node_labels: label_instance-type:large
+          node_labels: label_instance-type:large|label_kubernetes_io_arch:amd64
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -206,7 +206,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_5
-          node_labels: label_instance-type:xlarge
+          node_labels: label_instance-type:xlarge|label_kubernetes_io_arch:ppc64le
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -256,7 +256,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_6
-          node_labels: label_instance-type:xxlarge
+          node_labels: label_instance-type:xxlarge|label_kubernetes_io_arch:amd64
           cpu_cores: 4
           memory_gig: 16
           namespaces:
