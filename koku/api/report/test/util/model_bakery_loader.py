@@ -404,7 +404,7 @@ class ModelBakeryDataLoader(DataLoader):
                 "report_period_ids": report_period_ids,
                 "schema": self.schema,
             }
-            sql = pkgutil.get_data("mock_trino_sql", "ocp/remove_disabled_tags.sql")
+            sql = pkgutil.get_data("api.report.test.util.mock_trino_sql", "ocp/remove_disabled_tags.sql")
             sql = sql.decode("utf-8")
             table_name = accessor._table_map["line_item_daily_summary"]
             accessor._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)

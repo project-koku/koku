@@ -114,7 +114,7 @@ cte_ocp_node_label_line_item_daily AS (
        AND nli.interval_start < date_add('day', 1, {{end_date}})
     GROUP BY date(nli.interval_start),
         nli.node,
-        3 -- needs to match the node_labels cardinality
+        3 -- needs to match the lables cardinality
 ),
 -- namespace label line items by day trino sql
 cte_ocp_namespace_label_line_item_daily AS (
@@ -135,7 +135,7 @@ cte_ocp_namespace_label_line_item_daily AS (
        AND nli.interval_start < date_add('day', 1, {{end_date}})
     GROUP BY date(nli.interval_start),
         nli.namespace,
-        3 -- needs to match the namespace cardinality
+        3 -- needs to match the labels cardinality
 ),
 -- Daily sum of cluster CPU and memory capacity
 cte_ocp_node_capacity AS (
