@@ -1471,8 +1471,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     service_checked = True
 
-        if service_checked:
-            self.assertTrue(service_checked)
+        self.assertTrue(service_checked)
 
     def test_gcp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
@@ -1545,9 +1544,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     overall_output = handler.execute_query()
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     opt_dict = overall_output.get("data", [{}])[0]
-                    if opt_dict.get(f"{exclude_opt}s"):
-                        opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
+                    opt_dict = opt_dict.get(f"{exclude_opt}s", [{}])[0]
                     opt_value = opt_dict.get(exclude_opt)
+                    self.assertIsNotNone(opt_value)
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
