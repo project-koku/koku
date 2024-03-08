@@ -4,6 +4,7 @@
 #
 """Test utilities."""
 import logging
+import pkgutil
 import random
 from datetime import datetime
 from datetime import timedelta
@@ -396,9 +397,17 @@ class ModelBakeryDataLoader(DataLoader):
         with OCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_pod_label_summary_table(report_period_ids, self.first_start_date, self.last_end_date)
             accessor.populate_volume_label_summary_table(report_period_ids, self.first_start_date, self.last_end_date)
-            # accessor.update_line_item_daily_summary_with_enabled_tags(
-            #     self.first_start_date, self.last_end_date, report_period_ids
-            # )
+            # remove disabled tag keys
+            sql_params = {
+                "start_date": self.first_start_date,
+                "end_date": self.last_end_date,
+                "report_period_ids": report_period_ids,
+                "schema": self.schema,
+            }
+            sql = pkgutil.get_data("mock_trino_sql", "ocp/remove_disabled_tags.sql")
+            sql = sql.decode("utf-8")
+            table_name = accessor._table_map["line_item_daily_summary"]
+            accessor._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
             update_cost_category(self.schema)
             for date in self.dates:
                 update_cost_model_costs(
