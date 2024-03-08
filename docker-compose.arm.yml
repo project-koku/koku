@@ -4,7 +4,7 @@ version: '3'
 
 services:
   hive-metastore:
-    image: quay.io/mskarbek/ubi-hive:3.1.2-metastore-008
+    image: quay.io/mskarbek/ubi-hive:3.1.3-metastore-024
 
   trino:
-    image: quay.io/mskarbek/ubi-trino:411-001
+    image: quay.io/mskarbek/ubi-trino:427-001
