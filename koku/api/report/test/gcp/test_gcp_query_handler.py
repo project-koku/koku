@@ -1283,7 +1283,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             ),
             (
                 "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,"
-                "Application % 20Gateway & group_by[account]= * ",
+                "Application%20Gateway&group_by[account]=*",
                 GCPCostView,
                 GCPCostSummaryByServiceP,
             ),
