@@ -190,7 +190,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             PermissionDenied: If the user does not have permissions for Cost Management.
 
         """
-        if not request.user.admin and request.user.access is None:
+        if not request.user.admin and not request.user.access:
             msg = f"User {request.user.username} does not have permissions for Cost Management."
             LOG.warning(msg)
             # For /user-access we do not want to raise the exception since the API will
@@ -199,33 +199,17 @@ class KokuTenantMiddleware(TenantMainMiddleware):
                 raise PermissionDenied(msg)
 
     def _get_tenant(self, request):
-        """Get or create tenant based on the user's schema.
-
+        """Get user or public schema.
         Args:
             request(HttpRquest): The incoming request object.
-
         Returns:
             Tenant: The tenant object.
-
         """
-
-        if tenant := self._get_tenant_from_tenant_cache(request):
+        tenant_username = request.user.username
+        if tenant := KokuTenantMiddleware.tenant_cache.get(tenant_username):
             return tenant
 
-        tenant_username = request.user.username
         schema_name = "public" if is_no_auth(request) else request.user.customer.schema_name
-
-        return self._get_tenant_from_db(tenant_username, schema_name)
-
-    def _get_tenant_from_tenant_cache(self, request):
-        """Get tenant from tenant cache."""
-
-        tenant_username = request.user.username
-        return KokuTenantMiddleware.tenant_cache.get(tenant_username)
-
-    def _get_tenant_from_db(self, tenant_username, schema_name):
-        """Get tenant with the schema from the database."""
-
         try:
             tenant = Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
@@ -299,11 +283,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
     def _get_access(self, user):
         """Obtain access for given user from RBAC service."""
-        access = None
         if settings.ENHANCED_ORG_ADMIN and user.admin:
-            return access
-        access = self.rbac.get_access_for_user(user)
-        return access
+            return {}
+        return self.rbac.get_access_for_user(user)
 
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
