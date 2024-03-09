@@ -1,0 +1,6 @@
+[
+    {
+        "table": "name_of_table",
+        "partition_column": "name_of_partition"
+    }
+]
