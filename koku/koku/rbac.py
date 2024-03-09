@@ -120,9 +120,6 @@ def _update_access_obj(access, res_access, resource_list):
 def _apply_access(access):  # noqa: C901
     """Apply access to managed resources."""
     res_access = {}
-    if access is None:
-        return res_access
-
     resources = []
     for res_type, operations in RESOURCE_TYPES.items():
         resources.append(res_type)
@@ -130,6 +127,8 @@ def _apply_access(access):  # noqa: C901
             curr = res_access.get(res_type, {})
             curr[operation] = []
             res_access[res_type] = curr
+    if access is None:
+        return res_access
 
     # process '*' special case
     wildcard_items = access.get(WILDCARD, [])
