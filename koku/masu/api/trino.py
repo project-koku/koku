@@ -45,10 +45,6 @@ def trino_query(request):
             if keyword in lowered_query:
                 errmsg = f"This endpoint does not allow a {keyword} operation to be performed."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-        if ";" in query:
-            # Note: if you include the semicolon at the end of the
-            # query it causes an a 500 error.
-            query = query.replace(";", "")
 
         msg = f"Running Trino query: {query}"
         LOG.info(msg)
