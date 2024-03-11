@@ -17,7 +17,7 @@ from api.report.ocp.capacity.cluster_capacity import calculate_unused
 @dataclass
 class NodeCapacity:
     """
-    A class to calaculate the cluster capacity.
+    A class to calaculate the node capacity.
 
     report_type_map:        provider_map report type
     query:                  django base query
@@ -71,12 +71,16 @@ class NodeCapacity:
         """
         cap_key = list(self.capacity_annotations.keys())[0]
         cap_data = self.query.values(*["usage_start", "node"]).annotate(**self.capacity_annotations)
+        processed_nodes = set()
         for entry in cap_data:
             node_key = entry.get("node", "")
             usage_start = self._resolution_usage_converter(entry.get("usage_start", ""))
             cap_value = entry.get(cap_key, 0)
             self._add_capacity(cap_value, usage_start, node_key)
-            self._add_count(entry.get("capacity_count", 0))
+
+            if node_key not in processed_nodes:
+                self._add_count(entry.get("capacity_count", 0))
+                processed_nodes.add(node_key)
 
     def _finalize_mapping(self, dataset_mapping):
         """

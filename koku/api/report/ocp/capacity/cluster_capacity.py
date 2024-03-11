@@ -99,12 +99,17 @@ class ClusterCapacity:
             # Short circuit for if the count annotations is
             # not present in the provider map
             return False
+        processed_nodes = set()
         node_instance_counts = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
         for cluster_to_node in node_instance_counts:
             cluster = cluster_to_node.get("cluster")
             usage_key = self._resolution_usage_converter(cluster_to_node.get("usage_start"))
+            node_key = cluster_to_node.get("node", "")
             capacity_count = cluster_to_node.get("capacity_count")
-            self._add_count(capacity_count, usage_key, cluster)
+            # count capacity once for each cluster node
+            should_add_node_count = node_key and node_key not in processed_nodes
+            self._add_count(capacity_count, usage_key, cluster, should_add_node_count)
+            processed_nodes.add(node_key)
         return True
 
     def _add_capacity(self, cap_value, usage_start, cluster_key):
@@ -115,13 +120,14 @@ class ClusterCapacity:
             self.capacity_by_date[usage_start] += cap_value
             self.capacity_by_date_cluster[usage_start][cluster_key] += cap_value
 
-    def _add_count(self, cluster_mapping_value, usage_start, cluster_key):
+    def _add_count(self, cluster_mapping_value, usage_start, cluster_key, add_count_total=True):
         """Adds the count value to all count resolution variants."""
         if cluster_mapping_value:
-            self.count_total += cluster_mapping_value
             self.count_by_date_cluster[usage_start][cluster_key] += cluster_mapping_value
             self.count_by_date[usage_start] += cluster_mapping_value
-            self.count_by_cluster[cluster_key] += cluster_mapping_value
+            if add_count_total:
+                self.count_total += cluster_mapping_value
+                self.count_by_cluster[cluster_key] += cluster_mapping_value
 
     def _resolution_usage_converter(self, usage_start):
         """Normalizes the usage_start based on the resolution provided."""
