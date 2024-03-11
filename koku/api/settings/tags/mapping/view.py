@@ -85,9 +85,10 @@ class SettingsTagMappingView(generics.GenericAPIView):
     def get(self, request: Request, **kwargs):
         filtered_qset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(filtered_qset, many=True)
-        paginator = ListPaginator(serializer.data, request)
+        formatted_response = format_tag_mapping_relationship(serializer)
+        paginator = ListPaginator(formatted_response.data, request)
         response = paginator.paginated_response
-        response = format_tag_mapping_relationship(response)
+
         return response
 
 
