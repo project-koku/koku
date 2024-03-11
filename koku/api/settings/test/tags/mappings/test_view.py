@@ -187,63 +187,52 @@ class TestSettingsTagMappingView(MasuTestCase):
     def test_format_tag_mapping_relationship(self):
         """Test the get method format for the tag mapping view"""
 
-        sample_data = """{
-            "meta": {
-                "count": 3,
-                "limit": 3,
-                "offset": 0
-            },
-            "links": {
-                "first": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0",
-                "next": null,
-                "previous": null,
-                "last": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0"
-            },
-            "data": [
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "787d0e27-bf01-4f1e-91da-4148d9acae82",
-                        "key": "environment",
-                        "source_type": "Azure"
-                    }
+        sample_data = """
+        [
+            {
+                "parent": {
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                    "key": "storageclass",
+                    "source_type": "Azure"
                 },
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
-                        "key": "CreatedOn",
-                        "source_type": "OCI"
-                    }
-                },
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
-                        "key": "free-tier-retained",
-                        "source_type": "OCI"
-                    }
+                "child": {
+                    "uuid": "787d0e27-bf01-4f1e-91da-4148d9acae82",
+                    "key": "environment",
+                    "source_type": "Azure"
                 }
-            ]
-        }"""
+            },
+            {
+                "parent": {
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                    "key": "storageclass",
+                    "source_type": "Azure"
+                },
+                "child": {
+                    "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
+                    "key": "CreatedOn",
+                    "source_type": "OCI"
+                }
+            },
+            {
+                "parent": {
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                    "key": "storageclass",
+                    "source_type": "Azure"
+                },
+                "child": {
+                    "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
+                    "key": "free-tier-retained",
+                    "source_type": "OCI"
+                }
+            }
+        ]
+        """
 
         json_data = json.loads(sample_data)
         response = Response(json_data)
         result = format_tag_mapping_relationship(response)
         # Check if the key is 'children' and not 'child'
-        for item in result.data["data"]:
+        for item in result.data:
             self.assertIn("children", item["parent"])
             self.assertNotIn("child", item["parent"])
 
