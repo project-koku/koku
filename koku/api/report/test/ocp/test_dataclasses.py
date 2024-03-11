@@ -123,11 +123,12 @@ class ClusterCapacityDataclassTest(IamTestCase):
             "group_by[cluster]": "*",
         }
         url = "?" + urlencode(params, quote_via=quote_plus)
+        # for view in [OCPCpuView]:
         for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
             with self.subTest(view=view):
                 expected_cluster_count = {}
                 expected_date_count = {}
-                expected_total_count = 0
+                # expected_total_count = 0
                 query_params = self.mocked_query_params(url, view)
                 handler = OCPReportQueryHandler(query_params)
                 with tenant_context(self.tenant):
@@ -138,15 +139,19 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     cluster_capacity_vals = query.values(*["usage_start", "node"]).annotate(
                         **cluster_capacity.count_annotations
                     )
+                    processed_nodes = set()
                     for cluster_to_node in cluster_capacity_vals:
                         cluster = cluster_to_node.get("cluster")
                         usage_start = str(cluster_to_node.get("usage_start"))
                         node_capacity_count = cluster_to_node.get("capacity_count")
-                        expected_total_count += node_capacity_count
-                        if cluster_count := expected_cluster_count.get(cluster):
-                            expected_cluster_count[cluster] = cluster_count + node_capacity_count
-                        else:
-                            expected_cluster_count[cluster] = node_capacity_count
+                        node_key = cluster_to_node.get("node")
+                        # expected_total_count += node_capacity_count
+                        if node_key and node_key not in processed_nodes:
+                            if cluster_count := expected_cluster_count.get(cluster):
+                                expected_cluster_count[cluster] = cluster_count + node_capacity_count
+                            else:
+                                expected_cluster_count[cluster] = node_capacity_count
+                            processed_nodes.add(node_key)
                         if cluster_count := expected_date_count.get(usage_start):
                             expected_date_count[usage_start] = cluster_count + node_capacity_count
                         else:
