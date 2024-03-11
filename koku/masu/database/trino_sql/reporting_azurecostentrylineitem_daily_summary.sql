@@ -52,6 +52,12 @@ WITH cte_line_items AS (
         AND month = '{{month | sqlsafe}}'
         AND coalesce(date, usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND coalesce(date, usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+),
+cte_pg_enabled_keys as (
+    select array_agg(key order by key) as keys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+     where enabled = true
+     and provider_type = 'Azure'
 )
 SELECT uuid() as uuid,
     li.usage_date AS usage_start,
@@ -67,7 +73,12 @@ SELECT uuid() as uuid,
     sum(li.usage_quantity * li.multiplier) AS usage_quantity,
     max(li.unit_of_measure) as unit_of_measure,
     max(li.currency) as currency,
-    li.tags,
+    cast(
+        map_filter(
+            cast(json_parse(li.tags) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) as tags,
     array_agg(DISTINCT li.instance_id) as instance_ids,
     count(DISTINCT li.instance_id) as instance_count,
     li.source_uuid,
@@ -76,7 +87,7 @@ SELECT uuid() as uuid,
 FROM cte_line_items AS li
 GROUP BY li.usage_date,
     li.cost_entry_bill_id,
-    li.tags,
+    13, -- matches column num for tags map_filter
     li.subscription_guid,
     li.resource_location,
     li.instance_type,
