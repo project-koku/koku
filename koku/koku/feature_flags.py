@@ -7,7 +7,6 @@ import logging
 
 from django.conf import settings
 from UnleashClient import UnleashClient
-from UnleashClient.strategies import Strategy
 
 from .env import ENVIRONMENT
 
@@ -39,34 +38,6 @@ class KokuUnleashClient(UnleashClient):
         self.scheduler.shutdown()
 
 
-class SchemaStrategy(Strategy):
-    def load_provisioning(self) -> list:
-        return self.parameters["schema-name"].split(",")
-
-    def apply(self, context) -> bool:
-        default_value = False
-        if "schema" in context and context["schema"] is not None:
-            default_value = context["schema"] in self.parsed_provisioning
-        return default_value
-
-
-class SourceStrategy(Strategy):
-    def load_provisioning(self) -> list:
-        return self.parameters["source-uuid"].split(",")
-
-    def apply(self, context) -> bool:
-        default_value = False
-        if source_uuid := context.get("source_uuid"):
-            default_value = source_uuid in self.parsed_provisioning
-        return default_value
-
-
-strategies = {
-    # All new strategies should be added here.
-    "schema-strategy": SchemaStrategy,
-    "source-strategy": SourceStrategy,
-}
-
 headers = {}
 if settings.UNLEASH_TOKEN:
     headers["Authorization"] = settings.UNLEASH_TOKEN
@@ -77,7 +48,6 @@ UNLEASH_CLIENT = KokuUnleashClient(
     environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
     instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
     custom_headers=headers,
-    custom_strategies=strategies,
     cache_directory=settings.UNLEASH_CACHE_DIR,
     verbose_log_level=log_level,
 )
