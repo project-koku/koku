@@ -444,7 +444,7 @@ class OCPProviderMap(ProviderMap):
                             "capacity": Max(
                                 "cluster_capacity_memory_gigabyte_hours"
                             ),  # This is to keep the order, overwritten with capacity aggregate
-                            "usage_units": Value("GB-Hours", output_field=CharField()),
+                            "usage_units": Value("GiB-Hours", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -475,8 +475,8 @@ class OCPProviderMap(ProviderMap):
                             },
                         },
                         "cost_units_key": "raw_currency",
-                        "usage_units_key": "GB-Hours",
-                        "count_units_key": "GB",
+                        "usage_units_key": "GiB-Hours",
+                        "count_units_key": "GiB",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
                     "volume": {
@@ -584,7 +584,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage_units": Value("GB-Mo", output_field=CharField()),
+                            "usage_units": Value("GiB-Mo", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -614,8 +614,8 @@ class OCPProviderMap(ProviderMap):
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
                         "cost_units_key": "raw_currency",
-                        "usage_units_key": "GB-Mo",
-                        "count_units_key": "GB",
+                        "usage_units_key": "GiB-Mo",
+                        "count_units_key": "GiB",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
