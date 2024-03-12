@@ -44,7 +44,6 @@ SELECT uuid() as uuid,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
     max(usage_pricing_unit) as unit,
     cast(sum(usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
-    json_parse(labels) as tags,
     cast(
         map_filter(
             cast(json_parse(labels) as map(varchar, varchar)),
@@ -73,6 +72,6 @@ GROUP BY billing_account_id,
     date(usage_end_time),
     location_region,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]'),
-    17, -- matches column num of tag's map_filter
+    16, -- matches column num of tag's map_filter
     cost_type,
     invoice_month
