@@ -5,7 +5,6 @@
 """Test the Provider views."""
 import json
 from datetime import date
-from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -37,6 +36,8 @@ from koku.database import get_model
 from reporting.provider.aws.models import UI_SUMMARY_TABLES as AWS_UI_SUMMARY_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES as OCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportManifest
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 class MockResponse:
@@ -128,7 +129,8 @@ class ProviderManagerTest(IamTestCase):
         self.assertFalse(manager.get_paused_status())
 
     def test_get_state(self):
-        """test getting the current state for ingest."""
+        """Test getting the current state for ingest."""
+
         # Create Provider
         provider_name = "sample_provider"
         with patch("masu.celery.tasks.check_report_updates"):
@@ -136,31 +138,28 @@ class ProviderManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
+        # Mock the behavior of get_manifest_state method
+        with patch("api.provider.provider_manager.ProviderManager.get_manifest_state") as mock_get_manifest_state:
 
-        # Get Provider Manager
-        manager = ProviderManager(provider_uuid)
-        self.assertEqual(manager.get_state().get("download"), "pending")
-
-        with patch("reporting_common.models.CostUsageReportManifest.objects") as mock_object:
-            mock_manifest = MagicMock()
-            mock_object.filter.return_value.latest.return_value = mock_manifest
-            mock_manifest_state = MagicMock()
-            mock_manifest_state.get.return_value = {"start": True}
-            mock_manifest.state = mock_manifest_state
-            # Get Provider Manager
+            # Case when manifest is empty
+            mock_get_manifest_state.return_value = None
             manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_state().get("download"), "in-progress")
+            self.assertIsNone(manager.get_state())
 
-            mock_manifest_state.get.return_value = {"end": True}
-            mock_manifest.state = mock_manifest_state
-            # Get Provider Manager
+            # Case when manifest is in-progress
+            mock_get_manifest_state.return_value = {ManifestStep.DOWNLOAD: {"state": ManifestState.IN_PROGRESS}}
             manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_state().get("download"), "complete")
+            self.assertEqual(manager.get_state().get("download"), {"state": "in-progress"})
 
-        with patch("reporting_common.models.CostUsageReportManifest.objects"):
-            # Get Provider Manager
+            # Case when manifest is complete
+            mock_get_manifest_state.return_value = {ManifestStep.DOWNLOAD: {"state": ManifestState.COMPLETE}}
             manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_state().get("download"), "failed")
+            self.assertEqual(manager.get_state().get("download"), {"state": "complete"})
+
+            # Case when manifest is failed
+            mock_get_manifest_state.return_value = {ManifestStep.DOWNLOAD: {"state": ManifestState.FAILED}}
+            manager = ProviderManager(provider_uuid)
+            self.assertEqual(manager.get_state().get("download"), {"state": "failed"})
 
     def test_data_flags(self):
         """Test the data status flag."""

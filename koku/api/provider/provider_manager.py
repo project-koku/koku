@@ -135,25 +135,26 @@ class ProviderManager:
 
     def get_manifest_state(self, manifest):
         """Get statuses for given manifest."""
-        if manifest:
-            states = {
-                ManifestStep.DOWNLOAD: {"state": ManifestState.PENDING},
-                ManifestStep.PROCESSING: {"state": ManifestState.PENDING},
-                ManifestStep.SUMMARY: {"state": ManifestState.PENDING},
-            }
-            for key in states:
-                if current_state := manifest.state.get(key):
-                    manifest.state[key].pop("time_taken_seconds", None)
-                    if current_state.get(ManifestState.FAILED):
-                        states[key] = manifest.state[key]
-                        states[key]["state"] = "complete"
-                    elif current_state.get(ManifestState.END):
-                        states[key] = manifest.state[key]
-                        states[key]["state"] = "complete"
-                    elif current_state.get(ManifestState.START):
-                        states[key] = manifest.state[key]
-                        states[key]["state"] = "complete"
-            return states
+        if not manifest:
+            return None
+        states = {
+            ManifestStep.DOWNLOAD: {"state": ManifestState.PENDING},
+            ManifestStep.PROCESSING: {"state": ManifestState.PENDING},
+            ManifestStep.SUMMARY: {"state": ManifestState.PENDING},
+        }
+        for key in states:
+            if current_state := manifest.state.get(key):
+                manifest.state[key].pop("time_taken_seconds", None)
+                if current_state.get(ManifestState.FAILED):
+                    states[key] = manifest.state[key]
+                    states[key]["state"] = "failed"
+                elif current_state.get(ManifestState.END):
+                    states[key] = manifest.state[key]
+                    states[key]["state"] = "complete"
+                elif current_state.get(ManifestState.START):
+                    states[key] = manifest.state[key]
+                    states[key]["state"] = "in-progress"
+        return states
 
     def get_any_data_exists(self):
         """Get  data avaiability status."""
