@@ -44,7 +44,7 @@ from koku.test_rbac import mocked_requests_get_500_text
 class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
     def test_process_exception_empty_response(self):
         """Assert that an exception raised for a non-existent Tenant returns empty result set."""
-        mock_request = MagicMock()
+        mock_request = MagicMock(user=Mock(customer=Mock(schema_name="nope")))
         result = KokuTenantSchemaExistsMiddleware(Mock()).process_exception(mock_request, Exception())
         self.assertIsInstance(result, JsonResponse)
 
