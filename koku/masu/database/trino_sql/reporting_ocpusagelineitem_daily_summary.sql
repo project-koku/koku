@@ -104,7 +104,7 @@ cte_ocp_node_label_line_item_daily AS (
                 cast(json_parse(nli.node_labels) as map(varchar, varchar)),
                 (k,v) -> contains(pek.keys, k)
             ) as json
-        ) as node_labels,
+        ) as node_labels
     FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS nli
     CROSS JOIN cte_pg_enabled_keys AS pek
     WHERE nli.source = {{source}}
@@ -125,7 +125,7 @@ cte_ocp_namespace_label_line_item_daily AS (
                 cast(json_parse(nli.namespace_labels) as map(varchar, varchar)),
                 (k,v) -> contains(pek.keys, k)
             ) as json
-        ) as namespace_labels,
+        ) as namespace_labels
     FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS nli
     CROSS JOIN cte_pg_enabled_keys AS pek
     WHERE nli.source = {{source}}
