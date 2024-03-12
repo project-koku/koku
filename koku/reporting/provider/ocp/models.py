@@ -269,7 +269,7 @@ class OCPNode(models.Model):
 
 
 class OCPNetworkSummaryP(models.Model):
-    """Network traffic costs in and out per cluster"""
+    """Store summary of bytes in, bytes out, and costs per cluster per day"""
 
     class PartitionInfo:
         partition_type = "RANGE"
@@ -283,18 +283,20 @@ class OCPNetworkSummaryP(models.Model):
 
     cluster_alias = models.TextField(null=True)
     cluster_id = models.TextField()
+    # Cost model fields need to exist even though they are not relevant to this model
     cost_model_cpu_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_memory_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     cost_model_rate_type = models.TextField(null=True)
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_bytes_in = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_bytes_out = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_data_in = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_data_out = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     raw_currency = models.TextField(null=True)
     resource_count = models.IntegerField(null=True)
+    unit = models.CharField(max_length=63, null=True)
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     usage_end = models.DateField(null=False)
     usage_start = models.DateField(null=False)
@@ -329,14 +331,15 @@ class OCPNetworkSummaryByNodeP(models.Model):
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_bytes_in = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_bytes_out = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_data_in = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_data_out = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     node = models.CharField(max_length=253, null=True)
     raw_currency = models.TextField(null=True)
     resource_count = models.IntegerField(null=True)
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+    unit = models.CharField(max_length=63, null=True)
     usage_end = models.DateField(null=False)
     usage_start = models.DateField(null=False)
 
@@ -370,14 +373,15 @@ class OCPNetworkSummaryByProjectP(models.Model):
     cost_model_volume_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     data_source = models.CharField(max_length=64, null=True)
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_bytes_in = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_bytes_out = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_data_in = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_data_out = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     namespace = models.CharField(max_length=253, null=True)
     raw_currency = models.TextField(null=True)
     resource_count = models.IntegerField(null=True)
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+    unit = models.CharField(max_length=63, null=True)
     usage_end = models.DateField(null=False)
     usage_start = models.DateField(null=False)
 
