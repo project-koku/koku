@@ -394,11 +394,7 @@ class ModelBakeryDataLoader(DataLoader):
 
         report_period_ids = [report_period.id for report_period in report_periods]
         with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_pod_label_summary_table(report_period_ids, self.first_start_date, self.last_end_date)
-            accessor.populate_volume_label_summary_table(report_period_ids, self.first_start_date, self.last_end_date)
-            accessor.update_line_item_daily_summary_with_enabled_tags(
-                self.first_start_date, self.last_end_date, report_period_ids
-            )
+            accessor.populate_unit_test_tag_data(report_period_ids, self.first_start_date, self.last_end_date)
             update_cost_category(self.schema)
             for date in self.dates:
                 update_cost_model_costs(
