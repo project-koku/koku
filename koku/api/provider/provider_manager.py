@@ -130,22 +130,30 @@ class ProviderManager:
         return self.manifest.creation_datetime if self.manifest else None
 
     def get_state(self):
-        """Get latest manifest state."""
-        states = {
-            ManifestStep.DOWNLOAD: ManifestState.PENDING,
-            ManifestStep.PROCESSING: ManifestState.PENDING,
-            ManifestStep.SUMMARY: ManifestState.PENDING,
-        }
-        if self.manifest:
+        """Get latest manifest state for current provider."""
+        return self.get_manifest_state(self.manifest)
+
+    def get_manifest_state(self, manifest):
+        """Get statuses for given manifest."""
+        if manifest:
+            states = {
+                ManifestStep.DOWNLOAD: {"state": ManifestState.PENDING},
+                ManifestStep.PROCESSING: {"state": ManifestState.PENDING},
+                ManifestStep.SUMMARY: {"state": ManifestState.PENDING},
+            }
             for key in states:
-                if current_state := self.manifest.state.get(key):
+                if current_state := manifest.state.get(key):
+                    manifest.state[key].pop("time_taken_seconds", None)
                     if current_state.get(ManifestState.FAILED):
-                        states[key] = ManifestState.FAILED
+                        states[key] = manifest.state[key]
+                        states[key]["state"] = "complete"
                     elif current_state.get(ManifestState.END):
-                        states[key] = ManifestState.COMPLETE
+                        states[key] = manifest.state[key]
+                        states[key]["state"] = "complete"
                     elif current_state.get(ManifestState.START):
-                        states[key] = ManifestState.IN_PROGRESS
-        return states
+                        states[key] = manifest.state[key]
+                        states[key]["state"] = "complete"
+            return states
 
     def get_any_data_exists(self):
         """Get  data avaiability status."""
@@ -166,12 +174,18 @@ class ProviderManager:
         if self.model:
             if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
                 source = Sources.objects.get(koku_uuid=self.model.infrastructure.infrastructure_provider_id)
+                manifest = CostUsageReportManifest.objects.filter(
+                    provider=self.model.infrastructure.infrastructure_provider_id,
+                    billing_period_start_datetime=self.date_helper.this_month_start,
+                    creation_datetime__isnull=False,
+                ).latest("creation_datetime")
                 return {
                     "type": self.model.infrastructure.infrastructure_type,
                     "uuid": self.model.infrastructure.infrastructure_provider_id,
                     "id": source.source_id,
                     "account": self.model.infrastructure.infrastructure_account,
                     "region": self.model.infrastructure.infrastructure_region,
+                    "cloud_provider_state": self.get_manifest_state(manifest),
                 }
         return {}
 
