@@ -237,7 +237,8 @@ class TestSettingsTagMappingView(MasuTestCase):
 
         # Check if result has 'children' key
         for item in result:
-            self.assertTrue(hasattr(item, "children"), "Relationship object does not have 'children' attribute")
+            self.assertTrue("children" in item, "Item does not have 'children' key")
+            self.assertFalse("child" in item, "Item has 'child' key")
 
     @patch("api.settings.tags.mapping.utils.get_cached_tag_rate_map")
     def test_cached_tag_rate_mapping(self, mock_get):

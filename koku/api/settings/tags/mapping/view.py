@@ -91,7 +91,7 @@ class SettingsTagMappingView(generics.GenericAPIView):
             Relationship(TagKey(**item["parent"]), TagKey(**item["child"])).to_dict() for item in serializer.data
         ]
         formatted_data = format_tag_mapping_relationship(relationships)
-        formatted_response = Response([relationship.to_dict() for relationship in formatted_data])
+        formatted_response = Response(formatted_data)
         paginator = ListPaginator(formatted_response.data, request)
         response = paginator.paginated_response
 

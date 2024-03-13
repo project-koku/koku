@@ -3,22 +3,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query handler for Tag Mappings."""
-from api.settings.tags.mapping.models import Relationship
-from api.settings.tags.mapping.models import TagKey
 
 
-def format_tag_mapping_relationship(data: list[dict[str, dict[str, str]]]) -> list[Relationship]:
-    parent_dict = {}
-
-    for item in data:
-        parent_data = item["parent"]
-        child_data = item["child"]
-        parent_uuid = parent_data["uuid"]
-        if parent_uuid not in parent_dict:
-            parent_dict[parent_uuid] = Relationship(TagKey(**parent_data), TagKey(**child_data))
+def format_tag_mapping_relationship(relationships):
+    formatted_relationships = {}
+    for relationship in relationships:
+        parent_uuid = relationship["parent"]["uuid"]
+        if parent_uuid not in formatted_relationships:
+            formatted_relationships[parent_uuid] = {
+                "parent": relationship["parent"],
+                "children": [relationship["child"]] + relationship["children"],
+            }
         else:
-            parent_dict[parent_uuid].children.append(TagKey(**child_data))
+            formatted_relationships[parent_uuid]["children"].extend([relationship["child"]] + relationship["children"])
 
-    formatted_data = list(parent_dict.values())
-
-    return formatted_data
+    return list(formatted_relationships.values())
