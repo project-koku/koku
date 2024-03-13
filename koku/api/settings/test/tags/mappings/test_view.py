@@ -229,10 +229,9 @@ class TestSettingsTagMappingView(MasuTestCase):
         """
 
         json_data = json.loads(sample_data)
-        response = Response(json_data)
-        result = format_tag_mapping_relationship(response)
+        result = format_tag_mapping_relationship(json_data)
         # Check if the key is 'children' and not 'child'
-        for item in result.data:
+        for item in result:
             self.assertIn("children", item["parent"])
             self.assertNotIn("child", item["parent"])
 

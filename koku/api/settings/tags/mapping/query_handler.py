@@ -6,11 +6,10 @@
 from rest_framework.response import Response
 
 
-def format_tag_mapping_relationship(original_response):
-    original_data = original_response.data
+def format_tag_mapping_relationship(data):
     parent_dict = {}
 
-    for item in original_data:
+    for item in data:
         parent_data = item["parent"]
         child_data = item["child"]
         parent_uuid = parent_data["uuid"]
@@ -21,6 +20,5 @@ def format_tag_mapping_relationship(original_response):
             parent_dict[parent_uuid]["children"].append(child_data)
 
     formatted_data = [{"parent": parent_data} for parent_data in parent_dict.values()]
-    formatted_response = Response(formatted_data)
 
-    return formatted_response
+    return formatted_data
