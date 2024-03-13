@@ -79,6 +79,14 @@ class TestParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
         )
+        self.report_processor_ocp = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type=Provider.PROVIDER_OCP,
+            manifest_id=self.manifest_id,
+            context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
+        )
         ingress_uuid = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.ingress_report_dict = {
             "uuid": ingress_uuid,
@@ -263,6 +271,13 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertEqual(file_name, "")
             self.assertTrue(data_frame.empty)
 
+        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
+            with patch(
+                "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", return_value=None
+            ):
+                with self.assertRaises(ParquetReportProcessorError):
+                    self.report_processor_ocp.convert_to_parquet()
+
         expected = "no split files to convert to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
             ParquetReportProcessor,
@@ -273,13 +288,6 @@ class TestParquetReportProcessor(MasuTestCase):
         ) as logger:
             self.report_processor.convert_to_parquet()
             self.assertIn(expected, " ".join(logger.output))
-
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
-            ParquetReportProcessor,
-            "convert_csv_to_parquet",
-            return_value=("", pd.DataFrame(), False),
-        ), patch.object(ParquetReportProcessor, "create_daily_parquet"):
-            self.report_processor.convert_to_parquet()
 
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
             ParquetReportProcessor,
