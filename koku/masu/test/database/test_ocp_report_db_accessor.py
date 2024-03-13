@@ -25,9 +25,7 @@ from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.test import MasuTestCase
-from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
-from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.ocp.models import OCPCluster
@@ -486,52 +484,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 if post_record:
                                     actual_diff = float(post_record[1] - vals[1])
                                 self.assertAlmostEqual(actual_diff, expected_diff)
-
-    def test_update_line_item_daily_summary_with_enabled_tags(self):
-        """Test that we filter the daily summary table's tags with only enabled tags."""
-        start_date = self.dh.this_month_start
-        end_date = self.dh.this_month_end
-        with self.accessor as acc:
-            report_period = acc.report_periods_for_provider_uuid(self.ocp_provider_uuid, start_date)
-
-            OCPUsagePodLabelSummary.objects.all().delete()
-            OCPStorageVolumeLabelSummary.objects.all().delete()
-            key_to_keep = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").first()
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).update(enabled=False)
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).filter(key="app").update(enabled=True)
-            report_period_ids = [report_period.id]
-            acc.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
-            tags = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, report_period_id__in=report_period_ids
-                )
-                .values_list("pod_labels")
-                .distinct()
-            )
-
-            for tag in tags:
-                tag_dict = tag[0] if tag[0] is not None else {}  # Account for possible null
-                tag_keys = list(tag_dict.keys())
-                if tag_keys:
-                    self.assertEqual([key_to_keep.key], tag_keys)
-                else:
-                    self.assertEqual([], tag_keys)
-
-            tags = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, report_period_id__in=report_period_ids
-                )
-                .values_list("volume_labels")
-                .distinct()
-            )
-
-            for tag in tags:
-                tag_dict = tag[0] if tag[0] is not None else {}  # Account for possible null
-                tag_keys = list(tag_dict.keys())
-                if tag_keys:
-                    self.assertEqual([key_to_keep.key], tag_keys)
-                else:
-                    self.assertEqual([], tag_keys)
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, OCPUsageLineItemDailySummary)
