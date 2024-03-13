@@ -36,8 +36,6 @@ from koku.database import get_model
 from reporting.provider.aws.models import UI_SUMMARY_TABLES as AWS_UI_SUMMARY_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES as OCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportManifest
-from reporting_common.states import ManifestState
-from reporting_common.states import ManifestStep
 
 
 class MockResponse:
@@ -129,37 +127,81 @@ class ProviderManagerTest(IamTestCase):
         self.assertFalse(manager.get_paused_status())
 
     def test_get_state(self):
-        """Test getting the current state for ingest."""
-
-        # Create Provider
-        provider_name = "sample_provider"
+        """Test getting provider state without a manifest."""
         with patch("masu.celery.tasks.check_report_updates"):
-            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
-
-        # Get Provider UUID
-        provider_uuid = provider.uuid
-        # Mock the behavior of get_manifest_state method
+            provider = Provider.objects.create(name="sample_provider", created_by=self.user, customer=self.customer)
         with patch("api.provider.provider_manager.ProviderManager.get_manifest_state") as mock_get_manifest_state:
-
-            # Case when manifest is empty
             mock_get_manifest_state.return_value = None
-            manager = ProviderManager(provider_uuid)
+            manager = ProviderManager(provider.uuid)
             self.assertIsNone(manager.get_state())
 
+    def test_get_manifest_state(self):
+        """Test getting the current state for a manifest."""
+        datetime = DateHelper().today
+        # Create Provider
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_in-progress", created_by=self.user, customer=self.customer
+            )
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=DateHelper().this_month_start,
+                completed_datetime=datetime,
+                state={"download": {"start": str(datetime)}},
+            )
+            manager = ProviderManager(provider.uuid)
             # Case when manifest is in-progress
-            mock_get_manifest_state.return_value = {ManifestStep.DOWNLOAD: {"state": ManifestState.IN_PROGRESS}}
-            manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_state().get("download"), {"state": "in-progress"})
+            self.assertEqual(manager.get_state().get("download"), {"start": str(datetime), "state": "in-progress"})
 
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_complete", created_by=self.user, customer=self.customer
+            )
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=DateHelper().this_month_start,
+                completed_datetime=datetime,
+                state={"download": {"end": str(datetime)}},
+            )
+            manager = ProviderManager(provider.uuid)
             # Case when manifest is complete
-            mock_get_manifest_state.return_value = {ManifestStep.DOWNLOAD: {"state": ManifestState.COMPLETE}}
-            manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_state().get("download"), {"state": "complete"})
+            self.assertEqual(manager.get_state().get("download"), {"end": str(datetime), "state": "complete"})
 
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_failed", created_by=self.user, customer=self.customer
+            )
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=DateHelper().this_month_start,
+                completed_datetime=datetime,
+                state={"download": {"failed": str(datetime)}},
+            )
+            manager = ProviderManager(provider.uuid)
             # Case when manifest is failed
-            mock_get_manifest_state.return_value = {ManifestStep.DOWNLOAD: {"state": ManifestState.FAILED}}
-            manager = ProviderManager(provider_uuid)
-            self.assertEqual(manager.get_state().get("download"), {"state": "failed"})
+            self.assertEqual(manager.get_state().get("download"), {"failed": str(datetime), "state": "failed"})
+
+    def test_get_last_polling_time(self):
+        """Test getting latest polling from for a provider"""
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name="sample_provider", created_by=self.user, customer=self.customer)
+        manager = ProviderManager(provider.uuid)
+        self.assertEqual(manager.get_last_polling_time(), None)
+
+        expected_time = self.dh.now
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_polling_time",
+                created_by=self.user,
+                customer=self.customer,
+                polling_timestamp=expected_time,
+            )
+            manager = ProviderManager(provider.uuid)
+        self.assertEqual(manager.get_last_polling_time(provider.uuid), expected_time.strftime("%Y-%m-%d %H:%M:%S"))
+        self.assertEqual(manager.get_last_polling_time(), expected_time.strftime("%Y-%m-%d %H:%M:%S"))
 
     def test_data_flags(self):
         """Test the data status flag."""
