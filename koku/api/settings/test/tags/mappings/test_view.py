@@ -8,7 +8,6 @@ from unittest.mock import patch
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship

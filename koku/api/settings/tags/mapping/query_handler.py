@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query handler for Tag Mappings."""
-from rest_framework.response import Response
 
 
 def format_tag_mapping_relationship(data):
