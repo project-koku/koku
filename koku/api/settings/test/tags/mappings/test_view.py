@@ -10,6 +10,8 @@ from django_tenants.utils import tenant_context
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.settings.tags.mapping.models import Relationship
+from api.settings.tags.mapping.models import TagKey
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
@@ -228,11 +230,14 @@ class TestSettingsTagMappingView(MasuTestCase):
         """
 
         json_data = json.loads(sample_data)
-        result = format_tag_mapping_relationship(json_data)
-        # Check if the key is 'children' and not 'child'
+        relationships = [
+            Relationship(TagKey(**item["parent"]), TagKey(**item["child"])).to_dict() for item in json_data
+        ]
+        result = format_tag_mapping_relationship(relationships)
+
+        # Check if result has 'children' key
         for item in result:
-            self.assertIn("children", item["parent"])
-            self.assertNotIn("child", item["parent"])
+            self.assertTrue(hasattr(item, "children"), "Relationship object does not have 'children' attribute")
 
     @patch("api.settings.tags.mapping.utils.get_cached_tag_rate_map")
     def test_cached_tag_rate_mapping(self, mock_get):

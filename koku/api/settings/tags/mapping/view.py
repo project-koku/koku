@@ -22,6 +22,8 @@ from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
+from api.settings.tags.mapping.models import Relationship
+from api.settings.tags.mapping.models import TagKey
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
 from api.settings.tags.mapping.serializers import AddChildSerializer
 from api.settings.tags.mapping.serializers import TagMappingSerializer
@@ -85,7 +87,11 @@ class SettingsTagMappingView(generics.GenericAPIView):
     def get(self, request: Request, **kwargs):
         filtered_qset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(filtered_qset, many=True)
-        formatted_response = Response(format_tag_mapping_relationship(serializer.data))
+        relationships = [
+            Relationship(TagKey(**item["parent"]), TagKey(**item["child"])).to_dict() for item in serializer.data
+        ]
+        formatted_data = format_tag_mapping_relationship(relationships)
+        formatted_response = Response([relationship.to_dict() for relationship in formatted_data])
         paginator = ListPaginator(formatted_response.data, request)
         response = paginator.paginated_response
 
