@@ -63,7 +63,7 @@ class OCPGCPQueryHandlerTestNoData(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        keys_units = {"usage": "hour", "infrastructure": "USD", "supplementary": "USD", "cost": "USD"}
+        keys_units = {"usage": "Hrs", "infrastructure": "USD", "supplementary": "USD", "cost": "USD"}
         has_total_list = ["cost", "infrastructure", "supplementary"]
         for key, unit in keys_units.items():
             self.assertIsNotNone(total.get(key))
@@ -1368,9 +1368,9 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                     overall_output = handler.execute_query()
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     opt_dict = overall_output.get("data", [{}])[0]
-                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
+                    opt_dict = opt_dict.get(f"{exclude_opt}s", [{}])[0]
                     opt_value = opt_dict.get(exclude_opt)
-                    self.assertIsNotNone(opt_dict)
+                    self.assertIsNotNone(opt_value)
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
@@ -1404,7 +1404,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             }
             with self.subTest(view=view):
                 if view == OCPGCPStorageView:
-                    filters["unit"] = "gibibyte month"
+                    filters["unit"] = "GB-Mo"
                 with tenant_context(self.tenant):
                     opt_value = (
                         OCPGCPCostLineItemProjectDailySummaryP.objects.filter(**filters)
