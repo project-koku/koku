@@ -156,6 +156,16 @@ class ProviderManager:
                     states[key]["state"] = "in-progress"
         return states
 
+    def get_last_polling_time(self, uuid=None):
+        """Get last polling timestamp for provider"""
+        if uuid:
+            provider = Provider.objects.get(uuid=uuid)
+            timestamp = provider.polling_timestamp
+        else:
+            timestamp = self.model.polling_timestamp
+        if timestamp:
+            return timestamp.strftime(DATE_TIME_FORMAT)
+
     def get_any_data_exists(self):
         """Get  data avaiability status."""
         return CostUsageReportManifest.objects.filter(provider=self._uuid, completed_datetime__isnull=False).exists()
@@ -186,6 +196,9 @@ class ProviderManager:
                     "id": source.source_id,
                     "account": self.model.infrastructure.infrastructure_account,
                     "region": self.model.infrastructure.infrastructure_region,
+                    "last_polling_time": self.get_last_polling_time(
+                        self.model.infrastructure.infrastructure_provider_id
+                    ),
                     "cloud_provider_state": self.get_manifest_state(manifest),
                 }
         return {}
