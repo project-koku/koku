@@ -5,7 +5,7 @@
 """Query handler for Tag Mappings."""
 
 
-def format_tag_mapping_relationship(data):
+def format_tag_mapping_relationship(data: dict[str : dict[str:str]]) -> dict[str : dict[str:str]]:
     parent_dict = {}
 
     for item in data:
