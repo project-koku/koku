@@ -2,11 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import ast
-
-import django_filters
 from django.db.models import Case
-from django.db.models import Q
 from django.db.models import UUIDField
 from django.db.models import Value
 from django.db.models import When
@@ -28,8 +24,7 @@ from api.settings.tags.mapping.serializers import TagMappingSerializer
 from api.settings.tags.mapping.serializers import ViewOptionsSerializer
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
-from api.settings.utils import NonValidatedMultipleChoiceFilter
-from api.settings.utils import SettingsFilter
+from api.settings.tags.mapping.utils import TagMappingFilters
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
@@ -43,35 +38,25 @@ class CostModelAnnotationMixin:
         return self.get_queryset().annotate(cost_model_id=Case(*when_conditions, output_field=UUIDField()))
 
 
-class SettingsTagMappingFilter(SettingsFilter):
-    source_type = django_filters.CharFilter(field_name="parent__provider_type", method="filter_by_source_type")
-    parent = django_filters.CharFilter(field_name="parent__key", lookup_expr="icontains")
-    child = django_filters.CharFilter(field_name="child__key", lookup_expr="icontains")
+class SettingsTagMappingFilter(TagMappingFilters):
+    source_type = CharFilter(field_name="parent__provider_type", method="filter_by_source_type")
+    parent = CharFilter(field_name="parent__key", method="filter_by_key")
+    child = CharFilter(field_name="child__key", method="filter_by_key")
 
     class Meta:
         model = TagMapping
         fields = ("parent", "child", "source_type")
         default_ordering = ["parent"]
 
-    def filter_by_source_type(self, queryset, name, value):
-        try:
-            value = ast.literal_eval(value)
-        except ValueError:
-            value = [value]
-        return queryset.filter(Q(parent__provider_type__in=value) | Q(child__provider_type__in=value))
 
-
-class SettingsEnabledTagKeysFilter(SettingsFilter):
-    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
-    source_type = CharFilter(method="filter_by_source_type")
+class SettingsEnabledTagKeysFilter(TagMappingFilters):
+    key = CharFilter(method="filter_by_key")
+    source_type = CharFilter(field_name="provider_type", method="filter_by_source_type")
 
     class Meta:
         model = EnabledTagKeys
         fields = ("key", "source_type")
         default_ordering = ["key", "-enabled"]
-
-    def filter_by_source_type(self, queryset, name, value):
-        return queryset.filter(provider_type__iexact=value)
 
 
 class SettingsTagMappingView(generics.GenericAPIView):

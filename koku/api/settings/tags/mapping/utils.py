@@ -3,12 +3,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query handler for Tag Mappings."""
+import ast
 from collections import defaultdict
+from functools import reduce
 
 from django.db.models import F
 from django.db.models import Func
+from django.db.models import Q
 
 from api.models import Provider
+from api.settings.utils import SettingsFilter
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from koku.cache import get_cached_tag_rate_map
@@ -21,6 +25,46 @@ from reporting.models import OCITagsSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+
+class TagMappingFilters(SettingsFilter):
+    """This filter handles multiple filter options."""
+
+    def _string_to_list(self, input_string):
+        """Converts input string to a list if it represents a list literal.
+
+        This mimics the logic we use in our StringOrListField for when
+        we need to use a method to filter correctly in django filters.
+        """
+        if input_string.startswith("[") and input_string.endswith("]"):
+            return ast.literal_eval(input_string)
+        else:
+            return [input_string]
+
+    def filter_by_source_type(self, queryset, name, value):
+        """
+        Handles multiple filter logic for source_type filter.
+        """
+        value_list = self._string_to_list(value)
+        q_list = []
+        for value in value_list:
+            if name == "parent__provider_type":
+                q_list.append(Q(parent__provider_type__icontains=value))
+                q_list.append(Q(child__provider_type__icontains=value))
+            else:
+                q_list.append(Q(**{f"{name}__icontains": value}))
+        combined_q = reduce(lambda x, y: x | y, q_list)
+        return queryset.filter(combined_q)
+
+    def filter_by_key(self, queryset, name, value):
+        """
+        Hanldes multiple filter logic for key filter.
+        """
+        key_list = self._string_to_list(value)
+        # handle multiple filters
+        value_list = [Q(**{f"{name}__icontains": key}) for key in key_list]
+        combined_q = reduce(lambda x, y: x | y, value_list)
+        return queryset.filter(combined_q)
 
 
 def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):

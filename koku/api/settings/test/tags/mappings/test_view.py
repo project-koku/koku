@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import json
+from collections import defaultdict
 from unittest.mock import patch
 
 from django.urls import reverse
@@ -11,6 +12,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
+from api.provider.models import Provider
 from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
@@ -177,11 +179,11 @@ class TestSettingsTagMappingView(MasuTestCase):
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             # Call the filter_by_source_type method with 'test_filter' as the value
             filter = SettingsTagMappingFilter()
-            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
+            result = filter.filter_by_source_type(TagMapping.objects.all(), "parent__provider_type", test_filter)
             self.assertNotEqual(len(result), 0)
 
             test_filter = "random"
-            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
+            result = filter.filter_by_source_type(TagMapping.objects.all(), "child__provider_type", test_filter)
             self.assertEqual(len(result), 0)
 
     def test_format_tag_mapping_relationship(self):
@@ -321,3 +323,73 @@ class TestSettingsTagMappingView(MasuTestCase):
         url = url + "?order_by[parent]=FAKE"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_multi_source_type_filter(self):
+        """Test multiple source type filters."""
+        source_type_mapping = defaultdict(list)
+        enabled_keys = EnabledTagKeys.objects.filter(enabled=True)
+        for enabled_key in enabled_keys:
+            source_type_mapping[enabled_key.provider_type].append(enabled_key.uuid)
+        aws_uuids = source_type_mapping.get(Provider.PROVIDER_AWS)
+        azure_uuids = source_type_mapping.get(Provider.PROVIDER_AZURE)
+        ocp_uuids = source_type_mapping.get(Provider.PROVIDER_OCP)
+        body_metadata = [
+            {"parent": ocp_uuids[0], "children": [azure_uuids[0]]},
+            {"parent": aws_uuids[1], "children": [azure_uuids[1]]},
+            {"parent": azure_uuids[1], "children": [azure_uuids[3]]},
+        ]
+        url = reverse("tags-mapping-child-add")
+        for data in body_metadata:
+            response = self.client.put(url, data, format="json", **self.headers)
+        # Test multiple source_type filters
+        test_matrix = [
+            f"?filter[source_type]={Provider.PROVIDER_AWS}&filter[source_type]={Provider.PROVIDER_AZURE}",
+            f"?filter[source_type]={Provider.PROVIDER_AWS}&filter[source_type]={Provider.PROVIDER_OCP}",
+        ]
+        for multi_filter in test_matrix:
+            for endpoint in ["tags-mapping-parent", "tags-mapping-child", "tags-mapping"]:
+                with self.subTest(multi_filter=multi_filter, endpoint=endpoint):
+                    url = reverse(endpoint) + multi_filter
+                    response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    self.assertNotEqual(len(response.data["data"]), 0)
+
+    def test_multi_key_filter(self):
+        """Test multiple source type filters."""
+        enabled_keys = EnabledTagKeys.objects.filter(enabled=True)
+        test_matrix = [
+            f"?filter[key]={enabled_keys[0].key}&filter[key]={enabled_keys[4].key}",
+            f"?filter[key]={enabled_keys[1].key}&filter[key]={enabled_keys[3].key}",
+        ]
+        for multi_filter in test_matrix:
+            for endpoint in ["tags-mapping-parent", "tags-mapping-child"]:
+                with self.subTest(multi_filter=multi_filter, endpoint=endpoint):
+                    url = reverse(endpoint) + multi_filter
+                    response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    self.assertNotEqual(len(response.data["data"]), 0)
+
+    def test_multi_key_parent_and_child_filter(self):
+        """Test that you can filter by parent & child keys."""
+        endpoint = "tags-mapping"
+        enabled_keys = EnabledTagKeys.objects.filter(enabled=True)
+        test_populate = [
+            {"parent": enabled_keys[0].uuid, "children": [enabled_keys[1].uuid, enabled_keys[2].uuid]},
+            {"parent": enabled_keys[3].uuid, "children": [enabled_keys[4].uuid, enabled_keys[5].uuid]},
+        ]
+        url = reverse("tags-mapping-child-add")
+        for populate in test_populate:
+            self.client.put(url, populate, format="json", **self.headers)
+        # test parent filter
+        test_matrix = [
+            ("parent", enabled_keys[0].key, enabled_keys[3].key),
+            ("child", enabled_keys[1].key, enabled_keys[5].key),
+        ]
+        for test in test_matrix:
+            filter_key, key_one, key_two = test
+            filter = f"?filter[{filter_key}]={key_one}&filter[{filter_key}]={key_two}"
+            url = reverse(endpoint) + filter
+            with self.subTest(url=url):
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertNotEqual(len(response.data["data"]), 0)
