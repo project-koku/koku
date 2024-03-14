@@ -199,6 +199,8 @@ class ProviderManager:
                     "last_polling_time": self.get_last_polling_time(
                         self.model.infrastructure.infrastructure_provider_id
                     ),
+                    "paused": source.paused,
+                    "source_status": source.status,
                     "cloud_provider_state": self.get_manifest_state(manifest),
                 }
         return {}
