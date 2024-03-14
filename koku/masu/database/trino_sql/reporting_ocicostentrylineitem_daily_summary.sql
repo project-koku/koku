@@ -41,17 +41,17 @@ SELECT uuid() as uuid,
         WHEN 'BYTES' THEN usage_amount / (
                 cast(day(last_day_of_month(date(usage_start))) as integer)
             ) *
-            power(2, -30)
+            power(10, -9)
         WHEN 'BYTE_MS' THEN usage_amount / 1000.0 / (
             86400.0 *
             cast(extract(day from last_day_of_month(date(usage_start))) as integer)
             ) *
-            power(2, -30)
+            power(10, -9)
         WHEN 'GB_MS' THEN usage_amount / 1000.0 / (
             86400.0 *
             cast(extract(day from last_day_of_month(date(usage_start))) as integer)
             )
-        WHEN 'TB_MS' THEN (usage_amount * 1024) / 1000.0 / (
+        WHEN 'TB_MS' THEN (usage_amount * 1000) / 1000.0 / (
             86400.0 *
             CAST(EXTRACT(day FROM last_day_of_month(date(usage_start))) AS INTEGER)
             )
