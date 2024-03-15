@@ -1467,10 +1467,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.util.common.CostUsageReportManifest")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_summary_tables_provider_not_found_error(
         self,
         mock_select_for_update,
+        mock_manifest,
         mock_inspect,
         mock_lock,
         mock_release,
@@ -1493,16 +1495,21 @@ class TestWorkerCacheThrottling(MasuTestCase):
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
+    @patch("masu.util.common.CostUsageReportManifest")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_openshift_on_cloud_provider_not_found_error(
         self,
+        mock_select_for_update,
         mock_inspect,
         *args,
     ):
         """Test that the update_summary_table provider not found exception is caught."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
         expected = "halting processing"
