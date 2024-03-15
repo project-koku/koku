@@ -3,18 +3,34 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query handler for Tag Mappings."""
+import dataclasses
+import uuid
+from typing import Union
 
 
-def format_tag_mapping_relationship(relationships):
-    formatted_relationships = {}
-    for relationship in relationships:
-        parent_uuid = relationship["parent"]["uuid"]
-        if parent_uuid not in formatted_relationships:
-            formatted_relationships[parent_uuid] = {
-                "parent": relationship["parent"],
-                "children": [relationship["child"]] + relationship["children"],
-            }
-        else:
-            formatted_relationships[parent_uuid]["children"].extend([relationship["child"]] + relationship["children"])
+@dataclasses.dataclass(frozen=True)
+class TagKey:
+    uuid: str
+    key: uuid.UUID
+    source_type: str
 
-    return list(formatted_relationships.values())
+
+@dataclasses.dataclass(frozen=True)
+class Relationship:
+    parent: TagKey
+    children: list[TagKey] = dataclasses.field(default_factory=list)
+
+    @classmethod
+    def create_list_of_relationships(
+        cls, data: list[dict[str : dict[str, Union[uuid.UUID, str]]]]
+    ) -> list["Relationship"]:
+        result = {}
+        for item in data:
+            parent = TagKey(**item["parent"])
+            child = TagKey(**item["child"])
+            if parent in result:
+                result[parent].children.append(child)
+            else:
+                result[parent] = Relationship(parent, [child])
+
+        return list(result.values())
