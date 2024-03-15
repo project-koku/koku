@@ -2,16 +2,14 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import json
 from unittest.mock import patch
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.test import APIClient
 
-from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
+from api.settings.tags.mapping.query_handler import Relationship
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
 from masu.test import MasuTestCase
@@ -187,65 +185,84 @@ class TestSettingsTagMappingView(MasuTestCase):
     def test_format_tag_mapping_relationship(self):
         """Test the get method format for the tag mapping view"""
 
-        sample_data = """{
-            "meta": {
-                "count": 3,
-                "limit": 3,
-                "offset": 0
-            },
-            "links": {
-                "first": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0",
-                "next": null,
-                "previous": null,
-                "last": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0"
-            },
-            "data": [
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "787d0e27-bf01-4f1e-91da-4148d9acae82",
-                        "key": "environment",
-                        "source_type": "Azure"
-                    }
+        sample_data = [
+            # Parent with three children
+            {
+                "child": {
+                    "key": "environment",
+                    "source_type": "Azure",
+                    "uuid": "787d0e27-bf01-4f1e-91da-4148d9acae82",
                 },
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
-                        "key": "CreatedOn",
-                        "source_type": "OCI"
-                    }
+                "parent": {
+                    "key": "storageclass",
+                    "source_type": "Azure",
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
                 },
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
-                        "key": "free-tier-retained",
-                        "source_type": "OCI"
-                    }
-                }
-            ]
-        }"""
+            },
+            {
+                "child": {
+                    "key": "CreatedOn",
+                    "source_type": "OCI",
+                    "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
+                },
+                "parent": {
+                    "key": "storageclass",
+                    "source_type": "Azure",
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                },
+            },
+            {
+                "child": {
+                    "key": "free-tier-retained",
+                    "source_type": "OCI",
+                    "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
+                },
+                "parent": {
+                    "key": "storageclass",
+                    "source_type": "Azure",
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                },
+            },
+            # Parent with two children
+            {
+                "child": {
+                    "uuid": "135ed068-18cb-44fe-8d1c-1e7f389bcbe8",
+                    "key": "openshift_project",
+                    "source_type": "AWS",
+                },
+                "parent": {
+                    "key": "stack",
+                    "source_type": "AWS",
+                    "uuid": "1ab796d3-37ac-4ae5-b218-688ea3b5a5f4",
+                },
+            },
+            {
+                "child": {
+                    "uuid": "e789bbc7-e2b7-45f6-b611-e90dd2e0749e",
+                    "key": "com_REDHAT_rhel",
+                    "source_type": "AWS",
+                },
+                "parent": {
+                    "key": "stack",
+                    "source_type": "AWS",
+                    "uuid": "1ab796d3-37ac-4ae5-b218-688ea3b5a5f4",
+                },
+            },
+        ]
 
-        json_data = json.loads(sample_data)
-        response = Response(json_data)
-        result = format_tag_mapping_relationship(response)
-        # Check if the key is 'children' and not 'child'
-        for item in result.data["data"]:
-            self.assertIn("children", item["parent"])
-            self.assertNotIn("child", item["parent"])
+        relationships = Relationship.create_list_of_relationships(sample_data)
+
+        self.assertTrue(
+            all(getattr(relationship, "children", None) for relationship in relationships), "Missing children"
+        )
+        self.assertFalse(
+            any(getattr(relationship, "child", None) for relationship in relationships), "Child key should not exist"
+        )
+        self.assertEqual(
+            [len(relationship.children) for relationship in relationships],
+            [3, 2],
+            "Number of expected children is incorrect",
+        )
 
     @patch("api.settings.tags.mapping.utils.get_cached_tag_rate_map")
     def test_cached_tag_rate_mapping(self, mock_get):
