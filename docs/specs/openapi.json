@@ -10281,19 +10281,19 @@
                                                 ],
                                                 "usage": {
                                                     "value": 4.62038,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "request": {
                                                     "value": 6.158921,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "limit": {
                                                     "value": 405.835939,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "capacity": {
                                                     "value": 17893.948761,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "infrastructure": {
                                                     "raw": {
@@ -10381,15 +10381,15 @@
                                             ],
                                             "usage": {
                                                 "value": 283.455815,
-                                                "units": "GB-Mo"
+                                                "units": "GiB-Mo"
                                             },
                                             "request": {
                                                 "value": 14058.333334,
-                                                "units": "GB-Mo"
+                                                "units": "GiB-Mo"
                                             },
                                             "capacity": {
                                                 "value": 13732.252982,
-                                                "units": "GB-Mo"
+                                                "units": "GiB-Mo"
                                             },
                                             "infrastructure": {
                                                 "raw": {
