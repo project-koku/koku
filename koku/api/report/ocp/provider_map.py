@@ -379,6 +379,7 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
                         "count_units_key": "Core",
+                        "capacity_count_key": "node_capacity_cpu_cores",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "memory": {
@@ -477,6 +478,7 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Hours",
                         "count_units_key": "GB",
+                        "capacity_count_key": "node_capacity_memory_gigabytes",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
                     "volume": {
@@ -540,7 +542,7 @@ class OCPProviderMap(ProviderMap):
                                         Value(0, output_field=DecimalField()),
                                     )
                                 ),
-                                "capacity_count": Sum(
+                                "capacity_count": Max(
                                     Coalesce(
                                         F("persistentvolumeclaim_capacity_gigabyte"),
                                         Value(0, output_field=DecimalField()),
@@ -616,6 +618,7 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Mo",
                         "count_units_key": "GB",
+                        "capacity_count_key": "persistentvolumeclaim_capacity_gigabyte",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
