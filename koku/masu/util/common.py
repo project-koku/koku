@@ -480,7 +480,7 @@ def chunk_columns(col_list, chunk_count):
 def set_summary_timestamp(state, start_date, manifest_id=None, provider_uuid=None):
     """Function for setting last summary for given provider"""
     start_date = parser.parse(str(start_date))
-    # We need to update previous manifests for customer ifltered flows
+    # We need to update previous manifests for customer filtered flows
     billing_period = DateHelper().month_start_utc(start_date)
     if provider_uuid:
         try:
