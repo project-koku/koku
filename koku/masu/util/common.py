@@ -493,4 +493,5 @@ def set_summary_timestamp(state, start_date, manifest_id=None, provider_uuid=Non
         except CostUsageReportManifest.DoesNotExist:
             pass
     if manifest_id:
+        LOG.info(f"setting summary {state} for manifest: {manifest_id}, provider: {provider_uuid}")
         ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, state, manifest_id)
