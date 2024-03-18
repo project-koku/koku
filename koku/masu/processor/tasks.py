@@ -480,8 +480,6 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
-    # Mark summary start time
-    set_summary_timestamp(ManifestState.START, start_date, manifest_id, provider_uuid)
     context = {
         "schema": schema,
         "provider_type": provider_type,
@@ -542,6 +540,8 @@ def update_summary_tables(  # noqa: C901
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
+    # Mark summary start time
+    set_summary_timestamp(ManifestState.START, start_date, manifest_id, provider_uuid)
     LOG.info(
         log_json(
             tracing_id,
