@@ -261,8 +261,8 @@ FROM (
         max(cat_ns.cost_category_id) as cost_category_id,
         li.source as source_uuid,
         map_concat(
-            cast(coalesce(nli.node_labels, CAST('{}' AS JSON)) as map(varchar, varchar)),
-            cast(coalesce(nsli.namespace_labels, CAST('{}' AS JSON)) as map(varchar, varchar)),
+            cast(coalesce(nli.node_labels, cast(map(array[], array[]) as json)) as map(varchar, varchar)),
+            cast(coalesce(nsli.namespace_labels, cast(map(array[], array[]) as json)) as map(varchar, varchar)),
             map_filter(
                 cast(json_parse(li.pod_labels) AS MAP(VARCHAR, VARCHAR)),
                 (k, v) -> CONTAINS(pek.keys, k)
@@ -385,8 +385,8 @@ FROM (
         sli.storageclass,
         date(sli.interval_start) as usage_start,
         map_concat(
-            cast(coalesce(nli.node_labels, CAST('{}' AS JSON)) as map(varchar, varchar)),
-            cast(coalesce(nsli.namespace_labels, CAST('{}' AS JSON)) as map(varchar, varchar)),
+            cast(coalesce(nli.node_labels, cast(map(array[], array[]) as json)) as map(varchar, varchar)),
+            cast(coalesce(nsli.namespace_labels, cast(map(array[], array[]) as json)) as map(varchar, varchar)),
             map_filter(
                 cast(json_parse(sli.persistentvolume_labels) AS MAP(VARCHAR, VARCHAR)),
                 (k, v) -> CONTAINS(pek.keys, k)
