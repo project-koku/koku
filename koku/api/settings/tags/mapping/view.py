@@ -2,6 +2,8 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import dataclasses
+
 from django.db.models import Case
 from django.db.models import UUIDField
 from django.db.models import Value
@@ -18,7 +20,7 @@ from rest_framework.views import APIView
 
 from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
+from api.settings.tags.mapping.query_handler import Relationship
 from api.settings.tags.mapping.serializers import AddChildSerializer
 from api.settings.tags.mapping.serializers import TagMappingSerializer
 from api.settings.tags.mapping.serializers import ViewOptionsSerializer
@@ -70,9 +72,11 @@ class SettingsTagMappingView(generics.GenericAPIView):
     def get(self, request: Request, **kwargs):
         filtered_qset = self.filter_queryset(self.get_queryset())
         serializer = self.serializer_class(filtered_qset, many=True)
-        paginator = ListPaginator(serializer.data, request)
+        relationships = Relationship.create_list_of_relationships(serializer.data)
+        formatted_response = Response([dataclasses.asdict(item) for item in relationships])
+        paginator = ListPaginator(formatted_response.data, request)
         response = paginator.paginated_response
-        response = format_tag_mapping_relationship(response)
+
         return response
 
 

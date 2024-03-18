@@ -77,7 +77,8 @@ class ReportManifestDBAccessor:
                     time_now = timezone.now()
                     if not manifest.state:
                         manifest.state = {}
-                    if not manifest.state.get(step):
+                    if interval == ManifestState.START:
+                        # We need to clear END times to prevent false positives when reprocessing
                         manifest.state[step] = {}
                     manifest.state[step][interval] = time_now.isoformat()
                     if interval == ManifestState.END or interval == ManifestState.FAILED:

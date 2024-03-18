@@ -23,7 +23,7 @@ class ViewOptionsSerializer(serializers.ModelSerializer):
         fields = ["uuid", "key", "source_type", "cost_model_id"]
 
 
-class TagMappingSerializer(serializers.Serializer):
+class TagMappingSerializer(serializers.ModelSerializer):
     class Meta:
         model = TagMapping
         fields = ["parent", "child"]
