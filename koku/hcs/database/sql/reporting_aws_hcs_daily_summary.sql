@@ -30,12 +30,12 @@ SELECT
       (
         try_cast(product_vcpu AS INT) <= 127
         AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
-      ) THEN 0.0108 * lineitem_usageamount
+      ) THEN 0.0108 * lineitem_usageamount * CAST(product_vcpu AS INT)
     WHEN
       (
         try_cast(product_vcpu AS INT) > 127
         AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
-      ) THEN 0.0096 * lineitem_usageamount
+      ) THEN 0.0096 * lineitem_usageamount * CAST(product_vcpu AS INT)
     ELSE lineitem_unblendedcost
   END AS lineitem_unblendedcost,
   lineitem_blendedrate,
