@@ -1,4 +1,6 @@
--- update ocp tags leaving only enabled keys
+-- This file allows us to mimic our trino logic to
+-- remove disabled keys in postgresql for unit testing.
+
 with cte_enabled_keys as (
     select coalesce(array_agg(key), '{}'::text[])::text[] as keys
       from {{schema | sqlsafe}}.reporting_enabledtagkeys

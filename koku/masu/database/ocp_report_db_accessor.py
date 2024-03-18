@@ -97,26 +97,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
-    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
-        """Populate the enabled tag key table.
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
-        Returns
-            (None)
-        """
-        table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_summary_update_enabled_tags.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_ids": report_period_ids,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.
         Args:
@@ -1164,3 +1144,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
+
+    def populate_unit_test_tag_data(self, report_period_ids, start_date, end_date):
+        """
+        This method allows us to maintain our tag logic.
+        """
+        # Remove disabled keys from the tags field.
+        self.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
+        self.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
+        table_name = self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_remove_disabled_tags.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_ids": report_period_ids,
+            "schema": self.schema,
+        }
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
