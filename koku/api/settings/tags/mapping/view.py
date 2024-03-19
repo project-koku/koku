@@ -2,7 +2,6 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import ast
 import dataclasses
 
 import django_filters
@@ -35,6 +34,15 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
 
+def parse_list(string_to_parse):
+    """Parse a list to a string."""
+    if "[" not in string_to_parse:
+        return [string_to_parse]
+    split_values = string_to_parse.strip("[]").split(",")
+    parse_list = [value.strip().strip("'\"") for value in split_values]
+    return parse_list
+
+
 class CostModelAnnotationMixin:
     def get_annotated_queryset(self):
         when_conditions = []
@@ -55,10 +63,7 @@ class SettingsTagMappingFilter(SettingsFilter):
         default_ordering = ["parent"]
 
     def filter_by_source_type(self, queryset, name, value):
-        try:
-            value = ast.literal_eval(value)
-        except ValueError:
-            value = [value]
+        value = parse_list(value)
         return queryset.filter(Q(parent__provider_type__in=value) | Q(child__provider_type__in=value))
 
 
