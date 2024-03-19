@@ -40,27 +40,25 @@ class ProviderInfrastructureSerializer(serializers.Serializer):
 class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Authentication model."""
 
-    uuid = serializers.UUIDField(read_only=True)
     credentials = serializers.JSONField(allow_null=False, required=True)
 
     class Meta:
         """Metadata for the serializer."""
 
         model = ProviderAuthentication
-        fields = ("uuid", "credentials")
+        fields = ("id", "credentials")
 
 
 class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Authentication model."""
 
-    uuid = serializers.UUIDField(read_only=True)
     data_source = serializers.JSONField(allow_null=False, required=True)
 
     class Meta:
         """Metadata for the serializer."""
 
         model = ProviderBillingSource
-        fields = ("uuid", "data_source")
+        fields = ("id", "data_source")
 
 
 class ProviderSerializer(serializers.Serializer):
