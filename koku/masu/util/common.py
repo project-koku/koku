@@ -480,14 +480,18 @@ def chunk_columns(col_list, chunk_count):
 def set_summary_timestamp(state, start_date, manifest_id=None, provider_uuid=None):
     """Function for setting last summary for given provider"""
     start_date = parser.parse(str(start_date))
-    if DateHelper().this_month_start != DateHelper().month_start_utc(start_date):
-        return
+    # We need to update previous manifests for customer filtered flows
+    billing_period = DateHelper().month_start_utc(start_date)
     if provider_uuid:
-        manifest = CostUsageReportManifest.objects.filter(
-            provider=provider_uuid,
-            billing_period_start_datetime=DateHelper().this_month_start,
-            creation_datetime__isnull=False,
-        ).latest("creation_datetime")
-        manifest_id = manifest.id
+        try:
+            manifest = CostUsageReportManifest.objects.filter(
+                provider=provider_uuid,
+                billing_period_start_datetime=billing_period,
+                creation_datetime__isnull=False,
+            ).latest("creation_datetime")
+            manifest_id = manifest.id
+        except CostUsageReportManifest.DoesNotExist:
+            pass
     if manifest_id:
+        LOG.info(f"setting summary {state} for manifest: {manifest_id}, provider: {provider_uuid}")
         ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, state, manifest_id)
