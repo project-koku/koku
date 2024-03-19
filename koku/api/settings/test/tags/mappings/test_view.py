@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 
 from api.settings.tags.mapping.query_handler import Relationship
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
+from api.settings.tags.mapping.view import parse_list
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
@@ -338,3 +339,8 @@ class TestSettingsTagMappingView(MasuTestCase):
         url = url + "?order_by[parent]=FAKE"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_parse_list(self):
+        """Test that we can parse a list."""
+        self.assertEqual(["A", "B"], parse_list("['A', 'B']"))
+        self.assertEqual(["A"], parse_list("A"))
