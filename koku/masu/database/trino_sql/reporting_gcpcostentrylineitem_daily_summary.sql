@@ -68,6 +68,8 @@ SELECT uuid() as uuid,
     invoice_month,
     sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount
 FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
+CROSS JOIN
+    cte_pg_enabled_keys as pek
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
