@@ -8,6 +8,7 @@ from rest_framework import serializers
 from api.iam.models import Customer
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import ProviderInfrastructureMap
 from api.provider.models import Sources
 from sources.api.view import SourcesException
@@ -49,6 +50,19 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
         fields = ("uuid", "credentials")
 
 
+class ProviderBillingSourceSerializer(serializers.ModelSerializer):
+    """Serializer for the Provider Authentication model."""
+
+    uuid = serializers.UUIDField(read_only=True)
+    data_source = serializers.JSONField(allow_null=False, required=True)
+
+    class Meta:
+        """Metadata for the serializer."""
+
+        model = ProviderBillingSource
+        fields = ("uuid", "data_source")
+
+
 class ProviderSerializer(serializers.Serializer):
     """Serializer for Provider."""
 
@@ -63,6 +77,7 @@ class ProviderSerializer(serializers.Serializer):
     paused = serializers.BooleanField()
     customer = CustomerSerializer()
     authentication = ProviderAuthenticationSerializer(required=False)
+    billing_source = ProviderBillingSourceSerializer(required=False)
     infrastructure = ProviderInfrastructureSerializer(required=False)
 
 
