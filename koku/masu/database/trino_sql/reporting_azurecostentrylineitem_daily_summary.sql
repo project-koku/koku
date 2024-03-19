@@ -75,7 +75,7 @@ SELECT uuid() as uuid,
     max(li.currency) as currency,
     cast(
         map_filter(
-            cast(json_parse(li.tags) as map(varchar, varchar)),
+            cast(li.tags as map(varchar, varchar)),
             (k,v) -> contains(pek.keys, k)
         ) as json
      ) as tags,
@@ -85,6 +85,8 @@ SELECT uuid() as uuid,
     sum(cast(li.pretax_cost * {{markup | sqlsafe}} AS decimal(24,9))) as markup_cost,
     li.subscription_name -- account name
 FROM cte_line_items AS li
+CROSS JOIN
+    cte_pg_enabled_keys as pek
 GROUP BY li.usage_date,
     li.cost_entry_bill_id,
     13, -- matches column num for tags map_filter
