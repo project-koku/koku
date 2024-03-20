@@ -438,6 +438,7 @@ GROUP BY
             "manifest_id": manifest_id,
             "assembly_id": assembly_id,
             "compression": UNCOMPRESSED,
+            "invoice_month": manifest["invoice_month"],
             "files": [
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
             ],
