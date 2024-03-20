@@ -180,9 +180,11 @@ class TestSettingsTagMappingView(MasuTestCase):
             result = filter.filter_by_source_type(TagMapping.objects.all(), "parent__provider_type", test_filter)
             self.assertNotEqual(len(result), 0)
 
-            test_filter = "random"
-            result = filter.filter_by_source_type(TagMapping.objects.all(), "child__provider_type", test_filter)
-            self.assertEqual(len(result), 0)
+            filter = "?filter[source_type]=random"
+            url = reverse("tags-mapping") + filter
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data["data"]), 0)
 
     def test_format_tag_mapping_relationship(self):
         """Test the get method format for the tag mapping view"""

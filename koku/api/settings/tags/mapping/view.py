@@ -10,7 +10,6 @@ from django.db.models import Value
 from django.db.models import When
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from django_filters import CharFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -27,6 +26,7 @@ from api.settings.tags.mapping.serializers import ViewOptionsSerializer
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.tags.mapping.utils import TagMappingFilters
+from api.settings.utils import NonValidatedMultipleChoiceFilter
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
@@ -41,9 +41,9 @@ class CostModelAnnotationMixin:
 
 
 class SettingsTagMappingFilter(TagMappingFilters):
-    source_type = CharFilter(field_name="parent__provider_type", method="filter_by_source_type")
-    parent = CharFilter(field_name="parent__key", method="filter_by_key")
-    child = CharFilter(field_name="child__key", method="filter_by_key")
+    source_type = NonValidatedMultipleChoiceFilter(field_name="parent__provider_type", method="filter_by_source_type")
+    parent = NonValidatedMultipleChoiceFilter(field_name="parent__key", method="filter_by_key")
+    child = NonValidatedMultipleChoiceFilter(field_name="child__key", method="filter_by_key")
 
     class Meta:
         model = TagMapping
@@ -52,8 +52,8 @@ class SettingsTagMappingFilter(TagMappingFilters):
 
 
 class SettingsEnabledTagKeysFilter(TagMappingFilters):
-    key = CharFilter(method="filter_by_key")
-    source_type = CharFilter(field_name="provider_type", method="filter_by_source_type")
+    key = NonValidatedMultipleChoiceFilter(method="filter_by_key")
+    source_type = NonValidatedMultipleChoiceFilter(field_name="provider_type", method="filter_by_source_type")
 
     class Meta:
         model = EnabledTagKeys
