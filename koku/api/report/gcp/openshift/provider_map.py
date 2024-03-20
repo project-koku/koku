@@ -245,7 +245,7 @@ class OCPGCPProviderMap(ProviderMap):
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
-                                Value("Hrs", output_field=CharField()),
+                                Value("hour", output_field=CharField()),
                             ),
                         },
                         "aggregate_key": "usage_amount",
@@ -305,7 +305,7 @@ class OCPGCPProviderMap(ProviderMap):
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
-                                Value("Hrs", output_field=CharField()),
+                                Value("hour", output_field=CharField()),
                             ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
@@ -317,7 +317,7 @@ class OCPGCPProviderMap(ProviderMap):
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
                         "usage_units_key": "unit",
-                        "usage_units_fallback": "Hrs",
+                        "usage_units_fallback": "hour",
                     },
                     "storage": {
                         "aggregates": {
@@ -371,7 +371,7 @@ class OCPGCPProviderMap(ProviderMap):
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
-                                Value("GB-Mo", output_field=CharField()),
+                                Value("gibibyte month", output_field=CharField()),
                             ),
                         },
                         "aggregate_key": "usage_amount",
@@ -431,13 +431,13 @@ class OCPGCPProviderMap(ProviderMap):
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
-                                Value("GB-Mo", output_field=CharField()),
+                                Value("gibibyte month", output_field=CharField()),
                             ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
-                            {"field": "unit", "operation": "exact", "parameter": "GB-Mo"},
+                            {"field": "unit", "operation": "exact", "parameter": "gibibyte month"},
                             {
                                 "field": "service_alias",
                                 "operation": "in",

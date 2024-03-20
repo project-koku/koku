@@ -22,18 +22,8 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_storage_summary_
         cluster_alias,
         usage_start,
         usage_end,
-        CASE
-            WHEN max(unit) IN ('gibibyte month', 'gibibyte', 'gibibyte hour')
-            THEN cast(sum(usage_amount) * 1.073741824 AS decimal(24,9)) -- Convert to gigabyte
-            ELSE cast(sum(usage_amount) AS decimal(24,9))
-        END as usage_amount,
-        CASE max(unit)
-            WHEN 'hour' THEN 'Hrs'
-            WHEN 'gibibyte' THEN 'GB'
-            WHEN 'gibibyte month' THEN 'GB-Mo'
-            WHEN 'gibibyte hour' THEN 'GB-Hours'
-            ELSE max(unit)
-        END as unit,
+        sum(usage_amount) as usage_amount,
+        max(unit) as unit,
         account_id,
         service_id,
         service_alias,
