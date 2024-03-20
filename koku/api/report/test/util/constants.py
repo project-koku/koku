@@ -116,11 +116,7 @@ GCP_SKU_ALIASES = (
     "ManagedZone",
     "ManagedZone",
 )
-# COST-4121
-# In an effort to have consistent units across our providers we
-# transform these units during our trino to postgres insertion.
-# GCP_UNITS = ("hour", "gibibyte month", "gibibyte month", "seconds", "seconds")
-GCP_UNITS = ("Hrs", "GB-Mo", "GB-Mo", "seconds", "seconds")
+GCP_UNITS = ("hour", "gibibyte month", "gibibyte month", "seconds", "seconds")
 GCP_CONSTANTS = SameLengthDict(
     {
         "service_ids": GCP_SERVICE_IDS,
