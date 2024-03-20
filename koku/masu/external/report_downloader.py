@@ -155,6 +155,7 @@ class ReportDownloader:
 
         """
         date_time = report_context.get("date")
+        invoice_month = report_context.get("invoice_month")
         msg = f"Attempting to get {self.provider_type} manifest for {str(date_time)}."
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
 
@@ -185,7 +186,7 @@ class ReportDownloader:
 
         try:
             file_name, etag, _, split_files, date_range = self._downloader.download_file(
-                report, report_status.etag, manifest_id=manifest_id, start_date=date_time
+                report, report_status.etag, manifest_id=manifest_id, start_date=date_time, invoice_month=invoice_month
             )
             report_status.etag = etag
             report_status.save(update_fields=["etag"])

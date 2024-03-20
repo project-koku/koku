@@ -276,21 +276,28 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         time data was exported to that partition.
 
         returns:
-            dict: {parition_date: export_time}
+            dict: {parition_date: (export_time, invoice_month) }
             example:
-                {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
+                {"2022-05-19": ("2022-05-19 19:40:16.385000 UTC", "202205")}
         """
         mapping = {}
         try:
             client = bigquery.Client()
             export_partition_date_query = f"""
-                SELECT DATE(_PARTITIONTIME), DATETIME(max(export_time))  FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-                AND '{self.scan_end}' GROUP BY DATE(_PARTITIONTIME)
+SELECT
+    DATE(_PARTITIONTIME),
+    DATETIME(max(export_time)),
+    invoice.month
+FROM {self.table_name}
+WHERE
+    DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}' AND '{self.scan_end}'
+GROUP BY
+    DATE(_PARTITIONTIME),
+    invoice.month
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
-                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
+                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC), row[2]
         except GoogleCloudError as err:
             msg = "could not query table for partition date information"
             extra_context = {"schema": self.customer_name, "response": err.message}
@@ -303,18 +310,19 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         Generate a dict representing an analog to other providers' "manifest" files.
         """
         new_manifests = []
-        for bigquery_pd, bigquery_et in bigquery_mappings.items():
-            manifest_export_time = current_manifests.get(bigquery_pd)
-            if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
+        for partition_date, tup in bigquery_mappings.items():
+            export_time, invoice_month = tup
+            manifest_export_time = current_manifests.get(partition_date)
+            if (manifest_export_time and manifest_export_time != export_time) or not manifest_export_time:
                 # if the manifest export time does not match bigquery we have new data
                 # for that partition time and new manifest should be created.
-                bill_date = bigquery_pd.replace(day=1)
-                invoice_month = bill_date.strftime("%Y%m")
-                file_name = f"{invoice_month}_{bigquery_pd}"
+                bill_date = partition_date.replace(day=1)
+                file_name = f"{invoice_month}_{partition_date}"
                 manifest_metadata = {
-                    "assembly_id": f"{bigquery_pd}|{bigquery_et}",
+                    "assembly_id": f"{partition_date}|{export_time}",
                     "bill_date": bill_date,
                     "files": [file_name],
+                    "invoice_month": invoice_month,
                 }
                 new_manifests.append(manifest_metadata)
         if not new_manifests:
@@ -468,7 +476,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         columns_list.append("DATE(_PARTITIONTIME) as partition_date")
         return ",".join(columns_list)
 
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None, **kwargs):
         """
         Download a file from GCP storage bucket.
 
@@ -507,7 +515,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 query = f"""
                     SELECT {self.build_query_select_statement()}
                     FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
+                    WHERE DATE(_PARTITIONTIME) = '{partition_date}' AND invoice.month = {kwargs["invoice_month"]}
                     """
                 client = bigquery.Client()
                 query_job = client.query(query).result()

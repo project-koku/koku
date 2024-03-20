@@ -415,7 +415,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Get full path for local report file."""
         return utils.get_local_file_name(report)
 
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None, **kwargs):
         """
         Download a file from Azure bucket.
 

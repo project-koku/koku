@@ -215,7 +215,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         return report
 
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None, **kwargs):
         """
         Download a file from GCP storage bucket.
 

@@ -91,7 +91,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         return manifest, manifest_modified_timestamp
 
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None, **kwargs):
         """
         Download a file from Azure bucket.
 
