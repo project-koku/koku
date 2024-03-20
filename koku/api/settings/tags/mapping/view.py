@@ -34,12 +34,13 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
 
-def parse_list(string_to_parse):
+def parse_list(string_to_parse: str) -> list[str]:
     """Parse a list to a string."""
-    if "[" not in string_to_parse:
+    if not isinstance(string_to_parse, str):
+        raise TypeError(f"Expected str but got {type(string_to_parse)}")
         return [string_to_parse]
     split_values = string_to_parse.strip("[]").split(",")
-    parse_list = [value.strip().strip("'\"") for value in split_values]
+    parse_list = [value.strip().strip("'\" ") for value in split_values]
     return parse_list
 
 
