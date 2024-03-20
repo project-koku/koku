@@ -1,0 +1,12 @@
+[
+    {
+        "table": "reporting_ocpazurecostlineitem_project_daily_summary",
+        "column": "somerandomcolname",
+        "datatype": "varchar"
+    },
+    {
+        "table": "azure_openshift_daily_resource_matched_temp",
+        "column": "somerandomcolname",
+        "datatype": "varchar"
+    }
+]
