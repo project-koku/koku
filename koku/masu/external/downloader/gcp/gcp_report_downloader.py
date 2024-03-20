@@ -101,12 +101,7 @@ def create_daily_archives(
                 days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
 
                 # getting the lowest and highest date from the invoice.month's
-                if min_day is None or min(days) < min_day:
-                    min_day = min(days)
-
-                if max_day is None or max(days) > max_day:
-                    max_day = max(days)
-
+                min_day, max_day = get_min_max_days(days, min_day, max_day)
                 partition_dates = invoice_month_data.partition_date.unique()
                 for partition_date in partition_dates:
                     partition_date_filter = invoice_month_data["partition_date"] == partition_date
@@ -147,6 +142,16 @@ def create_daily_archives(
         LOG.info(log_json(tracing_id, msg=msg, context=context))
         raise CreateDailyArchivesError(msg)
     return daily_file_names, date_range
+
+
+def get_min_max_days(days, min_day, max_day):
+    if min_day is None or min(days) < min_day:
+        min_day = min(days)
+
+    if max_day is None or max(days) > max_day:
+        max_day = max(days)
+
+    return min_day, max_day
 
 
 class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
