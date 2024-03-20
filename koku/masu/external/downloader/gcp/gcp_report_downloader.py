@@ -516,7 +516,7 @@ GROUP BY
                 query = f"""
                     SELECT {self.build_query_select_statement()}
                     FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) = '{partition_date}' AND invoice.month = {kwargs["invoice_month"]}
+                    WHERE DATE(_PARTITIONTIME) = '{partition_date}' AND invoice.month = '{kwargs["invoice_month"]}'
                     """
                 client = bigquery.Client()
                 query_job = client.query(query).result()
