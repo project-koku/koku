@@ -6,7 +6,7 @@ class CustomerTotalData(models.Model):
         db_table = "__customer_total_data"
         ordering = ["date"]
 
-    date = models.DateField()
+    date = models.DateField(unique=True)
     total_aws_unblended_cost = models.DecimalField(decimal_places=2, max_digits=33, null=True)
     total_aws_calculated_amortized_cost = models.DecimalField(decimal_places=2, max_digits=33, null=True)
     total_azure_pretax_cost = models.DecimalField(decimal_places=2, max_digits=33, null=True)
