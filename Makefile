@@ -92,6 +92,7 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
+	@echo "  populate-currency-exchange-rates      populate the exchange rates table."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
