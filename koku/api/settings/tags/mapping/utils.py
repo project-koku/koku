@@ -31,7 +31,7 @@ from reporting.provider.ocp.models import OCPUsageReportPeriod
 class TagMappingFilters(SettingsFilter):
     """This filter handles multiple filter options."""
 
-    def _combine_query_filters(self, q_list: List[Q]) -> Q:
+    def _combine_query_filters(self, q_list: list[Q]) -> Q:
         """
         Combines a list of Q objects using the OR operator.
         """
