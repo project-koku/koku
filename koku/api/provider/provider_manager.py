@@ -137,6 +137,7 @@ class ProviderManager:
         """Get statuses for given manifest."""
         if not manifest:
             return None
+        manifest = manifest.latest("creation_datetime")
         states = {
             ManifestStep.DOWNLOAD: {"state": ManifestState.PENDING},
             ManifestStep.PROCESSING: {"state": ManifestState.PENDING},
@@ -189,7 +190,7 @@ class ProviderManager:
                     provider=self.model.infrastructure.infrastructure_provider_id,
                     billing_period_start_datetime=self.date_helper.this_month_start,
                     creation_datetime__isnull=False,
-                ).latest("creation_datetime")
+                )
                 return {
                     "type": self.model.infrastructure.infrastructure_type,
                     "uuid": self.model.infrastructure.infrastructure_provider_id,
