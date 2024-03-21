@@ -5,7 +5,6 @@
 """Query handler for Tag Mappings."""
 from collections import defaultdict
 from functools import reduce
-from typing import List
 
 from django.db.models import F
 from django.db.models import Func
@@ -37,7 +36,7 @@ class TagMappingFilters(SettingsFilter):
         """
         return reduce(lambda x, y: x | y, q_list)
 
-    def filter_by_source_type(self, queryset: QuerySet, name: str, value_list: List[str]) -> QuerySet:
+    def filter_by_source_type(self, queryset: QuerySet, name: str, value_list: list[str]) -> QuerySet:
         """
         Handles multiple filter logic for source_type filter.
         """
@@ -50,7 +49,7 @@ class TagMappingFilters(SettingsFilter):
                 q_list.append(Q(**{f"{name}__icontains": value}))
         return queryset.filter(self._combine_query_filters(q_list))
 
-    def filter_by_key(self, queryset: QuerySet, name: str, value_list: List[str]) -> QuerySet:
+    def filter_by_key(self, queryset: QuerySet, name: str, value_list: list[str]) -> QuerySet:
         """
         Hanldes multiple filter logic for key filter.
         """
