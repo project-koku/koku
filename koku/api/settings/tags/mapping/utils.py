@@ -4,11 +4,15 @@
 #
 """Query handler for Tag Mappings."""
 from collections import defaultdict
+from functools import reduce
 
 from django.db.models import F
 from django.db.models import Func
+from django.db.models import Q
+from django.db.models import QuerySet
 
 from api.models import Provider
+from api.settings.utils import SettingsFilter
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from koku.cache import get_cached_tag_rate_map
@@ -21,6 +25,36 @@ from reporting.models import OCITagsSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+
+class TagMappingFilters(SettingsFilter):
+    """This filter handles multiple filter options."""
+
+    def _combine_query_filters(self, q_list: list[Q]) -> Q:
+        """
+        Combines a list of Q objects using the OR operator.
+        """
+        return reduce(lambda x, y: x | y, q_list)
+
+    def filter_by_source_type(self, queryset: QuerySet, name: str, value_list: list[str]) -> QuerySet:
+        """
+        Handles multiple filter logic for source_type filter.
+        """
+        q_list = []
+        for value in value_list:
+            if name == "parent__provider_type":
+                q_list.append(Q(parent__provider_type__icontains=value))
+                q_list.append(Q(child__provider_type__icontains=value))
+            else:
+                q_list.append(Q(**{f"{name}__icontains": value}))
+        return queryset.filter(self._combine_query_filters(q_list))
+
+    def filter_by_key(self, queryset: QuerySet, name: str, value_list: list[str]) -> QuerySet:
+        """
+        Hanldes multiple filter logic for key filter.
+        """
+        q_list = [Q(**{f"{name}__icontains": key}) for key in value_list]
+        return queryset.filter(self._combine_query_filters(q_list))
 
 
 def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
