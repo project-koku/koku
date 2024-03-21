@@ -98,5 +98,4 @@ class AddChildSerializer(serializers.Serializer):
         if errors:
             formatted_errors = [f"{log_msg} {log_list}" for log_msg, log_list in errors.items()]
             raise serializers.ValidationError(formatted_errors)
-
         return data
