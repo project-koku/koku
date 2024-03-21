@@ -11,10 +11,10 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 SCRIPTDIR = $(TOPDIR)/dev/scripts
-KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
-KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
-MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
-MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5042}")
+KOKU_SERVER = $(shell echo "$${KOKU_API_HOST:-localhost}")
+KOKU_SERVER_PORT = $(shell echo "$${KOKU_API_PORT:-8000}")
+MASU_SERVER = $(shell echo "$${MASU_SERVICE_HOST:-localhost}")
+MASU_SERVER_PORT = $(shell echo "$${MASU_SERVICE_PORT:-5042}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
 scale = 1
 
@@ -203,6 +203,9 @@ load-aws-org-unit-tree:
 	else \
 		echo "This make target requires python3." ; \
 	fi
+
+populate-currency-exchange-rates:
+	curl -s 'http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/update_exchange_rates/'
 
 run-api-test:
 	$(PYTHON) $(SCRIPTDIR)/report_api_test.py || echo "WARNING: run-api-test failed unexpectedly!"
