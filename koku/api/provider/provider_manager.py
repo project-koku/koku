@@ -182,27 +182,27 @@ class ProviderManager:
 
     def get_infrastructure_info(self):
         """Get the type/uuid of the infrastructure that the provider is running on."""
-        if self.model:
-            if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
-                source = Sources.objects.get(koku_uuid=self.model.infrastructure.infrastructure_provider_id)
-                manifest = CostUsageReportManifest.objects.filter(
-                    provider=self.model.infrastructure.infrastructure_provider_id,
-                    billing_period_start_datetime=self.date_helper.this_month_start,
-                    creation_datetime__isnull=False,
-                ).latest("creation_datetime")
-                return {
-                    "type": self.model.infrastructure.infrastructure_type,
-                    "uuid": self.model.infrastructure.infrastructure_provider_id,
-                    "id": source.source_id,
-                    "account": self.model.infrastructure.infrastructure_account,
-                    "region": self.model.infrastructure.infrastructure_region,
-                    "last_polling_time": self.get_last_polling_time(
-                        self.model.infrastructure.infrastructure_provider_id
-                    ),
-                    "paused": source.paused,
-                    "source_status": source.status,
-                    "cloud_provider_state": self.get_manifest_state(manifest),
-                }
+        # if self.model:
+        #     if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
+        #         source = Sources.objects.get(koku_uuid=self.model.infrastructure.infrastructure_provider_id)
+        #         manifest = CostUsageReportManifest.objects.filter(
+        #             provider=self.model.infrastructure.infrastructure_provider_id,
+        #             billing_period_start_datetime=self.date_helper.this_month_start,
+        #             creation_datetime__isnull=False,
+        #         ).latest("creation_datetime")
+        #         return {
+        #             "type": self.model.infrastructure.infrastructure_type,
+        #             "uuid": self.model.infrastructure.infrastructure_provider_id,
+        #             "id": source.source_id,
+        #             "account": self.model.infrastructure.infrastructure_account,
+        #             "region": self.model.infrastructure.infrastructure_region,
+        #             "last_polling_time": self.get_last_polling_time(
+        #                 self.model.infrastructure.infrastructure_provider_id
+        #             ),
+        #             "paused": source.paused,
+        #             "source_status": source.status,
+        #             "cloud_provider_state": self.get_manifest_state(manifest),
+        #         }
         return {}
 
     def get_additional_context(self):
