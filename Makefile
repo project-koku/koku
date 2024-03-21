@@ -206,7 +206,7 @@ load-aws-org-unit-tree:
 	fi
 
 populate-currency-exchange-rates:
-	curl -s 'http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/update_exchange_rates/'
+	curl -s http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/update_exchange_rates/
 
 run-api-test:
 	$(PYTHON) $(SCRIPTDIR)/report_api_test.py || echo "WARNING: run-api-test failed unexpectedly!"
