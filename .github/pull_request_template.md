@@ -18,7 +18,5 @@ This change will ...
 - [ ] proposed release note
 
 ```markdown
-* [COST-####](https://issues.redhat.com/browse/COST-####) Fix some things.
+* [COST-####](https://issues.redhat.com/browse/COST-####) Fix some things
 ```
-
-...
