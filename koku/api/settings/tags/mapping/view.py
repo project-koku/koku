@@ -21,6 +21,7 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.tags.mapping.query_handler import Relationship
 from api.settings.tags.mapping.serializers import AddChildSerializer
+from api.settings.tags.mapping.serializers import ParentSerializer
 from api.settings.tags.mapping.serializers import TagMappingSerializer
 from api.settings.tags.mapping.serializers import ViewOptionsSerializer
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
@@ -51,16 +52,6 @@ class SettingsTagMappingFilter(TagMappingFilters):
         default_ordering = ["parent"]
 
 
-class SettingsEnabledTagKeysFilter(TagMappingFilters):
-    key = NonValidatedMultipleChoiceFilter(method="filter_by_key")
-    source_type = NonValidatedMultipleChoiceFilter(field_name="provider_type", method="filter_by_source_type")
-
-    class Meta:
-        model = EnabledTagKeys
-        fields = ("key", "source_type")
-        default_ordering = ["key", "-enabled"]
-
-
 class SettingsTagMappingView(generics.GenericAPIView):
     queryset = TagMapping.objects.all()
     serializer_class = TagMappingSerializer
@@ -80,6 +71,16 @@ class SettingsTagMappingView(generics.GenericAPIView):
         return response
 
 
+class ChildViewFilter(TagMappingFilters):
+    key = NonValidatedMultipleChoiceFilter(method="filter_by_key")
+    source_type = NonValidatedMultipleChoiceFilter(field_name="provider_type", method="filter_by_source_type")
+
+    class Meta:
+        model = EnabledTagKeys
+        fields = ("key", "source_type")
+        default_ordering = ["key", "-enabled"]
+
+
 class SettingsTagMappingChildView(CostModelAnnotationMixin, generics.GenericAPIView):
     queryset = (
         EnabledTagKeys.objects.exclude(parent__isnull=False).exclude(child__parent__isnull=False).filter(enabled=True)
@@ -87,7 +88,7 @@ class SettingsTagMappingChildView(CostModelAnnotationMixin, generics.GenericAPIV
     serializer_class = ViewOptionsSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = SettingsEnabledTagKeysFilter
+    filterset_class = ChildViewFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
@@ -99,12 +100,21 @@ class SettingsTagMappingChildView(CostModelAnnotationMixin, generics.GenericAPIV
         return response
 
 
+class ParentViewFilter(TagMappingFilters):
+    key = NonValidatedMultipleChoiceFilter(method="filter_by_key")
+
+    class Meta:
+        model = EnabledTagKeys
+        fields = ("key",)
+        default_ordering = ["key", "child__parent", "provider_type"]
+
+
 class SettingsTagMappingParentView(CostModelAnnotationMixin, generics.GenericAPIView):
-    queryset = EnabledTagKeys.objects.exclude(child__parent__isnull=False).filter(enabled=True)
-    serializer_class = ViewOptionsSerializer
+    queryset = EnabledTagKeys.objects.exclude(child__parent__isnull=False).filter(enabled=True).distinct("key")
+    serializer_class = ParentSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = SettingsEnabledTagKeysFilter
+    filterset_class = ParentViewFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
