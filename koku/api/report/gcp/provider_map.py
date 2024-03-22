@@ -291,7 +291,7 @@ class GCPProviderMap(ProviderMap):
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("Hrs")),
+                            "usage_units": Coalesce(Max("unit"), Value("hour")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
@@ -299,13 +299,13 @@ class GCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
                             {"field": "instance_type", "operation": "isnull", "parameter": False},
-                            {"field": "unit", "operation": "exact", "parameter": "Hrs"},
+                            {"field": "unit", "operation": "exact", "parameter": "hour"},
                         ],
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
-                        "usage_units_fallback": "Hrs",
+                        "usage_units_fallback": "hour",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                         # COST-3043
@@ -425,15 +425,14 @@ class GCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_amount"),
-                            # COST-4392: gibibyite month to gigabyte month conversion
-                            "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
+                            "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
-                        "filter": [{"field": "unit", "operation": "exact", "parameter": "GB-Mo"}],
+                        "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "conditionals": {
                             GCPCostEntryLineItemDailySummary: {
                                 "filter": [
@@ -448,7 +447,7 @@ class GCPProviderMap(ProviderMap):
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
-                        "usage_units_fallback": "GB-Mo",
+                        "usage_units_fallback": "gibibyte month",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },

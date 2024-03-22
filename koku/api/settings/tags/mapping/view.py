@@ -2,18 +2,14 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import ast
 import dataclasses
 
-import django_filters
 from django.db.models import Case
-from django.db.models import Q
 from django.db.models import UUIDField
 from django.db.models import Value
 from django.db.models import When
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from django_filters import CharFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework import status
@@ -25,12 +21,13 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.tags.mapping.query_handler import Relationship
 from api.settings.tags.mapping.serializers import AddChildSerializer
+from api.settings.tags.mapping.serializers import ParentSerializer
 from api.settings.tags.mapping.serializers import TagMappingSerializer
 from api.settings.tags.mapping.serializers import ViewOptionsSerializer
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
+from api.settings.tags.mapping.utils import TagMappingFilters
 from api.settings.utils import NonValidatedMultipleChoiceFilter
-from api.settings.utils import SettingsFilter
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
@@ -44,35 +41,15 @@ class CostModelAnnotationMixin:
         return self.get_queryset().annotate(cost_model_id=Case(*when_conditions, output_field=UUIDField()))
 
 
-class SettingsTagMappingFilter(SettingsFilter):
-    source_type = django_filters.CharFilter(field_name="parent__provider_type", method="filter_by_source_type")
-    parent = django_filters.CharFilter(field_name="parent__key", lookup_expr="icontains")
-    child = django_filters.CharFilter(field_name="child__key", lookup_expr="icontains")
+class SettingsTagMappingFilter(TagMappingFilters):
+    source_type = NonValidatedMultipleChoiceFilter(field_name="parent__provider_type", method="filter_by_source_type")
+    parent = NonValidatedMultipleChoiceFilter(field_name="parent__key", method="filter_by_key")
+    child = NonValidatedMultipleChoiceFilter(field_name="child__key", method="filter_by_key")
 
     class Meta:
         model = TagMapping
         fields = ("parent", "child", "source_type")
         default_ordering = ["parent"]
-
-    def filter_by_source_type(self, queryset, name, value):
-        try:
-            value = ast.literal_eval(value)
-        except ValueError:
-            value = [value]
-        return queryset.filter(Q(parent__provider_type__in=value) | Q(child__provider_type__in=value))
-
-
-class SettingsEnabledTagKeysFilter(SettingsFilter):
-    key = NonValidatedMultipleChoiceFilter(lookup_expr="icontains")
-    source_type = CharFilter(method="filter_by_source_type")
-
-    class Meta:
-        model = EnabledTagKeys
-        fields = ("key", "source_type")
-        default_ordering = ["key", "-enabled"]
-
-    def filter_by_source_type(self, queryset, name, value):
-        return queryset.filter(provider_type__iexact=value)
 
 
 class SettingsTagMappingView(generics.GenericAPIView):
@@ -94,6 +71,16 @@ class SettingsTagMappingView(generics.GenericAPIView):
         return response
 
 
+class ChildViewFilter(TagMappingFilters):
+    key = NonValidatedMultipleChoiceFilter(method="filter_by_key")
+    source_type = NonValidatedMultipleChoiceFilter(field_name="provider_type", method="filter_by_source_type")
+
+    class Meta:
+        model = EnabledTagKeys
+        fields = ("key", "source_type")
+        default_ordering = ["key", "-enabled"]
+
+
 class SettingsTagMappingChildView(CostModelAnnotationMixin, generics.GenericAPIView):
     queryset = (
         EnabledTagKeys.objects.exclude(parent__isnull=False).exclude(child__parent__isnull=False).filter(enabled=True)
@@ -101,7 +88,7 @@ class SettingsTagMappingChildView(CostModelAnnotationMixin, generics.GenericAPIV
     serializer_class = ViewOptionsSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = SettingsEnabledTagKeysFilter
+    filterset_class = ChildViewFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
@@ -113,12 +100,21 @@ class SettingsTagMappingChildView(CostModelAnnotationMixin, generics.GenericAPIV
         return response
 
 
+class ParentViewFilter(TagMappingFilters):
+    key = NonValidatedMultipleChoiceFilter(method="filter_by_key")
+
+    class Meta:
+        model = EnabledTagKeys
+        fields = ("key",)
+        default_ordering = ["key", "child__parent", "provider_type"]
+
+
 class SettingsTagMappingParentView(CostModelAnnotationMixin, generics.GenericAPIView):
-    queryset = EnabledTagKeys.objects.exclude(child__parent__isnull=False).filter(enabled=True)
-    serializer_class = ViewOptionsSerializer
+    queryset = EnabledTagKeys.objects.exclude(child__parent__isnull=False).filter(enabled=True).distinct("key")
+    serializer_class = ParentSerializer
     permission_classes = (SettingsAccessPermission,)
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = SettingsEnabledTagKeysFilter
+    filterset_class = ParentViewFilter
 
     @method_decorator(never_cache)
     def get(self, request: Request, **kwargs):
