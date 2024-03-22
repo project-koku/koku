@@ -170,7 +170,7 @@ class SUBSDataMessenger:
         self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, tenant_id
     ):
         """Adds Azure specific fields to the base subs dict."""
-        subs_dict = subs_dict = self.build_base_subs_dict(
+        subs_dict = self.build_base_subs_dict(
             instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
         )
         subs_dict["azure_subscription_id"] = billing_account_id
