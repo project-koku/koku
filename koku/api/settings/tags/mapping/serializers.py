@@ -12,6 +12,14 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 
 
+class ParentSerializer(serializers.ModelSerializer):
+    cost_model_id = serializers.UUIDField()
+
+    class Meta:
+        model = EnabledTagKeys
+        fields = ["uuid", "key", "cost_model_id"]
+
+
 class ViewOptionsSerializer(serializers.ModelSerializer):
     """Intended to be used in conjuntion with the CostModelAnnotationMixin."""
 
@@ -47,8 +55,22 @@ class AddChildSerializer(serializers.Serializer):
     parent = serializers.UUIDField()
     children = serializers.ListField(child=serializers.UUIDField())
 
+    def _unify_parent_key(self, data):
+        """Unifies duplicate parents keys under a single uuid."""
+        enabled_row = EnabledTagKeys.objects.filter(uuid=data["parent"]).first()
+        if not enabled_row:
+            return data
+        tag_map = TagMapping.objects.filter(parent__key=enabled_row.key).first()
+        if not tag_map:
+            return data
+        if tag_map.parent_id == data["parent"]:
+            return data
+        data["parent"] = tag_map.parent_id
+        return data
+
     def validate(self, data):
         """This function validates the options and returns the enabled tag rows."""
+        data = self._unify_parent_key(data)
         children_list = data["children"]
         combined_list = [data["parent"]] + children_list
         enabled_rows = EnabledTagKeys.objects.filter(uuid__in=combined_list, enabled=True)
