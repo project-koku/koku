@@ -100,7 +100,7 @@ class SUBSDataMessenger:
                         msg_count += self.process_azure_row(row)
                     else:
                         # row["subs_product_ids"] is a string of numbers separated by '-' to be sent as a list
-                        subs_dict = self.build_subs_dict(
+                        subs_dict = self.build_aws_subs_dict(
                             row["subs_resource_id"],
                             row["subs_account"],
                             row["subs_start_time"],
@@ -130,9 +130,7 @@ class SUBSDataMessenger:
         producer.produce(SUBS_TOPIC, value=msg, callback=delivery_callback)
         producer.poll(0)
 
-    def build_subs_dict(
-        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
-    ):
+    def build_base_subs_dict(self, instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids):
         """Gathers the relevant information for the kafka message and returns a filled dictionary of information."""
         subs_dict = {
             "event_id": str(uuid.uuid4()),
@@ -151,40 +149,32 @@ class SUBSDataMessenger:
             "sla": sla,
             "usage": usage,
             "billing_provider": self.provider_type.lower(),
-            "billing_account_id": billing_account_id,
+            "conversion": True,
         }
         # SAP is identified only through product ids and does not have an associated Role
         if role != "SAP":
             subs_dict["role"] = role
         return subs_dict
 
+    def build_aws_subs_dict(
+        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+    ):
+        """Adds AWS specific fields to the base subs dict."""
+        subs_dict = self.build_base_subs_dict(
+            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+        )
+        subs_dict["billing_account_id"] = billing_account_id
+        return subs_dict
+
     def build_azure_subs_dict(
         self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, tenant_id
     ):
-        """Adds azure_tenant_id to the base subs dict."""
-        subs_dict = {
-            "event_id": str(uuid.uuid4()),
-            "event_source": "cost-management",
-            "event_type": "snapshot",
-            "account_number": self.account_id,
-            "org_id": self.org_id,
-            "service_type": "RHEL System",
-            "instance_id": instance_id,
-            "timestamp": tstamp,
-            "expiration": expiration,
-            "measurements": [{"value": cpu_count, "uom": "vCPUs"}],
-            "cloud_provider": self.provider_type,
-            "hardware_type": "Cloud",
-            "product_ids": product_ids,
-            "sla": sla,
-            "usage": usage,
-            "billing_provider": self.provider_type.lower(),
-            "azure_subscription_id": billing_account_id,
-            "azure_tenant_id": tenant_id,
-        }
-        # SAP is identified only through product ids and does not have an associated Role
-        if role != "SAP":
-            subs_dict["role"] = role
+        """Adds Azure specific fields to the base subs dict."""
+        subs_dict = subs_dict = self.build_base_subs_dict(
+            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+        )
+        subs_dict["azure_subscription_id"] = billing_account_id
+        subs_dict["azure_tenant_id"] = tenant_id
         return subs_dict
 
     def process_azure_row(self, row):
