@@ -82,15 +82,15 @@ class ProviderManager:
         except ObjectDoesNotExist:
             self.sources_model = None
             LOG.info(f"Provider {str(self._uuid)} has no Sources entry.")
-        try:
-            self.manifest = CostUsageReportManifest.objects.filter(
+        self.manifest = (
+            CostUsageReportManifest.objects.filter(
                 provider=self._uuid,
                 billing_period_start_datetime=self.date_helper.this_month_start,
                 creation_datetime__isnull=False,
-            ).latest("creation_datetime")
-        except CostUsageReportManifest.DoesNotExist:
-            self.manifest = None
-            LOG.info(f"Provider {str(self._uuid)} has no Manifest entry for the current month.")
+            )
+            .order_by("creation_datetime")
+            .first()
+        )
 
     @staticmethod
     def get_providers_queryset_for_customer(customer):
@@ -185,11 +185,15 @@ class ProviderManager:
         if self.model:
             if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
                 source = Sources.objects.get(koku_uuid=self.model.infrastructure.infrastructure_provider_id)
-                manifest = CostUsageReportManifest.objects.filter(
-                    provider=self.model.infrastructure.infrastructure_provider_id,
-                    billing_period_start_datetime=self.date_helper.this_month_start,
-                    creation_datetime__isnull=False,
-                ).latest("creation_datetime")
+                manifest = (
+                    CostUsageReportManifest.objects.filter(
+                        provider=self.model.infrastructure.infrastructure_provider_id,
+                        billing_period_start_datetime=self.date_helper.this_month_start,
+                        creation_datetime__isnull=False,
+                    )
+                    .order_by("creation_datetime")
+                    .first()
+                )
                 return {
                     "type": self.model.infrastructure.infrastructure_type,
                     "uuid": self.model.infrastructure.infrastructure_provider_id,
