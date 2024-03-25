@@ -446,6 +446,8 @@ class OCPGCPProviderMap(ProviderMap):
                         ],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "usage_units_key": "unit",
+                        "usage_units_fallback": "GB-Mo",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },
