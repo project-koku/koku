@@ -180,7 +180,7 @@ class IBMReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         return report
 
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None, **kwargs):
         """
         Download a report file given a provider-specific key.
 

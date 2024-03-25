@@ -370,7 +370,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         report_date_range = utils.month_date_range(date_time)
         return "{}/{}/{}".format(self.report.get("S3Prefix"), self.report_name, report_date_range)
 
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None, **kwargs):
         """
         Download an S3 object to file.
 

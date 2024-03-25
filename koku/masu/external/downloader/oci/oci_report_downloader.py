@@ -360,7 +360,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         local_file_name = report.replace("/", "_")
         return local_file_name
 
-    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
+    def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None, **kwargs):
         """
         Download a file from OCI storage bucket.
 
