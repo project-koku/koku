@@ -162,7 +162,7 @@ SELECT
     NULL as persistentvolumeclaim_capacity_gigabyte_months,
     NULL as volume_request_storage_gigabyte_months,
     NULL as persistentvolumeclaim_usage_gigabyte_months,
-    UUID '50a1e4ab-7240-4412-a6a4-f0f09ae78065' as source_uuid,
+    UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     'worker_distributed' as cost_model_rate_type,
     ctl.distributed_cost,
     ctl.cost_category_id
