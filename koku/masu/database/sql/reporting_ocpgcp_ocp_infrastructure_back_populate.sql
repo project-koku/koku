@@ -14,6 +14,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     resource_id,
     pod_labels,
     volume_labels,
+    all_labels,
     cost_category_id,
     source_uuid,
     infrastructure_raw_cost,
@@ -59,6 +60,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
             THEN ocp_gcp.pod_labels
             ELSE '{}'::jsonb
         END as volume_labels,
+        ocp_gcp.pod_labels as all_labels,
         max(ocp_gcp.cost_category_id) as cost_category_id,
         rp.provider_id as source_uuid,
         sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost + ocp_gcp.credit_amount) AS infrastructure_raw_cost,
