@@ -543,28 +543,34 @@ class CommonUtilTests(MasuTestCase):
 
     def test_set_summary_timestamp(self):
         """Test setting summary times for manifests."""
-        self.assertIsNone(common_utils.set_summary_timestamp("test", "2023-01-01"))
-
-        this_month_str = str(DateHelper().this_month_start.date())
-        self.assertIsNone(common_utils.set_summary_timestamp("test", this_month_str))
-
         provider_uuid = self.aws_provider_uuid
         manifest = CostUsageReportManifest.objects.filter(
             provider=provider_uuid,
             billing_period_start_datetime=DateHelper().this_month_start,
             creation_datetime__isnull=False,
         ).latest("creation_datetime")
-        common_utils.set_summary_timestamp(ManifestState.START, this_month_str, manifest_id=manifest.id)
+        common_utils.set_summary_timestamp(ManifestState.START, manifest_id=manifest.id)
         manifest = CostUsageReportManifest.objects.filter(id=manifest.id).first()
         self.assertIn("start", manifest.state.get("summary"))
 
-        common_utils.set_summary_timestamp(ManifestState.START, this_month_str, provider_uuid=provider_uuid)
-        manifest = CostUsageReportManifest.objects.filter(
-            provider=provider_uuid,
-            billing_period_start_datetime=DateHelper().this_month_start,
-            creation_datetime__isnull=False,
-        ).latest("creation_datetime")
-        self.assertIn("start", manifest.state.get("summary"))
+
+def test_get_latest_openshift_on_cloud_manifest(self):
+    """test fetching latest manifest for ocp on cloud provider"""
+    provider_uuid = self.aws_provider_uuid
+    self.assertIsNone(common_utils.get_latest_openshift_on_cloud_manifest("test", "2023-01-01"))
+
+    this_month_str = str(DateHelper().this_month_start.date())
+    self.assertIsNone(common_utils.get_latest_openshift_on_cloud_manifest("test", this_month_str))
+
+    manifest_expected_id = common_utils.get_latest_openshift_on_cloud_manifest(
+        this_month_str, provider_uuid=provider_uuid
+    )
+    manifest = CostUsageReportManifest.objects.filter(
+        provider=provider_uuid,
+        billing_period_start_datetime=DateHelper().this_month_start,
+        creation_datetime__isnull=False,
+    ).latest("creation_datetime")
+    self.assertEqual(manifest.manifest_id, manifest_expected_id)
 
 
 class NamedTemporaryGZipTests(TestCase):
