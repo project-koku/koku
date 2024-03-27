@@ -5,6 +5,7 @@
 """Query handler for Tag Mappings."""
 import dataclasses
 import uuid
+from collections import OrderedDict
 from typing import Union
 
 
@@ -24,7 +25,8 @@ class Relationship:
     def create_list_of_relationships(
         cls, data: list[dict[str : dict[str, Union[uuid.UUID, str]]]]
     ) -> list["Relationship"]:
-        result = {}
+        result = OrderedDict()
+
         for item in data:
             parent = TagKey(**item["parent"])
             child = TagKey(**item["child"])
