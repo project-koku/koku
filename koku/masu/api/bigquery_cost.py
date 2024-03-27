@@ -48,13 +48,19 @@ class BigQueryHelper:
                 SELECT DATE(usage_start_time) as usage_date,
                     sum(cost) as cost,
                     FROM {self.table_name}
-                    WHERE invoice.month = '{invoice_month}'
-                    AND DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
+                    WHERE invoice.month = @invoice_month
+                    AND DATE(_PARTITIONTIME) BETWEEN @start_date AND @end_date
                     GROUP BY usage_date ORDER BY usage_date;
                 """
-
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("invoice_month", "STRING", invoice_month),
+                bigquery.ScalarQueryParameter("start_date", "DATE", self.start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", self.end_date),
+            ]
+        )
         LOG.info(daily_query)
-        rows = self.client.query(daily_query).result()
+        rows = self.client.query(daily_query, job_config=job_config).result()
         daily_dict = {}
         for row in rows:
             daily_dict[str(row["usage_date"])] = {"cost": row.get("cost")}
