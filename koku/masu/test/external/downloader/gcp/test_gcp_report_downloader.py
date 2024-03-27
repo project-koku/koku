@@ -20,6 +20,7 @@ from masu.external.downloader.gcp.gcp_report_downloader import create_daily_arch
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
+from masu.external.downloader.gcp.gcp_report_downloader import get_min_max_days
 from masu.test import MasuTestCase
 from masu.util.common import CreateDailyArchivesError
 from masu.util.common import date_range_pair
@@ -462,3 +463,17 @@ class GCPReportDownloaderTest(MasuTestCase):
                 self.assertTrue(os.path.exists(daily_file))
                 os.remove(daily_file)
             os.remove(temp_path)
+
+    def test_get_min_max_dates(self):
+        """Test if we are getting the lowest and highest days."""
+        min_day = None
+        max_day = None
+        min_day, max_day = get_min_max_days(["2022-08-01"], min_day, max_day)
+        min_day, max_day = get_min_max_days(["2022-09-01"], min_day, max_day)
+        min_day, max_day = get_min_max_days(["2022-10-01"], min_day, max_day)
+        min_day, max_day = get_min_max_days(["2022-11-01"], min_day, max_day)
+
+        self.assertEqual(min_day, "2022-08-01")
+        self.assertEqual(max_day, "2022-11-01")
+        self.assertIsNotNone(min_day)
+        self.assertIsNotNone(max_day)
