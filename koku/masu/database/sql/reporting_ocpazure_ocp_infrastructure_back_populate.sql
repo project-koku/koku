@@ -14,6 +14,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     resource_id,
     pod_labels,
     volume_labels,
+    all_labels,
     source_uuid,
     infrastructure_raw_cost,
     infrastructure_project_raw_cost,
@@ -59,6 +60,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
             THEN ocp_azure.pod_labels
             ELSE '{}'::jsonb
         END as volume_labels,
+        ocp_azure.pod_labels as all_labels,
         rp.provider_id as source_uuid,
         sum(ocp_azure.pretax_cost + ocp_azure.markup_cost) AS infrastructure_raw_cost,
         sum(ocp_azure.pod_cost + ocp_azure.project_markup_cost) AS infrastructure_project_raw_cost,
