@@ -487,6 +487,10 @@ class ParquetReportProcessor:
                     )
                 )
                 raise ParquetReportProcessorError(msg)
+        if self.create_table and not self.trino_table_exists.get(self.report_type):
+            self.create_parquet_table(parquet_base_filename)
+        if self.provider_type not in (Provider.PROVIDER_AZURE):
+            self.create_parquet_table(parquet_base_filename, daily=True)
         return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
@@ -566,8 +570,6 @@ class ParquetReportProcessor:
                     )
                 )
                 self.post_processor.finalize_post_processing()
-            if self.create_table and not self.trino_table_exists.get(self.report_type):
-                self.create_parquet_table(parquet_filepath)
 
         except Exception as err:
             LOG.warning(
@@ -586,15 +588,12 @@ class ParquetReportProcessor:
 
     def create_daily_parquet(self, parquet_base_filename, data_frames):
         """Create a parquet file for daily aggregated data."""
-        file_path = None
         for i, data_frame in enumerate(data_frames):
             file_name_suffix = f"_{DAILY_FILE_TYPE}_{i}{PARQUET_EXT}"
             file_path = f"{self.local_path}/{parquet_base_filename}{file_name_suffix}"
             self._write_parquet_to_file(
                 file_path, parquet_base_filename, file_name_suffix, data_frame, file_type=DAILY_FILE_TYPE
             )
-        if file_path:
-            self.create_parquet_table(file_path, daily=True)
 
     def _determin_s3_path(self, file_type):
         """Determine the s3 path to use to write a parquet file to."""

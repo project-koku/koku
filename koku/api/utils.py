@@ -455,55 +455,29 @@ def materialized_view_month_start(dh=DateHelper()):
 
 
 def get_months_in_date_range(
-    report: dict[str, str] = None, start: str = None, end: str = None, invoice_month: str = None
+    report: dict[str, str] = None, start: str = None, end: str = None
 ) -> list[tuple[str, str]]:
     """returns the month periods in a given date range from report"""
 
     dh = DateHelper()
     date_format = "%Y-%m-%d"
-    invoice_date_format = "%Y%m"
 
     # Converting inputs to datetime objects
     dt_start = parser.parse(start).astimezone(tz=settings.UTC) if start else None
     dt_end = parser.parse(end).astimezone(tz=settings.UTC) if end else None
-    # invoice_date_format not supported by dateutil parser
-    dt_invoice_month = (
-        datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=settings.UTC)
-        if invoice_month
-        else None
-    )
 
     if report:
         manifest_start = report.get("start")
         manifest_end = report.get("end")
-        manifest_invoice_month = report.get("invoice_month")
 
         if manifest_start and manifest_end:
             LOG.info(f"using start: {manifest_start} and end: {manifest_end} dates from manifest")
             dt_start = parser.parse(manifest_start).astimezone(tz=settings.UTC)
             dt_end = parser.parse(manifest_end).astimezone(tz=settings.UTC)
-            if manifest_invoice_month:
-                LOG.info(f"using invoice_month: {manifest_invoice_month}")
-                dt_invoice_month = datetime.datetime.strptime(manifest_invoice_month, invoice_date_format).replace(
-                    tzinfo=settings.UTC
-                )
         else:
             LOG.info("generating start and end dates for manifest")
             dt_start = dh.today - datetime.timedelta(days=2) if dh.today.date().day > 2 else dh.today.replace(day=1)
             dt_end = dh.today
-
-    elif dt_invoice_month:
-        dt_start = dh.today if not dt_start else dt_start
-        dt_end = dh.today if not dt_end else dt_end
-
-        # For report_data masu API
-        return [
-            (
-                dt_start.strftime(date_format),
-                dt_end.strftime(date_format),
-                dt_invoice_month.strftime(invoice_date_format),
-            )
-        ]
 
     # Grabbing ingest delta for initial ingest/summary
     summary_month = (dh.today - relativedelta(months=Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
@@ -518,7 +492,6 @@ def get_months_in_date_range(
             (
                 dt_start.strftime(date_format),
                 dt_end.strftime(date_format),
-                dt_invoice_month.strftime(invoice_date_format) if dt_invoice_month else None,
             )
         ]
 
@@ -535,7 +508,6 @@ def get_months_in_date_range(
         (
             start.strftime(date_format),
             end.strftime(date_format),
-            invoice_month,  # Invoice month is really only for GCP
         )
         for start, end in months
     ]

@@ -90,13 +90,13 @@ def create_daily_archives(
             directory = os.path.dirname(local_file_path)
             data_frame = pd_read_csv(local_file_path)
             data_frame = add_label_columns(data_frame)
+            unique_usage_days = pd.to_datetime(data_frame["usage_start_time"]).dt.date.unique()
+            days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
+            date_range = {"start": min(days), "end": max(days)}
             # putting it in for loop handles crossover data, when we have distinct invoice_month
             for invoice_month in data_frame["invoice.month"].unique():
                 invoice_filter = data_frame["invoice.month"] == invoice_month
                 invoice_month_data = data_frame[invoice_filter]
-                unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
-                days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-                date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
                 partition_dates = invoice_month_data.partition_date.unique()
                 for partition_date in partition_dates:
                     partition_date_filter = invoice_month_data["partition_date"] == partition_date

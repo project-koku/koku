@@ -7,18 +7,14 @@ import datetime
 import logging
 import os
 
-import pandas as pd
-
 from api.common import log_json
-from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
+from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
-from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.common import get_path_prefix
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -28,52 +24,6 @@ class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
 
     pass
-
-
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context):
-    """
-    Create daily CSVs from incoming report and archive to S3.
-
-    Args:
-        tracing_id (str): The tracing id
-        account (str): The account number
-        provider_uuid (str): The uuid of a provider
-        filename (str): The OCP file name
-        filepath (str): The full path name of the file
-        manifest_id (int): The manifest identifier
-        start_date (Datetime): The start datetime of incoming report
-        context (Dict): Logging context dictionary
-    """
-    daily_file_names = []
-    date_range = {}
-    dh = DateHelper()
-    directory = os.path.dirname(filepath)
-    try:
-        data_frame = pd.read_csv(filepath)
-    except Exception as error:
-        LOG.error(f"File {filepath} could not be parsed. Reason: {str(error)}")
-        raise GCPReportDownloaderError(error)
-    # putting it in for loop handles crossover data, when we have distinct invoice_month
-    for invoice_month in data_frame["invoice.month"].unique():
-        invoice_filter = data_frame["invoice.month"] == invoice_month
-        invoice_month_data = data_frame[invoice_filter]
-        unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
-        days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-        date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
-        partition_dates = invoice_month_data.partition_date.unique()
-        for partition_date in partition_dates:
-            partition_date_filter = invoice_month_data["partition_date"] == partition_date
-            invoice_partition_data = invoice_month_data[partition_date_filter]
-            start_of_invoice = dh.invoice_month_start(invoice_month)
-            s3_csv_path = get_path_prefix(
-                account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
-            )
-            day_file = f"{invoice_month}_{partition_date}.csv"
-            day_filepath = f"{directory}/{day_file}"
-            invoice_partition_data.to_csv(day_filepath, index=False, header=True)
-            copy_local_report_file_to_s3_bucket(tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context)
-            daily_file_names.append(day_filepath)
-        return daily_file_names, date_range
 
 
 class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -241,8 +191,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.request_id,
             self.account,
             self._provider_uuid,
-            key,
-            full_local_path,
+            [full_local_path],
             manifest_id,
             start_date,
             self.context,

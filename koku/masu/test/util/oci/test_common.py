@@ -142,7 +142,6 @@ class TestOCIUtils(MasuTestCase):
                 "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202211",
                 "start": "2022-12-01",
                 "end": "2022-12-31",
-                "invoice_month": None,
             },
             {
                 "schema_name": "org1234567",
@@ -152,7 +151,6 @@ class TestOCIUtils(MasuTestCase):
                 "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202211",
                 "start": "2022-12-01",
                 "end": "2022-12-31",
-                "invoice_month": None,
             },
             {
                 "schema_name": "org1234567",
@@ -162,7 +160,6 @@ class TestOCIUtils(MasuTestCase):
                 "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202212",
                 "start": "2023-01-01",
                 "end": "2023-01-04",
-                "invoice_month": None,
             },
             {
                 "schema_name": "org1234567",
@@ -172,7 +169,6 @@ class TestOCIUtils(MasuTestCase):
                 "tracing_id": "ee89ec76-701a-4359-bf27-c97ea6742c83:202212",
                 "start": "2023-01-01",
                 "end": "2023-01-04",
-                "invoice_month": None,
             },
         ]
         manifest_list = utils.deduplicate_reports_for_oci(test_report_list)

@@ -58,13 +58,14 @@ from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
 from masu.util.common import get_path_prefix
 from masu.util.common import set_summary_timestamp
-from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
+
+# from masu.util.gcp.common import deduplicate_reports_for_gcp
 
 
 LOG = logging.getLogger(__name__)
@@ -273,7 +274,6 @@ def get_report_files(  # noqa: C901
             "tracing_id": tracing_id,
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
-            "invoice_month": report_dict.get("invoice_month"),
             "metadata_start_date": report_dict.get("metadata_start_date"),
             "metadata_end_date": report_dict.get("metadata_end_date"),
         }
@@ -369,8 +369,8 @@ def summarize_reports(  # noqa: C901
 
     reports_deduplicated = []
     dedup_func_map = {
-        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
+        # Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
+        # Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
         Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
         Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
     }
@@ -446,7 +446,6 @@ def summarize_reports(  # noqa: C901
                     queue_name=queue_name,
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
-                    invoice_month=month[2],
                 ).apply_async(queue=queue_name or fallback_queue)
 
 
@@ -464,7 +463,6 @@ def update_summary_tables(  # noqa: C901
     tracing_id=None,
     ocp_on_cloud=True,
     manifest_list=None,
-    invoice_month=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -532,7 +530,6 @@ def update_summary_tables(  # noqa: C901
                 end_date=end_date,
                 manifest_id=manifest_id,
                 ingress_report_uuid=ingress_report_uuid,
-                invoice_month=invoice_month,
                 queue_name=queue_name,
                 tracing_id=tracing_id,
                 ocp_on_cloud=ocp_on_cloud,
@@ -549,15 +546,12 @@ def update_summary_tables(  # noqa: C901
             context=context,
             start_date=start_date,
             end_date=end_date,
-            invoice_month=invoice_month,
         )
     )
 
     try:
         updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
-        start_date, end_date = updater.update_summary_tables(
-            start_date, end_date, tracing_id, invoice_month=invoice_month
-        )
+        start_date, end_date = updater.update_summary_tables(start_date, end_date, tracing_id)
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
@@ -1127,7 +1121,6 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         bill_date = ciso8601.parse_datetime(bill_date)
     year = bill_date.strftime("%Y")
     month = bill_date.strftime("%m")
-    invoice_month = bill_date.strftime("%Y%m")
 
     # We do not have fine grain control over specific days in a month for
     # OpenShift on Cloud parquet generation. This task will clear and reprocess
@@ -1144,7 +1137,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         provider_uuid,
         provider_type,
         0,
-        context={"tracing_id": tracing_id, "start_date": bill_date, "invoice_month": invoice_month},
+        context={"tracing_id": tracing_id, "start_date": bill_date},
     )
     remove_files_not_in_set_from_s3_bucket(
         tracing_id, processor.parquet_ocp_on_cloud_path_s3, 0, processor.error_context
@@ -1187,7 +1180,6 @@ def process_daily_openshift_on_cloud(
         bill_date = ciso8601.parse_datetime(bill_date)
     year = bill_date.strftime("%Y")
     month = bill_date.strftime("%m")
-    invoice_month = bill_date.strftime("%Y%m")
 
     base_where_clause = f"WHERE source='{provider_uuid}' AND year='{year}' AND month='{month}'"
 
@@ -1204,7 +1196,7 @@ def process_daily_openshift_on_cloud(
             provider_uuid,
             provider_type,
             0,
-            context={"tracing_id": tracing_id, "start_date": day.date(), "invoice_month": invoice_month},
+            context={"tracing_id": tracing_id, "start_date": day.date()},
         )
         daily_s3_path = get_path_prefix(
             processor.account,

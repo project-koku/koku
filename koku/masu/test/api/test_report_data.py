@@ -537,7 +537,6 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=False,
-            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -565,7 +564,6 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=False,
-            invoice_month=self.invoice,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -594,36 +592,4 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=False,
-            invoice_month=self.invoice,
-        )
-
-    @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_gcp_invoice_month(self, mock_update, _):
-        """Test the GET report_data endpoint."""
-        end_date = DateHelper().this_month_end.date().strftime("%Y-%m-%d")
-        params = {
-            "schema": self.schema_name,
-            "start_date": self.start_date,
-            "end_date": end_date,
-            "provider_uuid": self.gcp_provider_uuid,
-            "ocp_on_cloud": "false",
-            "invoice_month": "202209",
-        }
-        expected_key = "Report Data Task IDs"
-
-        response = self.client.get(reverse("report_data"), params)
-        body = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(expected_key, body)
-        mock_update.s.assert_called_with(
-            params["schema"],
-            self.gcp_provider_type,
-            params["provider_uuid"],
-            self.start_date,
-            end_date,
-            queue_name=PRIORITY_QUEUE,
-            ocp_on_cloud=False,
-            invoice_month="202209",
         )
