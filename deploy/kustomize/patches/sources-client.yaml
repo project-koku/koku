@@ -83,6 +83,8 @@
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
+        - name: PANDAS_COPY_ON_WRITE
+          value: ${PANDAS_COPY_ON_WRITE}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: KOKU_API_ENABLE_SENTRY

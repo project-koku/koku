@@ -67,6 +67,8 @@
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: PANDAS_COPY_ON_WRITE
+          value: ${PANDAS_COPY_ON_WRITE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_CELERY_ENABLE_SENTRY
