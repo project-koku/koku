@@ -58,13 +58,14 @@ from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
 from masu.util.common import get_path_prefix
 from masu.util.common import set_summary_timestamp
-from masu.util.gcp.common import deduplicate_reports_for_gcp
 from masu.util.oci.common import deduplicate_reports_for_oci
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
+
+# from masu.util.gcp.common import deduplicate_reports_for_gcp
 
 
 LOG = logging.getLogger(__name__)
@@ -369,8 +370,8 @@ def summarize_reports(  # noqa: C901
 
     reports_deduplicated = []
     dedup_func_map = {
-        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
+        # Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
+        # Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
         Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
         Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
     }
@@ -446,7 +447,7 @@ def summarize_reports(  # noqa: C901
                     queue_name=queue_name,
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
-                    invoice_month=month[2],
+                    invoice_month=None,
                 ).apply_async(queue=queue_name or fallback_queue)
 
 

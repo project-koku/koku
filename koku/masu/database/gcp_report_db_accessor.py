@@ -134,8 +134,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
-            "year": invoice_month_date.strftime("%Y"),
-            "month": invoice_month_date.strftime("%m"),
             "markup": markup_value or 0,
             "bill_id": bill_id,
         }
@@ -273,8 +271,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 location_region
             FROM hive.{self.schema}.gcp_line_items as gcp
             WHERE gcp.source = '{source_uuid}'
-                AND gcp.year = '{invoice_month_date.strftime("%Y")}'
-                AND gcp.month = '{invoice_month_date.strftime("%m")}'
                 AND gcp.usage_start_time >= TIMESTAMP '{start_date}'
                 AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{end_date}')
             GROUP BY source,

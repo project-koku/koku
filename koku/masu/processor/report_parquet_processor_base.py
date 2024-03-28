@@ -221,3 +221,6 @@ class ReportParquetProcessorBase:
         sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
         LOG.info(sql)
         self._execute_sql(sql, self._schema_name)
+        # sql = f"CALL system.sync_partition_metadata('{self._schema_name}', 'gcp_line_items', 'FULL')"
+        # LOG.info(sql)
+        # self._execute_sql(sql, self._schema_name)
