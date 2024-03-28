@@ -72,10 +72,17 @@ class BigQueryHelper:
         monthly_query = f"""
                 SELECT sum(cost) as cost,
                     FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
-                    AND invoice.month = '{invoice_month}'
+                    WHERE DATE(_PARTITIONTIME) BETWEEN @start_date AND @end_date
+                    AND invoice.month = @invoice_month
                 """
-        rows = self.client.query(monthly_query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("invoice_month", "STRING", invoice_month),
+                bigquery.ScalarQueryParameter("start_date", "DATE", self.start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", self.end_date),
+            ]
+        )
+        rows = self.client.query(monthly_query, job_config=job_config).result()
         for row in rows:
             results[key] = row[0]  # TODO: Remove once bigquery is updated.
             metadata = {
