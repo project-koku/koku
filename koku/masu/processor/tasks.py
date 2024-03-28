@@ -56,6 +56,7 @@ from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
 from masu.util.common import execute_trino_query
+from masu.util.common import get_latest_openshift_on_cloud_manifest
 from masu.util.common import get_path_prefix
 from masu.util.common import set_summary_timestamp
 from masu.util.oci.common import deduplicate_reports_for_oci
@@ -538,7 +539,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
     # Mark summary start time
-    set_summary_timestamp(ManifestState.START, start_date, manifest_id, provider_uuid)
+    set_summary_timestamp(ManifestState.START, manifest_id)
     LOG.info(
         log_json(
             tracing_id,
@@ -557,7 +558,7 @@ def update_summary_tables(  # noqa: C901
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
         # Mark summary failed time
-        set_summary_timestamp(ManifestState.FAILED, start_date, manifest_id, provider_uuid)
+        set_summary_timestamp(ManifestState.FAILED, manifest_id)
 
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
@@ -569,7 +570,7 @@ def update_summary_tables(  # noqa: C901
             exc_info=ex,
         )
         # Mark summary failed time
-        set_summary_timestamp(ManifestState.FAILED, start_date, manifest_id, provider_uuid)
+        set_summary_timestamp(ManifestState.FAILED, manifest_id)
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         return
@@ -577,7 +578,7 @@ def update_summary_tables(  # noqa: C901
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         # Mark summary failed time
-        set_summary_timestamp(ManifestState.FAILED, start_date, manifest_id, provider_uuid)
+        set_summary_timestamp(ManifestState.FAILED, manifest_id)
         raise ex
 
     if provider_type != Provider.PROVIDER_OCP:
@@ -594,7 +595,7 @@ def update_summary_tables(  # noqa: C901
             cost_model = cost_model_accessor.cost_model
 
     # Mark summary complete time
-    set_summary_timestamp(ManifestState.END, start_date, manifest_id, provider_uuid)
+    set_summary_timestamp(ManifestState.END, manifest_id)
 
     # Create queued tasks for each OpenShift on Cloud cluster
     delete_signature_list = []
@@ -714,8 +715,10 @@ def update_openshift_on_cloud(  # noqa: C901
     tracing_id=None,
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
+    # Get latest manifest id for running OCP provider
+    ocp_manifest_id = get_latest_openshift_on_cloud_manifest(start_date, openshift_provider_uuid)
     # Set OpenShift summary started time
-    set_summary_timestamp(ManifestState.START, start_date, manifest_id, openshift_provider_uuid)
+    set_summary_timestamp(ManifestState.START, ocp_manifest_id)
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
     if is_ocp_on_cloud_summary_disabled(schema_name):
         msg = f"OCP on Cloud summary disabled for {schema_name}."
@@ -779,7 +782,7 @@ def update_openshift_on_cloud(  # noqa: C901
             tracing_id,
         )
         # Set OpenShift manifest summary end time
-        set_summary_timestamp(ManifestState.END, start_date, manifest_id, openshift_provider_uuid)
+        set_summary_timestamp(ManifestState.END, ocp_manifest_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
             log_json(
@@ -790,7 +793,7 @@ def update_openshift_on_cloud(  # noqa: C901
             exc_info=ex,
         )
         # Set OpenShift manifest summary failed time
-        set_summary_timestamp(ManifestState.FAILED, start_date, manifest_id, openshift_provider_uuid)
+        set_summary_timestamp(ManifestState.FAILED, ocp_manifest_id)
         raise ReportSummaryUpdaterCloudError from ex
     except ReportSummaryUpdaterProviderNotFoundError as ex:
         LOG.warning(
@@ -800,7 +803,7 @@ def update_openshift_on_cloud(  # noqa: C901
             exc_info=ex,
         )
         # Set OpenShift manifest summary failed time
-        set_summary_timestamp(ManifestState.FAILED, start_date, manifest_id, openshift_provider_uuid)
+        set_summary_timestamp(ManifestState.FAILED, ocp_manifest_id)
     finally:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)

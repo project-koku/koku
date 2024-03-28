@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     # local apps
     "api",
     "hcs",
+    "key_metrics",
     "masu",
     "reporting",
     "reporting_common",
@@ -92,6 +93,7 @@ SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 SHARED_APPS = (
     "django_tenants",
     "api",
+    "key_metrics",
     "masu",
     "reporting_common",
     "django.contrib.contenttypes",
