@@ -65,6 +65,8 @@ help:
 	@echo "  help                                  show this message"
 	@echo "  lint                                  run pre-commit against the project"
 	@echo "  get-release-commit                    show the latest commit that is safe to release"
+	@echo "  scan-project                          run a static analysis scan looking for vulnerabilities"
+	@echo "                                          @param path - (optional, default=koku) directory or file to scan"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
