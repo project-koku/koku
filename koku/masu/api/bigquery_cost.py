@@ -101,11 +101,13 @@ def bigquery_cost(request, *args, **kwargs):  # noqa: C901
     """Returns the invoice monthly cost."""
     params = request.query_params
     provider_uuid = kwargs.get("source_uuid")
-    return_daily = True if "daily" in params.keys() else False
+    return_daily = "daily" in params.keys()
 
-    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    provider = Provider.objects.filter(
+        uuid=provider_uuid, type__in=[Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]
+    ).first()
     if not provider:
-        errmsg = f"The provider_uuid {provider_uuid} does not exist."
+        errmsg = f"The *GCP* provider_uuid {provider_uuid} does not exist."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
     credentials = provider.authentication.credentials
     data_source = provider.billing_source.data_source
