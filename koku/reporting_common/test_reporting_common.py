@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Reporting Common."""
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.utils import timezone
@@ -19,6 +20,7 @@ from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
+from reporting_common.models import trigger_celery_task
 
 
 class TestCostUsageReportStatus(MasuTestCase):
@@ -156,3 +158,35 @@ class TestCostUsageReportStatus(MasuTestCase):
         with schema_context(self.schema):
             db_entry = DelayedCeleryTasks.objects.get(provider_uuid=self.aws_provider.uuid)
             self.assertEqual(db_entry.queue_name, UPDATE_SUMMARY_TABLES_QUEUE_XL)
+
+    @patch("reporting_common.models.celery_app")
+    def test_trigger_celery_task(self, mock_celery_app):
+        # Building Mocks
+        result = MagicMock()
+        result.id = "mocked_result_id"
+        mock_celery_app.send_task.return_value = result
+        # Building Test data
+        expected_task_name = "test_task"
+        expected_args = ["arg1", "arg2"]
+        expected_task_kwargs = {"tracing_id": "123"}
+        expected_queue = "test_queue"
+        task_instance = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=expected_task_name,
+            task_args=expected_args,
+            task_kwargs=expected_task_kwargs,
+            provider_uuid=self.aws_provider_uuid,
+            queue_name=expected_queue,
+        )
+
+        with self.assertLogs("reporting_common.models", level="INFO") as cm:
+            trigger_celery_task(sender=None, instance=task_instance)
+
+        log_message = "delay period ended starting task"
+        self.assertTrue(any(log_message in log for log in cm.output))
+
+        mock_celery_app.send_task.assert_called_once_with(
+            task_instance.task_name,
+            args=task_instance.task_args,
+            kwargs=task_instance.task_kwargs,
+            queue=task_instance.queue_name,
+        )

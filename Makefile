@@ -11,10 +11,10 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 SCRIPTDIR = $(TOPDIR)/dev/scripts
-KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
-KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
-MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
-MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5042}")
+KOKU_SERVER = $(shell echo "$${KOKU_API_HOST:-localhost}")
+KOKU_SERVER_PORT = $(shell echo "$${KOKU_API_PORT:-8000}")
+MASU_SERVER = $(shell echo "$${MASU_SERVICE_HOST:-localhost}")
+MASU_SERVER_PORT = $(shell echo "$${MASU_SERVICE_PORT:-5042}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
 scale = 1
 
@@ -92,6 +92,7 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
+	@echo "  populate-currency-exchange-rates      populate the exchange rates table."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -204,6 +205,9 @@ load-aws-org-unit-tree:
 		echo "This make target requires python3." ; \
 	fi
 
+populate-currency-exchange-rates:
+	curl -s http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/update_exchange_rates/
+
 run-api-test:
 	$(PYTHON) $(SCRIPTDIR)/report_api_test.py || echo "WARNING: run-api-test failed unexpectedly!"
 
@@ -211,7 +215,7 @@ collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics
 
 delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*

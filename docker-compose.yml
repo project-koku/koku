@@ -572,7 +572,7 @@ services:
 
   unleash:
     container_name: koku-unleash
-    image: unleashorg/unleash-server:4.21.0
+    image: unleashorg/unleash-server:5.6.9
     environment:
       - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
       - CHECK_VERSION=false
