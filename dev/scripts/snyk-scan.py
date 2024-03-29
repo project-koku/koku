@@ -27,15 +27,19 @@ class SnykDownloader:
     linux_arm64: str = "https://static.snyk.io/cli/latest/snyk-linux-arm64"
     linux_aarch64: str = "https://static.snyk.io/cli/latest/snyk-linux-arm64"
 
+    _system: str = dataclasses.field(default=platform.system(), init=False)
+    _machine: str = dataclasses.field(default=platform.machine(), init=False)
+
     @property
     def url(self) -> str:
-        return getattr(
-            self, f"{platform.system()}_{platform.machine()}".lower(), getattr(self, f"{platform.system().lower()}")
-        )
+        return getattr(self, f"{self._system}_{self._machine}".lower(), getattr(self, f"{self._system.lower()}", None))
 
     def download(self) -> Path:
         snyk_binary_path = Path(self.destination).expanduser().joinpath("snyk")
         if not snyk_binary_path.exists():
+            if self.url is None:
+                sys.exit(f"No snyk executable available for '{self._system} {self._machine}'.")
+
             print(f"Downloading snyk to {snyk_binary_path}...")
             try:
                 with urllib.request.urlopen(self.url) as response:
