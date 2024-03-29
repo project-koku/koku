@@ -21,7 +21,7 @@ except ImportError:
 @dataclasses.dataclass(frozen=True)
 class SnykDownloader:
     destination: Path
-    darwin_arm64: str = "https://static.snyk.io/cli/latest/snyk-macos"
+    darwin: str = "https://static.snyk.io/cli/latest/snyk-macos"
     linux: str = "https://static.snyk.io/cli/latest/snyk-linux"
     linux_x86_64: str = "https://static.snyk.io/cli/latest/snyk-linux"
     linux_arm64: str = "https://static.snyk.io/cli/latest/snyk-linux-arm64"
