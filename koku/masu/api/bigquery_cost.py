@@ -92,15 +92,9 @@ class BigQueryHelper:
             results[key + "_metadata"] = metadata
         return results
 
-    def custom_sql(self, query):
-        """Takes a custom query and replaces the table_name."""
-        query = query.replace("table_name", self.table_name)
-        rows = self.client.query(query).result()
-        return rows
-
 
 @never_cache
-@api_view(http_method_names=["GET", "POST"])
+@api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def bigquery_cost(request):  # noqa: C901
@@ -135,19 +129,13 @@ def bigquery_cost(request):  # noqa: C901
     results = {}
     try:
         bq_helper = BigQueryHelper(table_name)
-        if request.method == "POST":
-            data = request.data
-            query = data.get("query")
-            results = bq_helper.custom_sql(query)
-            resp_key = "custom_query_results"
-        else:
-            for key, invoice_month in mapping.items():
-                if return_daily:
-                    results = bq_helper.daily_sql(invoice_month, results)
-                    resp_key = "daily_invoice_cost_mapping"
-                else:
-                    results = bq_helper.monthly_sql(invoice_month, results, key)
-                    resp_key = "monthly_invoice_cost_mapping"
+        for key, invoice_month in mapping.items():
+            if return_daily:
+                results = bq_helper.daily_sql(invoice_month, results)
+                resp_key = "daily_invoice_cost_mapping"
+            else:
+                results = bq_helper.monthly_sql(invoice_month, results, key)
+                resp_key = "monthly_invoice_cost_mapping"
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
