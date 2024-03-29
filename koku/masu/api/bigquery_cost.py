@@ -97,15 +97,11 @@ class BigQueryHelper:
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def bigquery_cost(request):  # noqa: C901
+def bigquery_cost(request, *args, **kwargs):  # noqa: C901
     """Returns the invoice monthly cost."""
     params = request.query_params
-    provider_uuid = params.get("provider_uuid")
+    provider_uuid = kwargs.get("source_uuid")
     return_daily = True if "daily" in params.keys() else False
-
-    if provider_uuid is None:
-        errmsg = "provider_uuid is a required parameter."
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     provider = Provider.objects.filter(uuid=provider_uuid).first()
     if not provider:
