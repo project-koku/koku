@@ -53,10 +53,6 @@ class NodeCapacity:
             self.capacity_total += capacity_value
             self.capacity_by_date_node[usage_start][node_key] += capacity_value
 
-    def _add_count(self, count_value):
-        """Adds the count values together for total aggregation"""
-        self.count_total += count_value
-
     def _resolution_usage_converter(self, usage_start):
         """Converts the usage data in to the correct key based on resolution."""
         if self.resolution == "daily" and isinstance(usage_start, datetime.date):
@@ -70,17 +66,23 @@ class NodeCapacity:
         Creates and populates the capacity dataclass.
         """
         cap_key = list(self.capacity_annotations.keys())[0]
-        cap_data = self.query.values(*["usage_start", "node"]).annotate(**self.capacity_annotations)
-        processed_nodes = set()
-        for entry in cap_data:
-            node_key = entry.get("node", "")
+        node_capacity_counts = self.query.values(*["usage_start", "node"]).annotate(**self.capacity_annotations)
+
+        # Count each node once. Use max capacity count if a node has multiple values
+        unique_nodes = {}
+        for entry in node_capacity_counts:
+            node = entry.get("node", "")
+            capacity_count = entry.get("capacity_count", 0)
             usage_start = self._resolution_usage_converter(entry.get("usage_start", ""))
             cap_value = entry.get(cap_key, 0)
-            self._add_capacity(cap_value, usage_start, node_key)
+            self._add_capacity(cap_value, usage_start, node)
 
-            if node_key not in processed_nodes:
-                self._add_count(entry.get("capacity_count", 0))
-                processed_nodes.add(node_key)
+            if node not in unique_nodes:
+                unique_nodes[node] = capacity_count
+            unique_nodes[node] = max(capacity_count, unique_nodes.get(node, 0))
+
+        # Aggregate total node capacity count
+        self.count_total = sum(unique_nodes.values())
 
     def _finalize_mapping(self, dataset_mapping):
         """
