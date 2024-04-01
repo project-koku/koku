@@ -87,7 +87,7 @@ objects:
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${API_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -315,16 +315,18 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${LISTENER_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
+        - name: KOKU_API_ENABLE_SENTRY
+          value: ${ENABLE_API_SENTRY}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: TRINO_HOST
@@ -671,14 +673,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -867,16 +877,18 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${SOURCE_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
+        - name: KOKU_API_ENABLE_SENTRY
+          value: ${ENABLE_API_SENTRY}
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
@@ -1042,16 +1054,18 @@ objects:
           value: ${RBAC_CACHE_TTL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${SOURCE_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
+        - name: KOKU_API_ENABLE_SENTRY
+          value: ${ENABLE_API_SENTRY}
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
@@ -1198,14 +1212,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -1386,14 +1408,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -1580,14 +1610,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -1776,14 +1814,22 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -1974,14 +2020,22 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -2170,14 +2224,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -2366,14 +2428,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -2564,14 +2634,22 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -2766,14 +2844,22 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -2966,14 +3052,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -3160,14 +3254,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -3354,14 +3456,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -3552,14 +3662,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -3752,14 +3870,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -3946,14 +4072,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -4104,14 +4238,22 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
         - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: ${CELERY_SENTRY_DSN_KEY}
+              key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
@@ -4426,18 +4568,6 @@ parameters:
   value: koku-sentry
 - name: GLITCHTIP_KEY_NAME
   value: dsn
-- description: (to be replaced with GLITCHTIP_KEY_NAME)
-  name: API_SENTRY_DSN_KEY
-  value: api-sentry-dsn
-- description: (to be replaced with GLITCHTIP_KEY_NAME)
-  name: CELERY_SENTRY_DSN_KEY
-  value: celery-sentry-dsn
-- description: (to be replaced with GLITCHTIP_KEY_NAME)
-  name: LISTENER_SENTRY_DSN_KEY
-  value: koku-listener-dsn
-- description: (to be replaced with GLITCHTIP_KEY_NAME)
-  name: SOURCE_SENTRY_DSN_KEY
-  value: sources-sentry-dsn
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
   required: true
@@ -4557,6 +4687,10 @@ parameters:
   displayName: Koku Sentry Env
   name: KOKU_SENTRY_ENV
   value: development
+- description: Enable Sentry
+  displayName: Enable Sentry
+  name: KOKU_ENABLE_SENTRY
+  value: "False"
 - description: Enable API Sentry
   displayName: Enable API Sentry
   name: ENABLE_API_SENTRY
