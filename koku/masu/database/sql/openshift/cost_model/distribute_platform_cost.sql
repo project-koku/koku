@@ -60,14 +60,22 @@ cte_line_items as (
         max(node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
         max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        CASE
-            WHEN {{distribution}} = 'cpu' AND (cost_category_id IS NULL OR max(cat.name) != 'Platform')
-                THEN sum(pod_effective_usage_cpu_core_hours) / max(udps.usage_cpu_sum) * max(pc.platform_cost)::decimal
-            WHEN {{distribution}} = 'memory' AND (cost_category_id IS NULL OR max(cat.name) != 'Platform')
-                THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(udps.usage_memory_sum) * max(pc.platform_cost)::decimal
-            WHEN max(cat.name) = 'Platform'
-                THEN 0 - SUM(COALESCE(infrastructure_raw_cost, 0) +
-                    COALESCE(infrastructure_markup_cost, 0)+
+        CASE WHEN {{distribution}} = 'cpu' AND (cost_category_id IS NULL OR max(cat.name) != 'Platform') THEN
+            CASE WHEN max(udps.usage_cpu_sum) <= 0 THEN
+                0
+            ELSE
+                (sum(pod_effective_usage_cpu_core_hours) / max(udps.usage_cpu_sum)) * max(pc.platform_cost)::decimal
+            END
+        WHEN {{distribution}} = 'memory'AND (cost_category_id IS NULL OR max(cat.name) != 'Platform') THEN
+            CASE WHEN max(udps.usage_memory_sum) <= 0 THEN
+                0
+            ELSE
+                (sum(pod_effective_usage_memory_gigabyte_hours) / max(udps.usage_memory_sum)) * max(pc.platform_cost)::decimal
+            END
+        WHEN max(cat.name) = 'Platform' THEN
+            0 - SUM(
+                    COALESCE(infrastructure_raw_cost, 0) +
+                    COALESCE(infrastructure_markup_cost, 0) +
                     COALESCE(cost_model_cpu_cost, 0) +
                     COALESCE(cost_model_memory_cost, 0) +
                     COALESCE(cost_model_volume_cost, 0)
