@@ -78,8 +78,8 @@
           value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
@@ -88,6 +88,11 @@
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
+
+        # TODO: replace with the above
+        - name: KOKU_API_ENABLE_SENTRY
+          value: ${ENABLE_API_SENTRY}
+
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: POD_CPU_LIMIT # required to spin up appropriate number of gunicorn workers
