@@ -25,7 +25,15 @@ def traces_sampler(sampling_context):
     return 0.05
 
 
-if ENVIRONMENT.bool("KOKU_API_ENABLE_SENTRY", default=False):
+if ENVIRONMENT.bool("KOKU_ENABLE_SENTRY", default=False):
+    sentry_sdk.init(
+        dsn=ENVIRONMENT("KOKU_SENTRY_DSN"),
+        environment=ENVIRONMENT("KOKU_SENTRY_ENVIRONMENT"),
+        traces_sampler=traces_sampler,
+    )
+    LOG.info("Sentry setup.")
+# TODO: remove the following in favor of the above `if`
+elif ENVIRONMENT.bool("KOKU_API_ENABLE_SENTRY", default=False):
     LOG.info("Enabling sentry for koku api.")
     sentry_sdk.init(
         dsn=ENVIRONMENT("KOKU_SENTRY_DSN"),
@@ -34,6 +42,7 @@ if ENVIRONMENT.bool("KOKU_API_ENABLE_SENTRY", default=False):
         traces_sampler=traces_sampler,
     )
     LOG.info("Sentry setup.")
+# TODO: remove the following in favor of the above `if`
 elif ENVIRONMENT.bool("KOKU_CELERY_ENABLE_SENTRY", default=False):
     LOG.info("Enabling sentry for celery worker.")
     sentry_sdk.init(
