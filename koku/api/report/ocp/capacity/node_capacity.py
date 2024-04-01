@@ -69,17 +69,7 @@ class NodeCapacity:
         node_capacity_counts = self.query.values(*["usage_start", "node"]).annotate(**self.capacity_annotations)
 
         # Count each node once. Use max capacity count if a node has multiple values
-        # unique_nodes = {}
-        # for entry in node_capacity_counts:
-        #     node = entry.get("node", "")
-        #     capacity_count = entry.get("capacity_count", 0)
-        #     usage_start = self._resolution_usage_converter(entry.get("usage_start", ""))
-        #     cap_value = entry.get(cap_key, 0)
-        #     self._add_capacity(cap_value, usage_start, node)
-
-        #     if node not in unique_nodes:
-        #         unique_nodes[node] = capacity_count
-        #     unique_nodes[node] = max(capacity_count, unique_nodes.get(node, 0))
+        
         unique_nodes = defaultdict(Decimal)
         for entry in node_capacity_counts:
             node = entry.get("node", "")
