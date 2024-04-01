@@ -19,7 +19,7 @@ from django.db.models.query import QuerySet
 def calculate_unused(row, finalized_mapping=None):
     """Calculates the unused portions of the capacity & request."""
     # Populate unused request and capacity
-    finalized_mapping = finalized_mapping if finalized_mapping else {}
+    finalized_mapping = finalized_mapping or {}
     for key, value in finalized_mapping.items():
         row[key] = value
     capacity = row.get("capacity", Decimal(0))
@@ -111,20 +111,15 @@ class ClusterCapacity:
 
         """
 
-        unique_cluster_node_counts = {}
+        unique_cluster_node_counts = defaultdict(lambda: defaultdict(Decimal))
         for count in node_instance_counts:
             cluster, node, capacity_count = (count["cluster"], count["node"], count["capacity_count"])
 
             # count each node per cluster once
             # use max capacity count if a node has multiple values
-            if cluster not in unique_cluster_node_counts:
-                unique_cluster_node_counts[cluster] = {node: capacity_count}
-            if node not in unique_cluster_node_counts[cluster]:
-                unique_cluster_node_counts[cluster][node] = capacity_count
-            else:
-                unique_cluster_node_counts[cluster][node] = max(
-                    capacity_count, unique_cluster_node_counts[cluster].get(node, 0)
-                )
+            unique_cluster_node_counts[cluster][node] = max(
+                capacity_count, unique_cluster_node_counts[cluster].get(node, 0)
+            )
 
         for cluster in unique_cluster_node_counts:
             self.count_by_cluster[cluster] = sum(unique_cluster_node_counts.get(cluster).values())
@@ -146,7 +141,7 @@ class ClusterCapacity:
               for each date across all clusters.
         """
 
-        daily_max_node_capacities = {}
+        daily_max_node_capacities = defaultdict(lambda: defaultdict(Decimal))
         for count in node_instance_counts:
             cluster, node, usage_start, capacity_count = (
                 count["cluster"],
@@ -160,16 +155,11 @@ class ClusterCapacity:
 
             # composite key to access daily_max_node_capacities dict
             cluster_date_key = (cluster, usage_start_resolution)
-            if cluster_date_key not in daily_max_node_capacities:
-                daily_max_node_capacities[cluster_date_key] = {}
-
             daily_max_node_capacities[cluster_date_key][node] = max(
                 capacity_count, daily_max_node_capacities[cluster_date_key].get(node, 0)
             )
 
         for (cluster, date), nodes in daily_max_node_capacities.items():
-            if date not in self.count_by_date_cluster:
-                self.count_by_date_cluster[date] = {}
             self.count_by_date_cluster[date][cluster] = sum(nodes.values())
             self.count_by_date[date] = self.count_by_date.get(date, 0) + sum(nodes.values())
 
