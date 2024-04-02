@@ -13,10 +13,8 @@ from unittest.mock import patch
 from faker import Faker
 
 from api.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.downloader.gcp_local.gcp_local_report_downloader import create_daily_archives
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -121,9 +119,9 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
         with patch(
-                "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader"
-                + ".collect_new_manifests",
-                return_value=[],
+            "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader"
+            + ".collect_new_manifests",
+            return_value=[],
         ):
             report = self.gcp_local_report_downloader.get_manifest_context_for_date(self.start_date)
             self.assertEqual(report, [])
@@ -131,7 +129,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
     def test_delete_manifest_file_warning(self):
         """Test attempting a file that doesn't exist handles correctly."""
         with self.assertLogs(
-                logger="masu.external.downloader.gcp_local.gcp_local_report_downloader", level="INFO"
+            logger="masu.external.downloader.gcp_local.gcp_local_report_downloader", level="INFO"
         ) as captured_logs:
             # Disable log suppression
             logging.disable(logging.NOTSET)
@@ -144,7 +142,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
                 "Could not delete manifest file at" in captured_logs.output[0],
                 msg="""The log message is expected to contain
                                     'Could not delete manifest file at' but instead was: """
-                    + captured_logs.output[0],
+                + captured_logs.output[0],
             )
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
