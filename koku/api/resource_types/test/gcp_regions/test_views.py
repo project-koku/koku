@@ -61,9 +61,7 @@ class ResourceTypesViewTestGcpRegions(MasuTestCase):
             ),
         ]
         mock_get_topo.return_value = mock_topo_record
-        self.accessor.populate_gcp_topology_information_tables(
-            self.gcp_provider, self.start_date, self.end_date, self.invoice_month
-        )
+        self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, self.start_date, self.end_date)
         with schema_context(self.schema_name):
             expected = (
                 GCPTopology.objects.annotate(**{"value": F("region")})
@@ -108,9 +106,7 @@ class ResourceTypesViewTestGcpRegions(MasuTestCase):
             ),
         ]
         mock_get_topo.return_value = mock_topo_record
-        self.accessor.populate_gcp_topology_information_tables(
-            self.gcp_provider, self.start_date, self.end_date, self.invoice_month
-        )
+        self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, self.start_date, self.end_date)
         with schema_context(self.schema_name):
             expected = (
                 GCPTopology.objects.annotate(**{"value": F("region")})

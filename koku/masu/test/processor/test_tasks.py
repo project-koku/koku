@@ -880,7 +880,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         manifest_id = 1
         tracing_id = "1234"
 
-        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
         update_summary_tables(
             self.schema,
             provider_type,
@@ -890,7 +889,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             tracing_id=tracing_id,
             manifest_id=manifest_id,
             synchronous=True,
-            invoice_month=invoice_month,
         )
         mock_chain.assert_called_with(
             mark_manifest_complete.s(
