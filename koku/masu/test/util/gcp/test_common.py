@@ -211,63 +211,6 @@ class TestGCPUtils(MasuTestCase):
 
         self.assertEqual(matched_df.shape[0], 3)
 
-    def test_deduplicate_reports_for_gcp(self):
-        """Test the deduplication of reports for gcp."""
-        expected_results = {"start": "2022-07-01", "end": "2022-08-30"}
-        mocked_reports = [
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 1,
-                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
-                "start": "2022-07-01",
-                "end": "2022-07-04",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 1,
-                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
-                "start": "2022-07-19",
-                "end": "2022-07-20",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 1,
-                "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
-                "start": "2022-07-19",
-                "end": "2022-07-21",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 2,
-                "tracing_id": "2022-08-01|2022-08-02 01:11:12.066000+00:00",
-                "start": "2022-07-31",
-                "end": "2022-08-01",
-            },
-            {
-                "schema_name": "org1234567",
-                "provider_type": "GCP",
-                "provider_uuid": "1we",
-                "manifest_id": 3,
-                "tracing_id": "2022-08-03|2022-08-04 01:43:05.921000+00:00",
-                "start": "2022-08-23",
-                "end": "2022-08-30",
-            },
-        ]
-        results = utils.deduplicate_reports_for_gcp(mocked_reports)
-        self.assertEqual(len(results), 2)
-        for result in results:
-            self.assertIsNotNone(expected_results)
-            self.assertEqual(expected_results.get("start"), result.get("start"))
-            self.assertEqual(expected_results.get("end"), result.get("end"))
-
     def test_check_resource_level_invalid_uuid(self):
         """Test gcp resource level paused source."""
         expected_log = "Account not returned, source likely has processing suspended."

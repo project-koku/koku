@@ -109,8 +109,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.downloader
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
             with patch(
-                "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                    "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
+                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
                 full_path, _, date, __, ___ = downloader.download_file(key)
                 mock_makedirs.assert_called()
@@ -128,8 +128,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.downloader
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
             with patch(
-                "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                    "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
+                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
                 full_path, _, date, __, ___ = downloader.download_file(key)
                 mock_makedirs.assert_called()
@@ -180,13 +180,13 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.downloader
         mocked_mapping = {datetime.date.today(): self.today}
         with patch(
-            "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
-            return_value=2,
+                "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
+                return_value=2,
         ):
             with patch(
-                "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader"
-                + ".bigquery_export_to_partition_mapping",
-                return_value=mocked_mapping,
+                    "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader"
+                    + ".bigquery_export_to_partition_mapping",
+                    return_value=mocked_mapping,
             ):
                 report_list = downloader.get_manifest_context_for_date(start_date)
         expected_file = f"{invoice_month}_{self.today.date()}"
@@ -221,6 +221,69 @@ class GCPReportDownloaderTest(MasuTestCase):
         for daily_file in expected_daily_files:
             self.assertTrue(os.path.exists(daily_file))
             os.remove(daily_file)
+        os.remove(temp_path)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_invoice_month(self, mock_s3):
+        """Test that we load daily files to S3 properly divided by invoice_month."""
+        # Use the processor example for data:
+        file_name = "2024-03-01_5.csv"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/202402_2024-02-01_{file_name}",
+            f"{temp_dir}/202403_2024-03-01_{file_name}",
+        ]
+        start_date = self.dh.this_month_start
+        create_daily_archives(
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+        )
+
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+        os.remove(temp_path)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_invoice_month_sum(self, mock_s3):
+        """Test if the sum of loaded files are correct."""
+        # Use the processor example for data:
+        file_name = "2024-03-01_5.csv"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        expected_daily_files = [
+            f"{temp_dir}/202402_2024-02-01_{file_name}",
+            f"{temp_dir}/202403_2024-03-01_{file_name}",
+        ]
+        expected_daily_sum = [
+            63099.0,
+            166118.0,
+        ]
+        start_date = self.dh.this_month_start
+        create_daily_archives(
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+        )
+
+        actual_sums = []
+        for daily_file in expected_daily_files:
+            if os.path.exists(daily_file):
+                with open(daily_file) as file:
+                    csv = file.readlines()
+                    daily_sum = 0
+                    for line in csv:
+                        arr = line.split(",")
+                        if arr[21] != 'usage.amount':
+                            daily_sum += float(arr[21])
+
+                    actual_sums.append(daily_sum)
+            os.remove(daily_file)
+
+        self.assertEqual(actual_sums[0], expected_daily_sum[0])
+        self.assertEqual(actual_sums[1], expected_daily_sum[1])
         os.remove(temp_path)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
@@ -325,7 +388,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         now_utc = datetime.datetime.now(tz=settings.UTC)
         mocked_result = [[key, now_utc]]
         with patch(
-            "masu.external.downloader.gcp.gcp_report_downloader.bigquery", new_callable=PropertyMock
+                "masu.external.downloader.gcp.gcp_report_downloader.bigquery", new_callable=PropertyMock
         ) as mock_bigquery:
             mock_bigquery.Client.return_value.query.return_value.result.return_value = mocked_result
             downloader = self.downloader
@@ -412,8 +475,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert ingress download_file successful scenario"""
         key = "ingress_report.csv"
         with patch(
-            "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
-            return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
         ):
             full_path, _, date, __, ___ = self.gcp_ingress_report_downloader.download_file(key)
             mock_makedirs.assert_called()

@@ -121,9 +121,9 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
         with patch(
-            "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader"
-            + ".collect_new_manifests",
-            return_value=[],
+                "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader"
+                + ".collect_new_manifests",
+                return_value=[],
         ):
             report = self.gcp_local_report_downloader.get_manifest_context_for_date(self.start_date)
             self.assertEqual(report, [])
@@ -131,7 +131,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
     def test_delete_manifest_file_warning(self):
         """Test attempting a file that doesn't exist handles correctly."""
         with self.assertLogs(
-            logger="masu.external.downloader.gcp_local.gcp_local_report_downloader", level="INFO"
+                logger="masu.external.downloader.gcp_local.gcp_local_report_downloader", level="INFO"
         ) as captured_logs:
             # Disable log suppression
             logging.disable(logging.NOTSET)
@@ -144,7 +144,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
                 "Could not delete manifest file at" in captured_logs.output[0],
                 msg="""The log message is expected to contain
                                     'Could not delete manifest file at' but instead was: """
-                + captured_logs.output[0],
+                    + captured_logs.output[0],
             )
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
@@ -172,37 +172,3 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
             self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
             self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
             self.assertEqual(manifest_metadata["files"], [self.csv_file_name])
-
-    @patch("masu.external.downloader.gcp_local.gcp_local_report_downloader.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives(self, mock_s3):
-        """Test that we load daily files to S3."""
-        # Use the processor example for data:
-        file_path = "./koku/masu/test/data/gcp/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
-        file_name = "202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
-        temp_dir = tempfile.gettempdir()
-        temp_path = os.path.join(temp_dir, file_name)
-        shutil.copy2(file_path, temp_path)
-
-        expected_daily_files = [
-            f"{temp_dir}/202011_2020-11-08 00:00:00+00:00.csv",
-            f"{temp_dir}/202011_2020-11-09 00:00:00+00:00.csv",
-            f"{temp_dir}/202011_2020-11-10 00:00:00+00:00.csv",
-            f"{temp_dir}/202011_2020-11-11 00:00:00+00:00.csv",
-        ]
-
-        start_date = DateHelper().this_month_start
-        daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
-        )
-        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11"}
-        self.assertEqual(date_range, expected_date_range)
-        self.assertIsInstance(daily_file_names, list)
-
-        mock_s3.assert_called()
-        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
-
-        for daily_file in expected_daily_files:
-            self.assertTrue(os.path.exists(daily_file))
-            os.remove(daily_file)
-
-        os.remove(temp_path)
