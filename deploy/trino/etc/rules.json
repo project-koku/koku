@@ -1,0 +1,44 @@
+{
+    "catalogs": [
+        {
+            "user": "readonly",
+            "catalog": "system",
+            "allow": "none"
+        }
+    ],
+    "system_session_properties": [
+        {
+            "role": "admin",
+            "allow": true
+        },
+        {
+            "user": "readonly",
+            "allow": false
+        }
+    ],
+    "catalog_session_properties": [
+        {
+            "role": "admin",
+            "allow": true
+        },
+        {
+            "user": "readonly",
+            "allow": false
+        }
+    ],
+    "system_information": [
+        {
+            "role": "admin",
+            "allow": [
+                "read",
+                "write"
+            ]
+        },
+        {
+            "user": "readonly",
+            "allow": [
+                "read"
+            ]
+        }
+    ]
+}

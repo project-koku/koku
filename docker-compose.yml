@@ -669,6 +669,8 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
     volumes:
       - ./deploy/trino/etc/config.properties:/etc/trino/config.properties
+      - ./deploy/trino/etc/access-control.properties:/etc/trino/access-control.properties
+      - ./deploy/trino/etc/rules.json:/etc/trino/rules.json
       - ./deploy/trino/etc/jvm.config:/etc/trino/jvm.config
       - ./deploy/trino/etc/log.properties:/etc/trino/log.properties
       - ./deploy/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
