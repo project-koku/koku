@@ -302,7 +302,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "end": expected_end,
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_months = [(expected_start, expected_end, None)]
+        expected_months = [(expected_start, expected_end)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -345,7 +345,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
         expected_date_2 = self.first_of_year.strftime("%Y-%m-%d")
-        expected_months = [(expected_date_2, expected_date_2, None)]
+        expected_months = [(expected_date_2, expected_date_2)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -449,7 +449,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         mock_dh_today.return_value = self.start_date
         expected_start = self.start_date.strftime("%Y-%m-01")
         expected_end = self.end_date.strftime("%Y-%m-%d")
-        expected_months = [(expected_start, expected_end, None)]
+        expected_months = [(expected_start, expected_end)]
 
         returned_months = get_months_in_date_range(
             report=None, start=self.early_start_date.strftime("%Y-%m-%d"), end=self.end_date.strftime("%Y-%m-%d")
@@ -473,7 +473,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         mock_dh_today.return_value = self.start_date
         expected_start = self.start_date.strftime("%Y-%m-01")
         expected_end = self.start_date.strftime("%Y-%m-%d")
-        expected_months = [(expected_start, expected_end, None)]
+        expected_months = [(expected_start, expected_end)]
 
         returned_months = get_months_in_date_range(
             report=None, start=self.early_start_date.strftime("%Y-%m-%d"), end=self.early_end_date.strftime("%Y-%m-%d")

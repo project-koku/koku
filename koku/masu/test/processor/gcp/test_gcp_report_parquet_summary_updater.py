@@ -91,9 +91,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=invoice_month[0])
-        mock_delete.assert_called_with(
-            self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
-        )
+        mock_delete.assert_called_with(self.gcp_provider.uuid, expected_start, expected_end)
         mock_trino.assert_called_with(
             expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value, start
         )
@@ -117,7 +115,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
-        start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=None)
+        start_return, end_return = self.updater.update_summary_tables(start, end)
         mock_delete.assert_not_called()
         mock_trino.assert_not_called()
         mock_tag_update.assert_not_called()
