@@ -606,14 +606,6 @@ class TestParquetReportProcessor(MasuTestCase):
             for path in file_list:
                 self.assertFalse(os.path.exists(report_path))
 
-    @patch.object(ParquetReportProcessor, "create_parquet_table")
-    @patch.object(ParquetReportProcessor, "_write_parquet_to_file")
-    def test_create_daily_parquet(self, mock_write, mock_create_table):
-        """Test the daily parquet method."""
-        self.report_processor.create_daily_parquet("", [pd.DataFrame()])
-        mock_write.assert_called()
-        mock_create_table.assert_called()
-
     @patch.object(ParquetReportProcessor, "parquet_ocp_on_cloud_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_daily_path_s3", return_value="")
     @patch.object(ParquetReportProcessor, "parquet_path_s3", return_value="")
