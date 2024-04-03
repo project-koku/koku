@@ -146,6 +146,13 @@ class TestSettingsTagMappingView(MasuTestCase):
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
+    def test_put_method_remove_children_invalid_uuid(self):
+        """Test removing children invalid uuids."""
+        url = reverse("tags-mapping-child-remove")
+        data = {"ids": ["gibberish"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_put_method_remove_parent(self):
         """Test removing parent."""
         url = reverse("tags-mapping-child-add")
@@ -160,6 +167,13 @@ class TestSettingsTagMappingView(MasuTestCase):
         data = {"ids": [self.enabled_uuid_list[0]]}
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_put_method_remove_parent_invalid_uuid(self):
+        """Test removing parents invalid uuid."""
+        url = reverse("tags-mapping-parent-remove")
+        data = {"ids": ["gibberish"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_by_source_type(self):
         """Test the filter by source_type."""
