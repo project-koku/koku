@@ -91,7 +91,9 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=invoice_month[0])
-        mock_delete.assert_called_with(self.gcp_provider.uuid, expected_start, expected_end)
+        mock_delete.assert_called_with(
+            self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+        )
         mock_trino.assert_called_with(
             expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value, start
         )
