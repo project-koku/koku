@@ -92,7 +92,6 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=OCP_QUEUE,
             ocp_on_cloud=True,
-            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)

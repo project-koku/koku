@@ -429,7 +429,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         mock_dh_today.return_value = self.start_date
         expected_start = self.start_date.strftime("%Y-%m-%d")
         expected_end = self.end_date.strftime("%Y-%m-%d")
-        expected_months = [(expected_start, expected_end, None)]
+        expected_months = [(expected_start, expected_end)]
 
         returned_months = get_months_in_date_range(report=None, start=expected_start, end=expected_end)
 
