@@ -19,6 +19,7 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
+from masu.processor import is_feature_cost_3083_all_labels_enabled
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
@@ -33,6 +34,12 @@ from reporting.provider.ocp.models import OCPVolumeSummaryP
 
 class OCPProviderMap(ProviderMap):
     """OCP Provider Map."""
+
+    @cached_property
+    def check_unleash_for_tag_column_cost_3038(self):
+        if is_feature_cost_3083_all_labels_enabled(self._schema_name):
+            return "all_labels"
+        return "pod_labels"
 
     def __cost_model_cost(self, cost_model_rate_type=None):
         """Return ORM term for cost model cost"""
@@ -165,7 +172,7 @@ class OCPProviderMap(ProviderMap):
                 "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
                 "report_type": {
                     "costs": {
-                        "tag_column": "all_labels",
+                        "tag_column": self.check_unleash_for_tag_column_cost_3038,
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -215,7 +222,7 @@ class OCPProviderMap(ProviderMap):
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                     },
                     "costs_by_project": {
-                        "tag_column": "all_labels",
+                        "tag_column": self.check_unleash_for_tag_column_cost_3038,
                         "tables": {"query": OCPUsageLineItemDailySummary},
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -379,6 +386,7 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
                         "count_units_key": "Core",
+                        "capacity_count_key": "node_capacity_cpu_cores",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
                     "memory": {
@@ -477,6 +485,7 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GiB-Hours",
                         "count_units_key": "GiB",
+                        "capacity_count_key": "node_capacity_memory_gigabytes",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
                     "volume": {
@@ -540,7 +549,7 @@ class OCPProviderMap(ProviderMap):
                                         Value(0, output_field=DecimalField()),
                                     )
                                 ),
-                                "capacity_count": Sum(
+                                "capacity_count": Max(
                                     Coalesce(
                                         F("persistentvolumeclaim_capacity_gigabyte"),
                                         Value(0, output_field=DecimalField()),
@@ -616,6 +625,7 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "GiB-Mo",
                         "count_units_key": "GiB",
+                        "capacity_count_key": "persistentvolumeclaim_capacity_gigabyte",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
