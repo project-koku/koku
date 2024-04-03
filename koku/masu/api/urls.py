@@ -73,10 +73,7 @@ urlpatterns = [
     path("celery_queue_tasks/", celery_queue_tasks, name="celery_queue_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
-    path(
-        "gcp_invoice_monthly_cost/", bigquery_cost, name="gcp_invoice_monthly_cost"
-    ),  # TODO: Remove once iqe is updated
-    path("bigquery_cost/", bigquery_cost, name="bigquery_cost"),
+    path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
     path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
