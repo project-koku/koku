@@ -61,43 +61,6 @@ class ClusterCapacityDataclassTest(IamTestCase):
                 self.assertIn("capacity_count", capacity_aggregate["cluster_instance_counts"])
                 self.assertIn("cluster", capacity_aggregate["cluster_instance_counts"])
 
-    def test_cluster_count_mapping_property_today(self):
-        """Test the cluster count mapping property"""
-        _resolution = "daily"
-        params = {
-            "filter[time_scope_units]": "month",
-            "filter[time_scope_value]": "-1",
-            "filter[resolution]": _resolution,
-            "group_by[cluster]": "*",
-        }
-        url = "?" + urlencode(params, quote_via=quote_plus)
-        for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
-            with self.subTest(view=view):
-                query_params = self.mocked_query_params(url, view)
-                handler = OCPReportQueryHandler(query_params)
-                with tenant_context(self.tenant):
-                    query = build_query(handler)
-                    cluster_capacity = ClusterCapacity(handler._mapper.report_type_map, query, _resolution)
-                    cluster_capacity.populate_dataclass()
-                    # build expected values
-                    expected_values = {}
-                    cluster_capacity_vals = (
-                        query.values(*["usage_start", "node"])
-                        .annotate(**cluster_capacity.count_annotations)
-                        .filter(usage_start=self.dh.today.date())
-                    )
-                    for cluster_to_node in cluster_capacity_vals:
-                        cluster = cluster_to_node.get("cluster")
-                        capacity_count = cluster_to_node.get("capacity_count")
-                        if mapping_count := expected_values.get(cluster):
-                            expected_values[cluster] = mapping_count + capacity_count
-                        else:
-                            expected_values[cluster] = capacity_count
-                    today_str = str(self.dh.today.date())
-                    for cluster, expected_count_value in expected_values.items():
-                        result = cluster_capacity.count_by_date_cluster.get(today_str).get(cluster, {})
-                        self.assertEqual(expected_count_value, result)
-
     def test_cluster_capacity_no_dataclass_field_in_provider_map(self):
         """Test that an empty directory is returned if no count annotations."""
         _resolution = "daily"
@@ -113,8 +76,10 @@ class ClusterCapacityDataclassTest(IamTestCase):
         cluster_capacity = ClusterCapacity(handler._mapper.report_type_map, None, _resolution)
         self.assertFalse(cluster_capacity.populate_dataclass())
 
-    def test_get_cluster_capacity_counts_by_cluster(self):
-        """Test the volume capacities of a daily volume report with various group bys matches expected"""
+    def test_get_cluster_capacity_count_by_date(self):
+        """
+        Test getting count_by_date from cluster capacity dataclass returns expected result.
+        """
         _resolution = "daily"
         params = {
             "filter[time_scope_units]": "month",
@@ -123,40 +88,119 @@ class ClusterCapacityDataclassTest(IamTestCase):
             "group_by[cluster]": "*",
         }
         url = "?" + urlencode(params, quote_via=quote_plus)
+
         for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
             with self.subTest(view=view):
-                expected_cluster_count = {}
-                expected_date_count = {}
-                expected_total_count = 0
                 query_params = self.mocked_query_params(url, view)
                 handler = OCPReportQueryHandler(query_params)
                 with tenant_context(self.tenant):
                     query = build_query(handler)
                     cluster_capacity = ClusterCapacity(handler._mapper.report_type_map, query, _resolution)
                     cluster_capacity.populate_dataclass()
-                    # build expected values
                     cluster_capacity_vals = query.values(*["usage_start", "node"]).annotate(
                         **cluster_capacity.count_annotations
                     )
-                    for cluster_to_node in cluster_capacity_vals:
-                        cluster = cluster_to_node.get("cluster")
-                        usage_start = str(cluster_to_node.get("usage_start"))
-                        node_capacity_count = cluster_to_node.get("capacity_count")
-                        expected_total_count += node_capacity_count
-                        if cluster_count := expected_cluster_count.get(cluster):
-                            expected_cluster_count[cluster] = cluster_count + node_capacity_count
-                        else:
-                            expected_cluster_count[cluster] = node_capacity_count
-                        if cluster_count := expected_date_count.get(usage_start):
-                            expected_date_count[usage_start] = cluster_count + node_capacity_count
-                        else:
-                            expected_date_count[usage_start] = node_capacity_count
-                # validate expected values
-                for cluster, cluster_expected_count in expected_cluster_count.items():
-                    self.assertEqual(cluster_expected_count, cluster_capacity.count_by_cluster.get(cluster))
 
-                for usage_date, usage_expected_count in expected_date_count.items():
-                    self.assertEqual(usage_expected_count, cluster_capacity.count_by_date.get(usage_date))
+                    for date, total_count_by_date in cluster_capacity.count_by_date.items():
+                        expected_total_count_by_date = 0
+                        node_counts = {}
+                        for node_info in (
+                            cluster_capacity_vals.filter(usage_start=date).values("node", "capacity_count").distinct()
+                        ):
+                            node = node_info["node"]
+                            node_capacity = node_info["capacity_count"]
+                            node_counts[node] = (
+                                max(node_counts[node], node_capacity) if node in node_counts else node_capacity
+                            )
+                            expected_total_count_by_date += node_counts[node]
+                        self.assertEqual(expected_total_count_by_date, total_count_by_date)
+
+    def test_get_cluster_capacity_count_by_cluster(self):
+        """
+        Test getting count_by_cluster from cluster capacity dataclass returns expected result.
+        """
+        _resolution = "monthly"
+        params = {
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": _resolution,
+            "group_by[cluster]": "*",
+        }
+        url = "?" + urlencode(params, quote_via=quote_plus)
+
+        for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
+            with self.subTest(view=view):
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPReportQueryHandler(query_params)
+                with tenant_context(self.tenant):
+                    query = build_query(handler)
+                    cluster_capacity = ClusterCapacity(handler._mapper.report_type_map, query, _resolution)
+                    cluster_capacity.populate_dataclass()
+                    cluster_capacity_vals = query.values(*["usage_start", "node"]).annotate(
+                        **cluster_capacity.count_annotations
+                    )
+
+                    for cluster, expected_capacity in cluster_capacity.count_by_cluster.items():
+
+                        total_cluster_capacity = 0
+                        node_counts = {}
+                        for node_info in (
+                            cluster_capacity_vals.filter(cluster=cluster).values("node", "capacity_count").distinct()
+                        ):
+                            node = node_info["node"]
+                            node_capacity = node_info["capacity_count"]
+                            max_node_cap = (
+                                node_counts[node]
+                                if node in node_counts and node_counts[node] > node_capacity
+                                else node_capacity
+                            )
+                            node_counts[node] = max_node_cap
+
+                        total_cluster_capacity += sum(node_counts.values())
+
+                        self.assertEqual(total_cluster_capacity, expected_capacity)
+
+    def test_get_cluster_capacity_count_by_date_cluster(self):
+        """
+        Test getting count_by_date_cluster from cluster capacity dataclass returns expected result.
+        """
+
+        _resolution = "daily"
+        params = {
+            "filter[time_scope_units]": "month",
+            "filter[time_scope_value]": "-1",
+            "filter[resolution]": _resolution,
+            "group_by[cluster]": "*",
+        }
+        url = "?" + urlencode(params, quote_via=quote_plus)
+
+        for view in [OCPVolumeView, OCPCpuView, OCPMemoryView]:
+            with self.subTest(view=view):
+                query_params = self.mocked_query_params(url, view)
+                handler = OCPReportQueryHandler(query_params)
+                with tenant_context(self.tenant):
+                    query = build_query(handler)
+                    cluster_capacity = ClusterCapacity(handler._mapper.report_type_map, query, _resolution)
+                    cluster_capacity.populate_dataclass()
+                    cluster_capacity_vals = query.values(*["usage_start", "node"]).annotate(
+                        **cluster_capacity.count_annotations
+                    )
+
+                    for date, clusters in cluster_capacity.count_by_date_cluster.items():
+                        for cluster, total_cluster_capacity in clusters.items():
+
+                            expected_total_cluster_capacity = 0
+                            node_counts = {}
+                            for node_info in cluster_capacity_vals.filter(cluster=cluster, usage_start=date).values(
+                                "node", "capacity_count"
+                            ):
+                                node = node_info["node"]
+                                node_capacity = node_info["capacity_count"]
+                                node_counts[node] = (
+                                    max(node_counts[node], node_capacity) if node in node_counts else node_capacity
+                                )
+                                expected_total_cluster_capacity += node_counts[node]
+                            self.assertEqual(total_cluster_capacity, expected_total_cluster_capacity)
 
     def test_capacity_aggregations(self):
         """Test the volume capacities of a daily volume report with various group bys matches expected"""
