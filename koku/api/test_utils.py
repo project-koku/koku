@@ -382,13 +382,10 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """
 
         mock_dh_today.return_value = self.start_date
-        invoice_month = self.start_date.strftime("%Y%m")
         expected_date = self.start_date.strftime("%Y-%m-%d")
-        expected_months = [(expected_date, expected_date, invoice_month)]
+        expected_months = [(expected_date, expected_date)]
 
-        returned_months = get_months_in_date_range(
-            report=None, start=expected_date, end=None, invoice_month=invoice_month
-        )
+        returned_months = get_months_in_date_range(report=None, start=expected_date, end=None)
 
         mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
@@ -400,19 +397,26 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         returns list of month tuples.
         """
 
-        invoice_month = self.start_date.strftime("%Y%m")
         expected_start = self.start_date.strftime("%Y-%m-%d")
         expected_end = self.end_date.strftime("%Y-%m-%d")
-        expected_months = [(expected_start, expected_end, invoice_month)]
-
+        expected_months = [
+            (
+                datetime.datetime(2024, 2, 1, tzinfo=settings.UTC).strftime("%Y-%m-%d"),
+                datetime.datetime(2024, 2, 29, tzinfo=settings.UTC).strftime("%Y-%m-%d"),
+            ),
+            (
+                datetime.datetime(2024, 3, 1, tzinfo=settings.UTC).strftime("%Y-%m-%d"),
+                datetime.datetime(2024, 3, 31, tzinfo=settings.UTC).strftime("%Y-%m-%d"),
+            ),
+        ]
         returned_months = get_months_in_date_range(
             report=None,
             start=expected_start,
             end=expected_end,
-            invoice_month=invoice_month,
         )
 
-        self.assertEqual(returned_months, expected_months)
+        for month in expected_months:
+            self.assertIn(month, returned_months)
 
     @patch("api.utils.DateHelper.today", new_callable=PropertyMock)
     def test_get_months_in_date_range__start_end_only(self, mock_dh_today):

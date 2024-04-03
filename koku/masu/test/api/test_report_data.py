@@ -65,7 +65,6 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=True,
-            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -378,9 +377,7 @@ class ReportDataTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.delay.assert_called_with(
-            params["start_date"], DateHelper().today.date().strftime("%Y-%m-%d"), invoice_month=None
-        )
+        mock_update.delay.assert_called_with(params["start_date"], DateHelper().today.date().strftime("%Y-%m-%d"))
 
     @override_settings(DEVELOPMENT=False)
     @patch("koku.middleware.MASU", return_value=True)
