@@ -119,7 +119,6 @@ class ReportDataTests(TestCase):
                 DateHelper().today.date().strftime("%Y-%m-%d"),
                 queue_name=PRIORITY_QUEUE_XL,
                 ocp_on_cloud=True,
-                invoice_month=None,
             )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -271,7 +270,6 @@ class ReportDataTests(TestCase):
                 params["end_date"],
                 queue_name=PRIORITY_QUEUE,
                 ocp_on_cloud=True,
-                invoice_month=None,
             )
         ]
 
@@ -328,7 +326,6 @@ class ReportDataTests(TestCase):
                 params["end_date"],
                 queue_name=PRIORITY_QUEUE,
                 ocp_on_cloud=True,
-                invoice_month=None,
             )
         ]
 

@@ -324,7 +324,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         }
         expected_start = (self.start_date - datetime.timedelta(days=2)).strftime("%Y-%m-%d")
         expected_end = self.start_date.strftime("%Y-%m-%d")
-        expected_months = [(expected_start, expected_end, None)]
+        expected_months = [(expected_start, expected_end)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -366,7 +366,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
         expected_date = self.first_of_month.strftime("%Y-%m-%d")
-        expected_months = [(expected_date, end_date.strftime("%Y-%m-%d"), None)]
+        expected_months = [(expected_date, end_date.strftime("%Y-%m-%d"))]
 
         returned_months = get_months_in_date_range(test_report)
 
