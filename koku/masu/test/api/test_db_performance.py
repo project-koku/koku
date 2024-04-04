@@ -192,7 +192,9 @@ class TestDBPerformanceClass(IamTestCase):
 
         expected = [
             {
-                "query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1\nQuery Identifier: 1147616880456321454",  # noqa: E501
+                "query_plan": (
+                    "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1\nQuery Identifier: 1147616880456321454"
+                ),
                 "query_text": "select 1",
             }
         ]

@@ -327,7 +327,7 @@ select datname as "dbname",
 {limit_clause}
 {offset_clause}
 ;
-"""  # noqa
+"""
 
         LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()
