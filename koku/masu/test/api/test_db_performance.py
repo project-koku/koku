@@ -73,8 +73,10 @@ class TestDBPerformanceClass(IamTestCase):
         """Test that the db engine version can be retrieved."""
         # FIXME: Rewrite using parametrize when pytest is available
         testcases = (
-            ("090600", "9.6.0"),
+            ("090000", "9.0.0"),
+            ("090023", "9.0.23"),
             ("090100", "9.1.0"),
+            ("090600", "9.6.0"),
             ("092600", "9.26.0"),
             ("100000", "10.0"),
             ("100010", "10.10"),
@@ -86,10 +88,12 @@ class TestDBPerformanceClass(IamTestCase):
             server_version_num = case[0]
             expected = case[1]
 
-            with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-                with patch.object(dbp, "_execute") as mock_execute:
-                    mock_execute.return_value.fetchone.return_value = {"server_version_num": server_version_num}
-                    ver = dbp.get_pg_engine_version()
+            with (
+                DBPerformanceStats("KOKU", CONFIGURATOR) as dbp,
+                patch.object(dbp, "_execute") as mock_execute,
+            ):
+                mock_execute.return_value.fetchone.return_value = {"server_version_num": server_version_num}
+                ver = dbp.get_pg_engine_version()
 
             self.assertEqual(ver, expected)
 

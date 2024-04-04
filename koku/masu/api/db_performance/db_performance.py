@@ -148,7 +148,7 @@ select case when s.category_setting_num = 1 then s.category else ''::text end as
         #           120001 --> ['12', '00', '01']
         #           140011 --> ['14', '00', '11']
         parts = list(map("".join, zip(*[iter(server_version_num)] * 2)))
-        parts = [part.lstrip("0") for part in parts]
+        parts = [int(part) for part in parts]
 
         # The second part of the version number was only used in PastgreSQL < 10
         # https://www.postgresql.org/support/versioning/
@@ -158,10 +158,11 @@ select case when s.category_setting_num = 1 then s.category else ''::text end as
         #   9.0.0, 9.1.2
         #   10.1, 10.2
         #
-        # parts[1] will be "" if it was "00" originally due to the lstrip("0") above
-        #
-        major = f"{parts[0]}.{parts[1]}" if parts[1] else parts[0]
-        minor = "0" if not parts[2] else parts[2]
+        major = parts[0]
+        if major < 10:
+            major = f"{parts[0]}.{parts[1]}"
+
+        minor = parts[2]
 
         return f"{major}.{minor}"
 
