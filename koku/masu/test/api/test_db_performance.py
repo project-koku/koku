@@ -57,9 +57,11 @@ class TestDBPerformanceClass(IamTestCase):
 
     def test_bad_sql(self):
         """Test that bad sql will throw an exception."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            with self.assertRaises(UndefinedTable):
-                dbp._execute("""select * from no_table_here;""")
+        with (
+            DBPerformanceStats("KOKU", CONFIGURATOR) as dbp,
+            self.assertRaises(UndefinedTable),
+        ):
+            dbp._execute("""select * from no_table_here;""")
 
     def test_del_closes_connection(self):
         """Test that instance delete closes the connection"""
@@ -190,9 +192,11 @@ class TestDBPerformanceClass(IamTestCase):
             "delete from eek",
         ]
         for bad_sql in bad_statements:
-            with self.assertRaises(ProgrammingError, msg=f"Failing statement is {bad_sql}"):
-                with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-                    res = dbp.explain_sql(bad_sql)
+            with (
+                self.assertRaises(ProgrammingError, msg=f"Failing statement is {bad_sql}"),
+                DBPerformanceStats("KOKU", CONFIGURATOR) as dbp,
+            ):
+                res = dbp.explain_sql(bad_sql)
 
         expected = [
             {
