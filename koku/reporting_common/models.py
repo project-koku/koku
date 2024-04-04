@@ -4,6 +4,7 @@
 #
 """Models for shared reporting tables."""
 import logging
+from uuid import uuid4
 
 from django.conf import settings
 from django.db import models
@@ -190,6 +191,9 @@ class DelayedCeleryTasks(models.Model):
             existing_task.save()
             return existing_task
 
+        if not task_kwargs.get("tracing_id"):
+            task_kwargs["tracing_id"] = str(uuid4())
+
         new_task = cls(
             task_name=task_name,
             task_args=task_args,
@@ -205,14 +209,16 @@ class DelayedCeleryTasks(models.Model):
 @receiver(pre_delete, sender=DelayedCeleryTasks)
 def trigger_celery_task(sender, instance, **kwargs):
     """Triggers celery task prior to removing the rows from the table."""
+    tracing_id = instance.task_kwargs.get("tracing_id")
     result = celery_app.send_task(
         instance.task_name, args=instance.task_args, kwargs=instance.task_kwargs, queue=instance.queue_name
     )
-    log_msg = "Delay period ended, starting task."
+    log_msg = "delay period ended starting task"
     log_context = {
         "task_name": instance.task_name,
         "task_args": instance.task_args,
         "task_kwargs": instance.task_kwargs,
         "queue_name": instance.queue_name,
+        "result_id": result.id,
     }
-    LOG.info(log_json(tracing_id=result.id, msg=log_msg, context=log_context))
+    LOG.info(log_json(tracing_id=tracing_id, msg=log_msg, context=log_context))
