@@ -12,7 +12,6 @@ from psycopg2.errors import UndefinedTable
 from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
-from masu.api.db_performance.db_performance import SERVER_VERSION
 
 
 TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))
@@ -72,10 +71,27 @@ class TestDBPerformanceClass(IamTestCase):
 
     def test_get_db_version(self):
         """Test that the db engine version can be retrieved."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            ver = dbp.get_pg_engine_version()
-            self.assertEqual(ver, SERVER_VERSION)
-            self.assertTrue(all(isinstance(v, int) for v in ver))
+        # FIXME: Rewrite using parametrize when pytest is available
+        testcases = (
+            ("090600", "9.6.0"),
+            ("090100", "9.1.0"),
+            ("092600", "9.26.0"),
+            ("100000", "10.0"),
+            ("100010", "10.10"),
+            ("120001", "12.1"),
+            ("140000", "14.0"),
+            ("140011", "14.11"),
+        )
+        for case in testcases:
+            server_version_num = case[0]
+            expected = case[1]
+
+            with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+                with patch.object(dbp, "_execute") as mock_execute:
+                    mock_execute.return_value.fetchone.return_value = {"server_version_num": server_version_num}
+                    ver = dbp.get_pg_engine_version()
+
+            self.assertEqual(ver, expected)
 
     def test_get_dbsettings(self):
         """Test that the current settings are retrieved from the databsae."""

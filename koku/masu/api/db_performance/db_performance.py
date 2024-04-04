@@ -21,8 +21,6 @@ MINOR = 2
 TERMINATE_ACTION = "terminate"
 CANCEL_ACTION = "cancel"
 
-SERVER_VERSION = []
-
 LOG = logging.getLogger(__name__)
 
 
@@ -140,21 +138,32 @@ select case when s.category_setting_num = 1 then s.category else ''::text end as
         cur = self._execute(sql, params or None)
         return cur.fetchall()
 
-    def get_pg_engine_version(self):
-        global SERVER_VERSION
-        if not SERVER_VERSION:
-            sql = """
--- PARSED PG ENGINE VERSION
-select (boot_val::int / 10000::int)::int as "release",
-       ((boot_val::int / 100)::int % 100::int)::int as "major",
-       (boot_val::int % 100::int)::int as "minor"
-  from pg_settings
- where name = 'server_version_num';
-"""
-            res = self._execute(sql, None).fetchone()
-            SERVER_VERSION.extend(res.values())
+    def get_pg_engine_version(self) -> str:
+        sql = "SHOW server_version_num;"
+        res = self._execute(sql, None).fetchone()
+        server_version_num = res["server_version_num"]
 
-        return SERVER_VERSION
+        # Split the version into two part chunks
+        # Examples: 090600 --> ['09', '06', '00']
+        #           120001 --> ['12', '00', '01']
+        #           140011 --> ['14', '00', '11']
+        parts = list(map("".join, zip(*[iter(server_version_num)] * 2)))
+        parts = [part.lstrip("0") for part in parts]
+
+        # The second part of the version number was only used in PastgreSQL < 10
+        # https://www.postgresql.org/support/versioning/
+        # https://www.postgresql.org/docs/release/
+        #
+        # Examples:
+        #   9.0.0, 9.1.2
+        #   10.1, 10.2
+        #
+        # parts[1] will be "" if it was "00" originally due to the lstrip("0") above
+        #
+        major = f"{parts[0]}.{parts[1]}" if parts[1] else parts[0]
+        minor = "0" if not parts[2] else parts[2]
+
+        return f"{major}.{minor}"
 
     def _handle_limit(self, limit, params):
         if isinstance(limit, int) and limit > 0:
