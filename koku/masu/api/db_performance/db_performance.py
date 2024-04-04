@@ -139,32 +139,16 @@ select case when s.category_setting_num = 1 then s.category else ''::text end as
         return cur.fetchall()
 
     def get_pg_engine_version(self) -> str:
-        sql = "SHOW server_version_num;"
+        sql = "SHOW server_version;"
         res = self._execute(sql, None).fetchone()
-        server_version_num = res["server_version_num"]
+        server_version = res["server_version"]
 
-        # Split the version into two part chunks
-        # Examples: 090600 --> ['09', '06', '00']
-        #           120001 --> ['12', '00', '01']
-        #           140011 --> ['14', '00', '11']
-        parts = list(map("".join, zip(*[iter(server_version_num)] * 2)))
-        parts = [int(part) for part in parts]
+        # Split the version number out
+        # Examples: 14.9
+        #           14.11 (Debian 14.11-1.pgdg120+2)
+        parts = server_version.split(" ", 1)
 
-        # The second part of the version number was only used in PastgreSQL < 10
-        # https://www.postgresql.org/support/versioning/
-        # https://www.postgresql.org/docs/release/
-        #
-        # Examples:
-        #   9.0.0, 9.1.2
-        #   10.1, 10.2
-        #
-        major = parts[0]
-        if major < 10:
-            major = f"{parts[0]}.{parts[1]}"
-
-        minor = parts[2]
-
-        return f"{major}.{minor}"
+        return parts[0]
 
     def _handle_limit(self, limit, params):
         if isinstance(limit, int) and limit > 0:
