@@ -585,7 +585,7 @@ class QueryParametersTests(TestCase):
             tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_filter("account"), ["account1", "account2"])
+        self.assertEqual(params.get_access("account"), ["account1", "account2"])
         self.assertEqual(params.get_filter("region"), "*")
 
     def test_update_query_parameters_add_subscription_guid_filter_obj(self):
@@ -607,7 +607,7 @@ class QueryParametersTests(TestCase):
             tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_filter("subscription_guid"), [guid1, guid2])
+        self.assertEqual(params.get_access("subscription_guid"), [guid1, guid2])
 
     def test_update_query_parameters_add_tenant_id_filter_obj(self):
         """Test that if no group_by or filter is present, access is the tenant_ids available."""
@@ -628,7 +628,7 @@ class QueryParametersTests(TestCase):
             tag_providers=[],
         )
         params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_filter("payer_tenant_id"), [guid1, guid2])
+        self.assertEqual(params.get_access("payer_tenant_id"), [guid1, guid2])
 
     def test_update_query_parameters_filtered_intersection(self):
         """Test that a filter by cluster filtered list causes a 403 when filtering on accounts without access."""

@@ -324,7 +324,7 @@ class QueryParameters:
                 if result:
                     self.parameters["filter"][filter_key] = result
             elif access_list:
-                self.parameters["filter"][filter_key] = access_list
+                self.parameters["access"][filter_key] = access_list
 
     def _set_access_ocp_all(self, provider, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
