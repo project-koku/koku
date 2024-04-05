@@ -322,7 +322,7 @@ class QueryParameters:
                 items = set(self.get_filter(filter_key))
                 result = get_replacement_result(items, access_list, raise_exception)
                 if result:
-                    self.parameters["filter"][filter_key] = result
+                    self.parameters["access"][filter_key] = result
             elif access_list:
                 self.parameters["access"][filter_key] = access_list
 
