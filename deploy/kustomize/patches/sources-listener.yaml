@@ -51,6 +51,8 @@
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -155,6 +157,9 @@
           cpu: ${SOURCES_LISTENER_CPU_LIMIT}
           memory: ${SOURCES_LISTENER_MEMORY_LIMIT}
       volumeMounts:
+      - name: aws-credentials
+        mountPath: /etc/aws
+        readOnly: true
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
@@ -166,6 +171,12 @@
       volumes:
       - name: tmp-data
         emptyDir: {}
+      - name: aws-credentials
+        secret:
+          items:
+          - key: credentials
+            path: credentials
+          secretName: koku-aws
       - name: gcp-credentials
         secret:
           secretName: koku-gcp

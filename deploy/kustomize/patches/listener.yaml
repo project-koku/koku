@@ -31,6 +31,8 @@
               key: aws-secret-access-key
               name: koku-aws
               optional: false
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -137,6 +139,9 @@
           cpu: ${LISTENER_CPU_REQUEST}
           memory: ${LISTENER_MEMORY_REQUEST}
       volumeMounts:
+      - name: aws-credentials
+        mountPath: /etc/aws
+        readOnly: true
       - name: koku-listener-data
         mountPath: /var/tmp/masu/
       - name: gcp-credentials
@@ -152,6 +157,12 @@
         emptyDir: {}
       - name: koku-listener-data
         emptyDir: {}
+      - name: aws-credentials
+        secret:
+          items:
+          - key: credentials
+            path: credentials
+          secretName: koku-aws
       - name: gcp-credentials
         secret:
           secretName: koku-gcp

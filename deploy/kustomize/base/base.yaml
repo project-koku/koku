@@ -270,6 +270,8 @@ parameters:
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
   value: subs-eph-s3
+- name: AWS_SHARED_CREDENTIALS_FILE
+  value: "/etc/aws/credentials"
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
