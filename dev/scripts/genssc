@@ -9,13 +9,13 @@
 if ! which openssl 1>/dev/null
 then
     echo "ERROR: openssl is required" >&2
-    exit -1
+    exit 1
 fi
 
 if [[ -z "${KOKU_PATH}" ]]
 then
     echo "ERROR: Environment variable KOKU_PATH must be set" >&2
-    exit -1
+    exit 2
 fi
 
 CERT_DIR="${HOME}"/.koku-db-certs
