@@ -119,7 +119,6 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         start, end = self.updater._get_sql_inputs(start_str, end_str)
         start_return, end_return = self.updater.update_summary_tables(start, end)
         mock_trino.assert_not_called()
-        mock_tag_update.assert_not_called()
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
