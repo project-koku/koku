@@ -4,6 +4,7 @@
 #
 """Interactions with the rbac service."""
 import logging
+from collections import OrderedDict
 from json.decoder import JSONDecodeError
 
 import requests
@@ -22,20 +23,22 @@ PROTOCOL = "protocol"
 HOST = "host"
 PORT = "port"
 PATH = "path"
-RESOURCE_TYPES = {
-    "aws.account": ["read"],
-    "aws.organizational_unit": ["read"],
-    "gcp.account": ["read"],
-    "gcp.project": ["read"],
-    "azure.subscription_guid": ["read"],
-    "openshift.cluster": ["read"],
-    "openshift.node": ["read"],
-    "openshift.project": ["read"],
-    "cost_model": ["read", "write"],
-    "settings": ["read", "write"],
-    "ibm.account": ["read"],
-    "oci.payer_tenant_id": ["read"],
-}
+RESOURCE_TYPES = OrderedDict(
+    [
+        ("aws.account", ["read"]),
+        ("aws.organizational_unit", ["read"]),
+        ("gcp.account", ["read"]),
+        ("gcp.project", ["read"]),
+        ("azure.subscription_guid", ["read"]),
+        ("openshift.cluster", ["read"]),
+        ("openshift.node", ["read"]),
+        ("openshift.project", ["read"]),
+        ("cost_model", ["read", "write"]),
+        ("settings", ["read", "write"]),
+        ("ibm.account", ["read"]),
+        ("oci.payer_tenant_id", ["read"]),
+    ]
+)
 
 
 def _extract_permission_data(permission):
