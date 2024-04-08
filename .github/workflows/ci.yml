@@ -269,11 +269,12 @@ jobs:
       - name: Upload coverage to Codecov
         if: needs.changed-files.outputs.run_tests == 'true'
         uses: codecov/codecov-action@v3.1.1
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           file: ./coverage.xml
           flags: unittests
           name: Python-${{ matrix.python-version}}
-          # token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
 
       - name: Set Codecov job status on skipped tests
