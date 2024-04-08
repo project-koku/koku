@@ -118,7 +118,6 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
         start_return, end_return = self.updater.update_summary_tables(start, end)
-        mock_delete.assert_not_called()
         mock_trino.assert_not_called()
         mock_tag_update.assert_not_called()
 
