@@ -276,6 +276,7 @@ jobs:
           flags: unittests
           name: Python-${{ matrix.python-version}}
           fail_ci_if_error: true
+          plugin: pycoverage  # Only run one plugin even though we don't want any to run.
 
       - name: Set Codecov job status on skipped tests
         if: needs.changed-files.outputs.run_tests != 'true'
