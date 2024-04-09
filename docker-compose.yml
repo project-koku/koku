@@ -32,8 +32,6 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - KOKU_SOURCES_CLIENT_HOST=${KOKU_SOURCES_CLIENT_HOST-sources-client}
       - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
-      - AWS_ACCESS_KEY_ID # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
-      - AWS_SECRET_ACCESS_KEY # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
@@ -98,8 +96,6 @@ services:
       - POSTGRES_SQL_SERVICE_PORT=5432
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-      - AWS_ACCESS_KEY_ID # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
-      - AWS_SECRET_ACCESS_KEY # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
       - S3_BUCKET_NAME_OCP_INGRESS=${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ENDPOINT
@@ -165,8 +161,6 @@ services:
       - manage.py
       - restart_celery
     environment:
-      - AWS_ACCESS_KEY_ID # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
-      - AWS_SECRET_ACCESS_KEY # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -329,8 +323,6 @@ services:
       - S3_ENDPOINT
       - S3_ACCESS_KEY
       - S3_SECRET
-      - AWS_ACCESS_KEY_ID # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
-      - AWS_SECRET_ACCESS_KEY # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
       - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
@@ -430,8 +422,6 @@ services:
     working_dir: /koku/koku
     entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
     environment:
-      - AWS_ACCESS_KEY_ID # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
-      - AWS_SECRET_ACCESS_KEY # TODO: replace w/ AWS_SHARED_CREDENTIALS_FILE
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
