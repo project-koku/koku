@@ -4273,6 +4273,7 @@ objects:
   stringData:
     aws-access-key-id: ${AWS_ACCESS_KEY_ID_EPH}
     aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY_EPH}
+    credentials: ${AWS_CREDENTIALS_EPH}
 - apiVersion: v1
   data:
     gcp-credentials: ${GCP_CREDENTIALS_EPH}
@@ -4669,6 +4670,10 @@ parameters:
   generate: expression
   name: SECRET_KEY
   required: true
+- displayName: AWS credentials file
+  name: AWS_CREDENTIALS_EPH
+  required: true
+  value: '[default]\naws-access-key-id=insert-string-value\naws-secret-access-key=insert-string-value'
 - displayName: AWS Access Key ID (Ephemeral)
   name: AWS_ACCESS_KEY_ID_EPH
   required: true
