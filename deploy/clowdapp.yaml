@@ -90,8 +90,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: POD_CPU_LIMIT
@@ -327,8 +325,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: TRINO_HOST
@@ -685,14 +681,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -889,8 +877,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
@@ -1066,8 +1052,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
@@ -1219,14 +1203,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -1415,14 +1391,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -1622,14 +1590,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -1821,14 +1781,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -2032,14 +1984,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -2231,14 +2175,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -2440,14 +2376,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -2641,14 +2569,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -2856,14 +2776,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -3064,14 +2976,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -3261,14 +3165,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -3468,14 +3364,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -3669,14 +3557,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -3882,14 +3762,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -4084,14 +3956,6 @@ objects:
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
@@ -4245,14 +4109,6 @@ objects:
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
         - name: KOKU_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
           valueFrom:
             secretKeyRef:
               key: ${GLITCHTIP_KEY_NAME}
@@ -4692,14 +4548,6 @@ parameters:
 - description: Enable Sentry
   displayName: Enable Sentry
   name: KOKU_ENABLE_SENTRY
-  value: "False"
-- description: Enable API Sentry
-  displayName: Enable API Sentry
-  name: ENABLE_API_SENTRY
-  value: "False"
-- description: Enable Celery Sentry
-  displayName: Enable Celery Sentry
-  name: ENABLE_CELERY_SENTRY
   value: "False"
 - description: Enable S3 Archiving
   displayName: Enable S3 Archiving
