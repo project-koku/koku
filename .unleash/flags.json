@@ -8,15 +8,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "source-strategy",
-                    "parameters": {
-                        "source-uuid": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2023-05-03T11:50:00.756Z"
         },
@@ -27,15 +19,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2021-09-14T21:22:00.756Z"
         },
@@ -46,15 +30,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-08-20T19:50:00.756Z"
         },
@@ -65,15 +41,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-08-20T19:50:00.756Z"
         },
@@ -84,15 +52,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-09-06T11:50:00.756Z"
         },
@@ -103,15 +63,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-08-29T11:50:00.756Z"
         },
@@ -122,14 +74,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    }
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-12-09T19:41:51.178Z"
         },
@@ -140,14 +85,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": "org1234567"
-                    }
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-12-02T19:01:40.137Z"
         },
@@ -158,15 +96,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-08-12T21:22:00.756Z"
         },
@@ -177,15 +107,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-02-22T15:48:54.492Z"
         },
@@ -196,14 +118,7 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    }
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2022-10-31T18:49:38.445Z"
         },
@@ -214,43 +129,9 @@
             "project": "default",
             "enabled": false,
             "stale": false,
-            "strategies": [
-                {
-                    "name": "schema-strategy",
-                    "parameters": {
-                        "schema-name": ""
-                    },
-                    "constraints": []
-                }
-            ],
+            "strategies": [],
             "variants": [],
             "createdAt": "2024-01-23T09:40:54.492Z"
-        }
-    ],
-    "strategies": [
-        {
-            "name": "schema-strategy",
-            "description": "Enablement based on account/schema number",
-            "parameters": [
-                {
-                    "name": "schema-name",
-                    "type": "list",
-                    "description": "values must begin with `acct` or `org`",
-                    "required": false
-                }
-            ]
-        },
-        {
-            "name": "source-strategy",
-            "description": "Enablement based on source uuid",
-            "parameters": [
-                {
-                    "name": "source-uuid",
-                    "type": "list",
-                    "description": "UUID of the source.",
-                    "required": false
-                }
-            ]
         }
     ]
 }
