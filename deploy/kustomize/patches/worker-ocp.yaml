@@ -77,17 +77,6 @@
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-
-        # TODO: replace with the above
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
-        - name: KOKU_CELERY_SENTRY_DSN
-          valueFrom:
-            secretKeyRef:
-              key: ${GLITCHTIP_KEY_NAME}
-              name: ${GLITCHTIP_SECRET_NAME}
-              optional: true
-
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
