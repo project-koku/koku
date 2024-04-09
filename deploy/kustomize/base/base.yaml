@@ -156,6 +156,7 @@ objects:
   stringData:
     aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
     aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
+    credentials: "${AWS_CREDENTIALS_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
@@ -573,6 +574,10 @@ parameters:
   required: true
   from: "[a-f0-9]{20}"
   generate: expression
+- displayName: AWS credentials file
+  name: AWS_CREDENTIALS_EPH
+  required: true
+  value: '[default]\naws-access-key-id=insert-string-value\naws-secret-access-key=insert-string-value'
 - name: AWS_ACCESS_KEY_ID_EPH
   displayName: AWS Access Key ID (Ephemeral)
   required: true

@@ -4009,6 +4009,12 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
+        - name: aws-credentials
+          secret:
+            items:
+            - key: credentials
+              path: credentials
+            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4158,6 +4164,12 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
+        - name: aws-credentials
+          secret:
+            items:
+            - key: credentials
+              path: credentials
+            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
