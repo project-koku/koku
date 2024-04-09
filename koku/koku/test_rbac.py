@@ -356,6 +356,31 @@ class RbacServiceTest(TestCase):
         expected = create_expected_access({"cost_model": {"write": ["1", "3"], "read": ["1", "3", "2"]}})
         self.assertEqual(res_access, expected)
 
+    def test_apply_access_for_openshift_clusteR_level(self):
+        """Test handling of OpenShift Node/Project when only cluster role is set."""
+        processed_acls = {"openshift.cluster": [{"operation": "read", "resources": ["2"]}]}
+        res_access = _apply_access(processed_acls)
+        expected = create_expected_access(
+            {
+                "openshift.cluster": {"read": ["2"]},
+                "openshift.node": {"read": ["*"]},
+                "openshift.project": {"read": ["*"]},
+            }
+        )
+        self.assertEqual(res_access, expected)
+
+    def test_apply_access_for_openshift_node_level(self):
+        """Test handling of OpenShift Project when only node role is set."""
+        processed_acls = {"openshift.node": [{"operation": "read", "resources": ["2"]}]}
+        res_access = _apply_access(processed_acls)
+        expected = create_expected_access(
+            {
+                "openshift.node": {"read": ["2"]},
+                "openshift.project": {"read": ["*"]},
+            }
+        )
+        self.assertEqual(res_access, expected)
+
     def test_apply_access_limited_no_read_write(self):
         """Test handling of limited resource access data for apply access method."""
         processed_acls = {}
