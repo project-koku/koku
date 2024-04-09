@@ -73,11 +73,6 @@
               key: ${GLITCHTIP_KEY_NAME}
               name: ${GLITCHTIP_SECRET_NAME}
               optional: true
-
-        # TODO: replace with the above
-        - name: KOKU_API_ENABLE_SENTRY
-          value: ${ENABLE_API_SENTRY}
-
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: TRINO_HOST

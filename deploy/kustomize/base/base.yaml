@@ -409,14 +409,6 @@ parameters:
   displayName: Enable Sentry
   name: KOKU_ENABLE_SENTRY
   value: "False"
-- description: Enable API Sentry
-  displayName: Enable API Sentry
-  name: ENABLE_API_SENTRY
-  value: "False"
-- description: Enable Celery Sentry
-  displayName: Enable Celery Sentry
-  name: ENABLE_CELERY_SENTRY
-  value: "False"
 
 - description: Enable S3 Archiving
   displayName: Enable S3 Archiving
