@@ -2,8 +2,13 @@
     "catalogs": [
         {
             "user": "readonly",
-            "catalog": "system",
-            "allow": "none"
+            "catalog": "hive|postgres",
+            "allow": "read-only"
+        },
+        {
+            "user": "admin",
+            "catalog": ".*",
+            "allow": "all"
         }
     ],
     "system_session_properties": [
