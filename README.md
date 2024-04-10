@@ -37,8 +37,9 @@ do the following:
 
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
-2.  Copy [`testing/credentials/aws.example`](testing/credentials/aws.example) into `testing/credentials/aws`, obtain AWS credentials, then update the credentials file:
+2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
 
+        [default]
         aws_access_key_id=YOUR_AWS_ACCESS_KEY_ID
         aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
 
