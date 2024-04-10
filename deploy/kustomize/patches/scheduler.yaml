@@ -155,8 +155,8 @@
       - name: aws-credentials
         secret:
           items:
-          - key: credentials
-            path: credentials
+          - key: aws-credentials
+            path: aws-credentials
           secretName: koku-aws
       - name: gcp-credentials
         secret:
