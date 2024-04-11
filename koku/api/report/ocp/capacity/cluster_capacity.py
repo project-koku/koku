@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from decimal import Decimal
 
-from django.db.models import Sum
 from django.db.models.query import QuerySet
 
 
@@ -124,6 +123,9 @@ class ClusterCapacity:
         for cluster in unique_cluster_node_counts:
             self.count_by_cluster[cluster] = sum(unique_cluster_node_counts.get(cluster).values())
 
+        # sum the capacity_count for distinct nodes
+        self.count_total = sum(self.count_by_cluster.values())
+
     def _aggregate_capacity_count_by_date(self, node_instance_counts):
         """
         Aggregates the maximu capacity count for each node within a cluster for each date
@@ -175,13 +177,6 @@ class ClusterCapacity:
             return False
 
         node_instance_counts = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
-
-        # sum the capacity_count for distinct nodes
-        self.count_total = (
-            node_instance_counts.values("node")
-            .distinct()
-            .aggregate(total_capacity=Sum(self.capacity_count_key))["total_capacity"]
-        )
 
         self._aggregate_capacity_count_by_cluster(node_instance_counts)
         self._aggregate_capacity_count_by_date(node_instance_counts)
