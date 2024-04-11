@@ -70,17 +70,20 @@ class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
 
 
+def get_data_frame(file_path: os.PathLike):
+    """read csv file into dataframe"""
+    try:
+        return pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
+    except Exception as error:
+        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
+        raise error
+
+
 def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
     """
     Split local file into daily content.
     """
-    daily_files = []
-
-    try:
-        data_frame = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
-    except Exception as error:
-        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
-        raise error
+    data_frame = get_data_frame(file_path)
 
     report_type, _ = utils.detect_type(file_path)
     unique_times = data_frame.interval_start.unique()
@@ -90,6 +93,7 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
         for cur_day in days
     ]
 
+    daily_files = []
     for daily_data in daily_data_frames:
         day = daily_data.get("date")
         df = daily_data.get("data_frame")
