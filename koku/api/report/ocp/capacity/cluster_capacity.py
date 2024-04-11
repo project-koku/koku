@@ -123,7 +123,7 @@ class ClusterCapacity:
         for cluster in unique_cluster_node_counts:
             self.count_by_cluster[cluster] = sum(unique_cluster_node_counts.get(cluster).values())
 
-        # sum the capacity_count for distinct nodes
+        # sum capacity count for all clusters
         self.count_total = sum(self.count_by_cluster.values())
 
     def _aggregate_capacity_count_by_date(self, node_instance_counts):
