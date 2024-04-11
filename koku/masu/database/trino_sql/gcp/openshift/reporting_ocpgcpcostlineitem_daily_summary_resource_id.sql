@@ -206,18 +206,8 @@ SELECT cast(uuid() as varchar),
     max(nullif(gcp.sku_id, '')) as sku_id,
     max(nullif(gcp.sku_description, '')) as sku_alias,
     gcp.location_region as region,
-    CASE max(gcp.usage_pricing_unit)
-        WHEN 'hour' THEN 'Hrs'
-        WHEN 'gibibyte' THEN 'GB'
-        WHEN 'gibibyte month' THEN 'GB-Mo'
-        WHEN 'gibibyte hour' THEN 'GB-Hours'
-        ELSE max(gcp.usage_pricing_unit)
-    END as unit,
-    CASE
-        WHEN max(gcp.usage_pricing_unit) IN ('gibibyte month', 'gibibyte', 'gibibyte hour')
-        THEN cast(sum(gcp.usage_amount_in_pricing_units) * 1.073741824 AS decimal(24,9)) -- Convert to gigabyte
-        ELSE cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9))
-    END as usage_amount,
+    max(gcp.usage_pricing_unit) as unit,
+    cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
     max(gcp.currency) as currency,
     gcp.invoice_month as invoice_month,
     sum(daily_credits) as credit_amount,
@@ -780,18 +770,8 @@ SELECT uuid(),
     sku_id,
     sku_alias,
     region,
-    CASE unit
-        WHEN 'hour' THEN 'Hrs'
-        WHEN 'gibibyte' THEN 'GB'
-        WHEN 'gibibyte month' THEN 'GB-Mo'
-        WHEN 'gibibyte hour' THEN 'GB-Hours'
-        ELSE unit
-    END as unit,
-    CASE
-        WHEN unit IN ('gibibyte month', 'gibibyte', 'gibibyte hour')
-        THEN cast(usage_amount * 1.073741824 AS decimal(24,9)) -- Convert to gigabyte
-        ELSE cast(usage_amount AS decimal(24,9))
-    END as usage_amount,
+    unit,
+    usage_amount,
     currency,
     unblended_cost,
     markup_cost,

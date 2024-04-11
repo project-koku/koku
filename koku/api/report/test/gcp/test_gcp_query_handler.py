@@ -1274,18 +1274,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 GCPCostSummaryByServiceP,
             ),
             (
-                (
-                    "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRouteLoad%20Balancer"
-                    "Application%20Gateway"
-                ),
+                "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
                 GCPCostView,
                 GCPCostSummaryByServiceP,
             ),
             (
-                (
-                    "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,"
-                    "Application%20Gateway&group_by[account]=*"
-                ),
+                "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[account]=*",  # noqa: E501
                 GCPCostView,
                 GCPCostSummaryByServiceP,
             ),
@@ -1472,7 +1466,6 @@ class GCPReportQueryHandlerTest(IamTestCase):
                         self.assertNotEqual(cost_total, Decimal(0))
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     service_checked = True
-
         self.assertTrue(service_checked)
 
     def test_gcp_date_order_by_cost_desc(self):
@@ -1546,9 +1539,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     overall_output = handler.execute_query()
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     opt_dict = overall_output.get("data", [{}])[0]
-                    opt_dict = opt_dict.get(f"{exclude_opt}s", [{}])[0]
+                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
                     opt_value = opt_dict.get(exclude_opt)
-                    self.assertIsNotNone(opt_value)
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)

@@ -151,3 +151,11 @@ def is_feature_cost_3592_tag_mapping_enabled(account):
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+
+
+def is_feature_cost_3083_all_labels_enabled(account):
+    """Should all labels column be enabled."""
+    unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)

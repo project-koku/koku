@@ -194,9 +194,6 @@ services:
       - S3_SECRET
       - DATA_DIR=${DATA_DIR-/testing/data}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
-      - KOKU_CELERY_ENABLE_SENTRY
-      - KOKU_CELERY_SENTRY_DSN
-      - KOKU_SENTRY_ENVIRONMENT=development
       - DEMO_ACCOUNTS
       - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
       - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
@@ -572,7 +569,7 @@ services:
 
   unleash:
     container_name: koku-unleash
-    image: unleashorg/unleash-server:4.21.0
+    image: unleashorg/unleash-server:5.6.9
     environment:
       - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
       - CHECK_VERSION=false
