@@ -108,6 +108,8 @@ class ClusterCapacity:
         Side effects:
             - Modifies `self.count_by_cluster` to include the total capacity count for each cluster keyed by cluster.
 
+            - Also updates `self.count_total` to include the total aggregated capacity for all clusters.
+
         """
 
         unique_cluster_node_counts = defaultdict(lambda: defaultdict(Decimal))
