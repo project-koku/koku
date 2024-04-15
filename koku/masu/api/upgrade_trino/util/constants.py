@@ -2,7 +2,7 @@ from common.enum import StrEnum
 
 # Update this to trigger the converter to run again
 # even if marked as successful
-CONVERTER_VERSION = "1"
+CONVERTER_VERSION = "2"
 
 
 class ConversionContextKeys(StrEnum):
