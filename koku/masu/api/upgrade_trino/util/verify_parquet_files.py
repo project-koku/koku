@@ -29,7 +29,7 @@ class VerifyParquetFiles:
     S3_PREFIX_LOG_KEY = "s3_prefix"
 
     def __init__(self, schema_name, provider_uuid, provider_type, simulate, bill_date, cleaned_column_mapping):
-        self.schema_name = schema_name
+        self.schema_name = schema_name.replace("acct", "")
         self.provider_uuid = uuid.UUID(provider_uuid)
         self.provider_type = provider_type.replace("-local", "")
         self.simulate = simulate
