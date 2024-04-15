@@ -221,7 +221,7 @@ class TestOCPPostProcessor(MasuTestCase):
         with patch("masu.util.ocp.ocp_post_processor.ciso8601.parse_datetime") as mock_parse:
             mock_parse.side_effect = ParserError
             dt = datetime_converter("parse error")
-            self.assertIsNone(dt)
+            self.assertTrue(pd.isnull(dt))
 
     def test_check_ingress_required_columns(self):
         """Test that None is returned."""
