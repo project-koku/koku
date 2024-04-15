@@ -6,9 +6,8 @@
 import copy
 from unittest.mock import patch
 
+import pandas as pd
 from django_tenants.utils import schema_context
-from numpy import isnan
-from pandas import DataFrame
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -30,7 +29,7 @@ class TestAzurePostProcessor(MasuTestCase):
 
     def test_azure_generate_daily_data(self):
         """Test that we return the original data frame."""
-        df = DataFrame([{"key": "value"}])
+        df = pd.DataFrame([{"key": "value"}])
         result = self.post_processor._generate_daily_data(df)
         self.assertEqual(id(df), id(result))
 
@@ -38,7 +37,7 @@ class TestAzurePostProcessor(MasuTestCase):
         """Test that we end up with a dataframe with the correct columns."""
 
         data = {"MeterSubCategory": [1], "tags": ['{"key1": "val1", "key2": "val2"}']}
-        df = DataFrame(data)
+        df = pd.DataFrame(data)
 
         with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
             result, _ = self.post_processor.process_dataframe(df)
@@ -62,7 +61,7 @@ class TestAzurePostProcessor(MasuTestCase):
             "InstanceName": expected_resource_id,
             "Product": expected_product,
         }
-        df = DataFrame(data)
+        df = pd.DataFrame(data)
 
         with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
             result, _ = self.post_processor.process_dataframe(df)
@@ -88,7 +87,7 @@ class TestAzurePostProcessor(MasuTestCase):
             with self.subTest(acceptable_format=acceptable_format):
                 date = today.strftime(acceptable_format)
                 self.assertEqual(date_converter(date).date(), today.date())
-        self.assertTrue(isnan(date_converter("")))
+        self.assertTrue(pd.isnull(date_converter("")))
 
     def test_azure_json_converter(self):
         """Test that we successfully process both Azure JSON formats."""
@@ -123,7 +122,7 @@ class TestAzurePostProcessor(MasuTestCase):
             expected_tag_keys.append(expected_tag_key)
             tags = str({expected_tag_key: f"val{idx}"}).replace("'", '"')
             data = {"MeterSubCategory": [1], "tags": [tags]}
-            data_frame = DataFrame.from_dict(data)
+            data_frame = pd.DataFrame.from_dict(data)
             with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
                 self.post_processor.process_dataframe(data_frame)
                 self.assertIn(expected_tag_key, self.post_processor.enabled_tag_keys)
