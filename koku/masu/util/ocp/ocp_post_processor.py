@@ -18,7 +18,7 @@ def process_openshift_datetime(val):
     """
     Convert the date time from the Metering operator reports to a consumable datetime.
     """
-    result = None
+    result = pd.NaT
     try:
         datetime_str = str(val).replace(" +0000 UTC", "")
         result = ciso8601.parse_datetime(datetime_str)
