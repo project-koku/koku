@@ -91,12 +91,25 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
                 .values_list("clusters", flat=True)
                 .distinct()
             )
+            # If the OCP cluster is connected to a infrastructure source
+            # we need to summarize the infra source instead so that both
+            # the OCP source & the cloud source are re-summarized for
+            # the cloud filtered by openshift views.
+            infra_sorting = defaultdict(list)
             provider_uuids = (
                 OCPUsageReportPeriod.objects.filter(cluster_id__in=clusters, report_period_start=start_date)
                 .values_list("provider__uuid", flat=True)
                 .distinct()
             )
-            delayed_summarize_current_month(schema_name, list(provider_uuids), provider_type)
+            providers = Provider.objects.filter(uuid__in=provider_uuids)
+            for provider in providers:
+                infra = provider.infrastructure
+                if infra:
+                    infra_sorting[infra.infrastructure_type].append(infra.infrastructure_provider_id)
+                else:
+                    infra_sorting[provider_type].append(provider.uuid)
+            for p_type, provider_uuids in infra_sorting.items():
+                delayed_summarize_current_month(schema_name, provider_uuids, p_type)
 
 
 def retrieve_tag_rate_mapping(schema_name):
