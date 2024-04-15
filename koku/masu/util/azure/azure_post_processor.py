@@ -2,8 +2,7 @@ import json
 import logging
 
 import ciso8601
-import pandas
-from numpy import nan
+import pandas as pd
 
 from api.models import Provider
 from masu.util.azure.common import INGRESS_ALT_COLUMNS
@@ -44,7 +43,7 @@ def azure_date_converter(date):
             new_date = ciso8601.parse_datetime(new_date_str)
         return new_date
     else:
-        return nan
+        return pd.NaT
 
 
 class AzurePostProcessor:
@@ -119,7 +118,7 @@ class AzurePostProcessor:
 
         unique_tags = set()
         for tags_json in data_frame["tags"].values:
-            if pandas.notnull(tags_json):
+            if pd.notnull(tags_json):
                 unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
         return data_frame, self._generate_daily_data(data_frame)
