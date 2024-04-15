@@ -8,7 +8,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from botocore.exceptions import ClientError
 from django.conf import settings
-from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -114,10 +113,9 @@ class VerifyParquetFiles:
         """
         generates the s3 path prefixes.
         """
-        with schema_context(self.schema_name):
-            ocp_on_cloud_check = Provider.objects.filter(
-                infrastructure__infrastructure_provider__uuid=self.provider_uuid
-            ).exists()
+        ocp_on_cloud_check = Provider.objects.filter(
+            infrastructure__infrastructure_provider__uuid=self.provider_uuid
+        ).exists()
         path_prefixes = set()
         for report_type in self.report_types:
             path_prefixes.add(self._parquet_path_s3(bill_date, report_type))
