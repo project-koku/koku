@@ -626,7 +626,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/cloudservices/ubi-hive:latest
+    image: quay.io/cloudservices/ubi-hive:3.1.3-metastore-024
     ports:
       - 9083:8000
     environment:
