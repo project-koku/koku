@@ -29,6 +29,7 @@ Project's B distributed_cost = (75 / sum(25 + 75)) * 100 = 75
 So, project A gets an additional 25 dollars, and Project B gets an additional 75 dollars added on due to distributing the Worker unallocated cost.
 
 **How we deduplicate**
+
 However, the `Worker unallocated` project that we created earlier in the *How We Calculate* section still holds the original cost, using the example above this would be our original 100 dollars. Therefore, in order to deduplicate costs for the `Worker unallocated` project we need to do:
 
 ```
@@ -38,6 +39,5 @@ distributed_cost = 0 - worker_uanllocated_cost
 Working with our same example:
 
 ```
-
 Worker unallocated project's distributed_cost = 0 - 100
 ```
