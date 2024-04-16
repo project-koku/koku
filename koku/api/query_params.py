@@ -409,10 +409,10 @@ class QueryParameters:
             # Check Values
             if not isinstance(value, (dict, list)):
                 value = [value]
-            for inner_key in value:
-                stripped_key = self._strip_prefix(inner_key, AWS_CATEGORY_PREFIX, prefix_list)
-                if stripped_key in enabled_category_keys:
-                    self.aws_category_keys.add(inner_key)
+            for inner_value in value:
+                stripped_value = self._strip_prefix(inner_value, AWS_CATEGORY_PREFIX, prefix_list)
+                if stripped_value in enabled_category_keys:
+                    self.aws_category_keys.add(inner_value)
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""

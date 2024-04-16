@@ -8,7 +8,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "source_uuid"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2023-05-03T11:50:00.756Z"
         },
@@ -19,7 +28,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2021-09-14T21:22:00.756Z"
         },
@@ -30,7 +48,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-08-20T19:50:00.756Z"
         },
@@ -41,7 +68,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-08-20T19:50:00.756Z"
         },
@@ -52,7 +88,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-09-06T11:50:00.756Z"
         },
@@ -63,7 +108,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-08-29T11:50:00.756Z"
         },
@@ -74,7 +128,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-12-09T19:41:51.178Z"
         },
@@ -85,7 +148,22 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": [
+                        {
+                            "contextName": "schema",
+                            "operator": "IN",
+                            "values": ["org1234567"]
+                        }
+                    ]
+                }
+            ],
             "variants": [],
             "createdAt": "2022-12-02T19:01:40.137Z"
         },
@@ -96,7 +174,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-08-12T21:22:00.756Z"
         },
@@ -107,7 +194,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-02-22T15:48:54.492Z"
         },
@@ -118,7 +214,16 @@
             "project": "default",
             "enabled": true,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2022-10-31T18:49:38.445Z"
         },
@@ -129,7 +234,16 @@
             "project": "default",
             "enabled": false,
             "stale": false,
-            "strategies": [],
+            "strategies": [
+                {
+                    "name": "flexibleRollout",
+                    "parameters": {
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
+                }
+            ],
             "variants": [],
             "createdAt": "2024-01-23T09:40:54.492Z"
         }
