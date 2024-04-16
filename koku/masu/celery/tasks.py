@@ -30,16 +30,17 @@ from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from koku.notifications import NotificationService
+from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
@@ -47,6 +48,7 @@ from masu.util.aws.common import get_s3_resource
 from masu.util.oci.common import OCI_REPORT_TYPES
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import DelayedCeleryTasks
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
@@ -56,6 +58,12 @@ PROVIDER_REPORT_TYPE_MAP = {
     Provider.PROVIDER_OCI: OCI_REPORT_TYPES,
     Provider.PROVIDER_OCI_LOCAL: OCI_REPORT_TYPES,
 }
+
+
+@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=GET_REPORT_FILES_QUEUE)
+def fix_parquet_data_types(*args, **kwargs):
+    verify_parquet = VerifyParquetFiles(*args, **kwargs)
+    verify_parquet.retrieve_verify_reload_s3_parquet()
 
 
 @celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
@@ -69,8 +77,7 @@ def check_report_updates(*args, **kwargs):
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
-    today = DateAccessor().today()
-    LOG.info("Removing expired data at %s", str(today))
+    LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
 
@@ -385,27 +392,20 @@ def crawl_account_hierarchy(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in polling_accounts:
-        account = provider.account
         crawler = None
 
         # Look for a known crawler class to handle this provider
-        if account.get("provider_type") == Provider.PROVIDER_AWS:
-            crawler = AWSOrgUnitCrawler(account)
+        if provider.type == Provider.PROVIDER_AWS:
+            crawler = AWSOrgUnitCrawler(provider)
 
         if crawler:
             LOG.info(
-                "Starting account hierarchy crawler for type {} with provider_uuid: {}".format(
-                    account.get("provider_type"), account.get("provider_uuid")
-                )
+                f"Starting account hierarchy crawler for type {provider.type} with provider_uuid: {provider.uuid}"
             )
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
-            LOG.info(
-                "No known crawler for account with provider_uuid: {} of type {}".format(
-                    account.get("provider_uuid"), account.get("provider_type")
-                )
-            )
+            LOG.info(f"No known crawler for account with provider_uuid: {provider.uuid} of type {provider.type}")
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
 
@@ -423,39 +423,35 @@ def check_cost_model_status(provider_uuid=None):
             return
     else:
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
-    LOG.info("Cost model status check found %s providers to scan" % len(providers))
+    LOG.info(f"Cost model status check found {len(providers)} providers to scan")
     processed = 0
     skipped = 0
     for provider in providers:
-        account = provider.account
-        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider.uuid)
-        if cost_model_map.cost_model:
-            skipped += 1
-        else:
-            NotificationService().cost_model_notification(account)
-            processed += 1
+        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+            if cmdba.cost_model:
+                skipped += 1
+                continue
+        NotificationService().cost_model_notification(provider)
+        processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 
 @celery_app.task(name="masu.celery.tasks.check_for_stale_ocp_source", queue=DEFAULT)
 def check_for_stale_ocp_source(provider_uuid=None):
     """Scheduled task to initiate source check and fire notifications."""
-    manifest_accessor = ReportManifestDBAccessor()
-    if provider_uuid:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime(provider_uuid)
-    else:
-        manifest_data = manifest_accessor.get_last_manifest_upload_datetime()
+    with ReportManifestDBAccessor() as accessor:
+        manifest_data = accessor.get_last_manifest_upload_datetime(provider_uuid)
     if manifest_data:
-        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
+        LOG.info(f"Openshift stale cluster check found {len(manifest_data)} clusters to scan")
         processed = 0
         skipped = 0
-        today = DateAccessor().today()
-        check_date = DateHelper().n_days_ago(today, 3)
+        dh = DateHelper()
+        check_date = dh.n_days_ago(dh.now, 3)
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                account = Provider.objects.get(uuid=data.get("provider_id")).account
-                NotificationService().ocp_stale_source_notification(account)
+                provider = Provider.objects.get(uuid=data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(provider)
                 processed += 1
             else:
                 skipped += 1
@@ -566,3 +562,9 @@ def get_celery_queue_items(self, queue_name=None, task_name=None):
         decoded_tasks[queue] = task_list
 
     return decoded_tasks
+
+
+@celery_app.task(name="masu.celery.tasks.trigger_delayed_tasks", queue=GET_REPORT_FILES_QUEUE)
+def trigger_delayed_tasks(*args, **kwargs):
+    """Removes the expired records starting the delayed celery tasks."""
+    DelayedCeleryTasks.trigger_delayed_tasks()

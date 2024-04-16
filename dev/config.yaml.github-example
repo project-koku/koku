@@ -25,7 +25,7 @@ apps:
       parameters:
         IMAGE_TAG: 3.1.2-metastore-006
         S3_BUCKET_NAME: koku-eph-s3
-    - name: presto
+    - name: trino
       host: github
       repo: redhatinsights/ubi-trino
       path: deploy/clowdapp.yaml

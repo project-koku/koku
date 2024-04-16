@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     # local apps
     "api",
     "hcs",
+    "key_metrics",
     "masu",
     "reporting",
     "reporting_common",
@@ -92,6 +93,7 @@ SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 SHARED_APPS = (
     "django_tenants",
     "api",
+    "key_metrics",
     "masu",
     "reporting_common",
     "django.contrib.contenttypes",
@@ -105,8 +107,6 @@ SHARED_APPS = (
 TENANT_APPS = ("reporting", "cost_models")
 TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
 TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
-
-DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
 ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
 
@@ -243,11 +243,11 @@ else:
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
-            "TIMEOUT": 3600,  # 1 hour default
+            "TIMEOUT": 3_600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1000,
+                "MAX_ENTRIES": 1_000,
                 "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
@@ -258,14 +258,14 @@ else:
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1000,
+                "MAX_ENTRIES": 1_000,
                 "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         "worker": {
             "BACKEND": "django.core.cache.backends.db.DatabaseCache",
             "LOCATION": "worker_cache_table",
-            "TIMEOUT": 86400,  # 24 hours
+            "TIMEOUT": 86_400,  # 24 hours
         },
     }
 
@@ -309,8 +309,6 @@ UTC = ZoneInfo("UTC")
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = True
 
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
@@ -322,9 +320,16 @@ NOTIFICATION_CHECK_TIME = ENVIRONMENT.int("NOTIFICATION_CHECK_TIME", default=24)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATIC_URL = "{}/static/".format(API_PATH_PREFIX.rstrip("/"))
-
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/specs")]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django_tenants.storage.TenantFileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 INTERNAL_IPS = ["127.0.0.1"]
 
@@ -566,3 +571,10 @@ ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)
 
 # SUBS Data Extraction debugging
 ENABLE_SUBS_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_DEBUG", default=False)
+ENABLE_SUBS_PROVIDER_TYPES = ENVIRONMENT.list("ENABLE_SUBS_PROVIDER_TYPES", default=["AWS"])
+
+# ROS debugging
+ENABLE_ROS_DEBUG = ENVIRONMENT.bool("ENABLE_ROS_DEBUG", default=False)
+
+# Delay Celery Tasks Timeout
+DELAYED_TASK_TIME = ENVIRONMENT.int("DELAYED_TASK_TIME", default=3600)

@@ -238,7 +238,7 @@ If necessary, you can bring up a consumer to see the contents of
 messages that are uploaded to the `hccm` topic using the following
 command within the ingress environment:
 
-    docker compose exec kafka kafka-console-consumer --topic=platform.upload.hccm --bootstrap-server=localhost:29092
+    docker compose exec kafka kafka-console-consumer --topic=platform.upload.announce --bootstrap-server=localhost:29092
 
 Finally, you can bring up Koku project via `docker compose` and check the
 koku-listener logs to ensure the listener has successfully connected and

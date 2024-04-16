@@ -9,6 +9,9 @@ SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-cost_smoke}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
+IQE_CJI_TIMEOUT="${IQE_CJI_TIMEOUT:-2h}"
+RESERVATION_TIMEOUT="${RESERVATION_TIMEOUT:-2h15m}"
+
 
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
@@ -55,14 +58,17 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
     elif grep -E "oci-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
     elif grep -E "ocp-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
+        export IQE_FILTER_EXPRESSION="(test_api_ocp or test_api_cost_model_ocp or aws_ingest_multi) and not ocp_on_gcp and not ocp_on_azure and not ocp_on_cloud"
+        export IQE_MARKER_EXPRESSION="cost_smoke and not cost_exclude_ocp_smokes"
     elif grep -E "hot-fix-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_hotfix"
     elif grep -E "cost-model-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+        export IQE_FILTER_EXPRESSION="test_api_cost_model or ocp_source_raw"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
+        export RESERVATION_TIMEOUT="5h15m"
+        export IQE_CJI_TIMEOUT="5h"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
@@ -83,7 +89,7 @@ function is_pull_request() {
 function run_smoke_tests_stage() {
     _install_bonfire_tools
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
+    export NAMESPACE=$(bonfire namespace reserve --duration ${RESERVATION_TIMEOUT})
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json

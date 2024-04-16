@@ -711,8 +711,10 @@ class ReportQueryHandler(QueryHandler):
         whens = [
             When(project__startswith="openshift-", then=Value("default")),
             When(project__startswith="kube-", then=Value("default")),
+            When(project="openshift", then=Value("default")),
             When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
         ]
+
         if self._category:
             whens.append(When(project__in=self._category, then=Concat(Value("category_"), F("cost_category__name"))))
 
@@ -1113,18 +1115,21 @@ class ReportQueryHandler(QueryHandler):
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")
 
-        rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
             query.annotate(**self.annotations)
             .values(*group_by_value)
             .annotate(**rank_annotations)
-            .annotate(rank=rank_by_total)
             .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
-        if self.is_aws and "account" in self.parameters.url_data:
+        if self.is_aws and "account" in self._get_group_by():
             ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
         if self.is_openshift:
             ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
+
+        # The Window annotation MUST happen after aggregations in Django 4.2 or later.
+        # https://forum.djangoproject.com/t/django-4-2-behavior-change-when-using-arrayagg-on-unnested-arrayfield-postgresql-specific/21547
+        rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
+        ranks = ranks.annotate(rank=rank_by_total)
 
         rankings = []
         distinct_ranks = []

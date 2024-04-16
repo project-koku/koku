@@ -228,6 +228,7 @@ class AWSPostProcessor:
                 "savingsplan_savingsplaneffectivecost": ["sum"],
                 "product_productname": ["max"],
                 "bill_invoiceid": ["max"],
+                "product_vcpu": ["max"],
             }
         )
         columns = daily_data_frame.columns.droplevel(1)
@@ -257,7 +258,9 @@ class AWSPostProcessor:
         data_frame["costCategory"] = cost_categories
 
         # Make sure we have entries for our required columns
-        data_frame = data_frame.reindex(columns=columns)
+        missing = set(TRINO_REQUIRED_COLUMNS).difference(data_frame)
+        to_add = {k: TRINO_REQUIRED_COLUMNS[k] for k in missing}
+        data_frame = data_frame.assign(**to_add)
 
         columns = list(data_frame)
         column_name_map = {}

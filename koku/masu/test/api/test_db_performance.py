@@ -12,7 +12,6 @@ from psycopg2.errors import UndefinedTable
 from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
-from masu.api.db_performance.db_performance import SERVER_VERSION
 
 
 TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))
@@ -58,9 +57,11 @@ class TestDBPerformanceClass(IamTestCase):
 
     def test_bad_sql(self):
         """Test that bad sql will throw an exception."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            with self.assertRaises(UndefinedTable):
-                dbp._execute("""select * from no_table_here;""")
+        with (
+            DBPerformanceStats("KOKU", CONFIGURATOR) as dbp,
+            self.assertRaises(UndefinedTable),
+        ):
+            dbp._execute("""select * from no_table_here;""")
 
     def test_del_closes_connection(self):
         """Test that instance delete closes the connection"""
@@ -72,10 +73,25 @@ class TestDBPerformanceClass(IamTestCase):
 
     def test_get_db_version(self):
         """Test that the db engine version can be retrieved."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            ver = dbp.get_pg_engine_version()
-            self.assertEqual(ver, SERVER_VERSION)
-            self.assertTrue(all(isinstance(v, int) for v in ver))
+        # FIXME: Rewrite using parametrize when pytest is available
+        testcases = (
+            ("9.0.0", "9.0.0"),
+            ("10.0 (Debian 10.0.0-1.pgdg120+2)", "10.0"),
+            ("14.9", "14.9"),
+            ("14.11 (Debian 14.11-1.pgdg120+2)", "14.11"),
+        )
+        for case in testcases:
+            server_version = case[0]
+            expected = case[1]
+
+            with (
+                DBPerformanceStats("KOKU", CONFIGURATOR) as dbp,
+                patch.object(dbp, "_execute") as mock_execute,
+            ):
+                mock_execute.return_value.fetchone.return_value = {"server_version": server_version}
+                ver = dbp.get_pg_engine_version()
+
+            self.assertEqual(ver, expected)
 
     def test_get_dbsettings(self):
         """Test that the current settings are retrieved from the databsae."""
@@ -170,13 +186,17 @@ class TestDBPerformanceClass(IamTestCase):
             "delete from eek",
         ]
         for bad_sql in bad_statements:
-            with self.assertRaises(ProgrammingError, msg=f"Failing statement is {bad_sql}"):
-                with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-                    res = dbp.explain_sql(bad_sql)
+            with (
+                self.assertRaises(ProgrammingError, msg=f"Failing statement is {bad_sql}"),
+                DBPerformanceStats("KOKU", CONFIGURATOR) as dbp,
+            ):
+                res = dbp.explain_sql(bad_sql)
 
         expected = [
             {
-                "query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1\nQuery Identifier: 1147616880456321454",  # noqa: E501
+                "query_plan": (
+                    "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1\nQuery Identifier: 1147616880456321454"
+                ),
                 "query_text": "select 1",
             }
         ]

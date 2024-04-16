@@ -15,9 +15,10 @@ from django.db.models.query import QuerySet
 # Developer Note:
 # This is common code used in the
 # query handler and node capacity.
-def calculate_unused(row, finalized_mapping={}):
+def calculate_unused(row, finalized_mapping=None):
     """Calculates the unused portions of the capacity & request."""
     # Populate unused request and capacity
+    finalized_mapping = finalized_mapping or {}
     for key, value in finalized_mapping.items():
         row[key] = value
     capacity = row.get("capacity", Decimal(0))
@@ -84,27 +85,104 @@ class ClusterCapacity:
         return self.report_type_map.get("count_units_key")
 
     @property
+    def capacity_count_key(self):
+        return self.report_type_map.get("capacity_count_key")
+
+    @property
     def count_annotations(self):
         return self.capacity_aggregate.get("cluster_instance_counts", {})
 
     def __post_init__(self):
         self._populate_count_values()
 
+    def _aggregate_capacity_count_by_cluster(self, node_instance_counts):
+        """
+        Helper function to aggregate capacity count by cluster.
+
+        Aggregates the maximum capacity count for each node within a cluster from a given set of node instances.
+
+        Args:
+            node_instance_counts (QuerySet): Django queryset containing annotated node instance counts
+                                                with cluster, node, usage_start and capacity_count fields.
+
+        Side effects:
+            - Modifies `self.count_by_cluster` to include the total capacity count for each cluster keyed by cluster.
+
+            - Also updates `self.count_total` to include the total aggregated capacity for all clusters.
+
+        """
+
+        unique_cluster_node_counts = defaultdict(lambda: defaultdict(Decimal))
+        for count in node_instance_counts:
+            cluster, node, capacity_count = (count["cluster"], count["node"], count["capacity_count"])
+
+            # count each node per cluster once
+            # use max capacity count if a node has multiple values
+            unique_cluster_node_counts[cluster][node] = max(
+                capacity_count, unique_cluster_node_counts[cluster].get(node, 0)
+            )
+
+        for cluster in unique_cluster_node_counts:
+            self.count_by_cluster[cluster] = sum(unique_cluster_node_counts.get(cluster).values())
+
+        # sum capacity count for all clusters
+        self.count_total = sum(self.count_by_cluster.values())
+
+    def _aggregate_capacity_count_by_date(self, node_instance_counts):
+        """
+        Aggregates the maximu capacity count for each node within a cluster for each date
+        from a given set of node instances.
+
+        Args:
+            node_instance_counts (QuerySet): Django queryset containing annotated node instance counts
+                                                with cluster, node, usage_start and capacity_count fields.
+
+        Side effects:
+            - Modifies `self.count_by_date_cluster` to include the total capacity count for each cluster
+              on each date, keyed by date and then cluster.
+
+            - Also updates `self.count_by_date` to include the total aggregated capacity
+              for each date across all clusters.
+        """
+
+        daily_max_node_capacities = defaultdict(lambda: defaultdict(Decimal))
+        for count in node_instance_counts:
+            cluster, node, usage_start, capacity_count = (
+                count["cluster"],
+                count["node"],
+                count["usage_start"],
+                count["capacity_count"],
+            )
+            # count each node per cluster per date once
+            # use max capacity count if a node has multiple values
+            usage_start_resolution = self._resolution_usage_converter(usage_start)
+
+            # composite key to access daily_max_node_capacities dict
+            cluster_date_key = (cluster, usage_start_resolution)
+            daily_max_node_capacities[cluster_date_key][node] = max(
+                capacity_count, daily_max_node_capacities[cluster_date_key].get(node, 0)
+            )
+
+        for (cluster, date), nodes in daily_max_node_capacities.items():
+            self.count_by_date_cluster[date][cluster] = sum(nodes.values())
+            self.count_by_date[date] = self.count_by_date.get(date, 0) + sum(nodes.values())
+
     def _populate_count_values(self):
         """
-        Queries for the node instance counts, then iterates over the values to
-        aggregate our different resolution variants for our time scope options.
+        Consolidates and aggregates node instance count data based on various resolution variants
+
+        Returns:
+            bool: True if count annotations exist and the aggregations process is completed,
+                  otherwise False
         """
         if not self.count_annotations:
-            # Short circuit for if the count annotations is
-            # not present in the provider map
             return False
+
         node_instance_counts = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
-        for cluster_to_node in node_instance_counts:
-            cluster = cluster_to_node.get("cluster")
-            usage_key = self._resolution_usage_converter(cluster_to_node.get("usage_start"))
-            capacity_count = cluster_to_node.get("capacity_count")
-            self._add_count(capacity_count, usage_key, cluster)
+
+        self._aggregate_capacity_count_by_cluster(node_instance_counts)
+        self._aggregate_capacity_count_by_date(node_instance_counts)
+
         return True
 
     def _add_capacity(self, cap_value, usage_start, cluster_key):
@@ -114,14 +192,6 @@ class ClusterCapacity:
             self.capacity_by_cluster[cluster_key] += cap_value
             self.capacity_by_date[usage_start] += cap_value
             self.capacity_by_date_cluster[usage_start][cluster_key] += cap_value
-
-    def _add_count(self, cluster_mapping_value, usage_start, cluster_key):
-        """Adds the count value to all count resolution variants."""
-        if cluster_mapping_value:
-            self.count_total += cluster_mapping_value
-            self.count_by_date_cluster[usage_start][cluster_key] += cluster_mapping_value
-            self.count_by_date[usage_start] += cluster_mapping_value
-            self.count_by_cluster[cluster_key] += cluster_mapping_value
 
     def _resolution_usage_converter(self, usage_start):
         """Normalizes the usage_start based on the resolution provided."""

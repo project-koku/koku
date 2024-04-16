@@ -13,16 +13,15 @@ from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
-from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
 from masu.test import MasuTestCase
+from masu.util.common import CreateDailyArchivesError
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
 
@@ -47,7 +46,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Setup vars for test."""
         super().setUp()
         self.etag = "1234"
-        self.today = DateHelper().today
+        self.today = self.dh.today
         self.fake_customer_name = FAKE.word()
         self.credentials = {"project_id": "project"}
         self.data_source = {"bucket": "bucket"}
@@ -173,11 +172,10 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Test successful return of get manifest context for date."""
         manifests = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid)
         for manifest in manifests:
-            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{DateHelper().today}"
+            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{self.today}"
             manifest.save()
         self.maxDiff = None
-        dh = DateHelper()
-        start_date = dh.this_month_start
+        start_date = self.dh.this_month_start
         invoice_month = start_date.strftime("%Y%m")
         downloader = self.downloader
         mocked_mapping = {datetime.date.today(): self.today}
@@ -211,7 +209,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         expected_daily_files = [
             f"{temp_dir}/202208_{partition}_{file_name}",
         ]
-        start_date = DateHelper().this_month_start
+        start_date = self.dh.this_month_start
         daily_file_names, date_range = create_daily_archives(
             "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
         )
@@ -226,14 +224,34 @@ class GCPReportDownloaderTest(MasuTestCase):
         os.remove(temp_path)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_leading_zeros(self, mock_s3):
+        """Test if create_daily_archives function is keeping the leading zeros after download."""
+        # Use the processor example for data:
+        file_name = "2022-08-01_5.csv"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        start_date = self.dh.this_month_start
+        daily_file_names, _ = create_daily_archives(
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+        )
+        for daily_file in daily_file_names:
+            with open(daily_file) as file:
+                csv = file.readlines()
+
+            self.assertIn("018984-D0AAA4-940B88", csv[1].split(","))
+        os.remove(temp_path)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_error_opening_file(self, mock_s3):
         """
-        Test that we handle effor while opening csv file.
+        Test that we handle error while opening csv file.
         """
         with patch("masu.external.downloader.gcp.gcp_report_downloader.pd.read_csv") as mock_open:
-            err_msg = "bad_open"
+            err_msg = "unable to create daily archives from: fake"
             mock_open.side_effect = IOError(err_msg)
-            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+            with self.assertRaisesRegex(CreateDailyArchivesError, err_msg):
                 create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
 
     def test_get_dataset_name(self):
@@ -257,19 +275,17 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_scan_start_setup_complete(self, provider):
         """Test scan start when provider setup is complete"""
         provider.setup_complete = True
-        dh = DateHelper()
-        expected_scan_start = dh.today.date() - relativedelta(days=10)
+        expected_scan_start = self.dh.today.date() - relativedelta(days=10)
         downloader = self.downloader
         self.assertEqual(downloader.scan_start, expected_scan_start)
 
     def test_scan_start_setup_not_complete(self):
         """Test scan start provider setup is not complete"""
-        dh = DateHelper()
         downloader = self.downloader
         if self.gcp_provider.setup_complete:
             self.gcp_provider.setup_complete = False
         months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
-        expected_scan_start = dh.today.date() - relativedelta(months=months_delta)
+        expected_scan_start = self.dh.today.date() - relativedelta(months=months_delta)
         expected_scan_start = expected_scan_start.replace(day=1)
         self.assertEqual(downloader.scan_start, expected_scan_start)
 
@@ -277,7 +293,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Test retrieving existing manifests mapping given bill_date and provider"""
         manifests = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid)
         for manifest in manifests:
-            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{DateHelper().today}"
+            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{self.today}"
             manifest.save()
         downloader = self.downloader
         expected_manifest_mapping = {}
@@ -367,25 +383,25 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_generate_pseudo_manifest(self):
         """Test Generating pseudo manifest for storage only."""
-        mock_datetime = DateAccessor().today()
+        mock_datetime = self.dh.now
         mock_date_str = mock_datetime.strftime("%Y-%m-%d")
         expected_manifest_data = {
             "bill_date": mock_date_str,
             "files": self.ingress_reports,
         }
         result_manifest = self.gcp_ingress_report_downloader.collect_pseudo_manifests(mock_datetime)
-        self.assertDictContainsSubset(expected_manifest_data, result_manifest)
+        self.assertEqual(result_manifest, result_manifest | expected_manifest_data)
         self.assertIn(mock_date_str, result_manifest["assembly_id"])
 
     def test_get_storage_only_manifest_file(self):
         """Test _get_manifest method w storage only."""
-        mock_datetime = DateAccessor().today()
+        mock_datetime = self.dh.now
         result = self.storage_only_downloader.get_manifest_context_for_date(mock_datetime)
         self.assertEqual(result, [])
 
     def test_get_ingress_report_manifest_context_for_date(self):
         """Test that the pseudo manifest is created and read."""
-        mock_datetime = DateAccessor().today()
+        mock_datetime = self.dh.now
         result = self.gcp_ingress_report_downloader.get_manifest_context_for_date(mock_datetime)[0]
         self.assertEqual(result.get("compression"), UNCOMPRESSED)
         self.assertIsNotNone(result.get("files"))
@@ -425,7 +441,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/202208_{partition}_manifestid-{self.gcp_manifest_id}_0.csv",
         ]
         context = {"account": self.schema_name, "provider_type": "GCP"}
-        start_date = DateHelper().this_month_start
+        start_date = self.dh.this_month_start
         with patch("masu.external.downloader.gcp.gcp_report_downloader.clear_s3_files"):
             daily_file_names, date_range = create_daily_archives(
                 "request_id",

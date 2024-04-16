@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Report Serializers."""
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext
 from rest_framework import serializers
 
 from api.report.constants import AWS_COST_TYPE_CHOICES
@@ -122,7 +122,7 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
             data["cost_type"] = get_cost_type(self.context.get("request"))
         error = {}
         if "delta" in data.get("order_by", {}) and "delta" not in data:
-            error["order_by"] = _("Cannot order by delta without a delta param")
+            error["order_by"] = gettext("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
         return data
 
@@ -162,7 +162,7 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                 # group_by[org_unit_id]=x&group_by[or:org_unit_id]=OU_001 is invalid
                 # If we ever want to change this we need to decide what would be appropriate to see
                 # here.
-                error = {"or_unit_id": _("Multiple org_unit_id must be represented with the or: prefix.")}
+                error = {"or_unit_id": gettext("Multiple org_unit_id must be represented with the or: prefix.")}
                 raise serializers.ValidationError(error)
             key_used = key_used[0]
             request = self.context.get("request")
@@ -172,13 +172,15 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                 # or if we are grouping by org_unit_id with the * since that is essentially grouping by
                 # accounts. If we ever want to change this we need to decide what would be appropriate to see
                 # here. Such as all org units or top level org units
-                error = {"org_unit_id": _("Unsupported parameter or invalid value")}
+                error = {"org_unit_id": gettext("Unsupported parameter or invalid value")}
                 raise serializers.ValidationError(error)
             if "or:" not in key_used:
                 if isinstance(group_by_params.get(key_used), list):
                     if len(group_by_params.get(key_used)) > 1:
                         # group_by[org_unit_id]=x&group_by[org_unit_id]=OU_001 is invalid
                         # because no child nodes would ever intersect due to the tree structure.
-                        error = {"or_unit_id": _("Multiple org_unit_id must be represented with the or: prefix.")}
+                        error = {
+                            "or_unit_id": gettext("Multiple org_unit_id must be represented with the or: prefix.")
+                        }
                         raise serializers.ValidationError(error)
         return value

@@ -6,12 +6,12 @@
 import logging
 from decimal import Decimal
 
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.util.gcp.common import get_bills_from_provider
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
@@ -85,5 +85,5 @@ class GCPCostModelCostUpdater:
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
                 for bill in bills:
-                    bill.derived_cost_datetime = DateAccessor().today_with_timezone("UTC")
+                    bill.derived_cost_datetime = timezone.now()
                     bill.save()

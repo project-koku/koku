@@ -4,6 +4,7 @@
 #
 """Interactions with the rbac service."""
 import logging
+from collections import OrderedDict
 from json.decoder import JSONDecodeError
 
 import requests
@@ -22,20 +23,22 @@ PROTOCOL = "protocol"
 HOST = "host"
 PORT = "port"
 PATH = "path"
-RESOURCE_TYPES = {
-    "aws.account": ["read"],
-    "aws.organizational_unit": ["read"],
-    "gcp.account": ["read"],
-    "gcp.project": ["read"],
-    "azure.subscription_guid": ["read"],
-    "openshift.cluster": ["read"],
-    "openshift.node": ["read"],
-    "openshift.project": ["read"],
-    "cost_model": ["read", "write"],
-    "settings": ["read", "write"],
-    "ibm.account": ["read"],
-    "oci.payer_tenant_id": ["read"],
-}
+RESOURCE_TYPES = OrderedDict(
+    [
+        ("aws.account", ["read"]),
+        ("aws.organizational_unit", ["read"]),
+        ("gcp.account", ["read"]),
+        ("gcp.project", ["read"]),
+        ("azure.subscription_guid", ["read"]),
+        ("openshift.cluster", ["read"]),
+        ("openshift.node", ["read"]),
+        ("openshift.project", ["read"]),
+        ("cost_model", ["read", "write"]),
+        ("settings", ["read", "write"]),
+        ("ibm.account", ["read"]),
+        ("oci.payer_tenant_id", ["read"]),
+    ]
+)
 
 
 def _extract_permission_data(permission):
@@ -106,6 +109,13 @@ def _update_access_obj(access, res_access, resource_list):
     """Update access object with access data."""
     for res in resource_list:
         access_items = access.get(res, [])
+        # Set OpenShift rbac inheritance cluster->node->project if higher level is restricted
+        if res == "openshift.node":
+            if not access_items and res_access["openshift.cluster"]["read"] != []:
+                access_items = [{"operation": "read", "resources": ["*"]}]
+        if res == "openshift.project":
+            if not access_items and res_access["openshift.node"]["read"] != []:
+                access_items = [{"operation": "read", "resources": ["*"]}]
         for access_item in access_items:
             operation = _get_operation(access_item, res)
             res_list = access_item.get("resources", [])

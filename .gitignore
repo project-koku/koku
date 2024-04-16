@@ -145,12 +145,6 @@ dev/*.yml
 # unleash cache
 .unleash/cache/
 
-#sonarqube
-sonarqube/
-.scannerwork/
-.bash_history
-?/
-
 # performance profiling
 /koku.iml
 /view.prof

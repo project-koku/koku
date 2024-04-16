@@ -8,7 +8,7 @@ from django.urls import path
 from django.views.decorators.cache import cache_page
 from rest_framework.routers import DefaultRouter
 
-from api.common.deprecate_view import deprecate_view
+from api.common.deprecate_view import SunsetView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
@@ -30,6 +30,9 @@ from api.views import AzureStorageView
 from api.views import AzureSubscriptionGuidView
 from api.views import AzureTagView
 from api.views import cloud_accounts
+from api.views import CostGroupsAddView
+from api.views import CostGroupsRemoveView
+from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
@@ -90,8 +93,13 @@ from api.views import SettingsDisableAWSCategoryKeyView
 from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
 from api.views import SettingsEnableTagView
+from api.views import SettingsTagMappingChildAddView
+from api.views import SettingsTagMappingChildRemoveView
+from api.views import SettingsTagMappingChildView
+from api.views import SettingsTagMappingParentRemoveView
+from api.views import SettingsTagMappingParentView
+from api.views import SettingsTagMappingView
 from api.views import SettingsTagView
-from api.views import SettingsView
 from api.views import StatusView
 from api.views import UserAccessView
 from api.views import UserCostTypeSettings
@@ -105,7 +113,6 @@ from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
-
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
@@ -346,8 +353,10 @@ urlpatterns = [
     ),
     path("ingress/reports/", IngressReportsView.as_view(), name="reports"),
     path("ingress/reports/<source>/", IngressReportsDetailView.as_view(), name="reports-detail"),
-    path("settings/", deprecate_view(SettingsView.as_view()), name="settings"),
     path("settings/aws_category_keys/", SettingsAWSCategoryKeyView.as_view(), name="settings-aws-category-keys"),
+    path("settings/cost-groups/", CostGroupsView.as_view(), name="settings-cost-groups"),
+    path("settings/cost-groups/add/", CostGroupsAddView.as_view(), name="settings-cost-groups-add"),
+    path("settings/cost-groups/remove/", CostGroupsRemoveView.as_view(), name="settings-cost-groups-remove"),
     path(
         "settings/aws_category_keys/enable/",
         SettingsEnableAWSCategoryKeyView.as_view(),
@@ -361,6 +370,20 @@ urlpatterns = [
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
     path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
+    path("settings/tags/mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
+    path("settings/tags/mappings/child/", SettingsTagMappingChildView.as_view(), name="tags-mapping-child"),
+    path("settings/tags/mappings/parent/", SettingsTagMappingParentView.as_view(), name="tags-mapping-parent"),
+    path("settings/tags/mappings/child/add/", SettingsTagMappingChildAddView.as_view(), name="tags-mapping-child-add"),
+    path(
+        "settings/tags/mappings/child/remove/",
+        SettingsTagMappingChildRemoveView.as_view(),
+        name="tags-mapping-child-remove",
+    ),
+    path(
+        "settings/tags/mappings/parent/remove/",
+        SettingsTagMappingParentRemoveView.as_view(),
+        name="tags-mapping-parent-remove",
+    ),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
@@ -477,5 +500,8 @@ urlpatterns = [
         ),
         name="reports-openshift-gcp-storage",
     ),
+    # Sunset paths
+    # These endpoints have been removed from the codebase
+    path("settings/", SunsetView, name="settings"),
 ]
 urlpatterns += ROUTER.urls

@@ -3,19 +3,31 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for Masu API `manifest`."""
-from django.forms.models import model_to_dict
-from django.utils.encoding import force_text
+from django.db.models import Q
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+from django.utils.encoding import force_str
+from django_filters import BooleanFilter
+from django_filters import ChoiceFilter
+from django_filters import DateFromToRangeFilter
+from django_filters import FilterSet
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
-from api.provider.models import Provider
+from api.common.filters import CharListFilter
+from masu.api.manifest.serializers import ManifestAndUsageReportSerializer
 from masu.api.manifest.serializers import ManifestSerializer
 from masu.api.manifest.serializers import UsageReportStatusSerializer
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import Status
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 class ManifestPermission(permissions.BasePermission):
@@ -32,7 +44,7 @@ class ManifestException(APIException):
     def __init__(self, message):
         """Initialize with status code 404."""
         self.status_code = status.HTTP_404_NOT_FOUND
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
 class ManifestInvalidFilterException(APIException):
@@ -41,111 +53,128 @@ class ManifestInvalidFilterException(APIException):
     def __init__(self, message):
         """Initialize with status code 400."""
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {"detail": force_text(message)}
+        self.detail = {"detail": force_str(message)}
 
 
-class ManifestView(viewsets.ModelViewSet):
-    """Manifest View class."""
+def manifest_failed_filter(queryset, name, value):
+    """A custom filter to return manfests that did or did not fail based on the boolean value of failed."""
+    queryset = queryset.exclude(state__exact={})
+    q_objects = None
+    for step in ManifestStep:
+        # if the failed field IS NULL then the manifest did not fail so we have to inverse the search criteria.
+        new_q = Q(**{f"state__{step}__{ManifestState.FAILED}__isnull": not value})
+        if q_objects:
+            q_objects = q_objects | new_q
+        else:
+            q_objects = new_q
+    return queryset.filter(q_objects)
 
-    queryset = CostUsageReportManifest.objects.all().order_by("-manifest_creation_datetime")
+
+def manifest_running_filter(queryset, name, value):
+    """A custom filter to return manfests that are running tasks."""
+    queryset = queryset.exclude(state__exact={})
+    q_objects = None
+    for step in ManifestStep:
+        start_q = Q(**{f"state__{step}__{ManifestState.START}__isnull": False})
+        finished_q = Q(**{f"state__{step}__time_taken_seconds__isnull": value})
+        running_step_q = start_q & finished_q
+        if q_objects:
+            if value:
+                q_objects = q_objects | running_step_q
+            else:
+                # Ensures all steps that started have finished
+                q_objects = q_objects & running_step_q
+        else:
+            q_objects = running_step_q
+    return queryset.filter(q_objects)
+
+
+def manifest_started_filter(queryset, name, value):
+    """A custom filter to return manifests that were created but have no state steps."""
+    if value:
+        queryset = queryset.exclude(state__exact={})
+    else:
+        queryset = queryset.filter(state__exact={})
+    return queryset
+
+
+class ManifestFilter(FilterSet):
+    """Custom Manifest filters."""
+
+    account_id = CharListFilter(
+        field_name="provider__customer__account_id", lookup_expr="provider__customer__account_id__icontains"
+    )
+    org_id = CharListFilter(
+        field_name="provider__customer__org_id", lookup_expr="provider__customer__org_id__icontains"
+    )
+    schema_name = CharListFilter(
+        field_name="provider__customer__schema_name", lookup_expr="provider__customer__schema_name__icontains"
+    )
+    created = DateFromToRangeFilter(field_name="creation_datetime")
+    completed = DateFromToRangeFilter(field_name="completed_datetime")
+    failed = BooleanFilter(method=manifest_failed_filter)
+    running = BooleanFilter(method=manifest_running_filter)
+    started = BooleanFilter(method=manifest_started_filter)
+
+    class Meta:
+        model = CostUsageReportManifest
+        fields = [
+            "provider",
+            "account_id",
+            "org_id",
+            "schema_name",
+            "created",
+            "completed",
+            "failed",
+            "running",
+            "started",
+        ]
+
+
+class UsageReportStatusFilter(FilterSet):
+    """Custom Report Status filters."""
+
+    status = ChoiceFilter(choices=Status.choices)
+
+    class Meta:
+        model = CostUsageReportStatus
+        fields = [
+            "status",
+            "celery_task_id",
+            "failed_status",
+        ]
+
+
+class ManifestStatusViewSet(viewsets.ReadOnlyModelViewSet):
+    """A viewset for Manifests."""
+
+    queryset = CostUsageReportManifest.objects.all()
     serializer_class = ManifestSerializer
     permission_classes = [ManifestPermission]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ManifestFilter
     http_method_names = ["get"]
 
-    def get_provider_UUID(request, provider):
-        """returns provider uuid based on provider name"""
-        provider = Provider.objects.filter(name=provider).first()
-        if provider is None:
-            raise ManifestException("Invalid provider name.")
-        return model_to_dict(provider)
+    def retrieve(self, request, pk=None):
+        queryset = self.get_queryset()
+        queryset = self.filter_queryset(queryset)
+        try:
+            obj = get_object_or_404(queryset, pk=pk)
+        except ValueError:
+            raise Http404
+        failed_reports = list(CostUsageReportStatus.objects.filter(manifest_id=pk, status=Status.FAILED))
+        data = {"manifest": obj, "failed_reports": failed_reports}
+        serializer = ManifestAndUsageReportSerializer(data)
+        return Response(serializer.data)
 
-    @staticmethod
-    def check_filters(dict_):
-        """Check if filter parameters are valid"""
-        valid_query_params = ["name", "limit", "offset", "timestamp"]
-        params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
-
-        if params:
-            raise ManifestInvalidFilterException("Invalid Filter Parameter")
-
-    def set_pagination(self, request, queryset, serializer):
-        """Sets up pagination"""
+    @action(methods=["get"], detail=True, filterset_class=UsageReportStatusFilter)
+    def reports(self, request, pk=None):
+        """Get reports for a specified manifest."""
+        queryset = self.filter_queryset(CostUsageReportStatus.objects.filter(manifest_id=pk).order_by("id"))
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serialized = serializer(page, many=True).data
-            return serialized
+            serializer = UsageReportStatusSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-    def get_all_manifests(self, request, *args, **kwargs):
-        """API list all Manifests, filter by: provider name"""
-        param = self.request.query_params
-        self.check_filters(param.dict())
-        response = None
-        if request.GET.get("name"):
-            providers = self.get_provider_UUID(param["name"])
-            self.queryset = self.queryset.filter(provider_id=providers["uuid"])
-            pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
-            response = self.check_pagnation(pagination)
-        if request.GET.get("timestamp") == "asc":
-            self.queryset = self.queryset.order_by("manifest_creation_datetime")
-            pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
-            response = self.check_pagnation(pagination)
-        if response is not None:
-            return response
-        else:
-            return super().list(request)
-
-    def check_pagnation(self, pagination):
-        if pagination is not None:
-            return self.get_paginated_response(pagination)
-        else:
-            return Response(ManifestSerializer(self.queryset).data, many=True)
-
-    def get_manifests_by_source(self, request, *args, **kwargs):
-        """Get Manifests by source UUID"""
-        sourceuuidParam = kwargs
-        try:
-            queryset = self.queryset.filter(provider_id=sourceuuidParam["source_uuid"])
-        except Exception:
-            raise ManifestException("Invalid source uuid.")
-
-        pagination = self.set_pagination(self, queryset, ManifestSerializer)
-        if pagination is not None:
-            return self.get_paginated_response(pagination)
-
-        queryset = ManifestSerializer(queryset, many=True).data
-        return Response(queryset)
-
-    def get_manifest(self, request, *args, **kwargs):
-        """Get single Manifest by source uuid and manifest id"""
-        Params = kwargs
-        try:
-            queryset = self.queryset.filter(provider_id=Params["source_uuid"]).filter(id=Params["manifest_id"])
-            if not queryset:
-                raise ManifestException("Invalid manifest id")
-        except Exception:
-            raise ManifestException("Invalid source uuid")
-        queryset = self.get_serializer(queryset, many=True).data
-        return Response(queryset)
-
-    def get_manifest_files(self, request, *args, **kwargs):
-        """Get files for specific manifest"""
-        Params = kwargs
-        queryset = CostUsageReportStatus.objects.filter(manifest_id=Params["manifest_id"])
-        if not queryset:
-            raise ManifestException("Invalid manifest id")
-
-        pagination = self.set_pagination(self, queryset, UsageReportStatusSerializer)
-        if pagination is not None:
-            return self.get_paginated_response(pagination)
-
-        queryset = UsageReportStatusSerializer(queryset, many=True).data
-        return Response(queryset)
-
-    def get_one_manifest_file(self, request, *args, **kwargs):
-        """Get specified file for specific manifest"""
-        Params = kwargs
-        queryset = CostUsageReportStatus.objects.filter(manifest_id=Params["manifest_id"]).filter(id=Params["id"])
-        if not queryset:
-            raise ManifestException("Invalid manifest id or report status id")
-        queryset = UsageReportStatusSerializer(queryset, many=True).data
-        return Response(queryset)
+        serializer = UsageReportStatusSerializer(queryset, many=True)
+        return Response(serializer.data)

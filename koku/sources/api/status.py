@@ -5,7 +5,6 @@
 """View for server status."""
 import logging
 import platform
-import socket
 import sys
 from http import HTTPStatus
 
@@ -15,7 +14,6 @@ from django.db import InterfaceError
 from django.db import NotSupportedError
 from django.db import OperationalError
 from django.db import ProgrammingError
-from kafka import BrokerConnection
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
@@ -23,8 +21,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.utils import DateHelper
+from kafka_utils.utils import check_kafka_connection
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from sources.config import Config as SourcesConfig
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
@@ -33,19 +32,8 @@ from sources.sources_http_client import SourcesHTTPClientError
 
 LOG = logging.getLogger(__name__)
 
-BROKER_CONNECTION = BrokerConnection(
-    SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC
-)
 BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
-
-
-def check_kafka_connection():
-    """Check connectability of Kafka Broker."""
-    connected = BROKER_CONNECTION.connect_blocking(timeout=1)
-    if connected:
-        BROKER_CONNECTION.close()
-    return connected
 
 
 def check_sources_connection():
@@ -171,7 +159,7 @@ class ApplicationStatus:
 
         :returns: The datetime string.
         """
-        return DateAccessor().today()
+        return DateHelper().now
 
     @property
     def debug(self):

@@ -7,7 +7,6 @@ from django.conf import settings
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from masu.api.manifest.views import ManifestView
 from masu.api.sources.views import SourcesViewSet
 from masu.api.trino import trino_ui
 from masu.api.views import additional_context
@@ -23,12 +22,14 @@ from masu.api.views import download_report
 from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
 from masu.api.views import explain_query
+from masu.api.views import fix_parquet
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
 from masu.api.views import ingest_ocp_payload
 from masu.api.views import ingress_reports
 from masu.api.views import lockinfo
+from masu.api.views import ManifestStatusViewSet
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
 from masu.api.views import process_openshift_on_cloud
@@ -45,9 +46,11 @@ from masu.api.views import update_openshift_on_cloud
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
+ROUTER.register(r"manifests", ManifestStatusViewSet, basename="manifests")
 
 
 urlpatterns = [
+    path("fix_parquet/", fix_parquet, name="fix_parquet"),
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
     path("ingress_reports/", ingress_reports, name="ingress_reports"),
@@ -70,31 +73,7 @@ urlpatterns = [
     path("celery_queue_tasks/", celery_queue_tasks, name="celery_queue_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
-    path("manifests/", ManifestView.as_view({"get": "get_all_manifests"}), name="all_manifests"),
-    path(
-        "manifests/<str:source_uuid>/",
-        ManifestView.as_view({"get": "get_manifests_by_source"}),
-        name="sources_manifests",
-    ),
-    path(
-        "manifests/<str:source_uuid>/<int:manifest_id>/",
-        ManifestView.as_view({"get": "get_manifest"}),
-        name="manifest",
-    ),
-    path(
-        "manifests/<str:source_uuid>/<int:manifest_id>/files/",
-        ManifestView.as_view({"get": "get_manifest_files"}),
-        name="manifest_files",
-    ),
-    path(
-        "manifests/<str:source_uuid>/<int:manifest_id>/files/<int:id>/",
-        ManifestView.as_view({"get": "get_one_manifest_file"}),
-        name="get_one_manifest_file",
-    ),
-    path(
-        "gcp_invoice_monthly_cost/", bigquery_cost, name="gcp_invoice_monthly_cost"
-    ),  # TODO: Remove once iqe is updated
-    path("bigquery_cost/", bigquery_cost, name="bigquery_cost"),
+    path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
     path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),

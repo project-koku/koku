@@ -67,15 +67,15 @@
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
-        - name: KOKU_CELERY_SENTRY_DSN
+        - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -95,6 +95,10 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: DELAYED_TASK_TIME
+          value: ${DELAYED_TASK_TIME}
+        - name: DELAYED_TASK_POLLING_MINUTES
+          value: ${DELAYED_TASK_POLLING_MINUTES}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -158,6 +162,7 @@
         successThreshold: 1
         failureThreshold: 5
         timeoutSeconds: 10
+      terminationGracePeriodSeconds: 3600
       resources:
         limits:
           cpu: ${WORKER_SUMMARY_CPU_LIMIT}

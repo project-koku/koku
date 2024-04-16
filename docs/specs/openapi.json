@@ -1,8 +1,8 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "description": "The API for Cost Management",
-        "version": "1.0.2",
+        "description": "Access your cloud and OpenShift data you integrated with cost management.",
+        "version": "v1",
         "title": "Cost Management",
         "license": {
             "name": "AGPL-3.0",
@@ -56,6 +56,10 @@
         {
             "name": "Status",
             "description": "Operations about status"
+        },
+        {
+            "name": "Optimizations",
+            "description": "Resource Optimization for Openshift"
         }
     ],
     "paths": {
@@ -1108,7 +1112,8 @@
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getOpenShiftCostReports",
-                "parameters": [{
+                "parameters": [
+                    {
                         "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
@@ -4060,8 +4065,8 @@
                                             "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
                                             "billing_period_start": "2019-01-01T00:00:00.000Z",
                                             "files_processed": "1/1",
-                                            "last_process_start_date": "2019-01-07T21:50:58.000Z",
-                                            "last_process_complete_date": "2019-01-07T21:51:01.000Z",
+                                            "process_start_date": "2019-01-07T21:50:58.000Z",
+                                            "process_complete_date": "2019-01-07T21:51:01.000Z",
                                             "summary_data_creation_datetime": "2019-01-07T21:51:32.000Z",
                                             "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
                                         }]
@@ -4683,9 +4688,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4733,9 +4735,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4816,9 +4815,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4866,9 +4862,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -4949,9 +4942,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -4999,9 +4989,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5082,9 +5069,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5132,9 +5116,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5215,9 +5196,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     }
                 ],
                 "responses": {
@@ -5265,9 +5243,6 @@
                     },
                     {
                         "$ref": "#/components/parameters/ReportQueryLimit"
-                    },
-                    {
-                        "$ref": "#/components/parameters/OCPTagsFilter"
                     },
                     {
                         "name": "key",
@@ -5548,6 +5523,105 @@
                 }]
             }
         },
+        "/settings/cost-groups/": {
+            "get": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Query which projects belong to which cost groups",
+                "operationId": "getSettingsCostGroups",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OpenShift projects and the current cost group",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostGroupsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/cost/groups/add/": {
+            "put": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Add projects to a cost group",
+                "operationId": "putSettingsCostGroups",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/cost-groups/remove/": {
+            "put": {
+                "tags": [
+                    "Settings",
+                    "Cost Groups"
+                ],
+                "summary": "Remove projects from a cost group",
+                "operationId": "putSettingsCostGroupsRemove",
+                "requestBody": {
+                    "$ref": "#/components/requestBodies/CostGroupsBody"
+                },
+                "responses": {
+                    "204": {
+                        "description": "Cost groups updated"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/settings/tags/": {
             "get": {
                 "tags": [
@@ -5729,8 +5803,374 @@
                         "basic_auth": []
                     }]
                 }
+            },
+        "/settings/tags/mappings/": {
+            "get": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Returns relationship mappings for Tag Reconciliation",
+                "operationId": "getSettingsTagsMappings",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "source_type",
+                        "description": "Cloud provider type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "parent",
+                        "description": "parent key value",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "child",
+                        "description": "child key value",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by",
+                        "description": "Field(s) used to sort results. Add a '-' prefix for descending order.",
+                        "schema": {
+                            "type": "array",
+                            "example": ["source_type"],
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returned tags sucessfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SettingsTagsMappingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameter"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
             }
+            },
+        "/settings/tags/mappings/parent/": {
+            "get": {
+                "tags": [
+                    "Settings"
+                ],
+                "summary": "Returns available options for tags that can be marked as a parent.",
+                "operationId": "getSettingsTagsMappingsParent",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "in": "query",
+                        "name": "source_type",
+                        "description": "Cloud provider type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "parent",
+                        "description": "parent key value",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "child",
+                        "description": "child key value",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order_by",
+                        "description": "Field(s) used to sort results. Add a '-' prefix for descending order.",
+                        "schema": {
+                            "type": "array",
+                            "example": ["source_type"],
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returned tags sucessfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SettingsTagsMappingsOptionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameter"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+            },
+            "/settings/tags/mappings/parent/remove/": {
+                "put": {
+                        "tags": [
+                            "Settings"
+                        ],
+                        "summary": "Removes all parent and child tags.",
+                        "operationId": "putSettingsTagsMappingsParentRemove",
+                        "requestBody": {
+                            "$ref": "#/components/requestBodies/PutTagsBody"
+                        },
+                        "responses": {
+                            "204": {
+                                "description": "Successfully changed. No content"
+                            },
+                            "400": {
+                                "description": "Invalid request parameter"
+                            },
+                            "401": {
+                                "description": "Unauthorized"
+                            },
+                            "500": {
+                                "description": "Unexpected Error",
+                                "content": {
+                                    "application/json": {
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Error"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "security": [{
+                            "basic_auth": []
+                        }]
+                    }
+                },
+            "/settings/tags/mappings/child/": {
+                "get": {
+                    "tags": [
+                        "Settings"
+                    ],
+                    "summary": "Returns available options for tags that can be marked as a child.",
+                    "operationId": "getSettingsTagsMappingsChild",
+                    "parameters": [
+                        {
+                            "$ref": "#/components/parameters/QueryOffset"
+                        },
+                        {
+                            "$ref": "#/components/parameters/QueryLimit"
+                        },
+                        {
+                            "in": "query",
+                            "name": "source_type",
+                            "description": "Cloud provider type",
+                            "schema": {
+                                "type": "string"
+                            }
+                        },
+                        {
+                            "in": "query",
+                            "name": "parent",
+                            "description": "parent key value",
+                            "schema": {
+                                "type": "string"
+                            }
+                        },
+                        {
+                            "in": "query",
+                            "name": "child",
+                            "description": "child key value",
+                            "schema": {
+                                "type": "string"
+                            }
+                        },
+                        {
+                            "in": "query",
+                            "name": "order_by",
+                            "description": "Field(s) used to sort results. Add a '-' prefix for descending order.",
+                            "schema": {
+                                "type": "array",
+                                "example": ["source_type"],
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "Returned tags sucessfully",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SettingsTagsMappingsOptionsResponse"
+                                    }
+                                }
+                            }
+                        },
+                        "400": {
+                            "description": "Invalid request parameter"
+                        },
+                        "401": {
+                            "description": "Unauthorized"
+                        },
+                        "500": {
+                            "description": "Unexpected Error",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/Error"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{
+                        "basic_auth": []
+                    }]
+                }
+                },
+                "/settings/tags/mappings/child/remove/": {
+                    "put": {
+                            "tags": [
+                                "Settings"
+                            ],
+                            "summary": "Removes child tags from mapping.",
+                            "operationId": "putSettingsTagsMappingsChildRemove",
+                            "requestBody": {
+                                "$ref": "#/components/requestBodies/PutTagsBody"
+                            },
+                            "responses": {
+                                "204": {
+                                    "description": "Successfully changed. No content"
+                                },
+                                "400": {
+                                    "description": "Invalid request parameter"
+                                },
+                                "401": {
+                                    "description": "Unauthorized"
+                                },
+                                "500": {
+                                    "description": "Unexpected Error",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "$ref": "#/components/schemas/Error"
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "security": [{
+                                "basic_auth": []
+                            }]
+                        }
+                    },
+                    "/settings/tags/mappings/child/add/": {
+                        "put": {
+                                "tags": [
+                                    "Settings"
+                                ],
+                                "summary": "Adds child tags to a parent tag.",
+                                "operationId": "putSettingsTagsMappingsParent",
+                                "requestBody": {
+                                    "$ref": "#/components/requestBodies/PutTagsMappingBody"
+                                },
+                                "responses": {
+                                    "204": {
+                                        "description": "Successfully changed. No content"
+                                    },
+                                    "400": {
+                                        "description": "Invalid request parameter"
+                                    },
+                                    "401": {
+                                        "description": "Unauthorized"
+                                    },
+                                    "500": {
+                                        "description": "Unexpected Error",
+                                        "content": {
+                                            "application/json": {
+                                                "schema": {
+                                                    "$ref": "#/components/schemas/Error"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "security": [{
+                                    "basic_auth": []
+                                }]
+                            }
+                        },
+        "/recommendations/openshift": {
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift"
         },
+        "/recommendations/openshift/{recommendation-id}": {
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
+        }
+    },
     "externalDocs": {
         "description": "Find out more about Cost Management",
         "url": "https://github.com/project-koku/"
@@ -5797,16 +6237,17 @@
                 }
             },
             "QueryEndDate": {
-                "name": "QueryEndDate",
+                "name": "end_date",
                 "in": "query",
                 "description": "String to indicate end date of date range.",
                 "schema": {
                     "type": "string",
-                    "example": "1970-01-01"
+                    "format": "date",
+                    "example": "2023-01-01"
                 }
             },
             "QueryFilter": {
-                "name": "QueryFilter",
+                "name": "filter",
                 "required": false,
                 "in": "query",
                 "description": "The filter to apply to the report as a URL encoded dictionary.",
@@ -5814,37 +6255,37 @@
                 "explode": true,
                 "schema": {
                     "type": "object"
-                }
-            },
-            "OCPTagsFilter": {
-                "in": "query",
-                "name": "cluster",
-                "required": false,
-                "description": "The cluster_id or cluster_alias to filter on",
-                "schema": {
-                    "$ref": "#/components/schemas/cluster"
+                },
+                "example": {
+                    "enabled": false
                 }
             },
             "QueryGroupBy": {
                 "name": "group_by",
                 "required": false,
                 "in": "query",
-                "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                "description": "The grouping to apply to the report as a URL encoded dictionary. The syntax is group_by[parameter]=value except for tags, which use group_by[tag:key]=value.",
                 "style": "deepObject",
                 "explode": true,
                 "schema": {
                     "type": "object"
+                },
+                "example": {
+                    "tag:my_tag": "*"
                 }
             },
             "QueryOrderBy": {
                 "name": "order_by",
                 "required": false,
                 "in": "query",
-                "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                "description": "The ordering to apply to the report as a URL encoded dictionary. The syntax is order_by[field]=order. Use 'asc' for ascending and 'desc' for descending.",
                 "style": "deepObject",
                 "explode": true,
                 "schema": {
                     "type": "object"
+                },
+                "example": {
+                    "project": "desc"
                 }
             },
             "QueryOffset": {
@@ -5891,12 +6332,13 @@
                 }
             },
             "QueryStartDate": {
-                "name": "QueryStartDate",
+                "name": "start_date",
                 "in": "query",
                 "description": "String to indicate start date of date range.",
                 "schema": {
                     "type": "string",
-                    "example": "1970-01-01"
+                    "format": "date",
+                    "example": "2023-01-01"
                 }
             },
             "QueryType": {
@@ -5983,16 +6425,105 @@
                         }
                     }
                 }
+            },
+            "PutTagsMappingBody": {
+                "description": "List of tag UUIDs",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "ids": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                }
+                            },
+                            "example": {
+                                "parent": "96ecdf9a-dea1-4f7c-867d-b8dc513f447c",
+                                "children": ["cdadec18-15b3-4dba-b058-2b195e4eb56a", "cede0b74-7a26-4929-961a-497733d7af12"]
+                            }
+
+                        }
+                    }
+                }
+            },
+            "CostGroupsBody": {
+                "description": "List of project name and cost group",
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "project": {
+                                        "type": "string"
+                                    },
+                                    "group": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "example": [
+                                {
+                                    "project": "accounting",
+                                    "group": "Platform"
+                                },
+                                {
+                                    "project": "infra",
+                                    "group": "Platform"
+                                }
+                            ]
+                        }
+                    }
+                }
             }
         },
         "securitySchemes": {
             "basic_auth": {
                 "type": "http",
-                "description": "The userid/password is needed when accessing this API externally",
+                "description": "Use service account authentication to access this API. See the cost management documentation for details.",
                 "scheme": "basic"
             }
         },
         "schemas": {
+            "CostGroupsResponse": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "project": {
+                                    "type": "string"
+                                },
+                                "group": {
+                                    "type": "string"
+                                },
+                                "default": {
+                                    "type": "boolean"
+                                },
+                                "clusters": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "CostModel": {
                 "properties": {
                     "name": {
@@ -9750,19 +10281,19 @@
                                                 ],
                                                 "usage": {
                                                     "value": 4.62038,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "request": {
                                                     "value": 6.158921,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "limit": {
                                                     "value": 405.835939,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "capacity": {
                                                     "value": 17893.948761,
-                                                    "units": "GB-Hours"
+                                                    "units": "GiB-Hours"
                                                 },
                                                 "infrastructure": {
                                                     "raw": {
@@ -9850,15 +10381,15 @@
                                             ],
                                             "usage": {
                                                 "value": 283.455815,
-                                                "units": "GB-Mo"
+                                                "units": "GiB-Mo"
                                             },
                                             "request": {
                                                 "value": 14058.333334,
-                                                "units": "GB-Mo"
+                                                "units": "GiB-Mo"
                                             },
                                             "capacity": {
                                                 "value": 13732.252982,
-                                                "units": "GB-Mo"
+                                                "units": "GiB-Mo"
                                             },
                                             "infrastructure": {
                                                 "raw": {
@@ -9984,6 +10515,79 @@
                                     "key": "openshift_project",
                                     "enabled": false,
                                     "source_type": "AWS"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "SettingsTagsMappingsResponse": {
+                "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "data"
+                            ],
+                            "properties": {
+                                "uuid": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            },
+                            "example": [
+                                {
+                                    "parent": {
+                                        "uuid": "35711afc-a0bd-491f-84d1-7cfed0012a24",
+                                        "key": "environment",
+                                        "source_type": "OCP",
+                                        "children": [
+                                            {
+                                                "uuid": "95f2040f-1e60-44c0-a69e-89b8a4cc7216",
+                                                "key": "mapping",
+                                                "source_type": "OCP"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "SettingsTagsMappingsOptionsResponse": {
+                "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "data"
+                            ],
+                            "properties": {
+                                "uuid": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            },
+                            "example": [
+                                {
+                                    "uuid": "dd724abf-7a86-4254-a588-940eedec2e7d",
+                                    "key": "app",
+                                    "source_type": "Azure"
                                 }
                             ]
                         }

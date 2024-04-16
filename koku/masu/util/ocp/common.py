@@ -14,9 +14,11 @@ from pathlib import Path
 import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+from packaging.version import Version
 
 from api.common import log_json
-from api.models import Provider
+from api.provider.models import Provider
+from api.provider.models import Sources
 from api.utils import DateHelper as dh
 
 
@@ -32,6 +34,49 @@ class OCPReportTypes(Enum):
     NODE_LABELS = 3
     NAMESPACE_LABELS = 4
 
+
+OPERATOR_VERSIONS = {
+    "212f944b3b1d7cfbf6e48a63c4ed74bfe942bbe1": "costmanagement-metrics-operator:3.2.1",
+    "9d463e92ba69d82513d8ec53edc5242658623840": "costmanagement-metrics-operator:3.2.0",
+    "e3ab976307639acff6cc86e25f90f242c45d7210": "costmanagement-metrics-operator:3.1.0",
+    "b5a2c05255069215eb564dcc5c4ec6ca4b33325d": "costmanagement-metrics-operator:3.0.1",
+    "47ddcdbbdf3e445536ea3fa8346df0dac3adc3ed": "costmanagement-metrics-operator:3.0.0",
+    "5806b175a7b31e6ee112c798fa4222cc652b40a6": "costmanagement-metrics-operator:2.0.0",
+    "e3450f6e3422b6c39c582028ec4ce19b8d09d57d": "costmanagement-metrics-operator:1.2.0",
+    "61099eb07331b140cf66104bc1056c3f3211c94e": "costmanagement-metrics-operator:1.1.9",
+    "6d38c76be52e5981eaf19377a559dc681f1be405": "costmanagement-metrics-operator:1.1.8",
+    "0159d5e55ce6a5a18f989e6f04146f47983ebdf3": "costmanagement-metrics-operator:1.1.7",
+    "2a702a3aac89f724a08b08650b77a0bd33f5b5e5": "costmanagement-metrics-operator:1.1.6",
+    "f8d1f7c5d8685f758ecc36a14aca3b6b86614613": "costmanagement-metrics-operator:1.1.5",
+    "77ec351f8d332796dc522e5623f1200c2fab4042": "costmanagement-metrics-operator:1.1.4",
+    "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
+    "6f10d07e3af3ea4f073d4ffda9019d8855f52e7f": "costmanagement-metrics-operator:1.1.0",
+    "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
+    "631434d278be57cfedaa5ad0000cb3a3dfb69a76": "koku-metrics-operator:v3.2.1",
+    "06f3ed1c48b889f64ecec09e55f0bd7c2f09fe54": "koku-metrics-operator:v3.2.0",
+    "b3525a536a402d5bed9b5bbd739fb6a89c8e92e0": "koku-metrics-operator:v3.1.0",
+    "8737fb075bdbd63c02e82e6f89056380e9c1e6b6": "koku-metrics-operator:v3.0.1",
+    "3a6df53f18e574286a1666e1d26586dc729f0568": "koku-metrics-operator:v3.0.0",
+    "26502d500672019af5c11319b558dec873409e38": "koku-metrics-operator:v2.0.0",
+    "2acd43ccec2d6fe6ec292aece951b3cf0b869071": "koku-metrics-operator:v1.2.0",
+    "ebe8dab6aebfeacf9a3428d66cc8be7da682c2ad": "koku-metrics-operator:v1.1.9",
+    "ccc78b4fd4b63a6cb1516574d5e38a9b1078ea16": "koku-metrics-operator:v1.1.8",
+    "2003f0ea23efc49b7ba1337a16b1c90c6899824b": "koku-metrics-operator:v1.1.7",
+    "45cc7a72ced124a267acf0976d90504f134e1076": "koku-metrics-operator:v1.1.6",
+    "2c52da1481d0c90099e130f6989416cdd3cd7b5a": "koku-metrics-operator:v1.1.5",
+    "12b9463a9501f8e9acecbfa4f7e7ae7509d559fa": "koku-metrics-operator:v1.1.4",
+    "3430d17b8ad52ee912fc816da6ed31378fd28367": "koku-metrics-operator:v1.1.3",
+    "02f315aa5a7f0bf5adecd3668b0a769799b54be8": "koku-metrics-operator:v1.1.2",
+    "7c413e966e2ec0a709f5a25cbf5a487c646306d1": "koku-metrics-operator:v1.1.1",
+    "f73a992e7b2fc19028b31c7fb87963ae19bba251": "koku-metrics-operator:v0.9.8",
+    "d37e6d6fd90d65b0d6794347f5fe00a472ce9d33": "koku-metrics-operator:v0.9.7",
+    "1019682a6aa1eeb7533724b07d98cfb54dbe0e94": "koku-metrics-operator:v0.9.6",
+    "513e7dffddb6ecc090b9e8f20a2fba2fe8ec6053": "koku-metrics-operator:v0.9.5",
+    "eaef8ea323b3531fa9513970078a55758afea665": "koku-metrics-operator:v0.9.4",
+    "4f1cc5580da20a11e6dfba50d04d8ae50f2e5fa5": "koku-metrics-operator:v0.9.2",
+    "0419bb957f5cdfade31e26c0f03b755528ec0d7f": "koku-metrics-operator:v0.9.1",
+    "bfdc1e54e104c2a6c8bf830ab135cf56a97f41d2": "koku-metrics-operator:v0.9.0",
+}
 
 STORAGE_COLUMNS = {
     "report_period_start",
@@ -129,7 +174,6 @@ NODE_LABEL_COLUMNS = {
 NODE_GROUP_BY = ["node", "node_labels"]
 
 NODE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
-
 
 NAMESPACE_LABEL_COLUMNS = {
     "report_period_start",
@@ -316,24 +360,18 @@ def get_cluster_alias_from_cluster_id(cluster_id):
     return cluster_alias
 
 
-def get_provider_uuid_from_cluster_id(cluster_id):
-    """
-    Return the provider UUID given the cluster ID.
-
-    Args:
-        cluster_id (String): OpenShift Cluster ID
-
-    Returns:
-        (String): provider UUID
-
-    """
-    provider_uuid = None
+def get_source_and_provider_from_cluster_id(cluster_id):
+    """Return the provider given the cluster ID."""
+    source = None
     credentials = {"cluster_id": cluster_id}
-    if provider := Provider.objects.filter(authentication__credentials=credentials).first():
-        provider_uuid = str(provider.uuid)
-        LOG.info(f"found provider: {provider_uuid} for cluster-id: {cluster_id}")
-
-    return provider_uuid
+    if (
+        source := Sources.objects.select_related("provider")
+        .filter(provider__authentication__credentials=credentials)
+        .first()
+    ):
+        context = {"provider_uuid": source.koku_uuid, "cluster_id": cluster_id}
+        LOG.info(log_json("", msg="found provider for cluster-id", context=context))
+    return source
 
 
 def detect_type(report_path):
@@ -369,3 +407,14 @@ def get_amortized_monthly_cost_model_rate(monthly_rate, start_date):
 
     days_in_month = dh().days_in_month(start_date)
     return Decimal(monthly_rate) / days_in_month
+
+
+def get_latest_operator_version():
+    """Get s the latest operator version we have released based on OPERATOR_VERSIONS dict"""
+    latest_version_num = None
+    for version in OPERATOR_VERSIONS.values():
+        version_num = version.split(":")[-1]
+        version_num = version_num.lstrip("v")
+        if latest_version_num is None or Version(version_num) > Version(latest_version_num):
+            latest_version_num = version_num
+    return latest_version_num

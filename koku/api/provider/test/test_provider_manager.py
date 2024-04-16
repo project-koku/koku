@@ -126,6 +126,83 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         self.assertFalse(manager.get_paused_status())
 
+    def test_get_state(self):
+        """Test getting provider state without a manifest."""
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name="sample_provider", created_by=self.user, customer=self.customer)
+        with patch("api.provider.provider_manager.ProviderManager.get_manifest_state") as mock_get_manifest_state:
+            mock_get_manifest_state.return_value = None
+            manager = ProviderManager(provider.uuid)
+            self.assertIsNone(manager.get_state())
+
+    def test_get_manifest_state(self):
+        """Test getting the current state for a manifest."""
+        datetime = DateHelper().today
+        # Create Provider
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_in-progress", created_by=self.user, customer=self.customer
+            )
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=DateHelper().this_month_start,
+                completed_datetime=datetime,
+                state={"download": {"start": str(datetime)}},
+            )
+            manager = ProviderManager(provider.uuid)
+            # Case when manifest is in-progress
+            self.assertEqual(manager.get_state().get("download"), {"start": str(datetime), "state": "in-progress"})
+
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_complete", created_by=self.user, customer=self.customer
+            )
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=DateHelper().this_month_start,
+                completed_datetime=datetime,
+                state={"download": {"end": str(datetime)}},
+            )
+            manager = ProviderManager(provider.uuid)
+            # Case when manifest is complete
+            self.assertEqual(manager.get_state().get("download"), {"end": str(datetime), "state": "complete"})
+
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_failed", created_by=self.user, customer=self.customer
+            )
+            baker.make(
+                CostUsageReportManifest,
+                provider=provider,
+                billing_period_start_datetime=DateHelper().this_month_start,
+                completed_datetime=datetime,
+                state={"download": {"failed": str(datetime)}},
+            )
+            manager = ProviderManager(provider.uuid)
+            # Case when manifest is failed
+            self.assertEqual(manager.get_state().get("download"), {"failed": str(datetime), "state": "failed"})
+
+    def test_get_last_polling_time(self):
+        """Test getting latest polling from for a provider"""
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name="sample_provider", created_by=self.user, customer=self.customer)
+        manager = ProviderManager(provider.uuid)
+        self.assertEqual(manager.get_last_polling_time(), None)
+
+        expected_time = self.dh.now
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="sample_provider_polling_time",
+                created_by=self.user,
+                customer=self.customer,
+                polling_timestamp=expected_time,
+            )
+            manager = ProviderManager(provider.uuid)
+        self.assertEqual(manager.get_last_polling_time(provider.uuid), expected_time.strftime("%Y-%m-%d %H:%M:%S"))
+        self.assertEqual(manager.get_last_polling_time(), expected_time.strftime("%Y-%m-%d %H:%M:%S"))
+
     def test_data_flags(self):
         """Test the data status flag."""
         # Get Provider UUID
@@ -139,7 +216,7 @@ class ProviderManagerTest(IamTestCase):
             CostUsageReportManifest,
             provider=provider,
             billing_period_start_datetime=DateHelper().this_month_start,
-            manifest_completed_datetime=DateHelper().today,
+            completed_datetime=DateHelper().today,
         )
 
         # Get Provider Manager
@@ -180,7 +257,7 @@ class ProviderManagerTest(IamTestCase):
             CostUsageReportManifest,
             provider=provider,
             billing_period_start_datetime=DateHelper().last_month_start,
-            manifest_completed_datetime=DateHelper().last_month_end,
+            completed_datetime=DateHelper().last_month_end,
         )
 
         # Get Provider Manager
@@ -574,9 +651,9 @@ class ProviderManagerTest(IamTestCase):
                 self.assertIsNotNone(manifest.get("assembly_id"))
                 self.assertIsNotNone(manifest.get("files_processed"))
                 self.assertEqual(manifest.get("billing_period_start"), key_date_obj.date())
-                self.assertGreater(parser.parse(manifest.get("last_process_start_date")), key_date_obj)
-                self.assertGreater(parser.parse(manifest.get("last_process_complete_date")), key_date_obj)
-                self.assertGreater(parser.parse(manifest.get("last_manifest_complete_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("process_start_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("process_complete_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("manifest_complete_date")), key_date_obj)
 
     def test_provider_statistics_ocp_on_cloud(self):
         """Test that the provider statistics method returns report stats."""
@@ -630,8 +707,13 @@ class ProviderManagerTest(IamTestCase):
         credentials = {"cluster_id": "cluster_id_1001"}
         provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         aws_provider = Provider.objects.filter(type="AWS-local").first()
+        account = "account"
+        region = "west"
         infrastructure = ProviderInfrastructureMap.objects.create(
-            infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=aws_provider
+            infrastructure_type=Provider.PROVIDER_AWS,
+            infrastructure_provider=aws_provider,
+            infrastructure_account=account,
+            infrastructure_region=region,
         )
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
@@ -644,18 +726,26 @@ class ProviderManagerTest(IamTestCase):
             )
 
         provider_uuid = provider.uuid
-        manager = ProviderManager(provider_uuid)
-        infrastructure_info = manager.get_infrastructure_info()
-        self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AWS)
-        self.assertEqual(infrastructure_info.get("uuid", ""), aws_provider.uuid)
+        with patch("api.provider.provider_manager.Sources.objects"):
+            manager = ProviderManager(provider_uuid)
+            infrastructure_info = manager.get_infrastructure_info()
+            self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AWS)
+            self.assertEqual(infrastructure_info.get("uuid", ""), aws_provider.uuid)
+            self.assertEqual(infrastructure_info.get("account", ""), account)
+            self.assertEqual(infrastructure_info.get("region", ""), region)
 
     def test_ocp_on_azure_infrastructure_type(self):
         """Test that the provider infrastructure returns Azure when running on Azure."""
         credentials = {"cluster_id": "cluster_id_1002"}
         provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         azure_provider = Provider.objects.filter(type="Azure-local").first()
+        account = "account"
+        region = "west"
         infrastructure = ProviderInfrastructureMap.objects.create(
-            infrastructure_type=Provider.PROVIDER_AZURE, infrastructure_provider=azure_provider
+            infrastructure_type=Provider.PROVIDER_AZURE,
+            infrastructure_provider=azure_provider,
+            infrastructure_account=account,
+            infrastructure_region=region,
         )
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
@@ -666,12 +756,14 @@ class ProviderManagerTest(IamTestCase):
                 authentication=provider_authentication,
                 infrastructure=infrastructure,
             )
-
         provider_uuid = provider.uuid
-        manager = ProviderManager(provider_uuid)
-        infrastructure_info = manager.get_infrastructure_info()
-        self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AZURE)
-        self.assertEqual(infrastructure_info.get("uuid", ""), azure_provider.uuid)
+        with patch("api.provider.provider_manager.Sources.objects"):
+            manager = ProviderManager(provider_uuid)
+            infrastructure_info = manager.get_infrastructure_info()
+            self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AZURE)
+            self.assertEqual(infrastructure_info.get("uuid", ""), azure_provider.uuid)
+            self.assertEqual(infrastructure_info.get("account", ""), account)
+            self.assertEqual(infrastructure_info.get("region", ""), region)
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""

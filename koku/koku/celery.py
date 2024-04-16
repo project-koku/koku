@@ -16,6 +16,7 @@ from croniter import croniter
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
+from .database import FKViolation
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
 from koku.probe_server import ProbeResponse
@@ -31,7 +32,10 @@ class LogErrorsTask(Task):  # pragma: no cover
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Log exceptions when a celery task fails."""
-        LOG.exception("Task failed: %s", exc, exc_info=exc)
+        if fk_violation := FKViolation(exc):
+            LOG.warning("task failed: %s", fk_violation)
+        else:
+            LOG.exception("Task failed: %s", exc, exc_info=exc)
         super().on_failure(exc, task_id, args, kwargs, einfo)
 
 
@@ -201,6 +205,15 @@ app.conf.beat_schedule["finalize_hcs_reports"] = {
     "task": "hcs.tasks.collect_hcs_report_finalization",
     "schedule": crontab(0, 0, day_of_month="15"),
 }
+
+# Specify the frequency for checking delayed summary tasks
+DELAYED_TASK_POLLING_MINUTES = ENVIRONMENT.get_value("DELAYED_TASK_POLLING_MINUTES", default="30")
+trigger_delayed_tasks_schedule = crontab(minute=f"*/{DELAYED_TASK_POLLING_MINUTES}")
+app.conf.beat_schedule["delayed_tasks_trigger"] = {
+    "task": "masu.celery.tasks.trigger_delayed_tasks",
+    "schedule": trigger_delayed_tasks_schedule,
+}
+
 
 # Celery timeout if broker is unavailable to avoid blocking indefinitely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}

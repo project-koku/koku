@@ -13,6 +13,7 @@ import pandas as pd
 from django.conf import settings
 
 from api.common import log_json
+from api.provider.models import check_provider_setup_complete
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -60,7 +61,7 @@ def get_processing_date(s3_csv_path, manifest_id, provider_uuid, start_date, end
         and dh.today.day > 1
         or start_date.month < dh.today.month
         and dh.today.day > 1
-        or not com_utils.check_setup_complete(provider_uuid)
+        or not check_provider_setup_complete(provider_uuid)
     ):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
@@ -107,35 +108,43 @@ def create_daily_archives(
     time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
-    with pd.read_csv(
-        local_file, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, parse_dates=[time_interval], dtype="str"
-    ) as reader:
-        for i, data_frame in enumerate(reader):
-            if data_frame.empty:
-                continue
-            data_frame = data_frame.set_index(time_interval, drop=False).sort_index()
-
-            # Adding end here so we dont bother to process future incomplete days (saving plan data)
-            data_frame = data_frame.loc[process_date:end_date]
-            if data_frame.empty:
-                continue
-
-            dates = data_frame[time_interval].unique()
-            batch_date_range.add(data_frame.index[0].strftime(DATE_FORMAT))
-            batch_date_range.add(data_frame.index[-1].strftime(DATE_FORMAT))
-            directory = os.path.dirname(local_file)
-            for date in dates:
-                daily_data = data_frame.loc[[date]]
-                if daily_data.empty:
+    try:
+        with pd.read_csv(
+            local_file,
+            chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
+            parse_dates=[time_interval],
+            dtype=pd.StringDtype(storage="pyarrow"),
+        ) as reader:
+            for i, data_frame in enumerate(reader):
+                if data_frame.empty:
                     continue
-                day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
-                day_file = f"{day_path}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
-                day_filepath = f"{directory}/{day_file}"
-                daily_data.to_csv(day_filepath, index=False, header=True)
-                copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
-                )
-                daily_file_names.append(day_filepath)
+                data_frame = data_frame.set_index(time_interval, drop=False).sort_index()
+
+                # Adding end here so we dont bother to process future incomplete days (saving plan data)
+                data_frame = data_frame.loc[process_date:end_date]
+                if data_frame.empty:
+                    continue
+
+                dates = data_frame[time_interval].unique()
+                batch_date_range.add(data_frame.index[0].strftime(DATE_FORMAT))
+                batch_date_range.add(data_frame.index[-1].strftime(DATE_FORMAT))
+                directory = os.path.dirname(local_file)
+                for date in dates:
+                    daily_data = data_frame.loc[[date]]
+                    if daily_data.empty:
+                        continue
+                    day_path = pd.to_datetime(date).strftime(DATE_FORMAT)
+                    day_file = f"{day_path}_manifestid-{manifest_id}_basefile-{base_name}_batch-{i}.csv"
+                    day_filepath = f"{directory}/{day_file}"
+                    daily_data.to_csv(day_filepath, index=False, header=True)
+                    copy_local_report_file_to_s3_bucket(
+                        tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
+                    )
+                    daily_file_names.append(day_filepath)
+    except Exception:
+        msg = f"unable to create daily archives from: {base_filename}"
+        LOG.info(log_json(tracing_id, msg=msg, context=context))
+        raise com_utils.CreateDailyArchivesError(msg)
     if not batch_date_range:
         return [], {}
     date_range = {

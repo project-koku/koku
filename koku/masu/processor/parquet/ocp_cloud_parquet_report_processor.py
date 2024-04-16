@@ -28,6 +28,7 @@ from masu.util.aws.common import match_openshift_resources_and_labels as aws_mat
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 from reporting.provider.all.models import EnabledTagKeys
+from reporting_common.models import CombinedChoices
 
 LOG = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
         updater = OCPCloudUpdaterBase(self.schema_name, provider, manifest)
         infra_map = updater.get_infra_map_from_providers()
-        openshift_provider_uuids, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
+        _, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
 
         if self.provider_type in Provider.CLOUD_PROVIDER_LIST and str(self.provider_uuid) not in infra_provider_uuids:
             # When running for an Infrastructure provider we want all
@@ -242,6 +243,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             )
             return
 
+        self.report_status.update_status(CombinedChoices.OCP_CLOUD_PROCESSING)
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
             if self.provider_type == Provider.PROVIDER_GCP:

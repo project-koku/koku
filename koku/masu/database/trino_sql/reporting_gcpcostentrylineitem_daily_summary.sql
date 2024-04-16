@@ -23,6 +23,12 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_s
     invoice_month,
     credit_amount
 )
+with cte_pg_enabled_keys as (
+    select array_agg(key order by key) as keys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+     where enabled = true
+     and provider_type = 'GCP'
+)
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
     billing_account_id as account_id,
@@ -38,7 +44,12 @@ SELECT uuid() as uuid,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
     max(usage_pricing_unit) as unit,
     cast(sum(usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
-    json_parse(labels) as tags,
+    cast(
+        map_filter(
+            cast(json_parse(labels) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) as tags,
     max(currency) as currency,
     cost_type as line_item_type,
     cast(sum(cost) AS decimal(24,9)) as unblended_cost,
@@ -47,6 +58,8 @@ SELECT uuid() as uuid,
     invoice_month,
     sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount
 FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
+CROSS JOIN
+    cte_pg_enabled_keys as pek
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
@@ -61,6 +74,6 @@ GROUP BY billing_account_id,
     date(usage_end_time),
     location_region,
     json_extract_scalar(json_parse(system_labels), '$["compute.googleapis.com/machine_spec"]'),
-    labels,
+    16, -- matches column num of tag's map_filter
     cost_type,
     invoice_month

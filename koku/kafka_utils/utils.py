@@ -12,11 +12,18 @@ from confluent_kafka import Consumer
 from confluent_kafka import Producer
 from kafka import BrokerConnection
 
-from masu.config import Config
+from koku.configurator import CONFIGURATOR
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.common import SingletonMeta
 
+
 LOG = logging.getLogger(__name__)
+UPLOAD_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.announce")
+VALIDATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.validation")
+NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingress")
+ROS_TOPIC = CONFIGURATOR.get_kafka_topic("hccm.ros.events")
+SUBS_TOPIC = CONFIGURATOR.get_kafka_topic("platform.rhsm-subscriptions.service-instance-ingress")
+SOURCES_TOPIC = CONFIGURATOR.get_kafka_topic("platform.sources.event-stream")
 
 
 class ProducerSingleton(Producer, metaclass=SingletonMeta):
@@ -28,22 +35,23 @@ def _get_managed_kafka_config(conf=None):  # pragma: no cover
     if not isinstance(conf, dict):
         conf = {}
 
-    if Config.INSIGHTS_KAFKA_SASL:
-        conf["security.protocol"] = Config.INSIGHTS_KAFKA_SASL.securityProtocol
-        conf["sasl.mechanisms"] = Config.INSIGHTS_KAFKA_SASL.saslMechanism
-        conf["sasl.username"] = Config.INSIGHTS_KAFKA_SASL.username
-        conf["sasl.password"] = Config.INSIGHTS_KAFKA_SASL.password
+    conf["bootstrap.servers"] = ",".join(CONFIGURATOR.get_kafka_broker_list())
 
-    if Config.INSIGHTS_KAFKA_CACERT:
-        conf["ssl.ca.location"] = Config.INSIGHTS_KAFKA_CACERT
+    if sasl := CONFIGURATOR.get_kafka_sasl():
+        conf["security.protocol"] = sasl.securityProtocol
+        conf["sasl.mechanisms"] = sasl.saslMechanism
+        conf["sasl.username"] = sasl.username
+        conf["sasl.password"] = sasl.password
+
+    if cacert := CONFIGURATOR.get_kafka_cacert():
+        conf["ssl.ca.location"] = cacert
 
     return conf
 
 
-def _get_consumer_config(address, conf_settings):  # pragma: no cover
+def _get_consumer_config(conf_settings):  # pragma: no cover
     """Get the default consumer config"""
     conf = {
-        "bootstrap.servers": address,
         "api.version.request": False,
         "broker.version.fallback": "0.10.2",
     }
@@ -53,27 +61,27 @@ def _get_consumer_config(address, conf_settings):  # pragma: no cover
     return conf
 
 
-def get_consumer(conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragma: no cover
+def get_consumer(conf_settings):  # pragma: no cover
     """Create a Kafka consumer."""
-    conf = _get_consumer_config(address, conf_settings)
+    conf = _get_consumer_config(conf_settings)
     LOG.info(f"Consumer config {conf}")
     return Consumer(conf, logger=LOG)
 
 
-def _get_producer_config(address, conf_settings):  # pragma: no cover
+def _get_producer_config(conf_settings):  # pragma: no cover
     """Return Kafka Producer config"""
-    producer_conf = {"bootstrap.servers": address}
+    producer_conf = {}
     producer_conf = _get_managed_kafka_config(producer_conf)
     producer_conf.update(conf_settings)
 
     return producer_conf
 
 
-def get_producer(conf_settings=None, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragma: no cover
+def get_producer(conf_settings=None):  # pragma: no cover
     """Create a Kafka producer."""
     if conf_settings is None:
         conf_settings = {}
-    conf = _get_producer_config(address, conf_settings)
+    conf = _get_producer_config(conf_settings)
     return ProducerSingleton(conf)
 
 
@@ -92,25 +100,28 @@ def backoff(interval, maximum=120):
     time.sleep(wait)
 
 
-def check_kafka_connection(host, port):
+def check_kafka_connection():
     """Check connectability of Kafka Broker."""
-    conn = BrokerConnection(host, int(port), socket.AF_UNSPEC)
-    connected = conn.connect_blocking(timeout=1)
-    if connected:
-        conn.close()
+    for broker in CONFIGURATOR.get_kafka_broker_list():
+        host, port = broker.split(":")
+        conn = BrokerConnection(host, int(port), socket.AF_UNSPEC)
+        connected = conn.connect_blocking(timeout=1)
+        if connected:
+            conn.close()
+            break
     return connected
 
 
-def is_kafka_connected(host, port):
+def is_kafka_connected():
     """Wait for Kafka to become available."""
     count = 0
     result = False
     while not result:
-        result = check_kafka_connection(host, port)
+        result = check_kafka_connection()
         if result:
-            LOG.info("Test connection to Kafka was successful.")
+            LOG.info("test connection to Kafka was successful")
         else:
-            LOG.error(f"Unable to connect to Kafka server: {host}:{port}")
+            LOG.error("unable to connect to Kafka server")
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             backoff(count)
             count += 1
@@ -129,4 +140,3 @@ def extract_from_header(headers, header_type):
                     continue
                 else:
                     return item.decode("ascii")
-    return

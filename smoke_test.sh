@@ -4,12 +4,13 @@ set -ex
 IMAGE="quay.io/cloudservices/koku"
 APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
 COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
-COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
-COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
+COMPONENTS="hive-metastore koku trino"  # specific components to deploy (optional, default: all)
+COMPONENTS_W_RESOURCES="hive-metastore koku trino"  # components which should preserve resource settings (optional, default: none)
 IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
+IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER}"
 
 # Get bonfire helper scripts
 CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
@@ -35,6 +36,8 @@ OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
 OCI_CLI_USER_EPH=$(jq -r '."oci-cli-user"' < oci-creds.json | base64 -d)
 OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-cli-fingerprint"' < oci-creds.json | base64 -d)
 OCI_CLI_TENANCY_EPH=$(jq -r '."oci-cli-tenancy"' < oci-creds.json | base64 -d)
+
+IQE_IBUTSU_SOURCE="cost-ephemeral-${IMAGE_TAG}"
 
 bonfire deploy \
     ${APP_NAME} \

@@ -12,7 +12,6 @@ import uuid
 
 from dateutil.parser import parse
 from django.conf import settings
-from django.db import connection
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -24,14 +23,15 @@ from api.common import log_json
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.database import SQLScriptAtomicExecutorMixin
-from masu.config import Config
-from masu.database import AWS_CUR_TABLE_MAP
+from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
+from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
@@ -47,18 +47,6 @@ from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 LOG = logging.getLogger(__name__)
 
 
-def create_filter(data_source, start_date, end_date, cluster_id):
-    """Create filter with data source, start and end dates."""
-    filters = {"data_source": data_source}
-    if start_date:
-        filters["usage_start__gte"] = start_date if isinstance(start_date, datetime.date) else start_date.date()
-    if end_date:
-        filters["usage_start__lte"] = end_date if isinstance(end_date, datetime.date) else end_date.date()
-    if cluster_id:
-        filters["cluster_id"] = cluster_id
-    return filters
-
-
 class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
@@ -72,48 +60,29 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._table_map = OCP_REPORT_TABLE_MAP
-        self._aws_table_map = AWS_CUR_TABLE_MAP
 
     @property
     def line_item_daily_summary_table(self):
         return OCPUsageLineItemDailySummary
 
-    def get_current_usage_period(self, provider_uuid):
-        """Get the most recent usage report period object."""
-        with schema_context(self.schema):
-            return (
-                OCPUsageReportPeriod.objects.filter(provider_id=provider_uuid).order_by("-report_period_start").first()
-            )
-
-    def get_usage_period_by_dates_and_cluster(self, start_date, end_date, cluster_id):
-        """Return all report period entries for the specified start date."""
-        table_name = self._table_map["report_period"]
-        with schema_context(self.schema):
-            return (
-                self._get_db_obj_query(table_name)
-                .filter(report_period_start=start_date, report_period_end=end_date, cluster_id=cluster_id)
-                .first()
-            )
-
     def get_usage_period_query_by_provider(self, provider_uuid):
         """Return all report periods for the specified provider."""
-        table_name = self._table_map["report_period"]
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name).filter(provider_id=provider_uuid)
+        return OCPUsageReportPeriod.objects.filter(provider_id=provider_uuid)
 
     def report_periods_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all report periods for provider_uuid on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_uuid)
-        with schema_context(self.schema):
-            if start_date:
-                if isinstance(start_date, str):
-                    start_date = parse(start_date)
-                report_date = start_date.replace(day=1)
-                report_periods = report_periods.filter(report_period_start=report_date).first()
+        if start_date:
+            if isinstance(start_date, str):
+                start_date = parse(start_date)
+            report_date = start_date.replace(day=1)
+            report_periods = report_periods.filter(report_period_start=report_date).first()
+        return report_periods
 
-            return report_periods
+    def get_report_periods_before_date(self, date):
+        """Get the report periods with report period before provided date."""
+        return OCPUsageReportPeriod.objects.filter(report_period_start__lte=date)
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
@@ -128,17 +97,24 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
-    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
-        """Populate the enabled tag key table.
+    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
+        """Maps child keys to parent key.
         Args:
-            start_date (datetime.date) The date to start populating the table.
+            start_date (datetime.date) The date to start mapping keys
             end_date (datetime.date) The date to end on.
             bill_ids (list) A list of bill IDs.
         Returns
             (None)
         """
+        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
+            return
+        with schema_context(self.schema):
+            # Early return check to see if they have any tag mappings set.
+            if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_OCP).exists():
+                LOG.debug("No tag mappings for OCP.")
+                return
         table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_summary_update_enabled_tags.sql")
+        sql = pkgutil.get_data("masu.database", "sql/openshift/ocp_tag_mapping_update_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,
@@ -147,53 +123,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
-    def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
-        """Get the OCP on infrastructure map.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-
-        Returns
-            (None)
-
-        """
-        # kwargs here allows us to optionally pass in a provider UUID based on
-        # the provider type this is run for
-        ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
-        aws_provider_uuid = kwargs.get("aws_provider_uuid")
-        azure_provider_uuid = kwargs.get("azure_provider_uuid")
-        # In case someone passes this function a string instead of the date object like we asked...
-        # Cast the string into a date object, end_date into date object instead of string
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpinfrastructure_provider_map.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "schema": self.schema,
-            "aws_provider_uuid": aws_provider_uuid,
-            "ocp_provider_uuid": ocp_provider_uuid,
-            "azure_provider_uuid": azure_provider_uuid,
-        }
-        infra_sql, infra_sql_params = self.prepare_query(sql, sql_params)
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(infra_sql, list(infra_sql_params))
-            results = cursor.fetchall()
-
-        db_results = {}
-        for entry in results:
-            # This dictionary is keyed on an OpenShift provider UUID
-            # and the tuple contains
-            # (Infrastructure Provider UUID, Infrastructure Provider Type)
-            db_results[entry[0]] = (entry[1], entry[2])
-
-        return db_results
 
     def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):  # noqa: C901
         """Get the OCP on infrastructure map.
@@ -276,8 +205,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for entry in results:
                     # This dictionary is keyed on an OpenShift provider UUID
                     # and the tuple contains
-                    # (Infrastructure Provider UUID, Infrastructure Provider Type)
-                    db_results[entry[0]] = (entry[1], entry[2])
+                    # (Infra Provider UUID, Infra Provider Type, Infra account number, Infra region)
+                    db_results[entry[0]] = (entry[1], entry[2], entry[3], entry[4])
                 if db_results:
                     # An OCP cluster can only run on a single source, so stop here if we found a match
                     return db_results
@@ -402,7 +331,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "storage_exists": storage_exists,
         }
 
-        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        try:
+            self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        except TrinoStatementExecError as trino_exc:
+            if trino_exc.error_name == "ALREADY_EXISTS":
+                LOG.warning(
+                    log_json(
+                        ctx=self.extract_context_from_sql_params(sql_params),
+                        msg=trino_exc.message,
+                        error_type=trino_exc.error_type,
+                        error_name=trino_exc.error_name,
+                        query_id=trino_exc.query_id,
+                    )
+                )
+            else:
+                raise
 
     def populate_pod_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
@@ -438,45 +381,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        with schema_context(self.schema):
-            OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
-            ).update(
-                infrastructure_markup_cost=(
-                    (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
-                ),
-                infrastructure_project_markup_cost=(
-                    (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
-                ),
-            )
-
-    def get_distinct_nodes(self, start_date, end_date, cluster_id):
-        """Return a list of nodes for a cluster between given dates."""
-        with schema_context(self.schema):
-            unique_nodes = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id, node__isnull=False
-                )
-                .values_list("node")
-                .distinct()
-            )
-            return [node[0] for node in unique_nodes]
-
-    def get_distinct_pvcs(self, start_date, end_date, cluster_id):
-        """Return a list of tuples of (PVC, node) for a cluster between given dates."""
-        with schema_context(self.schema):
-            unique_pvcs = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date,
-                    usage_start__lt=end_date,
-                    cluster_id=cluster_id,
-                    persistentvolumeclaim__isnull=False,
-                    namespace__isnull=False,
-                )
-                .values_list("persistentvolumeclaim", "node", "namespace")
-                .distinct()
-            )
-            return [(pvc[0], pvc[1], pvc[2]) for pvc in unique_pvcs]
+        OCPUsageLineItemDailySummary.objects.filter(
+            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+        ).update(
+            infrastructure_markup_cost=(
+                (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+            ),
+            infrastructure_project_markup_cost=(
+                (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+            ),
+        )
 
     def populate_platform_and_worker_distributed_cost_sql(
         self, start_date, end_date, provider_uuid, distribution_info
@@ -499,9 +413,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
             LOG.info(log_json(msg=msg, context=context))
             return
-        with schema_context(self.schema):
-            report_period_id = report_period.id
 
+        report_period_id = report_period.id
         distribute_mapping = {
             "platform_cost": {
                 "sql_file": "distribute_platform_cost.sql",
@@ -569,9 +482,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             return
-        with schema_context(self.schema):
-            report_period_id = report_period.id
-
+        report_period_id = report_period.id
         if not rate:
             LOG.info(log_json(msg="removing monthly costs", context=ctx))
             self.delete_line_item_daily_summary_entries_for_date_range_raw(
@@ -631,8 +542,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             return
-        with schema_context(self.schema):
-            report_period_id = report_period.id
+        report_period_id = report_period.id
 
         cpu_case, memory_case, volume_case = case_dict.get("cost")
         labels = case_dict.get("labels")
@@ -721,8 +631,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             return
-        with schema_context(self.schema):
-            report_period_id = report_period.id
+        report_period_id = report_period.id
 
         if not rates:
             LOG.info(log_json(msg="removing usage costs", context=ctx))
@@ -947,76 +856,72 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_cluster_table(self, provider, cluster_id, cluster_alias):
         """Get or create an entry in the OCP cluster table."""
-        with schema_context(self.schema):
-            LOG.info(log_json(msg="fetching entry in reporting_ocp_cluster", provider_uuid=provider.uuid))
-            clusters = OCPCluster.objects.filter(provider_id=provider.uuid)
-            if clusters.count() > 1:
-                clusters_to_delete = clusters.exclude(cluster_alias=cluster_alias)
-                LOG.info(
-                    log_json(
-                        msg="attempting to delete duplicate entries in reporting_ocp_cluster",
-                        provider_uuid=provider.uuid,
-                    )
-                )
-                clusters_to_delete.delete()
-            cluster = clusters.first()
-            msg = "fetched entry in reporting_ocp_cluster"
-            if not cluster:
-                cluster, created = OCPCluster.objects.get_or_create(
-                    cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
-                )
-                msg = f"created entry in reporting_ocp_clusters: {created}"
-
-            # if the cluster entry already exists and cluster alias does not match, update the cluster alias
-            elif cluster.cluster_alias != cluster_alias:
-                cluster.cluster_alias = cluster_alias
-                cluster.save()
-                msg = "updated cluster entry with new cluster alias in reporting_ocp_clusters"
-
+        LOG.info(log_json(msg="fetching entry in reporting_ocp_cluster", provider_uuid=provider.uuid))
+        clusters = OCPCluster.objects.filter(provider_id=provider.uuid)
+        if clusters.count() > 1:
+            clusters_to_delete = clusters.exclude(cluster_alias=cluster_alias)
             LOG.info(
                 log_json(
-                    msg=msg,
-                    cluster_id=cluster_id,
-                    cluster_alias=cluster_alias,
+                    msg="attempting to delete duplicate entries in reporting_ocp_cluster",
                     provider_uuid=provider.uuid,
                 )
             )
+            clusters_to_delete.delete()
+        cluster = clusters.first()
+        msg = "fetched entry in reporting_ocp_cluster"
+        if not cluster:
+            cluster, created = OCPCluster.objects.get_or_create(
+                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=provider.uuid
+            )
+            msg = f"created entry in reporting_ocp_clusters: {created}"
+
+        # if the cluster entry already exists and cluster alias does not match, update the cluster alias
+        elif cluster.cluster_alias != cluster_alias:
+            cluster.cluster_alias = cluster_alias
+            cluster.save()
+            msg = "updated cluster entry with new cluster alias in reporting_ocp_clusters"
+
+        LOG.info(
+            log_json(
+                msg=msg,
+                cluster_id=cluster_id,
+                cluster_alias=cluster_alias,
+                provider_uuid=provider.uuid,
+            )
+        )
         return cluster
 
     def populate_node_table(self, cluster, nodes):
         """Get or create an entry in the OCP node table."""
         LOG.info(log_json(msg="populating reporting_ocp_nodes table", schema=self.schema, cluster=cluster))
-        with schema_context(self.schema):
-            for node in nodes:
-                tmp_node = OCPNode.objects.filter(
-                    node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
-                ).first()
-                if not tmp_node:
-                    OCPNode.objects.create(
-                        node=node[0],
-                        resource_id=node[1],
-                        node_capacity_cpu_cores=node[2],
-                        node_role=node[3],
-                        cluster=cluster,
-                    )
-                # if the node entry already exists but does not have a role assigned, update the node role
-                elif not tmp_node.node_role:
-                    tmp_node.node_role = node[3]
-                    tmp_node.save()
+        for node in nodes:
+            tmp_node = OCPNode.objects.filter(
+                node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
+            ).first()
+            if not tmp_node:
+                OCPNode.objects.create(
+                    node=node[0],
+                    resource_id=node[1],
+                    node_capacity_cpu_cores=node[2],
+                    node_role=node[3],
+                    cluster=cluster,
+                )
+            # if the node entry already exists but does not have a role assigned, update the node role
+            elif not tmp_node.node_role:
+                tmp_node.node_role = node[3]
+                tmp_node.save()
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
         LOG.info(log_json(msg="populating reporting_ocp_pvcs table", schema=self.schema, cluster=cluster))
-        with schema_context(self.schema):
-            for pvc in pvcs:
-                OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
+        for pvc in pvcs:
+            OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
         LOG.info(log_json(msg="populating reporting_ocp_projects table", schema=self.schema, cluster=cluster))
-        with schema_context(self.schema):
-            for project in projects:
-                OCPProject.objects.get_or_create(project=project, cluster=cluster)
+        for project in projects:
+            OCPProject.objects.get_or_create(project=project, cluster=cluster)
 
     def get_nodes_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
@@ -1081,37 +986,30 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_cluster_for_provider(self, provider_uuid):
         """Return the cluster entry for a provider UUID."""
-        with schema_context(self.schema):
-            cluster = OCPCluster.objects.filter(provider_id=provider_uuid).first()
-        return cluster
+        return OCPCluster.objects.filter(provider_id=provider_uuid).first()
 
     def get_nodes_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
-        with schema_context(self.schema):
-            nodes = (
-                OCPNode.objects.filter(cluster_id=cluster_id)
-                .exclude(node__exact="")
-                .values_list("node", "resource_id")
-            )
-            nodes = [(node[0], node[1]) for node in nodes]
+        nodes = (
+            OCPNode.objects.filter(cluster_id=cluster_id).exclude(node__exact="").values_list("node", "resource_id")
+        )
+        nodes = [(node[0], node[1]) for node in nodes]
         return nodes
 
     def get_pvcs_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
-        with schema_context(self.schema):
-            pvcs = (
-                OCPPVC.objects.filter(cluster_id=cluster_id)
-                .exclude(persistent_volume__exact="")
-                .values_list("persistent_volume", "persistent_volume_claim")
-            )
-            pvcs = [(pvc[0], pvc[1]) for pvc in pvcs]
+        pvcs = (
+            OCPPVC.objects.filter(cluster_id=cluster_id)
+            .exclude(persistent_volume__exact="")
+            .values_list("persistent_volume", "persistent_volume_claim")
+        )
+        pvcs = [(pvc[0], pvc[1]) for pvc in pvcs]
         return pvcs
 
     def get_projects_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
-        with schema_context(self.schema):
-            projects = OCPProject.objects.filter(cluster_id=cluster_id).values_list("project")
-            projects = [project[0] for project in projects]
+        projects = OCPProject.objects.filter(cluster_id=cluster_id).values_list("project")
+        projects = [project[0] for project in projects]
         return projects
 
     def get_openshift_topology_for_multiple_providers(self, provider_uuids):
@@ -1246,3 +1144,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
+
+    def populate_unit_test_tag_data(self, report_period_ids, start_date, end_date):
+        """
+        This method allows us to maintain our tag logic.
+        """
+        # Remove disabled keys from the tags field.
+        self.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
+        self.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
+        table_name = self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_remove_disabled_tags.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_ids": report_period_ids,
+            "schema": self.schema,
+        }
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)

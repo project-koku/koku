@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from dateutil import parser
 from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -21,7 +22,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
@@ -118,7 +118,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         if (self.provider_type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids) or (
             self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
         ):
-            infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
+            infra_map = self._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
         return infra_map
 
     def determine_truncates_and_deletes(self, start_date, end_date):
@@ -179,8 +179,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
 
         # Update markup for OpenShift tables
-        with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
-            OCPCostModelCostUpdater(self._schema, provider_accessor.provider)._update_markup_cost(start_date, end_date)
+        provider = Provider.objects.get(uuid=ocp_provider_uuid)
+        OCPCostModelCostUpdater(self._schema, provider)._update_markup_cost(start_date, end_date)
 
         # Update the UI tables for the OpenShift provider
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
@@ -299,7 +299,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
-                accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start, end)
+                accessor.populate_ocp_on_aws_tag_information(aws_bill_ids, start, end)
                 accessor.populate_ocp_on_aws_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, aws_provider_uuid
                 )
@@ -316,7 +316,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         LOG.info(log_json(msg="updating ocp_on_cloud_updated_datetime OpenShift report periods", **context))
         with schema_context(self._schema):
-            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.ocp_on_cloud_updated_datetime = timezone.now()
             report_period.save()
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
@@ -434,7 +434,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
-                accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start, end)
+                accessor.populate_ocp_on_azure_tag_information(azure_bill_ids, start, end)
                 accessor.populate_ocp_on_azure_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, azure_provider_uuid
                 )
@@ -451,7 +451,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         LOG.info(log_json(msg="updating ocp_on_cloud_updated_datetime OpenShift report periods", **context))
         with schema_context(self._schema):
-            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.ocp_on_cloud_updated_datetime = timezone.now()
             report_period.save()
 
     def update_gcp_summary_tables(self, openshift_provider_uuid, gcp_provider_uuid, start_date, end_date):
@@ -555,7 +555,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, gcp_provider_uuid
                 )
-                accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start, end)
+                accessor.populate_ocp_on_gcp_tag_information(gcp_bill_ids, start, end)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
@@ -577,5 +577,5 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             )
         )
         with schema_context(self._schema):
-            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.ocp_on_cloud_updated_datetime = timezone.now()
             report_period.save()

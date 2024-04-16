@@ -58,7 +58,7 @@ class OCPReportViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh.now, 9)
         cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs", cls.schema_name)
         cls.cost_term = (
             cls.provider_map.cloud_infrastructure_cost
@@ -318,13 +318,13 @@ class OCPReportViewTest(IamTestCase):
         total = response_json.get("meta", {}).get("total", {})
         data = response_json.get("data", {})
         self.assertTrue("usage" in total)
-        self.assertEqual(total.get("usage", {}).get("units"), "GB-Hours")
+        self.assertEqual(total.get("usage", {}).get("units"), "GiB-Hours")
 
         for item in data:
             if item.get("values"):
                 values = item.get("values")[0]
                 self.assertTrue("usage" in values)
-                self.assertEqual(values.get("usage", {}).get("units"), "GB-Hours")
+                self.assertEqual(values.get("usage", {}).get("units"), "GiB-Hours")
 
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
@@ -1115,9 +1115,8 @@ class OCPReportViewTest(IamTestCase):
             self.assertEqual(result, expected)
 
     @patch("api.report.ocp.provider_map.is_feature_cost_3083_all_labels_enabled", return_value=True)
-    def test_execute_costs_query_with_tag_filter(self, _):
+    def test_execute_costs_query_with_tag_filter(self, mock_unleash):
         """Test that data is filtered by tag key."""
-        tag_column = "all_labels"
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -1125,12 +1124,15 @@ class OCPReportViewTest(IamTestCase):
         tag_keys.sort(reverse=True)
         filter_key = tag_keys[0]
         with tenant_context(self.tenant):
-            tag_filter = {f"{tag_column}__has_key": filter_key, "usage_start__gte": self.ten_days_ago.date()}
-            labels = OCPUsageLineItemDailySummary.objects.filter().filter(**tag_filter).values(*[tag_column]).all()
-            label_of_interest = labels[0]
+            labels = (
+                OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
+                .filter(pod_labels__has_key=filter_key)
+                .values(*["all_labels"])
+                .all()
+            )
+            label_of_interest = labels[1]
             filter_value = label_of_interest.get("all_labels", {}).get(filter_key)
-            tag_filter = {f"{tag_column}__{filter_key}": filter_value, "usage_start__gte": self.ten_days_ago.date()}
-
+            tag_filter = {f"all_labels__{filter_key}": filter_value, "usage_start__gte": self.ten_days_ago.date()}
             totals = (
                 OCPUsageLineItemDailySummary.objects.filter(**tag_filter)
                 .annotate(**{"infra_exchange_rate": Value(Decimal(1.0)), "exchange_rate": Value(Decimal(1.0))})
@@ -1254,8 +1256,12 @@ class OCPReportViewTest(IamTestCase):
     def test_execute_query_with_group_by_tag_and_limit(self):
         """Test that data is grouped by tag key and limited."""
         client = APIClient()
-        tag_key = "storageclass"
-        tag_key_plural = f"{tag_key}s"
+        tag_url = reverse("openshift-tags")
+        tag_url = tag_url + "?filter[time_scope_value]=-2&key_only=True&filter[enabled]=true"
+        response = client.get(tag_url, **self.headers)
+        tag_keys = response.data.get("data", [])
+        tag_key = tag_keys[0]
+        tag_key_plural = tag_key + "s"
 
         url = reverse("reports-openshift-cpu")
         params = {
@@ -1493,7 +1499,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue("usage" in values)
         self.assertTrue("request" in values)
         self.assertTrue("cost" in values)
-        self.assertEqual(values.get("usage", {}).get("units"), "GB-Mo")
+        self.assertEqual(values.get("usage", {}).get("units"), "GiB-Mo")
 
     def test_execute_query_default_pagination(self):
         """Test that the default pagination works."""

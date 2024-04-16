@@ -284,10 +284,10 @@ SELECT uuid,
     cast(cost_model_memory_cost as decimal),
     cast(cost_model_volume_cost as decimal),
     monthly_cost_type,
-    cat.id as cost_category_id
+    cat_ns.cost_category_id as cost_category_id
 FROM cte_unallocated AS uc
-LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-    ON uc.namespace LIKE ANY(cat.namespace)
+LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
+    ON uc.namespace LIKE cat_ns.namespace
 ;
 
 DROP TABLE label_filtered_daily_summary
