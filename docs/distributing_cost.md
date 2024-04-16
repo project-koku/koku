@@ -3,11 +3,15 @@ Our cost model allows user to distribute the their costs bassed of the cpu or me
 
 ## Worker Unallocated Costs:
 
+### How We Calculate
+
 During data processing we add in additional rows to represent the [worker unallocated](https://github.com/project-koku/koku/blob/main/koku/masu/database/trino_sql/reporting_ocpusagelineitem_daily_summary.sql#L503) cost. These rows are added under the project name `Worker unallocated` during the ocp daily summary table creation. Formula:
 ```
 unallocated_worker_cost = capacity - effective usage
 ```
 The effective usage is the max(request, usage), since users can have a higer usage than their request.
+
+### How We Distribute
 
 One of the features of our cost models is to distribute the cost associated with the `Worker unallocated` project to the user projects with this algorithm:
 ```
@@ -24,10 +28,16 @@ Project's B distributed_cost = (75 / sum(25 + 75)) * 100 = 75
 
 So, project A gets an additional 25 dollars, and Project B gets an additional 75 dollars added on due to distributing the Worker unallocated cost.
 
-*The Negation*
-However, the `Worker unallocated` project that we created earlier in the process still has the original 100 dollars. So, for the `Worker unallocated` project we do:
+**How we deduplicate**
+However, the `Worker unallocated` project that we created earlier in the *How We Calculate* section still holds the original cost, using the example above this would be our original 100 dollars. Therefore, in order to deduplicate costs for the `Worker unallocated` project we need to do:
 
 ```
 distributed_cost = 0 - worker_uanllocated_cost
+```
+
+Working with our same example:
+
+```
+
 Worker unallocated project's distributed_cost = 0 - 100
 ```
