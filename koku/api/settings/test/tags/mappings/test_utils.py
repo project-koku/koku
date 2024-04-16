@@ -1,6 +1,7 @@
 from django_tenants.utils import tenant_context
 
 from api.models import Provider
+from api.provider.models import ProviderInfrastructureMap
 from api.settings.tags.mapping.utils import resummarize_current_month_by_tag_keys
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
@@ -34,3 +35,14 @@ class TestTagMappingUtils(MasuTestCase):
             resummarize_current_month_by_tag_keys(uuids, self.schema_name)
             for uuid in self.test_matrix.values():
                 self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=uuid).exists())
+
+    def test_ocp_on_cloud_resummarize(self):
+        with tenant_context(self.tenant):
+            infra_map = ProviderInfrastructureMap.objects.create(
+                infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=self.aws_provider
+            )
+            self.ocp_provider.infrastructure = infra_map
+            self.ocp_provider.save()
+            uuids = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).values_list("uuid", flat=True)
+            resummarize_current_month_by_tag_keys(uuids, self.schema_name)
+            self.assertTrue(DelayedCeleryTasks.objects.filter(provider_uuid=self.aws_provider_uuid).exists())
