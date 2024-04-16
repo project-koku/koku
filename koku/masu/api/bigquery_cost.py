@@ -48,13 +48,19 @@ class BigQueryHelper:
                 SELECT DATE(usage_start_time) as usage_date,
                     sum(cost) as cost,
                     FROM {self.table_name}
-                    WHERE invoice.month = '{invoice_month}'
-                    AND DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
+                    WHERE invoice.month = @invoice_month
+                    AND DATE(_PARTITIONTIME) BETWEEN @start_date AND @end_date
                     GROUP BY usage_date ORDER BY usage_date;
                 """
-
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("invoice_month", "STRING", invoice_month),
+                bigquery.ScalarQueryParameter("start_date", "DATE", self.start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", self.end_date),
+            ]
+        )
         LOG.info(daily_query)
-        rows = self.client.query(daily_query).result()
+        rows = self.client.query(daily_query, job_config=job_config).result()
         daily_dict = {}
         for row in rows:
             daily_dict[str(row["usage_date"])] = {"cost": row.get("cost")}
@@ -66,10 +72,17 @@ class BigQueryHelper:
         monthly_query = f"""
                 SELECT sum(cost) as cost,
                     FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
-                    AND invoice.month = '{invoice_month}'
+                    WHERE DATE(_PARTITIONTIME) BETWEEN @start_date AND @end_date
+                    AND invoice.month = @invoice_month
                 """
-        rows = self.client.query(monthly_query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("invoice_month", "STRING", invoice_month),
+                bigquery.ScalarQueryParameter("start_date", "DATE", self.start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", self.end_date),
+            ]
+        )
+        rows = self.client.query(monthly_query, job_config=job_config).result()
         for row in rows:
             results[key] = row[0]  # TODO: Remove once bigquery is updated.
             metadata = {
@@ -79,30 +92,22 @@ class BigQueryHelper:
             results[key + "_metadata"] = metadata
         return results
 
-    def custom_sql(self, query):
-        """Takes a custom query and replaces the table_name."""
-        query = query.replace("table_name", self.table_name)
-        rows = self.client.query(query).result()
-        return rows
-
 
 @never_cache
-@api_view(http_method_names=["GET", "POST"])
+@api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def bigquery_cost(request):  # noqa: C901
+def bigquery_cost(request, *args, **kwargs):  # noqa: C901
     """Returns the invoice monthly cost."""
     params = request.query_params
-    provider_uuid = params.get("provider_uuid")
-    return_daily = True if "daily" in params.keys() else False
+    provider_uuid = kwargs.get("source_uuid")
+    return_daily = "daily" in params.keys()
 
-    if provider_uuid is None:
-        errmsg = "provider_uuid is a required parameter."
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-
-    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    provider = Provider.objects.filter(
+        uuid=provider_uuid, type__in=[Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]
+    ).first()
     if not provider:
-        errmsg = f"The provider_uuid {provider_uuid} does not exist."
+        errmsg = f"The *GCP* provider_uuid {provider_uuid} does not exist."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
     credentials = provider.authentication.credentials
     data_source = provider.billing_source.data_source
@@ -122,19 +127,13 @@ def bigquery_cost(request):  # noqa: C901
     results = {}
     try:
         bq_helper = BigQueryHelper(table_name)
-        if request.method == "POST":
-            data = request.data
-            query = data.get("query")
-            results = bq_helper.custom_sql(query)
-            resp_key = "custom_query_results"
-        else:
-            for key, invoice_month in mapping.items():
-                if return_daily:
-                    results = bq_helper.daily_sql(invoice_month, results)
-                    resp_key = "daily_invoice_cost_mapping"
-                else:
-                    results = bq_helper.monthly_sql(invoice_month, results, key)
-                    resp_key = "monthly_invoice_cost_mapping"
+        for key, invoice_month in mapping.items():
+            if return_daily:
+                results = bq_helper.daily_sql(invoice_month, results)
+                resp_key = "daily_invoice_cost_mapping"
+            else:
+                results = bq_helper.monthly_sql(invoice_month, results, key)
+                resp_key = "monthly_invoice_cost_mapping"
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 

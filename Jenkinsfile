@@ -34,8 +34,8 @@ pipeline {
         IMAGE_TAG=sh(script: "git rev-parse --short=7 HEAD", returnStdout: true).trim()
         DBM_IMAGE="${IMAGE}"
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
-        COMPONENTS="hive-metastore koku presto"  // specific components to deploy (optional, default: all)
-        COMPONENTS_W_RESOURCES="hive-metastore koku presto"  // components which should preserve resource settings (optional, default: none)
+        COMPONENTS="hive-metastore koku trino"  // specific components to deploy (optional, default: all)
+        COMPONENTS_W_RESOURCES="hive-metastore koku trino"  // components which should preserve resource settings (optional, default: none)
 
         LABELS_DIR="${WORKSPACE}/github_labels"
         ARTIFACTS_DIR="${WORKSPACE}/artifacts"
