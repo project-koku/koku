@@ -13,7 +13,7 @@
     ],
     "system_session_properties": [
         {
-            "role": "admin",
+            "user": "admin",
             "allow": true
         },
         {
@@ -23,7 +23,7 @@
     ],
     "catalog_session_properties": [
         {
-            "role": "admin",
+            "user": "admin",
             "allow": true
         },
         {
@@ -33,7 +33,7 @@
     ],
     "system_information": [
         {
-            "role": "admin",
+            "user": "admin",
             "allow": [
                 "read",
                 "write"
