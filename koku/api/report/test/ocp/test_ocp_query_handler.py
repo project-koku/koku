@@ -1469,3 +1469,20 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         self.assertIsNotNone(grouping_list)
                         for group_dict in grouping_list:
                             self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])
+
+    def test_ocp_cpu_query_group_by_storage_class(self):
+        """Test that group by storageclass functionality works."""
+        group_by_key = "storageclass"
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[{group_by_key}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+        for data in query_data.get("data"):
+            result_key = group_by_key + "s"
+            self.assertIn(result_key, data)
+            for stor_cls_data in data.get(result_key):
+                self.assertIn(group_by_key, stor_cls_data)
+                self.assertIn("values", stor_cls_data)
+                for storage_value in stor_cls_data.get("values"):
+                    self.assertIn(group_by_key, storage_value.keys())
+                    self.assertIsNotNone(storage_value[group_by_key])
