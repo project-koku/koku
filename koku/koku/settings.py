@@ -515,7 +515,7 @@ try:
     OCI_CONFIG = config.from_file(file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default=""))
     OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="")
 except ConfigFileNotFound:
-    print("OCI configuration not found")
+    logging.exception("OCI configuration not found")
 
 # Trino Settings
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
