@@ -115,7 +115,10 @@ class ROSReportShipper:
             return
 
         kafka_msg = self.build_ros_msg(report_urls, upload_keys)
-        msg = f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message."
+        msg = (
+            f"{len(report_urls)} reports uploaded to S3 for ROS, sending kafka message; "
+            f"report urls: {', '.join(report_urls)}"
+        )
         LOG.info(log_json(self.request_id, msg=msg, context=self.context))
         self.send_kafka_message(kafka_msg)
 
