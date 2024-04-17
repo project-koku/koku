@@ -25,18 +25,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: aws-access-key-id
-              name: koku-aws
-              optional: false
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws-secret-access-key
-              name: koku-aws
-              optional: false
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -169,6 +159,9 @@
           cpu: ${WORKER_HCS_CPU_REQUEST}
           memory: ${WORKER_HCS_MEMORY_REQUEST}
       volumeMounts:
+      - name: aws-credentials
+        mountPath: /etc/aws
+        readOnly: true
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
       - name: gcp-credentials
@@ -184,6 +177,12 @@
         emptyDir: {}
       - name: koku-worker-data
         emptyDir: {}
+      - name: aws-credentials
+        secret:
+          items:
+          - key: aws-credentials
+            path: aws-credentials
+          secretName: koku-aws
       - name: gcp-credentials
         secret:
           secretName: koku-gcp

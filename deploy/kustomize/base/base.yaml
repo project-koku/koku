@@ -156,6 +156,8 @@ objects:
   stringData:
     aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
     aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
+  data:
+    aws-credentials: "${AWS_CREDENTIALS_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
@@ -270,6 +272,8 @@ parameters:
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
   value: subs-eph-s3
+- name: AWS_SHARED_CREDENTIALS_FILE
+  value: "/etc/aws/aws-credentials"
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
@@ -571,6 +575,10 @@ parameters:
   required: true
   from: "[a-f0-9]{20}"
   generate: expression
+- displayName: AWS credentials file
+  name: AWS_CREDENTIALS_EPH
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - name: AWS_ACCESS_KEY_ID_EPH
   displayName: AWS Access Key ID (Ephemeral)
   required: true

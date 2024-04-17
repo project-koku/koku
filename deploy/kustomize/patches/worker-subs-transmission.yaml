@@ -19,18 +19,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: aws-access-key-id
-              name: koku-aws
-              optional: false
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws-secret-access-key
-              name: koku-aws
-              optional: false
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -140,24 +130,33 @@
           cpu: ${WORKER_SUBS_TRANSMISSION_CPU_REQUEST}
           memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST}
       volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
-        - name: gcp-credentials
-          mountPath: /etc/gcp
-          readOnly: true
-        - name: tmp-data
-          mountPath: ${TMP_DIR}
+      - name: aws-credentials
+        mountPath: /etc/aws
+        readOnly: true
+      - mountPath: /var/tmp/masu/
+        name: koku-worker-data
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
+      - name: tmp-data
+        mountPath: ${TMP_DIR}
       volumes:
-        - name: tmp-data
-          emptyDir: {}
-        - name: koku-worker-data
-          emptyDir: {}
-        - name: gcp-credentials
-          secret:
-            secretName: koku-gcp
-            items:
-              - key: gcp-credentials
-                path: gcp-credentials.json
+      - name: tmp-data
+        emptyDir: {}
+      - name: koku-worker-data
+        emptyDir: {}
+      - name: aws-credentials
+        secret:
+          items:
+          - key: aws-credentials
+            path: aws-credentials
+          secretName: koku-aws
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
 
 - op: add
   path: /parameters/-
