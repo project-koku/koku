@@ -509,16 +509,10 @@ PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=2
 # The oci config requires `user`, `key_file`, `fingerprint`, `tenancy`, and `region`.
 # The OCI_SHARED_CREDENTIALS_FILE contains all but the key_file and region. The key_file
 # comes from the OCI_CLI_KEY_FILE env var, and the region comes from the user created Source.
-if oci_config_loc := ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default=None):
-    OCI_CONFIG = config.from_file(file_location=oci_config_loc)
-    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/testing/auth_files/oci_key_file.pem")
-else:
-    OCI_CONFIG = {
-        "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
-        "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/testing/auth_files/oci_key_file.pem"),
-        "fingerprint": ENVIRONMENT.get_value("OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"),
-        "tenancy": ENVIRONMENT.get_value("OCI_CLI_TENANCY", default="OCI_TENANT"),
-    }
+OCI_CONFIG = config.from_file(
+    file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default="/etc/credentials/oci")
+)
+OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/etc/credentials/oci_key_file.pem")
 
 # Trino Settings
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
