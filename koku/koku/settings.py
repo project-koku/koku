@@ -23,6 +23,7 @@ from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
 from oci import config
+from oci.exceptions import ConfigFileNotFound
 
 from . import database
 from . import sentry
@@ -509,10 +510,14 @@ PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=2
 # The oci config requires `user`, `key_file`, `fingerprint`, `tenancy`, and `region`.
 # The OCI_SHARED_CREDENTIALS_FILE contains all but the key_file and region. The key_file
 # comes from the OCI_CLI_KEY_FILE env var, and the region comes from the user created Source.
-OCI_CONFIG = config.from_file(
-    file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default="/etc/credentials/oci")
-)
-OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/etc/credentials/oci_key_file.pem")
+OCI_CONFIG = {}
+try:
+    OCI_CONFIG = config.from_file(
+        file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default="/etc/credentials/oci")
+    )
+    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/etc/credentials/oci_key_file.pem")
+except ConfigFileNotFound:
+    print("OCI configuration not found")
 
 # Trino Settings
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
