@@ -275,7 +275,7 @@ parameters:
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
 - name: OCI_SHARED_CREDENTIALS_FILE
-  value: "/etc/oci/config"
+  value: "/etc/oci/oci-config"
 - name: OCI_CLI_KEY_FILE
   description: OCI Credentials Location
   value: "/etc/oci/oci-credentials.pem"

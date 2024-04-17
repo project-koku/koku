@@ -512,10 +512,8 @@ PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=2
 # comes from the OCI_CLI_KEY_FILE env var, and the region comes from the user created Source.
 OCI_CONFIG = {}
 try:
-    OCI_CONFIG = config.from_file(
-        file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default="/etc/credentials/oci")
-    )
-    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/etc/credentials/oci_key_file.pem")
+    OCI_CONFIG = config.from_file(file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default=""))
+    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="")
 except ConfigFileNotFound:
     print("OCI configuration not found")
 

@@ -4200,7 +4200,7 @@ parameters:
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
 - name: OCI_SHARED_CREDENTIALS_FILE
-  value: /etc/oci/config
+  value: /etc/oci/oci-config
 - description: OCI Credentials Location
   name: OCI_CLI_KEY_FILE
   value: /etc/oci/oci-credentials.pem
