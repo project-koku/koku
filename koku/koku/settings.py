@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
+from oci import config
 
 from . import database
 from . import sentry
@@ -504,12 +505,20 @@ ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
 PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
-OCI_CONFIG = {
-    "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
-    "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="None"),
-    "fingerprint": ENVIRONMENT.get_value("OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"),
-    "tenancy": ENVIRONMENT.get_value("OCI_CLI_TENANCY", default="OCI_TENANT"),
-}
+
+# The oci config requires `user`, `key_file`, `fingerprint`, `tenancy`, and `region`.
+# The OCI_SHARED_CREDENTIALS_FILE contains all but the key_file and region. The key_file
+# comes from the OCI_CLI_KEY_FILE env var, and the region comes from the user created Source.
+if oci_config_loc := ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default=None):
+    OCI_CONFIG = config.from_file(file_location=oci_config_loc)
+    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/testing/auth_files/oci_key_file.pem")
+else:
+    OCI_CONFIG = {
+        "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
+        "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="/testing/auth_files/oci_key_file.pem"),
+        "fingerprint": ENVIRONMENT.get_value("OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"),
+        "tenancy": ENVIRONMENT.get_value("OCI_CLI_TENANCY", default="OCI_TENANT"),
+    }
 
 # Trino Settings
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)

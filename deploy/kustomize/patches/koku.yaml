@@ -30,6 +30,8 @@
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -188,7 +190,8 @@
           items:
             - key: oci-credentials
               path: oci-credentials.pem
-
+            - key: oci-config
+              path: oci-config
 - op: add
   path: /parameters/-
   value:

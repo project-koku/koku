@@ -32,6 +32,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -197,6 +199,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{KOKU_REPLICAS}}
       webServices:
@@ -276,6 +280,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -411,6 +417,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{LISTENER_REPLICAS}}
       webServices:
@@ -439,6 +447,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -607,6 +617,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{MASU_REPLICAS}}
       webServices:
@@ -636,6 +648,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -781,6 +795,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
@@ -817,6 +833,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -954,6 +972,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
@@ -995,6 +1015,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1129,6 +1151,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
@@ -1154,6 +1178,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -1316,6 +1342,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
@@ -1341,6 +1369,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -1509,6 +1539,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
@@ -1534,6 +1566,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1702,6 +1736,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_XL_REPLICAS}}
       webServices:
@@ -1727,6 +1763,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -1899,6 +1937,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
@@ -1924,6 +1964,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2096,6 +2138,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_XL_REPLICAS}}
       webServices:
@@ -2121,6 +2165,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2291,6 +2337,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
@@ -2316,6 +2364,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2486,6 +2536,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_OCP_XL_REPLICAS}}
       webServices:
@@ -2511,6 +2563,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2687,6 +2741,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
@@ -2712,6 +2768,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2888,6 +2946,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_XL_REPLICAS}}
       webServices:
@@ -2913,6 +2973,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3081,6 +3143,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
@@ -3106,6 +3170,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3274,6 +3340,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_XL_REPLICAS}}
       webServices:
@@ -3299,6 +3367,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3471,6 +3541,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
@@ -3496,6 +3568,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3668,6 +3742,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_XL_REPLICAS}}
       webServices:
@@ -3693,6 +3769,8 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3863,6 +3941,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
@@ -4002,6 +4082,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -4021,6 +4104,14 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
+            secretName: koku-oci
       replicas: ${{WORKER_SUBS_EXTRACTION_REPLICAS}}
       webServices:
         private:
@@ -4157,6 +4248,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -4176,6 +4270,14 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
+            secretName: koku-oci
       replicas: ${{WORKER_SUBS_TRANSMISSION_REPLICAS}}
       webServices:
         private:
@@ -4400,6 +4502,8 @@ parameters:
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
+- name: OCI_SHARED_CREDENTIALS_FILE
+  value: /etc/oci/config
 - description: OCI Credentials Location
   name: OCI_CLI_KEY_FILE
   value: /etc/oci/oci-credentials.pem
