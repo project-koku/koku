@@ -96,6 +96,12 @@ STORAGE_COLUMNS = {
     "persistentvolumeclaim_labels",
 }
 
+STORAGE_NEWV_COLUMNS = {
+    "node",
+    "csi_driver",
+    "csi_volume_handle",
+}
+
 STORAGE_GROUP_BY = [
     "namespace",
     "pod",
@@ -198,7 +204,7 @@ OCP_REPORT_TYPES = {
         "enum": OCPReportTypes.STORAGE,
         "group_by": STORAGE_GROUP_BY,
         "agg": STORAGE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": STORAGE_NEWV_COLUMNS,
     },
     "pod_usage": {
         "columns": CPU_MEM_USAGE_COLUMNS,
