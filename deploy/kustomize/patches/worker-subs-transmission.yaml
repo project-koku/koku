@@ -138,6 +138,9 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: oci-credentials
+        mountPath: /etc/oci
+        readOnly: true
       - name: tmp-data
         mountPath: ${TMP_DIR}
       volumes:
@@ -157,6 +160,14 @@
           items:
             - key: gcp-credentials
               path: gcp-credentials.json
+      - name: oci-credentials
+        secret:
+          secretName: koku-oci
+          items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
 
 - op: add
   path: /parameters/-
