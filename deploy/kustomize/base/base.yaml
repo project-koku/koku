@@ -156,6 +156,8 @@ objects:
   stringData:
     aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
     aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
+  data:
+    aws-credentials: "${AWS_CREDENTIALS_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
@@ -168,10 +170,7 @@ objects:
     name: koku-oci
   data:
     oci-credentials: "${OCI_CREDENTIALS_EPH}"
-  stringData:
-    oci-cli-user: "${OCI_CLI_USER_EPH}"
-    oci-cli-fingerprint: "${OCI_CLI_FINGERPRINT_EPH}"
-    oci-cli-tenancy: "${OCI_CLI_TENANCY_EPH}"
+    oci-config: "${OCI_CONFIG_EPH}"
 
 - apiVersion: v1
   kind: ConfigMap
@@ -270,9 +269,13 @@ parameters:
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
   value: subs-eph-s3
+- name: AWS_SHARED_CREDENTIALS_FILE
+  value: "/etc/aws/aws-credentials"
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
+- name: OCI_SHARED_CREDENTIALS_FILE
+  value: "/etc/oci/oci-config"
 - name: OCI_CLI_KEY_FILE
   description: OCI Credentials Location
   value: "/etc/oci/oci-credentials.pem"
@@ -571,6 +574,10 @@ parameters:
   required: true
   from: "[a-f0-9]{20}"
   generate: expression
+- displayName: AWS credentials file
+  name: AWS_CREDENTIALS_EPH
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - name: AWS_ACCESS_KEY_ID_EPH
   displayName: AWS Access Key ID (Ephemeral)
   required: true
@@ -587,18 +594,10 @@ parameters:
   displayName: OCI Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CLI_USER_EPH
-  displayName: OCI user (Ephemeral)
+- name: OCI_CONFIG_EPH
+  displayName: OCI Config (Ephemeral)
   required: true
-  value: insert-string-value
-- name: OCI_CLI_FINGERPRINT_EPH
-  displayName: OCI user fingerprint (Ephemeral)
-  required: true
-  value: insert-string-value
-- name: OCI_CLI_TENANCY_EPH
-  displayName: OCI tenancy (Ephemeral)
-  required: true
-  value: insert-string-value
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
