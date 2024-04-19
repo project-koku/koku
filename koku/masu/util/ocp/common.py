@@ -201,6 +201,9 @@ NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
 # to the data frames.
+#
+# NEWV_COLUMNS should be a dict where the keys are the column name and
+# the value are the pandas dtypes that column is expected to be.
 OCP_REPORT_TYPES = {
     "storage_usage": {
         "columns": STORAGE_COLUMNS,
