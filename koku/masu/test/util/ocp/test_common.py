@@ -136,7 +136,7 @@ class OCPUtilTests(MasuTestCase):
         expected_result = "pod_usage"
         test_table = [
             copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS),
-            copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS).union(utils.CPU_MEM_USAGE_NEWV_COLUMNS),
+            copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS).union(utils.CPU_MEM_USAGE_NEWV_COLUMNS_AND_TYPES),
         ]
         for test in test_table:
             with self.subTest(test=test):
@@ -150,7 +150,7 @@ class OCPUtilTests(MasuTestCase):
         expected_result = "storage_usage"
         test_table = [
             copy.deepcopy(utils.STORAGE_COLUMNS),
-            copy.deepcopy(utils.STORAGE_COLUMNS).union(utils.STORAGE_NEWV_COLUMNS),
+            copy.deepcopy(utils.STORAGE_COLUMNS).union(utils.STORAGE_NEWV_COLUMNS_AND_TYPES),
         ]
         for test in test_table:
             with self.subTest(test=test):
