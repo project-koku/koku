@@ -63,6 +63,8 @@ class TestAWSPostProcessor(MasuTestCase):
                 "savingsplan_savingsplaneffectivecost": 1,
                 "pricing_publicondemandcost": 1,
                 "pricing_publicondemandrate": 1,
+                "product_operatingsystem": "Linux",
+                "product_memory": "8 GiB",
             },
             {
                 "lineitem_resourceid": "id1",
@@ -95,6 +97,8 @@ class TestAWSPostProcessor(MasuTestCase):
                 "savingsplan_savingsplaneffectivecost": 1,
                 "pricing_publicondemandcost": 1,
                 "pricing_publicondemandrate": 1,
+                "product_operatingsystem": "Linux",
+                "product_memory": "8 GiB",
             },
             {
                 "lineitem_resourceid": "id1",
@@ -127,6 +131,8 @@ class TestAWSPostProcessor(MasuTestCase):
                 "savingsplan_savingsplaneffectivecost": 1,
                 "pricing_publicondemandcost": 1,
                 "pricing_publicondemandrate": 1,
+                "product_operatingsystem": "Linux",
+                "product_memory": "8 GiB",
             },
         ]
 

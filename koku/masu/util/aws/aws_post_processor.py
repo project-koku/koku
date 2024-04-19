@@ -118,6 +118,7 @@ class AWSPostProcessor:
         "reservation_end_time": "reservation/EndTime",
         "product_physical_cores": "product/physicalCores",
         "identity_time_interval": "identity/TimeInterval",
+        "product_operating_system": "product/operatingSystem",
     }
 
     CSV_COLUMN_PREFIX = (
@@ -207,6 +208,7 @@ class AWSPostProcessor:
                 "lineitem_lineitemtype",
                 "product_productfamily",
                 "product_instancetype",
+                "product_operatingsystem",
                 "product_region",
                 "pricing_unit",
                 "resourcetags",
@@ -226,9 +228,10 @@ class AWSPostProcessor:
                 "pricing_publicondemandcost": ["sum"],
                 "pricing_publicondemandrate": ["max"],
                 "savingsplan_savingsplaneffectivecost": ["sum"],
-                "product_productname": ["max"],
                 "bill_invoiceid": ["max"],
+                "product_productname": ["max"],
                 "product_vcpu": ["max"],
+                "product_memory": ["max"],
             }
         )
         columns = daily_data_frame.columns.droplevel(1)
