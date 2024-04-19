@@ -97,9 +97,9 @@ STORAGE_COLUMNS = {
 }
 
 STORAGE_NEWV_COLUMNS = {
-    "node",
-    "csi_driver",
-    "csi_volume_handle",
+    "node": pd.StringDtype(storage="pyarrow"),
+    "csi_driver": pd.StringDtype(storage="pyarrow"),
+    "csi_volume_handle": pd.StringDtype(storage="pyarrow"),
 }
 
 STORAGE_GROUP_BY = [
@@ -119,6 +119,9 @@ STORAGE_AGG = {
     "persistentvolumeclaim_capacity_byte_seconds": ["sum"],
     "volume_request_storage_byte_seconds": ["sum"],
     "persistentvolumeclaim_usage_byte_seconds": ["sum"],
+    "node": ["max"],
+    "csi_driver": ["max"],
+    "csi_volume_handle": ["max"],
 }
 
 CPU_MEM_USAGE_COLUMNS = {
@@ -144,7 +147,7 @@ CPU_MEM_USAGE_COLUMNS = {
 }
 
 CPU_MEM_USAGE_NEWV_COLUMNS = {
-    "node_role",
+    "node_role": pd.StringDtype(storage="pyarrow"),
 }
 
 POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
@@ -218,14 +221,14 @@ OCP_REPORT_TYPES = {
         "enum": OCPReportTypes.NODE_LABELS,
         "group_by": NODE_GROUP_BY,
         "agg": NODE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": {},
     },
     "namespace_labels": {
         "columns": NAMESPACE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NAMESPACE_LABELS,
         "group_by": NAMESPACE_GROUP_BY,
         "agg": NAMESPACE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": {},
     },
 }
 

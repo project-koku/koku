@@ -143,10 +143,10 @@ class OCPPostProcessor:
 
         daily_data_frame.reset_index(inplace=True)
 
-        new_cols = report.get("new_required_columns")
-        for col in new_cols:
+        new_cols = report.get("new_required_columns") or {}
+        for col, dtype in new_cols.items():
             if col not in daily_data_frame:
-                daily_data_frame[col] = pd.Series(dtype=pd.StringDtype(storage="pyarrow"))
+                daily_data_frame[col] = pd.Series(dtype=dtype)
 
         return daily_data_frame
 
