@@ -198,8 +198,6 @@ class ProviderManager:
                     "type": self.model.infrastructure.infrastructure_type,
                     "uuid": self.model.infrastructure.infrastructure_provider_id,
                     "id": source.source_id,
-                    "account": self.model.infrastructure.infrastructure_account,
-                    "region": self.model.infrastructure.infrastructure_region,
                     "last_polling_time": self.get_last_polling_time(
                         self.model.infrastructure.infrastructure_provider_id
                     ),
