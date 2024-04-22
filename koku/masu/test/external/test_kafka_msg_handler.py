@@ -941,8 +941,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     for expected_item in expected:
                         self.assertIn(expected_item, daily_files)
 
-    def test_get_data_frame(self):
-        """Test the divide_csv_daily method."""
+    def test_get_data_frame_no_tokenizing_error(self):
+        """Test get_data_frame does not raise Tokenizing error when reading files."""
 
         file_paths = [
             Path("./koku/masu/test/data/ocp/valid-csv.csv"),
