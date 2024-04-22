@@ -17,6 +17,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     source_uuid,
     infrastructure_raw_cost,
     infrastructure_project_raw_cost,
+    infrastructure_data_in_gigabytes,
+    infrastructure_data_out_gigabytes,
     infrastructure_usage_cost,
     supplementary_usage_cost,
     pod_usage_cpu_core_hours,
@@ -62,6 +64,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         rp.provider_id as source_uuid,
         sum(ocp_azure.pretax_cost + ocp_azure.markup_cost) AS infrastructure_raw_cost,
         sum(ocp_azure.pod_cost + ocp_azure.project_markup_cost) AS infrastructure_project_raw_cost,
+        sum(infrastructure_data_in_gigabytes) as infrastructure_data_in_gigabytes,
+        sum(infrastructure_data_out_gigabytes) as infrastructure_data_out_gigabytes,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
         0 as pod_usage_cpu_core_hours,
@@ -99,5 +103,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_azure.persistentvolumeclaim,
         ocp_azure.resource_id,
         ocp_azure.pod_labels,
+        ocp_azure.data_transfer_direction,
         rp.provider_id
 ;
