@@ -154,8 +154,6 @@ class ModelBakeryDataLoader(DataLoader):
                     "ProviderInfrastructureMap",
                     infrastructure_type=provider_type,
                     infrastructure_provider=provider,
-                    infrastructure_account="account",
-                    infrastructure_region="east",
                 )
                 linked_openshift_provider.infrastructure = infra_map
                 linked_openshift_provider.save()
