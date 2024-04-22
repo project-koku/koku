@@ -534,7 +534,7 @@ class OCPProviderMap(ProviderMap):
                         "default_ordering": {"usage": "desc"},
                         "capacity_aggregate": {
                             "cluster_instance_counts": {
-                                "capacity_count": Sum(
+                                "capacity_count": Max(
                                     Coalesce(
                                         F("persistentvolumeclaim_capacity_gigabyte"),
                                         Value(0, output_field=DecimalField()),

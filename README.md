@@ -33,13 +33,15 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
-1.  Copy [`.env.example`](.env.example) into a `.env`
+1.  Copy [`.env.example`](.env.example) into a `.env` and update the following in your `.env`:
 
-2.  Obtain AWS values and update the following in your `.env`:
-
-        AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
-        AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
+
+2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
+
+        [default]
+        aws_access_key_id=YOUR_AWS_ACCESS_KEY_ID
+        aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
 
 3.  (macOS only) Install libraries for building wheels on ARM:
 
