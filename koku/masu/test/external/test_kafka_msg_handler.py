@@ -941,6 +941,19 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     for expected_item in expected:
                         self.assertIn(expected_item, daily_files)
 
+    def test_get_data_frame_no_tokenizing_error(self):
+        """Test get_data_frame does not raise Tokenizing error when reading files."""
+
+        file_paths = [
+            Path("./koku/masu/test/data/ocp/valid-csv.csv"),
+            Path("./koku/masu/test/data/ocp/tokenizing-error.csv"),
+        ]
+        for file_path in file_paths:
+            try:
+                msg_handler.get_data_frame(file_path)
+            except Exception:
+                self.fail(f"failed to read: {file_path}")
+
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.kafka_msg_handler.divide_csv_daily")
