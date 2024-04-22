@@ -13,6 +13,7 @@ from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
 from api.report.view import ReportView
+from koku.feature_flags import fallback_development_true
 from koku.feature_flags import UNLEASH_CLIENT
 
 
@@ -57,7 +58,9 @@ class OCPNetworkView(OCPView):
     report = "network"
 
     def get(self, request, **kwargs):
-        if not UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-3761-node-network"):
+        if not UNLEASH_CLIENT.is_enabled(
+            "cost-management.backend.feature-cost-3761-node-network", fallback_function=fallback_development_true
+        ):
             return Response(data="Under development", status=status.HTTP_400_BAD_REQUEST)
 
         response_fixture = {
