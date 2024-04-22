@@ -456,7 +456,7 @@ def pg_engine_version(request):
 
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = [{"postgresql_version": ".".join(str(v) for v in dbp.get_pg_engine_version())}]
+        data = [{"postgresql_version": dbp.get_pg_engine_version()}]
 
     page_header = "PostgreSQL Engine Version"
     return HttpResponse(render_template("db_version", page_header, tuple(data[0]) if data else (), data))
