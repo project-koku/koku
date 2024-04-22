@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_resource_mat
     instance_type varchar,
     service_id varchar,
     service_alias varchar,
+    data_transfer_direction varchar,
     sku_id varchar,
     sku_alias varchar,
     region varchar,
@@ -134,6 +135,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     instance_type varchar,
     service_id varchar,
     service_alias varchar,
+    data_transfer_direction varchar,
     sku_id varchar,
     sku_alias varchar,
     region varchar,
@@ -179,6 +181,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp 
     instance_type,
     service_id,
     service_alias,
+    data_transfer_direction,
     sku_id,
     sku_alias,
     region,
@@ -203,6 +206,11 @@ SELECT cast(uuid() as varchar),
     json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
     gcp.service_id,
     max(nullif(gcp.service_description, '')) as service_alias,
+    CASE
+        WHEN STRPOS(lower(service_description), 'data transfer in') THEN 'IN'
+        WHEN STRPOS(lower(service_description), 'data transfer out') THEN 'OUT'
+        ELSE NULL
+    END as data_transfer_direction,
     max(nullif(gcp.sku_id, '')) as sku_id,
     max(nullif(gcp.sku_description, '')) as sku_alias,
     gcp.location_region as region,
@@ -231,7 +239,8 @@ GROUP BY gcp.usage_start_time,
     gcp.service_id,
     gcp.location_region,
     gcp.invoice_month,
-    gcp.labels
+    gcp.labels,
+    10 -- data transfer direction
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
@@ -436,6 +445,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND gcp.ocp_source = {{ocp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
+    AND data_transfer_direction IS NULL
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
@@ -554,6 +564,7 @@ JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
             )
     AND ocp.namespace != 'Worker unallocated'
     AND ocp.namespace != 'Platform unallocated'
+    and ocp.namespace != 'Network unattributed'
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.report_period_id = {{report_period_id}}
     AND ocp.year = {{year}}
@@ -586,6 +597,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     instance_type,
     service_id,
     service_alias,
+    data_transfer_direction,
     sku_id,
     sku_alias,
     region,
@@ -653,6 +665,7 @@ SELECT pds.gcp_uuid,
     instance_type,
     service_id,
     service_alias,
+    NULL as data_transfer_direction,
     sku_id,
     sku_alias,
     region,
@@ -707,6 +720,103 @@ JOIN cte_rankings as r
 WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
 ;
 
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary (
+    gcp_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    account_id,
+    project_id,
+    project_name,
+    instance_type,
+    service_id,
+    service_alias,
+    data_transfer_direction,
+    sku_id,
+    sku_alias,
+    region,
+    unit,
+    usage_amount,
+    currency,
+    invoice_month,
+    credit_amount,
+    unblended_cost,
+    markup_cost,
+    project_markup_cost,
+    pod_cost,
+    pod_credit,
+    tags,
+    cost_category_id,
+    gcp_source,
+    ocp_source,
+    year,
+    month,
+    day
+)
+SELECT gcp.uuid as gcp_uuid,
+    max(ocp.cluster_id) as cluster_id,
+    max(ocp.cluster_alias) as cluster_alias,
+    max(ocp.data_source),
+    'Network unattributed' as namespace,
+    ocp.node as node,
+    max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
+    max(nullif(ocp.persistentvolume, '')) as persistentvolume,
+    max(nullif(ocp.storageclass, '')) as storageclass,
+    max(ocp.resource_id) as resource_id,
+    max(gcp.usage_start) as usage_start,
+    max(gcp.usage_start) as usage_end,
+    max(gcp.account_id) as account_id,
+    max(gcp.project_id) as project_id,
+    max(gcp.project_name) as project_name,
+    max(instance_type) as instance_type,
+    max(nullif(gcp.service_id, '')) as service_id,
+    max(gcp.service_alias) as service_alias,
+    data_transfer_direction as data_transfer_direction,
+    max(gcp.sku_id) as sku_id,
+    max(gcp.sku_alias) as sku_alias,
+    max(nullif(gcp.region, '')) as region,
+    max(gcp.unit) as unit,
+    max(gcp.usage_amount) as usage_amount,
+    max(gcp.currency) as currency,
+    max(gcp.invoice_month) as invoice_month,
+    max(gcp.credit_amount) as credit_amount,
+    max(gcp.unblended_cost) as unblended_cost,
+    max(gcp.unblended_cost * {{markup | sqlsafe}}) as markup_cost,
+    max(gcp.unblended_cost * {{markup | sqlsafe}}) AS project_markup_cost,
+    max(gcp.unblended_cost) AS pod_cost,
+    cast(NULL AS double) AS pod_credit,
+    max(gcp.labels) as tags,
+    max(ocp.cost_category_id) as cost_category_id,
+    max(gcp.ocp_matched) as ocp_matched,
+    {{ocp_source_uuid}} as ocp_source,
+    max(gcp.year) as year,
+    max(gcp.month) as month
+FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
+    ON gcp.usage_start = ocp.usage_start
+        AND (
+            (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
+            OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
+        )
+WHERE ocp.source = {{ocp_source_uuid}}
+    AND ocp.year = {{year}}
+    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.day IN {{days | inclause}}
+    AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+    AND gcp.ocp_source = {{ocp_source_uuid}}
+    AND gcp.year = {{year}}
+    AND gcp.month = {{month}}
+    AND data_transfer_direction IS NOT NULL
+GROUP BY gcp.uuid, ocp.node
+
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p (
     uuid,
     report_period_id,
@@ -729,6 +839,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_d
     instance_type,
     service_id,
     service_alias,
+    infrastructure_data_in_gigabytes,
+    infrastructure_data_out_gigabytes,
+    data_transfer_direction,
     sku_id,
     sku_alias,
     region,
@@ -767,6 +880,15 @@ SELECT uuid(),
     instance_type,
     service_id,
     service_alias,
+    CASE
+        WHEN lower(data_transfer_direction) = 'IN' THEN usage_quantity
+        ELSE 0
+    END as infrastructure_data_in_gigabytes,
+    CASE
+        WHEN lower(data_transfer_direction) = 'OUT' THEN usage_quantity
+        ELSE 0
+    END as infrastructure_data_out_gigabytes,
+    data_transfer_direction as data_transfer_direction,
     sku_id,
     sku_alias,
     region,
