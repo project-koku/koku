@@ -484,11 +484,9 @@ endif
 ifndef region
 	$(error param region is not set)
 endif
-# Required environment variables: [OCI_CLI_USER, OCI_CLI_KEY_FILE, OCI_CLI_FINGERPRINT, OCI_CLI_TENANCY]
-	(printenv OCI_CLI_USER > /dev/null 2>&1) || (echo 'OCI_CLI_USER is not set in .env' && exit 1)
+# Required environment variables: [OCI_SHARED_CREDENTIALS_FILE, OCI_CLI_KEY_FILE]
+	(printenv OCI_SHARED_CREDENTIALS_FILE > /dev/null 2>&1) || (echo 'OCI_SHARED_CREDENTIALS_FILE is not set in .env' && exit 1)
 	(printenv OCI_CLI_KEY_FILE > /dev/null 2>&1) || (echo 'OCI_CLI_KEY_FILE is not set in .env' && exit 1)
-	(printenv OCI_CLI_FINGERPRINT > /dev/null 2>&1) || (echo 'OCI_CLI_FINGERPRINT is not set in .env' && exit 1)
-	(printenv OCI_CLI_TENANCY > /dev/null 2>&1) || (echo 'OCI_CLI_TENANCY is not set in .env' && exit 1)
 	curl -d '{"name": "$(oci_name)", "source_type": "OCI", "authentication": {"credentials": []}, "billing_source": {"data_source": {"bucket": "$(bucket)", "bucket_namespace": "$(namespace)", "bucket_region": "$(region)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 

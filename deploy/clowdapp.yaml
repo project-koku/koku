@@ -32,6 +32,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -103,25 +109,6 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         - name: RBAC_CACHE_TIMEOUT
@@ -197,6 +184,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{KOKU_REPLICAS}}
       webServices:
@@ -276,6 +265,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -326,25 +321,6 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -411,6 +387,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{LISTENER_REPLICAS}}
       webServices:
@@ -439,6 +417,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -518,25 +502,6 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         - name: TRINO_HOST
@@ -607,6 +572,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{MASU_REPLICAS}}
       webServices:
@@ -636,6 +603,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -712,25 +685,6 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -781,6 +735,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{SCHEDULER_REPLICAS}}
       webServices:
@@ -817,6 +773,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -869,25 +831,6 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -954,6 +897,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{SOURCES_CLIENT_REPLICAS}}
       webServices:
@@ -995,6 +940,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1043,25 +994,6 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -1129,6 +1061,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{SOURCES_LISTENER_REPLICAS}}
       webServices:
@@ -1154,6 +1088,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -1226,25 +1166,6 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -1316,6 +1237,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_CELERY_REPLICAS}}
       webServices:
@@ -1341,6 +1264,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -1419,25 +1348,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -1509,6 +1419,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_REPLICAS}}
       webServices:
@@ -1534,6 +1446,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -1612,25 +1530,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -1702,6 +1601,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_COST_MODEL_XL_REPLICAS}}
       webServices:
@@ -1727,6 +1628,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -1809,25 +1716,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -1899,6 +1787,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
@@ -1924,6 +1814,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2006,25 +1902,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2096,6 +1973,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_DOWNLOAD_XL_REPLICAS}}
       webServices:
@@ -2121,6 +2000,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2201,25 +2086,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2291,6 +2157,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_OCP_REPLICAS}}
       webServices:
@@ -2316,6 +2184,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2396,25 +2270,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2486,6 +2341,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_OCP_XL_REPLICAS}}
       webServices:
@@ -2511,6 +2368,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2597,25 +2460,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2687,6 +2531,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_REPLICAS}}
       webServices:
@@ -2712,6 +2558,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2798,25 +2650,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2888,6 +2721,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_PRIORITY_XL_REPLICAS}}
       webServices:
@@ -2913,6 +2748,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2991,25 +2832,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -3081,6 +2903,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_REPLICAS}}
       webServices:
@@ -3106,6 +2930,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3184,25 +3014,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -3274,6 +3085,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_REFRESH_XL_REPLICAS}}
       webServices:
@@ -3299,6 +3112,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3381,25 +3200,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -3471,6 +3271,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
@@ -3496,6 +3298,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3578,25 +3386,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -3668,6 +3457,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_SUMMARY_XL_REPLICAS}}
       webServices:
@@ -3693,6 +3484,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -3773,25 +3570,6 @@ objects:
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
@@ -3863,6 +3641,8 @@ objects:
             items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
             secretName: koku-oci
       replicas: ${{WORKER_HCS_REPLICAS}}
       webServices:
@@ -3884,6 +3664,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -4002,6 +3788,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -4021,6 +3810,14 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
+            secretName: koku-oci
       replicas: ${{WORKER_SUBS_EXTRACTION_REPLICAS}}
       webServices:
         private:
@@ -4041,6 +3838,12 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -4157,6 +3960,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -4176,6 +3982,14 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
+            secretName: koku-oci
       replicas: ${{WORKER_SUBS_TRANSMISSION_REPLICAS}}
       webServices:
         private:
@@ -4284,9 +4098,6 @@ objects:
   kind: Secret
   metadata:
     name: koku-aws
-  stringData:
-    aws-access-key-id: ${AWS_ACCESS_KEY_ID_EPH}
-    aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY_EPH}
 - apiVersion: v1
   data:
     gcp-credentials: ${GCP_CREDENTIALS_EPH}
@@ -4295,14 +4106,11 @@ objects:
     name: koku-gcp
 - apiVersion: v1
   data:
+    oci-config: ${OCI_CONFIG_EPH}
     oci-credentials: ${OCI_CREDENTIALS_EPH}
   kind: Secret
   metadata:
     name: koku-oci
-  stringData:
-    oci-cli-fingerprint: ${OCI_CLI_FINGERPRINT_EPH}
-    oci-cli-tenancy: ${OCI_CLI_TENANCY_EPH}
-    oci-cli-user: ${OCI_CLI_USER_EPH}
 - apiVersion: v1
   data:
     nginx.conf: |-
@@ -4400,6 +4208,8 @@ parameters:
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
+- name: OCI_SHARED_CREDENTIALS_FILE
+  value: /etc/oci/oci-config
 - description: OCI Credentials Location
   name: OCI_CLI_KEY_FILE
   value: /etc/oci/oci-credentials.pem
@@ -4686,15 +4496,7 @@ parameters:
 - displayName: AWS credentials file
   name: AWS_CREDENTIALS_EPH
   required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- displayName: AWS Access Key ID (Ephemeral)
-  name: AWS_ACCESS_KEY_ID_EPH
-  required: true
-  value: insert-string-value
-- displayName: AWS Secret Access Key (Ephemeral)
-  name: AWS_SECRET_ACCESS_KEY_EPH
-  required: true
-  value: insert-string-value
+  value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
 - displayName: GCP Credentials (Ephemeral)
   name: GCP_CREDENTIALS_EPH
   required: true
@@ -4703,18 +4505,10 @@ parameters:
   name: OCI_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- displayName: OCI user (Ephemeral)
-  name: OCI_CLI_USER_EPH
+- displayName: OCI Config (Ephemeral)
+  name: OCI_CONFIG_EPH
   required: true
-  value: insert-string-value
-- displayName: OCI user fingerprint (Ephemeral)
-  name: OCI_CLI_FINGERPRINT_EPH
-  required: true
-  value: insert-string-value
-- displayName: OCI tenancy (Ephemeral)
-  name: OCI_CLI_TENANCY_EPH
-  required: true
-  value: insert-string-value
+  value: W0RFRkFVTFRdCnVzZXI9b2NpZDEudXNlci5pZApmaW5nZXJwcmludD0wMDAwMDAwMDAwMDAwMDAwMAp0ZW5hbmN5PW9jaWQxLnRlbmFuY3kuaWQK
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
