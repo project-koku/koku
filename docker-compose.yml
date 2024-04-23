@@ -669,7 +669,7 @@ services:
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
       - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
-      - ./dev/containers/hadoop/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
+      - ./dev/containers/trino/etc/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
       - ./.trino/trino/trino-data:/data/trino/data
       - ./.trino/trino/trino-logs:/data/trino/logs
     links:
