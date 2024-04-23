@@ -1477,6 +1477,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
+        tested = False
         for data in query_data.get("data"):
             result_key = group_by_key + "s"
             self.assertIn(result_key, data)
@@ -1486,3 +1487,5 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 for storage_value in stor_cls_data.get("values"):
                     self.assertIn(group_by_key, storage_value.keys())
                     self.assertIsNotNone(storage_value[group_by_key])
+                    tested = True
+        self.assertTrue(tested)
