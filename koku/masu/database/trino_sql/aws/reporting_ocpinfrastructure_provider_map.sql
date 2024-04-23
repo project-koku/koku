@@ -1,9 +1,7 @@
 
 WITH cte_aws_resource_ids AS (
     SELECT DISTINCT lineitem_resourceid,
-        aws.source,
-        aws.bill_payeraccountid,
-        aws.product_region
+        aws.source
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
     WHERE aws.lineitem_usagestartdate >= {{start_date}}
         AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
@@ -31,9 +29,7 @@ cte_ocp_resource_ids AS (
 )
 SELECT DISTINCT ocp.source as ocp_uuid,
     aws.source as infra_uuid,
-    api_provider.type as type,
-    aws.bill_payeraccountid as account,
-    aws.product_region as region
+    api_provider.type as type
 FROM cte_aws_resource_ids AS aws
 JOIN cte_ocp_resource_ids AS ocp
     ON strpos(aws.lineitem_resourceid, ocp.resource_id) != 0

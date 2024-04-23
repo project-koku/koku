@@ -7,8 +7,6 @@
     ),
     cte_distinct_gcp_labels AS (
     SELECT DISTINCT labels,
-        project_id,
-        location_region,
         source
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{gcp_provider_uuid}}
@@ -17,16 +15,12 @@
     ),
     cte_label_keys AS (
     SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
-        project_id,
-        location_region,
         source
     FROM cte_distinct_gcp_labels
     )
     SELECT ocp.provider_id as ocp_uuid,
         gcp.source as infra_uuid,
-        api_provider.type as type,
-        gcp.project_id,
-        gcp.location_region
+        api_provider.type as type
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
         ON any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_id)
@@ -39,9 +33,7 @@
 {% if resource_level %}
     WITH cte_gcp_resource_name AS (
         SELECT DISTINCT gcp.resource_name,
-            gcp.source,
-            gcp.project_id,
-            gcp.location_region
+            gcp.source
         FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
         WHERE gcp.usage_start_time >= {{start_date}}
             AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
@@ -67,9 +59,7 @@
     )
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,
-        api_provider.type as type,
-        gcp.project_id as project_id,
-        gcp.location_region as region
+        api_provider.type as type
     FROM cte_gcp_resource_name AS gcp
     JOIN cte_ocp_nodes AS ocp
         ON strpos(gcp.resource_name, ocp.node) != 0
