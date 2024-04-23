@@ -136,8 +136,6 @@ class OCPCloudUpdaterBase:
                 infra, _ = ProviderInfrastructureMap.objects.get_or_create(
                     infrastructure_provider_id=infra_tuple[0],
                     infrastructure_type=infra_tuple[1],
-                    infrastructure_account=infra_tuple[2],
-                    infrastructure_region=infra_tuple[3],
                 )
             except IntegrityError:
                 infra = ProviderInfrastructureMap.objects.filter(
