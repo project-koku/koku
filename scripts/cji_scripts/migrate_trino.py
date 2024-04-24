@@ -163,7 +163,7 @@ def main():
     logging.info(schemas)
 
     tables_to_drop = [
-        "azure_openshift_daily",
+        "azure_line_items",
     ]
     # columns_to_drop = ["ocp_matched"]
     # columns_to_add = {
