@@ -11,6 +11,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -51,6 +52,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             (str, str) A start date and end date.
 
         """
+        invoice_month = kwargs.get("invoice_month")
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
@@ -63,9 +65,21 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         with GCPReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
-                bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-                bill_ids = [str(bill.id) for bill in bills]
-                current_bill_id = bills.first().id if bills else None
+                if invoice_month:
+                    invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
+                    bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
+                    bill_ids = [str(bill.id) for bill in bills]
+                    current_bill_id = bills.first().id if bills else None
+                else:
+                    LOG.info(
+                        log_json(
+                            msg="no invoice month provided, skipping summarization",
+                            schema=self._schema,
+                            provider_uuid=self._provider.uuid,
+                            start_date=start_date,
+                        )
+                    )
+                    return start_date, end_date
 
             if current_bill_id is None:
                 LOG.info(
@@ -86,6 +100,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                         provider_uuid=self._provider.uuid,
                         start_date=start,
                         end_date=end,
+                        invoice_month=invoice_month,
                     )
                 )
                 filters = {
@@ -95,12 +110,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     self._provider.uuid, start, end, filters
                 )
                 accessor.populate_line_item_daily_summary_table_trino(
-                    start, end, self._provider.uuid, current_bill_id, markup_value
+                    start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month_date
                 )
                 accessor.populate_enabled_tag_keys(start, end, bill_ids)
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-            accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date)
+            accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date, invoice_month_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:

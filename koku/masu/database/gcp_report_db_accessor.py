@@ -94,7 +94,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the cost entry bill objects with billing period before provided date."""
         return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
 
-    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_trino(self, start_date, end_date, source_uuid, bill_id, markup_value,
+                                                     invoice_month_date):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -107,7 +108,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         last_month_end = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
         if end_date == last_month_end:
-
             # For gcp in order to catch what we are calling cross over data
             # we need to extend the end date by a couple of days. For more
             # information see: https://issues.redhat.com/browse/COST-1771
@@ -132,6 +132,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
+            "year": invoice_month_date.strftime("%Y"),
+            "month": invoice_month_date.strftime("%m"),
             "markup": markup_value or 0,
             "bill_id": bill_id,
         }
@@ -223,7 +225,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    def populate_gcp_topology_information_tables(self, provider, start_date, end_date):
+    def populate_gcp_topology_information_tables(self, provider, start_date, end_date, invoice_month_date):
         """Populate the GCP topology table."""
         ctx = {
             "schema": self.schema,
@@ -232,7 +234,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "end_date": end_date,
         }
         LOG.info(log_json(msg="populating GCP topology table", context=ctx))
-        topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date)
+        topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date, invoice_month_date)
 
         with schema_context(self.schema):
             for record in topology:
@@ -257,7 +259,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
         LOG.info(log_json(msg="finished populating GCP topology table", context=ctx))
 
-    def get_gcp_topology_trino(self, source_uuid, start_date, end_date):
+    def get_gcp_topology_trino(self, source_uuid, start_date, end_date, invoice_month_date):
         """Get the account topology for a GCP source."""
         sql = f"""
             SELECT source,
@@ -269,6 +271,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 location_region
             FROM hive.{self.schema}.gcp_line_items as gcp
             WHERE gcp.source = '{source_uuid}'
+                AND gcp.year = '{invoice_month_date.strftime("%Y")}'
+                AND gcp.month = '{invoice_month_date.strftime("%m")}'
                 AND gcp.usage_start_time >= TIMESTAMP '{start_date}'
                 AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{end_date}')
             GROUP BY source,
@@ -284,20 +288,21 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start": start_date,
             "end": end_date,
             "provider_uuid": source_uuid,
+            "invoice_id": invoice_month_date,
         }
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_gcp_topology_trino")
 
     def populate_ocp_on_gcp_cost_daily_summary_trino(
-        self,
-        start_date,
-        end_date,
-        openshift_provider_uuid,
-        cluster_id,
-        gcp_provider_uuid,
-        report_period_id,
-        bill_id,
-        markup_value,
-        distribution,
+            self,
+            start_date,
+            end_date,
+            openshift_provider_uuid,
+            cluster_id,
+            gcp_provider_uuid,
+            report_period_id,
+            bill_id,
+            markup_value,
+            distribution,
     ):
         """Populate the daily cost aggregated summary for OCP on GCP.
 
@@ -382,7 +387,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
     def populate_ocp_on_gcp_ui_summary_tables_trino(
-        self, start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, tables=OCPGCP_UI_SUMMARY_TABLES
+            self, start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, tables=OCPGCP_UI_SUMMARY_TABLES
     ):
         """Populate our UI summary tables (formerly materialized views)."""
         year = start_date.strftime("%Y")
@@ -459,7 +464,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return [json.loads(result[0]) for result in results]
 
     def get_openshift_on_cloud_matched_tags_trino(
-        self, gcp_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
+            self, gcp_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
         invoice_month_date = kwargs.get("invoice_month_date")
@@ -502,7 +507,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(
-                Q(child__provider_type=Provider.PROVIDER_GCP) | Q(child__provider_type=Provider.PROVIDER_OCP)
+                    Q(child__provider_type=Provider.PROVIDER_GCP) | Q(child__provider_type=Provider.PROVIDER_OCP)
             ).exists():
                 LOG.debug("No tag mappings for GCP.")
                 return
