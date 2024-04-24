@@ -122,7 +122,7 @@ class Command(BaseCommand):
             "--drop-columns",
             action=JSONArgs,
             help=(
-                "pass a json encoded string that contains an array of "
+                "a json encoded string that contains an array of "
                 "objects which must include `table` and `column` keys"
             ),
             dest="columns_to_drop",
@@ -131,8 +131,8 @@ class Command(BaseCommand):
             "--drop-partitions",
             action=JSONArgs,
             help=(
-                "pass a json encoded string that contains an array of ",
-                "objects which must include `table` and `partition_column` keys",
+                "a json encoded string that contains an array of "
+                "objects which must include `table` and `partition_column` keys"
             ),
             dest="partitions_to_drop",
         )
@@ -140,8 +140,8 @@ class Command(BaseCommand):
             "--add-columns",
             action=JSONArgs,
             help=(
-                "pass a json encoded string that contains an array of ",
-                "objects which must include `table`, `column`, and `datatype` keys",
+                "a json encoded string that contains an array of "
+                "objects which must include `table`, `column`, and `datatype` keys"
             ),
             dest="columns_to_add",
         )
