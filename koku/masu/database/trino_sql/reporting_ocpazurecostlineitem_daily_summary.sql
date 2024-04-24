@@ -485,6 +485,7 @@ SELECT azure.uuid as azure_uuid,
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
+        AND namespace != 'Storage unattributed'
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -597,6 +598,114 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summ
 JOIN cte_rankings as r
     ON pds.azure_uuid = r.azure_uuid
 WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
+;
+
+-- Unattributed Node Attached Storage
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
+    uuid,
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    pod_labels,
+    resource_id,
+    usage_start,
+    usage_end,
+    cost_entry_bill_id,
+    subscription_guid,
+    subscription_name,
+    instance_type,
+    service_name,
+    resource_location,
+    usage_quantity,
+    unit_of_measure,
+    currency,
+    pretax_cost,
+    markup_cost,
+    project_markup_cost,
+    pod_cost,
+    tags,
+    cost_category_id,
+    source_uuid
+)
+WITH cte_filtered_data as (
+    SELECT
+        coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) AS usage_date,
+        coalesce(nullif(ocp_filtered.resourceid, ''), ocp_filtered.instanceid) as resource_id
+    FROM azure_openshift_daily as ocp_filtered
+    WHERE
+        ocp_filtered.source = '3b753dcb-3793-44d8-a9f1-08fbc475a256'
+        AND ocp_filtered.year = '2024'
+        AND ocp_filtered.month = '04'
+        AND coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) >= TIMESTAMP '2024-04-01'
+        AND coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) < date_add('day', 1, TIMESTAMP '2024-04-23')
+        AND coalesce(nullif(ocp_filtered.servicename, ''), ocp_filtered.metercategory) LIKE '%Storage%'
+        AND coalesce(nullif(ocp_filtered.resourceid, ''), ocp_filtered.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
+        AND ocp_filtered.resource_id_matched = TRUE
+)
+SELECT uuid(),
+    {{report_period_id | sqlsafe}} as report_period_id,
+    cast(NULL as varchar) as cluster_id,
+    cast(NULL as varchar) as cluster_alias,
+    'Storage' as data_source,
+    'Storage unattributed' as namespace,
+    cast(NULL as varchar) as node,
+    cast(NULL as varchar) as persistentvolumeclaim,
+    cast(NULL as varchar) as persistentvolume,
+    cast(NULL as varchar) as storageclass,
+    cast(map(array[], array[]) as json) as pod_labels,
+    split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) as resource_id,
+    date(coalesce(azure.date, azure.usagedatetime)) as usage_start,
+    date(coalesce(azure.date, azure.usagedatetime)) as usage_end,
+    {{bill_id | sqlsafe}} as cost_entry_bill_id,
+    coalesce(nullif(azure.subscriptionid, ''), azure.subscriptionguid) as subscription_guid,
+    max(azure.subscriptionname) as subscription_name,
+    max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
+    coalesce(nullif(azure.servicename, ''), azure.metercategory) as service_name,
+    azure.resourcelocation as resource_location,
+    sum(cast(coalesce(nullif(azure.quantity, 0), azure.usagequantity) as decimal(24, 9))) as usage_quantity,
+    max(CASE
+        WHEN split_part(azure.unitofmeasure, ' ', 2) = 'Hours'
+            THEN  'Hrs'
+        WHEN split_part(azure.unitofmeasure, ' ', 2) = 'GB/Month'
+            THEN  'GB-Mo'
+        WHEN split_part(azure.unitofmeasure, ' ', 2) != ''
+            THEN  split_part(azure.unitofmeasure, ' ', 2)
+        ELSE azure.unitofmeasure
+    END) as unit_of_measure,
+    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
+    sum(cast(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost) AS decimal(24,9)))  as pretax_cost,
+    sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) * cast({{markup}} as decimal(24,9)) as markup_cost,
+    sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) * cast({{markup}} as decimal(24,9)) as project_markup_cost,
+    sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pod_cost,
+    json_parse(azure.tags),
+    cast(NULL as integer) as cost_category_id,
+    cast({{azure_source_uuid}} as UUID)
+FROM hive.{{schema | sqlsafe}}.azure_line_items as azure
+LEFT JOIN cte_filtered_data as filtered
+    ON date(coalesce(azure.date, azure.usagedatetime)) = filtered.usage_date
+    AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) = filtered.resource_id
+WHERE azure.source = {{azure_source_uuid}}
+    AND azure.year = {{year}}
+    AND azure.month = {{month}}
+    AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
+    AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
+    AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
+    AND filtered.usage_date IS NULL
+GROUP BY coalesce(azure.date, azure.usagedatetime),
+    split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9),
+    coalesce(nullif(azure.servicename, ''), azure.metercategory),
+    coalesce(nullif(azure.subscriptionid, ''), azure.subscriptionguid),
+    azure.subscriptionname,
+    azure.resourcelocation,
+    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
+    azure.tags
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
