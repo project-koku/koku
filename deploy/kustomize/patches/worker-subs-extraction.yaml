@@ -19,20 +19,16 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: aws-access-key-id
-              name: koku-aws
-              optional: false
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws-secret-access-key
-              name: koku-aws
-              optional: false
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -142,24 +138,44 @@
           cpu: ${WORKER_SUBS_EXTRACTION_CPU_REQUEST}
           memory: ${WORKER_SUBS_EXTRACTION_MEMORY_REQUEST}
       volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
-        - name: gcp-credentials
-          mountPath: /etc/gcp
-          readOnly: true
-        - name: tmp-data
-          mountPath: ${TMP_DIR}
+      - name: aws-credentials
+        mountPath: /etc/aws
+        readOnly: true
+      - mountPath: /var/tmp/masu/
+        name: koku-worker-data
+      - name: gcp-credentials
+        mountPath: /etc/gcp
+        readOnly: true
+      - name: oci-credentials
+        mountPath: /etc/oci
+        readOnly: true
+      - name: tmp-data
+        mountPath: ${TMP_DIR}
       volumes:
-        - name: tmp-data
-          emptyDir: {}
-        - name: koku-worker-data
-          emptyDir: {}
-        - name: gcp-credentials
-          secret:
-            secretName: koku-gcp
-            items:
-              - key: gcp-credentials
-                path: gcp-credentials.json
+      - name: tmp-data
+        emptyDir: {}
+      - name: koku-worker-data
+        emptyDir: {}
+      - name: aws-credentials
+        secret:
+          items:
+          - key: aws-credentials
+            path: aws-credentials
+          secretName: koku-aws
+      - name: gcp-credentials
+        secret:
+          secretName: koku-gcp
+          items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+      - name: oci-credentials
+        secret:
+          secretName: koku-oci
+          items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
 
 - op: add
   path: /parameters/-
