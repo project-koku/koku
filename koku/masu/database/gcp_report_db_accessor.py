@@ -293,16 +293,16 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_gcp_topology_trino")
 
     def populate_ocp_on_gcp_cost_daily_summary_trino(
-            self,
-            start_date,
-            end_date,
-            openshift_provider_uuid,
-            cluster_id,
-            gcp_provider_uuid,
-            report_period_id,
-            bill_id,
-            markup_value,
-            distribution,
+        self,
+        start_date,
+        end_date,
+        openshift_provider_uuid,
+        cluster_id,
+        gcp_provider_uuid,
+        report_period_id,
+        bill_id,
+        markup_value,
+        distribution,
     ):
         """Populate the daily cost aggregated summary for OCP on GCP.
 
@@ -387,7 +387,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
     def populate_ocp_on_gcp_ui_summary_tables_trino(
-            self, start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, tables=OCPGCP_UI_SUMMARY_TABLES
+        self, start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, tables=OCPGCP_UI_SUMMARY_TABLES
     ):
         """Populate our UI summary tables (formerly materialized views)."""
         year = start_date.strftime("%Y")
@@ -464,7 +464,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return [json.loads(result[0]) for result in results]
 
     def get_openshift_on_cloud_matched_tags_trino(
-            self, gcp_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
+        self, gcp_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
         invoice_month_date = kwargs.get("invoice_month_date")
@@ -507,7 +507,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(
-                    Q(child__provider_type=Provider.PROVIDER_GCP) | Q(child__provider_type=Provider.PROVIDER_OCP)
+                Q(child__provider_type=Provider.PROVIDER_GCP) | Q(child__provider_type=Provider.PROVIDER_OCP)
             ).exists():
                 LOG.debug("No tag mappings for GCP.")
                 return
