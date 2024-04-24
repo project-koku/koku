@@ -318,13 +318,13 @@ class OCPReportViewTest(IamTestCase):
         total = response_json.get("meta", {}).get("total", {})
         data = response_json.get("data", {})
         self.assertTrue("usage" in total)
-        self.assertEqual(total.get("usage", {}).get("units"), "GB-Hours")
+        self.assertEqual(total.get("usage", {}).get("units"), "GiB-Hours")
 
         for item in data:
             if item.get("values"):
                 values = item.get("values")[0]
                 self.assertTrue("usage" in values)
-                self.assertEqual(values.get("usage", {}).get("units"), "GB-Hours")
+                self.assertEqual(values.get("usage", {}).get("units"), "GiB-Hours")
 
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
@@ -1114,7 +1114,8 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_costs_query_with_tag_filter(self):
+    @patch("api.report.ocp.provider_map.is_feature_cost_3083_all_labels_enabled", return_value=True)
+    def test_execute_costs_query_with_tag_filter(self, mock_unleash):
         """Test that data is filtered by tag key."""
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1498,7 +1499,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue("usage" in values)
         self.assertTrue("request" in values)
         self.assertTrue("cost" in values)
-        self.assertEqual(values.get("usage", {}).get("units"), "GB-Mo")
+        self.assertEqual(values.get("usage", {}).get("units"), "GiB-Mo")
 
     def test_execute_query_default_pagination(self):
         """Test that the default pagination works."""

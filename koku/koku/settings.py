@@ -22,6 +22,8 @@ from zoneinfo import ZoneInfo
 from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
+from oci import config
+from oci.exceptions import ConfigFileNotFound
 
 from . import database
 from . import sentry
@@ -79,6 +81,7 @@ INSTALLED_APPS = [
     # local apps
     "api",
     "hcs",
+    "key_metrics",
     "masu",
     "reporting",
     "reporting_common",
@@ -92,6 +95,7 @@ SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 SHARED_APPS = (
     "django_tenants",
     "api",
+    "key_metrics",
     "masu",
     "reporting_common",
     "django.contrib.contenttypes",
@@ -502,12 +506,16 @@ ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
 PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
-OCI_CONFIG = {
-    "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
-    "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="None"),
-    "fingerprint": ENVIRONMENT.get_value("OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"),
-    "tenancy": ENVIRONMENT.get_value("OCI_CLI_TENANCY", default="OCI_TENANT"),
-}
+
+# The oci config requires `user`, `key_file`, `fingerprint`, `tenancy`, and `region`.
+# The OCI_SHARED_CREDENTIALS_FILE contains all but the key_file and region. The key_file
+# comes from the OCI_CLI_KEY_FILE env var, and the region comes from the user created Source.
+OCI_CONFIG = {}
+try:
+    OCI_CONFIG = config.from_file(file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default=""))
+    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="")
+except ConfigFileNotFound:
+    logging.exception("OCI configuration not found")
 
 # Trino Settings
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)

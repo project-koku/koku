@@ -562,7 +562,6 @@ SELECT aws.uuid as aws_uuid,
                     OR (strpos(lower(aws.tags), 'namespace') != 0 AND strpos(lower(aws.tags), lower(ocp.namespace)) != 0)
                     OR (strpos(lower(aws.tags), 'openshift_node') != 0 AND strpos(lower(aws.tags), lower(ocp.node)) != 0)
                     OR (strpos(lower(aws.tags), 'openshift_cluster') != 0 AND (strpos(lower(aws.tags), lower(ocp.cluster_id)) != 0 OR strpos(lower(aws.tags), lower(ocp.cluster_alias)) != 0))
-                    OR (strpos(lower(aws.tags), 'cluster') != 0 AND (strpos(lower(aws.tags), lower(ocp.cluster_id)) != 0 OR strpos(lower(aws.tags), lower(ocp.cluster_alias)) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )

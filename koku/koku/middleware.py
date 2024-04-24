@@ -19,7 +19,6 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.utils import InterfaceError
 from django.db.utils import OperationalError
-from django.db.utils import ProgrammingError
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.urls import reverse
@@ -107,7 +106,11 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
     """A middleware to check if schema exists for Tenant."""
 
     def process_exception(self, request, exception):
-        if isinstance(exception, (Tenant.DoesNotExist, ProgrammingError)):
+        # double check if the Tenant exists
+        schema_name = request.user.customer.schema_name
+        try:
+            Tenant.objects.get(schema_name=schema_name)
+        except Tenant.DoesNotExist:
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 
@@ -169,7 +172,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
 
         try:
             # Inherited from superclass. Set the tenant for the request
-            request.tenant = self._get_or_create_tenant(request)
+            request.tenant = self._get_tenant(request)
             connection.set_tenant(request.tenant)
 
         except OperationalError as err:
@@ -187,65 +190,38 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             PermissionDenied: If the user does not have permissions for Cost Management.
 
         """
-
-        username = request.user.username
-        if not request.user.admin and request.user.access is None:
-            msg = f"User {username} does not have permissions for Cost Management."
+        if not request.user.admin and not request.user.access:
+            msg = f"User {request.user.username} does not have permissions for Cost Management."
             LOG.warning(msg)
             # For /user-access we do not want to raise the exception since the API will
             # return a false boolean response that the platfrom frontend code is expecting.
             if request.path != reverse("user-access"):
                 raise PermissionDenied(msg)
 
-    def _get_or_create_tenant(self, request):
-        """Get or create tenant based on the user's schema.
-
+    def _get_tenant(self, request):
+        """Get user or public schema.
         Args:
             request(HttpRquest): The incoming request object.
-
         Returns:
             Tenant: The tenant object.
-
         """
-
-        if tenant := self._get_tenant_from_tenant_cache(request):
+        tenant_username = request.user.username
+        if tenant := KokuTenantMiddleware.tenant_cache.get(tenant_username):
             return tenant
 
-        tenant_username = request.user.username
-        schema_name = request.user.customer.schema_name if not is_no_auth(request) else "public"
-
-        try:
-            return self._get_tenant_from_db(tenant_username, schema_name)
-        except Tenant.DoesNotExist:
-            LOG.info("No tenant found. Creating new tenant with public schema.")
-            return self._create_tenant()
-
-    def _get_tenant_from_tenant_cache(self, request):
-        """Get tenant from tenant cache."""
-
-        tenant_username = request.user.username
-        tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
-        return tenant
-
-    def _get_tenant_from_db(self, tenant_username, schema_name):
-        """Get tenant with the schema from the database."""
-
+        schema_name = "public" if is_no_auth(request) else request.user.customer.schema_name
         try:
             tenant = Tenant.objects.get(schema_name=schema_name)
         except Tenant.DoesNotExist:
             LOG.info(f"Tenant does not exist. username: {tenant_username}. schema: {schema_name}.")
-            raise
+            # the `create` here is only necessary for local dev
+            tenant, _ = Tenant.objects.get_or_create(schema_name="public")
+            return tenant
 
         if schema_name != "public":
             with KokuTenantMiddleware.tenant_lock:
                 KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
                 LOG.debug(f"Tenant added to cache: {tenant_username}")
-        return tenant
-
-    def _create_tenant(self):
-        """Create tenant"""
-
-        tenant, __ = Tenant.objects.get_or_create(schema_name="public")
         return tenant
 
 
@@ -307,11 +283,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
     def _get_access(self, user):
         """Obtain access for given user from RBAC service."""
-        access = None
         if settings.ENHANCED_ORG_ADMIN and user.admin:
-            return access
-        access = self.rbac.get_access_for_user(user)
-        return access
+            return {}
+        return self.rbac.get_access_for_user(user)
 
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.

@@ -139,6 +139,7 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON ds.usage_account_id = aa.account_id
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsorganizationalunit AS ou
     ON aa.id = ou.account_alias_id
+        AND ou.provider_id = UUID '{{source_uuid | sqlsafe}}'
         AND ou.created_timestamp <= ds.usage_start
         AND (
             ou.deleted_timestamp is NULL

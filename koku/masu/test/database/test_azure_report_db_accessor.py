@@ -278,38 +278,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
             self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).count(), 0)
 
-    def test_update_line_item_daily_summary_with_enabled_tags(self):
-        """Test that we filter the daily summary table's tags with only enabled tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-
-        bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
-        with schema_context(self.schema):
-            AzureTagsSummary.objects.all().delete()
-            key_to_keep = (
-                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).filter(key="app").first()
-            )
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).update(enabled=False)
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).filter(key="app").update(enabled=True)
-            bill_ids = [bill.id for bill in bills]
-            self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
-            tags = (
-                AzureCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, cost_entry_bill_id__in=bill_ids
-                )
-                .values_list("tags")
-                .distinct()
-            )
-
-            for tag in tags:
-                tag_dict = tag[0]
-                tag_keys = list(tag_dict.keys())
-                if tag_keys:
-                    self.assertEqual([key_to_keep.key], tag_keys)
-                else:
-                    self.assertEqual([], tag_keys)
-
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, AzureCostEntryLineItemDailySummary)
 
