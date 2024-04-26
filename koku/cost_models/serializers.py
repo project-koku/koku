@@ -24,6 +24,15 @@ from cost_models.models import CostModel
 
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
+NETWORK_UNATTRIBUTED = "network_unattributed"
+STORAGE_UNATTRIBUTED = "storage_unattributed"
+DEFAULT_DISTRIBUTION_INFO = {
+    "distribution_type": metric_constants.CPU_DISTRIBUTION,
+    "platform_cost": True,
+    "worker_cost": True,
+    NETWORK_UNATTRIBUTED: False,
+    STORAGE_UNATTRIBUTED: False,
+}
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -58,22 +67,31 @@ class MarkupSerializer(serializers.Serializer):
 class DistributionSerializer(BaseSerializer):
     """Serializer for distribution options"""
 
-    DISTRIBUTION_OPTIONS = {"distribution_type", "worker_cost", "platform_cost"}
+    DISTRIBUTION_OPTIONS = {
+        "distribution_type",
+        "worker_cost",
+        "platform_cost",
+        NETWORK_UNATTRIBUTED,
+        STORAGE_UNATTRIBUTED,
+    }
 
     distribution_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
     platform_cost = serializers.BooleanField(required=False)
     worker_cost = serializers.BooleanField(required=False)
+    network_unattributed = serializers.BooleanField(required=False)
+    storage_unattributed = serializers.BooleanField(required=False)
 
     def validate(self, data):
         """Run validation for distribution options."""
-
+        default_to_true = ["platform_cost", "worker_cost"]
         diff = self.DISTRIBUTION_OPTIONS.difference(data)
         if diff == self.DISTRIBUTION_OPTIONS:
-            return {"distribution_type": metric_constants.CPU_DISTRIBUTION, "platform_cost": True, "worker_cost": True}
-        if diff:
-            distribution_info_str = ", ".join(diff)
-            error_msg = f"Missing distribution information: one of {distribution_info_str}"
-            raise serializers.ValidationError(error_msg)
+            return DEFAULT_DISTRIBUTION_INFO
+        for element in diff:
+            if element not in self.DISTRIBUTION_OPTIONS:
+                error_msg = f"Incorrect distribution key provided: {element}"
+                raise serializers.ValidationError(error_msg)
+            data[element] = element in default_to_true
         return data
 
 
@@ -477,11 +495,9 @@ class CostModelSerializer(BaseSerializer):
             data["currency"] = get_currency(self.context.get("request"))
 
         if not data.get("distribution_info"):
-            data["distribution_info"] = {
-                "distribution_type": data.get("distribution", metric_constants.CPU_DISTRIBUTION),
-                "platform_cost": True,
-                "worker_cost": True,
-            }
+            distribution_info = copy.deepcopy(DEFAULT_DISTRIBUTION_INFO)
+            distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
+            data["distribution_info"] = distribution_info
 
         if (
             data.get("markup")
