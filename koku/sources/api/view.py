@@ -303,7 +303,6 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["last_payload_received_at"] = manager.get_last_received_data_datetime()
             response.data["last_polling_time"] = manager.get_last_polling_time()
             response.data["status"] = manager.get_state()  # This holds the download/processing/summary states
-            response.data["status"] = manager.get_state()
             response.data["has_data"] = manager.get_any_data_exists()
             response.data["infrastructure"] = manager.get_infrastructure_info()
             response.data["cost_models"] = [
