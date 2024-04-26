@@ -82,6 +82,7 @@ from api.views import OCPGCPInstanceTypeView
 from api.views import OCPGCPStorageView
 from api.views import OCPGCPTagView
 from api.views import OCPMemoryView
+from api.views import OCPNetworkView
 from api.views import OCPNodesView
 from api.views import OCPProjectsView
 from api.views import OCPTagView
@@ -287,6 +288,13 @@ urlpatterns = [
             OCPVolumeView.as_view()
         ),
         name="reports-openshift-volume",
+    ),
+    path(
+        "reports/openshift/network/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPNetworkView.as_view()
+        ),
+        name="reports-openshift-network",
     ),
     path(
         "reports/openshift/infrastructures/all/costs/",
