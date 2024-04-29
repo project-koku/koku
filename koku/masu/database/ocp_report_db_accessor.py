@@ -393,11 +393,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ),
         )
 
-    def populate_platform_and_worker_distributed_cost_sql(
-        self, start_date, end_date, provider_uuid, distribution_info
-    ):
+    def populate_distributed_cost_sql(self, start_date, end_date, provider_uuid, distribution_info):
         """
-        Populate the platform cost distribution of a customer.
+        Populate the distribution cost model options.
 
         args:
             start_date (datetime, str): The start_date to calculate monthly_cost.
@@ -409,8 +407,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         key_to_file_mapping = {
             metric_constants.PLATFORM_COST: "distribute_platform_cost.sql",
             metric_constants.WORKER_UNALLOCATED: "distribute_worker_cost.sql",
-            # metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
             # metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
+            # metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
         }
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
