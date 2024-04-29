@@ -65,6 +65,7 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=True,
+            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -92,6 +93,7 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=OCP_QUEUE,
             ocp_on_cloud=True,
+            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -119,6 +121,7 @@ class ReportDataTests(TestCase):
                 DateHelper().today.date().strftime("%Y-%m-%d"),
                 queue_name=PRIORITY_QUEUE_XL,
                 ocp_on_cloud=True,
+                invoice_month=None,
             )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -270,6 +273,7 @@ class ReportDataTests(TestCase):
                 params["end_date"],
                 queue_name=PRIORITY_QUEUE,
                 ocp_on_cloud=True,
+                invoice_month=None,
             )
         ]
 
@@ -326,6 +330,7 @@ class ReportDataTests(TestCase):
                 params["end_date"],
                 queue_name=PRIORITY_QUEUE,
                 ocp_on_cloud=True,
+                invoice_month=None,
             )
         ]
 
@@ -373,7 +378,9 @@ class ReportDataTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.delay.assert_called_with(params["start_date"], DateHelper().today.date().strftime("%Y-%m-%d"))
+        mock_update.delay.assert_called_with(
+            params["start_date"], DateHelper().today.date().strftime("%Y-%m-%d"), invoice_month=None
+        )
 
     @override_settings(DEVELOPMENT=False)
     @patch("koku.middleware.MASU", return_value=True)
@@ -530,6 +537,7 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=False,
+            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -557,6 +565,7 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=False,
+            invoice_month=self.invoice,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -585,4 +594,5 @@ class ReportDataTests(TestCase):
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=False,
+            invoice_month=self.invoice,
         )

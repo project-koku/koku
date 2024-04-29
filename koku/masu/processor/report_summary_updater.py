@@ -121,7 +121,7 @@ class ReportSummaryUpdater:
             end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date, tracing_id):
+    def update_summary_tables(self, start_date, end_date, tracing_id, invoice_month=None):
         """
         Update report summary tables.
 
@@ -140,10 +140,11 @@ class ReportSummaryUpdater:
             "provider_uuid": self._provider_uuid,
             "start_date": start_date,
             "end_date": end_date,
+            "invoice_month": invoice_month,
         }
         LOG.info(log_json(tracing_id, msg="summary processing starting", context=context))
 
-        start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
+        start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month=invoice_month)
 
         LOG.info(log_json(tracing_id, msg="summary processing complete", context=context))
 
@@ -170,7 +171,7 @@ class ReportSummaryUpdater:
             raise ReportSummaryUpdaterCloudError(str(ex)) from ex
 
     def update_openshift_on_cloud_summary_tables(
-        self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type, tracing_id
+            self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type, tracing_id
     ):
         """
         Update report summary tables.
