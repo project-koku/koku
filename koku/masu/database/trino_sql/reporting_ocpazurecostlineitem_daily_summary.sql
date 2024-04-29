@@ -638,12 +638,11 @@ WITH cte_filtered_data as (
         coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) AS usage_date,
         coalesce(nullif(ocp_filtered.resourceid, ''), ocp_filtered.instanceid) as resource_id
     FROM azure_openshift_daily as ocp_filtered
-    WHERE
-        ocp_filtered.source = '3b753dcb-3793-44d8-a9f1-08fbc475a256'
-        AND ocp_filtered.year = '2024'
-        AND ocp_filtered.month = '04'
-        AND coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) >= TIMESTAMP '2024-04-01'
-        AND coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) < date_add('day', 1, TIMESTAMP '2024-04-23')
+    WHERE ocp_filtered.source = {{azure_source_uuid}}
+        AND ocp_filtered.year = {{year}}
+        AND ocp_filtered.month = {{month}}
+        AND coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND coalesce(ocp_filtered.date, ocp_filtered.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND coalesce(nullif(ocp_filtered.servicename, ''), ocp_filtered.metercategory) LIKE '%Storage%'
         AND coalesce(nullif(ocp_filtered.resourceid, ''), ocp_filtered.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
         AND ocp_filtered.resource_id_matched = TRUE
@@ -705,8 +704,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
     azure.subscriptionname,
     azure.resourcelocation,
     coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
-    azure.tags
-;
+    azure.tags;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
     uuid,
