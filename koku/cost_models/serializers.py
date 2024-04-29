@@ -66,7 +66,7 @@ class DistributionSerializer(BaseSerializer):
 
     def validate(self, data):
         """Run validation for distribution options."""
-        default_to_true = ["platform_cost", "worker_cost"]
+        default_to_true = [metric_constants.PLATFORM_COST, metric_constants.WORKER_UNALLOCATED]
         distribution_keys = metric_constants.DEFAULT_DISTRIBUTION_INFO.keys()
         diff = set(distribution_keys).difference(data)
         if diff == distribution_keys:

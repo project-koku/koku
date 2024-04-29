@@ -847,8 +847,8 @@ class CostModelSerializerTest(IamTestCase):
                 instance = serializer.save()
             self.assertIsNotNone(instance)
             # Add in default options
-            valid_distrib_obj["network_unattributed"] = False
-            valid_distrib_obj["storage_unattributed"] = False
+            valid_distrib_obj[metric_constants.NETWORK_UNATTRIBUTED] = False
+            valid_distrib_obj[metric_constants.STORAGE_UNATTRIBUTED] = False
             self.assertEqual(instance.distribution_info, valid_distrib_obj)
 
     def test_invalid_distribution_info_keys(self):
