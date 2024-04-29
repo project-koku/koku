@@ -13,13 +13,13 @@ from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
+from api.metrics.constants import DEFAULT_DISTRIBUTION_INFO
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from api.utils import get_currency
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
-from cost_models.serializers import DEFAULT_DISTRIBUTION_INFO
 from cost_models.serializers import DistributionSerializer
 from cost_models.serializers import RateSerializer
 from cost_models.serializers import UUIDKeyRelatedField

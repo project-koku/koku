@@ -24,15 +24,6 @@ from cost_models.models import CostModel
 
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
-NETWORK_UNATTRIBUTED = "network_unattributed"
-STORAGE_UNATTRIBUTED = "storage_unattributed"
-DEFAULT_DISTRIBUTION_INFO = {
-    "distribution_type": metric_constants.CPU_DISTRIBUTION,
-    "platform_cost": True,
-    "worker_cost": True,
-    NETWORK_UNATTRIBUTED: False,
-    STORAGE_UNATTRIBUTED: False,
-}
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -67,14 +58,6 @@ class MarkupSerializer(serializers.Serializer):
 class DistributionSerializer(BaseSerializer):
     """Serializer for distribution options"""
 
-    DISTRIBUTION_OPTIONS = {
-        "distribution_type",
-        "worker_cost",
-        "platform_cost",
-        NETWORK_UNATTRIBUTED,
-        STORAGE_UNATTRIBUTED,
-    }
-
     distribution_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
     platform_cost = serializers.BooleanField(required=False)
     worker_cost = serializers.BooleanField(required=False)
@@ -84,13 +67,11 @@ class DistributionSerializer(BaseSerializer):
     def validate(self, data):
         """Run validation for distribution options."""
         default_to_true = ["platform_cost", "worker_cost"]
-        diff = self.DISTRIBUTION_OPTIONS.difference(data)
-        if diff == self.DISTRIBUTION_OPTIONS:
-            return DEFAULT_DISTRIBUTION_INFO
+        distribution_keys = metric_constants.DEFAULT_DISTRIBUTION_INFO.keys()
+        diff = set(distribution_keys).difference(data)
+        if diff == distribution_keys:
+            return metric_constants.DEFAULT_DISTRIBUTION_INFO
         for element in diff:
-            if element not in self.DISTRIBUTION_OPTIONS:
-                error_msg = f"Incorrect distribution key provided: {element}"
-                raise serializers.ValidationError(error_msg)
             data[element] = element in default_to_true
         return data
 
@@ -495,7 +476,7 @@ class CostModelSerializer(BaseSerializer):
             data["currency"] = get_currency(self.context.get("request"))
 
         if not data.get("distribution_info"):
-            distribution_info = copy.deepcopy(DEFAULT_DISTRIBUTION_INFO)
+            distribution_info = copy.deepcopy(metric_constants.DEFAULT_DISTRIBUTION_INFO)
             distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
             data["distribution_info"] = distribution_info
 

@@ -166,3 +166,16 @@ COST_MODEL_METRIC_MAP = [
         "default_cost_type": "Infrastructure",
     },
 ]
+
+PLATFORM_COST = "platform_cost"
+WORKER_UNALLOCATED = "worker_cost"
+NETWORK_UNATTRIBUTED = "network_unattributed"
+STORAGE_UNATTRIBUTED = "storage_unattributed"
+
+DEFAULT_DISTRIBUTION_INFO = {
+    "distribution_type": CPU_DISTRIBUTION,
+    PLATFORM_COST: True,
+    WORKER_UNALLOCATED: True,
+    NETWORK_UNATTRIBUTED: False,
+    STORAGE_UNATTRIBUTED: False,
+}
