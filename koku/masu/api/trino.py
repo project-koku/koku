@@ -50,7 +50,7 @@ def trino_query(request):
         LOG.info(msg)
 
         with trino.dbapi.connect(
-            host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
+            host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="readonly", catalog="hive", schema=schema_name
         ) as conn:
             cur = conn.cursor()
             cur.execute(query)
