@@ -704,7 +704,8 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
     azure.subscriptionname,
     azure.resourcelocation,
     coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
-    azure.tags;
+    azure.tags
+;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
     uuid,
