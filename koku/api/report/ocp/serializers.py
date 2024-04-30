@@ -27,12 +27,13 @@ def order_by_field_requires_group_by(data, order_name, group_by_key):
 class OCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("project", "cluster", "node", "persistentvolumeclaim")
+    _opfields = ("project", "cluster", "node", "persistentvolumeclaim", "storageclass")
 
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
     persistentvolumeclaim = StringOrListField(child=serializers.CharField(), required=False)
+    storageclass = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPOrderBySerializer(OrderSerializer):

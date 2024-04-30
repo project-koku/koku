@@ -1,9 +1,7 @@
 
 WITH cte_azure_instances AS (
     SELECT DISTINCT split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) as instance,
-        azure.source,
-        coalesce(nullif(azure.subscriptionid, ''), azure.subscriptionguid) as subscription,
-        azure.resourcelocation
+        azure.source
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     WHERE coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
         AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
@@ -29,9 +27,7 @@ cte_ocp_nodes AS (
 )
 SELECT DISTINCT ocp.source as ocp_uuid,
     azure.source as infra_uuid,
-    api_provider.type as type,
-    azure.subscription as subscription,
-    azure.resourcelocation as region
+    api_provider.type as type
 FROM cte_azure_instances AS azure
 JOIN cte_ocp_nodes AS ocp
     ON ocp.node = azure.instance

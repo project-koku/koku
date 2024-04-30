@@ -29,11 +29,7 @@ ifneq ($(DOCKER_COMPOSE_CHECK), 0)
 	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
 endif
 
-# Use ARM images on ARM systems
 DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
-ifeq (arm, $(findstring arm, $(shell uname -m)))
-	DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) -f docker-compose.yml -f docker-compose.arm.yml
-endif
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing

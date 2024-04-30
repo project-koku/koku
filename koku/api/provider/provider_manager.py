@@ -88,7 +88,7 @@ class ProviderManager:
                 billing_period_start_datetime=self.date_helper.this_month_start,
                 creation_datetime__isnull=False,
             )
-            .order_by("creation_datetime")
+            .order_by("-creation_datetime")
             .first()
         )
 
@@ -191,15 +191,13 @@ class ProviderManager:
                         billing_period_start_datetime=self.date_helper.this_month_start,
                         creation_datetime__isnull=False,
                     )
-                    .order_by("creation_datetime")
+                    .order_by("-creation_datetime")
                     .first()
                 )
                 return {
                     "type": self.model.infrastructure.infrastructure_type,
                     "uuid": self.model.infrastructure.infrastructure_provider_id,
                     "id": source.source_id,
-                    "account": self.model.infrastructure.infrastructure_account,
-                    "region": self.model.infrastructure.infrastructure_region,
                     "last_polling_time": self.get_last_polling_time(
                         self.model.infrastructure.infrastructure_provider_id
                     ),
