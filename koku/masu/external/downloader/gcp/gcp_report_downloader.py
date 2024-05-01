@@ -284,9 +284,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             client = bigquery.Client()
             export_partition_date_query = f"""
-                SELECT DATE(_PARTITIONTIME), DATETIME(max(export_time))  FROM {self.table_name}
+                SELECT DATE(_PARTITIONTIME) AS partition_date, DATETIME(max(export_time))  FROM {self.table_name}
                 WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-                AND '{self.scan_end}' GROUP BY DATE(_PARTITIONTIME)
+                AND '{self.scan_end}' GROUP BY partition_date ORDER BY partition_date
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
