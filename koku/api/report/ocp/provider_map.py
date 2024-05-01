@@ -168,7 +168,7 @@ class OCPProviderMap(ProviderMap):
                         "custom": ProviderAccessor(Provider.PROVIDER_OCP).infrastructure_key_list,
                     },
                 },
-                "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim"],
+                "group_by_options": ["cluster", "project", "node", "persistentvolumeclaim", "storageclass"],
                 "tag_column": "pod_labels",  # default for if a report type does not have a tag_column
                 "report_type": {
                     "costs": {

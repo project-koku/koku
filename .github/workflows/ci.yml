@@ -198,7 +198,9 @@ jobs:
           pipenv install --dev --ignore-pipfile --python ${{ matrix.python-version }}
 
       - name: Check migrations
-        if: needs.changed-files.outputs.run_tests == 'true'
+        if: |
+          needs.changed-files.outputs.run_tests == 'true'
+          && !(contains(github.event.pull_request.labels.*.name, 'skip-migration-check'))
         run: bash .github/scripts/check_migrations.sh
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
