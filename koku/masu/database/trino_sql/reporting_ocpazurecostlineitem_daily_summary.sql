@@ -669,8 +669,6 @@ SELECT uuid(),
     azure.resourcelocation as resource_location,
     sum(cast(coalesce(nullif(azure.quantity, 0), azure.usagequantity) as decimal(24, 9))) as usage_quantity,
     max(CASE
-        WHEN split_part(azure.unitofmeasure, ' ', 2) = 'Hours'
-            THEN  'Hrs'
         WHEN split_part(azure.unitofmeasure, ' ', 2) = 'GB/Month'
             THEN  'GB-Mo'
         WHEN split_part(azure.unitofmeasure, ' ', 2) != ''

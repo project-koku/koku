@@ -150,23 +150,17 @@ SELECT uuid_generate_v4() as uuid,
     ocp_azure.report_period_id,
     ocp_azure.usage_start,
     ocp_azure.usage_start,
-    ocp_azure.cluster_id,
-    ocp_azure.cluster_alias,
-    ocp_azure.namespace,
-    ocp_azure.data_source,
-    ocp_azure.node,
-    ocp_azure.persistentvolumeclaim,
-    max(ocp_azure.persistentvolume),
-    max(ocp_azure.storageclass),
+    NULL as cluster_id,
+    NULL AS cluster_alias,
+    max(ocp_azure.namespace),
+    max(ocp_azure.data_source),
+    NULL as node,
+    NULL as persistentvolumeclaim,
+    NULL as persistentvolume,
+    NULL as storageclass,
     ocp_azure.resource_id,
-    CASE WHEN ocp_azure.data_source = 'Pod'
-        THEN ocp_azure.pod_labels
-        ELSE '{}'::jsonb
-    END as pod_labels,
-    CASE WHEN ocp_azure.data_source = 'Storage'
-        THEN ocp_azure.pod_labels
-        ELSE '{}'::jsonb
-    END as volume_labels,
+    '{}'::jsonb as pod_labels,
+    '{}'::jsonb as volume_labels_labels,
     NULL as source_uuid,
     sum(ocp_azure.pretax_cost + ocp_azure.markup_cost) AS infrastructure_raw_cost,
     sum(ocp_azure.pod_cost + ocp_azure.project_markup_cost) AS infrastructure_project_raw_cost,
@@ -198,11 +192,5 @@ WHERE ocp_azure.usage_start >= {{start_date}}::date
 GROUP BY ocp_azure.report_period_id,
     ocp_azure.usage_start,
     ocp_azure.cluster_id,
-    ocp_azure.cluster_alias,
-    ocp_azure.namespace,
-    ocp_azure.data_source,
-    ocp_azure.node,
-    ocp_azure.persistentvolumeclaim,
-    ocp_azure.resource_id,
-    ocp_azure.pod_labels
+    ocp_azure.resource_id
 ;
