@@ -448,6 +448,18 @@ class DateHelper:
                 invoice_months.append(invoice_month)
         return invoice_months
 
+    def generate_year_month_list_from_start_end(self, start, end):
+        """Finds all the year month combinations between given dates"""
+        dates = []
+        while start <= end:
+            dates.append({"year": start.year, "month": f"{start.month: 02d}"})
+            if start.month == 12:
+                start = start.replace(year=start.year + 1, month=1, day=1)
+            else:
+                start = start.replace(month=start.month + 1, day=1)
+
+        return dates
+
 
 def materialized_view_month_start(dh=DateHelper()):
     """Datetime of midnight on the first of the month where materialized summary starts."""
