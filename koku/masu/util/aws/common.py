@@ -139,6 +139,7 @@ OPTIONAL_COLS = {
     "product/instanceType",
     "product/vcpu",
     "product/memory",
+    "product/operatingSystem",
 }
 
 OPTIONAL_ALT_COLS = {
@@ -146,6 +147,7 @@ OPTIONAL_ALT_COLS = {
     "product_instancetype",
     "product_vcpu",
     "product_memory",
+    "product_operating_system",
 }
 
 DATE_FMT = "%Y-%m-%d"
