@@ -108,7 +108,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        date_dicts = DateHelper().generate_year_month_list_from_start_end(start_date, end_date)
+        date_dicts = DateHelper().get_year_month_list_from_start_end(start_date, end_date)
         last_month_end = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
         if end_date == last_month_end:
 
