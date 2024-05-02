@@ -135,7 +135,6 @@ def create_daily_archives(
         msg = f"unable to create daily archives from: {local_file_paths}. reason: {e}"
         LOG.info(log_json(tracing_id, msg=msg, context=context))
         raise CreateDailyArchivesError(msg)
-    LOG.info(f"\n\n RNAGE: {date_range} \n\n")
     return daily_file_names, date_range
 
 

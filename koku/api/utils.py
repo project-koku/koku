@@ -452,7 +452,7 @@ class DateHelper:
         """Finds all the year month combinations between given dates"""
         dates = []
         while start <= end:
-            dates.append({"year": start.year, "month": f"{start.month: 02d}"})
+            dates.append({"year": start.year, "month": f"{start.month:02d}"})
             if start.month == 12:
                 start = start.replace(year=start.year + 1, month=1, day=1)
             else:
