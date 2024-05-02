@@ -129,10 +129,7 @@ class OCPPostProcessor:
         if data_frame.empty:
             return data_frame
 
-        report = self.ocp_report_types.get(self.report_type)
-        if not report:
-            return data_frame
-
+        report = self.ocp_report_types[self.report_type]
         group_bys = [gb for gb in report["group_by"] if gb in data_frame.columns]
         group_bys.append(pd.Grouper(key="interval_start", freq="D"))
         aggs = {k: v for k, v in report["agg"].items() if k in data_frame.columns}
