@@ -85,7 +85,10 @@ class ProviderManager:
         self.manifest = (
             CostUsageReportManifest.objects.filter(
                 provider=self._uuid,
-                billing_period_start_datetime=self.date_helper.this_month_start,
+                billing_period_start_datetime__in=[
+                    self.date_helper.this_month_start,
+                    self.date_helper.last_month_start,
+                ],
                 creation_datetime__isnull=False,
             )
             .order_by("-creation_datetime")
@@ -188,10 +191,13 @@ class ProviderManager:
                 manifest = (
                     CostUsageReportManifest.objects.filter(
                         provider=self.model.infrastructure.infrastructure_provider_id,
-                        billing_period_start_datetime=self.date_helper.this_month_start,
+                        billing_period_start_datetime__in=[
+                            self.date_helper.this_month_start,
+                            self.date_helper.last_month_start,
+                        ],
                         creation_datetime__isnull=False,
                     )
-                    .order_by("creation_datetime")
+                    .order_by("-creation_datetime")
                     .first()
                 )
                 return {

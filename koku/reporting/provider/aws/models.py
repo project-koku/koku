@@ -48,6 +48,8 @@ TRINO_REQUIRED_COLUMNS = {
     "product/instanceType": "",
     "product/physicalCores": "",
     "product/vcpu": "",
+    "product/memory": "",
+    "product/operatingSystem": "",
     "pricing/unit": "",
     "lineItem/UsageAmount": 0.0,
     "lineItem/NormalizationFactor": 0.0,

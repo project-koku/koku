@@ -96,12 +96,21 @@ STORAGE_COLUMNS = {
     "persistentvolumeclaim_labels",
 }
 
+STORAGE_NEWV_COLUMNS_AND_TYPES = {
+    "node": pd.StringDtype(storage="pyarrow"),
+    "csi_driver": pd.StringDtype(storage="pyarrow"),
+    "csi_volume_handle": pd.StringDtype(storage="pyarrow"),
+}
+
 STORAGE_GROUP_BY = [
     "namespace",
+    "node",
     "pod",
     "persistentvolumeclaim",
     "persistentvolume",
     "storageclass",
+    "csi_driver",
+    "csi_volume_handle",
     "persistentvolume_labels",
     "persistentvolumeclaim_labels",
 ]
@@ -137,8 +146,8 @@ CPU_MEM_USAGE_COLUMNS = {
     "pod_labels",
 }
 
-CPU_MEM_USAGE_NEWV_COLUMNS = {
-    "node_role",
+CPU_MEM_USAGE_NEWV_COLUMNS_AND_TYPES = {
+    "node_role": pd.StringDtype(storage="pyarrow"),
 }
 
 POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
@@ -192,34 +201,37 @@ NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
 # to the data frames.
+#
+# NEWV_COLUMNS_AND_TYPES should be a dict where the keys are the column name and
+# the value are the pandas dtypes that column is expected to be.
 OCP_REPORT_TYPES = {
     "storage_usage": {
         "columns": STORAGE_COLUMNS,
         "enum": OCPReportTypes.STORAGE,
         "group_by": STORAGE_GROUP_BY,
         "agg": STORAGE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": STORAGE_NEWV_COLUMNS_AND_TYPES,
     },
     "pod_usage": {
         "columns": CPU_MEM_USAGE_COLUMNS,
         "enum": OCPReportTypes.CPU_MEM_USAGE,
         "group_by": POD_GROUP_BY,
         "agg": POD_AGG,
-        "new_required_columns": CPU_MEM_USAGE_NEWV_COLUMNS,
+        "new_required_columns": CPU_MEM_USAGE_NEWV_COLUMNS_AND_TYPES,
     },
     "node_labels": {
         "columns": NODE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NODE_LABELS,
         "group_by": NODE_GROUP_BY,
         "agg": NODE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": {},
     },
     "namespace_labels": {
         "columns": NAMESPACE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NAMESPACE_LABELS,
         "group_by": NAMESPACE_GROUP_BY,
         "agg": NAMESPACE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": {},
     },
 }
 
