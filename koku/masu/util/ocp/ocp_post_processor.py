@@ -131,6 +131,11 @@ class OCPPostProcessor:
             return data_frame
 
         report = self.ocp_report_types.get(self.report_type, {})
+        new_cols = report.get("new_required_columns") or {}
+        for col, dtype in new_cols.items():
+            if col not in data_frame:
+                data_frame[col] = pd.Series(dtype=dtype)
+
         group_bys = copy.deepcopy(report.get("group_by", []))
         group_bys.append(pd.Grouper(key="interval_start", freq="D"))
         aggs = report.get("agg", {})
@@ -142,11 +147,6 @@ class OCPPostProcessor:
         daily_data_frame.columns = columns
 
         daily_data_frame.reset_index(inplace=True)
-
-        new_cols = report.get("new_required_columns") or {}
-        for col, dtype in new_cols.items():
-            if col not in daily_data_frame:
-                daily_data_frame[col] = pd.Series(dtype=dtype)
 
         return daily_data_frame
 

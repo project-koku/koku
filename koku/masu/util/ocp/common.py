@@ -104,10 +104,13 @@ STORAGE_NEWV_COLUMNS_AND_TYPES = {
 
 STORAGE_GROUP_BY = [
     "namespace",
+    "node",
     "pod",
     "persistentvolumeclaim",
     "persistentvolume",
     "storageclass",
+    "csi_driver",
+    "csi_volume_handle",
     "persistentvolume_labels",
     "persistentvolumeclaim_labels",
 ]
@@ -119,9 +122,6 @@ STORAGE_AGG = {
     "persistentvolumeclaim_capacity_byte_seconds": ["sum"],
     "volume_request_storage_byte_seconds": ["sum"],
     "persistentvolumeclaim_usage_byte_seconds": ["sum"],
-    "node": ["max"],
-    "csi_driver": ["max"],
-    "csi_volume_handle": ["max"],
 }
 
 CPU_MEM_USAGE_COLUMNS = {
