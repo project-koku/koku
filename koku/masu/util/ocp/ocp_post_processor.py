@@ -1,4 +1,3 @@
-import copy
 import json
 import logging
 
@@ -130,23 +129,23 @@ class OCPPostProcessor:
         if data_frame.empty:
             return data_frame
 
-        report = self.ocp_report_types.get(self.report_type, {})
-        new_cols = report.get("new_required_columns") or {}
-        for col, dtype in new_cols.items():
-            if col not in data_frame:
-                data_frame[col] = pd.Series(dtype=dtype)
+        report = self.ocp_report_types.get(self.report_type)
+        if not report:
+            return data_frame
 
-        group_bys = copy.deepcopy(report.get("group_by", []))
+        group_bys = [gb for gb in report["group_by"] if gb in data_frame.columns]
         group_bys.append(pd.Grouper(key="interval_start", freq="D"))
-        aggs = report.get("agg", {})
-        daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(
-            {k: v for k, v in aggs.items() if k in data_frame.columns}
-        )
+        aggs = {k: v for k, v in report["agg"].items() if k in data_frame.columns}
+        daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(aggs)
 
         columns = daily_data_frame.columns.droplevel(1)
         daily_data_frame.columns = columns
 
         daily_data_frame.reset_index(inplace=True)
+
+        for col, dtype in report["new_required_columns"].items():
+            if col not in daily_data_frame:
+                daily_data_frame[col] = pd.Series(dtype=dtype)
 
         return daily_data_frame
 
