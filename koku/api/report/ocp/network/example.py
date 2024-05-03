@@ -129,3 +129,62 @@ class ExampleResponseBody:
             date_counter -= timedelta(days=1)
 
         return cls(Total.generate(daily_usage), daily_usage)
+
+
+@dataclasses.dataclass
+class TotalGroupBy(Total):
+    @staticmethod
+    def total_value(field: str, data: list["GroupByDailyNetworkUsage"]) -> float:
+        return sum(
+            getattr(network_usage, field).value
+            for daily_usage in data
+            for cluster in daily_usage.clusters
+            for network_usage in cluster.values
+        )
+
+    @staticmethod
+    def total_cost(field: str, data: list["GroupByDailyNetworkUsage"]) -> Cost:
+        cost_fields = (item.name for item in dataclasses.fields(Cost))
+        total = Cost()
+        for cost_field in cost_fields:
+            for daily_usage in data:
+                for cluster in daily_usage.clusters:
+                    for network_usage in cluster.values:
+                        running_total_value = getattr(total, cost_field)
+                        value_to_add = getattr(getattr(network_usage, field), cost_field)
+                        setattr(total, cost_field, running_total_value + value_to_add)
+
+        return total
+
+
+@dataclasses.dataclass
+class GroupByNetworkUsage:
+    cluster: str = "test-ocp-cluster"
+    values: list[NetworkUsage] = dataclasses.field(default_factory=list)
+
+    def __post_init__(self):
+        for value in self.values:
+            value.cluster = self.cluster
+
+
+@dataclasses.dataclass
+class GroupByDailyNetworkUsage:
+    date: str
+    clusters: list[GroupByNetworkUsage]
+
+
+@dataclasses.dataclass
+class ExampleGroupByResponseBody:
+    total: Total
+    data: list[GroupByDailyNetworkUsage]
+
+    @classmethod
+    def generate(cls, count=10, *args, **kwargs):
+        daily_usage = []
+        date_counter = datetime.today()
+        for c in range(count):
+            date = date_counter.strftime("%Y-%m-%d")
+            daily_usage.append(GroupByDailyNetworkUsage(date, [GroupByNetworkUsage(values=[NetworkUsage(date)])]))
+            date_counter -= timedelta(days=1)
+
+        return cls(TotalGroupBy.generate(daily_usage), daily_usage)

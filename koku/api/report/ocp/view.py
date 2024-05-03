@@ -11,6 +11,7 @@ from rest_framework.views import status
 from api.common.pagination import ReportPagination
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
+from api.report.ocp.network.example import ExampleGroupByResponseBody
 from api.report.ocp.network.example import ExampleResponseBody
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
@@ -66,7 +67,11 @@ class OCPNetworkView(OCPView):
         ):
             return Response(data="Under development", status=status.HTTP_400_BAD_REQUEST)
 
-        data = ExampleResponseBody.generate()
+        if any(param.startswith("group_by") for param in request.query_params):
+            data = ExampleGroupByResponseBody.generate(request=request)
+        else:
+            data = ExampleResponseBody.generate(request=request)
+
         paginator = ReportPagination()
         paginated_result = paginator.paginate_queryset(dataclasses.asdict(data), request)
         return paginator.get_paginated_response(paginated_result)
