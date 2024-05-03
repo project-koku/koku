@@ -68,9 +68,9 @@ class OCPNetworkView(OCPView):
             return Response(data="Under development", status=status.HTTP_400_BAD_REQUEST)
 
         if any(param.startswith("group_by") for param in request.query_params):
-            data = ExampleGroupByResponseBody.generate(request=request)
+            data = ExampleGroupByResponseBody.generate()
         else:
-            data = ExampleResponseBody.generate(request=request)
+            data = ExampleResponseBody.generate()
 
         paginator = ReportPagination()
         paginated_result = paginator.paginate_queryset(dataclasses.asdict(data), request)
