@@ -123,7 +123,7 @@ class ExampleResponseBody:
     def generate(cls, count=10, *args, **kwargs):
         daily_usage = []
         date_counter = datetime.today()
-        for c in range(count):
+        for _ in range(count):
             date = date_counter.strftime("%Y-%m-%d")
             daily_usage.append(DailyNetworkUsage(date, [NetworkUsage(date)]))
             date_counter -= timedelta(days=1)
@@ -182,7 +182,7 @@ class ExampleGroupByResponseBody:
     def generate(cls, count=10, *args, **kwargs):
         daily_usage = []
         date_counter = datetime.today()
-        for c in range(count):
+        for _ in range(count):
             date = date_counter.strftime("%Y-%m-%d")
             daily_usage.append(GroupByDailyNetworkUsage(date, [GroupByNetworkUsage(values=[NetworkUsage(date)])]))
             date_counter -= timedelta(days=1)
