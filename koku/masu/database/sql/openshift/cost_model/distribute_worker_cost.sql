@@ -38,6 +38,7 @@ user_defined_project_sum as (
         AND report_period_id = {{report_period_id}}
         AND lids.namespace != 'Worker unallocated'
         AND lids.namespace != 'Platform unallocated'
+        AND lids.namespace != 'Network unattributed'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY usage_start, cluster_id, source_uuid
 ),
@@ -92,6 +93,7 @@ cte_line_items as (
         AND lids.usage_start <= {{end_date}}::date
         AND report_period_id = {{report_period_id}}
         AND lids.namespace IS NOT NULL
+        AND lids.namespace != 'Network unattributed'
         AND data_source = 'Pod'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id
@@ -193,6 +195,7 @@ WHERE ctl.distributed_cost != 0;
 -- WHERE distributed_cost IS NOT NULL
 -- AND usage_start = '2023-03-01'
 -- AND lids.namespace != 'Worker unallocated'
+-- AND lids.namespace != 'Network unattributed'
 -- AND cost_model_rate_type = 'worker_distributed'
 -- GROUP BY lids.usage_start, lids.cluster_id, lids.node, lids.namespace;
 

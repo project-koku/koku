@@ -40,6 +40,7 @@ user_defined_project_sum as (
         AND report_period_id = {{report_period_id}}
         AND lids.namespace != 'Worker unallocated'
         AND lids.namespace != 'Platform unallocated'
+        AND lids.namespace != 'Network unattributed'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY usage_start, cluster_id, source_uuid
 ),
@@ -96,6 +97,7 @@ cte_line_items as (
         AND report_period_id = {{report_period_id}}
         AND lids.namespace IS NOT NULL
         AND lids.namespace != 'Worker unallocated'
+        AND lids.namespace != 'Network unattributed'
     GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id, cost_category_id, lids.data_source
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
@@ -196,4 +198,5 @@ WHERE ctl.distributed_cost != 0;
 -- AND usage_start = '2023-03-01'
 -- AND cost_category_id IS NOT NULL
 -- AND lids.namespace != 'Worker unallocated'
+-- AND lids.namespace != 'Network unattributed'
 -- GROUP BY lids.usage_start, lids.cluster_id, lids.node, lids.namespace;

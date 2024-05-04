@@ -554,6 +554,7 @@ JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
             )
     AND ocp.namespace != 'Worker unallocated'
     AND ocp.namespace != 'Platform unallocated'
+    AND ocp.namespace != 'Network unattributed'
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.report_period_id = {{report_period_id}}
     AND ocp.year = {{year}}
