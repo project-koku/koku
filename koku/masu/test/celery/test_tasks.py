@@ -25,6 +25,7 @@ from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnit
 from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import AzureStorageCapacity
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
@@ -483,3 +484,24 @@ class TestCeleryTasks(MasuTestCase):
         expected_queue = "summary"
         queue_tasks = tasks.get_celery_queue_items(queue_name=expected_queue, task_name="not_found")
         self.assertEqual(queue_tasks, expected_output)
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_scrape_azure_storage_capacities(self, mock_celery_app):
+        """Test the scrape storage capacities."""
+        beforeRows = AzureStorageCapacity.objects.count()
+        result = """
+            | Standard SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            | Standard Disk Type | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            | Premium SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            |-------------------|----|----|----|----|----|-----|-----|-----|-----|-----|-----|------|------|------|
+            | Disk size in GiB | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384 | 32767 |
+        """
+        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+        with requests_mock.mock() as reqmock:
+            reqmock.register_uri("GET", f"{main_url}disk-storage-premium-ssd-sizes.md", status_code=200, text=result)
+            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-hdd-sizes.md", status_code=200, text=result)
+            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-ssd-sizes.md", status_code=200, text=result)
+            tasks.scrape_azure_storage_capacities()
+        afterRows = AzureStorageCapacity.objects.count()
+        self.assertNotEqual(beforeRows, afterRows)
+        self.assertEqual(afterRows, 14)

@@ -383,8 +383,8 @@ def get_daily_currency_rates():
     return rate_metrics
 
 
-@celery_app.task(name="masu.celery.scrap_azure_storage_capacities", queue=DEFAULT)
-def scrap_azure_storage_capacities():
+@celery_app.task(name="masu.celery.scrape_azure_storage_capacities", queue=DEFAULT)
+def scrape_azure_storage_capacities():
     """Task to retrieve the Azure disk capacities.
 
     The Azure cost reports do not report disk capacities. Therefore, we retrieve
@@ -398,7 +398,7 @@ def scrap_azure_storage_capacities():
         "disk-storage-standard-ssd-sizes.md": "Standard SSD sizes",
     }
 
-    # Scrap azure docs for product capacities
+    # scrape azure docs for product capacities
     try:
         for filename, regex_substring in web_pages_metadata.items():
             url = main_url + filename

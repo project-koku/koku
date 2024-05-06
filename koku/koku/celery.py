@@ -201,8 +201,8 @@ app.conf.beat_schedule["get_daily_currency_rates"] = {
 }
 
 # Beat used to fetch daily rates
-app.conf.beat_schedule["scrap_azure_storage_capacities"] = {
-    "task": "masu.celery.tasks.scrap_azure_storage_capacities",
+app.conf.beat_schedule["scrape_azure_storage_capacities"] = {
+    "task": "masu.celery.tasks.scrape_azure_storage_capacities",
     "schedule": crontab(hour=1, minute=0),
 }
 
