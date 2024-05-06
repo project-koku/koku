@@ -6,6 +6,7 @@
 import json
 import logging
 import math
+import re
 
 import requests
 from botocore.exceptions import ClientError
@@ -48,6 +49,7 @@ from masu.util.aws.common import get_s3_resource
 from masu.util.oci.common import OCI_REPORT_TYPES
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import AzureStorageCapacity
 from reporting_common.models import DelayedCeleryTasks
 from sources.tasks import delete_source
 
@@ -379,6 +381,46 @@ def get_daily_currency_rates():
             exchange.save()
     exchange_dictionary(rate_metrics)
     return rate_metrics
+
+
+@celery_app.task(name="masu.celery.scrap_azure_storage_capacities", queue=DEFAULT)
+def scrap_azure_storage_capacities():
+    """Task to retrieve the Azure disk capacities.
+
+    The Azure cost reports do not report disk capacities. Therefore, we retrieve
+    the disk capacities and product substring from their documentation repos.
+    """
+    # TODO: Should we move this url to an env var?
+    main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+    web_pages_metadata = {
+        "disk-storage-premium-ssd-sizes.md": "Premium SSD sizes",
+        "disk-storage-standard-hdd-sizes.md": "Standard Disk Type",
+        "disk-storage-standard-ssd-sizes.md": "Standard SSD sizes",
+    }
+
+    # Scrap azure docs for product capacities
+    try:
+        for filename, regex_substring in web_pages_metadata.items():
+            url = main_url + filename
+            response = requests.get(url)
+            response.raise_for_status()
+            markdown_content = response.text
+            disk_terms = re.search(rf"\| {regex_substring}.*?(?=\|[-|]+?\|)", markdown_content, re.DOTALL)
+            disk_sizes = re.search(r"\| Disk\s*size\s*in\s*GiB .*?(?=\n)", markdown_content, re.DOTALL)
+            disk_terms_row = disk_terms.group(0) if disk_terms else ""
+            disk_sizes_row = disk_sizes.group(0) if disk_sizes else ""
+            terms = disk_terms_row.split("|")[2:-1]
+            sizes = disk_sizes_row.split("|")[2:-1]
+            for term, size in zip(terms, sizes):
+                capacity_string = size.strip().replace(",", "")
+                AzureStorageCapacity.objects.get_or_create(
+                    product_substring=term.strip(), capacity=int(capacity_string)
+                )
+
+    except (HTTPError, RetryError) as e:
+        LOG.error(f"Couldn't pull latest conversion rates from {url}")
+        LOG.error(e)
+        return
 
 
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)

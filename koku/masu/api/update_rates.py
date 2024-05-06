@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.celery.tasks import get_daily_currency_rates
+from masu.celery.tasks import scrap_azure_storage_capacities
 
 
 @never_cache
@@ -21,3 +22,13 @@ def update_exchange_rates(request):
     """Return updated exchange rates."""
     exchange_result = get_daily_currency_rates()
     return Response({"updated_exchange_rates": exchange_result})
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def update_azure_storage_capacity(request):
+    """Return updated exchange rates."""
+    scrap_azure_storage_capacities()
+    return Response({"updated_exchange_rates": {}})

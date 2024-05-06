@@ -200,6 +200,12 @@ app.conf.beat_schedule["get_daily_currency_rates"] = {
     "schedule": crontab(hour=1, minute=0),
 }
 
+# Beat used to fetch daily rates
+app.conf.beat_schedule["scrap_azure_storage_capacities"] = {
+    "task": "masu.celery.tasks.scrap_azure_storage_capacities",
+    "schedule": crontab(hour=1, minute=0),
+}
+
 # Beat used for HCS report finalization
 app.conf.beat_schedule["finalize_hcs_reports"] = {
     "task": "hcs.tasks.collect_hcs_report_finalization",

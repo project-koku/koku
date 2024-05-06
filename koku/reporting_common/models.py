@@ -222,3 +222,14 @@ def trigger_celery_task(sender, instance, **kwargs):
         "result_id": result.id,
     }
     LOG.info(log_json(tracing_id=tracing_id, msg=log_msg, context=log_context))
+
+
+class AzureStorageCapacity(models.Model):
+    """Mapping of product substrings to capacity in GiB.
+
+    Azure bills do not report capacity so we build this information externally.
+    """
+
+    product_substring = models.CharField(max_length=20, primary_key=True)
+    # Change data type here to an integer?
+    capacity = models.FloatField(default=0)
