@@ -91,12 +91,14 @@ def create_daily_archives(
             data_frame = pd_read_csv(local_file_path)
             data_frame = add_label_columns(data_frame)
             # putting it in for loop handles crossover data, when we have distinct invoice_month
+            unique_usage_days = pd.to_datetime(data_frame["usage_start_time"]).dt.date.unique()
+            days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
+            date_range = {"start": min(days), "end": max(days)}
             for invoice_month in data_frame["invoice.month"].unique():
                 invoice_filter = data_frame["invoice.month"] == invoice_month
                 invoice_month_data = data_frame[invoice_filter]
-                unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
-                days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-                date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
+                # We may be able to completely remove invoice month in the future
+                date_range["invoice_month"] = str(invoice_month)
                 partition_dates = invoice_month_data.partition_date.unique()
                 for partition_date in partition_dates:
                     partition_date_filter = invoice_month_data["partition_date"] == partition_date
@@ -129,8 +131,8 @@ def create_daily_archives(
                         tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
                     )
                     daily_file_names.append(day_filepath)
-    except Exception:
-        msg = f"unable to create daily archives from: {local_file_paths}"
+    except Exception as e:
+        msg = f"unable to create daily archives from: {local_file_paths}. reason: {e}"
         LOG.info(log_json(tracing_id, msg=msg, context=context))
         raise CreateDailyArchivesError(msg)
     return daily_file_names, date_range
@@ -284,9 +286,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             client = bigquery.Client()
             export_partition_date_query = f"""
-                SELECT DATE(_PARTITIONTIME), DATETIME(max(export_time))  FROM {self.table_name}
+                SELECT DATE(_PARTITIONTIME) AS partition_date, DATETIME(max(export_time))  FROM {self.table_name}
                 WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-                AND '{self.scan_end}' GROUP BY DATE(_PARTITIONTIME)
+                AND '{self.scan_end}' GROUP BY partition_date ORDER BY partition_date
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:

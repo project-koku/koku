@@ -1,0 +1,4 @@
+docs_dir: docs/
+site_name: Koku Documentation
+plugins:
+  - techdocs-core

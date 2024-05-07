@@ -48,7 +48,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
 
 class ProviderBillingSourceSerializer(serializers.ModelSerializer):
-    """Serializer for the Provider Authentication model."""
+    """Serializer for the Provider Billing Source model."""
 
     data_source = serializers.JSONField(allow_null=False, required=True)
 
