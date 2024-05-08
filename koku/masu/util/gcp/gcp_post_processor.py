@@ -127,7 +127,8 @@ class GCPPostProcessor:
         rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
         rollup_frame["daily_credits"] = 0.0
         for i, credit_dict in enumerate(rollup_frame["credits"]):
-            rollup_frame["daily_credits"][i] = credit_dict.get("amount", 0.0)
+            rollup_frame.loc[:, ("daily_credits", i)] = credit_dict.get("amount", 0.0)
+
         resource_df = rollup_frame.get("resource_name")
         try:
             if not resource_df:
