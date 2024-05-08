@@ -21,6 +21,7 @@ from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -107,6 +108,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        date_dicts = DateHelper().get_year_month_list_from_start_end(start_date, end_date)
         last_month_end = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
         if end_date == last_month_end:
 
@@ -134,15 +136,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
-            "year": invoice_month_date.strftime("%Y"),
-            "month": invoice_month_date.strftime("%m"),
             "markup": markup_value or 0,
             "bill_id": bill_id,
         }
-
-        self._execute_trino_raw_sql_query(
-            sql, sql_params=sql_params, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
-        )
+        for date_dict in date_dicts:
+            sql_params = sql_params | {"year": date_dict["year"], "month": date_dict["month"]}
+            self._execute_trino_raw_sql_query(
+                sql, sql_params=sql_params, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
+            )
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""

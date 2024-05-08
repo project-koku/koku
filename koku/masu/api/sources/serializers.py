@@ -33,8 +33,6 @@ class ProviderInfrastructureSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     infrastructure_type = serializers.CharField()
     infrastructure_provider_id = serializers.UUIDField()
-    infrastructure_account = serializers.CharField()
-    infrastructure_region = serializers.CharField()
 
 
 class ProviderAuthenticationSerializer(serializers.ModelSerializer):
@@ -50,7 +48,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
 
 class ProviderBillingSourceSerializer(serializers.ModelSerializer):
-    """Serializer for the Provider Authentication model."""
+    """Serializer for the Provider Billing Source model."""
 
     data_source = serializers.JSONField(allow_null=False, required=True)
 
