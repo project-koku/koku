@@ -36,6 +36,8 @@ class OCPReportTypes(Enum):
 
 
 OPERATOR_VERSIONS = {
+    "212f944b3b1d7cfbf6e48a63c4ed74bfe942bbe1": "costmanagement-metrics-operator:3.2.1",
+    "9d463e92ba69d82513d8ec53edc5242658623840": "costmanagement-metrics-operator:3.2.0",
     "e3ab976307639acff6cc86e25f90f242c45d7210": "costmanagement-metrics-operator:3.1.0",
     "b5a2c05255069215eb564dcc5c4ec6ca4b33325d": "costmanagement-metrics-operator:3.0.1",
     "47ddcdbbdf3e445536ea3fa8346df0dac3adc3ed": "costmanagement-metrics-operator:3.0.0",
@@ -50,6 +52,8 @@ OPERATOR_VERSIONS = {
     "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
     "6f10d07e3af3ea4f073d4ffda9019d8855f52e7f": "costmanagement-metrics-operator:1.1.0",
     "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
+    "631434d278be57cfedaa5ad0000cb3a3dfb69a76": "koku-metrics-operator:v3.2.1",
+    "06f3ed1c48b889f64ecec09e55f0bd7c2f09fe54": "koku-metrics-operator:v3.2.0",
     "b3525a536a402d5bed9b5bbd739fb6a89c8e92e0": "koku-metrics-operator:v3.1.0",
     "8737fb075bdbd63c02e82e6f89056380e9c1e6b6": "koku-metrics-operator:v3.0.1",
     "3a6df53f18e574286a1666e1d26586dc729f0568": "koku-metrics-operator:v3.0.0",
@@ -92,12 +96,21 @@ STORAGE_COLUMNS = {
     "persistentvolumeclaim_labels",
 }
 
+STORAGE_NEWV_COLUMNS_AND_TYPES = {
+    "node": pd.StringDtype(storage="pyarrow"),
+    "csi_driver": pd.StringDtype(storage="pyarrow"),
+    "csi_volume_handle": pd.StringDtype(storage="pyarrow"),
+}
+
 STORAGE_GROUP_BY = [
     "namespace",
+    "node",
     "pod",
     "persistentvolumeclaim",
     "persistentvolume",
     "storageclass",
+    "csi_driver",
+    "csi_volume_handle",
     "persistentvolume_labels",
     "persistentvolumeclaim_labels",
 ]
@@ -133,8 +146,8 @@ CPU_MEM_USAGE_COLUMNS = {
     "pod_labels",
 }
 
-CPU_MEM_USAGE_NEWV_COLUMNS = {
-    "node_role",
+CPU_MEM_USAGE_NEWV_COLUMNS_AND_TYPES = {
+    "node_role": pd.StringDtype(storage="pyarrow"),
 }
 
 POD_GROUP_BY = ["namespace", "node", "pod", "pod_labels"]
@@ -188,34 +201,37 @@ NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
 # to the data frames.
+#
+# NEWV_COLUMNS_AND_TYPES should be a dict where the keys are the column name and
+# the value are the pandas dtypes that column is expected to be.
 OCP_REPORT_TYPES = {
     "storage_usage": {
         "columns": STORAGE_COLUMNS,
         "enum": OCPReportTypes.STORAGE,
         "group_by": STORAGE_GROUP_BY,
         "agg": STORAGE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": STORAGE_NEWV_COLUMNS_AND_TYPES,
     },
     "pod_usage": {
         "columns": CPU_MEM_USAGE_COLUMNS,
         "enum": OCPReportTypes.CPU_MEM_USAGE,
         "group_by": POD_GROUP_BY,
         "agg": POD_AGG,
-        "new_required_columns": CPU_MEM_USAGE_NEWV_COLUMNS,
+        "new_required_columns": CPU_MEM_USAGE_NEWV_COLUMNS_AND_TYPES,
     },
     "node_labels": {
         "columns": NODE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NODE_LABELS,
         "group_by": NODE_GROUP_BY,
         "agg": NODE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": {},
     },
     "namespace_labels": {
         "columns": NAMESPACE_LABEL_COLUMNS,
         "enum": OCPReportTypes.NAMESPACE_LABELS,
         "group_by": NAMESPACE_GROUP_BY,
         "agg": NAMESPACE_AGG,
-        "new_required_columns": [],
+        "new_required_columns": {},
     },
 }
 

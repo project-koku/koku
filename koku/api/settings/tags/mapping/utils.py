@@ -4,11 +4,15 @@
 #
 """Query handler for Tag Mappings."""
 from collections import defaultdict
+from functools import reduce
 
 from django.db.models import F
 from django.db.models import Func
+from django.db.models import Q
+from django.db.models import QuerySet
 
 from api.models import Provider
+from api.settings.utils import SettingsFilter
 from api.utils import DateHelper
 from cost_models.models import CostModel
 from koku.cache import get_cached_tag_rate_map
@@ -21,6 +25,36 @@ from reporting.models import OCITagsSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+
+class TagMappingFilters(SettingsFilter):
+    """This filter handles multiple filter options."""
+
+    def _combine_query_filters(self, q_list: list[Q]) -> Q:
+        """
+        Combines a list of Q objects using the OR operator.
+        """
+        return reduce(lambda x, y: x | y, q_list)
+
+    def filter_by_source_type(self, queryset: QuerySet, name: str, value_list: list[str]) -> QuerySet:
+        """
+        Handles multiple filter logic for source_type filter.
+        """
+        q_list = []
+        for value in value_list:
+            if name == "parent__provider_type":
+                q_list.append(Q(parent__provider_type__icontains=value))
+                q_list.append(Q(child__provider_type__icontains=value))
+            else:
+                q_list.append(Q(**{f"{name}__icontains": value}))
+        return queryset.filter(self._combine_query_filters(q_list))
+
+    def filter_by_key(self, queryset: QuerySet, name: str, value_list: list[str]) -> QuerySet:
+        """
+        Hanldes multiple filter logic for key filter.
+        """
+        q_list = [Q(**{f"{name}__icontains": key}) for key in value_list]
+        return queryset.filter(self._combine_query_filters(q_list))
 
 
 def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
@@ -57,12 +91,25 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
                 .values_list("clusters", flat=True)
                 .distinct()
             )
+            # If the OCP cluster is connected to a infrastructure source
+            # we need to summarize the infra source instead so that both
+            # the OCP source & the cloud source are re-summarized for
+            # the cloud filtered by openshift views.
+            infra_sorting = defaultdict(list)
             provider_uuids = (
                 OCPUsageReportPeriod.objects.filter(cluster_id__in=clusters, report_period_start=start_date)
                 .values_list("provider__uuid", flat=True)
                 .distinct()
             )
-            delayed_summarize_current_month(schema_name, list(provider_uuids), provider_type)
+            providers = Provider.objects.filter(uuid__in=provider_uuids)
+            for provider in providers:
+                infra = provider.infrastructure
+                if infra:
+                    infra_sorting[infra.infrastructure_type].append(infra.infrastructure_provider_id)
+                else:
+                    infra_sorting[provider_type].append(provider.uuid)
+            for p_type, provider_uuids in infra_sorting.items():
+                delayed_summarize_current_month(schema_name, provider_uuids, p_type)
 
 
 def retrieve_tag_rate_mapping(schema_name):

@@ -34,7 +34,7 @@ google-api-python-client = ">=1.12.4"
 google-auth = ">=1.22.1"
 google-cloud-bigquery = ">=2.2.0"
 google-cloud-storage = "*"
-gunicorn = ">=20.0"
+gunicorn = "*"
 ibm-cloud-sdk-core = ">=3.5.2"
 ibm-platform-services = ">=0.17.8"
 jinjasql2 = "*"
@@ -58,6 +58,8 @@ trino = "*"
 unleashclient = "<5"  # new version breaks for unknown reason
 watchtower = "==1.0.6"  # new version breaks for unknown reason
 whitenoise = ">=5.0"
+pydantic = ">=2"
+sqlparse = "*"
 
 [dev-packages]
 argh = ">=0.26.2"

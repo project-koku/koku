@@ -2,16 +2,16 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import json
+from collections import defaultdict
 from unittest.mock import patch
 
 from django.urls import reverse
 from django_tenants.utils import tenant_context
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.test import APIClient
 
-from api.settings.tags.mapping.query_handler import format_tag_mapping_relationship
+from api.provider.models import Provider
+from api.settings.tags.mapping.query_handler import Relationship
 from api.settings.tags.mapping.utils import retrieve_tag_rate_mapping
 from api.settings.tags.mapping.view import SettingsTagMappingFilter
 from masu.test import MasuTestCase
@@ -146,6 +146,13 @@ class TestSettingsTagMappingView(MasuTestCase):
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
+    def test_put_method_remove_children_invalid_uuid(self):
+        """Test removing children invalid uuids."""
+        url = reverse("tags-mapping-child-remove")
+        data = {"ids": ["gibberish"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_put_method_remove_parent(self):
         """Test removing parent."""
         url = reverse("tags-mapping-child-add")
@@ -160,6 +167,13 @@ class TestSettingsTagMappingView(MasuTestCase):
         data = {"ids": [self.enabled_uuid_list[0]]}
         response = self.client.put(url, data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_put_method_remove_parent_invalid_uuid(self):
+        """Test removing parents invalid uuid."""
+        url = reverse("tags-mapping-parent-remove")
+        data = {"ids": ["gibberish"]}
+        response = self.client.put(url, data, format="json", **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_filter_by_source_type(self):
         """Test the filter by source_type."""
@@ -177,75 +191,96 @@ class TestSettingsTagMappingView(MasuTestCase):
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
             # Call the filter_by_source_type method with 'test_filter' as the value
             filter = SettingsTagMappingFilter()
-            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
+            result = filter.filter_by_source_type(TagMapping.objects.all(), "parent__provider_type", test_filter)
             self.assertNotEqual(len(result), 0)
 
-            test_filter = "random"
-            result = filter.filter_by_source_type(TagMapping.objects.all(), "provider_type", test_filter)
-            self.assertEqual(len(result), 0)
+            filter = "?filter[source_type]=random"
+            url = reverse("tags-mapping") + filter
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(response.data["data"]), 0)
 
     def test_format_tag_mapping_relationship(self):
         """Test the get method format for the tag mapping view"""
 
-        sample_data = """{
-            "meta": {
-                "count": 3,
-                "limit": 3,
-                "offset": 0
-            },
-            "links": {
-                "first": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0",
-                "next": null,
-                "previous": null,
-                "last": "/api/cost-management/v1/settings/tags/mappings/?limit=3&offset=0"
-            },
-            "data": [
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "787d0e27-bf01-4f1e-91da-4148d9acae82",
-                        "key": "environment",
-                        "source_type": "Azure"
-                    }
+        sample_data = [
+            # Parent with three children
+            {
+                "child": {
+                    "key": "environment",
+                    "source_type": "Azure",
+                    "uuid": "787d0e27-bf01-4f1e-91da-4148d9acae82",
                 },
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
-                        "key": "CreatedOn",
-                        "source_type": "OCI"
-                    }
+                "parent": {
+                    "key": "storageclass",
+                    "source_type": "Azure",
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
                 },
-                {
-                    "parent": {
-                        "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
-                        "key": "storageclass",
-                        "source_type": "Azure"
-                    },
-                    "child": {
-                        "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
-                        "key": "free-tier-retained",
-                        "source_type": "OCI"
-                    }
-                }
-            ]
-        }"""
+            },
+            {
+                "child": {
+                    "key": "CreatedOn",
+                    "source_type": "OCI",
+                    "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
+                },
+                "parent": {
+                    "key": "storageclass",
+                    "source_type": "Azure",
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                },
+            },
+            {
+                "child": {
+                    "key": "free-tier-retained",
+                    "source_type": "OCI",
+                    "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
+                },
+                "parent": {
+                    "key": "storageclass",
+                    "source_type": "Azure",
+                    "uuid": "17c77152-05a9-4b53-968c-dd42f7fd859b",
+                },
+            },
+            # Parent with two children
+            {
+                "child": {
+                    "uuid": "135ed068-18cb-44fe-8d1c-1e7f389bcbe8",
+                    "key": "openshift_project",
+                    "source_type": "AWS",
+                },
+                "parent": {
+                    "key": "stack",
+                    "source_type": "AWS",
+                    "uuid": "1ab796d3-37ac-4ae5-b218-688ea3b5a5f4",
+                },
+            },
+            {
+                "child": {
+                    "uuid": "e789bbc7-e2b7-45f6-b611-e90dd2e0749e",
+                    "key": "com_REDHAT_rhel",
+                    "source_type": "AWS",
+                },
+                "parent": {
+                    "key": "stack",
+                    "source_type": "AWS",
+                    "uuid": "1ab796d3-37ac-4ae5-b218-688ea3b5a5f4",
+                },
+            },
+        ]
 
-        json_data = json.loads(sample_data)
-        response = Response(json_data)
-        result = format_tag_mapping_relationship(response)
-        # Check if the key is 'children' and not 'child'
-        for item in result.data["data"]:
-            self.assertIn("children", item["parent"])
-            self.assertNotIn("child", item["parent"])
+        relationships = Relationship.create_list_of_relationships(sample_data)
+
+        self.assertTrue(
+            all(getattr(relationship, "children", None) for relationship in relationships), "Missing children"
+        )
+        self.assertFalse(
+            any(getattr(relationship, "child", None) for relationship in relationships), "Child key should not exist"
+        )
+        self.assertEqual(
+            [len(relationship.children) for relationship in relationships],
+            [3, 2],
+            "Number of expected children is incorrect",
+        )
 
     @patch("api.settings.tags.mapping.utils.get_cached_tag_rate_map")
     def test_cached_tag_rate_mapping(self, mock_get):
@@ -321,3 +356,73 @@ class TestSettingsTagMappingView(MasuTestCase):
         url = url + "?order_by[parent]=FAKE"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_multi_source_type_filter(self):
+        """Test multiple source type filters."""
+        source_type_mapping = defaultdict(list)
+        enabled_keys = EnabledTagKeys.objects.filter(enabled=True)
+        for enabled_key in enabled_keys:
+            source_type_mapping[enabled_key.provider_type].append(enabled_key.uuid)
+        aws_uuids = source_type_mapping.get(Provider.PROVIDER_AWS)
+        azure_uuids = source_type_mapping.get(Provider.PROVIDER_AZURE)
+        ocp_uuids = source_type_mapping.get(Provider.PROVIDER_OCP)
+        body_metadata = [
+            {"parent": ocp_uuids[0], "children": [azure_uuids[0]]},
+            {"parent": aws_uuids[1], "children": [azure_uuids[1]]},
+            {"parent": azure_uuids[1], "children": [azure_uuids[3]]},
+        ]
+        url = reverse("tags-mapping-child-add")
+        for data in body_metadata:
+            response = self.client.put(url, data, format="json", **self.headers)
+        # Test multiple source_type filters
+        test_matrix = [
+            f"?filter[source_type]={Provider.PROVIDER_AWS}&filter[source_type]={Provider.PROVIDER_AZURE}",
+            f"?filter[source_type]={Provider.PROVIDER_AWS}&filter[source_type]={Provider.PROVIDER_OCP}",
+        ]
+        for multi_filter in test_matrix:
+            for endpoint in ["tags-mapping-parent", "tags-mapping-child", "tags-mapping"]:
+                with self.subTest(multi_filter=multi_filter, endpoint=endpoint):
+                    url = reverse(endpoint) + multi_filter
+                    response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    self.assertNotEqual(len(response.data["data"]), 0)
+
+    def test_multi_key_filter(self):
+        """Test multiple source type filters."""
+        enabled_keys = EnabledTagKeys.objects.filter(enabled=True)
+        test_matrix = [
+            f"?filter[key]={enabled_keys[0].key}&filter[key]={enabled_keys[4].key}",
+            f"?filter[key]={enabled_keys[1].key}&filter[key]={enabled_keys[3].key}",
+        ]
+        for multi_filter in test_matrix:
+            for endpoint in ["tags-mapping-parent", "tags-mapping-child"]:
+                with self.subTest(multi_filter=multi_filter, endpoint=endpoint):
+                    url = reverse(endpoint) + multi_filter
+                    response = self.client.get(url, **self.headers)
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    self.assertNotEqual(len(response.data["data"]), 0)
+
+    def test_multi_key_parent_and_child_filter(self):
+        """Test that you can filter by parent & child keys."""
+        endpoint = "tags-mapping"
+        enabled_keys = EnabledTagKeys.objects.filter(enabled=True)
+        test_populate = [
+            {"parent": enabled_keys[0].uuid, "children": [enabled_keys[1].uuid, enabled_keys[2].uuid]},
+            {"parent": enabled_keys[3].uuid, "children": [enabled_keys[4].uuid, enabled_keys[5].uuid]},
+        ]
+        url = reverse("tags-mapping-child-add")
+        for populate in test_populate:
+            self.client.put(url, populate, format="json", **self.headers)
+        # test parent filter
+        test_matrix = [
+            ("parent", enabled_keys[0].key, enabled_keys[3].key),
+            ("child", enabled_keys[1].key, enabled_keys[5].key),
+        ]
+        for test in test_matrix:
+            filter_key, key_one, key_two = test
+            filter = f"?filter[{filter_key}]={key_one}&filter[{filter_key}]={key_two}"
+            url = reverse(endpoint) + filter
+            with self.subTest(url=url):
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertNotEqual(len(response.data["data"]), 0)

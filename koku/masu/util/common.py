@@ -27,7 +27,10 @@ import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from reporting.provider.all.models import EnabledTagKeys
+from reporting_common.models import CostUsageReportManifest
+from reporting_common.states import ManifestStep
 
 LOG = logging.getLogger(__name__)
 
@@ -472,3 +475,29 @@ def fetch_optional_columns(local_file, current_columns, fetch_columns, tracing_i
 def chunk_columns(col_list, chunk_count):
     for i in range(0, len(col_list), chunk_count):
         yield list(col_list[i : i + chunk_count])
+
+
+def set_summary_timestamp(state, manifest_id):
+    """Function for setting last summary for given manifest"""
+    if manifest_id:
+        LOG.info(f"setting summary {state} for manifest: {manifest_id}")
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.SUMMARY, state, manifest_id)
+
+
+def get_latest_openshift_on_cloud_manifest(start_date, provider_uuid):
+    """Function for getting latest manifest for given openshift provider (ocp on cloud)"""
+    start_date = parser.parse(str(start_date))
+    manifest_id = None
+    # We need to update previous manifests for customer filtered flows
+    billing_period = DateHelper().month_start_utc(start_date)
+    if provider_uuid:
+        try:
+            manifest = CostUsageReportManifest.objects.filter(
+                provider=provider_uuid,
+                billing_period_start_datetime=billing_period,
+                creation_datetime__isnull=False,
+            ).latest("creation_datetime")
+            manifest_id = manifest.id
+        except CostUsageReportManifest.DoesNotExist:
+            pass
+    return manifest_id

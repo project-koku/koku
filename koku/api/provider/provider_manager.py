@@ -82,15 +82,18 @@ class ProviderManager:
         except ObjectDoesNotExist:
             self.sources_model = None
             LOG.info(f"Provider {str(self._uuid)} has no Sources entry.")
-        try:
-            self.manifest = CostUsageReportManifest.objects.filter(
+        self.manifest = (
+            CostUsageReportManifest.objects.filter(
                 provider=self._uuid,
-                billing_period_start_datetime=self.date_helper.this_month_start,
+                billing_period_start_datetime__in=[
+                    self.date_helper.this_month_start,
+                    self.date_helper.last_month_start,
+                ],
                 creation_datetime__isnull=False,
-            ).latest("creation_datetime")
-        except CostUsageReportManifest.DoesNotExist:
-            self.manifest = None
-            LOG.info(f"Provider {str(self._uuid)} has no Manifest entry for the current month.")
+            )
+            .order_by("-creation_datetime")
+            .first()
+        )
 
     @staticmethod
     def get_providers_queryset_for_customer(customer):
@@ -130,22 +133,41 @@ class ProviderManager:
         return self.manifest.creation_datetime if self.manifest else None
 
     def get_state(self):
-        """Get latest manifest state."""
+        """Get latest manifest state for current provider."""
+        return self.get_manifest_state(self.manifest)
+
+    def get_manifest_state(self, manifest):
+        """Get statuses for given manifest."""
+        if not manifest:
+            return None
         states = {
-            ManifestStep.DOWNLOAD: ManifestState.PENDING,
-            ManifestStep.PROCESSING: ManifestState.PENDING,
-            ManifestStep.SUMMARY: ManifestState.PENDING,
+            ManifestStep.DOWNLOAD: {"state": ManifestState.PENDING},
+            ManifestStep.PROCESSING: {"state": ManifestState.PENDING},
+            ManifestStep.SUMMARY: {"state": ManifestState.PENDING},
         }
-        if self.manifest:
-            for key in states:
-                if current_state := self.manifest.state.get(key):
-                    if current_state.get(ManifestState.FAILED):
-                        states[key] = ManifestState.FAILED
-                    elif current_state.get(ManifestState.END):
-                        states[key] = ManifestState.COMPLETE
-                    elif current_state.get(ManifestState.START):
-                        states[key] = ManifestState.IN_PROGRESS
+        for key in states:
+            if current_state := manifest.state.get(key):
+                manifest.state[key].pop("time_taken_seconds", None)
+                if current_state.get(ManifestState.FAILED):
+                    states[key] = manifest.state[key]
+                    states[key]["state"] = "failed"
+                elif current_state.get(ManifestState.END):
+                    states[key] = manifest.state[key]
+                    states[key]["state"] = "complete"
+                elif current_state.get(ManifestState.START):
+                    states[key] = manifest.state[key]
+                    states[key]["state"] = "in-progress"
         return states
+
+    def get_last_polling_time(self, uuid=None):
+        """Get last polling timestamp for provider"""
+        if uuid:
+            provider = Provider.objects.get(uuid=uuid)
+            timestamp = provider.polling_timestamp
+        else:
+            timestamp = self.model.polling_timestamp
+        if timestamp:
+            return timestamp.strftime(DATE_TIME_FORMAT)
 
     def get_any_data_exists(self):
         """Get  data avaiability status."""
@@ -166,12 +188,28 @@ class ProviderManager:
         if self.model:
             if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
                 source = Sources.objects.get(koku_uuid=self.model.infrastructure.infrastructure_provider_id)
+                manifest = (
+                    CostUsageReportManifest.objects.filter(
+                        provider=self.model.infrastructure.infrastructure_provider_id,
+                        billing_period_start_datetime__in=[
+                            self.date_helper.this_month_start,
+                            self.date_helper.last_month_start,
+                        ],
+                        creation_datetime__isnull=False,
+                    )
+                    .order_by("-creation_datetime")
+                    .first()
+                )
                 return {
                     "type": self.model.infrastructure.infrastructure_type,
                     "uuid": self.model.infrastructure.infrastructure_provider_id,
                     "id": source.source_id,
-                    "account": self.model.infrastructure.infrastructure_account,
-                    "region": self.model.infrastructure.infrastructure_region,
+                    "last_polling_time": self.get_last_polling_time(
+                        self.model.infrastructure.infrastructure_provider_id
+                    ),
+                    "paused": source.paused,
+                    "source_status": source.status,
+                    "cloud_provider_state": self.get_manifest_state(manifest),
                 }
         return {}
 

@@ -153,9 +153,8 @@ objects:
   kind: Secret # For ephemeral/local environment only
   metadata:
     name: koku-aws
-  stringData:
-    aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
-    aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
+  data:
+    aws-credentials: "${AWS_CREDENTIALS_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
@@ -168,10 +167,7 @@ objects:
     name: koku-oci
   data:
     oci-credentials: "${OCI_CREDENTIALS_EPH}"
-  stringData:
-    oci-cli-user: "${OCI_CLI_USER_EPH}"
-    oci-cli-fingerprint: "${OCI_CLI_FINGERPRINT_EPH}"
-    oci-cli-tenancy: "${OCI_CLI_TENANCY_EPH}"
+    oci-config: "${OCI_CONFIG_EPH}"
 
 - apiVersion: v1
   kind: ConfigMap
@@ -270,9 +266,13 @@ parameters:
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
   value: subs-eph-s3
+- name: AWS_SHARED_CREDENTIALS_FILE
+  value: "/etc/aws/aws-credentials"
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
+- name: OCI_SHARED_CREDENTIALS_FILE
+  value: "/etc/oci/oci-config"
 - name: OCI_CLI_KEY_FILE
   description: OCI Credentials Location
   value: "/etc/oci/oci-credentials.pem"
@@ -281,18 +281,6 @@ parameters:
   value: koku-sentry
 - name: GLITCHTIP_KEY_NAME
   value: dsn
-- name: API_SENTRY_DSN_KEY
-  description: (to be replaced with GLITCHTIP_KEY_NAME)
-  value: api-sentry-dsn
-- name: CELERY_SENTRY_DSN_KEY
-  description: (to be replaced with GLITCHTIP_KEY_NAME)
-  value: celery-sentry-dsn
-- name: LISTENER_SENTRY_DSN_KEY
-  description: (to be replaced with GLITCHTIP_KEY_NAME)
-  value: koku-listener-dsn
-- name: SOURCE_SENTRY_DSN_KEY
-  description: (to be replaced with GLITCHTIP_KEY_NAME)
-  value: sources-sentry-dsn
 
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
@@ -415,13 +403,9 @@ parameters:
   displayName: Koku Sentry Env
   name: KOKU_SENTRY_ENV
   value: "development"
-- description: Enable API Sentry
-  displayName: Enable API Sentry
-  name: ENABLE_API_SENTRY
-  value: "False"
-- description: Enable Celery Sentry
-  displayName: Enable Celery Sentry
-  name: ENABLE_CELERY_SENTRY
+- description: Enable Sentry
+  displayName: Enable Sentry
+  name: KOKU_ENABLE_SENTRY
   value: "False"
 
 - description: Enable S3 Archiving
@@ -587,14 +571,10 @@ parameters:
   required: true
   from: "[a-f0-9]{20}"
   generate: expression
-- name: AWS_ACCESS_KEY_ID_EPH
-  displayName: AWS Access Key ID (Ephemeral)
+- displayName: AWS credentials file
+  name: AWS_CREDENTIALS_EPH
   required: true
-  value: insert-string-value
-- name: AWS_SECRET_ACCESS_KEY_EPH
-  displayName: AWS Secret Access Key (Ephemeral)
-  required: true
-  value: insert-string-value
+  value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
 - name: GCP_CREDENTIALS_EPH
   displayName: GCP Credentials (Ephemeral)
   required: true
@@ -603,18 +583,10 @@ parameters:
   displayName: OCI Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CLI_USER_EPH
-  displayName: OCI user (Ephemeral)
+- name: OCI_CONFIG_EPH
+  displayName: OCI Config (Ephemeral)
   required: true
-  value: insert-string-value
-- name: OCI_CLI_FINGERPRINT_EPH
-  displayName: OCI user fingerprint (Ephemeral)
-  required: true
-  value: insert-string-value
-- name: OCI_CLI_TENANCY_EPH
-  displayName: OCI tenancy (Ephemeral)
-  required: true
-  value: insert-string-value
+  value: W0RFRkFVTFRdCnVzZXI9b2NpZDEudXNlci5pZApmaW5nZXJwcmludD0wMDAwMDAwMDAwMDAwMDAwMAp0ZW5hbmN5PW9jaWQxLnRlbmFuY3kuaWQK
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
