@@ -904,13 +904,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     resource_id=node[1],
                     node_capacity_cpu_cores=node[2],
                     node_role=node[3],
-                    arch=node[4],
+                    architecture=node[4],
                     cluster=cluster,
                 )
             # if the node entry already exists but does not have a role assigned, update the node role
-            elif not tmp_node.node_role:
+            if not tmp_node.node_role:
                 tmp_node.node_role = node[3]
-                tmp_node.save()
+                tmp_node.save(update_fields=["node_role"])
+            # if the node entry already exists but does not have an architecture, update the architecture
+            if not tmp_node.architecture:
+                tmp_node.architecture = node[4]
+                tmp_node.save(update_fields=["architecture"])
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""

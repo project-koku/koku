@@ -5,13 +5,13 @@ from django.db import models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("reporting", "0318_ocpazurecomputesummaryp_subscription_name_and_more"),
+        ("reporting", "0319_node_network_costs"),
     ]
 
     operations = [
         migrations.AddField(
             model_name="ocpnode",
-            name="arch",
+            name="architecture",
             field=models.TextField(null=True),
         ),
     ]
