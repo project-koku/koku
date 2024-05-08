@@ -476,6 +476,9 @@ class ParquetReportProcessor:
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_frame)
+            if self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+                # Sync partitions on each file to create partitions that cross month bondaries
+                self.create_parquet_table(parquet_base_filename)
             if not success:
                 msg = "failed to convert files to parquet"
                 LOG.warning(
