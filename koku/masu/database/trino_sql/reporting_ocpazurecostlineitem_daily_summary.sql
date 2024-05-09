@@ -459,6 +459,25 @@ cte_az_resource_to_disk_capacity as (
         AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
         AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
     GROUP BY ocp_filtered.azure_partial_resource_id, date(coalesce(date, usagedatetime))
+),
+cte_total_pv_capacity as (
+    SELECT
+        SUM(combined_requests.capacity) as total_pv_capacity
+    FROM (
+        SELECT
+            ocp.persistentvolume,
+            max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity
+        FROM hive.org1234567.reporting_ocpusagelineitem_daily_summary as ocp
+        JOIN cte_az_resource_to_disk_capacity AS az_disk
+                ON az_disk.usage_start = ocp.usage_start
+                AND (strpos(az_disk.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
+        WHERE ocp.year = {{year}}
+            AND lpad(ocp.month, 2, '0') = {{month}}
+            AND ocp.usage_start >= {{start_date}}
+            AND ocp.usage_start < date_add('day', 1, {{end_date}})
+            AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+        GROUP BY ocp.persistentvolume
+    ) as combined_requests
 )
 SELECT
     disk_cost.azure_uuid as azure_disk,
@@ -522,8 +541,8 @@ FROM (
         max(azure.subscription_guid) as subscription_guid,
         max(azure.subscription_name) as subscription_name,
         max(nullif(azure.resource_location, '')) as resource_location,
-        max(azure.unit_of_measure) as unit_of_measure,
-        max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
+        cast(NULL as varchar) as unit_of_measure,
+        cast(NULL as double) as usage_quantity,
         max(azure.currency) as currency,
         (max(az_disk.capacity) - max(persistentvolumeclaim_capacity_gigabyte)) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))  as pretax_cost,
         ((max(az_disk.capacity) - max(persistentvolumeclaim_capacity_gigabyte)) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
@@ -555,6 +574,8 @@ FROM (
     JOIN cte_az_resource_to_disk_capacity AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
+    LEFT JOIN cte_total_pv_capacity as pv_cap
+        ON 1 = 1
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}}
