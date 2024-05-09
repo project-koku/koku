@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Constants file."""
+from types import MappingProxyType
+
 from api.models import Provider
 
 """Model for our cost model metric map."""
@@ -171,11 +173,14 @@ PLATFORM_COST = "platform_cost"
 WORKER_UNALLOCATED = "worker_cost"
 NETWORK_UNATTRIBUTED = "network_unattributed"
 STORAGE_UNATTRIBUTED = "storage_unattributed"
+DISTRIBUTION_TYPE = "distribution_type"
 
-DEFAULT_DISTRIBUTION_INFO = {
-    "distribution_type": CPU_DISTRIBUTION,
-    PLATFORM_COST: True,
-    WORKER_UNALLOCATED: True,
-    NETWORK_UNATTRIBUTED: False,
-    STORAGE_UNATTRIBUTED: False,
-}
+DEFAULT_DISTRIBUTION_INFO = MappingProxyType(
+    {
+        DISTRIBUTION_TYPE: CPU_DISTRIBUTION,
+        PLATFORM_COST: True,
+        WORKER_UNALLOCATED: True,
+        NETWORK_UNATTRIBUTED: False,
+        STORAGE_UNATTRIBUTED: False,
+    }
+)
