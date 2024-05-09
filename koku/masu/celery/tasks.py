@@ -418,7 +418,7 @@ def scrape_azure_storage_capacities():
                 )
 
     except (HTTPError, RetryError) as e:
-        LOG.error(f"Couldn't pull latest conversion rates from {url}")
+        LOG.error(f"Unable to retrieve azure disk capacities {url}")
         LOG.error(e)
         return
 

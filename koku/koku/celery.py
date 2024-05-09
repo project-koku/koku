@@ -200,7 +200,8 @@ app.conf.beat_schedule["get_daily_currency_rates"] = {
     "schedule": crontab(hour=1, minute=0),
 }
 
-# Beat used to fetch daily rates
+# We should decide if we want to scrape every day,
+# or just use this as a one time scrape for now.
 app.conf.beat_schedule["scrape_azure_storage_capacities"] = {
     "task": "masu.celery.tasks.scrape_azure_storage_capacities",
     "schedule": crontab(hour=1, minute=0),

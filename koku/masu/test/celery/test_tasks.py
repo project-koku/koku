@@ -505,3 +505,23 @@ class TestCeleryTasks(MasuTestCase):
         afterRows = AzureStorageCapacity.objects.count()
         self.assertNotEqual(beforeRows, afterRows)
         self.assertEqual(afterRows, 14)
+
+    def test_error_scrape_azure_storage_capacities(self):
+        """Test HTTP error capture."""
+        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+        with self.assertLogs("masu.celery.tasks", "ERROR") as captured_logs:
+            with requests_mock.Mocker() as reqmock:
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-premium-ssd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-standard-hdd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-standard-ssd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                result = tasks.scrape_azure_storage_capacities()
+
+        self.assertIsNone(result)
+        self.assertIn("Unable to retrieve azure disk capacities", captured_logs.output[0])
+        self.assertIn("Raised intentionally", captured_logs.output[1])

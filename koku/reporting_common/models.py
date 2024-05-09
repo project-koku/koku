@@ -231,5 +231,4 @@ class AzureStorageCapacity(models.Model):
     """
 
     product_substring = models.CharField(max_length=20, primary_key=True)
-    # Change data type here to an integer?
     capacity = models.IntegerField()
