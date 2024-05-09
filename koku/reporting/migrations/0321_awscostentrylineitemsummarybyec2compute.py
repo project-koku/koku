@@ -11,7 +11,7 @@ from koku.database import unset_pg_extended_mode
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0319_node_network_costs"),
+        ("reporting", "0320_ocpcloud_projsumm_network_fields"),
     ]
 
     operations = [
