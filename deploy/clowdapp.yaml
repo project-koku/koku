@@ -4048,6 +4048,10 @@ objects:
           value: ${MGMT_IMAGE}
         - name: MGMT_IMAGE_TAG
           value: ${MGMT_IMAGE_TAG}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
         image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
         resources:
           limits:

@@ -29,6 +29,7 @@ class TestOCPPostProcessor(MasuTestCase):
         resource_id = "123"
         pvc = "pvc_1"
         label = '{"key": "value"}'
+        csi_driver = "ebs.csi.aws.com"
 
         interval_start = datetime.datetime(2021, 6, 7, 1, 0, 0)
         next_hour = datetime.datetime(2021, 6, 7, 2, 0, 0)
@@ -64,7 +65,6 @@ class TestOCPPostProcessor(MasuTestCase):
             "node_capacity_memory_bytes": capacity,
             "node_capacity_memory_byte_seconds": capacity,
             "pod_labels": label,
-            "unexpected_column": None,
         }
 
         base_storage_data = {
@@ -73,13 +73,14 @@ class TestOCPPostProcessor(MasuTestCase):
             "persistentvolumeclaim": pvc,
             "persistentvolume": pvc,
             "storageclass": "gold",
+            "node": node,
+            "csi_driver": csi_driver,
             "persistentvolumeclaim_capacity_bytes": capacity,
             "persistentvolumeclaim_capacity_byte_seconds": capacity,
             "volume_request_storage_byte_seconds": usage,
             "persistentvolumeclaim_usage_byte_seconds": usage,
             "persistentvolume_labels": label,
             "persistentvolumeclaim_labels": label,
-            "unexpected_column": None,
         }
 
         base_node_data = {"node": node, "node_labels": label}
@@ -116,6 +117,10 @@ class TestOCPPostProcessor(MasuTestCase):
                 self.assertTrue((second_day["pod_usage_cpu_core_seconds"] == usage).any(bool_only=True))
                 self.assertTrue((second_day["pod_usage_memory_byte_seconds"] == usage).any(bool_only=True))
                 self.assertTrue((second_day["node_capacity_cpu_cores"] == capacity).any(bool_only=True))
+
+                # assert that the new_required_cols have been added:
+                self.assertEqual(first_day["node_role"].dtype, pd.StringDtype(storage="pyarrow"))
+
             elif report_type == "storage_usage":
                 self.assertTrue(
                     (first_day["persistentvolumeclaim_usage_byte_seconds"] == usage * 2).any(bool_only=True)
@@ -132,6 +137,12 @@ class TestOCPPostProcessor(MasuTestCase):
                     (second_day["persistentvolumeclaim_capacity_byte_seconds"] == capacity).any(bool_only=True)
                 )
                 self.assertTrue((second_day["persistentvolumeclaim_capacity_bytes"] == capacity).any(bool_only=True))
+
+                self.assertTrue((first_day["node"] == node).any(bool_only=True))
+                self.assertTrue((first_day["csi_driver"] == csi_driver).any(bool_only=True))
+                # assert that the new_required_cols have been added:
+                self.assertEqual(first_day["csi_volume_handle"].dtype, pd.StringDtype(storage="pyarrow"))
+
             elif report_type == "node_labels":
                 self.assertTrue((first_day["node"] == node).any(bool_only=True))
                 self.assertTrue((first_day["node_labels"] == label).any(bool_only=True))
