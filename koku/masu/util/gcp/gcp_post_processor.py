@@ -37,6 +37,8 @@ def process_gcp_labels(label_string):
 def process_gcp_credits(credit_string):
     """Process the credits column, which is non-standard JSON."""
     credit_dict = {}
+    if credit_string == "":
+        return credit_dict
     try:
         gcp_credits = json.loads(credit_string.replace("'", '"').replace("None", '"None"'))
         if gcp_credits:
