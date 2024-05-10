@@ -320,6 +320,8 @@ class TestGCPPostProcessor(MasuTestCase):
         expected = '{"first": "yes", "second": "None", "third": "no"}'
         credit_result = credit_converter(credit_string)
         self.assertEqual(credit_result, expected)
+        credit_result = credit_converter("")
+        self.assertEqual(credit_result, {})
 
     def test_process_gcp_labels(self):
         """Test that labels are formatted properly."""
