@@ -457,9 +457,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
         with OCPReportDBAccessor(self._schema) as accessor:
 
-            accessor.populate_platform_and_worker_distributed_cost_sql(
-                start_date, end_date, self._provider_uuid, self._distribution_info
-            )
+            accessor.populate_distributed_cost_sql(start_date, end_date, self._provider_uuid, self._distribution_info)
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if report_period:
