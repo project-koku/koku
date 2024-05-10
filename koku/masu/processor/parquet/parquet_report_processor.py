@@ -79,14 +79,12 @@ class ParquetReportProcessor:
         ingress_reports_uuid=None,
     ):
         """initialize report processor."""
-        if context is None:
-            context = {}
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
         self._report_file = Path(report_path)
         self.provider_type = provider_type
         self._manifest_id = manifest_id
-        self._context = context
+        self._context = context or {}
         self.start_date = self._context.get("start_date")
         self.invoice_month_date = None
         if invoice_month := self._context.get("invoice_month"):
@@ -98,10 +96,6 @@ class ParquetReportProcessor:
 
         self.split_files = [Path(file) for file in self._context.get("split_files") or []]
         self.ocp_files_to_process: dict[str, dict[str, str]] = self._context.get("ocp_files_to_process")
-        if self.manifest_id:
-            self.report_status = CostUsageReportStatus.objects.get(
-                report_name=Path(self._report_file).name, manifest_id=self.manifest_id
-            )
 
     @property
     def schema_name(self):
@@ -148,6 +142,14 @@ class ParquetReportProcessor:
     def manifest_id(self):
         """The manifest id."""
         return self._manifest_id
+
+    @property
+    def report_status(self):
+        if self.manifest_id:
+            return CostUsageReportStatus.objects.get(
+                report_name=Path(self._report_file).name, manifest_id=self.manifest_id
+            )
+        return None
 
     @property
     def report_file(self):
@@ -582,7 +584,10 @@ class ParquetReportProcessor:
                 ),
                 exc_info=err,
             )
-            self.report_status.update_status(CombinedChoices.FAILED)
+            if self.report_status:
+                # internal masu endpoints may result in this being None,
+                # so guard this in case there is no status to update
+                self.report_status.update_status(CombinedChoices.FAILED)
             return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True
