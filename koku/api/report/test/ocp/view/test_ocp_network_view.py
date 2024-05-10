@@ -37,3 +37,18 @@ class OCPReportViewNetworkTest(IamTestCase):
             response = client.get(url, **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_network_api_group_by(self):
+        url = reverse("reports-openshift-network")
+        client = APIClient()
+        with (
+            schema_context(self.schema_name),
+            patch(
+                "api.report.ocp.view.UNLEASH_CLIENT.is_enabled",
+                return_value=True,
+            ),
+        ):
+            response = client.get(url, {"group_by[cluster]": "*"}, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data["data"][0].get("clusters"))
