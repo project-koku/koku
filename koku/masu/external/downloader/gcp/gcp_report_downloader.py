@@ -455,7 +455,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Helper to build query select statement."""
         columns_list = self.gcp_big_query_columns.copy()
         columns_list = [
-            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
+            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels", "credits") else col
             for col in columns_list
         ]
         # Swap out resource columns with NULLs when we are processing
