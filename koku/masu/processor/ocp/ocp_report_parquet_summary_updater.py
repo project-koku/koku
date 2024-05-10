@@ -168,7 +168,14 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def check_cluster_infrastructure(self, start_date, end_date):
 
-        LOG.info(log_json(msg="checking if OCP cluster is running on cloud infrastructure", context=self._context))
+        LOG.info(
+            log_json(
+                msg="checking if OCP cluster is running on cloud infrastructure",
+                context=self._context,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
 
         updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
         if (
