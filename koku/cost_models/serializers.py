@@ -476,7 +476,11 @@ class CostModelSerializer(BaseSerializer):
             data["currency"] = get_currency(self.context.get("request"))
 
         if not data.get("distribution_info"):
-            data["distribution_info"] = metric_constants.DEFAULT_DISTRIBUTION_INFO
+            # TODO: Have this return just the default distribution info after
+            # QE updates tests.
+            distribution_info = metric_constants.DEFAULT_DISTRIBUTION_INFO
+            distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
+            data["distribution_info"] = distribution_info
         if (
             data.get("markup")
             and not data.get("rates")
