@@ -143,13 +143,12 @@ class ParquetReportProcessor:
         """The manifest id."""
         return self._manifest_id
 
-    @property
+    @cached_property
     def report_status(self):
         if self.manifest_id:
             return CostUsageReportStatus.objects.get(
                 report_name=Path(self._report_file).name, manifest_id=self.manifest_id
             )
-        return None
 
     @property
     def report_file(self):
