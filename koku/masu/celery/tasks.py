@@ -49,8 +49,8 @@ from masu.util.aws.common import get_s3_resource
 from masu.util.oci.common import OCI_REPORT_TYPES
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
-from reporting_common.models import AzureStorageCapacity
 from reporting_common.models import DelayedCeleryTasks
+from reporting_common.models import DiskCapacity
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
@@ -413,8 +413,10 @@ def scrape_azure_storage_capacities():
             sizes = disk_sizes_row.split("|")[2:-1]
             for term, size in zip(terms, sizes):
                 capacity_string = size.strip().replace(",", "")
-                AzureStorageCapacity.objects.get_or_create(
-                    product_substring=term.strip(), capacity=int(capacity_string)
+                DiskCapacity.objects.get_or_create(
+                    product_substring=term.strip(),
+                    capacity=int(capacity_string),
+                    provider_type=Provider.PROVIDER_AZURE,
                 )
 
     except (HTTPError, RetryError) as e:
