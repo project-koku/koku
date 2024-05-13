@@ -407,7 +407,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         key_to_file_mapping = {
             metric_constants.PLATFORM_COST: "distribute_platform_cost.sql",
             metric_constants.WORKER_UNALLOCATED: "distribute_worker_cost.sql",
-            # metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
+            metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
             # metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
         }
 
@@ -415,7 +415,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
-            msg = "no report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update"
+            msg = "no report period for OCP provider, skipping distribution update"
             context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
             LOG.info(log_json(msg=msg, context=context))
             return
