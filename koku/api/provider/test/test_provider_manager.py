@@ -707,13 +707,8 @@ class ProviderManagerTest(IamTestCase):
         credentials = {"cluster_id": "cluster_id_1001"}
         provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         aws_provider = Provider.objects.filter(type="AWS-local").first()
-        account = "account"
-        region = "west"
         infrastructure = ProviderInfrastructureMap.objects.create(
-            infrastructure_type=Provider.PROVIDER_AWS,
-            infrastructure_provider=aws_provider,
-            infrastructure_account=account,
-            infrastructure_region=region,
+            infrastructure_type=Provider.PROVIDER_AWS, infrastructure_provider=aws_provider
         )
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
@@ -731,21 +726,16 @@ class ProviderManagerTest(IamTestCase):
             infrastructure_info = manager.get_infrastructure_info()
             self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AWS)
             self.assertEqual(infrastructure_info.get("uuid", ""), aws_provider.uuid)
-            self.assertEqual(infrastructure_info.get("account", ""), account)
-            self.assertEqual(infrastructure_info.get("region", ""), region)
 
     def test_ocp_on_azure_infrastructure_type(self):
         """Test that the provider infrastructure returns Azure when running on Azure."""
         credentials = {"cluster_id": "cluster_id_1002"}
         provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
         azure_provider = Provider.objects.filter(type="Azure-local").first()
-        account = "account"
-        region = "west"
+
         infrastructure = ProviderInfrastructureMap.objects.create(
             infrastructure_type=Provider.PROVIDER_AZURE,
             infrastructure_provider=azure_provider,
-            infrastructure_account=account,
-            infrastructure_region=region,
         )
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(
@@ -762,8 +752,6 @@ class ProviderManagerTest(IamTestCase):
             infrastructure_info = manager.get_infrastructure_info()
             self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AZURE)
             self.assertEqual(infrastructure_info.get("uuid", ""), azure_provider.uuid)
-            self.assertEqual(infrastructure_info.get("account", ""), account)
-            self.assertEqual(infrastructure_info.get("region", ""), region)
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
