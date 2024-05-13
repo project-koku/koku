@@ -207,10 +207,10 @@ SELECT cast(uuid() as varchar) as uuid,
         WHEN max(aws.lineitem_productcode) = 'AmazonEC2' AND max(aws.product_productfamily) = 'Data Transfer' THEN
             -- Yes, it's a network record. What's the direction?
             CASE
-                WHEN position(max(aws.lineitem_usagetype) IN 'In-Bytes') > 0 THEN 'IN'
-                WHEN position(max(aws.lineitem_usagetype) IN 'Out-Bytes') > 0 THEN 'OUT'
-                WHEN (position(max(aws.lineitem_usagetype) IN 'Regional-Bytes') > 0 AND position(max(lineitem_operation) IN '-In') > 0) THEN 'IN'
-                WHEN (position(max(aws.lineitem_usagetype) IN 'Regional-Bytes') > 0 AND position(max(lineitem_operation) IN '-Out') > 0) THEN 'OUT'
+                WHEN position(lower(max(aws.lineitem_usagetype)) IN 'in-bytes') > 0 THEN 'IN'
+                WHEN position(lower(max(aws.lineitem_usagetype)) IN 'out-bytes') > 0 THEN 'OUT'
+                WHEN (position(lower(max(aws.lineitem_usagetype)) IN 'regional-bytes') > 0 AND position(max(lineitem_operation) IN '-In') > 0) THEN 'IN'
+                WHEN (position(lower(max(aws.lineitem_usagetype)) IN 'regional-bytes') > 0 AND position(max(lineitem_operation) IN '-Out') > 0) THEN 'OUT'
                 ELSE NULL
             END
     END AS data_transfer_direction,
