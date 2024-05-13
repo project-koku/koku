@@ -966,6 +966,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         side_effect = [
             [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
             [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
         ]
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
@@ -978,11 +979,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
             expected_calls = [
                 call(masu_database, "sql/openshift/cost_model/distribute_worker_cost.sql"),
                 call(masu_database, "sql/openshift/cost_model/distribute_platform_cost.sql"),
+                call(masu_database, "sql/openshift/cost_model/distribute_unattributed_storage_cost.sql"),
             ]
             for expected_call in expected_calls:
                 self.assertIn(expected_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
-            self.assertEqual(len(mock_sql_execute.call_args_list), 2)
+            self.assertEqual(len(mock_sql_execute.call_args_list), 3)
 
     @patch("masu.database.ocp_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
     def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
