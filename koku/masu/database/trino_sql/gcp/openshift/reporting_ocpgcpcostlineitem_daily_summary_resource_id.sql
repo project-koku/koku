@@ -881,11 +881,11 @@ SELECT uuid(),
     service_id,
     service_alias,
     CASE
-        WHEN lower(data_transfer_direction) = 'IN' THEN usage_quantity
+        WHEN upper(data_transfer_direction) = 'IN' THEN usage_quantity
         ELSE 0
     END as infrastructure_data_in_gigabytes,
     CASE
-        WHEN lower(data_transfer_direction) = 'OUT' THEN usage_quantity
+        WHEN upper(data_transfer_direction) = 'OUT' THEN usage_quantity
         ELSE 0
     END as infrastructure_data_out_gigabytes,
     data_transfer_direction as data_transfer_direction,
