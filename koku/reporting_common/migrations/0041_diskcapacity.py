@@ -70,7 +70,6 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("AWS", "AWS"),
-                            ("OCP", "OCP"),
                             ("Azure", "Azure"),
                             ("GCP", "GCP"),
                             ("IBM", "IBM"),
