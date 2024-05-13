@@ -204,16 +204,16 @@ SELECT cast(uuid() as varchar) as uuid,
     -- Determine network direction
     CASE
         -- Is this a network record?
-        WHEN aws.lineitem_productcode = 'AmazonEC2' AND aws.product_productfamily = 'Data Transfer' THEN
-            -- Yes, it's a network. What's the direction?
+        WHEN max(aws.lineitem_productcode) = 'AmazonEC2' AND max(aws.product_productfamily) = 'Data Transfer' THEN
+            -- Yes, it's a network record. What's the direction?
             CASE
-                WHEN strpos(aws.lineitem_usagetype, 'In-Bytes') > 0 THEN 'IN'
-                WHEN strpos(aws.lineitem_usagetype, 'Out-Bytes') > 0 THEN 'OUT'
-                WHEN (strpos(aws.lineitem_usagetype, 'Regional-Bytes') > 0 AND strpos(lineitem_operation, '-In') > 0) THEN 'IN'
-                WHEN (strpos(aws.lineitem_usagetype, 'Regional-Bytes') > 0 AND strpos(lineitem_operation, '-Out') > 0)THEN 'OUT'
+                WHEN position(max(aws.lineitem_usagetype) IN 'In-Bytes') > 0 THEN 'IN'
+                WHEN position(max(aws.lineitem_usagetype) IN 'Out-Bytes') > 0 THEN 'OUT'
+                WHEN (position(max(aws.lineitem_usagetype) IN 'Regional-Bytes') > 0 AND position(max(lineitem_operation) IN '-In') > 0) THEN 'IN'
+                WHEN (position(max(aws.lineitem_usagetype) IN 'Regional-Bytes') > 0 AND position(max(lineitem_operation) IN '-Out') > 0) THEN 'OUT'
                 ELSE NULL
             END
-    END as data_transfer_direction,
+    END AS data_transfer_direction,
     max(nullif(aws.lineitem_currencycode, '')) as currency_code,
     sum(aws.lineitem_unblendedcost) as unblended_cost,
     sum(aws.lineitem_blendedcost) as blended_cost,
@@ -462,7 +462,7 @@ SELECT aws.uuid as aws_uuid,
         AND aws.ocp_source = {{ocp_source_uuid}}
         AND aws.year = {{year}}
         AND aws.month = {{month}}
-        -- Filter out Node Networks Costs since they cannot be attributed to a namespace and are account for later
+        -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
         AND aws.data_transfer_direction IS NULL
     GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels
 ;
@@ -739,14 +739,111 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
 WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
 ;
 
--- Put Node Network Costs back in
+-- Put Node Network Costs into the Network unattributed namespace
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary (
-
+    aws_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    data_transfer_direction,
+    currency_code,
+    unblended_cost,
+    markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
+    pod_cost,
+    project_markup_cost,
+    pod_labels,
+    tags,
+    aws_cost_category,
+    cost_category_id,
+    aws_source,
+    ocp_source,
+    year,
+    month,
+    day
 )
-FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
+SELECT
+    aws.uuid AS aws_uuid,
+    max(cluster_id),
+    max(cluster_alias),
+    max(data_source),
+    'Network unattributed' AS namespace,
+    max(node),
+    max(persistentvolumeclaim),
+    max(persistentvolume),
+    max(storageclass),
+    max(aws.resource_id),
+    max(aws.usage_start),
+    max(usage_end),
+    max(product_code),
+    max(product_family),
+    max(instance_type),
+    max(usage_account_id),
+    max(availability_zone),
+    max(region),
+    max(unit),
+    max(usage_amount),
+    data_transfer_direction,
+    max(currency_code),
+    max(unblended_cost),
+    max(unblended_cost) * cast({{markup}} AS decimal(24,9)),
+    max(blended_cost),
+    max(blended_cost) * cast({{markup}} AS decimal(24,9)),
+    max(savingsplan_effective_cost),
+    max(savingsplan_effective_cost) * cast({{markup}} AS decimal(24,9)),
+    max(calculated_amortized_cost),
+    max(calculated_amortized_cost) * cast({{markup}} AS decimal(33,9)),
+    max(unblended_cost) AS pod_cost,
+    max(unblended_cost) * cast({{markup}} AS decimal(24,9)) AS project_markup_cost,
+    max(ocp.pod_labels),
+    cast(NULL AS varchar) AS tags,
+    cast(NULL AS varchar) AS aws_cost_category,
+    max(cost_category_id),
+    max({{aws_source_uuid}}) AS aws_source,
+    max({{ocp_source_uuid}}) AS ocp_source,
+    max(cast(year(aws.usage_start) AS varchar)) AS year,
+    max(cast(month(aws.usage_start) AS varchar)) AS month,
+    max(cast(day(aws.usage_start) AS varchar)) AS day
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
+JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp AS aws
     ON aws.usage_start = ocp.usage_start
-        AND strpos(aws.resource_id, ocp.resource_id) != 0
+    AND position(ocp.resource_id IN aws.resource_id) != 0
+WHERE ocp.source = {{ocp_source_uuid}}
+    AND ocp.year = {{year}}
+    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.day IN {{days | inclause}}
+    AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+    AND aws.ocp_source = {{ocp_source_uuid}}
+    AND aws.year = {{year}}
+    AND aws.month = {{month}}
+    -- Network related costs
+    AND aws.data_transfer_direction IS NOT NULL
+GROUP BY
+    aws.uuid,
+    ocp.node,
+    aws.data_transfer_direction
+;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
     uuid,
