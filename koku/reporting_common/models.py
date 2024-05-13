@@ -238,4 +238,4 @@ class DiskCapacity(models.Model):
 
     product_substring = models.CharField(max_length=20, primary_key=True)
     capacity = models.IntegerField()
-    provider_type = models.CharField(max_length=50, null=False, choices=Provider.PROVIDER_CHOICES)
+    provider_type = models.CharField(max_length=50, null=False, choices=Provider.CLOUD_PROVIDER_CHOICES)
