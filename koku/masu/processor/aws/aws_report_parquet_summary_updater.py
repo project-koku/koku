@@ -14,7 +14,6 @@ from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
 from masu.util.common import date_range_pair
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
@@ -103,13 +102,6 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
-
-            # COST-4403
-            # Only populate EC2 compute cost summary table if feature is enabled
-            if is_feature_cost_4403_ec2_compute_cost_enabled(self._schema):
-                LOG.info("AWS EC2 Compute Cost feature is enabled.")
-                accessor.populate_ec2_compute_cost_summary_table(bill_ids, start_date, end_date)
-
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()
