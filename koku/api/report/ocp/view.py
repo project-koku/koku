@@ -5,6 +5,8 @@
 """View for OpenShift Usage Reports."""
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
+from api.report.ocp.network.example import ExampleGroupByResponseBody
+from api.report.ocp.network.example import ExampleResponseBody
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer

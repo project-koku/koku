@@ -930,19 +930,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 acc.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
                 self.assertIn("no report period for OCP provider", logger.output[0])
 
-    def test_populate_platform_and_worker_distributed_cost_sql_no_report_period(self):
+    def test_populate_distributed_cost_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
         start_date = "2000-01-01"
         end_date = "2000-02-01"
         with self.accessor as acc:
-            result = acc.populate_platform_and_worker_distributed_cost_sql(
+            result = acc.populate_distributed_cost_sql(
                 start_date, end_date, self.provider_uuid, {"platform_cost": True}
             )
             self.assertIsNone(result)
 
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_raw_sql_query")
-    def test_populate_platform_and_worker_distributed_cost_sql_called(self, mock_sql_execute, mock_data_get):
+    def test_populate_distributed_cost_sql_called(self, mock_sql_execute, mock_data_get):
         """Test that the platform distribution is called."""
 
         def get_pkgutil_values(file):
@@ -966,23 +966,25 @@ class OCPReportDBAccessorTest(MasuTestCase):
         side_effect = [
             [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
             [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
+            [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
         ]
         mock_jinja = Mock()
         mock_jinja.side_effect = side_effect
 
         with self.accessor as acc:
             acc.prepare_query = mock_jinja
-            acc.populate_platform_and_worker_distributed_cost_sql(
+            acc.populate_distributed_cost_sql(
                 start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True}
             )
             expected_calls = [
                 call(masu_database, "sql/openshift/cost_model/distribute_worker_cost.sql"),
                 call(masu_database, "sql/openshift/cost_model/distribute_platform_cost.sql"),
+                call(masu_database, "sql/openshift/cost_model/distribute_unattributed_storage_cost.sql"),
             ]
             for expected_call in expected_calls:
                 self.assertIn(expected_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
-            self.assertEqual(len(mock_sql_execute.call_args_list), 2)
+            self.assertEqual(len(mock_sql_execute.call_args_list), 3)
 
     @patch("masu.database.ocp_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
     def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):

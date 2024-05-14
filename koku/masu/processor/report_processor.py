@@ -118,7 +118,7 @@ class ReportProcessor:
         try:
             parquet_base_filename, daily_data_frames = self._processor.process()
             if self.ocp_on_cloud_processor:
-                self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames, self.manifest_id)
+                self.ocp_on_cloud_processor.process(parquet_base_filename, daily_data_frames)
             return daily_data_frames != []
         except ReportsAlreadyProcessed:
             report_status.update_status(CombinedChoices.DONE)
