@@ -207,10 +207,10 @@ SELECT cast(uuid() as varchar) as uuid,
         WHEN max(aws.lineitem_productcode) = 'AmazonEC2' AND max(aws.product_productfamily) = 'Data Transfer' THEN
             -- Yes, it's a network record. What's the direction?
             CASE
-                WHEN position(lower(max(aws.lineitem_usagetype)) IN 'in-bytes') > 0 THEN 'IN'
-                WHEN position(lower(max(aws.lineitem_usagetype)) IN 'out-bytes') > 0 THEN 'OUT'
-                WHEN (position(lower(max(aws.lineitem_usagetype)) IN 'regional-bytes') > 0 AND position(max(lineitem_operation) IN '-In') > 0) THEN 'IN'
-                WHEN (position(lower(max(aws.lineitem_usagetype)) IN 'regional-bytes') > 0 AND position(max(lineitem_operation) IN '-Out') > 0) THEN 'OUT'
+                WHEN position('in-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 THEN 'IN'
+                WHEN position('out-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 THEN 'OUT'
+                WHEN (position('regional-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 AND position('-in' IN lower(max(lineitem_operation))) > 0) THEN 'IN'
+                WHEN (position('regional-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 AND position('-out' IN lower(max(lineitem_operation))) > 0) THEN 'OUT'
                 ELSE NULL
             END
     END AS data_transfer_direction,
@@ -869,6 +869,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     region,
     unit,
     usage_amount,
+    data_transfer_direction,
     currency_code,
     unblended_cost,
     markup_cost,
@@ -909,6 +910,7 @@ SELECT uuid(),
     region,
     unit,
     usage_amount,
+    data_transfer_direction,
     currency_code,
     unblended_cost,
     markup_cost,
