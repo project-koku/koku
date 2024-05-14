@@ -366,10 +366,13 @@ SELECT azure.uuid as azure_uuid,
     max(azure.month) as month
     FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
-        ON azure.usage_start = ocp.usage_start
+        ON (azure.usage_start = ocp.usage_start)
         AND (
                 (azure.resource_id = ocp.node AND ocp.data_source = 'Pod')
-                    OR (azure.resource_id = ocp.persistentvolume AND ocp.data_source = 'Storage')
+            OR
+                (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
+            OR
+                (LOWER(CONCAT(ocp.node, '_OSDisk')) = LOWER(azure.resource_id))
             )
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}

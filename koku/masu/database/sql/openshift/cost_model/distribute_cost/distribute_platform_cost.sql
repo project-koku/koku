@@ -40,6 +40,8 @@ user_defined_project_sum as (
         AND report_period_id = {{report_period_id}}
         AND lids.namespace != 'Worker unallocated'
         AND lids.namespace != 'Platform unallocated'
+        AND lids.namespace != 'Storage unattributed'
+        AND lids.namespace != 'Network unattributed'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY usage_start, cluster_id, source_uuid
 ),

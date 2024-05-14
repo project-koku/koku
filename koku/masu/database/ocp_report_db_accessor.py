@@ -20,6 +20,7 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
+from api.metrics import constants as metric_constants
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.database import SQLScriptAtomicExecutorMixin
@@ -205,8 +206,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for entry in results:
                     # This dictionary is keyed on an OpenShift provider UUID
                     # and the tuple contains
-                    # (Infra Provider UUID, Infra Provider Type, Infra account number, Infra region)
-                    db_results[entry[0]] = (entry[1], entry[2], entry[3], entry[4])
+                    # (Infra Provider UUID, Infra Provider Type)
+                    db_results[entry[0]] = (entry[1], entry[2])
                 if db_results:
                     # An OCP cluster can only run on a single source, so stop here if we found a match
                     return db_results
@@ -392,11 +393,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ),
         )
 
-    def populate_platform_and_worker_distributed_cost_sql(
-        self, start_date, end_date, provider_uuid, distribution_info
-    ):
+    def populate_distributed_cost_sql(self, start_date, end_date, provider_uuid, distribution_info):
         """
-        Populate the platform cost distribution of a customer.
+        Populate the distribution cost model options.
 
         args:
             start_date (datetime, str): The start_date to calculate monthly_cost.
@@ -404,37 +403,32 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
-        distribute_mapping = {}
+
+        key_to_file_mapping = {
+            metric_constants.PLATFORM_COST: "distribute_platform_cost.sql",
+            metric_constants.WORKER_UNALLOCATED: "distribute_worker_cost.sql",
+            metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
+            # metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
+        }
+
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
-            msg = "no report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update"
+            msg = "no report period for OCP provider, skipping distribution update"
             context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
             LOG.info(log_json(msg=msg, context=context))
             return
 
         report_period_id = report_period.id
-        distribute_mapping = {
-            "platform_cost": {
-                "sql_file": "distribute_platform_cost.sql",
-                "log_msg": {
-                    True: "distributing platform cost",
-                    False: "removing platform_distributed cost model rate type",
-                },
-            },
-            "worker_cost": {
-                "sql_file": "distribute_worker_cost.sql",
-                "log_msg": {
-                    True: "distributing worker unallocated cost",
-                    False: "removing worker_distributed cost model rate type",
-                },
-            },
-        }
 
-        for cost_model_key, metadata in distribute_mapping.items():
+        for cost_model_key, sql_file in key_to_file_mapping.items():
             populate = distribution_info.get(cost_model_key, False)
-            # if populate is false we only execute the delete sql.
+            if populate:
+                log_msg = f"distributing {cost_model_key}"
+            else:
+                # if populate is false we only execute the delete sql.
+                log_msg = f"removing {cost_model_key} distribution"
             sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
@@ -445,9 +439,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "populate": populate,
             }
 
-            sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{metadata['sql_file']}")
+            sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/distribute_cost/{sql_file}")
             sql = sql.decode("utf-8")
-            LOG.info(log_json(msg=metadata["log_msg"][populate], context=sql_params))
+            LOG.info(log_json(msg=log_msg, context=sql_params))
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):

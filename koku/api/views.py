@@ -49,6 +49,7 @@ from api.report.oci.view import OCIStorageView
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
+from api.report.ocp.view import OCPNetworkView
 from api.report.ocp.view import OCPVolumeView
 from api.resource_types.aws_accounts.view import AWSAccountView
 from api.resource_types.aws_category.view import AWSCategoryView
