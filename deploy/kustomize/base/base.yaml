@@ -115,6 +115,10 @@ objects:
           value: ${MGMT_IMAGE}
         - name: MGMT_IMAGE_TAG
           value: ${MGMT_IMAGE_TAG}
+        - name: TRINO_HOST
+          value: ${TRINO_HOST}
+        - name: TRINO_PORT
+          value: ${TRINO_PORT}
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
