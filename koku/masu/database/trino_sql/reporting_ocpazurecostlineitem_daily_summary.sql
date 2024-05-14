@@ -372,7 +372,7 @@ SELECT azure.uuid as azure_uuid,
             OR
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
             OR
-                (LOWER(CONCAT(ocp.node, '_OSDisk')) = LOWER(azure.resource_id)) AND ocp.data_source = 'Pod'
+                (LOWER(CONCAT(ocp.node, '_OSDisk')) = LOWER(azure.resource_id) AND ocp.data_source = 'Pod')
             )
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
