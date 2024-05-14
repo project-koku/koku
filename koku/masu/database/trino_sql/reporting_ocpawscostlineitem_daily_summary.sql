@@ -757,6 +757,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     product_family,
     instance_type,
     usage_account_id,
+    account_alias_id,
     availability_zone,
     region,
     unit,
@@ -800,6 +801,7 @@ SELECT
     max(product_family),
     max(instance_type),
     max(usage_account_id),
+    max(aa.id) AS account_alias_id,
     max(availability_zone),
     max(region),
     max(unit),
@@ -829,6 +831,8 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp AS aws
     ON aws.usage_start = ocp.usage_start
     AND position(ocp.resource_id IN aws.resource_id) != 0
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    ON aws.usage_account_id = aa.account_id
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -869,6 +873,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     region,
     unit,
     usage_amount,
+    infrastructure_data_in_gigabytes,
+    infrastructure_data_out_gigabytes,
     data_transfer_direction,
     currency_code,
     unblended_cost,
@@ -910,6 +916,14 @@ SELECT uuid(),
     region,
     unit,
     usage_amount,
+    CASE
+        WHEN upper(data_transfer_direction) = 'IN' THEN usage_amount
+        ELSE 0
+    END AS infrastructure_data_in_gigabytes,
+    CASE
+        WHEN upper(data_transfer_direction) = 'OUT' THEN usage_amount
+        ELSE 0
+    END AS infrastructure_data_out_gigabytes,
     data_transfer_direction,
     currency_code,
     unblended_cost,
