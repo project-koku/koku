@@ -54,7 +54,6 @@ def process_gcp_credits(credit_string: str) -> str:
     if gcp_credits:
         credit_dict = gcp_credits[0]
 
-    # FIXME: This should return a dictionary
     return json.dumps(credit_dict)
 
 
@@ -135,12 +134,8 @@ class GCPPostProcessor:
 
         # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
         rollup_frame = data_frame.copy()
-        # FIXME: Change the credits data to be a dictionary to avoid deserializing
         rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
-        rollup_frame["daily_credits"] = 0.0
-        for i, credit_dict in enumerate(rollup_frame["credits"]):
-            # FIXME: Remove chained assignment
-            rollup_frame["daily_credits"][i] = credit_dict.get("amount", 0.0)
+        rollup_frame["daily_credits"] = rollup_frame["credits"].apply(lambda x: x.get("amount", 0.0))
         resource_df = rollup_frame.get("resource_name")
         try:
             if not resource_df:
