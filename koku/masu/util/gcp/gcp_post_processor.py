@@ -135,7 +135,7 @@ class GCPPostProcessor:
         # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
         rollup_frame = data_frame.copy()
         rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
-        rollup_frame["daily_credits"] = rollup_frame["credits"].apply(lambda x: x.get("amount", 0.0))
+        rollup_frame["daily_credits"] = rollup_frame["credits"].apply(lambda x: x.get("amount") or 0.0)
         resource_df = rollup_frame.get("resource_name")
         try:
             if not resource_df:
