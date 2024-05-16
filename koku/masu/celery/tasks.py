@@ -390,7 +390,6 @@ def scrape_azure_storage_capacities():
     The Azure cost reports do not report disk capacities. Therefore, we retrieve
     the disk capacities and product substring from their documentation repos.
     """
-    # TODO: Should we move this url to an env var?
     main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
     web_pages_metadata = {
         "disk-storage-premium-ssd-sizes.md": "Premium SSD sizes",

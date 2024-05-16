@@ -488,6 +488,7 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.celery_app")
     def test_scrape_azure_storage_capacities(self, mock_celery_app):
         """Test the scrape storage capacities."""
+        DiskCapacity.objects.all().delete()
         beforeRows = DiskCapacity.objects.count()
         result = """
             | Standard SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
