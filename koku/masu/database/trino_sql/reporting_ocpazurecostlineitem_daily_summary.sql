@@ -368,7 +368,7 @@ SELECT azure.uuid as azure_uuid,
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
-                (azure.resource_id = ocp.node AND ocp.data_source = 'Pod')
+                (replace(lower(azure.resource_id), '_osdisk', '') = lower(ocp.node) AND ocp.data_source = 'Pod')
             OR
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
             )
