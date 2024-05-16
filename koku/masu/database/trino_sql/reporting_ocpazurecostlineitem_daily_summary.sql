@@ -456,8 +456,9 @@ cte_az_resource_to_disk_capacity as (
         sum(pretaxcost) as disk_cost,
         date(coalesce(date, usagedatetime)) as usage_start
     FROM azure_line_items as azure
-    JOIN postgres.public.reporting_common_azurestoragecapacity as az_disk_capacity
+    JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
         ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
+        AND az_disk_capacity.provider_type = 'Azure'
     JOIN cte_ocp_filtered_resources as ocp_filtered
         ON split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) = ocp_filtered.azure_partial_resource_id
     WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
@@ -473,7 +474,7 @@ cte_total_pv_capacity as (
         SELECT
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity
-        FROM hive.org1234567.reporting_ocpusagelineitem_daily_summary as ocp
+        FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN cte_az_resource_to_disk_capacity AS az_disk
                 ON az_disk.usage_start = ocp.usage_start
                 AND (strpos(az_disk.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
