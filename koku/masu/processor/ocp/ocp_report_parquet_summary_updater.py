@@ -12,6 +12,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
@@ -167,7 +168,8 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         return start_date, end_date
 
     def check_cluster_infrastructure(self, start_date, end_date):
-
+        # Override start date so we map with a more complete dataset
+        start_date = DateHelper().month_start(start_date)
         LOG.info(
             log_json(
                 msg="checking if OCP cluster is running on cloud infrastructure",
