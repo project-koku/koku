@@ -13,6 +13,7 @@ from pandas import DataFrame
 from api.models import Provider
 from masu.test import MasuTestCase
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
+from masu.util.gcp.gcp_post_processor import process_gcp_credits
 from reporting.provider.all.models import EnabledTagKeys
 
 
@@ -311,15 +312,34 @@ class TestGCPPostProcessor(MasuTestCase):
             self.assertEqual(sorted(result_columns), sorted(expected_columns))
 
     def test_process_gcp_credits(self):
-        """Test that credits are formatted properly."""
+        """Test that credits are formatted properly with a valid JSON string"""
         csv_converters, panda_kwargs = self.post_processor.get_column_converters(["credits"], {})
         self.assertEqual({}, panda_kwargs)
         credit_converter = csv_converters.get("credits")
-        credit_string = "[{'first': 'yes', 'second': None, 'third': 'no'}]"
+        credit_string = '[{"first": "yes", "second": "None", "third": "no"}]'
 
         expected = '{"first": "yes", "second": "None", "third": "no"}'
         credit_result = credit_converter(credit_string)
         self.assertEqual(credit_result, expected)
+
+    def test_process_gcp_credits_non_standard_fallback(self):
+        """Test that credits are formatted properly for a non-standard JSON string"""
+        credit_string = "[{'first': 'yes', 'second': None, 'third': 'no'}]"
+        expected = '{"first": "yes", "second": "None", "third": "no"}'
+
+        credit_result = process_gcp_credits(credit_string)
+
+        self.assertEqual(credit_result, expected)
+
+    def test_process_gcp_credits_invalid(self):
+        """Test that a warning is logged for an invalid JSON string"""
+        credit_string = "[{'first': 'yes', 'second': \"Acme's HQ\", 'third': 'no'}]"
+
+        with self.assertLogs("masu.util.gcp.gcp_post_processor", level="WARNING") as log:
+            credit_result = process_gcp_credits(credit_string)
+
+        self.assertIn("unable to process gcp credits", log.output[0].lower())
+        self.assertEqual(credit_result, "{}")
 
     def test_process_gcp_labels(self):
         """Test that labels are formatted properly."""

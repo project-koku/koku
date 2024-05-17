@@ -558,12 +558,13 @@ SELECT aws.uuid as aws_uuid,
     JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp as aws
         ON aws.usage_start = ocp.usage_start
             AND (
-                (strpos(lower(aws.tags), 'openshift_project') != 0 AND strpos(lower(aws.tags), lower(ocp.namespace)) != 0)
-                    OR (strpos(lower(aws.tags), 'namespace') != 0 AND strpos(lower(aws.tags), lower(ocp.namespace)) != 0)
-                    OR (strpos(lower(aws.tags), 'openshift_node') != 0 AND strpos(lower(aws.tags), lower(ocp.node)) != 0)
-                    OR (strpos(lower(aws.tags), 'openshift_cluster') != 0 AND (strpos(lower(aws.tags), lower(ocp.cluster_id)) != 0 OR strpos(lower(aws.tags), lower(ocp.cluster_alias)) != 0))
-                    OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
-                    OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+                json_query(aws.tags, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
+                OR json_query(aws.tags, 'strict $.namespace' OMIT QUOTES) = ocp.namespace
+                OR json_query(aws.tags, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
+                OR json_query(aws.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
+                OR json_query(aws.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
+                OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
