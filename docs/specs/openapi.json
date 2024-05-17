@@ -6165,10 +6165,12 @@
                             }
                         },
         "/recommendations/openshift": {
-            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift"
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift",
+            "description": "Refer to :https://github.com/RedHatInsights/ros-ocp-backend/blob/main/openapi.json for the openapi spec of the API"
         },
         "/recommendations/openshift/{recommendation-id}": {
-            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D"
+            "$ref": "/api/cost-management/v1/recommendations/openshift/openapi.json#/paths/~1recommendations~1openshift~1%7Brecommendation-id%7D",
+            "description": "Refer to:https://github.com/RedHatInsights/ros-ocp-backend/blob/main/openapi.json for the openapi spec of the API"
         }
     },
     "externalDocs": {
