@@ -15,8 +15,8 @@ from api.views import AWSAccountView
 from api.views import AWSCategoryView
 from api.views import AWSCostForecastView
 from api.views import AWSCostView
-from api.views import AWSInstanceTypeView
 from api.views import AWSEC2ComputeView
+from api.views import AWSInstanceTypeView
 from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
 from api.views import AWSServiceView
