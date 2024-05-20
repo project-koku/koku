@@ -37,3 +37,9 @@ class AWSStorageView(AWSView):
     """Get inventory storage data."""
 
     report = "storage"
+
+
+class AWSEC2ComputeView(AWSView):
+    """Get EC2 Compute data."""
+
+    report = "ec2_compute"
