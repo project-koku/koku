@@ -61,6 +61,12 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start, start_date.date())
         self.assertEqual(end, self.dh.last_month_end.date())
 
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_ec2_compute_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_ec2_compute_summary_table_trino"  # noqa: E501
+    )
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_category_summary_table")
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
@@ -69,7 +75,15 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_trino, mock_tag_update, mock_delete, mock_category_update):
+    def test_update_daily_summary_tables(
+        self,
+        mock_insert_daily_summary,
+        mock_tag_update,
+        mock_delete_daily_summary,
+        mock_category_update,
+        mock_insert_ec2_compute_summary,
+        mock_delete_ec2_compute_summary,
+    ):
         """Test that we run Trino summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
@@ -90,14 +104,23 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
 
-        mock_delete.assert_called_with(
+        mock_delete_daily_summary.assert_called_with(
             self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
-        mock_trino.assert_called_with(
+        mock_insert_daily_summary.assert_called_with(
             expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
         mock_category_update.assert_called_with(bill_ids, start, end)
+
+        mock_delete_ec2_compute_summary.assert_called_with(
+            self.aws_provider.uuid,
+            expected_start,
+            expected_end,
+        )
+        mock_insert_ec2_compute_summary.assert_called_with(
+            self.aws_provider.uuid, expected_start, current_bill_id, markup_value
+        )
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
