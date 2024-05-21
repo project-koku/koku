@@ -401,7 +401,7 @@ FROM (
             )
         ) as volume_labels,
         sli.source as source_uuid,
-        max(sli.csi_volume_handle) as csi_volume_handle,
+        sli.csi_volume_handle as csi_volume_handle,
         max(cat_ns.cost_category_id) as cost_category_id,
         max(sli.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
@@ -437,6 +437,7 @@ FROM (
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
+        sli.csi_volume_handle,
         date(sli.interval_start),
         8,  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
             /* The map_filter expression was too complex for trino to use */
