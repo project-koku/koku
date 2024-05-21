@@ -208,6 +208,19 @@ def run_trino_sql(sql, schema=None):
             return
 
 
+def check_table_exits(table, schema):
+    """Checks to see if the table exists before attempting to alter."""
+    LOG.debug("Checking if table exits.")
+    check_table_sql = f"""
+    SELECT COUNT(*)
+    FROM information_schema.tables
+    WHERE table_schema = '{schema}'
+    AND table_name = '{table}'
+    """
+    table_exists_result = run_trino_sql(check_table_sql, schema)
+    return table_exists_result[0][0] > 0
+
+
 def drop_tables(tables, schema):
     """drop specified tables"""
     if not set(tables).issubset(EXTERNAL_TABLES):
@@ -224,26 +237,38 @@ def drop_tables(tables, schema):
 
 def add_columns_to_tables(list_of_cols: ListAddColumns, schema: str):
     """add specified columns with datatypes to the tables"""
+    table_exists_cache = {}
     for col in list_of_cols.list:
-        LOG.info(f"adding column {col.column} of type {col.datatype} to table {col.table}")
-        sql = f"ALTER TABLE {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
-        try:
-            result = run_trino_sql(sql, schema)
-            LOG.info(f"ALTER TABLE result: {result}")
-        except Exception as e:
-            LOG.info(e)
+        if col.table not in table_exists_cache:
+            table_exists_cache[col.table] = check_table_exits(col.table, schema)
+        if table_exists_cache[col.table]:
+            LOG.info(f"adding column {col.column} of type {col.datatype} to table {col.table}")
+            sql = f"ALTER TABLE {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
+            try:
+                result = run_trino_sql(sql, schema)
+                LOG.info(f"ALTER TABLE result: {result}")
+            except Exception as e:
+                LOG.info(e)
+        else:
+            LOG.info(f"Skipping because table does not exist: {col.table}")
 
 
 def drop_columns_from_tables(list_of_cols: ListDropColumns, schema: str):
     """drop specified columns from tables"""
+    table_exists_cache = {}
     for col in list_of_cols.list:
-        LOG.info(f"dropping column {col.column} from table {col.table}")
-        sql = f"ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}"
-        try:
-            result = run_trino_sql(sql, schema)
-            LOG.info(f"ALTER TABLE result: {result}")
-        except Exception as e:
-            LOG.info(e)
+        if col.table not in table_exists_cache:
+            table_exists_cache[col.table] = check_table_exits(col.table, schema)
+        if table_exists_cache[col.table]:
+            LOG.info(f"dropping column {col.column} from table {col.table}")
+            sql = f"ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}"
+            try:
+                result = run_trino_sql(sql, schema)
+                LOG.info(f"ALTER TABLE result: {result}")
+            except Exception as e:
+                LOG.info(e)
+        else:
+            LOG.info(f"Skipping because table does not exist: {col.table}")
 
 
 def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schema: str):
