@@ -440,3 +440,50 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on AWS", schema=self.schema))
                 return False
         return True
+
+    def delete_ec2_compute_summary_entries_for_date_range_raw(self, source_uuid, start_date, end_date):
+        """Delete records from the ec2-compute summary table"""
+
+        table = AWS_CUR_TABLE_MAP["ec2_compute_summary"]
+        msg = f"Deleting records from {table} for source {source_uuid} from {start_date} to {end_date}"
+        LOG.info(msg)
+
+        sql = f"""
+            DELETE FROM {self.schema}.{table}
+            WHERE usage_start >= '{start_date}'::date
+                AND usage_end <= '{end_date}'::date
+                AND source_uuid = '{source_uuid}'
+        """
+
+        self._execute_raw_sql_query(table, sql, operation="DELETE")
+
+    def populate_ec2_compute_summary_table_trino(self, source_uuid, start_date, bill_id, markup_value):
+        """Populate the daily aggregated summary of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+
+        Returns
+            (None)
+        """
+
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        table = AWS_CUR_TABLE_MAP["ec2_compute_summary"]
+        msg = f"Inserting records into {table} for source {source_uuid} for {year}-{month}"
+        LOG.info(msg)
+
+        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_summary_by_ec2_compute.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "source_uuid": source_uuid,
+            "year": year,
+            "month": month,
+            "markup": markup_value or 0,
+            "bill_id": bill_id,
+        }
+
+        self._execute_trino_raw_sql_query(
+            sql, sql_params=sql_params, log_ref="reporting_awscostentrylineitem_summary_by_ec2_compute.sql"
+        )

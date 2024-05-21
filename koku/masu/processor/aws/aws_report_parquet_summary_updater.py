@@ -12,6 +12,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
+from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.util.common import date_range_pair
@@ -57,7 +58,8 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         with schema_context(self._schema):
-            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+            partition_summary_tables = UI_SUMMARY_TABLES + (AWS_CUR_TABLE_MAP["ec2_compute_summary"],)
+            self._handle_partitions(self._schema, partition_summary_tables, start_date, end_date)
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -102,6 +104,11 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
+            # update EC2-compute summary table
+            accessor.delete_ec2_compute_summary_entries_for_date_range_raw(self._provider.uuid, start_date, end_date)
+            accessor.populate_ec2_compute_summary_table_trino(
+                self._provider.uuid, start_date, current_bill_id, markup_value
+            )
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()
