@@ -207,7 +207,7 @@ class AWSCostEntryLineItemSummaryByEC2Compute(models.Model):
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
     usage_account_id = models.CharField(max_length=50, null=False)
     resource_id = models.CharField(max_length=256, null=False)
-    instance_name = models.CharField(max_length=50, null=True)
+    instance_name = models.CharField(max_length=256, null=True)
     instance_type = models.CharField(max_length=50, null=True)
     operating_system = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
