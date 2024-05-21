@@ -379,7 +379,7 @@ SELECT null as uuid,
 FROM (
     SELECT sli.namespace,
         vn.node,
-        vn.resource_id,
+        coalesce(vn.resource_id, sli.csi_volume_handle), -- handle claimless pvs
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
@@ -394,7 +394,8 @@ FROM (
             map_filter(
                 cast(json_parse(sli.persistentvolumeclaim_labels) AS MAP(VARCHAR, VARCHAR)),
                 (k, v) -> CONTAINS(pek.keys, k)
-            )
+            ),
+            map(array['csi_volume_handle'], array[sli.csi_volume_handle]) -- we could do this in the operator instead
         ) as volume_labels,
         sli.source as source_uuid,
         max(cat_ns.cost_category_id) as cost_category_id,

@@ -119,6 +119,12 @@ generators:
                     pod_name: pod_name3a
                     labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_storageclass:Odin
                     capacity_gig: 20
+                - volume:
+                  volume_name: pvc-volume_claimless
+                  storage_class: gp3-csi
+                  csi_driver: ebs.csi.azure.com
+                  csi_volume_handle: pv-123-claimless
+                  volume_request_gig: 20
         - node:
           node_name: azure_compute3
           node_labels: label_nodeclass:compute|label_node_role_kubernetes_io:infra

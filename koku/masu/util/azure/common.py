@@ -179,7 +179,10 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     volumes = chain.from_iterable(
         cluster_topology.get("persistent_volumes", []) for cluster_topology in cluster_topologies
     )
-    matchable_resources = list(nodes) + list(volumes)
+    csi_volume_handles = chain.from_iterable(
+        cluster_topology.get("csi_volume_handle", []) for cluster_topology in cluster_topologies
+    )
+    matchable_resources = list(nodes) + list(volumes) + list(csi_volume_handles)
     data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["resourceid"]
     if resource_id_df.eq("").all():

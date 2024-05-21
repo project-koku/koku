@@ -371,13 +371,15 @@ SELECT azure.uuid as azure_uuid,
                 (replace(lower(azure.resource_id), '_osdisk', '') = lower(ocp.node) AND ocp.data_source = 'Pod')
             OR
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
+            OR
+                (lower(trim(json_query(ocp.volume_labels, 'strict $.csi_volume_handle' OMIT QUOTES))) = lower(trim(azure.resource_id)))
             )
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '') -- This prevents claimless
         AND azure.ocp_source = {{ocp_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
