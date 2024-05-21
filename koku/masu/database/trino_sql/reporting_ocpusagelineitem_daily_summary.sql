@@ -379,7 +379,7 @@ SELECT null as uuid,
 FROM (
     SELECT sli.namespace,
         vn.node,
-        coalesce(vn.resource_id, sli.csi_volume_handle), -- handle claimless pvs
+        coalesce(vn.resource_id, max(sli.csi_volume_handle)) as resource_id, -- handle claimless pvs
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
