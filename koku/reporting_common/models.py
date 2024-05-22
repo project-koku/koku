@@ -13,6 +13,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from api.common import log_json
+from api.provider.models import Provider
 from koku import celery_app
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
@@ -222,3 +223,19 @@ def trigger_celery_task(sender, instance, **kwargs):
         "result_id": result.id,
     }
     LOG.info(log_json(tracing_id=tracing_id, msg=log_msg, context=log_context))
+
+
+class DiskCapacity(models.Model):
+    """Mapping of product substrings to capacity in GiB.
+
+    Azure bills do not report capacity so we build this information externally.
+    """
+
+    class Meta:
+        """Meta for CostUsageReportStatus."""
+
+        unique_together = ("product_substring", "capacity", "provider_type")
+
+    product_substring = models.CharField(max_length=20, primary_key=True)
+    capacity = models.IntegerField()
+    provider_type = models.CharField(max_length=50, null=False, choices=Provider.CLOUD_PROVIDER_CHOICES)
