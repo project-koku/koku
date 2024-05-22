@@ -332,10 +332,10 @@ FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
         AND (
-                json_query(gcp.tags, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
-                OR json_query(gcp.tags, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
-                OR json_query(gcp.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
-                OR json_query(gcp.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
+                json_query(gcp.labels, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
+                OR json_query(gcp.labels, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
+                OR json_query(gcp.labels, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
+                OR json_query(gcp.labels, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
