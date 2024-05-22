@@ -442,26 +442,38 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return True
 
     def delete_ec2_compute_summary_entries_for_date_range_raw(self, source_uuid, start_date, end_date):
-        """Delete records from the ec2-compute summary table"""
+        """
+        Delete records from the EC2 compute summary table for a specified source and date range.
 
-        table = AWS_CUR_TABLE_MAP["ec2_compute_summary"]
-        msg = f"Deleting records from {table} for source {source_uuid} from {start_date} to {end_date}"
+        Args:
+            source_uuid (str): The unique identifier for the data source.
+            start_date (datetime.date): The start date of the range for which to delete records.
+            end_date (datetime.date): The end date of the range for which to delete records.
+
+        """
+
+        table_name = self._table_map["ec2_compute_summary"]
+        msg = f"Deleting records from {table_name} for source {source_uuid} from {start_date} to {end_date}"
         LOG.info(msg)
 
         sql = f"""
-            DELETE FROM {self.schema}.{table}
+            DELETE FROM {self.schema}.{table_name}
             WHERE usage_start >= '{start_date}'::date
                 AND usage_end <= '{end_date}'::date
                 AND source_uuid = '{source_uuid}'
         """
 
-        self._execute_raw_sql_query(table, sql, operation="DELETE")
+        self._execute_raw_sql_query(table_name, sql, operation="DELETE")
 
     def populate_ec2_compute_summary_table_trino(self, source_uuid, start_date, bill_id, markup_value):
-        """Populate the daily aggregated summary of line items table.
+        """
+        Populate the monthly aggregated summary table for EC2 compute line items via Trino.
 
         Args:
-            start_date (datetime.date) The date to start populating the table.
+            source_uuid (str): The unique identifier for the data source.
+            start_date (datetime.date): The date representing the start of the billing period to populate.
+            bill_id (int): The billing entry ID associated with the data being populated.
+            markup_value (float): The markup value to apply to the costs, if any.
 
         Returns
             (None)
@@ -469,11 +481,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        table = AWS_CUR_TABLE_MAP["ec2_compute_summary"]
-        msg = f"Inserting records into {table} for source {source_uuid} for {year}-{month}"
+        table_name = self._table_map["ec2_compute_summary"]
+        msg = f"Inserting records into {table_name} for source {source_uuid} for {year}-{month}"
         LOG.info(msg)
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_summary_by_ec2_compute.sql")
+        sql = pkgutil.get_data("masu.database", f"trino_sql/{table_name}.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -484,6 +496,4 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_id": bill_id,
         }
 
-        self._execute_trino_raw_sql_query(
-            sql, sql_params=sql_params, log_ref="reporting_awscostentrylineitem_summary_by_ec2_compute.sql"
-        )
+        self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
