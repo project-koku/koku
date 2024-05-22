@@ -66,8 +66,23 @@ class AWSOrderBySerializer(OrderSerializer):
 class AWSFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
+    _opfields = (
+        "account",
+        "service",
+        "region",
+        "az",
+        "product_family",
+        "org_unit_id",
+        "operating_system",
+        "time_scope_value",
+        "time_scope_units",
+        "resolution",
+    )
     _aws_category = True
+
+    RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-90", "-90"), ("-1", "1"), ("-2", "-2"), ("-3", "-3"))
+    TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
@@ -75,6 +90,10 @@ class AWSFilterSerializer(BaseFilterSerializer):
     az = StringOrListField(child=serializers.CharField(), required=False)
     product_family = StringOrListField(child=serializers.CharField(), required=False)
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
+    operating_system = StringOrListField(child=serializers.CharField(), required=False)
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
+    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
 
 
 class AWSExcludeSerializer(BaseExcludeSerializer):
