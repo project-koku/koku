@@ -372,7 +372,7 @@ SELECT azure.uuid as azure_uuid,
             OR
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
             OR
-                (lower(trim(json_query(ocp.volume_labels, 'strict $.csi_volume_handle' OMIT QUOTES))) = lower(trim(azure.resource_id)))
+                (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}

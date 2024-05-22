@@ -55,7 +55,7 @@ generators:
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111123
       resource_location: "US North Central"
-      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/azure-cloud-prefix-pvc-volume_2'
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/azure-cloud-prefix-pvc-partial-matching'
       amount: 10
       rate: 0.01
       tags:
@@ -65,7 +65,7 @@ generators:
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111122
       resource_location: "US North Central"
-      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/pvc-volume_1-azure_cloud_suffix'
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/disk-id-1234567'
       amount: 10
       rate: 0.01
       tags:

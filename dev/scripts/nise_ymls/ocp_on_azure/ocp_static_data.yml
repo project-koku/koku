@@ -31,9 +31,10 @@ generators:
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_qa:approved|label_dashed-key-on-azure:dashed-value
               volumes:
                 - volume:
-                  volume_name: pvc-volume_1
+                  volume_name: pv-volume-handle-with-pvc
                   storage_class: managed
                   volume_request_gig: 20
+                  csi_volume_handle: disk-id-1234567
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur|label_dashed-key-on-azure:dashed-value
                   volume_claims:
                   - volume_claim:
@@ -61,7 +62,7 @@ generators:
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_qa:approved
               volumes:
                 - volume:
-                  volume_name: pvc-volume_2
+                  volume_name: pvc-partial-matching
                   storage_class: managed
                   volume_request_gig: 20
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Loki
@@ -98,9 +99,10 @@ generators:
                   labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_qa:approved
               volumes:
                 - volume:
-                  volume_name: pvc-volume_1
+                  volume_name: pv-volume-handle-with-pvc
                   storage_class: managed
                   volume_request_gig: 20
+                  csi_volume_handle: disk-id-1234567
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                   volume_claims:
                   - volume_claim:
@@ -120,7 +122,7 @@ generators:
                     labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_storageclass:Odin
                     capacity_gig: 20
                 - volume:
-                  volume_name: pvc-volume_claimless
+                  volume_name: pv-volume_claimless
                   storage_class: gp3-csi
                   csi_driver: ebs.csi.azure.com
                   csi_volume_handle: pv-123-claimless
@@ -152,7 +154,7 @@ generators:
                   labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_qa:approved
               volumes:
                 - volume:
-                  volume_name: pvc-volume_1
+                  volume_name: pv-volume-handle-with-pvc
                   storage_class: managed
                   volume_request_gig: 20
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur

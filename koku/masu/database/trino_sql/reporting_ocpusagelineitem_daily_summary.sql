@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
     source_uuid varchar,
     infrastructure_usage_cost varchar,
     cost_category_id int,
+    csi_volume_handle varchar,
     source varchar,
     year varchar,
     month varchar,
@@ -83,6 +84,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     infrastructure_usage_cost,
+    csi_volume_handle,
     cost_category_id,
     source,
     year,
@@ -249,6 +251,7 @@ SELECT null as uuid,
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     pua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
+    NULL as csi_volume_handle,
     pua.cost_category_id,
     {{source}} as source,
     cast(year(pua.usage_start) as varchar) as year,
@@ -371,6 +374,7 @@ SELECT null as uuid,
         power(2, -30)) as persistentvolumeclaim_usage_gigabyte_months,
     sua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
+    sua.csi_volume_handle,
     sua.cost_category_id,
     {{source}} as source,
     cast(year(sua.usage_start) as varchar) as year,
@@ -379,7 +383,7 @@ SELECT null as uuid,
 FROM (
     SELECT sli.namespace,
         vn.node,
-        coalesce(vn.resource_id, max(sli.csi_volume_handle)) as resource_id, -- handle claimless pvs
+        vn.resource_id,
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
@@ -394,10 +398,10 @@ FROM (
             map_filter(
                 cast(json_parse(sli.persistentvolumeclaim_labels) AS MAP(VARCHAR, VARCHAR)),
                 (k, v) -> CONTAINS(pek.keys, k)
-            ),
-            map(array['csi_volume_handle'], array[sli.csi_volume_handle]) -- we could do this in the operator instead
+            )
         ) as volume_labels,
         sli.source as source_uuid,
+        sli.csi_volume_handle,
         max(cat_ns.cost_category_id) as cost_category_id,
         max(sli.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
@@ -433,6 +437,7 @@ FROM (
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
+        sli.csi_volume_handle,
         date(sli.interval_start),
         8,  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
             /* The map_filter expression was too complex for trino to use */
