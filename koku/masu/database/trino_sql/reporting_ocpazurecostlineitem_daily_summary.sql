@@ -368,7 +368,7 @@ SELECT azure.uuid as azure_uuid,
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
-                (azure.resource_id = ocp.node AND ocp.data_source = 'Pod')
+                (replace(lower(azure.resource_id), '_osdisk', '') = lower(ocp.node) AND ocp.data_source = 'Pod')
             OR
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
             )
@@ -477,11 +477,12 @@ SELECT azure.uuid as azure_uuid,
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp as azure
         ON azure.usage_start = ocp.usage_start
         AND (
-                    (strpos(lower(azure.tags), 'openshift_project') !=0 AND strpos(lower(azure.tags), lower(ocp.namespace)) != 0)
-                    OR (strpos(lower(azure.tags), 'openshift_node') != 0 AND strpos(lower(azure.tags),lower(ocp.node)) != 0)
-                    OR (strpos(lower(azure.tags), 'openshift_cluster') != 0 AND (strpos(lower(azure.tags), lower(ocp.cluster_id)) != 0 OR strpos(lower(azure.tags), lower(ocp.cluster_alias)) != 0))
-                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
-                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+                json_query(azure.tags, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
+                OR json_query(azure.tags, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
+                OR json_query(azure.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
+                OR json_query(azure.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
+                OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
