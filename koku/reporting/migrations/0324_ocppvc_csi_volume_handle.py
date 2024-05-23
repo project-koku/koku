@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0321_awscostentrylineitemsummarybyec2compute"),
+        ("reporting", "0323_remove_awscostentrylineitemsummarybyec2compute_availability_zone_and_org_unit"),
     ]
 
     operations = [
