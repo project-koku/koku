@@ -127,7 +127,7 @@ class SUBSDataMessenger:
     def send_kafka_message(self, msg):
         """Sends a kafka message to the SUBS topic with the S3 keys for the uploaded reports."""
         producer = get_producer()
-        producer.produce(SUBS_TOPIC, value=msg, callback=delivery_callback)
+        producer.produce(SUBS_TOPIC, key=self.org_id, value=msg, callback=delivery_callback)
         producer.poll(0)
 
     def build_base_subs_dict(self, instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids):
