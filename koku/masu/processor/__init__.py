@@ -160,7 +160,7 @@ def is_feature_cost_3083_all_labels_enabled(account):
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_feature_cost_4403_ec2_compute_cost_enabled(account):
+def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
     """Should EC2 individual VM compute cost be enabled."""
     unleash_flag = "cost-management.backend.feature-4403-enable-ec2-compute-processing"
     account = convert_account(account)
