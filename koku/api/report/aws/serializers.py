@@ -96,13 +96,13 @@ class AWSFilterSerializer(BaseFilterSerializer):
         "resolution",
         "resource_id",
         "instance_name",
-        "tag",
+        "tags",
         "account_alias",
     )
     _aws_category = True
 
     RESOLUTION_CHOICES = ("monthly", "monthly")
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-90", "-90"))
+    TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = ("month", "month")
 
     account = StringOrListField(child=serializers.CharField(), required=False)
@@ -114,7 +114,7 @@ class AWSFilterSerializer(BaseFilterSerializer):
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     resource_id = StringOrListField(child=serializers.CharField(), required=False)
     instance_name = StringOrListField(child=serializers.CharField(), required=False)
-    tag = StringOrListField(child=serializers.CharField(), required=False)
+    tags = StringOrListField(child=serializers.CharField(), required=False)
     account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
