@@ -23,19 +23,14 @@ SELECT
   CASE
     WHEN
       (
-        try_cast(product_vcpu AS INT) <= 8
+        try_cast(product_vcpu AS INT) <= 4
         AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
-      ) THEN 0.0144 * lineitem_usageamount * CAST(product_vcpu AS INT)
+      ) THEN 0.06 * lineitem_usageamount
     WHEN
       (
-        try_cast(product_vcpu AS INT) <= 127
+        try_cast(product_vcpu AS INT) > 4
         AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
-      ) THEN 0.0108 * lineitem_usageamount * CAST(product_vcpu AS INT)
-    WHEN
-      (
-        try_cast(product_vcpu AS INT) > 127
-        AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
-      ) THEN 0.0096 * lineitem_usageamount * CAST(product_vcpu AS INT)
+      ) THEN 0.13 * lineitem_usageamount
     ELSE lineitem_unblendedcost
   END AS lineitem_unblendedcost,
   lineitem_blendedrate,

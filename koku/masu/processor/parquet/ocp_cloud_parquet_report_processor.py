@@ -231,7 +231,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 ocp_provider_uuids.append(ocp_provider_uuid)
         return tuple(ocp_provider_uuids)
 
-    def process(self, parquet_base_filename, daily_data_frames, manifest_id=None):
+    def process(self, parquet_base_filename, daily_data_frames):
         """Filter data and convert to parquet."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
@@ -243,7 +243,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             )
             return
 
-        self.report_status.update_status(CombinedChoices.OCP_CLOUD_PROCESSING)
+        if self.report_status:
+            # internal masu endpoints may result in this being None, so guard this in case there is no status to update
+            self.report_status.update_status(CombinedChoices.OCP_CLOUD_PROCESSING)
+
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
             if self.provider_type == Provider.PROVIDER_GCP:
