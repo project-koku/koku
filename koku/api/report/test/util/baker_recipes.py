@@ -120,6 +120,30 @@ ocp_usage_storage = Recipe(  # Storage data_source
     _quantity=OCP_CONSTANTS.length,
 )
 
+ocp_usage_network_in = Recipe ( # Inbound network flow
+    "OCPUsageLineItemDailySummary",
+    data_source="Pod",
+    node=cycle(f"node_{i}" for i in range(OCP_CONSTANTS.length - 1)),
+    resource_id=cycle(f"i-000000{i}" for i in range(OCP_CONSTANTS.length - 1)),
+    namespace="Network unattributed",
+    infrastructure_data_in_gigabytes=cycle(decimal_yielder()),
+    infrastructure_data_out_gigabytes=None,
+    _fill_optional=False,
+    _quantity=OCP_CONSTANTS.length,
+)
+
+ocp_usage_network_out = Recipe ( # Outbound network flow
+    "OCPUsageLineItemDailySummary",
+    data_source="Pod",
+    node=cycle(f"node_{i}" for i in range(OCP_CONSTANTS.length - 1)),
+    resource_id=cycle(f"i-000000{i}" for i in range(OCP_CONSTANTS.length - 1)),
+    namespace="Network unattributed",
+    infrastructure_data_in_gigabytes=None,
+    infrastructure_data_out_gigabytes=cycle(decimal_yielder()),
+    _fill_optional=False,
+    _quantity=OCP_CONSTANTS.length,
+)
+
 ocp_on_aws_daily_summary = Recipe(
     "OCPAWSCostLineItemDailySummaryP",
     node=cycle(f"aws_node_{i}" for i in range(AWS_CONSTANTS.length - 1)),
