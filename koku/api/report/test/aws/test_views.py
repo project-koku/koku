@@ -600,3 +600,15 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-costs") + "?group_by[aws_categroy:invalid]=value"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ec2compute_view(self):
+        """Test if EC2 Compute view is up."""
+        url = reverse("reports-aws-ec2-compute")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2compute_view_os_filter(self):
+        """Test if EC2 Compute Operating System Filter is working."""
+        url = reverse("reports-aws-ec2-compute") + "?filter[operating_system]=Linux"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
