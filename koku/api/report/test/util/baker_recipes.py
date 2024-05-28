@@ -120,7 +120,7 @@ ocp_usage_storage = Recipe(  # Storage data_source
     _quantity=OCP_CONSTANTS.length,
 )
 
-ocp_usage_network_in = Recipe ( # Inbound network flow
+ocp_usage_network_in = Recipe(  # Inbound network flow
     "OCPUsageLineItemDailySummary",
     data_source="Pod",
     node=cycle(f"node_{i}" for i in range(OCP_CONSTANTS.length - 1)),
@@ -128,11 +128,27 @@ ocp_usage_network_in = Recipe ( # Inbound network flow
     namespace="Network unattributed",
     infrastructure_data_in_gigabytes=cycle(decimal_yielder()),
     infrastructure_data_out_gigabytes=None,
+    pod_usage_cpu_core_hours=0,
+    pod_request_cpu_core_hours=0,
+    pod_limit_cpu_core_hours=0,
+    pod_usage_memory_gigabyte_hours=0,
+    pod_request_memory_gigabyte_hours=0,
+    pod_limit_memory_gigabyte_hours=0,
+    node_capacity_cpu_cores=0,
+    node_capacity_cpu_core_hours=0,
+    node_capacity_memory_gigabytes=0,
+    node_capacity_memory_gigabyte_hours=0,
+    cluster_capacity_cpu_core_hours=0,
+    cluster_capacity_memory_gigabyte_hours=0,
+    persistentvolumeclaim_capacity_gigabyte=0,
+    persistentvolumeclaim_capacity_gigabyte_months=0,
+    volume_request_storage_gigabyte_months=0,
+    persistentvolumeclaim_usage_gigabyte_months=0,
     _fill_optional=False,
     _quantity=OCP_CONSTANTS.length,
 )
 
-ocp_usage_network_out = Recipe ( # Outbound network flow
+ocp_usage_network_out = Recipe(  # Outbound network flow
     "OCPUsageLineItemDailySummary",
     data_source="Pod",
     node=cycle(f"node_{i}" for i in range(OCP_CONSTANTS.length - 1)),
@@ -140,6 +156,22 @@ ocp_usage_network_out = Recipe ( # Outbound network flow
     namespace="Network unattributed",
     infrastructure_data_in_gigabytes=None,
     infrastructure_data_out_gigabytes=cycle(decimal_yielder()),
+    pod_usage_cpu_core_hours=0,
+    pod_request_cpu_core_hours=0,
+    pod_limit_cpu_core_hours=0,
+    pod_usage_memory_gigabyte_hours=0,
+    pod_request_memory_gigabyte_hours=0,
+    pod_limit_memory_gigabyte_hours=0,
+    node_capacity_cpu_cores=0,
+    node_capacity_cpu_core_hours=0,
+    node_capacity_memory_gigabytes=0,
+    node_capacity_memory_gigabyte_hours=0,
+    cluster_capacity_cpu_core_hours=0,
+    cluster_capacity_memory_gigabyte_hours=0,
+    persistentvolumeclaim_capacity_gigabyte=0,
+    persistentvolumeclaim_capacity_gigabyte_months=0,
+    volume_request_storage_gigabyte_months=0,
+    persistentvolumeclaim_usage_gigabyte_months=0,
     _fill_optional=False,
     _quantity=OCP_CONSTANTS.length,
 )
