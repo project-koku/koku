@@ -226,7 +226,7 @@ def add_columns_to_tables(list_of_cols: ListAddColumns, schema: str):
     """add specified columns with datatypes to the tables"""
     for col in list_of_cols.list:
         LOG.info(f"adding column {col.column} of type {col.datatype} to table {col.table}")
-        sql = f"ALTER TABLE {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
+        sql = f"ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
         try:
             result = run_trino_sql(sql, schema)
             LOG.info(f"ALTER TABLE result: {result}")

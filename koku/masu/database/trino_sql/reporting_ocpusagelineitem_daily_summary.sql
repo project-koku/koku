@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
     persistentvolumeclaim_usage_gigabyte_months double,
     source_uuid varchar,
     infrastructure_usage_cost varchar,
+    csi_volume_handle varchar,
     cost_category_id int,
     source varchar,
     year varchar,
@@ -533,6 +534,7 @@ cte_unallocated_capacity AS (
         AND lids.usage_start < date_add('day', 1, {{end_date}})
         AND lids.namespace != 'Platform unallocated'
         AND lids.namespace != 'Worker unallocated'
+        AND lids.namespace != 'Network unattributed'
         AND lids.node IS NOT NULL
         AND lids.data_source = 'Pod'
     GROUP BY lids.node, lids.usage_start, lids.source_uuid

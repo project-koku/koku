@@ -383,6 +383,11 @@ class OCPProviderMap(ProviderMap):
                                         "operation": "exact",
                                         "parameter": "Platform unallocated",
                                     },
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Network unattributed",
+                                    },
                                 ],
                             },
                         },
@@ -481,6 +486,11 @@ class OCPProviderMap(ProviderMap):
                                         "field": "namespace",
                                         "operation": "exact",
                                         "parameter": "Platform unallocated",
+                                    },
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Network unattributed",
                                     },
                                 ],
                             },
