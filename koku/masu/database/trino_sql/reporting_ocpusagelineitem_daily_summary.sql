@@ -41,7 +41,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
     infrastructure_usage_cost varchar,
     csi_volume_handle varchar,
     cost_category_id int,
-    csi_volume_handle varchar,
     source varchar,
     year varchar,
     month varchar,
