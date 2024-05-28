@@ -30,6 +30,7 @@ class AWSGroupBySerializer(GroupSerializer):
         "storage_type",
         "product_family",
         "org_unit_id",
+        "operating_system"
     )
     # Tells the parent class to add prefixed
     # aws_category param to the allowable fields list
@@ -44,6 +45,7 @@ class AWSGroupBySerializer(GroupSerializer):
     storage_type = StringOrListField(child=serializers.CharField(), required=False)
     product_family = StringOrListField(child=serializers.CharField(), required=False)
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
+    operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class AWSOrderBySerializer(OrderSerializer):
