@@ -539,6 +539,7 @@ cte_unallocated_capacity AS (
         AND lids.usage_start < date_add('day', 1, {{end_date}})
         AND lids.namespace != 'Platform unallocated'
         AND lids.namespace != 'Worker unallocated'
+        AND lids.namespace != 'Network unattributed'
         AND lids.node IS NOT NULL
         AND lids.data_source = 'Pod'
     GROUP BY lids.node, lids.usage_start, lids.source_uuid
