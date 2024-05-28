@@ -645,21 +645,17 @@ class OCPProviderMap(ProviderMap):
                         "tag_column": self.check_unleash_for_tag_column_cost_3038,
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.cost_model_volume_supplementary_cost,
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.cost_model_volume_supplementary_cost,
+                            "sup_total": self.cost_model_supplementary_cost,
                             "infra_raw": self.cloud_infrastructure_cost,
-                            "infra_usage": self.cost_model_volume_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
                             "infra_markup": self.markup_cost,
-                            "infra_total": self.cloud_infrastructure_cost
-                            + self.markup_cost
-                            + self.cost_model_volume_infrastructure_cost,
+                            "infra_total": self.cloud_infrastructure_cost + self.markup_cost,
                             "cost_raw": self.cloud_infrastructure_cost,
-                            "cost_usage": self.cost_model_volume_cost,
+                            "cost_usage": self.cost_model_cost,
                             "cost_markup": self.markup_cost,
-                            "cost_total": self.cloud_infrastructure_cost
-                            + self.markup_cost
-                            + self.cost_model_volume_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost,
                             "usage": Sum(
                                 Coalesce(
                                     F("infrastructure_data_in_gigabytes"),
@@ -753,9 +749,7 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                             ),
-                            "cost_total": self.cloud_infrastructure_cost
-                            + self.markup_cost
-                            + self.cost_model_volume_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost,
                         },
                         "filter": [],
                         "conditionals": {
