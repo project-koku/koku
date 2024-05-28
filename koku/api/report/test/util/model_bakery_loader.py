@@ -396,7 +396,7 @@ class ModelBakeryDataLoader(DataLoader):
                         cluster_alias=cluster_id,
                         usage_start=start_date + timedelta(i),
                         usage_end=start_date + timedelta(i),
-                        # source_uuid=provider.uuid,
+                        source_uuid=provider.uuid,
                         infrastructure_raw_cost=infra_raw_cost,
                     )
                     baker.make_recipe(
@@ -405,7 +405,7 @@ class ModelBakeryDataLoader(DataLoader):
                         cluster_alias=cluster_id,
                         usage_start=start_date + timedelta(i),
                         usage_end=start_date + timedelta(i),
-                        # source_uuid=provider.uuid,
+                        source_uuid=provider.uuid,
                         infrastructure_raw_cost=infra_raw_cost,
                     )
 
