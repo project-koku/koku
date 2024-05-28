@@ -104,7 +104,8 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
-            # update EC2-compute summary table
+
+            # update ec2 compute summary table
             accessor.delete_ec2_compute_summary_entries_for_date_range_raw(self._provider.uuid, start_date, end_date)
             accessor.populate_ec2_compute_summary_table_trino(
                 self._provider.uuid, start_date, current_bill_id, markup_value

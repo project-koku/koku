@@ -459,8 +459,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             ).count()
             self.assertEqual(0, actual_child_count)
 
+    @patch("masu.database.aws_report_db_accessor.is_feature_cost_4403_ec2_compute_cost_enabled", return_value=True)
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
-    def test_populate_ec2_compute_summary_table_trino(self, mock_trino):
+    def test_populate_ec2_compute_summary_table_trino(self, mock_trino, *args):
         """
         Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2Compute.
         """
@@ -478,3 +479,14 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider_uuid, start_date, current_bill_id, markup_value
         )
         mock_trino.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.is_feature_cost_4403_ec2_compute_cost_enabled", return_value=False)
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ec2_compute_summary_table_trino_not_enabled(self, mock_trino, *args):
+        """
+        Test that summary to populate EC2 compute table only runs if feature is enabled for schema.
+        """
+        start_date = self.dh.this_month_start.date()
+
+        self.accessor.populate_ec2_compute_summary_table_trino(self.aws_provider_uuid, start_date, "1", 0.0)
+        mock_trino.assert_not_called()
