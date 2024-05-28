@@ -87,7 +87,7 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
 
 def validate_cron_expression(expresssion):
     if not croniter.is_valid(expresssion):
-        print(f"Invalid report-download-schedule {expresssion}. Falling back to default `0 4,16 * * *`")
+        print(f"Invalid report-download-schedule {expresssion}. Falling back to default `0 4,16 * * *`")  # noqa E231
         expresssion = "0 4,16 * * *"
     return expresssion
 
@@ -175,8 +175,10 @@ app.conf.beat_schedule["delete_source_beat"] = {
 }
 
 # Specify the frequency for pushing source status.
-SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
-source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
+status_expression = "0 3 * * *"
+SOURCE_STATUS_SCHEDULE = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_expression)
+SOURCE_STATUS_SCHEDULE = validate_cron_expression(*SOURCE_STATUS_SCHEDULE.split(" ", 5))
+source_status_schedule = crontab(SOURCE_STATUS_SCHEDULE)
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
