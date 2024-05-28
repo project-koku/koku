@@ -4660,7 +4660,7 @@ parameters:
   value: "True"
 - displayName: Frequency to check sources availability (minutes)
   name: SOURCE_STATUS_SCHEDULE
-  value: "3"
+  value: 0 3 * * *
 - displayName: Minimum replicas
   name: SOURCES_CLIENT_REPLICAS
   required: true

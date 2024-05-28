@@ -213,4 +213,4 @@
   value:
     displayName: Frequency to check sources availability (minutes)
     name: SOURCE_STATUS_SCHEDULE
-    value: '3'
+    value: "0 3 * * *"

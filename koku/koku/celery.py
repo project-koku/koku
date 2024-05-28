@@ -85,10 +85,10 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
         self._write_response(ProbeResponse(status, msg))
 
 
-def validate_cron_expression(expresssion):
+def validate_cron_expression(expresssion, default):
     if not croniter.is_valid(expresssion):
-        print(f"Invalid report-download-schedule {expresssion}. Falling back to default `0 4,16 * * *`")  # noqa E231
-        expresssion = "0 4,16 * * *"
+        print(f"Invalid report-download-schedule {expresssion}. Falling back to default {default}")
+        expresssion = default
     return expresssion
 
 
@@ -118,7 +118,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
     REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_expression)
-    REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE)
+    REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE, download_expression)
     report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
     CHECK_REPORT_UPDATES_DEF = {
         "task": download_task,
@@ -177,8 +177,8 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Specify the frequency for pushing source status.
 status_expression = "0 3 * * *"
 SOURCE_STATUS_SCHEDULE = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_expression)
-SOURCE_STATUS_SCHEDULE = validate_cron_expression(*SOURCE_STATUS_SCHEDULE.split(" ", 5))
-source_status_schedule = crontab(SOURCE_STATUS_SCHEDULE)
+SOURCE_STATUS_SCHEDULE = validate_cron_expression(SOURCE_STATUS_SCHEDULE, default=status_expression)
+source_status_schedule = crontab(*SOURCE_STATUS_SCHEDULE.split(" ", 5))
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
