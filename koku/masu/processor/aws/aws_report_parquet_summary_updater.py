@@ -15,6 +15,7 @@ from koku.pg_partition import PartitionHandlerMixin
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
 from masu.util.common import date_range_pair
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
@@ -105,11 +106,15 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
 
-            # update ec2 compute summary table
-            accessor.delete_ec2_compute_summary_entries_for_date_range_raw(self._provider.uuid, start_date, end_date)
-            accessor.populate_ec2_compute_summary_table_trino(
-                self._provider.uuid, start_date, current_bill_id, markup_value
-            )
+            # Populate ec2 compute summary table if feature is enabled for schema
+            if is_feature_cost_4403_ec2_compute_cost_enabled(self._schema):
+                LOG.info(f"AWS EC2 compute summary is enabled for schema: {self._schema}")
+                accessor.delete_ec2_compute_summary_entries_for_date_range_raw(
+                    self._provider.uuid, start_date, end_date
+                )
+                accessor.populate_ec2_compute_summary_table_trino(
+                    self._provider.uuid, start_date, current_bill_id, markup_value
+                )
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()

@@ -24,7 +24,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
-from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
 from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
@@ -481,11 +480,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-
-        # Populate ec2 compute summary table if feature is enabled for schema
-        if not is_feature_cost_4403_ec2_compute_cost_enabled(self.schema):
-            LOG.info(f"AWS EC2 compute summary is not enabled for schema: {self.schema}")
-            return
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")

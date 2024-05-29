@@ -126,6 +126,70 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(end_return, end)
 
     @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.is_feature_cost_4403_ec2_compute_cost_enabled",
+        return_value=False,
+    )
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_ec2_compute_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_ec2_compute_summary_table_trino"  # noqa: E501
+    )
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_category_summary_table")
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_tags_summary_table")
+    @patch(
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
+    )
+    def test_update_summary_tables_ec2_compute_not_enabled(
+        self,
+        mock_insert_daily_summary,
+        mock_tag_update,
+        mock_delete_daily_summary,
+        mock_category_update,
+        mock_insert_ec2_compute_summary,
+        mock_delete_ec2_compute_summary,
+        *args
+    ):
+        """Test that summarization is skipped if schema is not enabled for ec2 compute summary."""
+
+        start_str = self.dh.this_month_start.isoformat()
+        end_str = self.dh.this_month_end.isoformat()
+        start, end = self.updater._get_sql_inputs(start_str, end_str)
+
+        for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
+            expected_start, expected_end = s, e
+
+        with AWSReportDBAccessor(self.schema) as accessor:
+            with schema_context(self.schema):
+                bills = accessor.bills_for_provider_uuid(self.aws_provider.uuid, start)
+                bill_ids = [str(bill.id) for bill in bills]
+                current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+
+        start_return, end_return = self.updater.update_summary_tables(start, end)
+
+        mock_delete_daily_summary.assert_called_with(
+            self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+        )
+        mock_insert_daily_summary.assert_called_with(
+            expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
+        )
+        mock_tag_update.assert_called_with(bill_ids, start, end)
+        mock_category_update.assert_called_with(bill_ids, start, end)
+
+        mock_delete_ec2_compute_summary.assert_not_called()
+        mock_insert_ec2_compute_summary.assert_not_called()
+
+        self.assertEqual(start_return, start)
+        self.assertEqual(end_return, end)
+
+    @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
     def test_update_summary_tables_no_bills(self, *args):
