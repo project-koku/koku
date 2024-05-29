@@ -12,24 +12,27 @@ import uuid
 
 from dateutil.parser import parse
 from django.conf import settings
-from django.db import connection
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
+from api.metrics import constants as metric_constants
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
+from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
@@ -95,17 +98,24 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
-    def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
-        """Populate the enabled tag key table.
+    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
+        """Maps child keys to parent key.
         Args:
-            start_date (datetime.date) The date to start populating the table.
+            start_date (datetime.date) The date to start mapping keys
             end_date (datetime.date) The date to end on.
             bill_ids (list) A list of bill IDs.
         Returns
             (None)
         """
+        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
+            return
+        with schema_context(self.schema):
+            # Early return check to see if they have any tag mappings set.
+            if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_OCP).exists():
+                LOG.debug("No tag mappings for OCP.")
+                return
         table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagelineitem_daily_summary_update_enabled_tags.sql")
+        sql = pkgutil.get_data("masu.database", "sql/openshift/ocp_tag_mapping_update_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,
@@ -114,53 +124,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
-    def get_ocp_infrastructure_map(self, start_date, end_date, **kwargs):
-        """Get the OCP on infrastructure map.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-
-        Returns
-            (None)
-
-        """
-        # kwargs here allows us to optionally pass in a provider UUID based on
-        # the provider type this is run for
-        ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
-        aws_provider_uuid = kwargs.get("aws_provider_uuid")
-        azure_provider_uuid = kwargs.get("azure_provider_uuid")
-        # In case someone passes this function a string instead of the date object like we asked...
-        # Cast the string into a date object, end_date into date object instead of string
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpinfrastructure_provider_map.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "schema": self.schema,
-            "aws_provider_uuid": aws_provider_uuid,
-            "ocp_provider_uuid": ocp_provider_uuid,
-            "azure_provider_uuid": azure_provider_uuid,
-        }
-        infra_sql, infra_sql_params = self.prepare_query(sql, sql_params)
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(infra_sql, list(infra_sql_params))
-            results = cursor.fetchall()
-
-        db_results = {}
-        for entry in results:
-            # This dictionary is keyed on an OpenShift provider UUID
-            # and the tuple contains
-            # (Infrastructure Provider UUID, Infrastructure Provider Type)
-            db_results[entry[0]] = (entry[1], entry[2])
-
-        return db_results
 
     def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):  # noqa: C901
         """Get the OCP on infrastructure map.
@@ -243,7 +206,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for entry in results:
                     # This dictionary is keyed on an OpenShift provider UUID
                     # and the tuple contains
-                    # (Infrastructure Provider UUID, Infrastructure Provider Type)
+                    # (Infra Provider UUID, Infra Provider Type)
                     db_results[entry[0]] = (entry[1], entry[2])
                 if db_results:
                     # An OCP cluster can only run on a single source, so stop here if we found a match
@@ -430,11 +393,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             ),
         )
 
-    def populate_platform_and_worker_distributed_cost_sql(
-        self, start_date, end_date, provider_uuid, distribution_info
-    ):
+    def populate_distributed_cost_sql(self, start_date, end_date, provider_uuid, distribution_info):
         """
-        Populate the platform cost distribution of a customer.
+        Populate the distribution cost model options.
 
         args:
             start_date (datetime, str): The start_date to calculate monthly_cost.
@@ -442,37 +403,32 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
-        distribute_mapping = {}
+
+        key_to_file_mapping = {
+            metric_constants.PLATFORM_COST: "distribute_platform_cost.sql",
+            metric_constants.WORKER_UNALLOCATED: "distribute_worker_cost.sql",
+            metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
+            metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
+        }
+
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         if not report_period:
-            msg = "no report period for OCP provider, skipping platform_and_worker_distributed_cost_sql update"
+            msg = "no report period for OCP provider, skipping distribution update"
             context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
             LOG.info(log_json(msg=msg, context=context))
             return
 
         report_period_id = report_period.id
-        distribute_mapping = {
-            "platform_cost": {
-                "sql_file": "distribute_platform_cost.sql",
-                "log_msg": {
-                    True: "distributing platform cost",
-                    False: "removing platform_distributed cost model rate type",
-                },
-            },
-            "worker_cost": {
-                "sql_file": "distribute_worker_cost.sql",
-                "log_msg": {
-                    True: "distributing worker unallocated cost",
-                    False: "removing worker_distributed cost model rate type",
-                },
-            },
-        }
 
-        for cost_model_key, metadata in distribute_mapping.items():
+        for cost_model_key, sql_file in key_to_file_mapping.items():
             populate = distribution_info.get(cost_model_key, False)
-            # if populate is false we only execute the delete sql.
+            if populate:
+                log_msg = f"distributing {cost_model_key}"
+            else:
+                # if populate is false we only execute the delete sql.
+                log_msg = f"removing {cost_model_key} distribution"
             sql_params = {
                 "start_date": start_date,
                 "end_date": end_date,
@@ -483,9 +439,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "populate": populate,
             }
 
-            sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{metadata['sql_file']}")
+            sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/distribute_cost/{sql_file}")
             sql = sql.decode("utf-8")
-            LOG.info(log_json(msg=metadata["log_msg"][populate], context=sql_params))
+            LOG.info(log_json(msg=log_msg, context=sql_params))
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
@@ -1182,3 +1138,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
+
+    def populate_unit_test_tag_data(self, report_period_ids, start_date, end_date):
+        """
+        This method allows us to maintain our tag logic.
+        """
+        # Remove disabled keys from the tags field.
+        self.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
+        self.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
+        table_name = self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_remove_disabled_tags.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_ids": report_period_ids,
+            "schema": self.schema,
+        }
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)

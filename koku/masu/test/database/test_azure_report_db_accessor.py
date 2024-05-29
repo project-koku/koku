@@ -25,7 +25,9 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.util.azure.common import get_bills_from_provider
+from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureTagsSummary
 
@@ -276,38 +278,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
             self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).count(), 0)
 
-    def test_update_line_item_daily_summary_with_enabled_tags(self):
-        """Test that we filter the daily summary table's tags with only enabled tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-
-        bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
-        with schema_context(self.schema):
-            AzureTagsSummary.objects.all().delete()
-            key_to_keep = (
-                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).filter(key="app").first()
-            )
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).update(enabled=False)
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).filter(key="app").update(enabled=True)
-            bill_ids = [bill.id for bill in bills]
-            self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
-            tags = (
-                AzureCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, cost_entry_bill_id__in=bill_ids
-                )
-                .values_list("tags")
-                .distinct()
-            )
-
-            for tag in tags:
-                tag_dict = tag[0]
-                tag_keys = list(tag_dict.keys())
-                if tag_keys:
-                    self.assertEqual([key_to_keep.key], tag_keys)
-                else:
-                    self.assertEqual([], tag_keys)
-
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, AzureCostEntryLineItemDailySummary)
 
@@ -407,3 +377,76 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_not_called()
             mock_table_exist.assert_not_called()
+
+    @patch("masu.database.azure_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
+    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+        """
+        This tests the tag mapping feature.
+        """
+        mock_unleash.return_value = True
+        populated_keys = []
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE, enabled=True)
+            for enabled_tag in enabled_tags:
+                tag_count = AzureCostEntryLineItemDailySummary.objects.filter(
+                    tags__has_key=enabled_tag.key,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
+                ).count()
+                if tag_count > 0:
+                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                    populated_keys.append(key_metadata)
+                if len(populated_keys) == 2:
+                    break
+            parent_key, parent_obj, parent_count = populated_keys[0]
+            child_key, child_obj, child_count = populated_keys[1]
+            TagMapping.objects.create(parent=parent_obj, child=child_obj)
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            expected_parent_count = parent_count + child_count
+            actual_parent_count = AzureCostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(expected_parent_count, actual_parent_count)
+            actual_child_count = AzureCostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(0, actual_child_count)
+
+    @patch("masu.database.azure_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
+    def test_populate_ocp_on_aZURE_tag_information(self, mock_unleash):
+        """
+        This tests the tag mapping feature.
+        """
+        mock_unleash.return_value = True
+        populated_keys = []
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE, enabled=True)
+            for enabled_tag in enabled_tags:
+                tag_count = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                    tags__has_key=enabled_tag.key,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
+                ).count()
+                if tag_count > 0:
+                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                    populated_keys.append(key_metadata)
+                if len(populated_keys) == 2:
+                    break
+            bill_ids = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                tags__has_key=enabled_tag.key,
+                usage_start__gte=self.dh.this_month_start,
+                usage_start__lte=self.dh.today,
+            ).values_list("cost_entry_bill", flat=True)
+            parent_key, parent_obj, parent_count = populated_keys[0]
+            child_key, child_obj, child_count = populated_keys[1]
+            TagMapping.objects.create(parent=parent_obj, child=child_obj)
+            self.accessor.populate_ocp_on_azure_tag_information(bill_ids, self.dh.this_month_start, self.dh.today)
+            expected_parent_count = parent_count + child_count
+            actual_parent_count = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(expected_parent_count, actual_parent_count)
+            actual_child_count = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(0, actual_child_count)

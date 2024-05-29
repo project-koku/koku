@@ -2,8 +2,7 @@ import json
 import logging
 
 import ciso8601
-import pandas
-from numpy import nan
+import pandas as pd
 
 from api.models import Provider
 from masu.util.azure.common import INGRESS_ALT_COLUMNS
@@ -44,13 +43,21 @@ def azure_date_converter(date):
             new_date = ciso8601.parse_datetime(new_date_str)
         return new_date
     else:
-        return nan
+        return pd.NaT
 
 
 class AzurePostProcessor:
     def __init__(self, schema):
         self.schema = schema
         self.enabled_tag_keys = set()
+
+    # Different Azure Cost Exports can have different fields,
+    # this maps some column names to expected names for consistency with TRINO_REQUIRED_COLUMNS
+    COL_TRANSLATION = {
+        "resourcegroupname": "resourcegroup",
+        "instancename": "resourceid",
+        "product": "productname",
+    }
 
     def check_ingress_required_columns(self, col_names):
         """
@@ -100,6 +107,7 @@ class AzurePostProcessor:
 
         for column in columns:
             new_col_name = strip_characters_from_column_name(column)
+            new_col_name = self.COL_TRANSLATION.get(new_col_name, new_col_name)
             column_name_map[column] = new_col_name
 
         data_frame = data_frame.rename(columns=column_name_map)
@@ -110,7 +118,7 @@ class AzurePostProcessor:
 
         unique_tags = set()
         for tags_json in data_frame["tags"].values:
-            if pandas.notnull(tags_json):
+            if pd.notnull(tags_json):
                 unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
         return data_frame, self._generate_daily_data(data_frame)

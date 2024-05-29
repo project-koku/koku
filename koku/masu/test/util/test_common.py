@@ -26,6 +26,8 @@ from masu.config import Config
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSCostEntryBill
+from reporting_common.models import CostUsageReportManifest
+from reporting_common.states import ManifestState
 
 
 class MockConfig:
@@ -538,6 +540,37 @@ class CommonUtilTests(MasuTestCase):
         expected = {"good_key": "good_value"}
         result = common_utils.filter_dictionary(test_dictionary, keys_to_keep)
         self.assertEqual(result, expected)
+
+    def test_set_summary_timestamp(self):
+        """Test setting summary times for manifests."""
+        provider_uuid = self.aws_provider_uuid
+        manifest = CostUsageReportManifest.objects.filter(
+            provider=provider_uuid,
+            billing_period_start_datetime=DateHelper().this_month_start,
+            creation_datetime__isnull=False,
+        ).latest("creation_datetime")
+        common_utils.set_summary_timestamp(ManifestState.START, manifest_id=manifest.id)
+        manifest = CostUsageReportManifest.objects.filter(id=manifest.id).first()
+        self.assertIn("start", manifest.state.get("summary"))
+
+
+def test_get_latest_openshift_on_cloud_manifest(self):
+    """test fetching latest manifest for ocp on cloud provider"""
+    provider_uuid = self.aws_provider_uuid
+    self.assertIsNone(common_utils.get_latest_openshift_on_cloud_manifest("test", "2023-01-01"))
+
+    this_month_str = str(DateHelper().this_month_start.date())
+    self.assertIsNone(common_utils.get_latest_openshift_on_cloud_manifest("test", this_month_str))
+
+    manifest_expected_id = common_utils.get_latest_openshift_on_cloud_manifest(
+        this_month_str, provider_uuid=provider_uuid
+    )
+    manifest = CostUsageReportManifest.objects.filter(
+        provider=provider_uuid,
+        billing_period_start_datetime=DateHelper().this_month_start,
+        creation_datetime__isnull=False,
+    ).latest("creation_datetime")
+    self.assertEqual(manifest.manifest_id, manifest_expected_id)
 
 
 class NamedTemporaryGZipTests(TestCase):

@@ -1,4 +1,3 @@
-import copy
 import json
 import logging
 
@@ -18,7 +17,7 @@ def process_openshift_datetime(val):
     """
     Convert the date time from the Metering operator reports to a consumable datetime.
     """
-    result = None
+    result = pd.NaT
     try:
         datetime_str = str(val).replace(" +0000 UTC", "")
         result = ciso8601.parse_datetime(datetime_str)
@@ -130,23 +129,20 @@ class OCPPostProcessor:
         if data_frame.empty:
             return data_frame
 
-        report = self.ocp_report_types.get(self.report_type, {})
-        group_bys = copy.deepcopy(report.get("group_by", []))
+        report = self.ocp_report_types[self.report_type]
+        group_bys = [gb for gb in report["group_by"] if gb in data_frame.columns]
         group_bys.append(pd.Grouper(key="interval_start", freq="D"))
-        aggs = report.get("agg", {})
-        daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(
-            {k: v for k, v in aggs.items() if k in data_frame.columns}
-        )
+        aggs = {k: v for k, v in report["agg"].items() if k in data_frame.columns}
+        daily_data_frame = data_frame.groupby(group_bys, dropna=False).agg(aggs)
 
         columns = daily_data_frame.columns.droplevel(1)
         daily_data_frame.columns = columns
 
         daily_data_frame.reset_index(inplace=True)
 
-        new_cols = report.get("new_required_columns")
-        for col in new_cols:
+        for col, dtype in report["new_required_columns"].items():
             if col not in daily_data_frame:
-                daily_data_frame[col] = pd.Series(dtype=pd.StringDtype(storage="pyarrow"))
+                daily_data_frame[col] = pd.Series(dtype=dtype)
 
         return daily_data_frame
 

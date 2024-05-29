@@ -10,7 +10,7 @@ from django.db import IntegrityError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.views.decorators.cache import cache_page
 from django.views.decorators.cache import never_cache
 from django_filters import FilterSet
@@ -98,7 +98,7 @@ class SourcesException(APIException):
         """Initialize with status code 400."""
         super().__init__()
         self.status_code = status.HTTP_400_BAD_REQUEST
-        self.detail = {"detail": force_text(error_msg)}
+        self.detail = {"detail": force_str(error_msg)}
 
 
 class SourcesDependencyException(APIException):
@@ -108,7 +108,7 @@ class SourcesDependencyException(APIException):
         """Initialize with status code 424."""
         super().__init__()
         self.status_code = status.HTTP_424_FAILED_DEPENDENCY
-        self.detail = {"detail": force_text(error_msg)}
+        self.detail = {"detail": force_str(error_msg)}
 
 
 class SourcesViewSet(*MIXIN_LIST):
@@ -247,7 +247,9 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["paused"] = False
                 source["current_month_data"] = False
                 source["previous_month_data"] = False
-                source["status"] = False
+                source["last_payload_received_at"] = False
+                source["last_polling_time"] = False
+                source["status"] = {}
                 source["has_data"] = False
                 source["infrastructure"] = {}
                 source["cost_models"] = []
@@ -258,7 +260,9 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["paused"] = manager.get_paused_status()
                 source["current_month_data"] = manager.get_current_month_data_exists()
                 source["previous_month_data"] = manager.get_previous_month_data_exists()
-                source["status"] = manager.get_state()
+                source["last_payload_received_at"] = manager.get_last_received_data_datetime()
+                source["last_polling_time"] = manager.get_last_polling_time()
+                source["status"] = manager.get_state()  # This holds the download/processing/summary states
                 source["has_data"] = manager.get_any_data_exists()
                 source["infrastructure"] = manager.get_infrastructure_info()
                 source["cost_models"] = [
@@ -283,23 +287,28 @@ class SourcesViewSet(*MIXIN_LIST):
             response.data["paused"] = False
             response.data["current_month_data"] = False
             response.data["previous_month_data"] = False
-            response.data["status"] = False
+            response.data["last_payload_received_at"] = False
+            response.data["last_polling_time"] = False
+            response.data["status"] = {}
             response.data["has_data"] = False
             response.data["infrastructure"] = {}
             response.data["cost_models"] = []
+            response.data["additional_context"] = {}
         else:
             response.data["provider_linked"] = True
             response.data["active"] = manager.get_active_status()
             response.data["paused"] = manager.get_paused_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
             response.data["previous_month_data"] = manager.get_previous_month_data_exists()
-            response.data["status"] = manager.get_state()
+            response.data["last_payload_received_at"] = manager.get_last_received_data_datetime()
+            response.data["last_polling_time"] = manager.get_last_polling_time()
+            response.data["status"] = manager.get_state()  # This holds the download/processing/summary states
             response.data["has_data"] = manager.get_any_data_exists()
-
             response.data["infrastructure"] = manager.get_infrastructure_info()
             response.data["cost_models"] = [
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
             ]
+            response.data["additional_context"] = manager.get_additional_context()
         return response
 
     @method_decorator(never_cache)

@@ -22,6 +22,8 @@ from zoneinfo import ZoneInfo
 from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
+from oci import config
+from oci.exceptions import ConfigFileNotFound
 
 from . import database
 from . import sentry
@@ -79,6 +81,7 @@ INSTALLED_APPS = [
     # local apps
     "api",
     "hcs",
+    "key_metrics",
     "masu",
     "reporting",
     "reporting_common",
@@ -92,6 +95,7 @@ SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 SHARED_APPS = (
     "django_tenants",
     "api",
+    "key_metrics",
     "masu",
     "reporting_common",
     "django.contrib.contenttypes",
@@ -105,8 +109,6 @@ SHARED_APPS = (
 TENANT_APPS = ("reporting", "cost_models")
 TENANT_MULTIPROCESSING_MAX_PROCESSES = ENVIRONMENT.int("TENANT_MULTIPROCESSING_MAX_PROCESSES", default=2)
 TENANT_MULTIPROCESSING_CHUNKS = ENVIRONMENT.int("TENANT_MULTIPROCESSING_CHUNKS", default=2)
-
-DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
 ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
 
@@ -243,11 +245,11 @@ else:
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
-            "TIMEOUT": 3600,  # 1 hour default
+            "TIMEOUT": 3_600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1000,
+                "MAX_ENTRIES": 1_000,
                 "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
@@ -258,14 +260,14 @@ else:
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
-                "MAX_ENTRIES": 1000,
+                "MAX_ENTRIES": 1_000,
                 "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         "worker": {
             "BACKEND": "django.core.cache.backends.db.DatabaseCache",
             "LOCATION": "worker_cache_table",
-            "TIMEOUT": 86400,  # 24 hours
+            "TIMEOUT": 86_400,  # 24 hours
         },
     }
 
@@ -309,8 +311,6 @@ UTC = ZoneInfo("UTC")
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = True
 
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
@@ -322,9 +322,16 @@ NOTIFICATION_CHECK_TIME = ENVIRONMENT.int("NOTIFICATION_CHECK_TIME", default=24)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATIC_URL = "{}/static/".format(API_PATH_PREFIX.rstrip("/"))
-
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/specs")]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django_tenants.storage.TenantFileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 INTERNAL_IPS = ["127.0.0.1"]
 
@@ -499,12 +506,16 @@ ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
 PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
-OCI_CONFIG = {
-    "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
-    "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="None"),
-    "fingerprint": ENVIRONMENT.get_value("OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"),
-    "tenancy": ENVIRONMENT.get_value("OCI_CLI_TENANCY", default="OCI_TENANT"),
-}
+
+# The oci config requires `user`, `key_file`, `fingerprint`, `tenancy`, and `region`.
+# The OCI_SHARED_CREDENTIALS_FILE contains all but the key_file and region. The key_file
+# comes from the OCI_CLI_KEY_FILE env var, and the region comes from the user created Source.
+OCI_CONFIG = {}
+try:
+    OCI_CONFIG = config.from_file(file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default=""))
+    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="")
+except ConfigFileNotFound:
+    logging.exception("OCI configuration not found")
 
 # Trino Settings
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
@@ -570,3 +581,6 @@ ENABLE_SUBS_PROVIDER_TYPES = ENVIRONMENT.list("ENABLE_SUBS_PROVIDER_TYPES", defa
 
 # ROS debugging
 ENABLE_ROS_DEBUG = ENVIRONMENT.bool("ENABLE_ROS_DEBUG", default=False)
+
+# Delay Celery Tasks Timeout
+DELAYED_TASK_TIME = ENVIRONMENT.int("DELAYED_TASK_TIME", default=3600)

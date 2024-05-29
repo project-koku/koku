@@ -3,12 +3,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Reporting Common."""
-from django.utils import timezone
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
+from django.utils import timezone
+from django_tenants.utils import schema_context
+
+from api.models import Provider
+from api.utils import DateHelper
+from masu.processor.tasks import delayed_summarize_current_month
+from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE
+from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE_XL
+from masu.processor.tasks import UPDATE_SUMMARY_TABLES_TASK
 from masu.test import MasuTestCase
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import DelayedCeleryTasks
+from reporting_common.models import trigger_celery_task
 
 
 class TestCostUsageReportStatus(MasuTestCase):
@@ -107,3 +119,74 @@ class TestCostUsageReportStatus(MasuTestCase):
         stats.update_status(CombinedChoices.FAILED)
         self.assertIsNotNone(stats.failed_status)
         self.assertEqual(stats.status, CombinedChoices.FAILED)
+
+    @patch("masu.processor.tasks.is_customer_large")
+    def test_delayed_summarize_current_month(self, mock_large_customer):
+        mock_large_customer.return_value = False
+        test_matrix = {
+            Provider.PROVIDER_AWS: self.aws_provider,
+            Provider.PROVIDER_AZURE: self.azure_provider,
+            Provider.PROVIDER_GCP: self.gcp_provider,
+            Provider.PROVIDER_OCI: self.oci_provider,
+            Provider.PROVIDER_OCP: self.ocp_provider,
+        }
+        count = 0
+        for test_provider_type, test_provider in test_matrix.items():
+            with self.subTest(test_provider_type=test_provider_type, test_provider=test_provider):
+                with schema_context(self.schema):
+                    delayed_summarize_current_month(self.schema_name, [test_provider.uuid], test_provider_type)
+                    count += 1
+                    self.assertEqual(DelayedCeleryTasks.objects.all().count(), count)
+                    db_entry = DelayedCeleryTasks.objects.get(provider_uuid=test_provider.uuid)
+                    self.assertEqual(db_entry.task_name, UPDATE_SUMMARY_TABLES_TASK)
+                    self.assertTrue(
+                        db_entry.task_kwargs,
+                        {
+                            "provider_type": test_provider_type,
+                            "provider_uuid": str(test_provider.uuid),
+                            "start_date": str(DateHelper().this_month_start),
+                        },
+                    )
+
+                    self.assertEqual(db_entry.task_args, [self.schema_name])
+                    self.assertEqual(db_entry.queue_name, UPDATE_SUMMARY_TABLES_QUEUE)
+
+    @patch("masu.processor.tasks.is_customer_large")
+    def test_large_customer(self, mock_large_customer):
+        mock_large_customer.return_value = True
+        delayed_summarize_current_month(self.schema_name, [self.aws_provider.uuid], Provider.PROVIDER_AWS)
+        with schema_context(self.schema):
+            db_entry = DelayedCeleryTasks.objects.get(provider_uuid=self.aws_provider.uuid)
+            self.assertEqual(db_entry.queue_name, UPDATE_SUMMARY_TABLES_QUEUE_XL)
+
+    @patch("reporting_common.models.celery_app")
+    def test_trigger_celery_task(self, mock_celery_app):
+        # Building Mocks
+        result = MagicMock()
+        result.id = "mocked_result_id"
+        mock_celery_app.send_task.return_value = result
+        # Building Test data
+        expected_task_name = "test_task"
+        expected_args = ["arg1", "arg2"]
+        expected_task_kwargs = {"tracing_id": "123"}
+        expected_queue = "test_queue"
+        task_instance = DelayedCeleryTasks.create_or_reset_timeout(
+            task_name=expected_task_name,
+            task_args=expected_args,
+            task_kwargs=expected_task_kwargs,
+            provider_uuid=self.aws_provider_uuid,
+            queue_name=expected_queue,
+        )
+
+        with self.assertLogs("reporting_common.models", level="INFO") as cm:
+            trigger_celery_task(sender=None, instance=task_instance)
+
+        log_message = "delay period ended starting task"
+        self.assertTrue(any(log_message in log for log in cm.output))
+
+        mock_celery_app.send_task.assert_called_once_with(
+            task_instance.task_name,
+            args=task_instance.task_args,
+            kwargs=task_instance.task_kwargs,
+            queue=task_instance.queue_name,
+        )

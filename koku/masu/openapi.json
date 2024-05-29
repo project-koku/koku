@@ -81,6 +81,10 @@
     {
       "name": "Additional Context",
       "description": "An endpoint to view & manipulate additional context for the provider."
+    },
+    {
+      "name": "Manifests",
+      "description": "An endpoint to review the status of manifest and reportstatus entries."
     }
   ],
   "paths": {
@@ -1589,42 +1593,7 @@
           ]
         }
       },
-      "/gcp_invoice_monthly_cost/": {
-      "get": {
-        "summary": "Returns dictionary with cost mappings for continuity checks",
-        "operationId": "gcpInvoiceMonthlyCost",
-        "description": "Returns a dictionary with cost mappings for continuity checks",
-        "parameters": [
-          {
-            "name": "provider_uuid",
-            "in": "query",
-            "description": "The provider UUID",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Returns a dictionary with cost mappings for continuity checks",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/gcpInvoiceMonthlyCost"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "GCP Invoice Monthly Cost"
-        ]
-      }
-    },
-    "/bigquery_cost/": {
+    "/bigquery_cost/{provider_uuid}/": {
       "get": {
         "summary": "Returns dictionary with cost mappings for continuity checks",
         "operationId": "BigQueryCost",
@@ -1632,7 +1601,7 @@
         "parameters": [
           {
             "name": "provider_uuid",
-            "in": "query",
+            "in": "path",
             "description": "The provider UUID",
             "required": true,
             "schema": {
@@ -1700,7 +1669,94 @@
         "operationId": "getManifest",
         "parameters": [
           {
-            "$ref": "#/components/parameters/ProviderName"
+            "name": "account_id",
+            "in": "query",
+            "description": "The account id to filter on.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org_id",
+            "in": "query",
+            "description": "The org id to filter on.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "schema_name",
+            "in": "query",
+            "description": "The schema_name to filter on.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "description": "The provider_uuid to filter on.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "created_before",
+            "in": "query",
+            "description": "The iso8601 date to find manifests created before.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "created_after",
+            "in": "query",
+            "description": "The iso8601 date to find manifests created after.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "completed_before",
+            "in": "query",
+            "description": "The iso8601 date to find manifests created before.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "completed_after",
+            "in": "query",
+            "description": "The iso8601 date to find manifests created after.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "failed",
+            "in": "query",
+            "description": "Filter on manifests that failed processing.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "running",
+            "in": "query",
+            "description": "Filter on manifests that are actively running tasks.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -1727,73 +1783,18 @@
         }
       }
     },
-    "/manifests/{source_uuid}/": {
+    "/manifests/{manifest_id}/": {
       "get": {
         "tags": [
           "Manifests"
         ],
-        "summary": "returns manifests for a provider source uuid",
-        "operationId": "getManifestbyUUID",
+        "summary": "returns manifest for a given manifest ID",
+        "operationId": "getManifestbyID",
         "parameters": [
-          {
-            "name": "source_uuid",
-            "in": "path",
-            "description": "provider source uuid",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "string",
-              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "An object describing manifest information",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Manifests"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Manifests not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/manifests/{source_uuid}/{manifest_id}/": {
-      "get": {
-        "tags": [
-          "Manifests"
-        ],
-        "summary": "Returns a specific manifest for the provider source uuid",
-        "operationId": "getManifestbyUUIDandID",
-        "parameters": [
-          {
-            "name": "source_uuid",
-            "in": "path",
-            "description": "provider source uuid",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "string",
-              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
-            }
-          },
-          {
+            {
             "name": "manifest_id",
             "in": "path",
-            "description": "provider source uuid",
+            "description": "manifest id",
             "required": true,
             "schema": {
               "type": "integer",
@@ -1808,7 +1809,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Manifest"
+                  "$ref": "#/components/schemas/Manifests"
                 }
               }
             }
@@ -1826,29 +1827,49 @@
         }
       }
     },
-    "/manifests/{source_uuid}/{manifest_id}/files/": {
+    "/manifests/{manifest_id}/reports": {
       "get": {
         "tags": [
           "Manifests"
         ],
-        "summary": "Returns file report information for a manifest",
-        "operationId": "getManifestfiles",
+        "summary": "returns status reports for a given manifest ID",
+        "operationId": "getStatusReportsbyManifestID",
         "parameters": [
-          {
-            "name": "source_uuid",
+                      {
+            "name": "manifest_id",
             "in": "path",
-            "description": "provider source uuid",
+            "description": "manifest id",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "string",
-              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
+              "type": "integer",
+              "format": "int64",
+              "example": 3
             }
           },
           {
-            "name": "manifest_id",
-            "in": "path",
-            "description": "provider source uuid",
+            "name": "status",
+            "in": "query",
+            "description": "Filter status reports by status state",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "example": 3
+            }
+          },
+          {
+            "name": "celery_task_id",
+            "in": "query",
+            "description": "Filter status reports by celery task ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "failed_status",
+            "in": "query",
+            "description": "Filter status reports by failed status state",
             "required": true,
             "schema": {
               "type": "integer",
@@ -1859,83 +1880,17 @@
         ],
         "responses": {
           "200": {
-            "description": "An object describing manifest report information",
+            "description": "An object describing manifest information",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReportStatuses"
+                  "$ref": "#/components/schemas/MultipleReportStatus"
                 }
               }
             }
           },
           "404": {
-            "description": "Manifest reports not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/manifests/{source_uuid}/{manifest_id}/files/{id}": {
-      "get": {
-        "tags": [
-          "Manifests"
-        ],
-        "summary": "Returns a specific file report status for a manifest",
-        "operationId": "getManifestfile",
-        "parameters": [
-          {
-            "name": "source_uuid",
-            "in": "path",
-            "description": "provider source uuid",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "string",
-              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
-            }
-          },
-          {
-            "name": "manifest_id",
-            "in": "path",
-            "description": "provider source uuid",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "example": 3
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "description": "provider source uuid",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "example": 3
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "An object describing manifest report information",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReportStatus"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Manifest report not found",
+            "description": "Manifest not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2664,13 +2619,14 @@
           "id",
           "assembly_id",
           "creation_datetime",
-          "manifest_updated_datetime",
           "completed_datetime",
           "export_datetime",
           "billing_period_start_datetime",
           "provider_id",
           "s3_csv_cleared",
-          "s3_parquet_cleared"
+          "s3_parquet_cleared",
+          "operator_version",
+          "state"
         ],
         "properties": {
           "id": {
@@ -2680,11 +2636,6 @@
             "type": "string"
           },
           "creation_datetime": {
-            "enum": [
-              "year-month-day:time"
-            ]
-          },
-          "manifest_updated_datetime": {
             "enum": [
               "year-month-day:time"
             ]
@@ -2715,6 +2666,9 @@
           },
           "operator_version": {
             "type": "string"
+          },
+          "state": {
+            "type": "object"
           }
         }
       },
@@ -2742,9 +2696,14 @@
       "ReportStatus": {
         "required": [
           "id",
+          "manifest",
           "report_name",
           "completed_datetime",
-          "started_datetime"
+          "started_datetime",
+          "etag",
+          "status",
+          "failed_status",
+          "celery_task_id",
         ],
         "properties": {
           "id": {
@@ -2771,8 +2730,38 @@
           },
           "manifest": {
             "type": "number"
+          },
+          "status": {
+            "type": "number"
+          },
+          "failed_status" :{
+            "type": "number"
+          },
+          "celery_task_id": {
+            "type": "string"
           }
         }
+      },
+      "MultipleReportStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ListPagination"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ReportStatus"
+                }
+              }
+            }
+          }
+        ]
       },
       "PaginationMeta": {
         "properties": {

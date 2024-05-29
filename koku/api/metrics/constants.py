@@ -106,7 +106,7 @@ COST_MODEL_METRIC_MAP = [
         "metric": "memory_gb_usage_per_hour",
         "label_metric": "Memory",
         "label_measurement": "Usage",
-        "label_measurement_unit": "GB-hours",
+        "label_measurement_unit": "GiB-hours",
         "default_cost_type": "Supplementary",
     },
     {
@@ -114,7 +114,7 @@ COST_MODEL_METRIC_MAP = [
         "metric": "memory_gb_request_per_hour",
         "label_metric": "Memory",
         "label_measurement": "Request",
-        "label_measurement_unit": "GB-hours",
+        "label_measurement_unit": "GiB-hours",
         "default_cost_type": "Supplementary",
     },
     {
@@ -122,7 +122,7 @@ COST_MODEL_METRIC_MAP = [
         "metric": "memory_gb_effective_usage_per_hour",
         "label_metric": "Memory",
         "label_measurement": "Effective-usage",
-        "label_measurement_unit": "GB-hours",
+        "label_measurement_unit": "GiB-hours",
         "default_cost_type": "Supplementary",
     },
     {
@@ -130,7 +130,7 @@ COST_MODEL_METRIC_MAP = [
         "metric": "storage_gb_usage_per_month",
         "label_metric": "Storage",
         "label_measurement": "Usage",
-        "label_measurement_unit": "GB-month",
+        "label_measurement_unit": "GiB-month",
         "default_cost_type": "Supplementary",
     },
     {
@@ -138,7 +138,7 @@ COST_MODEL_METRIC_MAP = [
         "metric": "storage_gb_request_per_month",
         "label_metric": "Storage",
         "label_measurement": "Request",
-        "label_measurement_unit": "GB-month",
+        "label_measurement_unit": "GiB-month",
         "default_cost_type": "Supplementary",
     },
     {
@@ -166,3 +166,17 @@ COST_MODEL_METRIC_MAP = [
         "default_cost_type": "Infrastructure",
     },
 ]
+
+PLATFORM_COST = "platform_cost"
+WORKER_UNALLOCATED = "worker_cost"
+NETWORK_UNATTRIBUTED = "network_unattributed"
+STORAGE_UNATTRIBUTED = "storage_unattributed"
+DISTRIBUTION_TYPE = "distribution_type"
+
+DEFAULT_DISTRIBUTION_INFO = {
+    DISTRIBUTION_TYPE: CPU_DISTRIBUTION,
+    PLATFORM_COST: True,
+    WORKER_UNALLOCATED: True,
+    NETWORK_UNATTRIBUTED: False,
+    STORAGE_UNATTRIBUTED: False,
+}

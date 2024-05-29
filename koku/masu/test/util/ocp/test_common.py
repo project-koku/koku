@@ -136,7 +136,21 @@ class OCPUtilTests(MasuTestCase):
         expected_result = "pod_usage"
         test_table = [
             copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS),
-            copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS).union(utils.CPU_MEM_USAGE_NEWV_COLUMNS),
+            copy.deepcopy(utils.CPU_MEM_USAGE_COLUMNS).union(utils.CPU_MEM_USAGE_NEWV_COLUMNS_AND_TYPES),
+        ]
+        for test in test_table:
+            with self.subTest(test=test):
+                with patch("masu.util.ocp.common.pd.read_csv") as mock_csv:
+                    mock_csv.return_value.columns = test
+                    result, _ = utils.detect_type("")
+                    self.assertEqual(result, expected_result)
+
+    def test_detect_type_storage_type(self):
+        "Test that we detect the correct report type from csv"
+        expected_result = "storage_usage"
+        test_table = [
+            copy.deepcopy(utils.STORAGE_COLUMNS),
+            copy.deepcopy(utils.STORAGE_COLUMNS).union(utils.STORAGE_NEWV_COLUMNS_AND_TYPES),
         ]
         for test in test_table:
             with self.subTest(test=test):
@@ -148,7 +162,6 @@ class OCPUtilTests(MasuTestCase):
     def test_detect_type(self):
         "Test that we detect the correct report type from csv"
         test_table = {
-            "storage_usage": copy.deepcopy(utils.STORAGE_COLUMNS),
             "node_labels": copy.deepcopy(utils.NODE_LABEL_COLUMNS),
             "namespace_labels": copy.deepcopy(utils.NAMESPACE_LABEL_COLUMNS),
         }

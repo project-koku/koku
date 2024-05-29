@@ -255,12 +255,14 @@ class RbacPermissions:
                 "entitlements": {"cost_management": {"is_entitled": "True"}},
             }
 
+            get_response = Mock()
+
             with override_settings(DEVELOPMENT=True):
                 with override_settings(DEVELOPMENT_IDENTITY=identity):
                     with override_settings(FORCE_HEADER_OVERRIDE=True):
                         with override_settings(MIDDLEWARE=middleware):
                             request_context = IamTestCase._create_request_context(self.customer, user)
-                            middleware = DevelopmentIdentityHeaderMiddleware()
+                            middleware = DevelopmentIdentityHeaderMiddleware(get_response)
                             middleware.process_request(request_context["request"])
                             result = function(*args, **kwargs)
             return result

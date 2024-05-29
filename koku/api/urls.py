@@ -82,6 +82,7 @@ from api.views import OCPGCPInstanceTypeView
 from api.views import OCPGCPStorageView
 from api.views import OCPGCPTagView
 from api.views import OCPMemoryView
+from api.views import OCPNetworkView
 from api.views import OCPNodesView
 from api.views import OCPProjectsView
 from api.views import OCPTagView
@@ -93,6 +94,12 @@ from api.views import SettingsDisableAWSCategoryKeyView
 from api.views import SettingsDisableTagView
 from api.views import SettingsEnableAWSCategoryKeyView
 from api.views import SettingsEnableTagView
+from api.views import SettingsTagMappingChildAddView
+from api.views import SettingsTagMappingChildRemoveView
+from api.views import SettingsTagMappingChildView
+from api.views import SettingsTagMappingParentRemoveView
+from api.views import SettingsTagMappingParentView
+from api.views import SettingsTagMappingView
 from api.views import SettingsTagView
 from api.views import StatusView
 from api.views import UserAccessView
@@ -107,7 +114,6 @@ from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
-
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
@@ -284,6 +290,13 @@ urlpatterns = [
         name="reports-openshift-volume",
     ),
     path(
+        "reports/openshift/network/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPNetworkView.as_view()
+        ),
+        name="reports-openshift-network",
+    ),
+    path(
         "reports/openshift/infrastructures/all/costs/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_ALL_CACHE_PREFIX)(
             OCPAllCostView.as_view()
@@ -365,6 +378,20 @@ urlpatterns = [
     path("settings/tags/", SettingsTagView.as_view(), name="settings-tags"),
     path("settings/tags/enable/", SettingsEnableTagView.as_view(), name="tags-enable"),
     path("settings/tags/disable/", SettingsDisableTagView.as_view(), name="tags-disable"),
+    path("settings/tags/mappings/", SettingsTagMappingView.as_view(), name="tags-mapping"),
+    path("settings/tags/mappings/child/", SettingsTagMappingChildView.as_view(), name="tags-mapping-child"),
+    path("settings/tags/mappings/parent/", SettingsTagMappingParentView.as_view(), name="tags-mapping-parent"),
+    path("settings/tags/mappings/child/add/", SettingsTagMappingChildAddView.as_view(), name="tags-mapping-child-add"),
+    path(
+        "settings/tags/mappings/child/remove/",
+        SettingsTagMappingChildRemoveView.as_view(),
+        name="tags-mapping-child-remove",
+    ),
+    path(
+        "settings/tags/mappings/parent/remove/",
+        SettingsTagMappingParentRemoveView.as_view(),
+        name="tags-mapping-parent-remove",
+    ),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),

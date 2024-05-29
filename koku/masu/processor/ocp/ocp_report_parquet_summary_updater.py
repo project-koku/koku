@@ -12,6 +12,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
@@ -143,7 +144,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             )
             accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
             accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, [report_period_id])
+            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
 
             LOG.info(
                 log_json(msg="updating OCP report periods", context=self._context, report_period_id=report_period_id)
@@ -167,8 +168,16 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         return start_date, end_date
 
     def check_cluster_infrastructure(self, start_date, end_date):
-
-        LOG.info(log_json(msg="checking if OCP cluster is running on cloud infrastructure", context=self._context))
+        # Override start date so we map with a more complete dataset
+        start_date = DateHelper().month_start(start_date)
+        LOG.info(
+            log_json(
+                msg="checking if OCP cluster is running on cloud infrastructure",
+                context=self._context,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
 
         updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
         if (

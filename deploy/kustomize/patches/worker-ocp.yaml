@@ -25,20 +25,16 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              key: aws-access-key-id
-              name: koku-aws
-              optional: false
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              key: aws-secret-access-key
-              name: koku-aws
-              optional: false
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -67,15 +63,15 @@
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
-        - name: KOKU_CELERY_ENABLE_SENTRY
-          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
           value: ${KOKU_SENTRY_ENV}
-        - name: KOKU_CELERY_SENTRY_DSN
+        - name: KOKU_SENTRY_DSN
           valueFrom:
             secretKeyRef:
-              key: celery-sentry-dsn
-              name: koku-sentry
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -119,25 +115,6 @@
           value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: 'true'
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
       livenessProbe:
@@ -169,6 +146,9 @@
           cpu: ${WORKER_OCP_CPU_REQUEST}
           memory: ${WORKER_OCP_MEMORY_REQUEST}
       volumeMounts:
+      - name: aws-credentials
+        mountPath: /etc/aws
+        readOnly: true
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
       - name: gcp-credentials
@@ -184,6 +164,12 @@
         emptyDir: {}
       - name: koku-worker-data
         emptyDir: {}
+      - name: aws-credentials
+        secret:
+          items:
+          - key: aws-credentials
+            path: aws-credentials
+          secretName: koku-aws
       - name: gcp-credentials
         secret:
           secretName: koku-gcp
@@ -196,6 +182,8 @@
           items:
             - key: oci-credentials
               path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
 
 - op: add
   path: /parameters/-

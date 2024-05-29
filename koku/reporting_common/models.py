@@ -3,12 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for shared reporting tables."""
+import logging
+from uuid import uuid4
+
+from django.conf import settings
 from django.db import models
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
+from api.common import log_json
+from api.provider.models import Provider
+from koku import celery_app
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
 from reporting_common.states import Status
+
+LOG = logging.getLogger(__name__)
 
 
 class CostUsageReportManifest(models.Model):
@@ -20,12 +31,6 @@ class CostUsageReportManifest(models.Model):
         unique_together = ("provider", "assembly_id")
 
     assembly_id = models.TextField()
-    manifest_creation_datetime = models.DateTimeField(null=True, default=timezone.now)
-    manifest_updated_datetime = models.DateTimeField(null=True, default=timezone.now)
-    # Completed should indicate that our reporting materialzed views have refreshed
-    manifest_completed_datetime = models.DateTimeField(null=True)
-    # This timestamp indicates the last time the manifest was modified on the data source's end, not ours.
-    manifest_modified_datetime = models.DateTimeField(null=True)
     creation_datetime = models.DateTimeField(null=True, default=timezone.now)
     # completed_datetime indicates that our reporting tables have completed updating with current data
     completed_datetime = models.DateTimeField(null=True)
@@ -49,8 +54,6 @@ class CostUsageReportManifest(models.Model):
     operator_daily_reports = models.BooleanField(null=True, default=False)
     cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
-    export_time = models.DateTimeField(null=True)
-    last_reports = models.JSONField(default=dict, null=True)
     # report_tracker is additional context for OCI/GCP/OCP for managing file counts and file names
     report_tracker = models.JSONField(default=dict, null=True)
     # s3_parquet_cleared_tracker is additional parquet context for OCP daily operator payloads
@@ -67,8 +70,6 @@ class CostUsageReportStatus(models.Model):
 
     manifest = models.ForeignKey("CostUsageReportManifest", null=True, on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False)
-    last_completed_datetime = models.DateTimeField(null=True)
-    last_started_datetime = models.DateTimeField(null=True)
     completed_datetime = models.DateTimeField(null=True)
     started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
@@ -141,3 +142,100 @@ class RegionMapping(models.Model):
 
     region = models.CharField(max_length=32, null=False, unique=True)
     region_name = models.CharField(max_length=64, null=False, unique=True)
+
+
+class DelayedCeleryTasks(models.Model):
+    """This table tracks summary tasks that are delaying execution."""
+
+    class Meta:
+        db_table = "delayed_celery_tasks"
+
+    task_name = models.CharField(max_length=255)
+    task_args = models.JSONField()
+    task_kwargs = models.JSONField()
+    timeout_timestamp = models.DateTimeField()
+    provider_uuid = models.UUIDField()
+    queue_name = models.CharField(max_length=255)
+    metadata = models.JSONField(default=dict, null=True)
+
+    def set_timeout(self, timeout_seconds):
+        now = timezone.now()
+        self.timeout_timestamp = now + timezone.timedelta(seconds=timeout_seconds)
+
+    @classmethod
+    def trigger_delayed_tasks(cls):
+        """Removes expired records triggering the celery task
+        through the pre_delete signal trigger_celery_task.
+        """
+        now = timezone.now()
+        expired_records = cls.objects.filter(timeout_timestamp__lt=now)
+        expired_records.delete()
+
+    @classmethod
+    def create_or_reset_timeout(
+        cls,
+        task_name,
+        task_args,
+        task_kwargs,
+        provider_uuid,
+        queue_name,
+        timeout_seconds=settings.DELAYED_TASK_TIME,
+    ):
+        """
+        Saves data regarding to the celery task being delayed.
+        """
+        existing_task = cls.objects.filter(task_name=task_name, provider_uuid=provider_uuid).first()
+
+        if existing_task:
+            # The task already exist extend the timeout.
+            existing_task.set_timeout(timeout_seconds)
+            existing_task.save()
+            return existing_task
+
+        if not task_kwargs.get("tracing_id"):
+            task_kwargs["tracing_id"] = str(uuid4())
+
+        new_task = cls(
+            task_name=task_name,
+            task_args=task_args,
+            task_kwargs=task_kwargs,
+            provider_uuid=provider_uuid,
+            queue_name=queue_name,
+        )
+        new_task.set_timeout(timeout_seconds)
+        new_task.save()
+        return new_task
+
+
+@receiver(pre_delete, sender=DelayedCeleryTasks)
+def trigger_celery_task(sender, instance, **kwargs):
+    """Triggers celery task prior to removing the rows from the table."""
+    tracing_id = instance.task_kwargs.get("tracing_id")
+    result = celery_app.send_task(
+        instance.task_name, args=instance.task_args, kwargs=instance.task_kwargs, queue=instance.queue_name
+    )
+    log_msg = "delay period ended starting task"
+    log_context = {
+        "task_name": instance.task_name,
+        "task_args": instance.task_args,
+        "task_kwargs": instance.task_kwargs,
+        "queue_name": instance.queue_name,
+        "result_id": result.id,
+    }
+    LOG.info(log_json(tracing_id=tracing_id, msg=log_msg, context=log_context))
+
+
+class DiskCapacity(models.Model):
+    """Mapping of product substrings to capacity in GiB.
+
+    Azure bills do not report capacity so we build this information externally.
+    """
+
+    class Meta:
+        """Meta for CostUsageReportStatus."""
+
+        unique_together = ("product_substring", "capacity", "provider_type")
+
+    product_substring = models.CharField(max_length=20, primary_key=True)
+    capacity = models.IntegerField()
+    provider_type = models.CharField(max_length=50, null=False, choices=Provider.CLOUD_PROVIDER_CHOICES)

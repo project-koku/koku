@@ -32,8 +32,6 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - KOKU_SOURCES_CLIENT_HOST=${KOKU_SOURCES_CLIENT_HOST-sources-client}
       - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
@@ -45,7 +43,11 @@ services:
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
       - MAX_GROUP_BY_OVERRIDE=${MAX_GROUP_BY_OVERRIDE-3}
+      - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
+      - OCI_SHARED_CREDENTIALS_FILE=${OCI_SHARED_CREDENTIALS_FILE-}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE-}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - DEMO_ACCOUNTS
       - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
       - RUN_GUNICORN=${RUN_GUNICORN-}
@@ -59,14 +61,11 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
-      - OCI_CLI_USER=${OCI_CLI_USER}
-      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
-      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
-      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
-      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - QE_SCHEMA=${QE_SCHEMA}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
       - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
+      - DELAYED_TASK_TIME=${DELAYED_TASK_TIME-20}
+      - DELAYED_TASK_POLLING_MINUTES=${DELAYED_TASK_POLLING_MINUTES-5}
     ports:
       - 8000:8000
       - 8001:9000
@@ -76,7 +75,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './dev/credentials:/etc/credentials'
     depends_on:
       - koku-base
 
@@ -95,8 +94,6 @@ services:
       - POSTGRES_SQL_SERVICE_PORT=5432
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
       - S3_BUCKET_NAME_OCP_INGRESS=${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ENDPOINT
@@ -129,11 +126,10 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
-      - OCI_CLI_USER=${OCI_CLI_USER}
-      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
-      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
-      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_SHARED_CREDENTIALS_FILE=${OCI_SHARED_CREDENTIALS_FILE-}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE-}
       - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
       - TRINO_HOST=${TRINO_HOST-trino}
@@ -148,7 +144,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './dev/credentials:/etc/credentials'
     depends_on:
       - koku-base
 
@@ -161,8 +157,6 @@ services:
       - manage.py
       - restart_celery
     environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -191,15 +185,18 @@ services:
       - S3_ACCESS_KEY
       - S3_SECRET
       - DATA_DIR=${DATA_DIR-/testing/data}
+      - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
-      - KOKU_CELERY_ENABLE_SENTRY
-      - KOKU_CELERY_SENTRY_DSN
-      - KOKU_SENTRY_ENVIRONMENT=development
+      - OCI_SHARED_CREDENTIALS_FILE=${OCI_SHARED_CREDENTIALS_FILE-}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE-}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - DEMO_ACCOUNTS
       - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
       - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
       - POLLING_TIMER=${POLLING_TIMER-60}
       - POLLING_BATCH_SIZE=${POLLING_BATCH_SIZE-100}
+      - DELAYED_TASK_TIME=${DELAYED_TASK_TIME-20}
+      - DELAYED_TASK_POLLING_MINUTES=${DELAYED_TASK_POLLING_MINUTES-5}
       - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
       - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
       - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
@@ -216,11 +213,6 @@ services:
       - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
-      - OCI_CLI_USER=${OCI_CLI_USER}
-      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
-      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
-      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
-      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 6001-6020:9000
@@ -246,7 +238,7 @@ services:
       - './testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
       - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
       - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './dev/credentials:/etc/credentials'
     depends_on:
         - koku-base
 
@@ -325,8 +317,7 @@ services:
       - S3_ENDPOINT
       - S3_ACCESS_KEY
       - S3_SECRET
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
+      - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
       - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
@@ -352,6 +343,7 @@ services:
       - './.unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
+      - './dev/credentials:/etc/credentials'
     depends_on:
       - koku-base
 
@@ -381,7 +373,11 @@ services:
       - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
       - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
       - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
+      - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
+      - OCI_SHARED_CREDENTIALS_FILE=${OCI_SHARED_CREDENTIALS_FILE-}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE-}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - DEMO_ACCOUNTS
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
@@ -398,11 +394,6 @@ services:
       - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
-      - OCI_CLI_USER=${OCI_CLI_USER}
-      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
-      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
-      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
-      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 4000:8000
@@ -412,7 +403,7 @@ services:
       - './.unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './dev/credentials:/etc/credentials'
     depends_on:
       - koku-base
 
@@ -423,8 +414,6 @@ services:
     working_dir: /koku/koku
     entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
     environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -438,7 +427,7 @@ services:
       - DJANGO_SETTINGS_MODULE=koku.settings
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - SCHEDULE_REPORT_CHECKS=True
-      - SOURCE_STATUS_FREQUENCY_MINUTES
+      - SOURCE_STATUS_SCHEDULE
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PREFIX=${UNLEASH_PREFIX-http}
@@ -568,7 +557,7 @@ services:
 
   unleash:
     container_name: koku-unleash
-    image: unleashorg/unleash-server:4.21.0
+    image: unleashorg/unleash-server:5.6.9
     environment:
       - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
       - CHECK_VERSION=false
@@ -625,7 +614,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/cloudservices/ubi-hive:3.1.2-metastore-008
+    image: quay.io/samdoran/ubi-hive:3.1.3-metastore-036
     ports:
       - 9083:8000
     environment:
@@ -648,7 +637,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/cloudservices/ubi-trino:411-002
+    image: quay.io/samdoran/ubi-trino:443-002
     user: root
     ports:
       - 8080:8080
@@ -667,12 +656,12 @@ services:
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
     volumes:
-      - ./deploy/trino/etc/config.properties:/etc/trino/config.properties
-      - ./deploy/trino/etc/jvm.config:/etc/trino/jvm.config
-      - ./deploy/trino/etc/log.properties:/etc/trino/log.properties
-      - ./deploy/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
-      - ./deploy/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
-      - ./deploy/hadoop/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
+      - ./dev/containers/trino/etc/config.properties:/etc/trino/config.properties
+      - ./dev/containers/trino/etc/jvm.config:/etc/trino/jvm.config
+      - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
+      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
+      - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
+      - ./dev/containers/trino/etc/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
       - ./.trino/trino/trino-data:/data/trino/data
       - ./.trino/trino/trino-logs:/data/trino/logs
     links:

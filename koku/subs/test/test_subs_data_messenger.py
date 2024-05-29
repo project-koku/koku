@@ -28,7 +28,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
     @patch("subs.subs_data_messenger.os.remove")
     @patch("subs.subs_data_messenger.get_producer")
     @patch("subs.subs_data_messenger.csv.DictReader")
-    @patch("subs.subs_data_messenger.SUBSDataMessenger.build_subs_dict")
+    @patch("subs.subs_data_messenger.SUBSDataMessenger.build_aws_subs_dict")
     def test_process_and_send_subs_message(self, mock_msg_builder, mock_reader, mock_producer, mock_remove):
         """Tests that the proper functions are called when running process_and_send_subs_message"""
         upload_keys = ["fake_key"]
@@ -54,7 +54,54 @@ class TestSUBSDataMessenger(SUBSTestCase):
         mock_msg_builder.assert_called_once()
         mock_producer.assert_called_once()
 
-    def test_build_subs_dict(self):
+    def test_build_base_subs_dict(self):
+        """
+        Test building the kafka message body
+        """
+        lineitem_resourceid = "i-55555556"
+        lineitem_usagestartdate = "2023-07-01T01:00:00Z"
+        lineitem_usageenddate = "2023-07-01T02:00:00Z"
+        product_vcpu = "2"
+        usage = "Production"
+        rol = "Red Hat Enterprise Linux Server"
+        sla = "Premium"
+        product_ids = ["479", "70"]
+        static_uuid = uuid.uuid4()
+        expected_subs_dict = {
+            "event_id": str(static_uuid),
+            "event_source": "cost-management",
+            "event_type": "snapshot",
+            "account_number": self.acct,
+            "org_id": self.org_id,
+            "service_type": "RHEL System",
+            "instance_id": lineitem_resourceid,
+            "timestamp": lineitem_usagestartdate,
+            "expiration": lineitem_usageenddate,
+            "measurements": [{"value": product_vcpu, "uom": "vCPUs"}],
+            "cloud_provider": "AWS",
+            "hardware_type": "Cloud",
+            "product_ids": product_ids,
+            "role": rol,
+            "sla": sla,
+            "usage": usage,
+            "billing_provider": "aws",
+            "conversion": True,
+        }
+        with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value = static_uuid
+            actual = self.messenger.build_base_subs_dict(
+                lineitem_resourceid,
+                lineitem_usagestartdate,
+                lineitem_usageenddate,
+                product_vcpu,
+                sla,
+                usage,
+                rol,
+                product_ids,
+            )
+        self.assertEqual(expected_subs_dict, actual)
+
+    def test_build_aws_subs_dict(self):
         """
         Test building the kafka message body
         """
@@ -87,12 +134,59 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "usage": usage,
             "billing_provider": "aws",
             "billing_account_id": lineitem_usageaccountid,
+            "conversion": True,
         }
         with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value = static_uuid
-            actual = self.messenger.build_subs_dict(
+            actual = self.messenger.build_aws_subs_dict(
                 lineitem_resourceid,
                 lineitem_usageaccountid,
+                lineitem_usagestartdate,
+                lineitem_usageenddate,
+                product_vcpu,
+                sla,
+                usage,
+                rol,
+                product_ids,
+            )
+        self.assertEqual(expected_subs_dict, actual)
+
+    def test_build_base_subs_dict_sap_role(self):
+        """
+        Test building the kafka message body
+        """
+        lineitem_resourceid = "i-55555556"
+        lineitem_usagestartdate = "2023-07-01T01:00:00Z"
+        lineitem_usageenddate = "2023-07-01T02:00:00Z"
+        product_vcpu = "2"
+        usage = "Production"
+        rol = "SAP"
+        sla = "Premium"
+        product_ids = ["479", "70"]
+        static_uuid = uuid.uuid4()
+        expected_subs_dict = {
+            "event_id": str(static_uuid),
+            "event_source": "cost-management",
+            "event_type": "snapshot",
+            "account_number": self.acct,
+            "org_id": self.org_id,
+            "service_type": "RHEL System",
+            "instance_id": lineitem_resourceid,
+            "timestamp": lineitem_usagestartdate,
+            "expiration": lineitem_usageenddate,
+            "measurements": [{"value": product_vcpu, "uom": "vCPUs"}],
+            "cloud_provider": "AWS",
+            "hardware_type": "Cloud",
+            "product_ids": product_ids,
+            "sla": sla,
+            "usage": usage,
+            "billing_provider": "aws",
+            "conversion": True,
+        }
+        with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value = static_uuid
+            actual = self.messenger.build_base_subs_dict(
+                lineitem_resourceid,
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
@@ -138,6 +232,59 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "billing_provider": "aws",
             "azure_subscription_id": lineitem_usageaccountid,
             "azure_tenant_id": tenant_id,
+            "conversion": True,
+        }
+        with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value = static_uuid
+            actual = self.messenger.build_azure_subs_dict(
+                lineitem_resourceid,
+                lineitem_usageaccountid,
+                lineitem_usagestartdate,
+                lineitem_usageenddate,
+                product_vcpu,
+                sla,
+                usage,
+                rol,
+                product_ids,
+                tenant_id,
+            )
+        self.assertEqual(expected_subs_dict, actual)
+
+    def test_build_azure_subs_dict_sap_role(self):
+        """
+        Test building the kafka message body
+        """
+        lineitem_resourceid = "i-55555556"
+        lineitem_usagestartdate = "2023-07-01T01:00:00Z"
+        lineitem_usageenddate = "2023-07-01T02:00:00Z"
+        lineitem_usageaccountid = "9999999999999"
+        product_vcpu = "2"
+        usage = "Production"
+        rol = "SAP"
+        sla = "Premium"
+        product_ids = ["479", "70"]
+        tenant_id = "my-fake-id"
+        static_uuid = uuid.uuid4()
+        expected_subs_dict = {
+            "event_id": str(static_uuid),
+            "event_source": "cost-management",
+            "event_type": "snapshot",
+            "account_number": self.acct,
+            "org_id": self.org_id,
+            "service_type": "RHEL System",
+            "instance_id": lineitem_resourceid,
+            "timestamp": lineitem_usagestartdate,
+            "expiration": lineitem_usageenddate,
+            "measurements": [{"value": product_vcpu, "uom": "vCPUs"}],
+            "cloud_provider": "AWS",
+            "hardware_type": "Cloud",
+            "product_ids": product_ids,
+            "sla": sla,
+            "usage": usage,
+            "billing_provider": "aws",
+            "azure_subscription_id": lineitem_usageaccountid,
+            "azure_tenant_id": tenant_id,
+            "conversion": True,
         }
         with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value = static_uuid
@@ -301,7 +448,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
     @patch("subs.subs_data_messenger.os.remove")
     @patch("subs.subs_data_messenger.get_producer")
     @patch("subs.subs_data_messenger.csv.DictReader")
-    @patch("subs.subs_data_messenger.SUBSDataMessenger.build_subs_dict")
+    @patch("subs.subs_data_messenger.SUBSDataMessenger.build_azure_subs_dict")
     def test_process_and_send_subs_message_azure_time_already_processed(
         self, mock_msg_builder, mock_reader, mock_producer, mock_remove, mock_azure_id
     ):

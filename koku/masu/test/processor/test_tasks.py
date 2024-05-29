@@ -181,8 +181,7 @@ class ProcessReportFileTests(MasuTestCase):
 
     @patch("masu.processor._tasks.process.ReportProcessor")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    @patch("masu.processor._tasks.process.ReportManifestDBAccessor")
-    def test_process_file_initial_ingest(self, mock_manifest_accessor, mock_stats, mock_processor):
+    def test_process_file_initial_ingest(self, mock_stats, mock_processor):
         """Test the process_report_file functionality on initial ingest."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
@@ -198,7 +197,6 @@ class ProcessReportFileTests(MasuTestCase):
 
         mock_proc = mock_processor()
         mock_stats.get.return_value = mock_stats
-        mock_manifest_acc = mock_manifest_accessor().__enter__()
         self.aws_provider.refresh_from_db()
         self.assertFalse(self.aws_provider.setup_complete)
 
@@ -207,15 +205,13 @@ class ProcessReportFileTests(MasuTestCase):
         mock_proc.process.assert_called()
         mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_called()
-        mock_manifest_acc.mark_manifest_as_updated.assert_called()
         self.aws_provider.refresh_from_db()
         self.assertTrue(self.aws_provider.setup_complete)
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    @patch("masu.processor._tasks.process.ReportManifestDBAccessor")
-    def test_process_file_non_initial_ingest(self, mock_manifest_accessor, mock_stats, mock_processor):
+    def test_process_file_non_initial_ingest(self, mock_stats, mock_processor):
         """Test the process_report_file functionality on non-initial ingest."""
         report_dir = tempfile.mkdtemp()
         path = "{}/{}".format(report_dir, "file1.csv")
@@ -231,7 +227,6 @@ class ProcessReportFileTests(MasuTestCase):
 
         mock_proc = mock_processor()
         mock_stats.get.return_value = mock_stats
-        mock_manifest_acc = mock_manifest_accessor().__enter__()
         self.aws_provider.set_setup_complete()
 
         _process_report_file(schema_name, provider, report_dict)
@@ -239,7 +234,6 @@ class ProcessReportFileTests(MasuTestCase):
         mock_proc.process.assert_called()
         mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_called()
-        mock_manifest_acc.mark_manifest_as_updated.assert_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
@@ -317,14 +311,12 @@ class ProcessReportFileTests(MasuTestCase):
 
         mock_proc = mock_processor()
         mock_stats.get.return_value = mock_stats
-        mock_manifest_acc = mock_manifest_accessor().__enter__()
 
         _process_report_file(schema_name, provider, report_dict)
 
         mock_proc.process.assert_called()
         mock_stats.set_started_datetime.assert_called()
         mock_stats.set_completed_datetime.assert_called()
-        mock_manifest_acc.mark_manifest_as_updated.assert_not_called()
         shutil.rmtree(report_dir)
 
     @patch("masu.processor.tasks.update_summary_tables")
@@ -1475,10 +1467,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.util.common.CostUsageReportManifest")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_summary_tables_provider_not_found_error(
         self,
         mock_select_for_update,
+        mock_manifest,
         mock_inspect,
         mock_lock,
         mock_release,
@@ -1501,16 +1495,21 @@ class TestWorkerCacheThrottling(MasuTestCase):
             statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
+    @patch("masu.util.common.CostUsageReportManifest")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_openshift_on_cloud_provider_not_found_error(
         self,
+        mock_select_for_update,
         mock_inspect,
         *args,
     ):
         """Test that the update_summary_table provider not found exception is caught."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
         expected = "halting processing"
@@ -1697,8 +1696,9 @@ class TestRemoveStaleTenants(MasuTestCase):
         self.assertIsNotNone(initial_date_updated)
         with schema_context("public"):
             mock_request = self.request_context["request"]
-            middleware = KokuTenantMiddleware()
-            middleware._get_or_create_tenant(mock_request)
+            mock_get_response = Mock()
+            middleware = KokuTenantMiddleware(mock_get_response)
+            middleware._get_tenant(mock_request)
             self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing
             self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)

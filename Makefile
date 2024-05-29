@@ -11,10 +11,10 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 SCRIPTDIR = $(TOPDIR)/dev/scripts
-KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
-KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
-MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
-MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5042}")
+KOKU_SERVER = $(shell echo "$${KOKU_API_HOST:-localhost}")
+KOKU_SERVER_PORT = $(shell echo "$${KOKU_API_PORT:-8000}")
+MASU_SERVER = $(shell echo "$${MASU_SERVICE_HOST:-localhost}")
+MASU_SERVER_PORT = $(shell echo "$${MASU_SERVICE_PORT:-5042}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
 scale = 1
 
@@ -29,11 +29,7 @@ ifneq ($(DOCKER_COMPOSE_CHECK), 0)
 	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
 endif
 
-# Use ARM images on ARM systems
 DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
-ifeq (arm, $(findstring arm, $(shell uname -m)))
-	DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) -f docker-compose.yml -f docker-compose.arm.yml
-endif
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -65,6 +61,8 @@ help:
 	@echo "  help                                  show this message"
 	@echo "  lint                                  run pre-commit against the project"
 	@echo "  get-release-commit                    show the latest commit that is safe to release"
+	@echo "  scan-project                          run a static analysis scan looking for vulnerabilities"
+	@echo "                                          @param path - (optional, default=koku) directory or file to scan"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
@@ -92,6 +90,7 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'org1234567'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
+	@echo "  populate-currency-exchange-rates      populate the exchange rates table."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -196,7 +195,6 @@ delete-test-customer-data: delete-test-sources delete-cost-models
 test_source=all
 load-test-customer-data:
 	$(SCRIPTDIR)/load_test_customer_data.sh $(test_source) $(start) $(end)
-	$(MAKE) load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
@@ -205,6 +203,9 @@ load-aws-org-unit-tree:
 		echo "This make target requires python3." ; \
 	fi
 
+populate-currency-exchange-rates:
+	curl -s http://$(MASU_SERVER):$(MASU_SERVER_PORT)/api/cost-management/v1/update_exchange_rates/
+
 run-api-test:
 	$(PYTHON) $(SCRIPTDIR)/report_api_test.py || echo "WARNING: run-api-test failed unexpectedly!"
 
@@ -212,7 +213,7 @@ collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics
 
 delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
@@ -479,11 +480,9 @@ endif
 ifndef region
 	$(error param region is not set)
 endif
-# Required environment variables: [OCI_CLI_USER, OCI_CLI_KEY_FILE, OCI_CLI_FINGERPRINT, OCI_CLI_TENANCY]
-	(printenv OCI_CLI_USER > /dev/null 2>&1) || (echo 'OCI_CLI_USER is not set in .env' && exit 1)
+# Required environment variables: [OCI_SHARED_CREDENTIALS_FILE, OCI_CLI_KEY_FILE]
+	(printenv OCI_SHARED_CREDENTIALS_FILE > /dev/null 2>&1) || (echo 'OCI_SHARED_CREDENTIALS_FILE is not set in .env' && exit 1)
 	(printenv OCI_CLI_KEY_FILE > /dev/null 2>&1) || (echo 'OCI_CLI_KEY_FILE is not set in .env' && exit 1)
-	(printenv OCI_CLI_FINGERPRINT > /dev/null 2>&1) || (echo 'OCI_CLI_FINGERPRINT is not set in .env' && exit 1)
-	(printenv OCI_CLI_TENANCY > /dev/null 2>&1) || (echo 'OCI_CLI_TENANCY is not set in .env' && exit 1)
 	curl -d '{"name": "$(oci_name)", "source_type": "OCI", "authentication": {"credentials": []}, "billing_source": {"data_source": {"bucket": "$(bucket)", "bucket_namespace": "$(namespace)", "bucket_region": "$(region)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 
@@ -612,3 +611,7 @@ restore-local-db-dir:
 
 get-release-commit:
 	@$(PYTHON) $(SCRIPTDIR)/get-release-commit.py
+
+.PHONY: scan-project
+scan-project:
+	@$(PYTHON) $(SCRIPTDIR)/snyk-scan.py $(path)

@@ -33,7 +33,7 @@ bash_check()
     local -i _ver_major=0
     local -i _ver_minor=0
 
-    _ver_str=$(bash --version | grep -E "version [0-9]+\." | sed -e 's/.*version //1' -e 's/ .x86.*$//1')
+    _ver_str=$(LANG=en_US.UTF-8 bash --version | grep -E "version [0-9]+\." | sed -e 's/.*version //1' -e 's/ .x86.*$//1')
     _ver_major=${_ver_str%%.*}
     _ver_str=${_ver_str#*.}
     _ver_minor=${_ver_str%%.*}

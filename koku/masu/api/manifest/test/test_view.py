@@ -3,7 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the Masu API `manifest` Views."""
+from datetime import date
+from datetime import timedelta
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -11,9 +14,10 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.models import Provider
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.models import Status
+from reporting_common.states import CombinedChoices
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -23,144 +27,103 @@ class ManifestViewTests(IamTestCase):
     def setUp(self):
         """Set up the tests."""
         super().setUp()
+        manifests = CostUsageReportManifest.objects.all()
+        self.manifest = CostUsageReportManifest.objects.first()
+        self.manifest_count = manifests.count()
+        reports = CostUsageReportStatus.objects.all()
+        self.report_status_count = reports.filter(manifest_id=self.manifest.id).count()
+        self.failed_processing_count = reports.filter(
+            manifest_id=self.manifest.id, failed_status=CombinedChoices.PROCESSING
+        ).count()
+        self.done_report_count = reports.filter(manifest_id=self.manifest.id, status=Status.DONE).count()
         self.client = APIClient()
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_all_manifests(self, _):
         """Test Get all manifests"""
-        response = self.client.get(reverse("all_manifests"))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_get_all_manifests_invalid_parameter(self, _):
-        """Test Manifests with invalid parameter for filter"""
-        url = "%s?invalid=parameter" % reverse("all_manifests")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_get_all_manifests_invalid_provider(self, _):
-        """Test manifests invalid provider_name filter."""
-        url = "%s?name=invalid_provider_name" % reverse("all_manifests")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_filter_manifest(self, _):
-        """Tests manifests filter valid data."""
-        provider = Provider.objects.first()
-        name = provider.name
-        url = reverse("all_manifests")
-        qp = "?name=" + name
-        response = self.client.get(url + qp)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        results = json_result.get("data")
-        self.assertNotEqual(len(results), 0)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_manifests_by_source(self, _):
-        """Test get manifests for provider source uuid."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = manifest.provider_id
-        url = reverse("sources_manifests", kwargs={"source_uuid": provider_uuid})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_manifests_by_invalid_source(self, _):
-        """Test get manifests invalid provider source uuid."""
-        provider_uuid = "invalid provider uuid"
-        url = reverse("sources_manifests", kwargs={"source_uuid": provider_uuid})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_single_manifests(self, _):
-        """Test get a single manifest."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = manifest.provider_id
-        manifest_id = manifest.id
-        url = reverse("manifest", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_single_manifests_invalid_source(self, _):
-        """Test get single manifest invalid provider."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = "invalid_provider_source_uuid"
-        manifest_id = manifest.id
-        url = reverse("manifest", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_single_manifests_invalid_manifest(self, _):
-        """Test get single manifest invalid manifest id."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = manifest.provider_id
-        manifest_id = 300000000
-        url = reverse("manifest", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_manifests_files(self, _):
-        """Test get files for one manifest."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = manifest.provider_id
-        manifest_id = manifest.id
-        url = reverse("manifest_files", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_manifests_files_invalid_manifest(self, _):
-        """Test get files for one manifest invalid manifest."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = manifest.provider_id
-        manifest_id = 30000000
-        url = reverse("manifest_files", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id))
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_single_manifest_file(self, _):
-        """Test get a specific file for manifest."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = manifest.provider_id
-        manifest_id = manifest.id
-        report = CostUsageReportStatus.objects.filter(manifest=manifest_id).first()
-        file_id = report.id
-        url = reverse(
-            "get_one_manifest_file", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id, id=file_id)
+        response = self.client.get(
+            reverse("manifests-list"), content_type="application/json", **self.request_context["request"].META
         )
-        response = self.client.get(url)
+        body = response.json()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(body.get("meta").get("count"), self.manifest_count)
 
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_single_manifest_file_invalid(self, _):
-        """Test get a specific file invalid manifest id."""
-        manifest = CostUsageReportManifest.objects.first()
-        provider_uuid = manifest.provider_id
-        manifest_id = manifest.id
-        file_id = 3000000000
-        url = reverse(
-            "get_one_manifest_file", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id, id=file_id)
+    def test_get_one_manifests(self):
+        """Test Get a single manifest"""
+        response = self.client.get(
+            reverse("manifests-detail", kwargs={"pk": self.manifest.id}),
+            content_type="application/json",
+            **self.request_context["request"].META,
         )
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_get_all_manifests_ordered(self, _):
-        """Test Get all manifests"""
-        url = "%s?timestamp=asc&limit=100" % reverse("all_manifests")
-        response = self.client.get(url)
-        json_result = response.json()
-        results = json_result.get("data")
-        results_id = json_result.get("data")[0].get("id")
-        self.assertNotEqual(len(results), 0)
+        body = response.json()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # This checks that the first id in the data is the first one created.
-        self.assertEqual(results_id, 1)
+        self.assertIsNotNone(body.get("manifest"))
+
+    def test_get_one_manifests_reports(self):
+        """Test getting a single manifests reports returns reports."""
+        response = self.client.get(
+            reverse("manifests-reports", kwargs={"pk": self.manifest.id}),
+            content_type="application/json",
+            **self.request_context["request"].META,
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(body.get("meta").get("count") > 0)
+
+    def test_get_manifests_filters(self):
+        """Test the filters on the manifests endpoint."""
+        url = reverse("manifests-list")
+        filters = {
+            "provider": self.manifest.provider.uuid,
+            "account_id": "10002",
+            "org_id": "222222",
+            "schema_name": "org222222",
+            "created_after": (date.today() + timedelta(days=5)).isoformat(),
+        }
+        for key, value in filters.items():
+            with self.subTest(filter=key):
+                filter_url = url + f"?{key}={value}"
+                response = self.client.get(
+                    filter_url, content_type="application/json", **self.request_context["request"].META
+                )
+                body = response.json()
+                self.assertEqual(response.status_code, 200)
+                self.assertLess(body.get("meta").get("count"), self.manifest_count)
+
+    def test_get_manifests_boolean_filters(self):
+        """Test the filters on the manifests endpoint."""
+        url = reverse("manifests-list")
+        filter_keys = ["failed", "running", "started"]
+        values = [True, False]
+        for key in filter_keys:
+            for value in values:
+                with self.subTest(filter=key, value=value):
+                    filter_url = url + f"?{key}={value}"
+                    response = self.client.get(
+                        filter_url, content_type="application/json", **self.request_context["request"].META
+                    )
+                    body = response.json()
+                    self.assertEqual(response.status_code, 200)
+                    count = body.get("meta").get("count")
+                    if key == "started" and not value:
+                        self.assertEqual(count, self.manifest_count)
+                    else:
+                        self.assertLess(count, self.manifest_count)
+
+    def test_get_status_reports_filters(self):
+        """Test the filters on the manifest report status endpoint."""
+        url = reverse("manifests-reports", kwargs={"pk": self.manifest.id})
+        filters = [
+            ("status", Status.DONE.value, self.done_report_count),
+            ("celery_task_id", str(uuid4()), 0),
+            ("failed_status", CombinedChoices.PROCESSING.value, self.failed_processing_count),
+        ]
+        for key, value, expected_count in filters:
+            with self.subTest(filter=key):
+                filter_url = url + f"?{key}={value}"
+                response = self.client.get(
+                    filter_url, content_type="application/json", **self.request_context["request"].META
+                )
+                body = response.json()
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(body.get("meta").get("count"), expected_count)

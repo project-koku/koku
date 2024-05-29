@@ -9,6 +9,9 @@ SKIP_SMOKE_TESTS=${SKIP_SMOKE_TESTS:-}
 SKIP_IMAGE_BUILD="${SKIP_IMAGE_BUILD:-}"
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:-cost_smoke}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:-}"
+IQE_CJI_TIMEOUT="${IQE_CJI_TIMEOUT:-2h}"
+RESERVATION_TIMEOUT="${RESERVATION_TIMEOUT:-2h15m}"
+
 
 function get_pr_labels() {
     _github_api_request "issues/$ghprbPullId/labels" | jq '.[].name'
@@ -64,6 +67,8 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_cost_model or ocp_source_raw"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
+        export RESERVATION_TIMEOUT="5h15m"
+        export IQE_CJI_TIMEOUT="5h"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
@@ -84,19 +89,16 @@ function is_pull_request() {
 function run_smoke_tests_stage() {
     _install_bonfire_tools
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
+    export NAMESPACE=$(bonfire namespace reserve --duration ${RESERVATION_TIMEOUT})
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
     oc get secret/koku-oci -o json -n ephemeral-base | jq -r '.data' > oci-creds.json
 
-    AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json | base64 -d)
-    AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json | base64 -d)
+    AWS_CREDENTIALS_EPH=$(jq -r '."aws-credentials"' < aws-creds.json)
     GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
     OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
-    OCI_CLI_USER_EPH=$(jq -r '."oci-cli-user"' < oci-creds.json | base64 -d)
-    OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-cli-fingerprint"' < oci-creds.json | base64 -d)
-    OCI_CLI_TENANCY_EPH=$(jq -r '."oci-cli-tenancy"' < oci-creds.json | base64 -d)
+    OCI_CONFIG_EPH=$(jq -r '."oci-config"' < oci-creds.json)
 
     # This sets the image tag for the migrations Job to be the current koku image tag
     DBM_IMAGE_TAG=${IMAGE_TAG}
@@ -111,13 +113,10 @@ function run_smoke_tests_stage() {
         ${COMPONENTS_RESOURCES_ARG} \
         --optional-deps-method hybrid \
         --set-parameter rbac/MIN_REPLICAS=1 \
-        --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
-        --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
+        --set-parameter koku/AWS_CREDENTIALS_EPH=${AWS_CREDENTIALS_EPH} \
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
         --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
-        --set-parameter koku/OCI_CLI_USER_EPH=${OCI_CLI_USER_EPH} \
-        --set-parameter koku/OCI_CLI_FINGERPRINT_EPH=${OCI_CLI_FINGERPRINT_EPH} \
-        --set-parameter koku/OCI_CLI_TENANCY_EPH=${OCI_CLI_TENANCY_EPH} \
+        --set-parameter koku/OCI_CONFIG_EPH=${OCI_CONFIG_EPH} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --no-single-replicas \

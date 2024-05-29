@@ -21,8 +21,6 @@ MINOR = 2
 TERMINATE_ACTION = "terminate"
 CANCEL_ACTION = "cancel"
 
-SERVER_VERSION = []
-
 LOG = logging.getLogger(__name__)
 
 
@@ -140,21 +138,17 @@ select case when s.category_setting_num = 1 then s.category else ''::text end as
         cur = self._execute(sql, params or None)
         return cur.fetchall()
 
-    def get_pg_engine_version(self):
-        global SERVER_VERSION
-        if not SERVER_VERSION:
-            sql = """
--- PARSED PG ENGINE VERSION
-select (boot_val::int / 10000::int)::int as "release",
-       ((boot_val::int / 100)::int % 100::int)::int as "major",
-       (boot_val::int % 100::int)::int as "minor"
-  from pg_settings
- where name = 'server_version_num';
-"""
-            res = self._execute(sql, None).fetchone()
-            SERVER_VERSION.extend(res.values())
+    def get_pg_engine_version(self) -> str:
+        sql = "SHOW server_version;"
+        res = self._execute(sql, None).fetchone()
+        server_version = res["server_version"]
 
-        return SERVER_VERSION
+        # Split the version number out
+        # Examples: 14.9
+        #           14.11 (Debian 14.11-1.pgdg120+2)
+        parts = server_version.split(" ", 1)
+
+        return parts[0]
 
     def _handle_limit(self, limit, params):
         if isinstance(limit, int) and limit > 0:
@@ -318,7 +312,7 @@ select datname as "dbname",
 {limit_clause}
 {offset_clause}
 ;
-"""  # noqa
+"""
 
         LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()

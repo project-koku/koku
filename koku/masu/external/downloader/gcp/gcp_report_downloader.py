@@ -30,6 +30,7 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws.common import clear_s3_files
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import CreateDailyArchivesError
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import add_label_columns
 from providers.gcp.provider import GCPProvider
@@ -82,51 +83,58 @@ def create_daily_archives(
     """
     daily_file_names = []
     date_range = {}
-    for local_file_path in local_file_paths:
-        file_name = os.path.basename(local_file_path).split("/")[-1]
-        dh = DateHelper()
-        directory = os.path.dirname(local_file_path)
-        data_frame = pd_read_csv(local_file_path)
-        data_frame = add_label_columns(data_frame)
-        # putting it in for loop handles crossover data, when we have distinct invoice_month
-        for invoice_month in data_frame["invoice.month"].unique():
-            invoice_filter = data_frame["invoice.month"] == invoice_month
-            invoice_month_data = data_frame[invoice_filter]
-            unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
+    try:
+        for local_file_path in local_file_paths:
+            file_name = os.path.basename(local_file_path).split("/")[-1]
+            dh = DateHelper()
+            directory = os.path.dirname(local_file_path)
+            data_frame = pd_read_csv(local_file_path)
+            data_frame = add_label_columns(data_frame)
+            # putting it in for loop handles crossover data, when we have distinct invoice_month
+            unique_usage_days = pd.to_datetime(data_frame["usage_start_time"]).dt.date.unique()
             days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-            date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
-            partition_dates = invoice_month_data.partition_date.unique()
-            for partition_date in partition_dates:
-                partition_date_filter = invoice_month_data["partition_date"] == partition_date
-                invoice_partition_data = invoice_month_data[partition_date_filter]
-                start_of_invoice = dh.invoice_month_start(invoice_month)
-                s3_csv_path = get_path_prefix(
-                    account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
-                )
-                day_file = f"{invoice_month}_{partition_date}_{file_name}"
-                if ingress_reports:
-                    # Ingress flow needs to clear s3 files prior to processing
-                    date_time = datetime.datetime.strptime(partition_date, "%Y-%m-%d")
-                    clear_s3_files(
-                        s3_csv_path,
-                        provider_uuid,
-                        date_time,
-                        "manifestid",
-                        manifest_id,
-                        context,
-                        tracing_id,
-                        invoice_month,
+            date_range = {"start": min(days), "end": max(days)}
+            for invoice_month in data_frame["invoice.month"].unique():
+                invoice_filter = data_frame["invoice.month"] == invoice_month
+                invoice_month_data = data_frame[invoice_filter]
+                # We may be able to completely remove invoice month in the future
+                date_range["invoice_month"] = str(invoice_month)
+                partition_dates = invoice_month_data.partition_date.unique()
+                for partition_date in partition_dates:
+                    partition_date_filter = invoice_month_data["partition_date"] == partition_date
+                    invoice_partition_data = invoice_month_data[partition_date_filter]
+                    start_of_invoice = dh.invoice_month_start(invoice_month)
+                    s3_csv_path = get_path_prefix(
+                        account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                     )
-                    partition_filename = ReportManifestDBAccessor().update_and_get_day_file(
-                        partition_date, manifest_id
+                    day_file = f"{invoice_month}_{partition_date}_{file_name}"
+                    if ingress_reports:
+                        # Ingress flow needs to clear s3 files prior to processing
+                        date_time = datetime.datetime.strptime(partition_date, "%Y-%m-%d")
+                        clear_s3_files(
+                            s3_csv_path,
+                            provider_uuid,
+                            date_time,
+                            "manifestid",
+                            manifest_id,
+                            context,
+                            tracing_id,
+                            invoice_month,
+                        )
+                        partition_filename = ReportManifestDBAccessor().update_and_get_day_file(
+                            partition_date, manifest_id
+                        )
+                        day_file = f"{invoice_month}_{partition_filename}"
+                    day_filepath = f"{directory}/{day_file}"
+                    invoice_partition_data.to_csv(day_filepath, index=False, header=True)
+                    copy_local_report_file_to_s3_bucket(
+                        tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
                     )
-                    day_file = f"{invoice_month}_{partition_filename}"
-                day_filepath = f"{directory}/{day_file}"
-                invoice_partition_data.to_csv(day_filepath, index=False, header=True)
-                copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, context
-                )
-                daily_file_names.append(day_filepath)
+                    daily_file_names.append(day_filepath)
+    except Exception as e:
+        msg = f"unable to create daily archives from: {local_file_paths}. reason: {e}"
+        LOG.info(log_json(tracing_id, msg=msg, context=context))
+        raise CreateDailyArchivesError(msg)
     return daily_file_names, date_range
 
 
@@ -278,9 +286,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             client = bigquery.Client()
             export_partition_date_query = f"""
-                SELECT DATE(_PARTITIONTIME), DATETIME(max(export_time))  FROM {self.table_name}
+                SELECT DATE(_PARTITIONTIME) AS partition_date, DATETIME(max(export_time))  FROM {self.table_name}
                 WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-                AND '{self.scan_end}' GROUP BY DATE(_PARTITIONTIME)
+                AND '{self.scan_end}' GROUP BY partition_date ORDER BY partition_date
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
@@ -447,7 +455,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Helper to build query select statement."""
         columns_list = self.gcp_big_query_columns.copy()
         columns_list = [
-            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
+            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels", "credits") else col
             for col in columns_list
         ]
         # Swap out resource columns with NULLs when we are processing

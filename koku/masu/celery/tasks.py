@@ -6,6 +6,7 @@
 import json
 import logging
 import math
+import re
 
 import requests
 from botocore.exceptions import ClientError
@@ -48,6 +49,8 @@ from masu.util.aws.common import get_s3_resource
 from masu.util.oci.common import OCI_REPORT_TYPES
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import DelayedCeleryTasks
+from reporting_common.models import DiskCapacity
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
@@ -380,6 +383,47 @@ def get_daily_currency_rates():
     return rate_metrics
 
 
+@celery_app.task(name="masu.celery.scrape_azure_storage_capacities", queue=DEFAULT)
+def scrape_azure_storage_capacities():
+    """Task to retrieve the Azure disk capacities.
+
+    The Azure cost reports do not report disk capacities. Therefore, we retrieve
+    the disk capacities and product substring from their documentation repos.
+    """
+    main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+    web_pages_metadata = {
+        "disk-storage-premium-ssd-sizes.md": "Premium SSD sizes",
+        "disk-storage-standard-hdd-sizes.md": "Standard Disk Type",
+        "disk-storage-standard-ssd-sizes.md": "Standard SSD sizes",
+    }
+
+    # scrape azure docs for product capacities
+    try:
+        for filename, regex_substring in web_pages_metadata.items():
+            url = main_url + filename
+            response = requests.get(url)
+            response.raise_for_status()
+            markdown_content = response.text
+            disk_terms = re.search(rf"\| {regex_substring}.*?(?=\|[-|]+?\|)", markdown_content, re.DOTALL)
+            disk_sizes = re.search(r"\| Disk\s*size\s*in\s*GiB .*?(?=\n)", markdown_content, re.DOTALL)
+            disk_terms_row = disk_terms.group(0) if disk_terms else ""
+            disk_sizes_row = disk_sizes.group(0) if disk_sizes else ""
+            terms = disk_terms_row.split("|")[2:-1]
+            sizes = disk_sizes_row.split("|")[2:-1]
+            for term, size in zip(terms, sizes):
+                capacity_string = size.strip().replace(",", "")
+                DiskCapacity.objects.get_or_create(
+                    product_substring=term.strip(),
+                    capacity=int(capacity_string),
+                    provider_type=Provider.PROVIDER_AZURE,
+                )
+
+    except (HTTPError, RetryError) as e:
+        LOG.error(f"Unable to retrieve azure disk capacities {url}")
+        LOG.error(e)
+        return
+
+
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
@@ -561,3 +605,9 @@ def get_celery_queue_items(self, queue_name=None, task_name=None):
         decoded_tasks[queue] = task_list
 
     return decoded_tasks
+
+
+@celery_app.task(name="masu.celery.tasks.trigger_delayed_tasks", queue=GET_REPORT_FILES_QUEUE)
+def trigger_delayed_tasks(*args, **kwargs):
+    """Removes the expired records starting the delayed celery tasks."""
+    DelayedCeleryTasks.trigger_delayed_tasks()
