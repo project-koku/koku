@@ -540,10 +540,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
+        csi_volume_handles = ["csi1", "csi2"]
         projects = ["project_1", "project_2"]
         roles = ["master", "worker"]
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
-        mock_get_pvcs.return_value = zip(volumes, pvcs)
+        mock_get_pvcs.return_value = zip(volumes, pvcs, csi_volume_handles)
         mock_get_projects.return_value = projects
         mock_table.return_value = True
         cluster_id = uuid.uuid4()
@@ -594,10 +595,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
+        csi_volume_handles = ["csi1", "csi2"]
         projects = ["project_1", "project_2"]
         roles = ["master", "worker"]
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
-        mock_get_pvcs.return_value = zip(volumes, pvcs)
+        mock_get_pvcs.return_value = zip(volumes, pvcs, csi_volume_handles)
         mock_get_projects.return_value = projects
         mock_table.return_value = True
         cluster_id = str(uuid.uuid4())
@@ -627,6 +629,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for pvc in pvcs:
                 self.assertIn(pvc.persistent_volume_claim, topo.get("persistent_volume_claims"))
                 self.assertIn(pvc.persistent_volume, topo.get("persistent_volumes"))
+                self.assertIn(pvc.csi_volume_handle, topo.get("csi_volume_handle"))
             for project in projects:
                 self.assertIn(project.project, topo.get("projects"))
 
