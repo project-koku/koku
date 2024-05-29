@@ -77,12 +77,6 @@ class AWSOrderBySerializer(OrderSerializer):
     service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     product_family = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
-    cost = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    usage_hours = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class AWSFilterSerializer(BaseFilterSerializer):
