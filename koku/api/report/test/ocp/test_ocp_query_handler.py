@@ -927,7 +927,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_order_by_null_values(self):
         """Test that order_by returns properly sorted data with null data."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
 
@@ -1061,7 +1061,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_group_by_project_w_limit(self):
         """COST-1252: Test that grouping by project with limit works as expected."""
-        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
+        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
@@ -1077,7 +1077,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_group_by_project_overhead_distributed(self):
         """COST-1252: Test that grouping by project with limit works as expected."""
-        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
+        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"
         with tenant_context(self.tenant):
             OCPCostSummaryByProjectP.objects.update(cost_model_rate_type="platform_distributed")
         query_params = self.mocked_query_params(url, OCPCostView)
