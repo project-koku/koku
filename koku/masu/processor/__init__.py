@@ -86,15 +86,6 @@ def is_rate_limit_customer_large(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
 
 
-def is_ocp_savings_plan_cost_enabled(account):  # pragma: no cover
-    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
-    )
-
-
 def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
     """Enable the use of savings plan cost for OCP on AWS -> OCP."""
     account = convert_account(account)
