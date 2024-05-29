@@ -401,7 +401,7 @@ FROM (
             )
         ) as volume_labels,
         sli.source as source_uuid,
-        sli.csi_volume_handle,
+        sli.csi_volume_handle as csi_volume_handle,
         max(cat_ns.cost_category_id) as cost_category_id,
         max(sli.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
@@ -539,6 +539,7 @@ cte_unallocated_capacity AS (
         AND lids.usage_start < date_add('day', 1, {{end_date}})
         AND lids.namespace != 'Platform unallocated'
         AND lids.namespace != 'Worker unallocated'
+        AND lids.namespace != 'Network unattributed'
         AND lids.node IS NOT NULL
         AND lids.data_source = 'Pod'
     GROUP BY lids.node, lids.usage_start, lids.source_uuid
