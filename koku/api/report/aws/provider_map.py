@@ -28,6 +28,7 @@ from reporting.provider.aws.models import AWSDatabaseSummaryP
 from reporting.provider.aws.models import AWSNetworkSummaryP
 from reporting.provider.aws.models import AWSStorageSummaryByAccountP
 from reporting.provider.aws.models import AWSStorageSummaryP
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
 
 CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
 
@@ -68,17 +69,8 @@ class AWSProviderMap(ProviderMap):
                     "org_unit_id": {"field": "organizational_unit__org_unit_path", "operation": "icontains"},
                     "org_unit_single_level": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
-                    "operating_system": {"field": "operating_system", "operation": "icontains"},
-                    "tags": {"field": "tags", "operation": "icontains"},
-                    "resource_id": {"field": "resource_id", "operation": "icontains"},
-                    "instance_name": {"field": "instance_name", "operation": "icontains"},
-                    "resolution": {"field": "resolution", "operation": "icontains"},
-                    "currency": {"field": "currency", "operation": "icontains"},
-                    "time_scope_value": {"field": "time_scope_value", "operation": "icontains"},
-                    "time_scope_units": {"field": "time_scope_units", "operation": "icontains"},
                 },
-                "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id",
-                                     "operating_system"],
+                "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
                 "aws_category_column": "cost_category",
                 "report_type": {
@@ -365,7 +357,8 @@ class AWSProviderMap(ProviderMap):
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
+                        "filter": [{}],
+                        "group_by": [],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
@@ -550,7 +543,7 @@ class AWSProviderMap(ProviderMap):
                 ("org_unit_id",): AWSComputeSummaryByAccountP,
             },
             "ec2_compute": {
-                "default": AWSComputeSummaryP,
+                "default": AWSCostEntryLineItemSummaryByEC2Compute,
             },
             "storage": {
                 "default": AWSStorageSummaryP,
