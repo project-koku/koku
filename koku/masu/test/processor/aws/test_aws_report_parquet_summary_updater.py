@@ -75,7 +75,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    def test_update_daily_summary_tables(
+    def test_update_summary_tables(
         self,
         mock_insert_daily_summary,
         mock_tag_update,

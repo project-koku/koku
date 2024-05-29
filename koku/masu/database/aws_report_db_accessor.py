@@ -453,13 +453,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
 
+        # date range should cover the full month
+        usage_start_date = start_date.replace(day=1)
         table_name = self._table_map["ec2_compute_summary"]
-        msg = f"Deleting records from {table_name} for source {source_uuid} from {start_date} to {end_date}"
+        msg = f"Deleting records from {table_name} for source {source_uuid} from {usage_start_date} to {end_date}"
         LOG.info(msg)
 
         sql = f"""
             DELETE FROM {self.schema}.{table_name}
-            WHERE usage_start >= '{start_date}'::date
+            WHERE usage_start >= '{usage_start_date}'::date
                 AND usage_end <= '{end_date}'::date
                 AND source_uuid = '{source_uuid}'
         """
