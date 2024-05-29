@@ -408,7 +408,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             metric_constants.PLATFORM_COST: "distribute_platform_cost.sql",
             metric_constants.WORKER_UNALLOCATED: "distribute_worker_cost.sql",
             metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
-            # metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
+            metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
         }
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
