@@ -85,10 +85,10 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
         self._write_response(ProbeResponse(status, msg))
 
 
-def validate_cron_expression(expresssion):
+def validate_cron_expression(expresssion, default="0 * * * *"):
     if not croniter.is_valid(expresssion):
-        print(f"Invalid report-download-schedule {expresssion}. Falling back to default `0 4,16 * * *`")
-        expresssion = "0 4,16 * * *"
+        print(f"Invalid report-download-schedule {expresssion}. Falling back to default {default}")
+        expresssion = default
     return expresssion
 
 
@@ -114,11 +114,11 @@ app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
-    download_expression = "0 * * * *"
+    download_fallback = validate_cron_expression("0 * * * *")
     download_task = "masu.celery.tasks.check_report_updates"
     # The schedule to scan for new reports.
-    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_expression)
-    REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(REPORT_DOWNLOAD_SCHEDULE)
+    download_expression = ENVIRONMENT.get_value("REPORT_DOWNLOAD_SCHEDULE", default=download_fallback)
+    REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(download_expression, download_fallback)
     report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
     CHECK_REPORT_UPDATES_DEF = {
         "task": download_task,
@@ -175,8 +175,10 @@ app.conf.beat_schedule["delete_source_beat"] = {
 }
 
 # Specify the frequency for pushing source status.
-SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
-source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
+status_fallback = validate_cron_expression("0 3 * * *")
+status_expression = ENVIRONMENT.get_value("SOURCE_STATUS_SCHEDULE", default=status_fallback)
+SOURCE_STATUS_SCHEDULE = validate_cron_expression(status_expression, status_fallback)
+source_status_schedule = crontab(*SOURCE_STATUS_SCHEDULE.split(" ", 5))
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
