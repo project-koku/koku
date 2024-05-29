@@ -911,9 +911,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         for pvc in pvcs:
             try:
                 ocppvc = OCPPVC.objects.get(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
-                # Update the existing record's csi_volume_handle
-                ocppvc.csi_volume_handle = pvc[2]
-                ocppvc.save()
+                if not ocppvc.csi_volume_handle:
+                    # Update the existing record's csi_volume_handle
+                    ocppvc.csi_volume_handle = pvc[2]
+                    ocppvc.save(update_fields=["csi_volume_handle"])
             except OCPPVC.DoesNotExist:
                 # If the record does not exist, create a new one
                 OCPPVC.objects.create(
