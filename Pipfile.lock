@@ -2662,11 +2662,11 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:475dfaec2f3afd6df68b357c14956475b297a45492df3e3804d7b0e961714ed2",
-                "sha256:a42ab199b008b82eb4fcb3e355e9d48fe6ad4c5587999368b449b6553af7a411"
+                "sha256:664d75777671d4b50680dd203adb14ff87df6d3a5c571d58ea41e8c0ce292a7c",
+                "sha256:b5a177e385b4a247934f60a3f8f2ede12dc8912775e4af159b21d766ecc6861d"
             ],
             "index": "pypi",
-            "version": "==4.4.16"
+            "version": "==4.5.1"
         },
         "kubernetes": {
             "hashes": [
