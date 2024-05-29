@@ -30,7 +30,7 @@ class AWSGroupBySerializer(GroupSerializer):
         "storage_type",
         "product_family",
         "org_unit_id",
-        "operating_system"
+        "operating_system",
     )
     # Tells the parent class to add prefixed
     # aws_category param to the allowable fields list
