@@ -109,12 +109,20 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
             # Populate ec2 compute summary table if feature is enabled for schema
             if is_feature_cost_4403_ec2_compute_cost_enabled(self._schema):
                 LOG.info(f"AWS EC2 compute summary is enabled for schema: {self._schema}")
-                accessor.delete_ec2_compute_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start_date, end_date
+
+                # Ensure start_date is first day of the month
+                month_start_date = start_date.replace(day=1)
+
+                # Delete records from the EC2 compute summary table for a specified source and date range before insert
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                    self._provider.uuid, month_start_date, end_date, table=AWS_CUR_TABLE_MAP["ec2_compute_summary"]
                 )
+
+                # Populate EC2 compute summary table
                 accessor.populate_ec2_compute_summary_table_trino(
                     self._provider.uuid, start_date, current_bill_id, markup_value
                 )
+
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()

@@ -441,32 +441,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def delete_ec2_compute_summary_entries_for_date_range_raw(self, source_uuid, start_date, end_date):
-        """
-        Delete records from the EC2 compute summary table for a specified source and date range.
-
-        Args:
-            source_uuid (str): The unique identifier for the data source.
-            start_date (datetime.date): The start date of the range for which to delete records.
-            end_date (datetime.date): The end date of the range for which to delete records.
-
-        """
-
-        # date range should cover the full month
-        usage_start_date = start_date.replace(day=1)
-        table_name = self._table_map["ec2_compute_summary"]
-        msg = f"Deleting records from {table_name} for source {source_uuid} from {usage_start_date} to {end_date}"
-        LOG.info(msg)
-
-        sql = f"""
-            DELETE FROM {self.schema}.{table_name}
-            WHERE usage_start >= '{usage_start_date}'::date
-                AND usage_end <= '{end_date}'::date
-                AND source_uuid = '{source_uuid}'
-        """
-
-        self._execute_raw_sql_query(table_name, sql, operation="DELETE")
-
     def populate_ec2_compute_summary_table_trino(self, source_uuid, start_date, bill_id, markup_value):
         """
         Populate the monthly aggregated summary table for EC2 compute line items via Trino.
