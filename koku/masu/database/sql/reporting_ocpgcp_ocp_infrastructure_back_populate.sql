@@ -68,11 +68,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost + ocp_gcp.credit_amount) AS infrastructure_raw_cost,
         sum(ocp_gcp.unblended_cost + ocp_gcp.project_markup_cost + ocp_gcp.pod_credit) AS infrastructure_project_raw_cost,
         CASE
-            WHEN data_transfer_direction = 'IN' THEN sum(infrastructure_data_in_gigabytes)
+            WHEN upper(data_transfer_direction) = 'IN' THEN sum(infrastructure_data_in_gigabytes)
             ELSE NULL
         END as infrastructure_data_in_gigabytes,
         CASE
-            WHEN data_transfer_direction = 'OUT' THEN sum(infrastructure_data_out_gigabytes)
+            WHEN upper(data_transfer_direction) = 'OUT' THEN sum(infrastructure_data_out_gigabytes)
             ELSE NULL
         END as infrastructure_data_out_gigabytes,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
