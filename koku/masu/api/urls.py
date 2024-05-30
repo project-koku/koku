@@ -40,6 +40,7 @@ from masu.api.views import schema_sizes
 from masu.api.views import stat_activity
 from masu.api.views import stat_statements
 from masu.api.views import trino_query
+from masu.api.views import update_azure_storage_capacity
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
 from masu.api.views import update_openshift_on_cloud
@@ -55,6 +56,7 @@ urlpatterns = [
     path("download/", download_report, name="report_download"),
     path("ingress_reports/", ingress_reports, name="ingress_reports"),
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
+    path("update_azure_storage_capacity/", update_azure_storage_capacity, name="update_azure_storage_capacity"),
     path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
     path("expired_data/", expired_data, name="expired_data"),
     path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
