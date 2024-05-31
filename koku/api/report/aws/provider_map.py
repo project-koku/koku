@@ -355,16 +355,25 @@ class AWSProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
+                            "account_alias": Max("account_alias"),
+                            "account": Max("usage_account_id"),
+                            "instance_name": Max("instance_name"),
+                            "instance_type": Max("instance_type"),
+                            "operating_system": Max("operating_system"),
+                            "region": Max("region"),
+                            "vcpu": Max("vcpu"),
+                            "memory": Max("memory"),
+                            "tags": ArrayAgg(F("tags")),
                         },
-                        "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
-                        "group_by": [],
+                        "group_by": ["resource_id"],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
-                        "default_ordering": {"usage": "desc"},
+                        "default_ordering": {"resource_id": "desc"},
+                        "tables": {"query": AWSCostEntryLineItemSummaryByEC2Compute},
                     },
                     "storage": {
                         "aggregates": {
