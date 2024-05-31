@@ -51,21 +51,8 @@ class AWSGroupBySerializer(GroupSerializer):
 class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = (
-        "usage",
-        "account",
-        "account_alias",
-        "region",
-        "service",
-        "product_family",
-        "date",
-        "resource_id",
-        "instance_name",
-        "cost",
-        "usage_hours",
-        "instance_type",
-        "operating_system",
-    )
+    _opfields = ("usage", "account", "account_alias", "region", "service", "product_family", "date")
+
     _aws_category = True
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -82,36 +69,16 @@ class AWSOrderBySerializer(OrderSerializer):
 class AWSFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = (
-        "account",
-        "service",
-        "region",
-        "operating_system",
-        "time_scope_value",
-        "time_scope_units",
-        "resolution",
-        "resource_id",
-        "instance_name",
-        "tags",
-        "account_alias",
-    )
-    _aws_category = True
+    _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
 
-    RESOLUTION_CHOICES = ("monthly", "monthly")
-    TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
-    TIME_UNIT_CHOICES = ("month", "month")
+    _aws_category = True
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
-    operating_system = StringOrListField(child=serializers.CharField(), required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
-    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
-    tags = StringOrListField(child=serializers.CharField(), required=False)
-    account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    az = StringOrListField(child=serializers.CharField(), required=False)
+    product_family = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class AWSExcludeSerializer(BaseExcludeSerializer):
@@ -221,3 +188,28 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                         }
                         raise serializers.ValidationError(error)
         return value
+
+
+class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
+    """Serializer for handling EC2 compute specific query parameter filter."""
+
+    RESOLUTION_CHOICES = (("monthly", "monthly"),)
+    TIME_CHOICES = (("-1", "1"), ("-2", "-2"), ("-3", "-3"))
+    TIME_UNIT_CHOICES = (("month", "month"),)
+
+    _opfields = AWSFilterSerializer._opfields + (
+        "resource_id",
+        "instance_name",
+        "operating_system",
+        # "tags"
+    )
+
+    resource_id = StringOrListField(child=serializers.CharField(), required=False)
+    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    operating_system = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
+    """Serializer for handling EC2 compute query parameters."""
+
+    FILTER_SERIALIZER = AWSEC2ComputeFilterSerializer
