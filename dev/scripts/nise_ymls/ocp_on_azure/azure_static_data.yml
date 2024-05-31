@@ -118,6 +118,30 @@ generators:
       end_date: {{end_date}}
       tags:
         app: weather
+  - DTGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      meter_id: 55555555-4444-3333-2222-111111111128
+      data_direction: "in"
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute1'
+      usage_quantity: 5
+      resource_rate: 0.01
+      tags:
+        version: Mars
+        dashed-key-on-azure: dashed-value
+  - DTGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      meter_id: 55555555-4444-3333-2222-111111111128
+      data_direction: "out"
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute1'
+      usage_quantity: 7.5
+      resource_rate: 0.01
+      tags:
+        version: Mars
+        dashed-key-on-azure: dashed-value
 
 # SubscriptionGuid
 accounts:
