@@ -389,6 +389,26 @@ class ModelBakeryDataLoader(DataLoader):
                         infrastructure_raw_cost=infra_raw_cost,
                         infrastructure_project_raw_cost=project_infra_raw_cost,
                     )
+                    if on_cloud:
+                        # Network data comes from the cloud bill
+                        baker.make_recipe(
+                            "api.report.test.util.ocp_usage_network_in",
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_id,
+                            usage_start=start_date + timedelta(i),
+                            usage_end=start_date + timedelta(i),
+                            source_uuid=provider.uuid,
+                            infrastructure_raw_cost=infra_raw_cost,
+                        )
+                        baker.make_recipe(
+                            "api.report.test.util.ocp_usage_network_out",
+                            cluster_id=cluster_id,
+                            cluster_alias=cluster_id,
+                            usage_start=start_date + timedelta(i),
+                            usage_end=start_date + timedelta(i),
+                            source_uuid=provider.uuid,
+                            infrastructure_raw_cost=infra_raw_cost,
+                        )
 
         report_period_ids = [report_period.id for report_period in report_periods]
         with OCPReportDBAccessor(self.schema) as accessor:
