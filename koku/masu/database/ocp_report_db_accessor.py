@@ -909,7 +909,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get or create an entry in the OCP cluster table."""
         LOG.info(log_json(msg="populating reporting_ocp_pvcs table", schema=self.schema, cluster=cluster))
         for pvc in pvcs:
-            OCPPVC.objects.get_or_create(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
+            try:
+                ocppvc = OCPPVC.objects.get(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
+                if not ocppvc.csi_volume_handle:
+                    # Update the existing record's csi_volume_handle
+                    ocppvc.csi_volume_handle = pvc[2]
+                    ocppvc.save(update_fields=["csi_volume_handle"])
+            except OCPPVC.DoesNotExist:
+                # If the record does not exist, create a new one
+                OCPPVC.objects.create(
+                    persistent_volume=pvc[0], persistent_volume_claim=pvc[1], csi_volume_handle=pvc[2], cluster=cluster
+                )
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
@@ -951,7 +961,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
             SELECT distinct persistentvolume,
-                persistentvolumeclaim
+                persistentvolumeclaim,
+                csi_volume_handle
             FROM hive.{self.schema}.openshift_storage_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
@@ -995,9 +1006,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         pvcs = (
             OCPPVC.objects.filter(cluster_id=cluster_id)
             .exclude(persistent_volume__exact="")
-            .values_list("persistent_volume", "persistent_volume_claim")
+            .values_list("persistent_volume", "persistent_volume_claim", "csi_volume_handle")
         )
-        pvcs = [(pvc[0], pvc[1]) for pvc in pvcs]
+        pvcs = [(pvc[0], pvc[1], pvc[2]) for pvc in pvcs]
         return pvcs
 
     def get_projects_for_cluster(self, cluster_id):
@@ -1023,6 +1034,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "resource_ids": [node[1] for node in nodes_tuple],
                     "persistent_volumes": [pvc[0] for pvc in pvc_tuple],
                     "persistent_volume_claims": [pvc[1] for pvc in pvc_tuple],
+                    "csi_volume_handle": [pvc[2] for pvc in pvc_tuple],
                     "projects": [project for project in project_tuple],
                 }
             )
