@@ -110,6 +110,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
                     expected_start,
                     expected_end,
                     table=AWS_CUR_TABLE_MAP["ec2_compute_summary"],
+                    filters={"source_uuid": self.aws_provider.uuid},
                 ),
             ]
         )
