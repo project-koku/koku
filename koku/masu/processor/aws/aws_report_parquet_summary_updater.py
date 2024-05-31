@@ -115,7 +115,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
 
                 # Delete records from the EC2 compute summary table for a specified source and date range before insert
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, month_start_date, end_date, table=AWS_CUR_TABLE_MAP["ec2_compute_summary"]
+                    self._provider.uuid, month_start_date, end_date, table=AWS_CUR_TABLE_MAP["ec2_compute_summary"], filters={"source_uuid": self._provider.uuid}
                 )
 
                 # Populate EC2 compute summary table
