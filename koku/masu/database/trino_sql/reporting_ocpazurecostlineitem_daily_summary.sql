@@ -850,7 +850,7 @@ SELECT azure.uuid as azure_uuid,
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '') -- This excludes claimless PVs
         -- Filter out Node Network Costs because they cannot be tied to namespace level
         AND azure.data_transfer_direction IS NULL
         AND azure.ocp_source = {{ocp_source_uuid}}

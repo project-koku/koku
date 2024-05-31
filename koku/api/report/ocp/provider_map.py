@@ -25,6 +25,9 @@ from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
+from reporting.provider.ocp.models import OCPNetworkSummaryByNodeP
+from reporting.provider.ocp.models import OCPNetworkSummaryByProjectP
+from reporting.provider.ocp.models import OCPNetworkSummaryP
 from reporting.provider.ocp.models import OCPPodSummaryByNodeP
 from reporting.provider.ocp.models import OCPPodSummaryByProjectP
 from reporting.provider.ocp.models import OCPPodSummaryP
@@ -638,6 +641,136 @@ class OCPProviderMap(ProviderMap):
                         "capacity_count_key": "persistentvolumeclaim_capacity_gigabyte",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
+                    "network": {
+                        "tag_column": self.check_unleash_for_tag_column_cost_3038,
+                        "aggregates": {
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost + self.markup_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost,
+                            "usage": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_in_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                                + Coalesce(
+                                    F("infrastructure_data_out_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "data_transfer_in": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_in_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "data_transfer_out": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_out_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                        },
+                        "default_ordering": {"usage": "desc"},
+                        "capacity_aggregate": {},
+                        "annotations": {
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": self.cost_model_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost + self.markup_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
+                            "usage": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_in_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                                + Coalesce(
+                                    F("infrastructure_data_out_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "data_transfer_in": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_in_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "data_transfer_out": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_out_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
+                            "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
+                            "usage_units": Value("GB", output_field=CharField()),
+                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
+                        },
+                        "delta_key": {
+                            "usage": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_in_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                                + Coalesce(
+                                    F("infrastructure_data_out_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "data_transfer_in": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_in_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "data_transfer_out": Sum(
+                                Coalesce(
+                                    F("infrastructure_data_out_gigabytes"),
+                                    Value(0, output_field=DecimalField()),
+                                )
+                            ),
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost,
+                        },
+                        "filter": [],
+                        "conditionals": {
+                            OCPUsageLineItemDailySummary: {
+                                "include": [
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Network unattributed",
+                                    },
+                                ],
+                            },
+                        },
+                        "cost_units_key": "raw_currency",
+                        "sum_columns": [
+                            "usage",
+                            "data_transfer_in",
+                            "data_transfer_out",
+                            "cost_total",
+                            "sup_total",
+                            "infra_total",
+                        ],
+                    },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
@@ -680,6 +813,13 @@ class OCPProviderMap(ProviderMap):
                 ("cluster", "persistentvolumeclaim"): OCPVolumeSummaryP,
                 ("persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
                 ("cluster", "persistentvolumeclaim", "project"): OCPVolumeSummaryByProjectP,
+            },
+            "network": {
+                "default": OCPNetworkSummaryP,
+                ("cluster",): OCPNetworkSummaryP,
+                ("node",): OCPNetworkSummaryByNodeP,
+                ("project",): OCPNetworkSummaryByProjectP,
+                ("cluster", "project"): OCPNetworkSummaryByProjectP,
             },
         }
         super().__init__(provider, report_type, schema_name)
