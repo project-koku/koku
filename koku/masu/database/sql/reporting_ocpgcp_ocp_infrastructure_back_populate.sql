@@ -111,6 +111,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_gcp.persistentvolumeclaim,
         ocp_gcp.resource_id,
         ocp_gcp.pod_labels,
-        ocp_azure.data_transfer_direction,
+        ocp_gcp.data_transfer_direction,
         rp.provider_id
 ;

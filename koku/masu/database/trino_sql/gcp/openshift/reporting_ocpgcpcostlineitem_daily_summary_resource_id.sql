@@ -779,7 +779,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(instance_type) as instance_type,
     max(nullif(gcp.service_id, '')) as service_id,
     max(gcp.service_alias) as service_alias,
-    data_transfer_direction as data_transfer_direction,
+    max(data_transfer_direction) as data_transfer_direction,
     max(gcp.sku_id) as sku_id,
     max(gcp.sku_alias) as sku_alias,
     max(nullif(gcp.region, '')) as region,
@@ -795,16 +795,16 @@ SELECT gcp.uuid as gcp_uuid,
     cast(NULL AS double) AS pod_credit,
     max(gcp.labels) as tags,
     max(ocp.cost_category_id) as cost_category_id,
-    max(gcp.ocp_matched) as ocp_matched,
+    {{gcp_source_uuid}} as gcp_source,
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
-    max(gcp.month) as month
+    max(gcp.month) as month,
+    cast(day(max(gcp.usage_start)) as varchar) as day
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
             (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
-            OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
         )
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
@@ -816,6 +816,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND gcp.month = {{month}}
     AND data_transfer_direction IS NOT NULL
 GROUP BY gcp.uuid, ocp.node
+;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p (
     uuid,
@@ -881,11 +882,11 @@ SELECT uuid(),
     service_id,
     service_alias,
     CASE
-        WHEN upper(data_transfer_direction) = 'IN' THEN usage_quantity
+        WHEN upper(data_transfer_direction) = 'IN' THEN usage_amount
         ELSE 0
     END as infrastructure_data_in_gigabytes,
     CASE
-        WHEN upper(data_transfer_direction) = 'OUT' THEN usage_quantity
+        WHEN upper(data_transfer_direction) = 'OUT' THEN usage_amount
         ELSE 0
     END as infrastructure_data_out_gigabytes,
     data_transfer_direction as data_transfer_direction,
