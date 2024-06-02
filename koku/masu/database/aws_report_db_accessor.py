@@ -458,8 +458,14 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         table_name = self._table_map["ec2_compute_summary"]
-        msg = f"Inserting records into {table_name} for source {source_uuid} for {year}-{month}"
-        LOG.info(msg)
+        msg = "Populating EC2 summary table"
+        context = {
+            "provider_uuid": source_uuid,
+            "schema": self.schema,
+            "start_date": f"{year}-{month}-01",
+            "table": table_name,
+        }
+        LOG.info(log_json(msg=msg, context=context))
 
         sql = pkgutil.get_data("masu.database", f"trino_sql/{table_name}.sql")
         sql = sql.decode("utf-8")
