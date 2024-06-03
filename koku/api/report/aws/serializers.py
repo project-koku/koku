@@ -219,19 +219,8 @@ class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
     operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
-class AWSEC2ComputeGroupBySerializer(AWSGroupBySerializer):
-    """Serializer for handling EC2 compute specific query parameter group_by."""
-
-    _opfields = AWSGroupBySerializer._opfields + ("resource_id", "instance_name", "operating_system")
-
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
-    operating_system = StringOrListField(child=serializers.CharField(), required=False)
-
-
 class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
     """Serializer for handling EC2 compute query parameters."""
 
     FILTER_SERIALIZER = AWSEC2ComputeFilterSerializer
-    GROUP_BY_SERIALIZER = AWSEC2ComputeGroupBySerializer
     ORDER_BY_SERIALIZER = AWSEC2ComputeOrderBySerializer
