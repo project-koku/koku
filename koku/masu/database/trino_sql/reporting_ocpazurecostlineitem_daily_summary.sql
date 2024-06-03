@@ -285,7 +285,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
     azure.matched_tag
 ;
 
--- Claimless PVs Unattributed Storage
+-- Persistent Volumes without PVCs Unattributed Storage
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -347,6 +347,7 @@ WITH cte_ocp_filtered_resources as (
         AND lpad(ocp.month, 2, '0') = {{month}}
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
+        AND (ocp.resource_id IS NULL AND ocp.resource_id = '')
         AND ocp.persistentvolume is not null
         AND persistentvolumeclaim = ''
         AND azure.ocp_source = {{ocp_source_uuid}}
@@ -357,7 +358,6 @@ cte_az_resource_to_disk_capacity as (
     SELECT
         ocp_filtered.azure_partial_resource_id as resource_id,
         max(az_disk_capacity.capacity) as capacity,
-        sum(pretaxcost) as disk_cost,
         date(coalesce(date, usagedatetime)) as usage_start
     FROM azure_line_items as azure
     JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
@@ -461,10 +461,13 @@ SELECT azure.uuid as azure_uuid,
         AND azure.ocp_source = {{ocp_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
+        AND ocp.namespace != 'Storage unattributed'
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
 -- Storage Disk resource_id matching
+-- Customer's Cost: (PV’s Capacity) / Disk Capacity * Cost of Disk
+-- Unallocated Cost: ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -535,7 +538,6 @@ cte_az_resource_to_disk_capacity as (
     SELECT
         ocp_filtered.azure_partial_resource_id as resource_id,
         max(az_disk_capacity.capacity) as capacity,
-        sum(pretaxcost) as disk_cost,
         date(coalesce(date, usagedatetime)) as usage_start
     FROM azure_line_items as azure
     JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
@@ -681,6 +683,7 @@ FROM (
         AND azure.ocp_source = {{ocp_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
+        AND ocp.namespace != 'Storage unattributed'
     GROUP BY azure.uuid, ocp.data_source, azure.resource_id
     UNION
     SELECT azure.uuid as azure_uuid,
@@ -746,6 +749,7 @@ FROM (
         AND azure.ocp_source = {{ocp_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
+        AND ocp.namespace != 'Storage unattributed'
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ) as disk_cost
 ;

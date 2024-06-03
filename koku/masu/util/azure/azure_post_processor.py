@@ -121,10 +121,6 @@ class AzurePostProcessor:
             if pd.notnull(tags_json):
                 unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
-        # TODO: Just a temporary workaround to set
-        # the metername while Michael finishes the
-        # nise changes.
-        # data_frame["metername"] = "P10 LRS Disk"
         return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):
