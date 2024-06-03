@@ -532,7 +532,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_trino")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_trino")
     def test_populate_openshift_cluster_information_tables(
         self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
