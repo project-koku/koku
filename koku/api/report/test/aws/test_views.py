@@ -618,7 +618,7 @@ class AWSReportViewTest(IamTestCase):
         filters = (
             "resource_id",
             "account",
-            "usage_hours",
+            "usage_amount",
             "instance_type",
             "region",
             "operating_system",
