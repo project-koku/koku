@@ -445,6 +445,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND gcp.ocp_source = {{ocp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
+    -- Filter out Node Network Costs because they cannot be tied to namespace level
     AND data_transfer_direction IS NULL
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
@@ -720,6 +721,11 @@ JOIN cte_rankings as r
 WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
 ;
 
+-- Network costs are currently not mapped to pod metrics
+-- and are filtered out of the above SQL since that is grouped by namespace
+-- and costs are split out by pod metrics, this puts all network costs per node
+-- into a "Network unattributed" project with no cost split and one record per
+-- data direction
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary (
     gcp_uuid,
     cluster_id,
@@ -797,8 +803,8 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cost_category_id) as cost_category_id,
     {{gcp_source_uuid}} as gcp_source,
     {{ocp_source_uuid}} as ocp_source,
-    max(gcp.year) as year,
-    max(gcp.month) as month,
+    cast(year(max(gcp.usage_start)) as varchar) as year,
+    cast(month(max(gcp.usage_start)) as varchar) as month,
     cast(day(max(gcp.usage_start)) as varchar) as day
 FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
@@ -814,6 +820,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND gcp.ocp_source = {{ocp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
+    -- Filter for Node Network Costs to tie them to the Network unattributed project
     AND data_transfer_direction IS NOT NULL
 GROUP BY gcp.uuid, ocp.node
 ;
@@ -882,11 +889,21 @@ SELECT uuid(),
     service_id,
     service_alias,
     CASE
-        WHEN upper(data_transfer_direction) = 'IN' THEN usage_amount
+        WHEN upper(data_transfer_direction) = 'IN' THEN
+            -- GCP uses gibibyte but we are tracking this field in gigabytes
+            CASE unit
+                WHEN 'gibibyte' THEN usage_amount * 1.07374
+                ELSE usage_amount
+            END
         ELSE 0
     END as infrastructure_data_in_gigabytes,
     CASE
-        WHEN upper(data_transfer_direction) = 'OUT' THEN usage_amount
+        WHEN upper(data_transfer_direction) = 'OUT' THEN
+            -- GCP uses gibibyte but we are tracking this field in gigabytes
+            CASE unit
+                WHEN 'gibibyte' THEN usage_amount * 1.07374
+                ELSE usage_amount
+            END
         ELSE 0
     END as infrastructure_data_out_gigabytes,
     data_transfer_direction as data_transfer_direction,
