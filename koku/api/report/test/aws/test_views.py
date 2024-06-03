@@ -614,7 +614,7 @@ class AWSReportViewTest(IamTestCase):
         self.assertNotEqual(response.status_code, status.HTTP_200_OK)
 
     def test_ec2_compute_view_order_by_filters(self):
-        """Test if EC2 Compute Order By Filters is working."""
+        """Test if EC2 Compute Order By Filters are working."""
         filters = (
             "resource_id",
             "account",
