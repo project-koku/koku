@@ -212,15 +212,37 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
     """Serializer for handling EC2 compute specific query parameter order_by."""
 
-    _opfields = AWSOrderBySerializer._opfields + ("resource_id", "instance_name", "operating_system")
+    _opfields = AWSOrderBySerializer._opfields + (
+        "resource_id",
+        "account",
+        "usage_hours",
+        "instance_type",
+        "region",
+        "operating_system",
+        "instance_name",
+    )
 
     resource_id = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    instance_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    usage_hours = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    instance_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
     """Serializer for handling EC2 compute query parameters."""
+
+    order_by_allowlist = AWSQueryParamSerializer.order_by_allowlist + (
+        "resource_id",
+        "account",
+        "usage_hours",
+        "instance_type",
+        "region",
+        "operating_system",
+        "instance_name",
+    )
 
     FILTER_SERIALIZER = AWSEC2ComputeFilterSerializer
     ORDER_BY_SERIALIZER = AWSEC2ComputeOrderBySerializer

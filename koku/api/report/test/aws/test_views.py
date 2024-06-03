@@ -612,3 +612,20 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-costs") + "?filter[operating_system]=Linux"
         response = self.client.get(url, **self.headers)
         self.assertNotEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2_compute_view_order_by_filters(self):
+        """Test if EC2 Compute Order By Filters is working."""
+        filters = (
+            "resource_id",
+            "account",
+            "usage_hours",
+            "instance_type",
+            "region",
+            "operating_system",
+            "instance_name",
+        )
+
+        for filter in filters:
+            url = reverse("reports-aws-ec2-compute") + f"?order_by[{filter}]=asc"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
