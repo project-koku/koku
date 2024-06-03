@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
+import logging
 import pkgutil
 import random
 import uuid
@@ -33,6 +34,8 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
@@ -540,10 +543,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
+        csi_volume_handles = ["csi1", "csi2"]
         projects = ["project_1", "project_2"]
         roles = ["master", "worker"]
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
-        mock_get_pvcs.return_value = zip(volumes, pvcs)
+        mock_get_pvcs.return_value = zip(volumes, pvcs, csi_volume_handles)
         mock_get_projects.return_value = projects
         mock_table.return_value = True
         cluster_id = uuid.uuid4()
@@ -553,7 +557,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = self.dh.this_month_end.date()
 
         with self.accessor as acc:
-
+            cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+            OCPPVC.objects.get_or_create(
+                persistent_volume_claim=pvcs[0], persistent_volume=volumes[0], cluster=cluster
+            )
             acc.populate_openshift_cluster_information_tables(
                 self.aws_provider, cluster_id, cluster_alias, start_date, end_date
             )
@@ -594,10 +601,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
+        csi_volume_handles = ["csi1", "csi2"]
         projects = ["project_1", "project_2"]
         roles = ["master", "worker"]
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
-        mock_get_pvcs.return_value = zip(volumes, pvcs)
+        mock_get_pvcs.return_value = zip(volumes, pvcs, csi_volume_handles)
         mock_get_projects.return_value = projects
         mock_table.return_value = True
         cluster_id = str(uuid.uuid4())
@@ -627,6 +635,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for pvc in pvcs:
                 self.assertIn(pvc.persistent_volume_claim, topo.get("persistent_volume_claims"))
                 self.assertIn(pvc.persistent_volume, topo.get("persistent_volumes"))
+                self.assertIn(pvc.csi_volume_handle, topo.get("csi_volume_handle"))
             for project in projects:
                 self.assertIn(project.project, topo.get("projects"))
 

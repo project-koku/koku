@@ -406,6 +406,7 @@ class OCPPVC(models.Model):
     persistent_volume_claim = models.TextField()
     persistent_volume = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+    csi_volume_handle = models.TextField(null=True)
 
 
 class OpenshiftCostCategory(models.Model):
