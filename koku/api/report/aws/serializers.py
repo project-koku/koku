@@ -208,6 +208,25 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
     instance_name = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
 
+    def validate(self, attrs):
+        """Validate that the provided filter is allowed.
+        
+        Args:
+            attrs (Dict): The attributes to validate.
+            
+        Returns:
+            (Dict): The validated attributes.
+        
+        Raises:
+            (ValidationError): If the filter is not allowed.
+        """
+        allowed_filters = ["resource_id", "instance_name", "operating_system", "account", "tags", "region"]
+        
+        for field in attrs.keys():
+            if field not in allowed_filters:
+                raise serializers.ValidationError(f"The filter '{field}' is not allowed.")
+        return attrs
+
 
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
     """Serializer for handling EC2 compute specific query parameter order_by."""
