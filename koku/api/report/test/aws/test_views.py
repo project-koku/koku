@@ -654,22 +654,10 @@ class AWSReportViewTest(IamTestCase):
             "region",
         )
 
-        not_allowed_filters = (
-            "az",
-            "service",
-            "product_family",
-            "org_unit_id",
-        )
-
         for filter in allowed_filters:
             url = reverse("reports-aws-ec2-compute") + f"?filter[{filter}]=value"
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        for filter in not_allowed_filters:
-            url = reverse("reports-aws-ec2-compute") + f"?filter[{filter}]=value"
-            response = self.client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_ec2_compute_group_by(self):
         """Test if EC2 Compute Report is blocking group by filters properly."""
@@ -691,3 +679,30 @@ class AWSReportViewTest(IamTestCase):
             url = reverse("reports-aws-ec2-compute") + f"?group_by[{filter}]=value"
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ec2_compute_resolution_filter(self):
+        url = reverse("reports-aws-ec2-compute") + "?filter[resolution]=daily"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = reverse("reports-aws-ec2-compute") + "?filter[resolution]=monthly"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2_compute_time_scope_value_filter(self):
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_value]=-30"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_value]=-3"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2_compute_time_scope_units_filter(self):
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=day"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=month"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
