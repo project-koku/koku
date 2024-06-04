@@ -118,6 +118,7 @@ class AWSPostProcessor:
         "reservation_end_time": "reservation/EndTime",
         "product_physical_cores": "product/physicalCores",
         "identity_time_interval": "identity/TimeInterval",
+        "product_operating_system": "product/operatingSystem",
     }
 
     CSV_COLUMN_PREFIX = (
@@ -206,6 +207,7 @@ class AWSPostProcessor:
                 "lineitem_availabilityzone",
                 "lineitem_lineitemtype",
                 "product_productfamily",
+                "product_operatingsystem",
                 "product_instancetype",
                 "product_region",
                 "pricing_unit",
@@ -226,8 +228,10 @@ class AWSPostProcessor:
                 "pricing_publicondemandcost": ["sum"],
                 "pricing_publicondemandrate": ["max"],
                 "savingsplan_savingsplaneffectivecost": ["sum"],
-                "product_productname": ["max"],
                 "bill_invoiceid": ["max"],
+                "product_productname": ["max"],
+                "product_vcpu": ["max"],
+                "product_memory": ["max"],
             }
         )
         columns = daily_data_frame.columns.droplevel(1)
@@ -257,7 +261,9 @@ class AWSPostProcessor:
         data_frame["costCategory"] = cost_categories
 
         # Make sure we have entries for our required columns
-        data_frame = data_frame.reindex(columns=columns)
+        missing = set(TRINO_REQUIRED_COLUMNS).difference(data_frame)
+        to_add = {k: TRINO_REQUIRED_COLUMNS[k] for k in missing}
+        data_frame = data_frame.assign(**to_add)
 
         columns = list(data_frame)
         column_name_map = {}

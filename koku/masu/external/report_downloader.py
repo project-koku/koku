@@ -5,11 +5,9 @@
 """Provider external interface for koku to consume."""
 import logging
 
-from dateutil.relativedelta import relativedelta
-
 from api.common import log_json
 from api.provider.models import Provider
-from masu.external.date_accessor import DateAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
@@ -21,10 +19,14 @@ from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLo
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
+from masu.util.aws.common import UploadError
+from masu.util.common import CreateDailyArchivesError
+from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import ManifestState
+from reporting_common.states import ManifestStep
 
 
 LOG = logging.getLogger(__name__)
@@ -100,7 +102,6 @@ class ReportDownloader:
             Provider.PROVIDER_OCI: OCIReportDownloader,
             Provider.PROVIDER_OCI_LOCAL: OCILocalReportDownloader,
             Provider.PROVIDER_IBM: IBMReportDownloader,
-            Provider.PROVIDER_OCP: OCPReportDownloader,
         }
         if self.provider_type in downloader_map:
             return downloader_map[self.provider_type](
@@ -116,31 +117,10 @@ class ReportDownloader:
             )
         return None
 
-    def get_reports(self, number_of_months=2):
-        """
-        Download cost usage reports.
-
-        Args:
-            (Int) Number of monthly reports to download.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        reports = []
-        try:
-            current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
-            for month in reversed(range(number_of_months)):
-                calculated_month = current_month + relativedelta(months=-month)
-                reports += self.download_report(calculated_month)
-        except Exception as err:
-            raise ReportDownloaderError(str(err))
-        return reports
-
     def is_report_processed(self, report_name, manifest_id):
         """Check if report_name has completed processing.
 
-        Filter by the report name and then check the last_completed_datetime.
+        Filter by the report name and then check the completed_datetime.
         If the date is not null, the report has been processed, and this method returns True.
         Otherwise returns False.
 
@@ -148,7 +128,7 @@ class ReportDownloader:
         return CostUsageReportStatus.objects.filter(
             manifest_id=manifest_id,
             report_name=report_name,
-            last_completed_datetime__isnull=False,
+            completed_datetime__isnull=False,
         ).exists()
 
     def download_manifest(self, date):
@@ -187,10 +167,10 @@ class ReportDownloader:
             LOG.info(f"File has already been processed: {local_file_name}. Skipping...")
             return {}
 
-        stats_recorder = CostUsageReportStatus.objects.filter(
+        report_status = CostUsageReportStatus.objects.filter(
             report_name=local_file_name, manifest_id=manifest_id
         ).first()
-        if not stats_recorder:
+        if not report_status:
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -201,14 +181,22 @@ class ReportDownloader:
                 )
             )
             return {}
+        report_status.set_celery_task_id(report_context.get("task_id"))
 
         try:
             file_name, etag, _, split_files, date_range = self._downloader.download_file(
-                report, stats_recorder.etag, manifest_id=manifest_id, start_date=date_time
+                report, report_status.etag, manifest_id=manifest_id, start_date=date_time
             )
-            stats_recorder.etag = etag
-            stats_recorder.save(update_fields=["etag"])
-        except (AWSReportDownloaderNoFileError, AzureReportDownloaderError) as error:
+            report_status.etag = etag
+            report_status.save(update_fields=["etag"])
+        except (
+            AWSReportDownloaderNoFileError,
+            AzureReportDownloaderError,
+            UploadError,
+            CreateDailyArchivesError,
+        ) as error:
+            ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.FAILED, manifest_id)
+            report_status.update_status(CombinedChoices.FAILED)
             LOG.warning(f"Unable to download report file: {report}. Reason: {str(error)}")
             return {}
 
@@ -227,7 +215,5 @@ class ReportDownloader:
             "end": date_range.get("end"),
             "invoice_month": date_range.get("invoice_month"),
         }
-        if self.provider_type == Provider.PROVIDER_OCP:
-            report["split_files"] = list(split_files)
-            report["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
+        ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.END, manifest_id)
         return report

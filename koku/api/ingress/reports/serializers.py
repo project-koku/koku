@@ -60,7 +60,7 @@ class IngressReportsSerializer(serializers.ModelSerializer):
         ]
         year_message = year_range[0]
         if dh.bill_year_from_date(dh.this_month_start) not in year_range:
-            year_range.append(dh.bill_year_from_date(dh.last_month_start))
+            year_range.append(dh.bill_year_from_date(dh.this_month_start))
             year_message = f"{year_range[0]} or {year_range[1]}"
         if bill_month in month_range and bill_year in year_range:
             interface = ProviderAccessor(source.type)

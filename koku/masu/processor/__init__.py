@@ -15,7 +15,6 @@ from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
 from masu.util.common import convert_account
 
-
 LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
@@ -145,9 +144,25 @@ def check_ingress_columns(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
 
 
+def is_feature_cost_3592_tag_mapping_enabled(account):
+    """Should tag mapping be enabled."""
+    unleash_flag = "cost-management.backend.feature-cost-3592-tag-mapping"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+
+
 def is_feature_cost_3083_all_labels_enabled(account):
     """Should all labels column be enabled."""
     unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+
+
+def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
+    """Should EC2 individual VM compute cost be enabled."""
+    unleash_flag = "cost-management.backend.feature-4403-enable-ec2-compute-processing"
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)

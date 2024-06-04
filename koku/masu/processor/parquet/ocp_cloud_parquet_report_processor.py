@@ -28,6 +28,7 @@ from masu.util.aws.common import match_openshift_resources_and_labels as aws_mat
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 from reporting.provider.all.models import EnabledTagKeys
+from reporting_common.models import CombinedChoices
 
 LOG = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
         updater = OCPCloudUpdaterBase(self.schema_name, provider, manifest)
         infra_map = updater.get_infra_map_from_providers()
-        openshift_provider_uuids, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
+        _, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
 
         if self.provider_type in Provider.CLOUD_PROVIDER_LIST and str(self.provider_uuid) not in infra_provider_uuids:
             # When running for an Infrastructure provider we want all
@@ -230,7 +231,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 ocp_provider_uuids.append(ocp_provider_uuid)
         return tuple(ocp_provider_uuids)
 
-    def process(self, parquet_base_filename, daily_data_frames, manifest_id=None):
+    def process(self, parquet_base_filename, daily_data_frames):
         """Filter data and convert to parquet."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
@@ -242,13 +243,19 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             )
             return
 
+        if self.report_status:
+            # internal masu endpoints may result in this being None, so guard this in case there is no status to update
+            self.report_status.update_status(CombinedChoices.OCP_CLOUD_PROCESSING)
+
         # # Get OpenShift topology data
         with OCPReportDBAccessor(self.schema_name) as accessor:
             if self.provider_type == Provider.PROVIDER_GCP:
+                LOG.debug("getting OpenShift topology data for GCP")
                 cluster_topology = accessor.get_filtered_openshift_topology_for_multiple_providers(
                     ocp_provider_uuids, self.start_date, self.end_date
                 )
             else:
+                LOG.debug("getting OpenShift topology data")
                 cluster_topology = accessor.get_openshift_topology_for_multiple_providers(ocp_provider_uuids)
             # Get matching tags
             matched_tags = self.get_matched_tags(ocp_provider_uuids)

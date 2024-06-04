@@ -39,7 +39,7 @@ INSERT
 SELECT 'AWS'::text AS source_type,
        aws.cluster_id,
        {{cluster_alias}},
-       array_agg(aws.namespace),
+       array_agg(distinct aws.namespace),
        aws.node,
        aws.resource_id,
        aws.usage_start,

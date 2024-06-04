@@ -8,12 +8,13 @@ from datetime import datetime
 
 import ciso8601
 from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -21,6 +22,10 @@ from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
+
+
+class OCPReportParquetSummaryUpdaterClusterNotFound(Exception):
+    pass
 
 
 class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
@@ -39,17 +44,11 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         if not self._cluster_id:
-            msg = f"Missing cluster_id for provider: {self._provider.uuid}"
-            LOG.error(
-                log_json(
-                    msg=msg,
-                    provider_uuid=provider.uuid,
-                )
-            )
-            raise ValueError(msg)
+            msg = "missing cluster_id for provider"
+            LOG.warning(log_json(msg=msg, provider_uuid=provider.uuid, schema=schema))
+            raise OCPReportParquetSummaryUpdaterClusterNotFound(msg)
 
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
-        self._date_accessor = DateAccessor()
         self._context = {
             "schema": self._schema,
             "provider_uuid": self._provider.uuid,
@@ -145,14 +144,14 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             )
             accessor.populate_pod_label_summary_table([report_period_id], start_date, end_date)
             accessor.populate_volume_label_summary_table([report_period_id], start_date, end_date)
-            accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, [report_period_id])
+            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, [report_period_id])
 
             LOG.info(
                 log_json(msg="updating OCP report periods", context=self._context, report_period_id=report_period_id)
             )
             if report_period.summary_data_creation_datetime is None:
-                report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-            report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+                report_period.summary_data_creation_datetime = timezone.now()
+            report_period.summary_data_updated_datetime = timezone.now()
             report_period.save()
             LOG.info(
                 log_json(
@@ -169,8 +168,16 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         return start_date, end_date
 
     def check_cluster_infrastructure(self, start_date, end_date):
-
-        LOG.info(log_json(msg="checking if OCP cluster is running on cloud infrastructure", context=self._context))
+        # Override start date so we map with a more complete dataset
+        start_date = DateHelper().month_start(start_date)
+        LOG.info(
+            log_json(
+                msg="checking if OCP cluster is running on cloud infrastructure",
+                context=self._context,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
 
         updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
         if (

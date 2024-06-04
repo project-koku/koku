@@ -546,14 +546,16 @@ FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
-                (strpos(lower(gcp.labels), 'openshift_project') != 0 AND strpos(lower(gcp.labels), lower(ocp.namespace)) != 0)
-                OR (strpos(lower(gcp.labels), 'openshift_node') != 0 AND strpos(lower(gcp.labels), lower(ocp.node)) != 0)
-                OR (strpos(lower(gcp.labels), 'openshift_cluster') != 0 AND (strpos(lower(gcp.labels), lower(ocp.cluster_id)) != 0 OR strpos(lower(gcp.labels), lower(ocp.cluster_alias)) != 0))
+                json_query(gcp.labels, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
+                OR json_query(gcp.labels, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
+                OR json_query(gcp.labels, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
+                OR json_query(gcp.labels, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
     AND ocp.namespace != 'Worker unallocated'
     AND ocp.namespace != 'Platform unallocated'
+    AND ocp.namespace != 'Network unattributed'
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.report_period_id = {{report_period_id}}
     AND ocp.year = {{year}}

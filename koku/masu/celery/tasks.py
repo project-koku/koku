@@ -6,6 +6,7 @@
 import json
 import logging
 import math
+import re
 
 import requests
 from botocore.exceptions import ClientError
@@ -30,16 +31,17 @@ from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from koku.notifications import NotificationService
+from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
-from masu.external.date_accessor import DateAccessor
 from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
+from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
@@ -47,6 +49,8 @@ from masu.util.aws.common import get_s3_resource
 from masu.util.oci.common import OCI_REPORT_TYPES
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import DelayedCeleryTasks
+from reporting_common.models import DiskCapacity
 from sources.tasks import delete_source
 
 LOG = logging.getLogger(__name__)
@@ -56,6 +60,12 @@ PROVIDER_REPORT_TYPE_MAP = {
     Provider.PROVIDER_OCI: OCI_REPORT_TYPES,
     Provider.PROVIDER_OCI_LOCAL: OCI_REPORT_TYPES,
 }
+
+
+@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=GET_REPORT_FILES_QUEUE)
+def fix_parquet_data_types(*args, **kwargs):
+    verify_parquet = VerifyParquetFiles(*args, **kwargs)
+    verify_parquet.retrieve_verify_reload_s3_parquet()
 
 
 @celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
@@ -69,8 +79,7 @@ def check_report_updates(*args, **kwargs):
 @celery_app.task(name="masu.celery.tasks.remove_expired_data", queue=DEFAULT)
 def remove_expired_data(simulate=False):
     """Scheduled task to initiate a job to remove expired report data."""
-    today = DateAccessor().today()
-    LOG.info("Removing expired data at %s", str(today))
+    LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
 
@@ -374,6 +383,47 @@ def get_daily_currency_rates():
     return rate_metrics
 
 
+@celery_app.task(name="masu.celery.scrape_azure_storage_capacities", queue=DEFAULT)
+def scrape_azure_storage_capacities():
+    """Task to retrieve the Azure disk capacities.
+
+    The Azure cost reports do not report disk capacities. Therefore, we retrieve
+    the disk capacities and product substring from their documentation repos.
+    """
+    main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+    web_pages_metadata = {
+        "disk-storage-premium-ssd-sizes.md": "Premium SSD sizes",
+        "disk-storage-standard-hdd-sizes.md": "Standard Disk Type",
+        "disk-storage-standard-ssd-sizes.md": "Standard SSD sizes",
+    }
+
+    # scrape azure docs for product capacities
+    try:
+        for filename, regex_substring in web_pages_metadata.items():
+            url = main_url + filename
+            response = requests.get(url)
+            response.raise_for_status()
+            markdown_content = response.text
+            disk_terms = re.search(rf"\| {regex_substring}.*?(?=\|[-|]+?\|)", markdown_content, re.DOTALL)
+            disk_sizes = re.search(r"\| Disk\s*size\s*in\s*GiB .*?(?=\n)", markdown_content, re.DOTALL)
+            disk_terms_row = disk_terms.group(0) if disk_terms else ""
+            disk_sizes_row = disk_sizes.group(0) if disk_sizes else ""
+            terms = disk_terms_row.split("|")[2:-1]
+            sizes = disk_sizes_row.split("|")[2:-1]
+            for term, size in zip(terms, sizes):
+                capacity_string = size.strip().replace(",", "")
+                DiskCapacity.objects.get_or_create(
+                    product_substring=term.strip(),
+                    capacity=int(capacity_string),
+                    provider_type=Provider.PROVIDER_AZURE,
+                )
+
+    except (HTTPError, RetryError) as e:
+        LOG.error(f"Unable to retrieve azure disk capacities {url}")
+        LOG.error(e)
+        return
+
+
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
@@ -389,7 +439,7 @@ def crawl_account_hierarchy(provider_uuid=None):
 
         # Look for a known crawler class to handle this provider
         if provider.type == Provider.PROVIDER_AWS:
-            crawler = AWSOrgUnitCrawler(provider.account)
+            crawler = AWSOrgUnitCrawler(provider)
 
         if crawler:
             LOG.info(
@@ -416,16 +466,16 @@ def check_cost_model_status(provider_uuid=None):
             return
     else:
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
-    LOG.info("Cost model status check found %s providers to scan" % len(providers))
+    LOG.info(f"Cost model status check found {len(providers)} providers to scan")
     processed = 0
     skipped = 0
     for provider in providers:
-        cost_model_map = CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid)
-        if cost_model_map.cost_model:
-            skipped += 1
-        else:
-            NotificationService().cost_model_notification(provider)
-            processed += 1
+        with CostModelDBAccessor(provider.account.get("schema_name"), provider.uuid) as cmdba:
+            if cmdba.cost_model:
+                skipped += 1
+                continue
+        NotificationService().cost_model_notification(provider)
+        processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 
@@ -438,8 +488,8 @@ def check_for_stale_ocp_source(provider_uuid=None):
         LOG.info(f"Openshift stale cluster check found {len(manifest_data)} clusters to scan")
         processed = 0
         skipped = 0
-        today = DateAccessor().today()
-        check_date = DateHelper().n_days_ago(today, 3)
+        dh = DateHelper()
+        check_date = dh.n_days_ago(dh.now, 3)
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
@@ -555,3 +605,9 @@ def get_celery_queue_items(self, queue_name=None, task_name=None):
         decoded_tasks[queue] = task_list
 
     return decoded_tasks
+
+
+@celery_app.task(name="masu.celery.tasks.trigger_delayed_tasks", queue=GET_REPORT_FILES_QUEUE)
+def trigger_delayed_tasks(*args, **kwargs):
+    """Removes the expired records starting the delayed celery tasks."""
+    DelayedCeleryTasks.trigger_delayed_tasks()

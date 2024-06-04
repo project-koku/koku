@@ -18,6 +18,7 @@ from django.test import override_settings
 from django.test import RequestFactory
 from django.test import TestCase
 from faker import Faker
+from model_bakery import baker
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
@@ -70,7 +71,7 @@ class IamTestCase(TestCase):
     """Parent Class for IAM test cases."""
 
     fake = Faker()
-    dh = DateHelper()
+    baker = baker
 
     @classmethod
     def setUpClass(cls):
@@ -79,6 +80,7 @@ class IamTestCase(TestCase):
         post_save.disconnect(storage_callback, sender=Sources)
         post_save.disconnect(provider_post_save_refresh_cache, sender=Provider)
 
+        cls.dh = DateHelper()
         cls.customer_data = cls._create_customer_data()
         cls.user_data = cls._create_user_data()
         cls.request_context = cls._create_request_context(cls.customer_data, cls.user_data)
@@ -253,12 +255,14 @@ class RbacPermissions:
                 "entitlements": {"cost_management": {"is_entitled": "True"}},
             }
 
+            get_response = Mock()
+
             with override_settings(DEVELOPMENT=True):
                 with override_settings(DEVELOPMENT_IDENTITY=identity):
                     with override_settings(FORCE_HEADER_OVERRIDE=True):
                         with override_settings(MIDDLEWARE=middleware):
                             request_context = IamTestCase._create_request_context(self.customer, user)
-                            middleware = DevelopmentIdentityHeaderMiddleware()
+                            middleware = DevelopmentIdentityHeaderMiddleware(get_response)
                             middleware.process_request(request_context["request"])
                             result = function(*args, **kwargs)
             return result

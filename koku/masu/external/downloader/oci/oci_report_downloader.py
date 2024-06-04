@@ -40,7 +40,7 @@ def divide_csv_monthly(file_path, filename):
     directory = os.path.dirname(file_path)
 
     try:
-        data_frame = pd.read_csv(file_path, dtype="str")
+        data_frame = pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"))
     except Exception as error:
         LOG.error(f"File {file_path} could not be parsed. Reason: {error}")
         raise error
@@ -162,7 +162,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         return oci_objects_client
 
-    def get_last_reports(self, assembly_id):
+    def get_report_tracker(self, assembly_id):
         """
         Collect dict of last report previously downloaded
 
@@ -172,13 +172,13 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
             if manifest:
-                last_reports = manifest.last_reports
+                report_tracker = manifest.report_tracker
             else:
-                last_reports = {"cost": "", "usage": ""}
+                report_tracker = {"cost": "", "usage": ""}
 
-        return last_reports
+        return report_tracker
 
-    def update_last_reports(self, report_type, key, manifest_id):
+    def update_report_tracker(self, report_type, key, manifest_id):
         """
         Update stored dict of last report previously downloaded
 
@@ -188,11 +188,11 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
             if manifest:
-                last_reports = manifest.last_reports
-                last_reports[report_type] = key
-                manifest.last_reports = last_reports
+                report_tracker = manifest.report_tracker
+                report_tracker[report_type] = key
+                manifest.report_tracker = report_tracker
                 manifest.save()
-                return last_reports
+                return report_tracker
 
     def _collect_reports(self, prefix, last_report=None):
         """
@@ -242,8 +242,8 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def _extract_names(self, assembly_id=None):
         """Get list of cost and usage report objects for manifest/downloading."""
 
-        last_reports = self.get_last_reports(assembly_id)
-        last_report_type_map = {"cost": last_reports.get("cost", ""), "usage": last_reports.get("usage", "")}
+        report_tracker = self.get_report_tracker(assembly_id)
+        last_report_type_map = {"cost": report_tracker.get("cost", ""), "usage": report_tracker.get("usage", "")}
         report_objects_list = []
 
         # Collecting CUR's from OCI bucket
@@ -307,7 +307,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ]
             if files_list:
                 manifest_id = self._process_manifest_db_record(
-                    assembly_id, month.strftime("%Y-%m-%d"), len(month_report_names), dh._now
+                    assembly_id, month.strftime("%Y-%m-%d"), len(month_report_names), dh.now
                 )
                 monthly_report["manifest_id"] = manifest_id
                 monthly_report["assembly_id"] = assembly_id
@@ -398,9 +398,9 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_local_path))
 
             if "usage" in key:
-                self.update_last_reports("usage", key, manifest_id)
+                self.update_report_tracker("usage", key, manifest_id)
             else:
-                self.update_last_reports("cost", key, manifest_id)
+                self.update_report_tracker("cost", key, manifest_id)
 
             file_names, date_range = create_monthly_archives(
                 self.tracing_id,

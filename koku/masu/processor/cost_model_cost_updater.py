@@ -8,8 +8,9 @@ import datetime
 import ciso8601
 
 from api.models import Provider
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from masu.database.provider_db_accessor import ProviderDBAccessor
+from koku.cache import TAG_MAPPING_PREFIX
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
@@ -36,8 +37,7 @@ class CostModelCostUpdater:
         self._schema = customer_schema
         self.tracing_id = tracing_id
 
-        with ProviderDBAccessor(provider_uuid) as provider_accessor:
-            self._provider = provider_accessor.get_provider()
+        self._provider = Provider.objects.filter(uuid=provider_uuid).first()
         try:
             self._updater = self._set_updater()
         except Exception as err:
@@ -56,7 +56,7 @@ class CostModelCostUpdater:
             (Object) : Provider-specific report summary updater
 
         """
-        if self._provider is None:
+        if not self._provider:
             return None
 
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
@@ -101,3 +101,5 @@ class CostModelCostUpdater:
         if self._updater:
             self._updater.update_summary_cost_model_costs(start_date, end_date)
             invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
+            # Invalidate the tag_rate_map for tag mapping
+            invalidate_view_cache_for_tenant_and_cache_key(self._schema, TAG_MAPPING_PREFIX)

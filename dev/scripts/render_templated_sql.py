@@ -86,7 +86,7 @@ if __name__ == "__main__":
     with open(sql_file) as f:
         sql_template = f.read()
 
-    jinja_sql = JinjaSql()
+    jinja_sql = JinjaSql(param_style="format")
     sql_query, bind_params = jinja_sql.prepare_query(sql_template, arg_dict)
 
     bind_params = [quote_sql_string(val) for val in bind_params]

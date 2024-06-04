@@ -3,7 +3,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import numpy as np
 import pandas as pd
 from django_tenants.utils import schema_context
 
@@ -46,10 +45,10 @@ class TestAzureUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.empty)
@@ -59,10 +58,10 @@ class TestAzureUtils(MasuTestCase):
 
         # tag matching
         result = matched_df[matched_df["resourceid"] == "id1"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id5"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
@@ -70,10 +69,10 @@ class TestAzureUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.empty)
@@ -89,10 +88,10 @@ class TestAzureUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.empty)
@@ -116,9 +115,9 @@ class TestAzureUtils(MasuTestCase):
         ]
         matched_tags = []
         data = [
-            {"resourceid": np.nan, "instanceid": "id1", "pretaxcost": 1, "tags": '{"key": "value"}'},
-            {"resourceid": np.nan, "instanceid": "id2", "pretaxcost": 1, "tags": '{"key": "other_value"}'},
-            {"resourceid": np.nan, "instanceid": "id3", "pretaxcost": 1, "tags": '{"keyz": "value"}'},
+            {"resourceid": "", "instanceid": "id1", "pretaxcost": 1, "tags": '{"key": "value"}'},
+            {"resourceid": "", "instanceid": "id2", "pretaxcost": 1, "tags": '{"key": "other_value"}'},
+            {"resourceid": "", "instanceid": "id3", "pretaxcost": 1, "tags": '{"keyz": "value"}'},
         ]
 
         df = pd.DataFrame(data)
@@ -126,13 +125,13 @@ class TestAzureUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["instanceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["instanceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
         result = matched_df[matched_df["instanceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
     def test_match_openshift_resource_with_nan_labels(self):
         """Test OCP on Azure data matching."""
@@ -148,7 +147,7 @@ class TestAzureUtils(MasuTestCase):
 
         matched_tags = [{"key": "value"}]
         data = [
-            {"resourceid": "id1", "pretaxcost": 1, "tags": np.nan},
+            {"resourceid": "id1", "pretaxcost": 1, "tags": ""},
         ]
 
         df = pd.DataFrame(data)
@@ -156,7 +155,7 @@ class TestAzureUtils(MasuTestCase):
 
         # resource id matching
         result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any(bool_only=True))
 
     def test_get_bill_ids_from_provider(self):
         """Test that bill IDs are returned for an AWS provider."""

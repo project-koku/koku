@@ -18,12 +18,13 @@ from api.utils import DateHelper
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
+from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import OCITagsSummary
+from reporting_common.models import CostUsageReportManifest
 
 
 class OCIReportDBAccessorTest(MasuTestCase):
@@ -35,54 +36,34 @@ class OCIReportDBAccessorTest(MasuTestCase):
         super().setUpClass()
 
         cls.accessor = OCIReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-
-        cls.all_tables = list(OCI_CUR_TABLE_MAP.values())
-        cls.foreign_key_tables = [
-            OCI_CUR_TABLE_MAP["bill"],
-        ]
-        cls.manifest_accessor = ReportManifestDBAccessor()
 
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        today = DateAccessor().today_with_timezone("UTC")
-        billing_start = today.replace(day=1)
-
-        self.manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": billing_start,
-            "num_total_files": 2,
-            "provider_id": self.oci_provider.uuid,
-        }
-        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest = CostUsageReportManifest.objects.filter(provider_id=self.oci_provider.uuid).first()
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
-        summary_table_name = OCI_CUR_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.oci_provider.uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
 
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            summary_entry = OCICostEntryLineItemDailySummary.objects.all().aggregate(
+                Min("usage_start"), Max("usage_start")
+            )
             start_date = summary_entry["usage_start__min"]
             end_date = summary_entry["usage_start__max"]
 
-        query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
-            expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
+            expected_markup = OCICostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
                 markup=Sum(F("cost") * decimal.Decimal(0.1))
             )
             expected_markup = expected_markup.get("markup")
 
         self.accessor.populate_markup_cost(decimal.Decimal(0.1), start_date, end_date, bill_ids)
         with schema_context(self.schema):
-            query = (
-                self.accessor._get_db_obj_query(summary_table_name)
-                .filter(cost_entry_bill__in=bill_ids)
-                .aggregate(Sum("markup_cost"))
+            query = OCICostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
+                Sum("markup_cost")
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
@@ -90,9 +71,7 @@ class OCIReportDBAccessorTest(MasuTestCase):
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
         with schema_context(self.schema):
-            table_name = OCI_CUR_TABLE_MAP["bill"]
-            query = self.accessor._get_db_obj_query(table_name)
-            first_entry = query.first()
+            first_entry = OCICostEntryBill.objects.first()
 
             # Verify that the result is returned for cutoff_date == billing_period_start
             cutoff_date = first_entry.billing_period_start
@@ -178,27 +157,42 @@ class OCIReportDBAccessorTest(MasuTestCase):
                 else:
                     self.assertEqual([], tag_keys)
 
-    def test_delete_line_item_daily_summary_entries_for_date_range(self):
-        """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
-            start_date = OCICostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get("usage_start__max")
-            end_date = start_date
-
-        table_query = OCICostEntryLineItemDailySummary.objects.filter(
-            source_uuid=self.oci_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-        )
-        with schema_context(self.schema):
-            self.assertNotEqual(table_query.count(), 0)
-
-        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
-            self.oci_provider_uuid, start_date, end_date
-        )
-
-        with schema_context(self.schema):
-            self.assertEqual(table_query.count(), 0)
-
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, OCICostEntryLineItemDailySummary)
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, OCI_CUR_TABLE_MAP)
+
+    @patch("masu.database.oci_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
+    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+        """
+        This tests the tag mapping feature.
+        """
+        mock_unleash.return_value = True
+        populated_keys = []
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI, enabled=True)
+            for enabled_tag in enabled_tags:
+                tag_count = OCICostEntryLineItemDailySummary.objects.filter(
+                    tags__has_key=enabled_tag.key,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
+                ).count()
+                if tag_count > 0:
+                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                    populated_keys.append(key_metadata)
+                if len(populated_keys) == 2:
+                    break
+            parent_key, parent_obj, parent_count = populated_keys[0]
+            child_key, child_obj, child_count = populated_keys[1]
+            TagMapping.objects.create(parent=parent_obj, child=child_obj)
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            expected_parent_count = parent_count + child_count
+            actual_parent_count = OCICostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(expected_parent_count, actual_parent_count)
+            actual_child_count = OCICostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(0, actual_child_count)

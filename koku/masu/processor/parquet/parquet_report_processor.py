@@ -41,6 +41,8 @@ from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
+from reporting_common.models import CombinedChoices
+from reporting_common.models import CostUsageReportStatus
 
 
 LOG = logging.getLogger(__name__)
@@ -77,14 +79,12 @@ class ParquetReportProcessor:
         ingress_reports_uuid=None,
     ):
         """initialize report processor."""
-        if context is None:
-            context = {}
         self._schema_name = schema_name
         self._provider_uuid = provider_uuid
         self._report_file = Path(report_path)
         self.provider_type = provider_type
         self._manifest_id = manifest_id
-        self._context = context
+        self._context = context or {}
         self.start_date = self._context.get("start_date")
         self.invoice_month_date = None
         if invoice_month := self._context.get("invoice_month"):
@@ -142,6 +142,13 @@ class ParquetReportProcessor:
     def manifest_id(self):
         """The manifest id."""
         return self._manifest_id
+
+    @cached_property
+    def report_status(self):
+        if self.manifest_id:
+            return CostUsageReportStatus.objects.get(
+                report_name=Path(self._report_file).name, manifest_id=self.manifest_id
+            )
 
     @property
     def report_file(self):
@@ -441,7 +448,7 @@ class ParquetReportProcessor:
             file_list = self.split_file_list
 
         if not file_list:
-            LOG.warn(
+            LOG.warning(
                 log_json(
                     self.tracing_id,
                     msg="no split files to convert to parquet",
@@ -453,16 +460,16 @@ class ParquetReportProcessor:
         for csv_filename in file_list:
             self.prepare_parquet_s3(Path(csv_filename))
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
-                LOG.warn(
+                msg = "could not establish report type"
+                LOG.warning(
                     log_json(
                         self.tracing_id,
-                        msg="could not establish report type",
+                        msg=msg,
                         context=self.error_context,
                         filename=csv_filename,
                     )
                 )
-                failed_conversion.append(csv_filename)
-                continue
+                raise ParquetReportProcessorError(msg)
             if self.provider_type == Provider.PROVIDER_OCI:
                 file_specific_start_date = str(csv_filename).split(".")[1]
                 self.start_date = file_specific_start_date
@@ -470,33 +477,37 @@ class ParquetReportProcessor:
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_frame)
+            if self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+                # Sync partitions on each file to create partitions that cross month bondaries
+                self.create_parquet_table(parquet_base_filename)
             if not success:
-                failed_conversion.append(csv_filename)
-
-        if failed_conversion:
-            LOG.warn(
-                log_json(
-                    self.tracing_id,
-                    msg="failed to convert files to parquet",
-                    context=self.error_context,
-                    file_list=failed_conversion,
+                msg = "failed to convert files to parquet"
+                LOG.warning(
+                    log_json(
+                        self.tracing_id,
+                        msg=msg,
+                        context=self.error_context,
+                        file_list=failed_conversion,
+                    )
                 )
-            )
+                raise ParquetReportProcessorError(msg)
         return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
-        processor = self._get_report_processor(parquet_file, daily=daily)
-        bill_date = self.start_date.replace(day=1)
-        if not processor.schema_exists():
-            processor.create_schema()
-        if not processor.table_exists():
-            processor.create_table(partition_map=partition_map)
-        if not daily:
-            processor.create_bill(bill_date=bill_date)
-        processor.get_or_create_postgres_partition(bill_date=bill_date)
-        processor.sync_hive_partitions()
-        self.trino_table_exists[self.report_type] = True
+        # Skip empty files, if we have no storage report data we can't create the table
+        if parquet_file:
+            processor = self._get_report_processor(parquet_file, daily=daily)
+            bill_date = self.start_date.replace(day=1)
+            if not processor.schema_exists():
+                processor.create_schema()
+            if not processor.table_exists():
+                processor.create_table(partition_map=partition_map)
+            self.trino_table_exists[self.report_type] = True
+            processor.get_or_create_postgres_partition(bill_date=bill_date)
+            processor.sync_hive_partitions()
+            if not daily:
+                processor.create_bill(bill_date=bill_date)
 
     def check_required_columns_for_ingress_reports(self, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
@@ -563,7 +574,7 @@ class ParquetReportProcessor:
                 self.create_parquet_table(parquet_filepath)
 
         except Exception as err:
-            LOG.warn(
+            LOG.warning(
                 log_json(
                     self.tracing_id,
                     msg="could not write parquet to temp file",
@@ -572,6 +583,10 @@ class ParquetReportProcessor:
                 ),
                 exc_info=err,
             )
+            if self.report_status:
+                # internal masu endpoints may result in this being None,
+                # so guard this in case there is no status to update
+                self.report_status.update_status(CombinedChoices.FAILED)
             return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True
@@ -657,7 +672,7 @@ class ParquetReportProcessor:
                 )
         except Exception as err:
             s3_key = f"{self.parquet_path_s3}/{file_path}"
-            LOG.warn(
+            LOG.warning(
                 log_json(
                     self.tracing_id,
                     msg="file could not be written to s3",

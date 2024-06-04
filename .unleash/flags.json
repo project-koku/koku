@@ -10,9 +10,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "source-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "source-uuid": ""
+                        "rollout": 100,
+                        "stickiness": "source_uuid"
                     },
                     "constraints": []
                 }
@@ -29,9 +30,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
@@ -48,9 +50,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
@@ -67,9 +70,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
@@ -86,9 +90,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
@@ -105,9 +110,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
@@ -124,10 +130,12 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
-                    }
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
                 }
             ],
             "variants": [],
@@ -142,10 +150,18 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": "org1234567"
-                    }
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": [
+                        {
+                            "contextName": "schema",
+                            "operator": "IN",
+                            "values": ["org1234567"]
+                        }
+                    ]
                 }
             ],
             "variants": [],
@@ -160,9 +176,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
@@ -179,9 +196,10 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
@@ -198,59 +216,36 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
-                    }
+                        "rollout": 100,
+                        "stickiness": "schema"
+                    },
+                    "constraints": []
                 }
             ],
             "variants": [],
             "createdAt": "2022-10-31T18:49:38.445Z"
         },
         {
-            "name": "cost-management.backend.feature-cost-3083-all-labels",
-            "description": "Enable the all labels column for OCP cost endpoint.",
+            "name": "cost-management.backend.feature-cost-3592-tag-mapping",
+            "description": "Enable tag mapping feature.",
             "type": "permission",
             "project": "default",
             "enabled": false,
             "stale": false,
             "strategies": [
                 {
-                    "name": "schema-strategy",
+                    "name": "flexibleRollout",
                     "parameters": {
-                        "schema-name": ""
+                        "rollout": 100,
+                        "stickiness": "schema"
                     },
                     "constraints": []
                 }
             ],
             "variants": [],
-            "createdAt": "2023-04-06T09:40:54.492Z"
-        }
-    ],
-    "strategies": [
-        {
-            "name": "schema-strategy",
-            "description": "Enablement based on account/schema number",
-            "parameters": [
-                {
-                    "name": "schema-name",
-                    "type": "list",
-                    "description": "values must begin with `acct` or `org`",
-                    "required": false
-                }
-            ]
-        },
-        {
-            "name": "source-strategy",
-            "description": "Enablement based on source uuid",
-            "parameters": [
-                {
-                    "name": "source-uuid",
-                    "type": "list",
-                    "description": "UUID of the source.",
-                    "required": false
-                }
-            ]
+            "createdAt": "2024-01-23T09:40:54.492Z"
         }
     ]
 }

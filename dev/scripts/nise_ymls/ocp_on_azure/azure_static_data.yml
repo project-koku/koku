@@ -55,6 +55,7 @@ generators:
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111123
       resource_location: "US North Central"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/azure-cloud-prefix-pvc-partial-matching'
       amount: 10
       rate: 0.01
       tags:
@@ -64,6 +65,7 @@ generators:
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111122
       resource_location: "US North Central"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/disk-id-1234567'
       amount: 10
       rate: 0.01
       tags:
@@ -73,6 +75,7 @@ generators:
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111121
       resource_location: "US North Central"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/pv-123-claimless'
       amount: 10
       rate: 0.01
       tags:
@@ -82,6 +85,7 @@ generators:
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111120
       resource_location: "US North Central"
+      instance_id:  '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/azure_compute1_OSDisk'
       amount: 10
       rate: 0.01
       tags:
@@ -114,6 +118,30 @@ generators:
       end_date: {{end_date}}
       tags:
         app: weather
+  - DTGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      meter_id: 55555555-4444-3333-2222-111111111128
+      data_direction: "in"
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute1'
+      usage_quantity: 5
+      resource_rate: 0.01
+      tags:
+        version: Mars
+        dashed-key-on-azure: dashed-value
+  - DTGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      meter_id: 55555555-4444-3333-2222-111111111128
+      data_direction: "out"
+      resource_location: "US East"
+      instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute1'
+      usage_quantity: 7.5
+      resource_rate: 0.01
+      tags:
+        version: Mars
+        dashed-key-on-azure: dashed-value
 
 # SubscriptionGuid
 accounts:

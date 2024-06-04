@@ -21,13 +21,9 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.aws.common import get_s3_resource
 from reporting.models import SubsIDMap
 from reporting.models import SubsLastProcessed
-from reporting.provider.aws.models import TRINO_LINE_ITEM_TABLE as AWS_TABLE
+
 
 LOG = logging.getLogger(__name__)
-
-TABLE_MAP = {
-    Provider.PROVIDER_AWS: AWS_TABLE,
-}
 
 
 class SUBSDataExtractor(ReportDBAccessorBase):
@@ -39,8 +35,10 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         self.creation_processing_time = self.provider_created_timestamp.replace(
             microsecond=0, second=0, minute=0, hour=0
         ) - timedelta(days=1)
+        if self.provider_type == Provider.PROVIDER_AZURE:
+            # Since Azure works on days with complete data, use -2 days for initial processing as -1 wont be complete
+            self.creation_processing_time = self.creation_processing_time - timedelta(days=1)
         self.tracing_id = tracing_id
-        self.table = TABLE_MAP.get(self.provider_type)
         self.s3_resource = get_s3_resource(
             settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
         )
@@ -86,12 +84,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             excluded_ids = list(
                 SubsIDMap.objects.exclude(source_uuid=self.provider_uuid).values_list("usage_id", flat=True)
             )
-            sql = (
-                "SELECT DISTINCT lineitem_usageaccountid FROM hive.{{schema | sqlsafe}}.aws_line_items WHERE"
-                " source={{source_uuid}} AND year={{year}} AND month={{month}}"
-            )
-            if excluded_ids:
-                sql += "AND lineitem_usageaccountid NOT IN {{excluded_ids | inclause}}"
+            sql_file = f"trino_sql/{self.provider_type.lower()}/determine_ids_for_provider.sql"
+            sql = pkgutil.get_data("subs", sql_file)
+            sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
                 "source_uuid": self.provider_uuid,
@@ -110,27 +105,13 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             SubsIDMap.objects.bulk_create(bulk_maps, ignore_conflicts=True)
         return id_list
 
-    def determine_line_item_count(self, where_clause, sql_params):
-        """Determine the number of records in the table that have not been processed and match the criteria"""
-        table_count_sql = f"SELECT count(*) FROM {self.schema}.{self.table} {where_clause}"
-        count = self._execute_trino_raw_sql_query(
-            table_count_sql, sql_params=sql_params, log_ref="determine_subs_processing_count"
-        )
+    def determine_row_count(self, sql_params):
+        """Determine the number of records in the table that have not been processed and match the criteria."""
+        sql_file = f"trino_sql/{self.provider_type.lower()}/subs_row_count.sql"
+        sql = pkgutil.get_data("subs", sql_file)
+        sql = sql.decode("utf-8")
+        count = self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref="determine_subs_row_count")
         return count[0][0]
-
-    def determine_where_clause_and_params(self, year, month):
-        """Determine the where clause to use when processing subs data"""
-        where_clause = (
-            "WHERE source={{source_uuid}} AND year={{year}} AND month={{month}} AND"
-            " lineitem_productcode = 'AmazonEC2' AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage') AND"
-            " product_vcpu != '' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
-        )
-        sql_params = {
-            "source_uuid": self.provider_uuid,
-            "year": year,
-            "month": month,
-        }
-        return where_clause, sql_params
 
     def get_resource_ids_for_usage_account(self, usage_account, year, month):
         """Determine the relevant resource ids and end time to process to for each resource id."""
@@ -139,16 +120,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             excluded_ids = list(
                 SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid).values_list("resource_id", flat=True)
             )
-            sql = (
-                "SELECT lineitem_resourceid, max(lineitem_usagestartdate)"
-                " FROM hive.{{schema | sqlsafe}}.aws_line_items WHERE"
-                " source={{source_uuid}} AND year={{year}} AND month={{month}}"
-                " AND lineitem_productcode = 'AmazonEC2' AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0"
-                " AND lineitem_usageaccountid = {{usage_account}}"
-            )
-            if excluded_ids:
-                sql += "AND lineitem_resourceid NOT IN {{excluded_ids | inclause}}"
-            sql += " GROUP BY lineitem_resourceid"
+            sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
+            sql = pkgutil.get_data("subs", sql_file)
+            sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
                 "source_uuid": self.provider_uuid,
@@ -164,45 +138,25 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
         """Gather the data and upload it to S3 for a batch of resource ids"""
-        where_clause, sql_params = self.determine_where_clause_and_params(year, month)
-        sql_file = f"trino_sql/{self.provider_type.lower()}_subs_pre_or_clause.sql"
+        sql_params = sql_params = {
+            "source_uuid": self.provider_uuid,
+            "year": year,
+            "month": month,
+            "schema": self.schema,
+            "resources": batch,
+        }
+        sql_file = f"trino_sql/{self.provider_type.lower()}/subs_summary.sql"
         summary_sql = pkgutil.get_data("subs", sql_file)
         summary_sql = summary_sql.decode("utf-8")
-        rid_sql_clause = " AND ( "
-        for i, e in enumerate(batch):
-            rid, start_time, end_time = e
-            sql_params[f"rid_{i}"] = rid
-            sql_params[f"start_date_{i}"] = start_time
-            sql_params[f"end_date_{i}"] = end_time
-            rid_sql_clause += (
-                "( lineitem_resourceid = {{{{ rid_{0} }}}}"
-                " AND lineitem_usagestartdate >= {{{{ start_date_{0} }}}}"
-                " AND lineitem_usagestartdate <= {{{{ end_date_{0} }}}})"
-            ).format(i)
-            if i < len(batch) - 1:
-                rid_sql_clause += " OR "
-        rid_sql_clause += " )"
-        where_clause += rid_sql_clause
-        summary_sql += rid_sql_clause
-        summary_sql += """
-OFFSET
-      {{ offset }}
-    LIMIT
-      {{ limit }}
-  )
--- this ensures the required `com_redhat_rhel` tag exists in the set of tags since the above match is not exact
-WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
-"""
-        total_count = self.determine_line_item_count(where_clause, sql_params)
+        total_count = self.determine_row_count(sql_params)
         LOG.debug(
             log_json(
                 self.tracing_id,
                 msg=f"identified {total_count} matching records for metered rhel",
-                context=self.context | {"resource_ids": [rid for rid, _, _ in batch]},
+                context=self.context | {"resource_ids": [row["rid"] for row in batch]},
             )
         )
         upload_keys = []
-        sql_params["schema"] = self.schema
         for i, offset in enumerate(range(0, total_count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
             sql_params["offset"] = offset
             sql_params["limit"] = settings.PARQUET_PROCESSING_BATCH_SIZE
@@ -282,7 +236,7 @@ WHERE json_extract_scalar(tags, '$.com_redhat_rhel') IS NOT NULL
             )
             for rid, end_time in resource_ids:
                 start_time = max(last_processed_dict.get(rid, month_start), self.creation_processing_time)
-                batch.append((rid, start_time, end_time))
+                batch.append({"rid": rid, "start": start_time, "end": end_time})
                 if len(batch) >= 100:
                     upload_keys.extend(
                         self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")

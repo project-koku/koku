@@ -34,14 +34,14 @@ pipeline {
         IMAGE_TAG=sh(script: "git rev-parse --short=7 HEAD", returnStdout: true).trim()
         DBM_IMAGE="${IMAGE}"
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
-        COMPONENTS="hive-metastore koku presto"  // specific components to deploy (optional, default: all)
-        COMPONENTS_W_RESOURCES="hive-metastore koku presto"  // components which should preserve resource settings (optional, default: none)
+        COMPONENTS="hive-metastore koku trino"  // specific components to deploy (optional, default: all)
+        COMPONENTS_W_RESOURCES="hive-metastore koku trino"  // components which should preserve resource settings (optional, default: none)
 
         LABELS_DIR="${WORKSPACE}/github_labels"
         ARTIFACTS_DIR="${WORKSPACE}/artifacts"
 
         IQE_PLUGINS="cost_management"
-        IQE_CJI_TIMEOUT="120m"
+        IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER}"
 
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
@@ -60,6 +60,8 @@ pipeline {
                     echo "EXIT_CODE:$EXIT_CODE" >> stage_flags
                     echo "IQE_FILTER_EXPRESSION:$IQE_FILTER_EXPRESSION" >> stage_flags
                     echo "IQE_MARKER_EXPRESSION:$IQE_MARKER_EXPRESSION" >> stage_flags
+                    echo "IQE_CJI_TIMEOUT:$IQE_CJI_TIMEOUT" >> stage_flags
+                    echo "RESERVATION_TIMEOUT:$RESERVATION_TIMEOUT" >> stage_flags
                 '''
                 script {
                     FILE_CONTENTS = readFile('stage_flags')
@@ -79,6 +81,8 @@ pipeline {
                     env.EXIT_CODE = flags_map['EXIT_CODE']
                     env.IQE_FILTER_EXPRESSION = flags_map['IQE_FILTER_EXPRESSION']
                     env.IQE_MARKER_EXPRESSION = flags_map['IQE_MARKER_EXPRESSION']
+                    env.IQE_CJI_TIMEOUT = flags_map['IQE_CJI_TIMEOUT']
+                    env.RESERVATION_TIMEOUT = flags_map['RESERVATION_TIMEOUT']
                 }
             }
         }

@@ -44,3 +44,9 @@ class OCPVolumeView(OCPView):
     """Get OpenShift volume usage data."""
 
     report = "volume"
+
+
+class OCPNetworkView(OCPView):
+    """OpenShift node network usage"""
+
+    report = "network"

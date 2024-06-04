@@ -13,8 +13,8 @@ from faker import Faker
 from model_bakery import baker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -90,10 +90,13 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         self.assertIsNotNone(self.report_downloader)
 
     @patch("masu.util.aws.common.copy_data_to_s3_bucket")
-    def test_download_report(self, *args):
+    @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    def test_download_report(self, mock_select_for_update, *args):
         """Test the top level Azure-Local download_report."""
+        mock_queryset = mock_select_for_update.return_value
+        mock_queryset.get.return_value = None
         test_report_date = datetime.datetime(year=2019, month=8, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
+        with patch.object(DateHelper, "now", return_value=test_report_date):
             filename = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
             manifest_id = 1
             report_context = {

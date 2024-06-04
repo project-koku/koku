@@ -25,7 +25,9 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.util.azure.common import get_bills_from_provider
+from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureTagsSummary
 
@@ -39,8 +41,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         super().setUpClass()
 
         cls.accessor = AzureReportDBAccessor(schema=cls.schema)
-        cls.report_schema = cls.accessor.report_schema
-        cls.dh = DateHelper()
 
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.foreign_key_tables = [
@@ -70,33 +70,27 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     def test_populate_markup_cost(self):
         """Test that the daily summary table is populated."""
-        summary_table_name = AZURE_REPORT_TABLE_MAP["line_item_daily_summary"]
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider_uuid)
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+            summary_entry = AzureCostEntryLineItemDailySummary.objects.all().aggregate(
+                Min("usage_start"), Max("usage_start")
+            )
             start_date = summary_entry["usage_start__min"]
             end_date = summary_entry["usage_start__max"]
 
-        query = self.accessor._get_db_obj_query(summary_table_name)
         with schema_context(self.schema):
-            expected_markup = query.filter(cost_entry_bill__in=bill_ids).aggregate(
-                markup=Sum(F("pretax_cost") * decimal.Decimal(0.1))
-            )
+            expected_markup = AzureCostEntryLineItemDailySummary.objects.filter(
+                cost_entry_bill__in=bill_ids
+            ).aggregate(markup=Sum(F("pretax_cost") * decimal.Decimal(0.1)))
             expected_markup = expected_markup.get("markup")
-
-        query = self.accessor._get_db_obj_query(summary_table_name)
 
         self.accessor.populate_markup_cost(
             self.azure_provider_uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
         )
         with schema_context(self.schema):
-            query = (
-                self.accessor._get_db_obj_query(summary_table_name)
-                .filter(cost_entry_bill__in=bill_ids)
-                .aggregate(Sum("markup_cost"))
+            query = AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
+                Sum("markup_cost")
             )
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
@@ -284,59 +278,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
             self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).count(), 0)
 
-    def test_update_line_item_daily_summary_with_enabled_tags(self):
-        """Test that we filter the daily summary table's tags with only enabled tags."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-
-        bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
-        with schema_context(self.schema):
-            AzureTagsSummary.objects.all().delete()
-            key_to_keep = (
-                EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).filter(key="app").first()
-            )
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).update(enabled=False)
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).filter(key="app").update(enabled=True)
-            bill_ids = [bill.id for bill in bills]
-            self.accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
-            tags = (
-                AzureCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, cost_entry_bill_id__in=bill_ids
-                )
-                .values_list("tags")
-                .distinct()
-            )
-
-            for tag in tags:
-                tag_dict = tag[0]
-                tag_keys = list(tag_dict.keys())
-                if tag_keys:
-                    self.assertEqual([key_to_keep.key], tag_keys)
-                else:
-                    self.assertEqual([], tag_keys)
-
-    def test_delete_line_item_daily_summary_entries_for_date_range(self):
-        """Test that daily summary rows are deleted."""
-        with schema_context(self.schema):
-            start_date = AzureCostEntryLineItemDailySummary.objects.aggregate(Max("usage_start")).get(
-                "usage_start__max"
-            )
-            end_date = start_date
-
-        table_query = AzureCostEntryLineItemDailySummary.objects.filter(
-            source_uuid=self.azure_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
-        )
-        with schema_context(self.schema):
-            self.assertNotEqual(table_query.count(), 0)
-
-        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
-            self.azure_provider_uuid, start_date, end_date
-        )
-
-        with schema_context(self.schema):
-            self.assertEqual(table_query.count(), 0)
-
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, AzureCostEntryLineItemDailySummary)
 
@@ -436,3 +377,76 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_not_called()
             mock_table_exist.assert_not_called()
+
+    @patch("masu.database.azure_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
+    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+        """
+        This tests the tag mapping feature.
+        """
+        mock_unleash.return_value = True
+        populated_keys = []
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE, enabled=True)
+            for enabled_tag in enabled_tags:
+                tag_count = AzureCostEntryLineItemDailySummary.objects.filter(
+                    tags__has_key=enabled_tag.key,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
+                ).count()
+                if tag_count > 0:
+                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                    populated_keys.append(key_metadata)
+                if len(populated_keys) == 2:
+                    break
+            parent_key, parent_obj, parent_count = populated_keys[0]
+            child_key, child_obj, child_count = populated_keys[1]
+            TagMapping.objects.create(parent=parent_obj, child=child_obj)
+            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
+            expected_parent_count = parent_count + child_count
+            actual_parent_count = AzureCostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(expected_parent_count, actual_parent_count)
+            actual_child_count = AzureCostEntryLineItemDailySummary.objects.filter(
+                tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(0, actual_child_count)
+
+    @patch("masu.database.azure_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
+    def test_populate_ocp_on_aZURE_tag_information(self, mock_unleash):
+        """
+        This tests the tag mapping feature.
+        """
+        mock_unleash.return_value = True
+        populated_keys = []
+        with schema_context(self.schema):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE, enabled=True)
+            for enabled_tag in enabled_tags:
+                tag_count = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                    tags__has_key=enabled_tag.key,
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
+                ).count()
+                if tag_count > 0:
+                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                    populated_keys.append(key_metadata)
+                if len(populated_keys) == 2:
+                    break
+            bill_ids = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                tags__has_key=enabled_tag.key,
+                usage_start__gte=self.dh.this_month_start,
+                usage_start__lte=self.dh.today,
+            ).values_list("cost_entry_bill", flat=True)
+            parent_key, parent_obj, parent_count = populated_keys[0]
+            child_key, child_obj, child_count = populated_keys[1]
+            TagMapping.objects.create(parent=parent_obj, child=child_obj)
+            self.accessor.populate_ocp_on_azure_tag_information(bill_ids, self.dh.this_month_start, self.dh.today)
+            expected_parent_count = parent_count + child_count
+            actual_parent_count = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(expected_parent_count, actual_parent_count)
+            actual_child_count = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(
+                tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
+            ).count()
+            self.assertEqual(0, actual_child_count)

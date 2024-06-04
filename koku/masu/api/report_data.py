@@ -18,7 +18,6 @@ from rest_framework.settings import api_settings
 
 from api.models import Provider
 from api.utils import get_months_in_date_range
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import is_customer_large
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import PRIORITY_QUEUE_XL

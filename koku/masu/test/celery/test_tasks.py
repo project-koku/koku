@@ -25,6 +25,7 @@ from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnit
 from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import DiskCapacity
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
@@ -36,10 +37,9 @@ class FakeManifest:
             "assembly_id": "1234",
             "billing_period_start_datetime": "2020-02-01",
             "num_total_files": 2,
-            "provider_uuid": provider_uuid,
+            "provider_id": provider_uuid,
         }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
+        manifest = baker.make("CostUsageReportManifest", **manifest_dict)
         return [manifest]
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
@@ -49,8 +49,7 @@ class FakeManifest:
             "num_total_files": 2,
             "provider_uuid": provider_uuid,
         }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
+        manifest = baker.make("CostUsageReportManifest", **manifest_dict)
         return [manifest]
 
     def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
@@ -70,17 +69,10 @@ class TestCeleryTasks(MasuTestCase):
         mock_orch.prepare.assert_called()
 
     @patch("masu.celery.tasks.Orchestrator")
-    @patch("masu.external.date_accessor.DateAccessor.today")
-    def test_remove_expired_data(self, mock_date, mock_orchestrator):
+    def test_remove_expired_data(self, mock_orchestrator):
         """Test that the scheduled task calls the orchestrator."""
         mock_orch = mock_orchestrator()
-
-        mock_date_string = "2018-07-25 00:00:30.993536"
-        mock_date_obj = datetime.strptime(mock_date_string, "%Y-%m-%d %H:%M:%S.%f")
-        mock_date.return_value = mock_date_obj
-
         tasks.remove_expired_data()
-
         mock_orchestrator.assert_called()
         mock_orch.remove_expired_report_data.assert_called()
 
@@ -268,7 +260,7 @@ class TestCeleryTasks(MasuTestCase):
 
     def test_crawl_account_hierarchy_with_provider_uuid(self):
         """Test that only accounts associated with the provider_uuid are polled."""
-        p = baker.make(Provider, type=Provider.PROVIDER_AWS)
+        p = self.baker.make(Provider, type=Provider.PROVIDER_AWS)
         with patch.object(AWSOrgUnitCrawler, "crawl_account_hierarchy") as mock_crawler:
             mock_crawler.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
@@ -279,7 +271,7 @@ class TestCeleryTasks(MasuTestCase):
 
     def test_crawl_account_hierarchy_without_provider_uuid(self):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
-        baker.make(Provider, type=Provider.PROVIDER_AWS)
+        self.baker.make(Provider, type=Provider.PROVIDER_AWS)
         polling_accounts = Provider.polling_objects.all()
         providers = Provider.objects.all()
         for provider in providers:
@@ -315,7 +307,7 @@ class TestCeleryTasks(MasuTestCase):
     def test_cost_model_status_check_without_provider_uuid(self, mock_notification):
         """Test that all polling accounts are used when no provider_uuid is provided."""
         mock_notification.cost_model_notification.return_value = True
-        baker.make("Provider", type=Provider.PROVIDER_OCP, customer=self.customer)
+        self.baker.make("Provider", type=Provider.PROVIDER_OCP, customer=self.customer)
         providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status()
@@ -492,3 +484,45 @@ class TestCeleryTasks(MasuTestCase):
         expected_queue = "summary"
         queue_tasks = tasks.get_celery_queue_items(queue_name=expected_queue, task_name="not_found")
         self.assertEqual(queue_tasks, expected_output)
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_scrape_azure_storage_capacities(self, mock_celery_app):
+        """Test the scrape storage capacities."""
+        DiskCapacity.objects.all().delete()
+        beforeRows = DiskCapacity.objects.count()
+        result = """
+            | Standard SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            | Standard Disk Type | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            | Premium SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            |-------------------|----|----|----|----|----|-----|-----|-----|-----|-----|-----|------|------|------|
+            | Disk size in GiB | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384 | 32767 |
+        """
+        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+        with requests_mock.mock() as reqmock:
+            reqmock.register_uri("GET", f"{main_url}disk-storage-premium-ssd-sizes.md", status_code=200, text=result)
+            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-hdd-sizes.md", status_code=200, text=result)
+            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-ssd-sizes.md", status_code=200, text=result)
+            tasks.scrape_azure_storage_capacities()
+        afterRows = DiskCapacity.objects.count()
+        self.assertNotEqual(beforeRows, afterRows)
+        self.assertEqual(afterRows, 14)
+
+    def test_error_scrape_azure_storage_capacities(self):
+        """Test HTTP error capture."""
+        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+        with self.assertLogs("masu.celery.tasks", "ERROR") as captured_logs:
+            with requests_mock.Mocker() as reqmock:
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-premium-ssd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-standard-hdd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-standard-ssd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                result = tasks.scrape_azure_storage_capacities()
+
+        self.assertIsNone(result)
+        self.assertIn("Unable to retrieve azure disk capacities", captured_logs.output[0])
+        self.assertIn("Raised intentionally", captured_logs.output[1])

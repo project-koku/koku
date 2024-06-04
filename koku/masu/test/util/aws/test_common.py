@@ -13,7 +13,6 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import boto3
-import numpy as np
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
@@ -21,11 +20,9 @@ from django_tenants.utils import schema_context
 from faker import Faker
 
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.external import AWS_REGIONS
-from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 from masu.test.external.downloader.aws import fake_aws_account_id
@@ -348,17 +345,15 @@ class TestAWSUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_date(self):
         """Test that bill IDs are returned for an AWS provider with start date."""
-        date_accessor = DateAccessor()
-
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
             bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__gte=end_date.date()).all()
+                bills = bills.filter(billing_period_start__gte=end_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.aws_provider_uuid, self.schema, start_date=end_date)
@@ -369,17 +364,15 @@ class TestAWSUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_end_date(self):
         """Test that bill IDs are returned for an AWS provider with end date."""
-        date_accessor = DateAccessor()
-
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
 
             bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
-                bills = bills.filter(billing_period_start__lte=start_date.date()).all()
+                bills = bills.filter(billing_period_start__lte=start_date).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(self.aws_provider_uuid, self.schema, end_date=start_date)
@@ -390,10 +383,8 @@ class TestAWSUtils(MasuTestCase):
 
     def test_get_bill_ids_from_provider_with_start_and_end_date(self):
         """Test that bill IDs are returned for an AWS provider with both dates."""
-        date_accessor = DateAccessor()
-
         with AWSReportDBAccessor(schema=self.schema) as accessor:
-            end_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+            end_date = self.dh.this_month_start
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
@@ -401,9 +392,7 @@ class TestAWSUtils(MasuTestCase):
             bills = accessor.get_cost_entry_bills_query_by_provider(self.aws_provider_uuid)
             with schema_context(self.schema):
                 bills = (
-                    bills.filter(billing_period_start__gte=start_date.date())
-                    .filter(billing_period_start__lte=end_date.date())
-                    .all()
+                    bills.filter(billing_period_start__gte=start_date).filter(billing_period_start__lte=end_date).all()
                 )
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
@@ -487,8 +476,7 @@ class TestAWSUtils(MasuTestCase):
         )
         self.assertEqual(removed, [])
 
-        date_accessor = DateAccessor()
-        start_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+        start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(
             "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
         )
@@ -537,8 +525,7 @@ class TestAWSUtils(MasuTestCase):
         metadata_key = "manifestid"
         metadata_value = "manifest_id"
         context = {"account": self.account_id, "provider_type": self.aws_provider.type}
-        date_accessor = DateAccessor()
-        start_date = date_accessor.today_with_timezone("UTC").replace(day=1).replace(tzinfo=None)
+        start_date = self.dh.this_month_start.replace(tzinfo=None)
         s3_csv_path = get_path_prefix(
             self.account_id, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, Config.CSV_DATA_TYPE
         )
@@ -568,8 +555,7 @@ class TestAWSUtils(MasuTestCase):
         prov_uuid = self.gcp_provider_uuid
         prov_type = self.gcp_provider.type
         context = {"account": self.account_id, "provider_type": prov_type}
-        date_accessor = DateAccessor()
-        start_date = date_accessor.today_with_timezone("UTC").replace(day=1).replace(tzinfo=None)
+        start_date = self.dh.this_month_start.replace(tzinfo=None)
         s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
         expected_key = "not_matching_key"
         mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
@@ -597,8 +583,7 @@ class TestAWSUtils(MasuTestCase):
         )
         self.assertEqual(removed, [])
 
-        date_accessor = DateAccessor()
-        start_date = date_accessor.today_with_timezone("UTC").replace(day=1)
+        start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(
             "account", Provider.PROVIDER_AWS, "provider_uuid", start_date, Config.CSV_DATA_TYPE
         )
@@ -651,8 +636,8 @@ class TestAWSUtils(MasuTestCase):
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.return_value.Object.return_value.upload_fileobj.side_effect = ClientError({}, "Error")
-            upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-            self.assertIsNone(upload)
+            with self.assertRaises(utils.UploadError):
+                utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
 
     @patch("masu.util.aws.common.copy_data_to_s3_bucket")
     def test_copy_local_hcs_report_file_to_s3_bucket_with_finalize(self, mock_copy):
@@ -697,40 +682,40 @@ class TestAWSUtils(MasuTestCase):
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
+        self.assertTrue(result.any().any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
+        self.assertTrue(result.any().any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
         # tag matching
         result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any().any())
 
         result = matched_df[matched_df["lineitem_resourceid"] == "id5"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any().any())
 
         # Matched tags, but none that match the dataset
         matched_tags = [{"something_else": "entirely"}]
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
+        self.assertTrue(result.any().any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
+        self.assertTrue(result.any().any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
@@ -740,20 +725,20 @@ class TestAWSUtils(MasuTestCase):
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
+        self.assertTrue(result.any().any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
+        self.assertTrue(result.any().any())
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
         self.assertTrue(result.empty)
 
         # tag matching
-        self.assertFalse((matched_df["matched_tag"] != "").any())
+        self.assertFalse(matched_df["matched_tag"].ne("").any())
 
     def test_match_openshift_labels_with_nan_resources(self):
         """Test OCP on AWS data matching."""
@@ -769,7 +754,7 @@ class TestAWSUtils(MasuTestCase):
 
         matched_tags = [{"key": "value"}]
         data = [
-            {"lineitem_resourceid": np.nan, "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
+            {"lineitem_resourceid": "", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
         ]
 
         df = pd.DataFrame(data)
@@ -777,7 +762,7 @@ class TestAWSUtils(MasuTestCase):
 
         # tag matching
         result = matched_df["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.bool())
+        self.assertTrue(result.any().any())
 
     def test_match_openshift_resource_with_nan_labels(self):
         """Test OCP on AWS data matching."""
@@ -793,21 +778,21 @@ class TestAWSUtils(MasuTestCase):
 
         matched_tags = [{"key": "value"}]
         data = [
-            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": np.nan},
+            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": ""},
         ]
 
         df = pd.DataFrame(data)
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
-        self.assertTrue(result.bool())
+        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
+        self.assertTrue(result.any().any())
 
     @patch("masu.util.aws.common.get_s3_resource")
     def test_get_or_clear_daily_s3_by_date(self, mock_resource):
         """test getting daily archive start date"""
-        start_date = DateHelper().this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
-        end_date = DateHelper().this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
+        end_date = self.dh.this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
             return_value=None,

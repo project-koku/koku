@@ -4,12 +4,10 @@
 #
 """View for enable_tags masu admin endpoint."""
 import logging
-import pkgutil
 
-from django.db import connection
+from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_tenants.utils import schema_context
-from jinjasql import JinjaSql
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -43,7 +41,7 @@ class EnabledTagView(APIView):
 
     permission_classes = [AllowAny]
 
-    @never_cache
+    @method_decorator(never_cache)
     def get(self, request):
         """Handle the GET portion."""
         params = request.query_params
@@ -69,7 +67,7 @@ class EnabledTagView(APIView):
 
         return Response({RESPONSE_KEY: tag_keys})
 
-    @never_cache
+    @method_decorator(never_cache)
     def post(self, request):
         """Handle the POST."""
         data = request.data
@@ -110,18 +108,4 @@ class EnabledTagView(APIView):
                     enabled_tag_key.save()
                 msg = f"Disabled tags for schema: {schema_name}."
                 LOG.info(msg)
-            elif action.lower() == "remove_stale":
-                jinja_sql = JinjaSql()
-                sql = pkgutil.get_data(
-                    "masu.database",
-                    f"sql/{PROVIDER_TYPE_TO_FILE_PATH.get(provider_type)}/remove_stale_enabled_tags.sql",
-                )
-                sql = sql.decode("utf-8")
-                params = {"schema": schema_name}
-                sql, params = jinja_sql.prepare_query(sql, params)
-                LOG.info("Removing stale enabled tag keys.")
-                with schema_context(schema_name):
-                    with connection.cursor() as cursor:
-                        cursor.execute(sql, params=params)
-
         return Response({RESPONSE_KEY: tag_keys})

@@ -7,13 +7,15 @@ import logging
 
 import ciso8601
 from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
 from koku.pg_partition import PartitionHandlerMixin
+from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.external.date_accessor import DateAccessor
+from masu.processor import is_feature_cost_4403_ec2_compute_cost_enabled
 from masu.util.common import date_range_pair
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
@@ -28,7 +30,6 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         self._schema = schema
         self._provider = provider
         self._manifest = manifest
-        self._date_accessor = DateAccessor()
         self._context = {
             "schema": self._schema,
             "provider_uuid": self._provider.uuid,
@@ -58,7 +59,8 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         with schema_context(self._schema):
-            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+            partition_summary_tables = UI_SUMMARY_TABLES + (AWS_CUR_TABLE_MAP["ec2_compute_summary"],)
+            self._handle_partitions(self._schema, partition_summary_tables, start_date, end_date)
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -100,15 +102,35 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-                # accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_category_summary_table(bill_ids, start_date, end_date)
+            accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
 
-            # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
+            # Populate ec2 compute summary table if feature is enabled for schema
+            if is_feature_cost_4403_ec2_compute_cost_enabled(self._schema):
+                LOG.info(f"AWS EC2 compute summary is enabled for schema: {self._schema}")
+
+                # Ensure start_date is first day of the month
+                month_start_date = start_date.replace(day=1)
+
+                # Delete records from the EC2 compute summary table for a specified source and date range before insert
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                    self._provider.uuid,
+                    month_start_date,
+                    end_date,
+                    table=AWS_CUR_TABLE_MAP["ec2_compute_summary"],
+                    filters={"source_uuid": self._provider.uuid},
+                )
+
+                # Populate EC2 compute summary table
+                accessor.populate_ec2_compute_summary_table_trino(
+                    self._provider.uuid, start_date, current_bill_id, markup_value
+                )
+
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
-                bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+                    bill.summary_data_creation_datetime = timezone.now()
+                bill.summary_data_updated_datetime = timezone.now()
                 bill.save()
 
         return start_date, end_date

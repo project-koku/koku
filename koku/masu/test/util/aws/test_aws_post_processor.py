@@ -48,6 +48,9 @@ class TestAWSPostProcessor(MasuTestCase):
                 "product_productname": "AmazonEC2",
                 "product_instancetype": "t2.micro",
                 "product_region": "us-east-1",
+                "product_vcpu": "8",
+                "product_memory": "8 GiB",
+                "product_operatingsystem": "Linux",
                 "pricing_unit": "hours",
                 "resourcetags": '{"key": "value"}',
                 "costcategory": '{"cat": "egory"}',
@@ -79,6 +82,9 @@ class TestAWSPostProcessor(MasuTestCase):
                 "product_productname": "AmazonEC2",
                 "product_instancetype": "t2.micro",
                 "product_region": "us-east-1",
+                "product_vcpu": "4",
+                "product_memory": "8 GiB",
+                "product_operatingsystem": "Linux",
                 "pricing_unit": "hours",
                 "resourcetags": '{"key": "value"}',
                 "costcategory": '{"cat": "egory"}',
@@ -111,6 +117,9 @@ class TestAWSPostProcessor(MasuTestCase):
                 "product_instancetype": "t2.micro",
                 "product_region": "us-east-1",
                 "pricing_unit": "hours",
+                "product_vcpu": "8",
+                "product_memory": "8 GiB",
+                "product_operatingsystem": "Linux",
                 "resourcetags": '{"key": "value"}',
                 "costcategory": '{"cat": "egory"}',
                 "lineitem_usageamount": lineitem_usageamount,
@@ -138,13 +147,13 @@ class TestAWSPostProcessor(MasuTestCase):
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
 
-        self.assertTrue((first_day["lineitem_usageamount"] == lineitem_usageamount * 2).bool())
-        self.assertTrue((first_day["lineitem_unblendedcost"] == lineitem_unblendedcost * 2).bool())
-        self.assertTrue((first_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
+        self.assertTrue((first_day["lineitem_usageamount"] == lineitem_usageamount * 2).any(bool_only=True))
+        self.assertTrue((first_day["lineitem_unblendedcost"] == lineitem_unblendedcost * 2).any(bool_only=True))
+        self.assertTrue((first_day["lineitem_unblendedrate"] == lineitem_unblendedrate).any(bool_only=True))
 
-        self.assertTrue((second_day["lineitem_usageamount"] == lineitem_usageamount).bool())
-        self.assertTrue((second_day["lineitem_unblendedcost"] == lineitem_unblendedcost).bool())
-        self.assertTrue((second_day["lineitem_unblendedrate"] == lineitem_unblendedrate).bool())
+        self.assertTrue((second_day["lineitem_usageamount"] == lineitem_usageamount).any(bool_only=True))
+        self.assertTrue((second_day["lineitem_unblendedcost"] == lineitem_unblendedcost).any(bool_only=True))
+        self.assertTrue((second_day["lineitem_unblendedrate"] == lineitem_unblendedrate).any(bool_only=True))
 
     def test_aws_process_dataframe(self):
         """Test that missing columns in a report end up in the data frame."""

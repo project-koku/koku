@@ -3,8 +3,6 @@
 [![license](https://img.shields.io/github/license/project-koku/koku.svg)](https://github.com/project-koku/koku/blob/main/LICENSE)
 [![CI](https://github.com/project-koku/koku/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/project-koku/koku/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/project-koku/koku/branch/main/graph/badge.svg)](https://codecov.io/gh/project-koku/koku)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=coverage)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=project-koku_koku&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=project-koku_koku)
 
 ## About
 
@@ -35,13 +33,15 @@ This project is developed using the Django web framework. Many
 configuration settings can be read in from a `.env` file. To configure,
 do the following:
 
-1.  Copy [`.env.example`](.env.example) into a `.env`
+1.  Copy [`.env.example`](.env.example) into a `.env` and update the following in your `.env`:
 
-2.  Obtain AWS values and update the following in your `.env`:
-
-        AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY
-        AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
         AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
+
+2.  Copy [`dev/credentials/aws.example`](dev/credentials/aws.example) into `dev/credentials/aws`, obtain AWS credentials, then update the credentials file:
+
+        [default]
+        aws_access_key_id=YOUR_AWS_ACCESS_KEY_ID
+        aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
 
 3.  (macOS only) Install libraries for building wheels on ARM:
 

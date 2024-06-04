@@ -44,10 +44,10 @@ def _check_cost_report_access(bucket, namespace, region):
         object_storage.list_objects(namespace, bucket, prefix=prefix_file)
     except OciRequestException as oci_error:
         # Not using exc_info here because it prints a traceback that gets picked up by sentry:
-        LOG.warn(oci_error)
+        LOG.warning(oci_error)
         raise serializers.ValidationError(error_obj(key, message))
     except (ClientError, ServiceError, OciConnectionError) as oci_error:
-        LOG.warn(msg=message, exc_info=oci_error)
+        LOG.warning(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
     except LocationParseError:
         key = ProviderErrors.OCI_INVALID_VALUES
