@@ -220,7 +220,7 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
         Raises:
             (ValidationError): If the filter is not allowed.
         """
-        allowed_filters = ["resource_id", "instance_name", "operating_system", "account", "tags", "region"]
+        allowed_filters = ["resource_id", "instance_name", "operating_system", "account", "tags", "region", "resolution", "time_scope_value", "time_scope_units"]
 
         for field in attrs.keys():
             if field not in allowed_filters:
