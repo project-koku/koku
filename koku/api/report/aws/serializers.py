@@ -246,7 +246,7 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
                 raise serializers.ValidationError(error)
-            
+
         return data
 
 
