@@ -221,7 +221,7 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
             (ValidationError): If the filter is not allowed.
         """
         allowed_filters = ["resource_id", "instance_name", "operating_system", "account", "tags", "region"]
-        
+
         for field in attrs.keys():
             if field not in allowed_filters:
                 raise serializers.ValidationError(f"The filter '{field}' is not allowed.")
@@ -265,3 +265,18 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
 
     FILTER_SERIALIZER = AWSEC2ComputeFilterSerializer
     ORDER_BY_SERIALIZER = AWSEC2ComputeOrderBySerializer
+
+    def validate_group_by(self, group_by):
+        """
+        Validates the 'group_by' parameter.
+
+        Args:
+            group_by (str): The value of the 'group_by' parameter.
+
+        Raises:
+            serializers.ValidationError: If group by queries are not allowed.
+
+        Returns:
+            None
+        """
+        raise serializers.ValidationError("Group by queries are not allowed.")
