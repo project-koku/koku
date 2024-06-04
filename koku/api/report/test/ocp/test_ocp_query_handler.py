@@ -927,7 +927,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_order_by_null_values(self):
         """Test that order_by returns properly sorted data with null data."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
 
@@ -1061,7 +1061,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_group_by_project_w_limit(self):
         """COST-1252: Test that grouping by project with limit works as expected."""
-        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
+        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         current_totals = self.get_totals_costs_by_time_scope(handler, self.ten_day_filter)
@@ -1077,7 +1077,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_group_by_project_overhead_distributed(self):
         """COST-1252: Test that grouping by project with limit works as expected."""
-        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
+        url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"
         with tenant_context(self.tenant):
             OCPCostSummaryByProjectP.objects.update(cost_model_rate_type="platform_distributed")
         query_params = self.mocked_query_params(url, OCPCostView)
@@ -1109,10 +1109,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         for line in query_output.get("data")[0].get("projects"):
-            if "openshift-" in line.get("project") or "kube-" in line.get("project"):
-                self.assertIn(line["values"][0]["classification"], ["project", "default"])
-            elif line.get("project") != "Platform":
-                self.assertEqual(line["values"][0]["classification"], "project")
+            project = line["project"]
+            classification = line["values"][0]["classification"]
+            if any(project.startswith(prefix) for prefix in ("openshift-", "kube-")):
+                self.assertIn(classification, {"project", "default"})
+            elif project == "Network unattributed":
+                self.assertEqual(classification, "unattributed")
+            elif project != "Platform":
+                self.assertEqual(classification, "project")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         overall = result_cost_total - expected_cost_total
@@ -1139,16 +1143,18 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertIsNotNone(query_output.get("total"))
             total = query_output.get("total")
             for line in query_output.get("data")[0].get("projects"):
-                if line["project"] == "Platform":
-                    self.assertEqual(line["values"][0]["classification"], f"category_{cat_key}")
-                elif line["project"] == "Other":
-                    self.assertEqual(line["values"][0]["classification"], "category")
-                elif line["project"] == "Others":
-                    self.assertEqual(line["values"][0]["classification"], "category")
-                elif line["project"] == "Worker unallocated":
-                    self.assertEqual(line["values"][0]["classification"], "unallocated")
+                project = line["project"]
+                classification = line["values"][0]["classification"]
+                if project == "Platform":
+                    self.assertEqual(classification, f"category_{cat_key}")
+                elif project in {"Other", "Others"}:
+                    self.assertEqual(classification, "category")
+                elif project == "Worker unallocated":
+                    self.assertEqual(classification, "unallocated")
+                elif project == "Network unattributed":
+                    self.assertEqual(classification, "unattributed")
                 else:
-                    self.assertIn(line["values"][0]["classification"], ["project", "default"])
+                    self.assertIn(classification, {"project", "default"})
             result_cost_total = total.get("cost", {}).get("total", {}).get("value")
             self.assertIsNotNone(result_cost_total)
             overall = result_cost_total - expected_cost_total
