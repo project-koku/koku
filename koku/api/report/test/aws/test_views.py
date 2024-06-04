@@ -614,8 +614,8 @@ class AWSReportViewTest(IamTestCase):
         self.assertNotEqual(response.status_code, status.HTTP_200_OK)
 
     def test_ec2_compute_view_order_by_filters(self):
-        """Test if EC2 Compute Order By Filters are working."""
-        filters = (
+        """Test if EC2 Compute Report is allowing/blocking order by filters properly."""
+        allowed_filters = (
             "resource_id",
             "account",
             "usage_amount",
@@ -625,13 +625,25 @@ class AWSReportViewTest(IamTestCase):
             "instance_name",
         )
 
-        for filter in filters:
+        not_allowed_filters = (
+            "az",
+            "service",
+            "product_family",
+            "org_unit_id",
+        )
+
+        for filter in allowed_filters:
             url = reverse("reports-aws-ec2-compute") + f"?order_by[{filter}]=asc"
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        for filter in not_allowed_filters:
+            url = reverse("reports-aws-ec2-compute") + f"?order_by[{filter}]=asc"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_ec2_compute_allowed_filters(self):
-        """Certify that EC2 Compute Report allows and blocks certain filters."""
+        """Test if EC2 Compute Report is allowing/blocking filters properly."""
         allowed_filters = (
             "resource_id",
             "instance_name",
@@ -657,5 +669,26 @@ class AWSReportViewTest(IamTestCase):
 
         for filter in not_allowed_filters:
             url = reverse("reports-aws-ec2-compute") + f"?filter[{filter}]=value"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_ec2_compute_group_by(self):
+        """Test if EC2 Compute Report is blocking group by filters properly."""
+        not_allowed_filters = (
+            "account",
+            "az",
+            "instance_type",
+            "region",
+            "service",
+            "storage_type",
+            "product_family",
+            "org_unit_id",
+            "operating_system",
+            "abc",
+            "test",
+        )
+
+        for filter in not_allowed_filters:
+            url = reverse("reports-aws-ec2-compute") + f"?group_by[{filter}]=value"
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
