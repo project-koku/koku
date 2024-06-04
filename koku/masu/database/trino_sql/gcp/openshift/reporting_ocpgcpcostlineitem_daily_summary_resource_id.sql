@@ -207,8 +207,8 @@ SELECT cast(uuid() as varchar),
     gcp.service_id,
     max(nullif(gcp.service_description, '')) as service_alias,
     CASE
-        WHEN STRPOS(lower(sku_description), 'data transfer in') != 0 THEN 'IN'
-        WHEN STRPOS(lower(sku_description), 'data transfer') != 0 THEN 'OUT'
+        WHEN service_description = 'Compute Engine' AND STRPOS(lower(sku_description), 'data transfer in') != 0 THEN 'IN'
+        WHEN service_description = 'Compute Engine' AND STRPOS(lower(sku_description), 'data transfer') != 0 THEN 'OUT'
         ELSE NULL
     END as data_transfer_direction,
     max(nullif(gcp.sku_id, '')) as sku_id,
