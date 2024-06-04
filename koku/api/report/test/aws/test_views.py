@@ -723,3 +723,7 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=month&filter[time_scope_value]=-30"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=day&filter[time_scope_value]=-20"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
