@@ -210,13 +210,13 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
 
     def validate(self, attrs):
         """Validate that the provided filter is allowed.
-        
+
         Args:
             attrs (Dict): The attributes to validate.
-            
+
         Returns:
             (Dict): The validated attributes.
-        
+
         Raises:
             (ValidationError): If the filter is not allowed.
         """
@@ -274,7 +274,7 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
             group_by (str): The value of the 'group_by' parameter.
 
         Raises:
-            serializers.ValidationError: If group by queries are not allowed.
+            (ValidationError): If group by queries are not allowed.
 
         Returns:
             None
