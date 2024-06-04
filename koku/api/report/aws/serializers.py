@@ -207,25 +207,47 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
     resource_id = StringOrListField(child=serializers.CharField(), required=False)
     instance_name = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
+    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
+    resource_scope = StringOrListField(child=serializers.CharField(), required=False)
+    limit = serializers.IntegerField(required=False, min_value=0)
+    offset = serializers.IntegerField(required=False, min_value=0)
 
-    def validate(self, attrs):
-        """Validate that the provided filter is allowed.
+    def validate(self, data):
+        """Validate incoming data.
 
         Args:
-            attrs (Dict): The attributes to validate.
-
+            data    (Dict): data to be validated
         Returns:
-            (Dict): The validated attributes.
-
+            (Dict): Validated data
         Raises:
-            (ValidationError): If the filter is not allowed.
-        """
-        allowed_filters = ["resource_id", "instance_name", "operating_system", "account", "tags", "region", "resolution", "time_scope_value", "time_scope_units"]
+            (ValidationError): if filter inputs are invalid
 
-        for field in attrs.keys():
-            if field not in allowed_filters:
-                raise serializers.ValidationError(f"The filter '{field}' is not allowed.")
-        return attrs
+        """
+        resolution = data.get("resolution")
+        time_scope_value = data.get("time_scope_value")
+        time_scope_units = data.get("time_scope_units")
+
+        if time_scope_units and time_scope_value:
+            msg = "Valid values are {} when time_scope_units is {}"
+            if time_scope_units == "day" and time_scope_value in ("-1", "-2", "-3"):  # noqa: W504
+                valid_values = ["-10", "-30", "-90"]
+                valid_vals = ", ".join(valid_values)
+                error = {"time_scope_value": msg.format(valid_vals, "day")}
+                raise serializers.ValidationError(error)
+            if time_scope_units == "day" and resolution == "monthly":
+                valid_values = ["daily"]
+                valid_vals = ", ".join(valid_values)
+                error = {"resolution": msg.format(valid_vals, "day")}
+                raise serializers.ValidationError(error)
+            if time_scope_units == "month" and time_scope_value in ("-10", "-30", "-90"):  # noqa: W504
+                valid_values = ["-1", "-2", "-3"]
+                valid_vals = ", ".join(valid_values)
+                error = {"time_scope_value": msg.format(valid_vals, "month")}
+                raise serializers.ValidationError(error)
+            
+        return data
 
 
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
