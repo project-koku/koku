@@ -706,3 +706,20 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=month"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2_compute_time_scope_units_and_values_filter(self):
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_value]=-1&filter[time_scope_units]=month"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=day&filter[time_scope_value]=-1"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=day&filter[resolution]=monthly"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = reverse("reports-aws-ec2-compute") + "?filter[time_scope_units]=month&filter[time_scope_value]=-30"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
