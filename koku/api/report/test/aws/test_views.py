@@ -629,3 +629,33 @@ class AWSReportViewTest(IamTestCase):
             url = reverse("reports-aws-ec2-compute") + f"?order_by[{filter}]=asc"
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2_compute_allowed_filters(self):
+        """Certify that EC2 Compute Report allows and blocks certain filters."""
+        allowed_filters = (
+            "resource_id",
+            "instance_name",
+            "operating_system",
+            
+            # inherited from parent class
+            "account",
+            "tags",
+            "region",
+        )
+
+        not_allowed_filters = (
+            "az",
+            "service",
+            "product_family",
+            "org_unit_id",
+        )
+
+        for filter in allowed_filters:
+            url = reverse("reports-aws-ec2-compute") + f"?filter[{filter}]=value"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        for filter in not_allowed_filters:
+            url = reverse("reports-aws-ec2-compute") + f"?filter[{filter}]=value"
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
