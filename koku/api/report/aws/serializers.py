@@ -193,23 +193,15 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     """Serializer for handling EC2 compute specific query parameter filter."""
 
     RESOLUTION_CHOICES = (("monthly", "monthly"),)
-    TIME_CHOICES = (("-1", "1"), ("-2", "-2"), ("-3", "-3"))
+    TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("month", "month"),)
 
-    default_filters = (
-        "resolution",
-        "time_scope_value",
-        "time_scope_units",
-        "limit",
-        "offset",
-    )
-
-    _opfields = default_filters + (
+    _opfields = (
         "resource_id",
         "instance_name",
+        "account",
         "operating_system",
         "region",
-        "account",
         # "tags"
     )
 
@@ -218,12 +210,6 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     resource_id = StringOrListField(child=serializers.CharField(), required=False)
     instance_name = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
-    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
-    resource_scope = StringOrListField(child=serializers.CharField(), required=False)
-    limit = serializers.IntegerField(required=False, min_value=0)
-    offset = serializers.IntegerField(required=False, min_value=0)
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
 
@@ -244,15 +230,14 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
         time_scope_value = data.get("time_scope_value")
         time_scope_units = data.get("time_scope_units")
 
-        if resolution != "monthly":
+        if resolution and resolution != "monthly":
             raise serializers.ValidationError("The valid value for resolution is monthly.")
 
-        if time_scope_units and time_scope_value:
-            if time_scope_units != "month":
-                raise serializers.ValidationError("The valid value for time_scope_units is month.")
+        if time_scope_units and time_scope_units != "month":
+            raise serializers.ValidationError("The valid value for time_scope_units is month.")
 
-            if time_scope_value not in ("-1", "-2", "-3"):
-                raise serializers.ValidationError("The valid values for time_scope_value is ('-1', '-2', '-3').")
+        if time_scope_value and time_scope_value not in ("-1", "-2", "-3"):
+            raise serializers.ValidationError("The valid values for time_scope_value is ('-1', '-2', '-3').")
 
         return data
 
@@ -261,7 +246,6 @@ class AWSEC2ExcludeSerializer(AWSExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
     _opfields = ("account", "region")
-    _aws_category = True
 
 
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
@@ -296,7 +280,7 @@ class AWSEC2GroupBySerializer(GroupSerializer):
 class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
     """Serializer for handling EC2 compute query parameters."""
 
-    order_by_allowlist = AWSQueryParamSerializer.order_by_allowlist + (
+    order_by_allowlist = (
         "resource_id",
         "account",
         "usage_amount",
@@ -304,6 +288,8 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
         "region",
         "operating_system",
         "instance_name",
+        "cost",
+        "usage",
     )
 
     DELTA_CHOICES = ()

@@ -366,6 +366,12 @@ class AWSProviderMap(ProviderMap):
                             "tags": ArrayAgg(F("tags")),
                         },
                         "filter": [{}],
+                        "filters": {
+                            # report specific filters
+                            "operating_system": {"field": "operating_system", "operation": "icontains"},
+                            "instance_name": {"field": "instance_name", "operation": "icontains"},
+                            "resource_id": {"field": "resource_id", "operation": "icontains"},
+                        },
                         "group_by": ["resource_id"],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
