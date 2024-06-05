@@ -127,6 +127,11 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     self._provider.uuid, start_date, current_bill_id, markup_value
                 )
 
+                # Update mapped tags in EC2 compute summary table
+                accessor.update_line_item_daily_summary_with_tag_mapping(
+                    month_start_date, end_date, bill_ids, table_name=AWS_CUR_TABLE_MAP["ec2_compute_summary"]
+                )
+
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = timezone.now()
