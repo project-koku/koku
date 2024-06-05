@@ -17,6 +17,7 @@ from api.report.aws.serializers import AWSFilterSerializer
 from api.report.aws.serializers import AWSGroupBySerializer
 from api.report.aws.serializers import AWSOrderBySerializer
 from api.report.aws.serializers import AWSQueryParamSerializer
+from api.report.aws.serializers import AWSEC2ComputeFilterSerializer
 from api.report.azure.serializers import AzureOrderBySerializer
 from api.report.serializers import ParamSerializer
 from api.report.serializers import ReportQueryParamSerializer
@@ -316,6 +317,29 @@ class FilterSerializerTest(TestCase):
             filter_param = {field: ["1", "2"]}
             serializer = AWSFilterSerializer(data=filter_param)
             self.assertTrue(serializer.is_valid())
+
+    def test_ec2_compute_parse_filter_params_failure(self):
+        """Test parse of a filter param unsuccessfully."""
+        filter_params = {
+            "time_scope_value": "-1",
+            "time_scope_units": "day",
+        }
+        serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
+        self.assertFalse(serializer.is_valid())
+
+        filter_params = {
+            "resolution": "monthly",
+            "time_scope_units": "day",
+        }
+        serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
+        self.assertFalse(serializer.is_valid())
+
+        filter_params = {
+            "time_scope_value": "-10",
+            "time_scope_units": "month",
+        }
+        serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
+        self.assertFalse(serializer.is_valid())
 
 
 class GroupBySerializerTest(TestCase):
