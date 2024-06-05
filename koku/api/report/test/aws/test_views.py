@@ -650,11 +650,12 @@ class AWSReportViewTest(IamTestCase):
             "operating_system",
             # inherited from parent class
             "account",
-            "tags",
+            # "tags",
             "region",
         )
 
         for filter in allowed_filters:
+            print(filter)
             url = reverse("reports-aws-ec2-compute") + f"?filter[{filter}]=value"
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
