@@ -837,9 +837,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         cluster = self.populate_cluster_table(provider, cluster_id, cluster_alias)
 
         nodes = self.get_nodes_trino(str(provider.uuid), start_date, end_date)
-        pvcs = []
-        if trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"):
-            pvcs = self.get_pvcs_trino(str(provider.uuid), start_date, end_date)
+        pvcs = self.get_pvcs_trino(str(provider.uuid), start_date, end_date)
         projects = self.get_projects_trino(str(provider.uuid), start_date, end_date)
 
         # pvcs = self.match_node_to_pvc(pvcs, projects)
@@ -959,6 +957,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_pvcs_trino(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
+        if not trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"):
+            return []
         sql = f"""
             SELECT distinct persistentvolume,
                 persistentvolumeclaim,
