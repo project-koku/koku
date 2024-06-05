@@ -214,41 +214,6 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
     limit = serializers.IntegerField(required=False, min_value=0)
     offset = serializers.IntegerField(required=False, min_value=0)
 
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter inputs are invalid
-
-        """
-        resolution = data.get("resolution")
-        time_scope_value = data.get("time_scope_value")
-        time_scope_units = data.get("time_scope_units")
-
-        if time_scope_units and time_scope_value:
-            msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and time_scope_value in ("-1", "-2", "-3"):  # noqa: W504
-                valid_values = ["-10", "-30", "-90"]
-                valid_vals = ", ".join(valid_values)
-                error = {"time_scope_value": msg.format(valid_vals, "day")}
-                raise serializers.ValidationError(error)
-            if time_scope_units == "day" and resolution == "monthly":
-                valid_values = ["daily"]
-                valid_vals = ", ".join(valid_values)
-                error = {"resolution": msg.format(valid_vals, "day")}
-                raise serializers.ValidationError(error)
-            if time_scope_units == "month" and time_scope_value in ("-10", "-30", "-90"):  # noqa: W504
-                valid_values = ["-1", "-2", "-3"]
-                valid_vals = ", ".join(valid_values)
-                error = {"time_scope_value": msg.format(valid_vals, "month")}
-                raise serializers.ValidationError(error)
-
-        return data
-
 
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
     """Serializer for handling EC2 compute specific query parameter order_by."""
