@@ -7,7 +7,8 @@ from requests.adapters import HTTPAdapter
 from requests.adapters import Retry
 
 
-unleash_pat = os.getenv("UNLEASH_PAT")
+unleash_pat = os.getenv("UNLEASH_PAT") or "user:6188b62f2f59348f3c195b66983147111682f4bb78a3f7ed9626bd84"
+assert isinstance(unleash_pat, str)
 data = {
     "project": "default",
     "environment": "development",

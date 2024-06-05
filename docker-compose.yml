@@ -71,7 +71,7 @@ services:
       - 8001:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
@@ -140,7 +140,7 @@ services:
       - 5001:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
@@ -220,7 +220,7 @@ services:
       - 5678:5678
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './testing:/testing'
@@ -288,7 +288,7 @@ services:
       - 7001-7020:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
     depends_on:
@@ -341,7 +341,7 @@ services:
       - 7021:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './dev/credentials:/etc/credentials'
@@ -401,7 +401,7 @@ services:
       - 4001:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './dev/credentials:/etc/credentials'
@@ -437,7 +437,7 @@ services:
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
     depends_on:
