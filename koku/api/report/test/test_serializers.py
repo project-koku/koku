@@ -12,12 +12,12 @@ from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.aws.serializers import AWSEC2ComputeFilterSerializer
 from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.serializers import AWSFilterSerializer
 from api.report.aws.serializers import AWSGroupBySerializer
 from api.report.aws.serializers import AWSOrderBySerializer
 from api.report.aws.serializers import AWSQueryParamSerializer
-from api.report.aws.serializers import AWSEC2ComputeFilterSerializer
 from api.report.azure.serializers import AzureOrderBySerializer
 from api.report.serializers import ParamSerializer
 from api.report.serializers import ReportQueryParamSerializer
