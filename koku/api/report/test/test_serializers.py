@@ -325,21 +325,24 @@ class FilterSerializerTest(TestCase):
             "time_scope_units": "day",
         }
         serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
-        self.assertFalse(serializer.is_valid())
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
 
         filter_params = {
             "resolution": "monthly",
             "time_scope_units": "day",
         }
         serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
-        self.assertFalse(serializer.is_valid())
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
 
         filter_params = {
             "time_scope_value": "-10",
             "time_scope_units": "month",
         }
         serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
-        self.assertFalse(serializer.is_valid())
+        with self.assertRaises(ValidationError):
+            serializer.is_valid(raise_exception=True)
 
 
 class GroupBySerializerTest(TestCase):
