@@ -253,6 +253,18 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
                     )
+
+                baker.make_recipe(  #
+                    "api.report.test.util.aws_ec2_compute_summary",
+                    cost_entry_bill=bill,
+                    usage_account_id=cycle(usage_account_ids),
+                    account_alias=cycle(aliases),
+                    currency_code=self.currency,
+                    usage_start=start_date,
+                    usage_end=end_date,
+                    tags=cycle(self.tags),
+                    source_uuid=provider.uuid,
+                )
         bill_ids = [bill.id for bill in bills]
         with AWSReportDBAccessor(self.schema) as accessor:
             accessor.populate_category_summary_table(bill_ids, self.first_start_date, self.last_end_date)
