@@ -286,6 +286,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
 ;
 
 {% if unattributed_storage %}
+-- Persistent Volumes without PVCs Unattributed Storage
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -347,7 +348,7 @@ WITH cte_ocp_filtered_resources as (
         AND lpad(ocp.month, 2, '0') = {{month}}
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NULL AND ocp.resource_id = '')
+        AND (ocp.resource_id IS NULL OR ocp.resource_id = '')
         AND ocp.persistentvolume is not null
         AND persistentvolumeclaim = ''
         AND azure.ocp_source = {{ocp_source_uuid}}

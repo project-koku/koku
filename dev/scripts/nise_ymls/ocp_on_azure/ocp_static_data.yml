@@ -157,6 +157,7 @@ generators:
                   volume_name: pv-volume-handle-with-pvc
                   storage_class: managed
                   volume_request_gig: 20
+                  csi_volume_handle: disk-id-1234567
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                   volume_claims:
                   - volume_claim:
