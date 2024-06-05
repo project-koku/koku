@@ -12,7 +12,6 @@ from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.aws.serializers import AWSEC2ComputeFilterSerializer
 from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.serializers import AWSFilterSerializer
 from api.report.aws.serializers import AWSGroupBySerializer
@@ -317,36 +316,6 @@ class FilterSerializerTest(TestCase):
             filter_param = {field: ["1", "2"]}
             serializer = AWSFilterSerializer(data=filter_param)
             self.assertTrue(serializer.is_valid())
-
-    def test_ec2_compute_parse_filter_params_failure(self):
-        """Test parse of a filter param unsuccessfully."""
-
-        # Testing wrong time_scope_value
-        filter_params = {
-            "resolution": "monthly",
-            "time_scope_value": "-10",
-            "time_scope_units": "month",
-        }
-        serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
-        self.assertFalse(serializer.is_valid())
-
-        # Testing wrong time_scope_units
-        filter_params = {
-            "resolution": "monthly",
-            "time_scope_value": "-1",
-            "time_scope_units": "day",
-        }
-        serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
-        self.assertFalse(serializer.is_valid())
-
-        # Testing wrong resolution
-        filter_params = {
-            "resolution": "daily",
-            "time_scope_value": "-1",
-            "time_scope_units": "month",
-        }
-        serializer = AWSEC2ComputeFilterSerializer(data=filter_params)
-        self.assertFalse(serializer.is_valid())
 
 
 class GroupBySerializerTest(TestCase):

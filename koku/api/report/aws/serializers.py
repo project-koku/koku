@@ -10,6 +10,7 @@ from api.report.constants import AWS_COST_TYPE_CHOICES
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
+from api.report.serializers import handle_invalid_fields
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
@@ -30,7 +31,6 @@ class AWSGroupBySerializer(GroupSerializer):
         "storage_type",
         "product_family",
         "org_unit_id",
-        "operating_system",
     )
     # Tells the parent class to add prefixed
     # aws_category param to the allowable fields list
@@ -45,7 +45,6 @@ class AWSGroupBySerializer(GroupSerializer):
     storage_type = StringOrListField(child=serializers.CharField(), required=False)
     product_family = StringOrListField(child=serializers.CharField(), required=False)
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
-    operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class AWSOrderBySerializer(OrderSerializer):
@@ -190,19 +189,31 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
         return value
 
 
-class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
+class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     """Serializer for handling EC2 compute specific query parameter filter."""
 
     RESOLUTION_CHOICES = (("monthly", "monthly"),)
     TIME_CHOICES = (("-1", "1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("month", "month"),)
 
-    _opfields = AWSFilterSerializer._opfields + (
+    default_filters = (
+        "resolution",
+        "time_scope_value",
+        "time_scope_units",
+        "limit",
+        "offset",
+    )
+
+    _opfields = default_filters + (
         "resource_id",
         "instance_name",
         "operating_system",
+        "region",
+        "account",
         # "tags"
     )
+
+    _aws_category = True
 
     resource_id = StringOrListField(child=serializers.CharField(), required=False)
     instance_name = StringOrListField(child=serializers.CharField(), required=False)
@@ -213,12 +224,50 @@ class AWSEC2ComputeFilterSerializer(AWSFilterSerializer):
     resource_scope = StringOrListField(child=serializers.CharField(), required=False)
     limit = serializers.IntegerField(required=False, min_value=0)
     offset = serializers.IntegerField(required=False, min_value=0)
+    account = StringOrListField(child=serializers.CharField(), required=False)
+    region = StringOrListField(child=serializers.CharField(), required=False)
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter inputs are invalid
+
+        """
+        handle_invalid_fields(self, data)
+
+        resolution = data.get("resolution")
+        time_scope_value = data.get("time_scope_value")
+        time_scope_units = data.get("time_scope_units")
+
+        if resolution != "monthly":
+            raise serializers.ValidationError("The valid value for resolution is monthly.")
+
+        if time_scope_units and time_scope_value:
+            if time_scope_units != "month":
+                raise serializers.ValidationError("The valid value for time_scope_units is month.")
+
+            if time_scope_value not in ("-1", "-2", "-3"):
+                raise serializers.ValidationError("The valid values for time_scope_value is ('-1', '-2', '-3').")
+
+        return data
+
+
+class AWSEC2ExcludeSerializer(AWSExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
+    _opfields = ("account", "region")
+    _aws_category = True
 
 
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
     """Serializer for handling EC2 compute specific query parameter order_by."""
 
-    _opfields = AWSOrderBySerializer._opfields + (
+    _opfields = (
         "resource_id",
         "account",
         "usage_amount",
@@ -237,6 +286,13 @@ class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
     instance_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
+class AWSEC2GroupBySerializer(GroupSerializer):
+    """Serializer for handling EC2 Compute query parameter group_by."""
+
+    def validate(self, data):
+        raise serializers.ValidationError("Group by queries are not allowed.")
+
+
 class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
     """Serializer for handling EC2 compute query parameters."""
 
@@ -250,20 +306,8 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
         "instance_name",
     )
 
+    DELTA_CHOICES = ()
     FILTER_SERIALIZER = AWSEC2ComputeFilterSerializer
     ORDER_BY_SERIALIZER = AWSEC2ComputeOrderBySerializer
-
-    def validate_group_by(self, group_by):
-        """
-        Validates the 'group_by' parameter.
-
-        Args:
-            group_by (str): The value of the 'group_by' parameter.
-
-        Raises:
-            (ValidationError): If group by queries are not allowed.
-
-        Returns:
-            None
-        """
-        raise serializers.ValidationError("Group by queries are not allowed.")
+    EXCLUDE_SERIALIZER = AWSEC2ExcludeSerializer
+    GROUP_BY_SERIALIZER = AWSEC2GroupBySerializer
