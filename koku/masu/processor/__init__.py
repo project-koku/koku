@@ -20,6 +20,16 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
+def is_feature_unattributed_storage_enabled(account):
+    """Should unattributed storage feature be enabled."""
+    unleash_flag = "cost-management.backend.unattributed_storage"
+    account = convert_account(account)
+    context = {"schema": account}
+    # TODO: Turn on fallback when QE is ready to start testing
+    # UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context)
+
+
 def is_purge_trino_files_enabled(account):  # pragma: no cover
     """Helper to determine if account is enabled for deleting trino files."""
     account = convert_account(account)

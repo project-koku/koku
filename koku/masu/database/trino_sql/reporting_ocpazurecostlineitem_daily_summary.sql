@@ -285,7 +285,7 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
     azure.matched_tag
 ;
 
--- Persistent Volumes without PVCs Unattributed Storage
+{% if unattributed_storage %}
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -463,8 +463,11 @@ SELECT azure.uuid as azure_uuid,
         AND azure.month = {{month}}
         AND ocp.namespace != 'Storage unattributed'
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
+-- The endif needs to come before the ; when using sqlparse
+{% endif %}
 ;
 
+{% if unattributed_storage %}
 -- Storage Disk resource_id matching
 -- Customer's Cost: (PV’s Capacity) / Disk Capacity * Cost of Disk
 -- Unallocated Cost: ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
@@ -752,6 +755,8 @@ FROM (
         AND ocp.namespace != 'Storage unattributed'
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ) as disk_cost
+-- The endif needs to come before the ; when using sqlparse
+{% endif %}
 ;
 
 -- Directly Pod resource_id matching
@@ -848,6 +853,7 @@ SELECT azure.uuid as azure_uuid,
         ON (azure.usage_start = ocp.usage_start)
         AND (
                 (replace(lower(azure.resource_id), '_osdisk', '') = lower(ocp.node) AND ocp.data_source = 'Pod')
+                {% if not unattributed_storage %} OR (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage') {% endif %}
             )
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}

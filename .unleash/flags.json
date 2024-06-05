@@ -22,8 +22,8 @@
             "createdAt": "2023-05-03T11:50:00.756Z"
         },
         {
-            "name": "cost-management.backend.cost-trino-processor",
-            "description": "Toggle to enable trino processing",
+            "name": "cost-management.backend.unattributed_storage",
+            "description": "Toggle to enable unattributed storage",
             "type": "permission",
             "project": "default",
             "enabled": true,
