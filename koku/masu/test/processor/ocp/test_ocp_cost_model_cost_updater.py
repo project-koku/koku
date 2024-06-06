@@ -534,7 +534,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         )
         updater._update_usage_costs = MagicMock(wraps=updater._update_usage_costs)
 
-        updater._cost_model_found = False
+        updater._cost_model = False
         updater.update_summary_cost_model_costs(start_date, end_date)
 
         updater.distribute_costs_and_update_ui_summary.assert_called_once()

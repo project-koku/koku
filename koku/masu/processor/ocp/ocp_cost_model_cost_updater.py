@@ -42,7 +42,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
-            self._cost_model = cost_model_accessor._cost_model
+            self._cost_model = cost_model_accessor.cost_model
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
             self._tag_default_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
