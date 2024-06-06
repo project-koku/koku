@@ -242,11 +242,12 @@ WHERE aws.source = {{aws_source_uuid}}
     AND aws.resource_id_matched = TRUE
 GROUP BY aws.lineitem_usagestartdate,
     aws.lineitem_resourceid,
-    4, -- CASE satement
+    4, -- product_code
     aws.product_productfamily,
     aws.product_instancetype,
     aws.lineitem_availabilityzone,
     aws.product_region,
+    aws.lineitem_usagetype,
     aws.resourcetags,
     aws.costcategory
 ;
@@ -335,7 +336,7 @@ WHERE aws.source = {{aws_source_uuid}}
     AND (aws.resource_id_matched = FALSE OR aws.resource_id_matched IS NULL)
 GROUP BY aws.lineitem_usagestartdate,
     aws.lineitem_resourceid,
-    4, -- CASE satement
+    4, -- product_code
     aws.product_productfamily,
     aws.product_instancetype,
     aws.lineitem_availabilityzone,
