@@ -559,7 +559,6 @@ SELECT aws.uuid as aws_uuid,
         ON aws.usage_start = ocp.usage_start
             AND (
                 json_query(aws.tags, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
-                OR json_query(aws.tags, 'strict $.namespace' OMIT QUOTES) = ocp.namespace
                 OR json_query(aws.tags, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
                 OR json_query(aws.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
                 OR json_query(aws.tags, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
