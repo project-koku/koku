@@ -790,7 +790,7 @@ SELECT
     max(cluster_alias),
     max(data_source),
     'Network unattributed' AS namespace,
-    max(node),
+    ocp.node AS node,
     max(persistentvolumeclaim),
     max(persistentvolume),
     max(storageclass),
