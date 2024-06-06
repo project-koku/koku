@@ -444,7 +444,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         if isinstance(end_date, str):
             end_date = parse(end_date)
 
-        if not self._cost_model_found:
+        if not self._cost_model:
             LOG.info(
                 log_json(
                     msg="no cost model found for ocp provider, updating distributed costs only",
