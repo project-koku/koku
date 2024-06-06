@@ -787,6 +787,14 @@ def update_openshift_on_cloud(  # noqa: C901
             infrastructure_provider_type,
             tracing_id,
         )
+        # Regardless of an attached cost model we must run an update for default distribution costs
+        LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
+        fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE
+        if is_customer_large(schema_name):
+            fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
+        update_cost_model_costs.s(
+            schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
+        ).apply_async(queue=queue_name or fallback_queue)
         # Set OpenShift manifest summary end time
         set_summary_timestamp(ManifestState.END, ocp_manifest_id)
     except ReportSummaryUpdaterCloudError as ex:
