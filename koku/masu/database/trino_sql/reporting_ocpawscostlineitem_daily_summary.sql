@@ -207,10 +207,10 @@ SELECT cast(uuid() as varchar) as uuid,
         WHEN max(aws.lineitem_productcode) = 'AmazonEC2' AND max(aws.product_productfamily) = 'Data Transfer' THEN
             -- Yes, it's a network record. What's the direction?
             CASE
-                WHEN position('in-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 THEN 'IN'
-                WHEN position('out-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 THEN 'OUT'
-                WHEN (position('regional-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 AND position('-in' IN lower(max(lineitem_operation))) > 0) THEN 'IN'
-                WHEN (position('regional-bytes' IN lower(max(aws.lineitem_usagetype))) > 0 AND position('-out' IN lower(max(lineitem_operation))) > 0) THEN 'OUT'
+                WHEN strpos(lower(max(aws.lineitem_usagetype)), 'in-bytes') > 0 THEN 'IN'
+                WHEN strpos(lower(max(aws.lineitem_usagetype)), 'out-bytes') > 0 THEN 'OUT'
+                WHEN (strpos(lower(max(aws.lineitem_usagetype)), 'regional-bytes') > 0 AND strpos(lower(max(lineitem_operation)), '-in') > 0) THEN 'IN'
+                WHEN (strpos(lower(max(aws.lineitem_usagetype)), 'regional-bytes') > 0 AND strpos(lower(max(lineitem_operation)), '-out') > 0) THEN 'OUT'
                 ELSE NULL
             END
     END AS data_transfer_direction,
@@ -830,7 +830,7 @@ SELECT
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp AS aws
     ON aws.usage_start = ocp.usage_start
-    AND position(ocp.resource_id IN aws.resource_id) != 0
+    AND strpos(aws.resource_id, ocp.resource_id) != 0
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON aws.usage_account_id = aa.account_id
 WHERE ocp.source = {{ocp_source_uuid}}
