@@ -873,6 +873,9 @@ def update_cost_model_costs(
         None
 
     """
+    # Override cost model start date to calculate costs for full month
+    LOG.info(f"overriding cost model start date to process full month")
+    start_date = DateHelper().month_start(start_date)
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
