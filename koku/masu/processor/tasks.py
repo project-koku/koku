@@ -723,6 +723,10 @@ def update_openshift_on_cloud(  # noqa: C901
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     # Get latest manifest id for running OCP provider
     ocp_manifest_id = get_latest_openshift_on_cloud_manifest(start_date, openshift_provider_uuid)
+    # We should check and run cost model updates for the cluster too
+    cost_model = None
+    with CostModelDBAccessor(schema_name, openshift_provider_uuid) as cost_model_accessor:
+        cost_model = cost_model_accessor.cost_model
     # Set OpenShift summary started time
     set_summary_timestamp(ManifestState.START, ocp_manifest_id)
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
@@ -787,6 +791,14 @@ def update_openshift_on_cloud(  # noqa: C901
             infrastructure_provider_type,
             tracing_id,
         )
+        if cost_model is not None:
+            LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
+            fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE
+            if is_customer_large(schema_name):
+                fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
+            update_cost_model_costs.s(
+                schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
+            ).apply_async(queue=queue_name or fallback_queue)
         # Set OpenShift manifest summary end time
         set_summary_timestamp(ManifestState.END, ocp_manifest_id)
     except ReportSummaryUpdaterCloudError as ex:
