@@ -32,6 +32,7 @@ def trino_query(request):
         data = request.data
         query = data.get("query")
         schema_name = data.get("schema")
+        query = query.removesuffix(";")
 
         if query is None:
             errmsg = "Must provide a query key to run."
