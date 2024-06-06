@@ -43,6 +43,18 @@ SELECT * FROM hive.{{schema | sqlsafe}}.fake_table
         )
         self.assertEqual(results, [])
 
+    def test_executescript_empty_string(self):
+        sqlscript = ""
+        conn = FakeTrinoConn()
+        params = {
+            "schema": self.schema_name,
+            "populate": False,
+        }
+        results = executescript(
+            conn, sqlscript, params=params, preprocessor=JinjaSql(param_style="format").prepare_query
+        )
+        self.assertEqual(results, [])
+
     def test_executescript(self):
         """
         Test execution of a buffer containing multiple statements
