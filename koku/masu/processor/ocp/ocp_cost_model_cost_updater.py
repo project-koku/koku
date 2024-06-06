@@ -42,6 +42,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
+            self._cost_model_found = cost_model_accessor._cost_model
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
             self._tag_default_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
@@ -417,6 +418,17 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 filters={"monthly_cost_type": "Tag", "report_period_id": report_period_id},
             )
 
+    def distribute_costs_and_update_ui_summary(self, start_date, end_date):
+        """Distribute cost model costs and update UI summary tables"""
+        with OCPReportDBAccessor(self._schema) as accessor:
+            accessor.populate_distributed_cost_sql(start_date, end_date, self._provider_uuid, self._distribution_info)
+            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
+            report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
+            if report_period:
+                with schema_context(self._schema):
+                    report_period.derived_cost_datetime = timezone.now()
+                    report_period.save()
+
     def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
@@ -432,6 +444,19 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             start_date = parse(start_date)
         if isinstance(end_date, str):
             end_date = parse(end_date)
+
+        if not self._cost_model_found:
+            LOG.info(
+                log_json(
+                    msg="no cost model found for ocp provider, updating distributed costs only",
+                    provider_type=self._provider.type,
+                    provider_name=self._provider.name,
+                    provider_uuid=self._provider_uuid,
+                    cluster_id=self._cluster_id,
+                )
+            )
+            self.distribute_costs_and_update_ui_summary(start_date, end_date)
+            return
 
         LOG.info(
             log_json(
@@ -455,12 +480,4 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         if not (self._tag_infra_rates or self._tag_supplementary_rates):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
-
-            accessor.populate_distributed_cost_sql(start_date, end_date, self._provider_uuid, self._distribution_info)
-            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
-            report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
-            if report_period:
-                with schema_context(self._schema):
-                    report_period.derived_cost_datetime = timezone.now()
-                    report_period.save()
+        self.distribute_costs_and_update_ui_summary(start_date, end_date)

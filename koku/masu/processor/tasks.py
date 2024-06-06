@@ -654,7 +654,8 @@ def update_summary_tables(  # noqa: C901
     if not manifest_list and manifest_id:
         manifest_list = [manifest_id]
 
-    if cost_model is not None:
+    # OCP cost distribution of unattributed costs should happen even without a cost model
+    if cost_model is not None or provider_type == Provider.PROVIDER_OCP:
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id

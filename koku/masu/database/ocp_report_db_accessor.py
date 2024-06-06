@@ -404,6 +404,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             provider_uuid (str): The str of the provider UUID
         """
 
+        # The boolean determines if this distribution should run if there is no cost model
         key_to_file_mapping = {
             metric_constants.PLATFORM_COST: ("distribute_platform_cost.sql", False),
             metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
