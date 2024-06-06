@@ -42,7 +42,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
         self._cluster_alias = get_cluster_alias_from_cluster_id(self._cluster_id)
         with CostModelDBAccessor(self._schema, self._provider_uuid) as cost_model_accessor:
-            self._cost_model_found = cost_model_accessor._cost_model
+            self._cost_model = cost_model_accessor._cost_model
             self._infra_rates = cost_model_accessor.infrastructure_rates
             self._tag_infra_rates = cost_model_accessor.tag_infrastructure_rates
             self._tag_default_infra_rates = cost_model_accessor.tag_default_infrastructure_rates
@@ -425,9 +425,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if report_period:
-                with schema_context(self._schema):
-                    report_period.derived_cost_datetime = timezone.now()
-                    report_period.save()
+                report_period.derived_cost_datetime = timezone.now()
+                report_period.save()
 
     def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
