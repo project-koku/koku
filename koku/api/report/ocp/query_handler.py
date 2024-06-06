@@ -92,6 +92,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             },
             "units": "usage_units",
         }
+        ocp_pack_definitions["usage"]["keys"].extend(["data_transfer_in", "data_transfer_out"])
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
