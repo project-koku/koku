@@ -31,7 +31,6 @@ from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
 from koku.notifications import NotificationService
-from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -60,12 +59,6 @@ PROVIDER_REPORT_TYPE_MAP = {
     Provider.PROVIDER_OCI: OCI_REPORT_TYPES,
     Provider.PROVIDER_OCI_LOCAL: OCI_REPORT_TYPES,
 }
-
-
-@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=GET_REPORT_FILES_QUEUE)
-def fix_parquet_data_types(*args, **kwargs):
-    verify_parquet = VerifyParquetFiles(*args, **kwargs)
-    verify_parquet.retrieve_verify_reload_s3_parquet()
 
 
 @celery_app.task(name="masu.celery.tasks.check_report_updates", queue=DEFAULT)
