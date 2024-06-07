@@ -395,8 +395,8 @@ cte_total_pv_capacity as (
     ) as combined_requests
 )
 SELECT azure.uuid as azure_uuid,
-    cast(NULL as varchar) as cluster_id,
-    cast(NULL as varchar) as cluster_alias,
+    max(ocp.cluster_id) as cluster_id,
+    max(ocp.cluster_alias) as cluster_alias,
     'Storage' as data_source,
     'Storage unattributed' as namespace,
     cast(NULL as varchar) as node,
@@ -623,8 +623,8 @@ SELECT
     disk_cost.month as month
 FROM (
     SELECT azure.uuid as azure_uuid,
-        cast(NULL as varchar) as cluster_id,
-        cast(NULL as varchar) as cluster_alias,
+        max(ocp.cluster_id) as cluster_id,
+        max(ocp.cluster_alias) as cluster_alias,
         'Storage' as data_source,
         'Storage unattributed' as namespace,
         cast(NULL as varchar) as node,
