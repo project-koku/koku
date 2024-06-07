@@ -411,7 +411,7 @@ SELECT azure.uuid as azure_uuid,
     max(azure.subscription_guid) as subscription_guid,
     max(azure.subscription_name) as subscription_name,
     max(nullif(azure.resource_location, '')) as resource_location,
-    cast(NULL as varchar) as unit_of_measure,
+    'GB-Mo' as unit_of_measure, -- Has to have this unit to show up on ocp on cloud storage endpoint
     cast(NULL as double) as usage_quantity,
     max(azure.currency) as currency,
     (max(az_disk.capacity) - max(persistentvolumeclaim_capacity_gigabyte)) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))  as pretax_cost,
@@ -639,7 +639,7 @@ FROM (
         max(azure.subscription_guid) as subscription_guid,
         max(azure.subscription_name) as subscription_name,
         max(nullif(azure.resource_location, '')) as resource_location,
-        cast(NULL as varchar) as unit_of_measure,
+        'GB-Mo' as unit_of_measure, -- Has to have this unit to show up on storage endpoint
         cast(NULL as double) as usage_quantity,
         max(azure.currency) as currency,
         (max(az_disk.capacity) - max(persistentvolumeclaim_capacity_gigabyte)) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))  as pretax_cost,

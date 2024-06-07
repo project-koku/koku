@@ -25,9 +25,7 @@ def is_feature_unattributed_storage_enabled(account):
     unleash_flag = "cost-management.backend.unattributed_storage"
     account = convert_account(account)
     context = {"schema": account}
-    # TODO: Turn on fallback when QE is ready to start testing
-    # UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context)
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
 def is_purge_trino_files_enabled(account):  # pragma: no cover
