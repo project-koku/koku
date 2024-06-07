@@ -6,7 +6,6 @@
 import random
 from decimal import Decimal
 from unittest import skip
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
@@ -513,29 +512,3 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     for item in pvc_line_items:
                         self.assertNotEqual(item.cost_model_volume_cost, 0)
-
-    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_summary_cost_model_costs_no_cost_model(self, mock_cost_accessor):
-        """Test that a lack of cost model found only runs cost distribution updates."""
-        start_date = self.dh.this_month_start
-        end_date = self.dh.this_month_end
-
-        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = {
-            "distribution_type": "",
-            "platform_cost": False,
-            "worker_cost": False,
-        }
-
-        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
-
-        # wraps calls the actual function with the same args but allows verification of call counts
-        updater.distribute_costs_and_update_ui_summary = MagicMock(
-            wraps=updater.distribute_costs_and_update_ui_summary
-        )
-        updater._update_usage_costs = MagicMock(wraps=updater._update_usage_costs)
-
-        updater._cost_model = False
-        updater.update_summary_cost_model_costs(start_date, end_date)
-
-        updater.distribute_costs_and_update_ui_summary.assert_called_once()
-        updater._update_usage_costs.assert_not_called()
