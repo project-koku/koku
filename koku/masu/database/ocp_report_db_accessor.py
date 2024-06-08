@@ -401,11 +401,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             provider_uuid (str): The str of the provider UUID
         """
 
+        # The boolean determines if this distribution should run if there is no cost model
         key_to_file_mapping = {
-            metric_constants.PLATFORM_COST: "distribute_platform_cost.sql",
-            metric_constants.WORKER_UNALLOCATED: "distribute_worker_cost.sql",
-            metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
-            metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
+            metric_constants.PLATFORM_COST: ("distribute_platform_cost.sql", False),
+            metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
+            metric_constants.STORAGE_UNATTRIBUTED: ("distribute_unattributed_storage_cost.sql", True),
+            metric_constants.NETWORK_UNATTRIBUTED: ("distribute_unattributed_network_cost.sql", True),
         }
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
@@ -419,8 +420,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         report_period_id = report_period.id
 
-        for cost_model_key, sql_file in key_to_file_mapping.items():
-            populate = distribution_info.get(cost_model_key, False)
+        for cost_model_key, file_and_default in key_to_file_mapping.items():
+            sql_file, distribute_default = file_and_default
+            populate = distribution_info.get(cost_model_key, distribute_default)
             if populate:
                 log_msg = f"distributing {cost_model_key}"
             else:
