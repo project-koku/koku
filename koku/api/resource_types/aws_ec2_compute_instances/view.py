@@ -21,7 +21,7 @@ from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Comput
 
 
 class AWSEC2ComputeInstanceView(generics.ListAPIView):
-    """API GET list view for AWS EC2 instances."""
+    """API GET list view for AWS EC2 compute instances."""
 
     queryset = (
         AWSCostEntryLineItemSummaryByEC2Compute.objects.annotate(

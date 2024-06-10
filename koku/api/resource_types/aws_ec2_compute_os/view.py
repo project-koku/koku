@@ -20,7 +20,7 @@ from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Comput
 
 
 class AWSEC2ComputeOperatingSystemView(generics.ListAPIView):
-    """API GET list view for AWS EC2 instances."""
+    """API GET list view for AWS EC2 compute operating systems."""
 
     queryset = (
         AWSCostEntryLineItemSummaryByEC2Compute.objects.annotate(**{"value": F("operating_system")})
