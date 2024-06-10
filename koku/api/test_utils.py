@@ -220,6 +220,19 @@ class DateHelperTest(TestCase):
         expected = datetime.date(1970, 1, 31)
         self.assertEqual(self.date_helper.month_end(today_str), expected)
 
+    def test_validate_is_date(self):
+        """test datetime.date returned from given objects"""
+        today = self.date_helper.today
+        expected = datetime.date(1970, 1, 10)
+        self.assertEqual(self.date_helper.validate_is_date(today), expected)
+
+        today = self.date_helper.today.date()
+        self.assertEqual(self.date_helper.validate_is_date(today), expected)
+
+        today = self.date_helper.today
+        today_str = today.strftime("%Y-%m-%d")
+        self.assertEqual(self.date_helper.validate_is_date(today_str), expected)
+
     def test_midnight(self):
         """Test midnight property."""
         expected = datetime.time(0, 0, 0, 0)
