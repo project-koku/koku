@@ -318,14 +318,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        _query_data = self.query_data
 
         if self._report_type == "ec2_compute":
-            _query_data = self._format_ec2_response()
+            self.query_data = self._format_ec2_response()
 
         output = self._initialize_response_output(self.parameters)
-
-        output["data"] = _query_data
+        output["data"] = self.query_data
         output["total"] = self.query_sum
 
         if self._delta:
