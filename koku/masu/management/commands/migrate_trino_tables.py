@@ -169,14 +169,18 @@ class Command(BaseCommand):
         parser.add_argument(
             "--remove-expired-partitions", action=CommaSeparatedArgs, default=[], dest="remove_expired_partitions"
         )
+        parser.add_argument(
+            "--rerun",
+            action="store_true",
+            help="a flag to indicate we should find schemas missing the migration",
+            dest="rerun",
+        )
 
     def handle(self, *args, **options):  # noqa C901
-        schemas = get_schemas(options["schemas"])
+        schemas = retrieve_schema(options)
         if not schemas:
             LOG.info("no schema in db to update")
             return
-        LOG.info(f"running against the following schemas: {schemas}")
-
         if columns_to_add := options["columns_to_add"]:
             columns_to_add = ListAddColumns(list=columns_to_add)
         if columns_to_drop := options["columns_to_drop"]:
@@ -185,6 +189,8 @@ class Command(BaseCommand):
             partitions_to_drop = ListDropPartitions(list=partitions_to_drop)
         tables_to_drop = options["tables_to_drop"]
         expired_partition_tables = options["remove_expired_partitions"]
+
+        LOG.info(f"running against the following schemas: {schemas}")
 
         for schema in schemas:
             if tables_to_drop:
@@ -204,9 +210,20 @@ class Command(BaseCommand):
                 drop_expired_partitions(expired_partition_tables, schema)
 
 
-def get_schemas(schemas: None):
-    if schemas:
-        return schemas
+def retrieve_schema(options):
+    """Returns the schemas to use for migration."""
+    if options["schemas"]:
+        return options["schemas"]
+    if options["rerun"]:
+        if columns_to_add := options["columns_to_add"]:
+            return get_schema_missing_column(ListAddColumns(list=columns_to_add))
+        else:
+            LOG.info("rerun only available for adding a schema")
+            return []
+    return get_all_schemas()
+
+
+def get_all_schemas():
     sql = "SELECT schema_name FROM information_schema.schemata"
     schemas = run_trino_sql(sql)
     schemas = [
@@ -365,3 +382,31 @@ def drop_expired_partitions(tables, schema):
                         """
             result = run_trino_sql(delete_partition_query, schema)
             LOG.info(f"DELETE PARTITION result: {result}")
+
+def get_schema_missing_column(list_of_cols: ListAddColumns):
+    """Grabs all the schema that a migration did not run
+    successfully.
+    """
+    LOG.info("finding all schemas missing column")
+    schema_list = []
+    for col in list_of_cols.list:
+        sql = f"""
+        SELECT t.table_schema
+        FROM information_schema.tables t
+        LEFT JOIN information_schema.columns c
+        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
+        WHERE t.table_name = '{col.table}'
+        AND c.column_name IS NULL
+        AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
+        AND t.table_type = 'BASE TABLE'
+    """
+        schemas = run_trino_sql(sql)
+        schemas = [
+            schema
+            for listed_schema in schemas
+            for schema in listed_schema
+            if schema not in ["default", "information_schema"]
+        ]
+        schema_list.extend(schemas)
+    LOG.info(f"schemas missing migration: {schema_list}")
+    return schema_list
