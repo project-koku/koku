@@ -7,6 +7,9 @@ from django.utils.translation import gettext
 from rest_framework import serializers
 
 from api.report.constants import AWS_COST_TYPE_CHOICES
+from api.report.constants import RESOLUTION_MONTHLY
+from api.report.constants import TIME_SCOPE_UNITS_MONTHLY
+from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
@@ -230,14 +233,23 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
         time_scope_value = data.get("time_scope_value")
         time_scope_units = data.get("time_scope_units")
 
-        if resolution and resolution != "monthly":
-            raise serializers.ValidationError("The valid value for resolution is monthly.")
+        errors = {}
 
-        if time_scope_units and time_scope_units != "month":
-            raise serializers.ValidationError("The valid value for time_scope_units is month.")
+        if time_scope_units and time_scope_value:
+            if time_scope_units != TIME_SCOPE_UNITS_MONTHLY:
+                errors["time_scope_units"] = f"The valid value for time_scope_units is {TIME_SCOPE_UNITS_MONTHLY}."
+            if time_scope_value not in TIME_SCOPE_VALUES_MONTHLY:
+                errors["time_scope_value"] = f"The valid values for time_scope_value are {TIME_SCOPE_VALUES_MONTHLY}."
+        elif (time_scope_units and not time_scope_value) or (time_scope_value and not time_scope_units):
+            errors[
+                "time_scope"
+            ] = "Both 'time_scope_value' and 'time_scope_units' must be provided together to specify the time range."
 
-        if time_scope_value and time_scope_value not in ("-1", "-2", "-3"):
-            raise serializers.ValidationError("The valid values for time_scope_value is ('-1', '-2', '-3').")
+        if resolution != RESOLUTION_MONTHLY:
+            errors["resolution"] = f"The valid value for resolution is {RESOLUTION_MONTHLY}."
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         return data
 
