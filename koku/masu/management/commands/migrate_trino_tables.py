@@ -181,6 +181,8 @@ class Command(BaseCommand):
         if not schemas:
             LOG.info("no schema in db to update")
             return
+        LOG.info(f"running against the following schemas: {schemas}")
+
         if columns_to_add := options["columns_to_add"]:
             columns_to_add = ListAddColumns(list=columns_to_add)
         if columns_to_drop := options["columns_to_drop"]:
@@ -189,8 +191,6 @@ class Command(BaseCommand):
             partitions_to_drop = ListDropPartitions(list=partitions_to_drop)
         tables_to_drop = options["tables_to_drop"]
         expired_partition_tables = options["remove_expired_partitions"]
-
-        LOG.info(f"running against the following schemas: {schemas}")
 
         for schema in schemas:
             if tables_to_drop:
@@ -218,7 +218,7 @@ def retrieve_schema(options):
         if columns_to_add := options["columns_to_add"]:
             return get_schema_missing_column(ListAddColumns(list=columns_to_add))
         else:
-            LOG.info("rerun only available for adding a schema")
+            LOG.info("rerun option only available for adding a column to a table")
             return []
     return get_all_schemas()
 
