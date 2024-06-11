@@ -287,8 +287,8 @@ def run_trino_sql(sql, schema=None):
             else:
                 raise err
         except TrinoUserError as err:
-            LOG.info(err.message)
-            return
+            LOG.error(err.message)
+            return schema
 
 
 def drop_tables(tables, schemas):
@@ -307,13 +307,17 @@ def drop_tables(tables, schemas):
                 result = run_trino_sql(sql, schema)
                 LOG.info(f"DROP TABLE result: {result}")
             except Exception as e:
-                LOG.info(e)
+                LOG.error(e)
 
 
-def add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list):
+def add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) -> None:
     """add specified columns with datatypes to the tables"""
     if not schemas:
-        schemas = get_schema_missing_column(list_of_cols)
+        try:
+            schemas = get_schema_missing_column(list_of_cols)
+        except TrinoExternalError as exc:
+            LOG.error(exc)
+
     LOG.info(f"running against the following schemas: {schemas}")
     for schema in schemas:
         LOG.info(f"*** adding column to tables for schema {schema} ***")
@@ -324,7 +328,7 @@ def add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list):
                 result = run_trino_sql(sql, schema)
                 LOG.info(f"ALTER TABLE result: {result}")
             except Exception as e:
-                LOG.info(e)
+                LOG.error(e)
 
 
 def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list):
@@ -341,7 +345,7 @@ def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list):
                 result = run_trino_sql(sql, schema)
                 LOG.info(f"ALTER TABLE result: {result}")
             except Exception as e:
-                LOG.info(e)
+                LOG.error(e)
 
 
 def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas: list):
@@ -368,7 +372,7 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
                         result = run_trino_sql(sql, schema)
                         LOG.info(f"DELETE PARTITION result: {result}")
             except Exception as e:
-                LOG.info(e)
+                LOG.error(e)
 
 def check_table_exists(schema, table):
     show_tables = f"SHOW TABLES LIKE '{table}'"
