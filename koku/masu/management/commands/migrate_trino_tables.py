@@ -197,6 +197,75 @@ class AddColumnAction(BaseModel):
             sys.exit(1)
 
 
+class DropColumnAction(BaseModel):
+    list_of_cols: ListDropColumns
+    schemas: t.Optional[list[str]] = Field(default_factory=list)
+    sql: t.Optional[
+        str
+    ] = """
+        SELECT t.table_schema
+        FROM information_schema.tables AS t
+        LEFT JOIN information_schema.columns AS c
+        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
+        WHERE t.table_name = '{col.table}'
+        AND c.column_name IS NOT NULL
+        AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
+        AND t.table_type = 'BASE TABLE'
+        """
+
+    def model_post_init(self, *arg, **kwargs) -> None:
+        if not self.schemas:
+            try:
+                self.schemas = self.get_schemas()
+            except TrinoExternalError as exc:
+                LOG.error(exc)
+
+        return self.schemas
+
+    def get_schemas(self) -> list[str]:
+        """Grabs all schema where the column still exists in the table."""
+        LOG.info("Finding all schemas containing column")
+        schema_list = []
+        for col in self.list_of_cols.list:
+            schemas = run_trino_sql(textwrap.dedent(self.sql.format(col=col)))
+            schemas = [
+                schema
+                for listed_schema in schemas
+                for schema in listed_schema
+                if schema not in ["default", "information_schema"]
+            ]
+            schema_list.extend(schemas)
+
+        return schema_list
+
+    def run(self):
+        if not self.schemas:
+            LOG.info("No schemas to update found")
+            return
+
+        LOG.info(f"Running against the following schemas: {self.schemas}")
+        for schema in self.schemas:
+            LOG.info(f"Dropping column from tables for schema {schema}")
+            for col in self.list_of_cols.list:
+                LOG.info(f"Dropping column '{col.column}' from table '{col.table}'")
+                sql = f"ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}"
+                try:
+                    result = run_trino_sql(sql, schema)
+                    LOG.info(f"ALTER TABLE result: {result}")
+                except Exception as e:
+                    LOG.error(e)
+
+        self.validate()
+        LOG.info("Migration successful")
+
+    def validate(self):
+        schemas = self.get_schemas()
+        LOG.info("Validating...")
+        if schemas:
+            LOG.error(f"Not all columns were successfully dropped from the follow schemas: {schemas}")
+            sys.exit(1)
+
+
 class Command(BaseCommand):
 
     help = ""
@@ -260,7 +329,8 @@ class Command(BaseCommand):
             action.run()
         elif columns_to_drop := options["columns_to_drop"]:
             columns_to_drop = ListDropColumns(list=columns_to_drop)
-            drop_columns_from_tables(columns_to_drop, options["schemas"])
+            action = DropColumnAction(list_of_cols=columns_to_drop, schemas=options["schemas"])
+            action.run()
         elif partitions_to_drop := options["partitions_to_drop"]:
             partitions_to_drop = ListDropPartitions(list=partitions_to_drop)
             drop_partitions_from_tables(partitions_to_drop, options["schemas"])
@@ -283,36 +353,6 @@ def get_all_schemas() -> list[str]:
         LOG.info("No schema in DB to update")
 
     return schemas
-
-
-def get_schema_containing_column(list_of_cols: ListDropColumns) -> list[str]:
-    """Grabs all schema where the column still exists in the table."""
-    LOG.info("Finding all schemas containing column")
-    schema_list = []
-    for col in list_of_cols.list:
-        sql = f"""
-        SELECT t.table_schema
-        FROM information_schema.tables AS t
-        LEFT JOIN information_schema.columns AS c
-        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
-        WHERE t.table_name = '{col.table}'
-        AND c.column_name IS NOT NULL
-        AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
-        AND t.table_type = 'BASE TABLE'
-        """
-        schemas = run_trino_sql(textwrap.dedent(sql))
-        schemas = [
-            schema
-            for listed_schema in schemas
-            for schema in listed_schema
-            if schema not in ["default", "information_schema"]
-        ]
-        schema_list.extend(schemas)
-
-    if not schemas:
-        LOG.info("No schema in DB to update")
-
-    return schema_list
 
 
 def run_trino_sql(sql, schema=None) -> t.Optional[str]:
@@ -358,27 +398,6 @@ def drop_tables(tables, schemas) -> None:
             try:
                 result = run_trino_sql(sql, schema)
                 LOG.info(f"DROP TABLE result: {result}")
-            except Exception as e:
-                LOG.error(e)
-
-
-def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list) -> None:
-    """drop specified columns from tables"""
-    if not schemas:
-        try:
-            schemas = get_schema_containing_column(list_of_cols)
-        except TrinoExternalError as exc:
-            LOG.error(exc)
-
-    LOG.info(f"Running against the following schemas: {schemas}")
-    for schema in schemas:
-        LOG.info(f"Dropping column from tables for schema {schema}")
-        for col in list_of_cols.list:
-            LOG.info(f"Dropping column {col.column} from table {col.table}")
-            sql = f"ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}"
-            try:
-                result = run_trino_sql(sql, schema)
-                LOG.info(f"ALTER TABLE result: {result}")
             except Exception as e:
                 LOG.error(e)
 
