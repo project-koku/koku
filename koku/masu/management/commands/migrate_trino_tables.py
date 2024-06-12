@@ -8,6 +8,7 @@ import logging
 import re
 from datetime import datetime
 from datetime import timedelta
+import time
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -266,15 +267,23 @@ def get_schema_containing_column(list_of_cols: ListDropColumns):
 
 def run_trino_sql(sql, schema=None):
     retries = 5
-    for i in range(retries):
+    for n in range(1, retries + 1):
+        attempt = n
+        remaining_retries = retries - n
+        wait = n**1.2 or 0.5
         try:
             with trino_db.connect(schema=schema) as conn:
                 cur = conn.cursor()
                 cur.execute(sql)
                 return cur.fetchall()
         except TrinoExternalError as err:
-            if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                continue
+            if err.error_name == "HIVE_METASTORE_ERROR" and n < (retries):
+                LOG.warn(
+                    f"{err.message}. Attempt number {attempt} of {retries} failed. "
+                    f"Trying {remaining_retries} more time{'s' if remaining_retries > 1 else ''} "
+                    f"after waiting {wait:.2f}s."
+                )
+                time.sleep(wait)
             else:
                 raise err
         except TrinoUserError as err:
