@@ -333,6 +333,7 @@ def add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) -> None:
                 LOG.info(f"ALTER TABLE result: {result}")
             except Exception as e:
                 LOG.error(e)
+                return
 
     verify_add_columns_to_tables(list_of_cols, schemas)
 
