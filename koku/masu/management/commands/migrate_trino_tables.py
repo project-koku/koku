@@ -7,10 +7,12 @@ import json
 import logging
 import re
 import secrets
-from datetime import datetime
-from datetime import timedelta
+import sys
+import textwrap
 import time
 import typing as t
+from datetime import datetime
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -124,6 +126,79 @@ class ListDropPartitions(BaseModel):
     list: list[DropPartition]
 
 
+class AddColumnAction(BaseModel):
+    list_of_cols: ListAddColumns
+    schemas: t.Optional[list[str]] = None
+    sql: t.Optional[
+        str
+    ] = """
+        SELECT t.table_schema
+        FROM information_schema.tables AS t
+        LEFT JOIN information_schema.columns AS c
+        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
+        WHERE t.table_name = '{col.table}'
+        AND c.column_name IS NULL
+        AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
+        AND t.table_type = 'BASE TABLE'
+        """
+
+    def model_post_init(self, *arg, **kwargs) -> None:
+        # FIXME: Maybe make this a cached property
+        if not self.schemas:
+            try:
+                self.schemas = self.get_schemas()
+                return
+            except TrinoExternalError as exc:
+                LOG.error(exc)
+
+        self.schemas = []
+
+    def get_schemas(self) -> list[str]:
+        """Grabs all schema where the column is not added to the table."""
+        LOG.info("finding all schemas missing column")
+        schema_list = []
+        for col in self.list_of_cols.list:
+            schemas = run_trino_sql(textwrap.dedent(self.sql.format(col=col)))
+            schemas = [
+                schema
+                for listed_schema in schemas
+                for schema in listed_schema
+                if schema not in ["default", "information_schema"]
+            ]
+            schema_list.extend(schemas)
+
+        return schema_list
+
+    def run(self) -> None:
+        """Add specified columns with datatypes to the tables"""
+        if not self.schemas:
+            LOG.info("No schemas to update found")
+            return
+
+        LOG.info(f"running against the following schemas: {self.schemas}")
+        for schema in self.schemas:
+            LOG.info(f"*** adding column to tables for schema {schema} ***")
+            for col in self.list_of_cols.list:
+                LOG.info(f"adding column {col.column} of type {col.datatype} to table {col.table}")
+                sql = f"ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
+                try:
+                    result = run_trino_sql(sql, schema)
+                    LOG.info(f"ALTER TABLE result: {result}")
+                except Exception as e:
+                    LOG.error(e)
+                    return
+
+        self.validate()
+        LOG.info("Migration successful")
+
+    def validate(self) -> None:
+        schemas = self.get_schemas()
+        LOG.info("Validating...")
+        if schemas:
+            LOG.error(f"Not all columns were successfully added to the follow schemas: {schemas}")
+            sys.exit(1)
+
+
 class Command(BaseCommand):
 
     help = ""
@@ -183,7 +258,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         if columns_to_add := options["columns_to_add"]:
             columns_to_add = ListAddColumns(list=columns_to_add)
-            add_columns_to_tables(columns_to_add, options["schemas"])
+            action = AddColumnAction(list_of_cols=columns_to_add, schemas=options["schemas"])
+            action.run()
         elif columns_to_drop := options["columns_to_drop"]:
             columns_to_drop = ListDropColumns(list=columns_to_drop)
             drop_columns_from_tables(columns_to_drop, options["schemas"])
@@ -211,35 +287,6 @@ def get_all_schemas() -> list[str]:
     return schemas
 
 
-def get_schema_missing_column(list_of_cols: ListAddColumns) -> list[str]:
-    """Grabs all schema where the column is not added to the table."""
-    LOG.info("finding all schemas missing column")
-    schema_list = []
-    for col in list_of_cols.list:
-        sql = f"""
-        SELECT t.table_schema
-        FROM information_schema.tables t
-        LEFT JOIN information_schema.columns c
-        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
-        WHERE t.table_name = '{col.table}'
-        AND c.column_name IS NULL
-        AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
-        AND t.table_type = 'BASE TABLE'
-    """
-        schemas = run_trino_sql(sql)
-        schemas = [
-            schema
-            for listed_schema in schemas
-            for schema in listed_schema
-            if schema not in ["default", "information_schema"]
-        ]
-        schema_list.extend(schemas)
-    if not schemas:
-        LOG.info("no schema in db to update")
-
-    return schema_list
-
-
 def get_schema_containing_column(list_of_cols: ListDropColumns) -> list[str]:
     """Grabs all schema where the column still exists in the table."""
     LOG.info("finding all schemas containing column")
@@ -254,8 +301,8 @@ def get_schema_containing_column(list_of_cols: ListDropColumns) -> list[str]:
         AND c.column_name IS NOT NULL
         AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
         AND t.table_type = 'BASE TABLE'
-    """
-        schemas = run_trino_sql(sql)
+        """
+        schemas = run_trino_sql(textwrap.dedent(sql))
         schemas = [
             schema
             for listed_schema in schemas
@@ -315,34 +362,6 @@ def drop_tables(tables, schemas) -> None:
                 LOG.info(f"DROP TABLE result: {result}")
             except Exception as e:
                 LOG.error(e)
-
-
-def add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) -> None:
-    """add specified columns with datatypes to the tables"""
-    if not schemas:
-        try:
-            schemas = get_schema_missing_column(list_of_cols)
-        except TrinoExternalError as exc:
-            LOG.error(exc)
-
-    LOG.info(f"running against the following schemas: {schemas}")
-    for schema in schemas:
-        LOG.info(f"*** adding column to tables for schema {schema} ***")
-        for col in list_of_cols.list:
-            LOG.info(f"adding column {col.column} of type {col.datatype} to table {col.table}")
-            sql = f"ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
-            try:
-                result = run_trino_sql(sql, schema)
-                LOG.info(f"ALTER TABLE result: {result}")
-            except Exception as e:
-                LOG.error(e)
-                return
-
-    verify_add_columns_to_tables(list_of_cols, schemas)
-
-
-def verify_add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) -> None:
-    pass
 
 
 def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list) -> None:
