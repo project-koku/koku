@@ -53,18 +53,38 @@ class AWSGroupBySerializer(GroupSerializer):
 class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("usage", "account", "account_alias", "region", "service", "product_family", "date")
+    _opfields = (
+        "usage",
+        "account",
+        "account_alias",
+        "region",
+        "service",
+        "product_family",
+        "date",
+    )
 
     _aws_category = True
 
-    usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    usage = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
     # ordering by alias is supported, but ordering by account is not due to the
     # probability that a human-recognizable alias is more useful than account number.
-    account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    product_family = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    account = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    account_alias = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    region = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    service = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    product_family = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
     date = serializers.DateField(required=False)
 
 
@@ -145,7 +165,11 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
         """
         max_value = get_customer_group_by_limit(self.schema)
         if len(value) > max_value:
-            error = {"group_by": (f"Cost Management supports a max of {max_value} group_by options.")}
+            error = {
+                "group_by": (
+                    f"Cost Management supports a max of {max_value} group_by options."
+                )
+            }
             raise serializers.ValidationError(error)
         validate_field(
             self,
@@ -168,17 +192,26 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                 # group_by[org_unit_id]=x&group_by[or:org_unit_id]=OU_001 is invalid
                 # If we ever want to change this we need to decide what would be appropriate to see
                 # here.
-                error = {"or_unit_id": gettext("Multiple org_unit_id must be represented with the or: prefix.")}
+                error = {
+                    "or_unit_id": gettext(
+                        "Multiple org_unit_id must be represented with the or: prefix."
+                    )
+                }
                 raise serializers.ValidationError(error)
             key_used = key_used[0]
             request = self.context.get("request")
-            if "costs" not in request.path or self.initial_data.get("group_by", {}).get(key_used, "") == "*":
+            if (
+                "costs" not in request.path
+                or self.initial_data.get("group_by", {}).get(key_used, "") == "*"
+            ):
                 # Additionally, since we only have the org_unit_id group_by available for cost reports
                 # we must explicitly raise a validation error if it is a different report type
                 # or if we are grouping by org_unit_id with the * since that is essentially grouping by
                 # accounts. If we ever want to change this we need to decide what would be appropriate to see
                 # here. Such as all org units or top level org units
-                error = {"org_unit_id": gettext("Unsupported parameter or invalid value")}
+                error = {
+                    "org_unit_id": gettext("Unsupported parameter or invalid value")
+                }
                 raise serializers.ValidationError(error)
             if "or:" not in key_used:
                 if isinstance(group_by_params.get(key_used), list):
@@ -186,7 +219,9 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                         # group_by[org_unit_id]=x&group_by[org_unit_id]=OU_001 is invalid
                         # because no child nodes would ever intersect due to the tree structure.
                         error = {
-                            "or_unit_id": gettext("Multiple org_unit_id must be represented with the or: prefix.")
+                            "or_unit_id": gettext(
+                                "Multiple org_unit_id must be represented with the or: prefix."
+                            )
                         }
                         raise serializers.ValidationError(error)
         return value
@@ -235,18 +270,24 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
 
         errors = {}
 
-        if time_scope_units and time_scope_value:
-            if time_scope_units != TIME_SCOPE_UNITS_MONTHLY:
-                errors["time_scope_units"] = f"The valid value for time_scope_units is {TIME_SCOPE_UNITS_MONTHLY}."
-            if time_scope_value not in TIME_SCOPE_VALUES_MONTHLY:
-                errors["time_scope_value"] = f"The valid values for time_scope_value are {TIME_SCOPE_VALUES_MONTHLY}."
-        elif (time_scope_units and not time_scope_value) or (time_scope_value and not time_scope_units):
-            errors[
-                "time_scope"
-            ] = "Both 'time_scope_value' and 'time_scope_units' must be provided together to specify the time range."
-
+        if not time_scope_units:
+            time_scope_units = TIME_SCOPE_UNITS_MONTHLY
+        if not time_scope_value:
+            time_scope_value = TIME_SCOPE_VALUES_MONTHLY[0]
+        if not resolution:
+            resolution = RESOLUTION_MONTHLY
+        if time_scope_units != TIME_SCOPE_UNITS_MONTHLY:
+            errors["time_scope_units"] = (
+                f"The valid value for time_scope_units is {TIME_SCOPE_UNITS_MONTHLY}."
+            )
+        if time_scope_value not in TIME_SCOPE_VALUES_MONTHLY:
+            errors["time_scope_value"] = (
+                f"The valid values for time_scope_value are {TIME_SCOPE_VALUES_MONTHLY}."
+            )
         if resolution != RESOLUTION_MONTHLY:
-            errors["resolution"] = f"The valid value for resolution is {RESOLUTION_MONTHLY}."
+            errors["resolution"] = (
+                f"The valid value for resolution is {RESOLUTION_MONTHLY}."
+            )
 
         if errors:
             raise serializers.ValidationError(errors)
@@ -273,13 +314,27 @@ class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
         "instance_name",
     )
 
-    resource_id = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    usage_amount = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    instance_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    resource_id = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    account = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    usage_amount = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    instance_type = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    region = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    operating_system = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
+    instance_name = serializers.ChoiceField(
+        choices=OrderSerializer.ORDER_CHOICES, required=False
+    )
 
 
 class AWSEC2GroupBySerializer(GroupSerializer):
