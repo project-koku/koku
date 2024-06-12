@@ -177,7 +177,7 @@ class AddColumnAction(BaseModel):
         for schema in self.schemas:
             LOG.info(f"Adding column to tables for schema {schema}")
             for col in self.list_of_cols.list:
-                LOG.info(f"Adding column {col.column} of type {col.datatype} to table {col.table}")
+                LOG.info(f"Adding column '{col.column}' of type '{col.datatype}' to table '{col.table}'")
                 sql = f"ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
                 try:
                     result = run_trino_sql(sql, schema)
