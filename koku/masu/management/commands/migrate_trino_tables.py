@@ -334,7 +334,11 @@ def add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) -> None:
 def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list):
     """drop specified columns from tables"""
     if not schemas:
-        schemas = get_schema_containing_column(list_of_cols)
+        try:
+            schemas = get_schema_containing_column(list_of_cols)
+        except TrinoExternalError as exc:
+            LOG.error(exc)
+
     LOG.info(f"running against the following schemas: {schemas}")
     for schema in schemas:
         LOG.info(f"*** dropping column from tables for schema {schema} ***")
