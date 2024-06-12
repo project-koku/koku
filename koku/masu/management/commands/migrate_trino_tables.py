@@ -126,21 +126,11 @@ class ListDropPartitions(BaseModel):
     list: list[DropPartition]
 
 
-class AddColumnAction(BaseModel):
-    list_of_cols: ListAddColumns
+class Action(BaseModel):
+    list_of_cols: t.Union[ListAddColumns, ListDropColumns]
     schemas: t.Optional[list[str]] = Field(default_factory=list)
-    sql: t.Optional[
-        str
-    ] = """
-        SELECT t.table_schema
-        FROM information_schema.tables AS t
-        LEFT JOIN information_schema.columns AS c
-        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
-        WHERE t.table_name = '{col.table}'
-        AND c.column_name IS NULL
-        AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
-        AND t.table_type = 'BASE TABLE'
-        """
+    find_query: str
+    modify_query: str
 
     def model_post_init(self, *arg, **kwargs) -> None:
         if not self.schemas:
@@ -152,11 +142,10 @@ class AddColumnAction(BaseModel):
         return self.schemas
 
     def get_schemas(self) -> list[str]:
-        """Grabs all schema where the column is not added to the table."""
-        LOG.info("Finding all schemas missing column")
+        LOG.info("Finding all schema for migration")
         schema_list = []
         for col in self.list_of_cols.list:
-            schemas = run_trino_sql(textwrap.dedent(self.sql.format(col=col)))
+            schemas = run_trino_sql(textwrap.dedent(self.find_query.format(col=col)))
             schemas = [
                 schema
                 for listed_schema in schemas
@@ -168,19 +157,16 @@ class AddColumnAction(BaseModel):
         return schema_list
 
     def run(self) -> None:
-        """Add specified columns with datatypes to the tables"""
         if not self.schemas:
             LOG.info("No schemas to update found")
             return
 
         LOG.info(f"Running against the following schemas: {self.schemas}")
         for schema in self.schemas:
-            LOG.info(f"Adding column to tables for schema {schema}")
+            LOG.info(f"Modifying tables for schema {schema}")
             for col in self.list_of_cols.list:
-                LOG.info(f"Adding column '{col.column}' of type '{col.datatype}' to table '{col.table}'")
-                sql = f"ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
                 try:
-                    result = run_trino_sql(sql, schema)
+                    result = run_trino_sql(textwrap.dedent(self.modify_query.format(col=col)), schema)
                     LOG.info(f"ALTER TABLE result: {result}")
                 except Exception as e:
                     LOG.error(e)
@@ -193,77 +179,50 @@ class AddColumnAction(BaseModel):
         schemas = self.get_schemas()
         LOG.info("Validating...")
         if schemas:
-            LOG.error(f"Not all columns were successfully added to the follow schemas: {schemas}")
+            LOG.error(f"Migration failed for the follow schemas: {schemas}")
             sys.exit(1)
 
 
-class DropColumnAction(BaseModel):
-    list_of_cols: ListDropColumns
-    schemas: t.Optional[list[str]] = Field(default_factory=list)
-    sql: t.Optional[
-        str
-    ] = """
-        SELECT t.table_schema
-        FROM information_schema.tables AS t
-        LEFT JOIN information_schema.columns AS c
-        ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
-        WHERE t.table_name = '{col.table}'
-        AND c.column_name IS NOT NULL
-        AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
-        AND t.table_type = 'BASE TABLE'
+class AddColumnAction(Action):
+    @classmethod
+    def build(cls, list_of_cols: ListAddColumns, schemas: list[str]):
+        _find_query = """
+            SELECT t.table_schema
+            FROM information_schema.tables AS t
+            LEFT JOIN information_schema.columns AS c
+            ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
+            WHERE t.table_name = '{col.table}'
+            AND c.column_name IS NULL
+            AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
+            AND t.table_type = 'BASE TABLE'
         """
+        return cls(
+            list_of_cols=list_of_cols,
+            schemas=schemas,
+            find_query=_find_query,
+            modify_query="ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}",
+        )
 
-    def model_post_init(self, *arg, **kwargs) -> None:
-        if not self.schemas:
-            try:
-                self.schemas = self.get_schemas()
-            except TrinoExternalError as exc:
-                LOG.error(exc)
 
-        return self.schemas
-
-    def get_schemas(self) -> list[str]:
-        """Grabs all schema where the column still exists in the table."""
-        LOG.info("Finding all schemas containing column")
-        schema_list = []
-        for col in self.list_of_cols.list:
-            schemas = run_trino_sql(textwrap.dedent(self.sql.format(col=col)))
-            schemas = [
-                schema
-                for listed_schema in schemas
-                for schema in listed_schema
-                if schema not in ["default", "information_schema"]
-            ]
-            schema_list.extend(schemas)
-
-        return schema_list
-
-    def run(self):
-        if not self.schemas:
-            LOG.info("No schemas to update found")
-            return
-
-        LOG.info(f"Running against the following schemas: {self.schemas}")
-        for schema in self.schemas:
-            LOG.info(f"Dropping column from tables for schema {schema}")
-            for col in self.list_of_cols.list:
-                LOG.info(f"Dropping column '{col.column}' from table '{col.table}'")
-                sql = f"ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}"
-                try:
-                    result = run_trino_sql(sql, schema)
-                    LOG.info(f"ALTER TABLE result: {result}")
-                except Exception as e:
-                    LOG.error(e)
-
-        self.validate()
-        LOG.info("Migration successful")
-
-    def validate(self):
-        schemas = self.get_schemas()
-        LOG.info("Validating...")
-        if schemas:
-            LOG.error(f"Not all columns were successfully dropped from the follow schemas: {schemas}")
-            sys.exit(1)
+class DropColumnAction(Action):
+    @classmethod
+    def build(cls, list_of_cols: ListDropColumns, schemas: list[str]):
+        _find_query = """
+            SELECT t.table_schema
+            FROM information_schema.tables AS t
+            LEFT JOIN information_schema.columns AS c
+            ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
+            WHERE t.table_name = '{col.table}'
+            AND c.column_name IS NOT NULL
+            AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
+            AND t.table_type = 'BASE TABLE'
+        """
+        return cls(
+            list_of_cols=list_of_cols,
+            schemas=schemas,
+            find_query=_find_query,
+            modify_query="ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}",
+        )
 
 
 class Command(BaseCommand):
@@ -325,11 +284,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         if columns_to_add := options["columns_to_add"]:
             columns_to_add = ListAddColumns(list=columns_to_add)
-            action = AddColumnAction(list_of_cols=columns_to_add, schemas=options["schemas"])
+            action = AddColumnAction.build(list_of_cols=columns_to_add, schemas=options["schemas"])
             action.run()
         elif columns_to_drop := options["columns_to_drop"]:
             columns_to_drop = ListDropColumns(list=columns_to_drop)
-            action = DropColumnAction(list_of_cols=columns_to_drop, schemas=options["schemas"])
+            action = DropColumnAction.build(list_of_cols=columns_to_drop, schemas=options["schemas"])
             action.run()
         elif partitions_to_drop := options["partitions_to_drop"]:
             partitions_to_drop = ListDropPartitions(list=partitions_to_drop)
