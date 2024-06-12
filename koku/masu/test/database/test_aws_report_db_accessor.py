@@ -458,3 +458,23 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
             ).count()
             self.assertEqual(0, actual_child_count)
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ec2_compute_summary_table_trino(self, mock_trino):
+        """
+        Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2Compute.
+        """
+        start_date = self.dh.this_month_start.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+
+        self.accessor.populate_ec2_compute_summary_table_trino(
+            self.aws_provider_uuid, start_date, current_bill_id, markup_value
+        )
+        mock_trino.assert_called()
