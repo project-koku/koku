@@ -128,7 +128,7 @@ class ListDropPartitions(BaseModel):
 
 class AddColumnAction(BaseModel):
     list_of_cols: ListAddColumns
-    schemas: t.Optional[list[str]] = None
+    schemas: t.Optional[list[str]] = Field(default_factory=list)
     sql: t.Optional[
         str
     ] = """
@@ -143,15 +143,13 @@ class AddColumnAction(BaseModel):
         """
 
     def model_post_init(self, *arg, **kwargs) -> None:
-        # FIXME: Maybe make this a cached property
         if not self.schemas:
             try:
                 self.schemas = self.get_schemas()
-                return
             except TrinoExternalError as exc:
                 LOG.error(exc)
 
-        self.schemas = []
+        return self.schemas
 
     def get_schemas(self) -> list[str]:
         """Grabs all schema where the column is not added to the table."""
