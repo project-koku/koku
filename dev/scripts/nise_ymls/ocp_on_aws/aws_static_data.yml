@@ -39,6 +39,7 @@ generators:
         resourceTags/user:com_redhat_rhel_sla: self-support
         resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
         resourceTags/user:com_redhat_rhel_usage: disaster Recovery
+        resourceTags/user:com_redhat_rhel_addon: True
         resourceTags/user:Mapping: b1
         resourceTags/user:Map: b2
         resourceTags/user:Name: instance-name-2

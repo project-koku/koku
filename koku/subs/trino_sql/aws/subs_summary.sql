@@ -39,7 +39,11 @@ SELECT
         WHEN 'sap' THEN '479-241'
         ELSE '479'
       END
-  END as subs_product_ids
+  END as subs_product_ids,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_addon'))
+    WHEN 'true' THEN 'true'
+    ELSE 'false'
+  END as subs_addon
 FROM
   (
     SELECT *,
@@ -54,7 +58,8 @@ FROM
               ARRAY[ 'com_redhat_rhel',
               'com_redhat_rhel_variant',
               'com_redhat_rhel_usage',
-              'com_redhat_rhel_sla' ],
+              'com_redhat_rhel_sla',
+              'com_redhat_rhel_addon' ],
               lower(k)
             )
           ),

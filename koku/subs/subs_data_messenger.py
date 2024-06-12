@@ -110,6 +110,7 @@ class SUBSDataMessenger:
                             row["subs_usage"],
                             row["subs_role"],
                             row["subs_product_ids"].split("-"),
+                            row["subs_addon"],
                         )
                         msg = bytes(json.dumps(subs_dict), "utf-8")
                         self.send_kafka_message(msg)
@@ -130,7 +131,7 @@ class SUBSDataMessenger:
         producer.produce(SUBS_TOPIC, key=self.org_id, value=msg, callback=delivery_callback)
         producer.poll(0)
 
-    def build_base_subs_dict(self, instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids):
+    def build_base_subs_dict(self, instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, addon):
         """Gathers the relevant information for the kafka message and returns a filled dictionary of information."""
         subs_dict = {
             "event_id": str(uuid.uuid4()),
@@ -149,29 +150,53 @@ class SUBSDataMessenger:
             "sla": sla,
             "usage": usage,
             "billing_provider": self.provider_type.lower(),
-            "conversion": True,
         }
+        if addon == "true":
+            subs_dict["conversion"] = False
+        else:
+            subs_dict["conversion"] = True
         # SAP is identified only through product ids and does not have an associated Role
         if role != "SAP":
             subs_dict["role"] = role
         return subs_dict
 
     def build_aws_subs_dict(
-        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+        self,
+        instance_id,
+        billing_account_id,
+        tstamp,
+        expiration,
+        cpu_count,
+        sla,
+        usage,
+        role,
+        product_ids,
+        addon,
     ):
         """Adds AWS specific fields to the base subs dict."""
         subs_dict = self.build_base_subs_dict(
-            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, addon
         )
         subs_dict["billing_account_id"] = billing_account_id
         return subs_dict
 
     def build_azure_subs_dict(
-        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, tenant_id
+        self,
+        instance_id,
+        billing_account_id,
+        tstamp,
+        expiration,
+        cpu_count,
+        sla,
+        usage,
+        role,
+        product_ids,
+        tenant_id,
+        addon,
     ):
         """Adds Azure specific fields to the base subs dict."""
         subs_dict = self.build_base_subs_dict(
-            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, addon
         )
         subs_dict["azure_subscription_id"] = billing_account_id
         subs_dict["azure_tenant_id"] = tenant_id
@@ -205,6 +230,7 @@ class SUBSDataMessenger:
                 row["subs_role"],
                 row["subs_product_ids"].split("-"),
                 tenant_id,
+                row["subs_addon"],
             )
             msg = bytes(json.dumps(subs_dict), "utf-8")
             # move to the next hour in the range

@@ -46,6 +46,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_sla": "Premium",
                 "subs_role": "Red Hat Enterprise Linux Server",
                 "subs_product_ids": "479-70",
+                "subs_addon": "true",
             }
         ]
         mock_op = mock_open(read_data="x,y,z")
@@ -66,6 +67,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         rol = "Red Hat Enterprise Linux Server"
         sla = "Premium"
         product_ids = ["479", "70"]
+        addon = "false"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -98,6 +100,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 usage,
                 rol,
                 product_ids,
+                addon,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -113,6 +116,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         usage = "Production"
         rol = "Red Hat Enterprise Linux Server"
         sla = "Premium"
+        addon = "false"
         product_ids = ["479", "70"]
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
@@ -148,6 +152,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 usage,
                 rol,
                 product_ids,
+                addon,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -163,6 +168,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         rol = "SAP"
         sla = "Premium"
         product_ids = ["479", "70"]
+        addon = "false"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -194,6 +200,55 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 usage,
                 rol,
                 product_ids,
+                addon,
+            )
+        self.assertEqual(expected_subs_dict, actual)
+
+    def test_build_base_subs_dict_addon_true(self):
+        """
+        Test building the kafka message body
+        """
+        lineitem_resourceid = "i-55555556"
+        lineitem_usagestartdate = "2023-07-01T01:00:00Z"
+        lineitem_usageenddate = "2023-07-01T02:00:00Z"
+        product_vcpu = "2"
+        usage = "Production"
+        rol = "SAP"
+        sla = "Premium"
+        product_ids = ["479", "70"]
+        addon = "true"
+        static_uuid = uuid.uuid4()
+        expected_subs_dict = {
+            "event_id": str(static_uuid),
+            "event_source": "cost-management",
+            "event_type": "snapshot",
+            "account_number": self.acct,
+            "org_id": self.org_id,
+            "service_type": "RHEL System",
+            "instance_id": lineitem_resourceid,
+            "timestamp": lineitem_usagestartdate,
+            "expiration": lineitem_usageenddate,
+            "measurements": [{"value": product_vcpu, "uom": "vCPUs"}],
+            "cloud_provider": "AWS",
+            "hardware_type": "Cloud",
+            "product_ids": product_ids,
+            "sla": sla,
+            "usage": usage,
+            "billing_provider": "aws",
+            "conversion": False,
+        }
+        with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value = static_uuid
+            actual = self.messenger.build_base_subs_dict(
+                lineitem_resourceid,
+                lineitem_usagestartdate,
+                lineitem_usageenddate,
+                product_vcpu,
+                sla,
+                usage,
+                rol,
+                product_ids,
+                addon,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -210,6 +265,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         rol = "Red Hat Enterprise Linux Server"
         sla = "Premium"
         product_ids = ["479", "70"]
+        addon = "false"
         tenant_id = "my-fake-id"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
@@ -247,6 +303,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 rol,
                 product_ids,
                 tenant_id,
+                addon,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -262,6 +319,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         usage = "Production"
         rol = "SAP"
         sla = "Premium"
+        addon = "False"
         product_ids = ["479", "70"]
         tenant_id = "my-fake-id"
         static_uuid = uuid.uuid4()
@@ -299,6 +357,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 rol,
                 product_ids,
                 tenant_id,
+                addon,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -326,6 +385,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_sla": "Premium",
             "subs_role": "Red Hat Enterprise Linux Server",
             "subs_product_ids": "479-70",
+            "subs_addon": "false",
             "subs_instance": expected_instance,
             "source": self.azure_provider.uuid,
         }
@@ -350,6 +410,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_sla": "Premium",
             "subs_role": "Red Hat Enterprise Linux Server",
             "subs_product_ids": "479-70",
+            "subs_addon": "false",
             "subs_instance": "",
             "source": self.azure_provider.uuid,
         }
@@ -375,6 +436,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_sla": "Premium",
             "subs_role": "Red Hat Enterprise Linux Server",
             "subs_product_ids": "479-70",
+            "subs_addon": "false",
             "subs_instance": "fake",
             "source": self.azure_provider.uuid,
         }
@@ -399,6 +461,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_sla": "Premium",
             "subs_role": "Red Hat Enterprise Linux Server",
             "subs_product_ids": "479-70",
+            "subs_addon": "false",
             "subs_instance": "",
             "source": self.azure_provider.uuid,
             "resourcegroup": "my-fake-rg",
@@ -433,6 +496,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_role": "Red Hat Enterprise Linux Server",
                 "subs_usage_quantity": "4",
                 "subs_product_ids": "479-70",
+                "subs_addon": "false",
                 "subs_instance": "",
                 "source": self.azure_provider.uuid,
                 "resourcegroup": "my-fake-rg",
@@ -469,6 +533,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_sla": "Premium",
                 "subs_role": "Red Hat Enterprise Linux Server",
                 "subs_product_ids": "479-70",
+                "subs_addon": "false",
                 "subs_instance": "",
                 "source": self.azure_provider.uuid,
                 "resourcegroup": "my-fake-rg",

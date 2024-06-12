@@ -41,7 +41,11 @@ SELECT
         ELSE '479'
       END
   END as subs_product_ids,
-  COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance
+  COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_addon'))
+    WHEN 'true' THEN 'true'
+    ELSE 'false'
+  END as subs_addon
 FROM
     hive.{{schema | sqlsafe}}.azure_line_items
 WHERE
