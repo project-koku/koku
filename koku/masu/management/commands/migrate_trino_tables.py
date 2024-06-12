@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 import re
+import secrets
 from datetime import datetime
 from datetime import timedelta
 import time
@@ -274,7 +275,9 @@ def run_trino_sql(sql, schema=None) -> t.Optional[str]:
     for n in range(1, retries + 1):
         attempt = n
         remaining_retries = retries - n
-        wait = n**1.2 or 0.5
+        # Exponential backoff with a little bit of randomness and a
+        # minimum wait of 0.5 and max wait of 7
+        wait = (min(2**n, 7) + secrets.randbelow(1000) / 1000) or 0.5
         try:
             with trino_db.connect(schema=schema) as conn:
                 cur = conn.cursor()
