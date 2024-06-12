@@ -243,8 +243,8 @@ def get_schema_containing_column(list_of_cols: ListDropColumns):
     for col in list_of_cols.list:
         sql = f"""
         SELECT t.table_schema
-        FROM information_schema.tables t
-        LEFT JOIN information_schema.columns c
+        FROM information_schema.tables AS t
+        LEFT JOIN information_schema.columns AS c
         ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
         WHERE t.table_name = '{col.table}'
         AND c.column_name IS NOT NULL
