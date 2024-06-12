@@ -155,7 +155,7 @@ class AddColumnAction(BaseModel):
 
     def get_schemas(self) -> list[str]:
         """Grabs all schema where the column is not added to the table."""
-        LOG.info("finding all schemas missing column")
+        LOG.info("Finding all schemas missing column")
         schema_list = []
         for col in self.list_of_cols.list:
             schemas = run_trino_sql(textwrap.dedent(self.sql.format(col=col)))
@@ -175,11 +175,11 @@ class AddColumnAction(BaseModel):
             LOG.info("No schemas to update found")
             return
 
-        LOG.info(f"running against the following schemas: {self.schemas}")
+        LOG.info(f"Running against the following schemas: {self.schemas}")
         for schema in self.schemas:
-            LOG.info(f"*** adding column to tables for schema {schema} ***")
+            LOG.info(f"Adding column to tables for schema {schema}")
             for col in self.list_of_cols.list:
-                LOG.info(f"adding column {col.column} of type {col.datatype} to table {col.table}")
+                LOG.info(f"Adding column {col.column} of type {col.datatype} to table {col.table}")
                 sql = f"ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
                 try:
                     result = run_trino_sql(sql, schema)
@@ -282,14 +282,14 @@ def get_all_schemas() -> list[str]:
         if schema not in ["default", "information_schema"]
     ]
     if not schemas:
-        LOG.info("no schema in db to update")
+        LOG.info("No schema in DB to update")
 
     return schemas
 
 
 def get_schema_containing_column(list_of_cols: ListDropColumns) -> list[str]:
     """Grabs all schema where the column still exists in the table."""
-    LOG.info("finding all schemas containing column")
+    LOG.info("Finding all schemas containing column")
     schema_list = []
     for col in list_of_cols.list:
         sql = f"""
@@ -312,7 +312,7 @@ def get_schema_containing_column(list_of_cols: ListDropColumns) -> list[str]:
         schema_list.extend(schemas)
 
     if not schemas:
-        LOG.info("no schema in db to update")
+        LOG.info("No schema in DB to update")
 
     return schema_list
 
@@ -351,11 +351,11 @@ def drop_tables(tables, schemas) -> None:
         schemas = get_all_schemas()
     if not set(tables).issubset(EXTERNAL_TABLES):
         raise ValueError("Attempting to drop non-external table, revise the list of tables to drop.", tables)
-    LOG.info(f"running against the following schemas: {schemas}")
+    LOG.info(f"Running against the following schemas: {schemas}")
     for schema in schemas:
-        LOG.info(f"*** dropping tables {tables} for schema {schema} ***")
+        LOG.info(f"Dropping tables {tables} for schema {schema}")
         for table_name in tables:
-            LOG.info(f"dropping table {table_name}")
+            LOG.info(f"Dropping table {table_name}")
             sql = f"DROP TABLE IF EXISTS {table_name}"
             try:
                 result = run_trino_sql(sql, schema)
@@ -372,11 +372,11 @@ def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list) -> No
         except TrinoExternalError as exc:
             LOG.error(exc)
 
-    LOG.info(f"running against the following schemas: {schemas}")
+    LOG.info(f"Running against the following schemas: {schemas}")
     for schema in schemas:
-        LOG.info(f"*** dropping column from tables for schema {schema} ***")
+        LOG.info(f"Dropping column from tables for schema {schema}")
         for col in list_of_cols.list:
-            LOG.info(f"dropping column {col.column} from table {col.table}")
+            LOG.info(f"Dropping column {col.column} from table {col.table}")
             sql = f"ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}"
             try:
                 result = run_trino_sql(sql, schema)
@@ -389,9 +389,9 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
     """drop specified partitions from tables"""
     if not schemas:
         schemas = get_all_schemas()
-    LOG.info(f"running against the following schemas: {schemas}")
+    LOG.info(f"Running against the following schemas: {schemas}")
     for schema in schemas:
-        LOG.info(f"*** dropping partition from tables for schema {schema} ***")
+        LOG.info(f"Dropping partition from tables for schema {schema}")
         for part in list_of_partitions.list:
             sql = f"SELECT count(DISTINCT {part.partition_column}) FROM {part.table}"
             try:
@@ -404,7 +404,7 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
                     partitions = [res[0] for res in result]
 
                     for partition in partitions:
-                        LOG.info(f"*** Deleting {part.table} partition {part.partition_column} = {partition} ***")
+                        LOG.info(f"Deleting {part.table} partition {part.partition_column} = {partition}")
                         sql = f"DELETE FROM {part.table} WHERE {part.partition_column} = '{partition}'"
                         result = run_trino_sql(sql, schema)
                         LOG.info(f"DELETE PARTITION result: {result}")
