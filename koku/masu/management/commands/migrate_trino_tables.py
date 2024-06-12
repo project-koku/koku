@@ -9,6 +9,7 @@ import re
 from datetime import datetime
 from datetime import timedelta
 import time
+import typing as t
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -82,7 +83,7 @@ VALID_CHARACTERS = re.compile(r"^[\w.-]+$")
 
 
 class CommaSeparatedArgs(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None) -> None:
         vals = values.split(",")
         if not all(VALID_CHARACTERS.match(v) for v in vals):
             raise ValueError(f"String should match pattern '{VALID_CHARACTERS.pattern}': {vals}")
@@ -90,7 +91,7 @@ class CommaSeparatedArgs(argparse.Action):
 
 
 class JSONArgs(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None) -> None:
         setattr(namespace, self.dest, json.loads(values))
 
 
@@ -126,7 +127,7 @@ class Command(BaseCommand):
 
     help = ""
 
-    def add_arguments(self, parser: argparse.ArgumentParser):
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         exclusive_group = parser.add_mutually_exclusive_group()
         parser.add_argument(
             "--schemas",
@@ -178,7 +179,7 @@ class Command(BaseCommand):
             dest="rerun",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args, **options) -> None:
         if columns_to_add := options["columns_to_add"]:
             columns_to_add = ListAddColumns(list=columns_to_add)
             add_columns_to_tables(columns_to_add, options["schemas"])
@@ -194,7 +195,7 @@ class Command(BaseCommand):
             drop_expired_partitions(expired_partition_tables, options["schemas"])
 
 
-def get_all_schemas():
+def get_all_schemas() -> list[str]:
     sql = "SELECT schema_name FROM information_schema.schemata"
     schemas = run_trino_sql(sql)
     schemas = [
@@ -205,10 +206,11 @@ def get_all_schemas():
     ]
     if not schemas:
         LOG.info("no schema in db to update")
+
     return schemas
 
 
-def get_schema_missing_column(list_of_cols: ListAddColumns):
+def get_schema_missing_column(list_of_cols: ListAddColumns) -> list[str]:
     """Grabs all schema where the column is not added to the table."""
     LOG.info("finding all schemas missing column")
     schema_list = []
@@ -233,10 +235,11 @@ def get_schema_missing_column(list_of_cols: ListAddColumns):
         schema_list.extend(schemas)
     if not schemas:
         LOG.info("no schema in db to update")
+
     return schema_list
 
 
-def get_schema_containing_column(list_of_cols: ListDropColumns):
+def get_schema_containing_column(list_of_cols: ListDropColumns) -> list[str]:
     """Grabs all schema where the column still exists in the table."""
     LOG.info("finding all schemas containing column")
     schema_list = []
@@ -262,10 +265,11 @@ def get_schema_containing_column(list_of_cols: ListDropColumns):
 
     if not schemas:
         LOG.info("no schema in db to update")
+
     return schema_list
 
 
-def run_trino_sql(sql, schema=None):
+def run_trino_sql(sql, schema=None) -> t.Optional[str]:
     retries = 5
     for n in range(1, retries + 1):
         attempt = n
@@ -291,7 +295,7 @@ def run_trino_sql(sql, schema=None):
             return schema
 
 
-def drop_tables(tables, schemas):
+def drop_tables(tables, schemas) -> None:
     """drop specified tables"""
     if not schemas:
         schemas = get_all_schemas()
@@ -337,7 +341,7 @@ def verify_add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) ->
     pass
 
 
-def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list):
+def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list) -> None:
     """drop specified columns from tables"""
     if not schemas:
         try:
@@ -358,7 +362,7 @@ def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list):
                 LOG.error(e)
 
 
-def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas: list):
+def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas: list) -> None:
     """drop specified partitions from tables"""
     if not schemas:
         schemas = get_all_schemas()
