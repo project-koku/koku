@@ -330,6 +330,12 @@ def add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) -> None:
             except Exception as e:
                 LOG.error(e)
 
+    verify_add_columns_to_tables(list_of_cols, schemas)
+
+
+def verify_add_columns_to_tables(list_of_cols: ListAddColumns, schemas: list) -> None:
+    pass
+
 
 def drop_columns_from_tables(list_of_cols: ListDropColumns, schemas: list):
     """drop specified columns from tables"""
