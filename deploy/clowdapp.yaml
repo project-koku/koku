@@ -649,8 +649,8 @@ objects:
           value: ${REPORT_DOWNLOAD_SCHEDULE}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
-        - name: SOURCE_STATUS_FREQUENCY_MINUTES
-          value: ${SOURCE_STATUS_FREQUENCY_MINUTES}
+        - name: SOURCE_STATUS_SCHEDULE
+          value: ${SOURCE_STATUS_SCHEDULE}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -4659,8 +4659,8 @@ parameters:
   name: SCHEDULE_REPORT_CHECKS
   value: "True"
 - displayName: Frequency to check sources availability (minutes)
-  name: SOURCE_STATUS_FREQUENCY_MINUTES
-  value: "60"
+  name: SOURCE_STATUS_SCHEDULE
+  value: 0 3 * * *
 - displayName: Minimum replicas
   name: SOURCES_CLIENT_REPLICAS
   required: true
@@ -4668,11 +4668,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 200Mi
+  value: 650Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
-  value: 400Mi
+  value: 768Mi
 - displayName: CPU Request
   name: SOURCES_CLIENT_CPU_REQUEST
   required: true

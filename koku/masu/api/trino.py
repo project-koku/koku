@@ -36,6 +36,7 @@ def trino_query(request):
         if query is None:
             errmsg = "Must provide a query key to run."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        query = query.strip().removesuffix(";")
         if schema_name is None:
             errmsg = "Must provide a schema key to run."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
