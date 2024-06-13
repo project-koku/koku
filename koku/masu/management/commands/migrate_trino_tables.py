@@ -186,7 +186,7 @@ class Action(BaseModel):
 class AddColumnAction(Action):
     @classmethod
     def build(cls, list_of_cols: ListAddColumns, schemas: list[str]):
-        _find_query = """
+        find_query = """
             SELECT t.table_schema
             FROM information_schema.tables AS t
             LEFT JOIN information_schema.columns AS c
@@ -199,7 +199,7 @@ class AddColumnAction(Action):
         return cls(
             list_of_cols=list_of_cols,
             schemas=schemas,
-            find_query=_find_query,
+            find_query=find_query,
             modify_query="ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}",
         )
 
@@ -207,7 +207,7 @@ class AddColumnAction(Action):
 class DropColumnAction(Action):
     @classmethod
     def build(cls, list_of_cols: ListDropColumns, schemas: list[str]):
-        _find_query = """
+        find_query = """
             SELECT t.table_schema
             FROM information_schema.tables AS t
             LEFT JOIN information_schema.columns AS c
@@ -220,7 +220,7 @@ class DropColumnAction(Action):
         return cls(
             list_of_cols=list_of_cols,
             schemas=schemas,
-            find_query=_find_query,
+            find_query=find_query,
             modify_query="ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}",
         )
 
@@ -386,6 +386,7 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
                         LOG.info(f"DELETE PARTITION result: {result}")
             except Exception as e:
                 LOG.error(e)
+
 
 def check_table_exists(schema, table):
     show_tables = f"SHOW TABLES LIKE '{table}'"
