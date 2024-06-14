@@ -10,6 +10,7 @@ from django.urls import reverse
 
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.api.sources.views import SourcesViewSet
 from masu.test import MasuTestCase
 
 
@@ -41,9 +42,15 @@ class SourcesViewSetTests(MasuTestCase):
 
         response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
         body = response.json()
-        print(body)
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(body.get("meta").get("count"), self.provider_count)
+
+    def test_get_cost_models_none(self, mock_masu):
+        viewset = SourcesViewSet()
+        result = viewset.get_cost_models(None)
+
+        self.assertEqual(result, [])
 
     def test_sources_detail(self, mock_masu):
         """Test the sources GET detail call."""
