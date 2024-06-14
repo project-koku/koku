@@ -115,8 +115,14 @@ class SourcesViewSet(*MIXIN_LIST):
 
     def get_cost_models(self, obj):
         """Get the cost models associated with this provider."""
-        if not obj or not (schema := obj.get("provider", {}).get("customer", {}).get("schema_name")):
+        try:
+            # The key value may be None, so 'or' is used instead of a default value for get()
+            provider = obj.get("provider") or {}
+            customer = provider.get("customer") or {}
+            schema = customer["schema_name"]
+        except (AttributeError, KeyError):
             return []
+
         with schema_context(schema):
             cost_models_map = CostModelMap.objects.filter(provider_uuid=obj["source_uuid"])
             return [{"name": m.cost_model.name, "uuid": m.cost_model.uuid} for m in cost_models_map]
