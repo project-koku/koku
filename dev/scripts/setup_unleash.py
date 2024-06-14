@@ -10,7 +10,7 @@ from requests.adapters import Retry
 unleash_host = os.getenv("UNLEASH_HOST", "localhost")
 unleash_port = os.getenv("UNLEASH_PORT", "4242")
 unleash_pat = os.getenv("UNLEASH_PAT", "user:6188b62f2f59348f3c195b66983147111682f4bb78a3f7ed9626bd84")
-assert isinstance(unleash_pat, str)
+
 data = {
     "project": "default",
     "environment": "development",
