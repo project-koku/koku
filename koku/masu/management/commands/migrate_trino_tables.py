@@ -329,7 +329,7 @@ def drop_expired_partitions(tables, schema):
     """Drop expired partitions"""
     for table in tables:
         if table in MANAGED_TABLES:
-            months = 15
+            months = 5
         else:
             LOG.info("Only supported for managed tables at the moment")
             return
