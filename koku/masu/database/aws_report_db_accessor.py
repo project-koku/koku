@@ -435,3 +435,42 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on AWS", schema=self.schema))
                 return False
         return True
+
+    def populate_ec2_compute_summary_table_trino(self, source_uuid, start_date, bill_id, markup_value):
+        """
+        Populate the monthly aggregated summary table for EC2 compute line items via Trino.
+
+        Args:
+            source_uuid (str): The unique identifier for the data source.
+            start_date (datetime.date): The date representing the start of the billing period to populate.
+            bill_id (int): The billing entry ID associated with the data being populated.
+            markup_value (float): The markup value to apply to the costs, if any.
+
+        Returns
+            (None)
+        """
+
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        table_name = self._table_map["ec2_compute_summary"]
+        msg = "Populating EC2 summary table"
+        context = {
+            "provider_uuid": source_uuid,
+            "schema": self.schema,
+            "start_date": f"{year}-{month}-01",
+            "table": table_name,
+        }
+        LOG.info(log_json(msg=msg, context=context))
+
+        sql = pkgutil.get_data("masu.database", f"trino_sql/{table_name}.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "source_uuid": source_uuid,
+            "year": year,
+            "month": month,
+            "markup": markup_value or 0,
+            "bill_id": bill_id,
+        }
+
+        self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")

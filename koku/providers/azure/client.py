@@ -14,6 +14,8 @@ from msrestazure.azure_cloud import AZURE_GERMAN_CLOUD
 from msrestazure.azure_cloud import AZURE_PUBLIC_CLOUD
 from msrestazure.azure_cloud import AZURE_US_GOV_CLOUD
 
+from koku.settings import AZURE_COST_MGMT_CLIENT_API_VERSION
+
 
 class AzureClientFactory:
     """Azure client factory.
@@ -59,7 +61,7 @@ class AzureClientFactory:
     @property
     def cost_management_client(self):
         """Get cost management client with subscription and credentials."""
-        return CostManagementClient(self.credentials)
+        return CostManagementClient(self.credentials, api_version=AZURE_COST_MGMT_CLIENT_API_VERSION)
 
     @property
     def resource_client(self):
