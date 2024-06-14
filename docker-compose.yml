@@ -522,6 +522,15 @@ services:
       # This will really increase the log file size
       # - -c
       # - log_statement_stats=true
+    healthcheck:
+      test:
+        - "CMD"
+        - "pg_isready"
+        - "--host=127.0.0.1"
+        - "--port=5432"
+      interval: 1s
+      timeout: 30s
+      retries: 10
 
   redis:
     container_name: koku_redis
@@ -576,7 +585,8 @@ services:
     volumes:
       - './dev/containers/unleash:/.unleash'
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   minio:
     container_name: koku-minio

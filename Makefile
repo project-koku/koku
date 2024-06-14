@@ -354,11 +354,6 @@ docker-up-min-no-build-with-listener: docker-up-min-no-build
 
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
-	@until pg_isready -h $${POSTGRES_SQL_SERVICE_HOST:-localhost} -p $${POSTGRES_SQL_SERVICE_PORT:-15432} >/dev/null ; do \
-	    printf '.'; \
-	    sleep 0.5 ; \
-    done
-	@echo ' PostgreSQL is available!'
 	$(DOCKER_COMPOSE) up -d unleash
 	dev/scripts/setup_unleash.py
 

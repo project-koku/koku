@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 import os
+import sys
 
 import psycopg2
 import requests
 from requests.adapters import HTTPAdapter
 from requests.adapters import Retry
 
-
-unleash_pat = os.getenv("UNLEASH_PAT") or "user:6188b62f2f59348f3c195b66983147111682f4bb78a3f7ed9626bd84"
+unleash_host = os.getenv("UNLEASH_HOST", "localhost")
+unleash_port = os.getenv("UNLEASH_PORT", "4242")
+unleash_pat = os.getenv("UNLEASH_PAT", "user:6188b62f2f59348f3c195b66983147111682f4bb78a3f7ed9626bd84")
 assert isinstance(unleash_pat, str)
 data = {
     "project": "default",
@@ -124,7 +126,7 @@ def wait_unleash_ready():
     s = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[500])
     s.mount("http://", HTTPAdapter(max_retries=retries))
-    s.get("http://localhost:4242/health")
+    s.get(f"http://{unleash_host}:{unleash_port}/health")
     print("unleash is ready")
 
 
@@ -133,10 +135,10 @@ def create_personal_access_token():
     print("adding unleash personal access token to db")
     dbinfo = {
         "database": "unleash",
-        "user": os.getenv("DATABASE_USER") or "postgres",
-        "password": os.getenv("DATABASE_PASSWORD") or "postgres",
-        "port": os.getenv("POSTGRES_SQL_SERVICE_PORT") or 15432,
-        "host": os.getenv("POSTGRES_SQL_SERVICE_HOST") or "localhost",
+        "user": os.getenv("DATABASE_USER", "postgres"),
+        "password": os.getenv("DATABASE_PASSWORD", "postgres"),
+        "port": os.getenv("POSTGRES_SQL_SERVICE_PORT", "15432"),
+        "host": os.getenv("POSTGRES_SQL_SERVICE_HOST", "localhost"),
     }
 
     try:
@@ -158,19 +160,22 @@ def create_personal_access_token():
                 cur.execute("select * from personal_access_tokens ;")
                 print(cur.fetchall())
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        sys.exit(error)
 
 
 def create_feature_flags():
     print("creating template unleash flags")
     response = requests.post(
-        "http://localhost:4242/api/admin/features-batch/import",
+        f"http://{unleash_host}:{unleash_port}/api/admin/features-batch/import",
         json=data,
         headers={
             "Authorization": f"{unleash_pat}",
         },
     )
-    print(response.status_code)
+    if response.status_code == 200:
+        print("created flag templates")
+    else:
+        response.raise_for_status()
 
 
 if __name__ == "__main__":
