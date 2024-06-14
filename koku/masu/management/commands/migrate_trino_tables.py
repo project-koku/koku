@@ -6,7 +6,10 @@ import argparse
 import json
 import logging
 import re
+from datetime import datetime
+from datetime import timedelta
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from pydantic import BaseModel
 from pydantic import Field
@@ -14,6 +17,7 @@ from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoUserError
 
 import koku.trino_database as trino_db
+from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 # External tables can be dropped as the data in S3 will persist
@@ -56,6 +60,23 @@ MANAGED_TABLES = {
     "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
     "reporting_ocpusagelineitem_daily_summary",
 }
+
+manage_table_mapping = {
+    "aws_openshift_daily_resource_matched_temp": "ocp_source",
+    "aws_openshift_daily_tag_matched_temp": "ocp_source",
+    "azure_openshift_daily_resource_matched_temp": "ocp_source",
+    "azure_openshift_daily_tag_matched_temp": "ocp_source",
+    "gcp_openshift_daily_resource_matched_temp": "ocp_source",
+    "gcp_openshift_daily_tag_matched_temp": "ocp_source",
+    "reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",
+    "reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
+    "reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
+    "reporting_ocpusagelineitem_daily_summary": "source",
+}
+
 VALID_CHARACTERS = re.compile(r"^[\w.-]+$")
 
 
@@ -145,8 +166,11 @@ class Command(BaseCommand):
             ),
             dest="columns_to_add",
         )
+        parser.add_argument(
+            "--remove-expired-partitions", action=CommaSeparatedArgs, default=[], dest="remove_expired_partitions"
+        )
 
-    def handle(self, *args, **options):
+    def handle(self, *args, **options):  # noqa C901
         schemas = get_schemas(options["schemas"])
         if not schemas:
             LOG.info("no schema in db to update")
@@ -160,6 +184,7 @@ class Command(BaseCommand):
         if partitions_to_drop := options["partitions_to_drop"]:
             partitions_to_drop = ListDropPartitions(list=partitions_to_drop)
         tables_to_drop = options["tables_to_drop"]
+        expired_partition_tables = options["remove_expired_partitions"]
 
         for schema in schemas:
             if tables_to_drop:
@@ -174,6 +199,9 @@ class Command(BaseCommand):
             if partitions_to_drop:
                 LOG.info(f"*** dropping partition from tables for schema {schema} ***")
                 drop_partitions_from_tables(partitions_to_drop, schema)
+            if expired_partition_tables:
+                LOG.info(f"** dropping expired partitions from table for {schema}")
+                drop_expired_partitions(expired_partition_tables, schema)
 
 
 def get_schemas(schemas: None):
@@ -266,3 +294,72 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schema: 
                     LOG.info(f"DELETE PARTITION result: {result}")
         except Exception as e:
             LOG.info(e)
+
+
+def get_expiration_date(months):
+    """
+    Calculate the expiration date based on the retention policy.
+
+    Args:
+        None
+
+    Returns:
+        (datetime.datetime) Expiration date
+
+    """
+    expiration_msg = "Report data expiration is {} for a {} month retention policy"
+    today = DateHelper().today
+    LOG.info("Current date time is %s", today)
+
+    middle_of_current_month = today.replace(day=15)
+    num_of_days_to_expire_date = months * timedelta(days=30)
+    middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
+    expiration_date = datetime(
+        year=middle_of_expire_date_month.year,
+        month=middle_of_expire_date_month.month,
+        day=1,
+        tzinfo=settings.UTC,
+    )
+    msg = expiration_msg.format(expiration_date, months)
+    LOG.info(msg)
+    return str(expiration_date.date())
+
+
+def drop_expired_partitions(tables, schema):
+    """Drop expired partitions"""
+    for table in tables:
+        if table in MANAGED_TABLES:
+            months = 15
+        else:
+            LOG.info("Only supported for managed tables at the moment")
+            return
+        expiration_date = get_expiration_date(months)
+        source_column = manage_table_mapping[table]
+        expired_partitions_query = f"""
+        SELECT partitions.year, partitions.month, partitions.source
+    FROM (
+        SELECT year as year,
+            month as month,
+            day as day,
+            cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
+            {source_column} as source
+        FROM  "{table}$partitions"
+    ) as partitions
+    WHERE partitions.partition_date < DATE '{expiration_date}'
+        """
+        LOG.info(f"Finding expired partitions for {schema} {table}")
+        expired_partitions = run_trino_sql(expired_partitions_query, schema)
+        if expired_partitions:
+            LOG.info(f"Found {len(expired_partitions)}")
+        for partition in expired_partitions:
+            year, month, source = partition
+            LOG.info(f"Removing partition for {source} {year}-{month}")
+            # Using same query as what we use in db accessor
+            delete_partition_query = f"""
+                        DELETE FROM hive.{schema}.{table}
+                        WHERE {source_column} = '{source}'
+                        AND year = '{year}'
+                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                        """
+            result = run_trino_sql(delete_partition_query, schema)
+            LOG.info(f"DELETE PARTITION result: {result}")
