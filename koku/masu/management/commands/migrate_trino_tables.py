@@ -349,8 +349,9 @@ def drop_expired_partitions(tables, schema):
         """
         LOG.info(f"Finding expired partitions for {schema} {table}")
         expired_partitions = run_trino_sql(expired_partitions_query, schema)
-        if expired_partitions:
-            LOG.info(f"Found {len(expired_partitions)}")
+        if not expired_partitions:
+            return
+        LOG.info(f"Found {len(expired_partitions)}")
         for partition in expired_partitions:
             year, month, source = partition
             LOG.info(f"Removing partition for {source} {year}-{month}")
