@@ -216,6 +216,8 @@ def get_report_files(  # noqa: C901
         None
 
     """
+    if is_source_disabled(provider_uuid):
+        return
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
     context = {"schema": customer_name}
@@ -1127,6 +1129,8 @@ def remove_stale_tenants():
 @celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud", queue=GET_REPORT_FILES_QUEUE, bind=True)
 def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, tracing_id=None):
     """Process OpenShift on Cloud parquet files using Trino."""
+    if is_source_disabled(provider_uuid):
+        return
     provider = Provider.objects.get(uuid=provider_uuid)
     provider_type = provider.type.replace("-local", "")
 
@@ -1187,6 +1191,8 @@ def process_daily_openshift_on_cloud(
     self, schema_name, provider_uuid, bill_date, start_date, end_date, tracing_id=None
 ):
     """Process daily partitioned OpenShift on Cloud parquet files using Trino."""
+    if is_source_disabled(provider_uuid):
+        return
     provider = Provider.objects.get(uuid=provider_uuid)
     provider_type = provider.type.replace("-local", "")
 

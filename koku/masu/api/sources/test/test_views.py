@@ -52,6 +52,17 @@ class SourcesViewSetTests(MasuTestCase):
 
         self.assertEqual(result, [])
 
+    def test_get_cost_models_none_in_the_middle(self, mock_masu):
+        viewset = SourcesViewSet()
+        data = {
+            "provider": {
+                "customer": None,
+            }
+        }
+        result = viewset.get_cost_models(data)
+
+        self.assertEqual(result, [])
+
     def test_sources_detail(self, mock_masu):
         """Test the sources GET detail call."""
 
