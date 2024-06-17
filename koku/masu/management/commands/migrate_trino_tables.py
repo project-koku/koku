@@ -329,6 +329,7 @@ def find_expired_partitions(schema, months, table, source_column_param):
         FROM  "{table}$partitions"
     ) as partitions
     WHERE partitions.partition_date < DATE '{expiration_date_param}'
+    GROUP BY partitions.year, partitions.month, partitions.source
         """
     LOG.info(f"Finding expired partitions for {schema} {table}")
     return run_trino_sql(expired_partitions_query, schema)
