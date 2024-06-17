@@ -49,7 +49,8 @@ FROM
               'com_redhat_rhel_variant',
               'com_redhat_rhel_usage',
               'com_redhat_rhel_sla',
-              'com_redhat_rhel_addon' ],
+              'com_redhat_rhel_addon',
+              'com_redhat_rhel_conversion'],
               lower(k)
             )
           ),
