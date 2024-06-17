@@ -31,6 +31,7 @@ from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import remove_expired_trino_partitions
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
@@ -500,4 +501,25 @@ class Orchestrator:
                 str(async_result),
             )
             async_results.append({"customer": account.get("customer_name"), "async_id": str(async_result)})
+        return async_results
+
+    def remove_expired_trino_partitions(self, simulate=False):
+        """
+        Removes expired trino partitions for each account.
+        """
+        async_results = []
+        for account in Provider.objects.get_accounts():
+            if account.get("provider_type") == Provider.PROVIDER_OCP:
+                LOG.info("Calling remove_expired_trino_partitions with account: %s", account)
+                async_result = remove_expired_trino_partitions.delay(
+                    schema_name=account.get("schema_name"),
+                    provider_type=account.get("provider_type"),
+                    simulate=simulate,
+                )
+
+                LOG.info(
+                    "Expired partition removal queued - schema_name: %s, Task ID: %s",
+                    account.get("schema_name"),
+                    str(async_result),
+                )
         return async_results

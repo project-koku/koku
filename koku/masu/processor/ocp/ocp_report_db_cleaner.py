@@ -148,23 +148,25 @@ class OCPReportDBCleaner:
 
     def purge_expired_trino_partitions(self, expired_date, provider_uuid=None, simulate=False):
         """Removes expired trino partitions."""
-        if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
-            expired_date is None and provider_uuid is None
-        ):
+        LOG.debug(f"purge_expired_trino_partitions: {expired_date}, {provider_uuid}, {simulate}")
+        if expired_date is None and provider_uuid is None:
             err = "This method must be called with expired_date or provider_uuid"
             raise OCPReportDBCleanerError(err)
 
         with OCPReportDBAccessor(self._schema) as accessor:
+            LOG.info(EXPIRE_MANAGED_TABLES.items())
             for table, source_column in EXPIRE_MANAGED_TABLES.items():
+                LOG.debug(f"{table}, {source_column}")
                 results = accessor.find_expired_trino_partitions(table, source_column, str(expired_date.date()))
                 if results:
                     LOG.info(f"Discovered {len(results)} expired partitions")
                 else:
+                    LOG.info("No expired partitions")
                     return
                 if simulate:
                     for partition in results:
                         LOG.info(f"partition_info: {partition}")
-                if not simulate:
+                else:
                     for result in results:
                         year, month, source_value = result
                         accessor.delete_hive_partition_by_month(table, source_value, year, month, source_column)

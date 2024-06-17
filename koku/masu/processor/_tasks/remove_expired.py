@@ -41,7 +41,7 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
     # We could extend the logic below here, or keep it as a separate celery task
 
 
-def _remove_expired_trino_migrations(schema_name, provider_type, simulate, provider_uuid=None):
+def _remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid=None):
     """
     Task to remove expired data.
 
@@ -67,8 +67,8 @@ def _remove_expired_trino_migrations(schema_name, provider_type, simulate, provi
     except ExpiredDataRemoverError:
         return
 
-    removed_trino_migrations = remover.remove_expired_trino_partitions(simulate=simulate, provider_uuid=provider_uuid)
-    if removed_trino_migrations:
+    removed_trino_partitions = remover.remove_expired_trino_partitions(simulate=simulate, provider_uuid=provider_uuid)
+    if removed_trino_partitions:
         status_msg = "Expired Partitions" if simulate else "Removed Partitions"
-        result_msg = f"{status_msg}:\n {str(removed_trino_migrations)}"
+        result_msg = f"{status_msg}:\n {str(removed_trino_partitions)}"
         LOG.info(result_msg)

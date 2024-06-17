@@ -43,7 +43,7 @@ from masu.processor import is_summary_processing_disabled
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
-from masu.processor._tasks.remove_expired import _remove_expired_trino_migrations
+from masu.processor._tasks.remove_expired import _remove_expired_trino_partitions
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
@@ -347,8 +347,8 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
     _remove_expired_data(schema_name, provider, simulate, provider_uuid)
 
 
-@celery_app.task(name="masu.processor.tasks.remove_expired_data", queue=DEFAULT)
-def remove_expired_trino_migrations(schema_name, provider_type, simulate, provider_uuid=None, queue_name=None):
+@celery_app.task(name="masu.processor.tasks.remove_expired_trino_partitions", queue=DEFAULT)
+def remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid=None, queue_name=None):
     """
     Remove expired report data.
 
@@ -367,8 +367,8 @@ def remove_expired_trino_migrations(schema_name, provider_type, simulate, provid
         "provider_type": provider_type,
         "provider_uuid": provider_uuid,
     }
-    LOG.info(log_json("remove_expired_data", msg="removing expired data", context=context))
-    _remove_expired_trino_migrations(schema_name, provider_type, simulate, provider_uuid)
+    LOG.info(log_json("remove_expired_data", msg="removing expired partitions", context=context))
+    _remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid)
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)  # noqa: C901

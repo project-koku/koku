@@ -285,7 +285,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def find_expired_trino_partitions(self, table, source_column, date_str):
         """Queries Trino for partitions less than the parition date."""
-        if not self.schema_exists_trino() or not self.table_exists_trino(table):
+        if not self.table_exists_trino(table):
+            LOG.info("Could not find table.")
             return False
         sql = f"""
 SELECT partitions.year, partitions.month, partitions.source
