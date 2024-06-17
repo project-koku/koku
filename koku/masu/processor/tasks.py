@@ -225,6 +225,9 @@ def get_report_files(  # noqa: C901
         context["org_id"] = customer_name[3:]
     context["provider_uuid"] = provider_uuid
     context["provider_type"] = provider_type
+    # Skip queued tasks for disabled providers
+    if is_source_disabled(provider_uuid):
+        return
     try:
         worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
         month = report_month
