@@ -12,6 +12,7 @@ from api.common import log_json
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from reporting.models import EXPIRE_MANAGED_TABLES
 from reporting.models import PartitionedTable
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
@@ -144,3 +145,26 @@ class OCPReportDBCleaner:
                 LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
 
         return removed_items
+
+    def purge_expired_trino_partitions(self, expired_date, provider_uuid=None, simulate=False):
+        """Removes expired trino partitions."""
+        if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
+            expired_date is None and provider_uuid is None
+        ):
+            err = "This method must be called with expired_date or provider_uuid"
+            raise OCPReportDBCleanerError(err)
+
+        with OCPReportDBAccessor(self._schema) as accessor:
+            for table, source_column in EXPIRE_MANAGED_TABLES.items():
+                results = accessor.find_expired_trino_partitions(table, source_column, str(expired_date.date()))
+                if results:
+                    LOG.info(f"Discovered {len(results)} expired partitions")
+                else:
+                    return
+                if simulate:
+                    for partition in results:
+                        LOG.info(f"partition_info: {partition}")
+                if not simulate:
+                    for result in results:
+                        year, month, source_value = result
+                        accessor.delete_hive_partition_by_month(table, source_value, year, month, source_column)

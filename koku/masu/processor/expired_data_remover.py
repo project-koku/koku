@@ -156,5 +156,18 @@ class ExpiredDataRemover:
                     self._provider,
                     expiration_date,
                 )
-
         return removed_data
+
+    def remove_expired_trino_partitions(self, simulate=False, provider_uuid=None):
+        """
+        Removes expired trino partitions based on the retention policy.
+        """
+        if self._provider != Provider.PROVIDER_OCP:
+            LOG.info(f"{Provider.PROVIDER_OCP} is the only supported type for removing trino partitions.")
+            return
+        removed_partitions = []
+        expiration_date = self._calculate_expiration_date()
+        removed_partitions = self._cleaner.purge_expired_trino_partitions(
+            expired_date=expiration_date, simulate=simulate, provider_uuid=provider_uuid
+        )
+        return removed_partitions

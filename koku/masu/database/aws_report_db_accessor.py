@@ -26,6 +26,7 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
+from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
@@ -243,12 +244,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_on_aws_hive_partition_by_day(days_tup, aws_provider_uuid, openshift_provider_uuid, year, month)
-        tables = [
-            "reporting_ocpawscostlineitem_project_daily_summary_temp",
-            "aws_openshift_daily_resource_matched_temp",
-            "aws_openshift_daily_tag_matched_temp",
-        ]
-        for table in tables:
+        for table in OCP_ON_AWS_TEMP_MANAGED_TABLES:
             self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
 
         pod_column = "pod_effective_usage_cpu_core_hours"

@@ -221,7 +221,7 @@ class ReportDBAccessorBase:
         check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
         return bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
 
-    def delete_hive_partition_by_month(self, table, source, year, month):
+    def delete_hive_partition_by_month(self, table, source, year, month, source_column="ocp_source"):
         """Deletes partitions individually by month."""
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
@@ -238,7 +238,7 @@ class ReportDBAccessorBase:
                 try:
                     sql = f"""
                     DELETE FROM hive.{self.schema}.{table}
-                    WHERE ocp_source = '{source}'
+                    WHERE {source_column} = '{source}'
                     AND year = '{year}'
                     AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                     """
