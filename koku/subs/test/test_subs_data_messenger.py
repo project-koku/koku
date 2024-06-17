@@ -45,8 +45,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_usage": "Production",
                 "subs_sla": "Premium",
                 "subs_role": "Red Hat Enterprise Linux Server",
-                "subs_product_ids": "479-70",
-                "subs_addon": "true",
+                "subs_rhel_version": "479",
+                "subs_addon_id": "204",
+                "subs_conversion": "true",
             }
         ]
         mock_op = mock_open(read_data="x,y,z")
@@ -63,11 +64,13 @@ class TestSUBSDataMessenger(SUBSTestCase):
         lineitem_usagestartdate = "2023-07-01T01:00:00Z"
         lineitem_usageenddate = "2023-07-01T02:00:00Z"
         product_vcpu = "2"
+        version = "479"
+        converted = "true"
         usage = "Production"
         rol = "Red Hat Enterprise Linux Server"
         sla = "Premium"
-        product_ids = ["479", "70"]
-        addon = "false"
+        product_ids = ["479", "204"]
+        addon = "204"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -96,10 +99,11 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
+                version,
                 sla,
                 usage,
                 rol,
-                product_ids,
+                converted,
                 addon,
             )
         self.assertEqual(expected_subs_dict, actual)
@@ -116,8 +120,10 @@ class TestSUBSDataMessenger(SUBSTestCase):
         usage = "Production"
         rol = "Red Hat Enterprise Linux Server"
         sla = "Premium"
-        addon = "false"
-        product_ids = ["479", "70"]
+        addon = "204"
+        version = "479"
+        product_ids = ["479", "204"]
+        converted = "true"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -148,10 +154,11 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
+                version,
                 sla,
                 usage,
                 rol,
-                product_ids,
+                converted,
                 addon,
             )
         self.assertEqual(expected_subs_dict, actual)
@@ -167,8 +174,10 @@ class TestSUBSDataMessenger(SUBSTestCase):
         usage = "Production"
         rol = "SAP"
         sla = "Premium"
-        product_ids = ["479", "70"]
-        addon = "false"
+        product_ids = ["241", "479", "204"]
+        version = "479"
+        addon = "204"
+        converted = "true"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -196,15 +205,16 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
+                version,
                 sla,
                 usage,
                 rol,
-                product_ids,
+                converted,
                 addon,
             )
         self.assertEqual(expected_subs_dict, actual)
 
-    def test_build_base_subs_dict_addon_true(self):
+    def test_build_base_subs_dict_addon_els(self):
         """
         Test building the kafka message body
         """
@@ -212,11 +222,13 @@ class TestSUBSDataMessenger(SUBSTestCase):
         lineitem_usagestartdate = "2023-07-01T01:00:00Z"
         lineitem_usageenddate = "2023-07-01T02:00:00Z"
         product_vcpu = "2"
+        version = "479"
+        converted = "false"
         usage = "Production"
         rol = "SAP"
         sla = "Premium"
-        product_ids = ["479", "70"]
-        addon = "true"
+        product_ids = ["241", "479", "204"]
+        addon = "204"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -244,10 +256,11 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
+                version,
                 sla,
                 usage,
                 rol,
-                product_ids,
+                converted,
                 addon,
             )
         self.assertEqual(expected_subs_dict, actual)
@@ -261,11 +274,13 @@ class TestSUBSDataMessenger(SUBSTestCase):
         lineitem_usageenddate = "2023-07-01T02:00:00Z"
         lineitem_usageaccountid = "9999999999999"
         product_vcpu = "2"
+        version = "479"
+        converted = "true"
         usage = "Production"
         rol = "Red Hat Enterprise Linux Server"
         sla = "Premium"
-        product_ids = ["479", "70"]
-        addon = "false"
+        product_ids = ["479", "204"]
+        addon = "204"
         tenant_id = "my-fake-id"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
@@ -298,12 +313,13 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
+                version,
                 sla,
                 usage,
                 rol,
-                product_ids,
-                tenant_id,
+                converted,
                 addon,
+                tenant_id,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -316,11 +332,13 @@ class TestSUBSDataMessenger(SUBSTestCase):
         lineitem_usageenddate = "2023-07-01T02:00:00Z"
         lineitem_usageaccountid = "9999999999999"
         product_vcpu = "2"
+        version = "479"
+        converted = "true"
         usage = "Production"
         rol = "SAP"
         sla = "Premium"
-        addon = "False"
-        product_ids = ["479", "70"]
+        addon = "204"
+        product_ids = ["241", "479", "204"]
         tenant_id = "my-fake-id"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
@@ -352,12 +370,13 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 lineitem_usagestartdate,
                 lineitem_usageenddate,
                 product_vcpu,
+                version,
                 sla,
                 usage,
                 rol,
-                product_ids,
-                tenant_id,
+                converted,
                 addon,
+                tenant_id,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -495,8 +514,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_sla": "Premium",
                 "subs_role": "Red Hat Enterprise Linux Server",
                 "subs_usage_quantity": "4",
-                "subs_product_ids": "479-70",
-                "subs_addon": "false",
+                "subs_rhel_version": "479",
+                "subs_addon_id": "204",
+                "subs_conversion": "true",
                 "subs_instance": "",
                 "source": self.azure_provider.uuid,
                 "resourcegroup": "my-fake-rg",

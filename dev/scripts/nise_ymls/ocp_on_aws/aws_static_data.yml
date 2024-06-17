@@ -35,11 +35,12 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
         resourceTags/user:dashed-key-on-aws: dashed-value
-        resourceTags/user:com_REDHAT_rhel: RHEL 8 ELS
+        resourceTags/user:com_REDHAT_rhel: 8
+        resourceTags/user:com_REDHAT_rhel_addon: ELS
         resourceTags/user:com_redhat_rhel_sla: self-support
         resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
         resourceTags/user:com_redhat_rhel_usage: disaster Recovery
-        resourceTags/user:com_redhat_rhel_addon: True
+        resourceTags/user:com_redhat_rhel_conversion: True
         resourceTags/user:Mapping: b1
         resourceTags/user:Map: b2
         resourceTags/user:Name: instance-name-2
@@ -65,7 +66,9 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: gamma
         resourceTags/user:dashed-key-on-aws: dashed-value
-        resourceTags/user:com_REDHAT_rhel: RHEL 7 ELS
+        resourceTags/user:com_REDHAT_rhel: 7
+        resourceTags/user:com_REDHAT_addon: ELS
+        resourceTags/user:com_REDHAT_conversion: True
         resourceTags/user:com_redhat_rhel_sla: Standard
         resourceTags/user:CoM_RedHat_Rhel_varianT: Workstation
         resourceTags/user:Mapping: c1
@@ -94,7 +97,9 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
         resourceTags/user:dashed-key-on-aws: dashed-value
-        resourceTags/user:com_REDHAT_rhel: RHEL 8 ELS
+        resourceTags/user:com_REDHAT_rhel: 8
+        resourceTags/user:com_REDHAT_rhel_addon: ELS
+        resourceTags/user:com_REDHAT_rhel_conversion: True
         resourceTags/user:com_redhat_rhel_sla: self-support
         resourceTags/user:CoM_RedHat_Rhel_varianT: hPC
         resourceTags/user:com_redhat_rhel_usage: disaster Recovery
@@ -121,7 +126,7 @@ generators:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
         resourceTags/user:dashed-key-on-aws: dashed-value
-        resourceTags/user:com_REDHAT_rhel: RHEL 7 els
+        resourceTags/user:com_REDHAT_rhel: 7
         resourceTags/user:com_redhat_rhel_sla: self-support
         resourceTags/user:CoM_RedHat_Rhel_varianT: hPC
         resourceTags/user:com_redhat_rhel_usage: disaster Recovery
