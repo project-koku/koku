@@ -565,3 +565,20 @@ class TestSUBSDataMessenger(SUBSTestCase):
         mock_azure_id.assert_not_called()
         mock_msg_builder.assert_not_called()
         mock_producer.assert_not_called()
+
+    def test_determine_product_ids(self):
+        """Test that different combinations of inputs result in expected product IDs"""
+        mapping_to_expected = {
+            ("69", "204", "Red Hat Enterprise Linux Compute Node"): ["76"],  # RHEL 7 HPC
+            ("69", "204", "SAP"): ["146", "69", "204"],  # RHEL 7 ELS SAP
+            ("69", "", "Workstation"): ["69"],  # RHEL 7 workstation
+            ("479", "204", "Red Hat Enterprise Linux Compute Node"): ["479"],  # RHEL 8 HPC
+            ("479", "204", "SAP"): ["241", "479", "204"],  # RHEL 8 ELS SAP
+            ("479", "204", "Workstation"): ["479", "204"],  # RHEL 8 ELS
+            ("479", "", "Workstation"): ["479"],  # RHEL 8 Workstation
+        }
+        for tup, expected in mapping_to_expected.items():
+            with self.subTest(inputs=tup):
+                version, addon, role = tup
+                actual = self.messenger.determine_product_ids(version, addon, role)
+                self.assertEqual(expected, actual)
