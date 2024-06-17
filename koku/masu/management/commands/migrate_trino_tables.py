@@ -296,21 +296,16 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schema: 
             LOG.info(e)
 
 
-def get_expiration_date(months):
-    """
-    Calculate the expiration date based on the retention policy.
+def check_table_exists(schema, table):
+    show_tables = f"SHOW TABLES LIKE '{table}'"
+    return run_trino_sql(show_tables, schema)
 
-    Args:
-        None
 
-    Returns:
-        (datetime.datetime) Expiration date
-
-    """
+def find_expired_partitions(schema, months, table, source_column_param):
+    """Finds the expired partitions"""
     expiration_msg = "Report data expiration is {} for a {} month retention policy"
     today = DateHelper().today
     LOG.info("Current date time is %s", today)
-
     middle_of_current_month = today.replace(day=15)
     num_of_days_to_expire_date = months * timedelta(days=30)
     middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
@@ -320,36 +315,41 @@ def get_expiration_date(months):
         day=1,
         tzinfo=settings.UTC,
     )
-    msg = expiration_msg.format(expiration_date, months)
+    expiration_date_param = str(expiration_date.date())
+    msg = expiration_msg.format(expiration_date_param, months)
     LOG.info(msg)
-    return str(expiration_date.date())
-
-
-def drop_expired_partitions(tables, schema):
-    """Drop expired partitions"""
-    for table in tables:
-        if table in MANAGED_TABLES:
-            months = 5
-        else:
-            LOG.info("Only supported for managed tables at the moment")
-            return
-        expiration_date = get_expiration_date(months)
-        source_column = manage_table_mapping[table]
-        expired_partitions_query = f"""
+    expired_partitions_query = f"""
         SELECT partitions.year, partitions.month, partitions.source
     FROM (
         SELECT year as year,
             month as month,
             day as day,
             cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
-            {source_column} as source
+            {source_column_param} as source
         FROM  "{table}$partitions"
     ) as partitions
-    WHERE partitions.partition_date < DATE '{expiration_date}'
+    WHERE partitions.partition_date < DATE '{expiration_date_param}'
         """
-        LOG.info(f"Finding expired partitions for {schema} {table}")
-        expired_partitions = run_trino_sql(expired_partitions_query, schema)
+    LOG.info(f"Finding expired partitions for {schema} {table}")
+    return run_trino_sql(expired_partitions_query, schema)
+
+
+def drop_expired_partitions(tables, schema):
+    """Drop expired partitions"""
+
+    for table in tables:
+        if table in MANAGED_TABLES:
+            months = 5
+        else:
+            LOG.info("Only supported for managed tables at the moment")
+            return
+        source_column_param = manage_table_mapping[table]
+        if not check_table_exists(schema, table):
+            LOG.info(f"{table} does not exist for {schema}")
+            return
+        expired_partitions = find_expired_partitions(schema, months, table, source_column_param)
         if not expired_partitions:
+            LOG.info(f"No expired partitions found for {table} {schema}")
             return
         LOG.info(f"Found {len(expired_partitions)}")
         for partition in expired_partitions:
@@ -358,7 +358,7 @@ def drop_expired_partitions(tables, schema):
             # Using same query as what we use in db accessor
             delete_partition_query = f"""
                         DELETE FROM hive.{schema}.{table}
-                        WHERE {source_column} = '{source}'
+                        WHERE {source_column_param} = '{source}'
                         AND year = '{year}'
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                         """
