@@ -299,6 +299,7 @@ FROM (
     FROM  "{table}$partitions"
 ) as partitions
 WHERE partitions.partition_date < DATE '{date_str}'
+GROUP BY partitions.year, partitions.month, partitions.source
 """
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
