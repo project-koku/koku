@@ -216,6 +216,8 @@ def get_report_files(  # noqa: C901
         None
 
     """
+    if is_source_disabled(provider_uuid):
+        return
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
     context = {"schema": customer_name}
@@ -654,7 +656,9 @@ def update_summary_tables(  # noqa: C901
     if not manifest_list and manifest_id:
         manifest_list = [manifest_id]
 
-    if cost_model is not None:
+    # OCP cost distribution of unattributed costs occurs within the `update_cost_model_costs` method.
+    # This method should always be called for OCP providers even when it does not have a cost model
+    if cost_model is not None or provider_type == Provider.PROVIDER_OCP:
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
@@ -787,6 +791,14 @@ def update_openshift_on_cloud(  # noqa: C901
             infrastructure_provider_type,
             tracing_id,
         )
+        # Regardless of an attached cost model we must run an update for default distribution costs
+        LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
+        fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE
+        if is_customer_large(schema_name):
+            fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
+        update_cost_model_costs.s(
+            schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
+        ).apply_async(queue=queue_name or fallback_queue)
         # Set OpenShift manifest summary end time
         set_summary_timestamp(ManifestState.END, ocp_manifest_id)
     except ReportSummaryUpdaterCloudError as ex:
@@ -873,6 +885,9 @@ def update_cost_model_costs(
         None
 
     """
+    # Override cost model start date str to calculate costs for full month
+    LOG.info("overriding cost model start date to process full month")
+    start_date = DateHelper().month_start(start_date).strftime("%Y-%m-%d")
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
@@ -1114,6 +1129,8 @@ def remove_stale_tenants():
 @celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud", queue=GET_REPORT_FILES_QUEUE, bind=True)
 def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, tracing_id=None):
     """Process OpenShift on Cloud parquet files using Trino."""
+    if is_source_disabled(provider_uuid):
+        return
     provider = Provider.objects.get(uuid=provider_uuid)
     provider_type = provider.type.replace("-local", "")
 
@@ -1174,6 +1191,8 @@ def process_daily_openshift_on_cloud(
     self, schema_name, provider_uuid, bill_date, start_date, end_date, tracing_id=None
 ):
     """Process daily partitioned OpenShift on Cloud parquet files using Trino."""
+    if is_source_disabled(provider_uuid):
+        return
     provider = Provider.objects.get(uuid=provider_uuid)
     provider_type = provider.type.replace("-local", "")
 
