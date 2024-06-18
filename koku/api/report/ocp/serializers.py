@@ -17,11 +17,19 @@ from api.report.serializers import StringOrListField
 DISTRIBUTED_COST_INTERNAL = {"distributed_cost": "cost_total_distributed"}
 
 
-def order_by_field_requires_group_by(data, order_name, group_by_key):
+def order_by_field_requires_group_by(data, order_name, group_by_keys):
     error = {}
-    if order_name in data.get("order_by", {}) and group_by_key not in data.get("group_by", {}):
-        error["order_by"] = gettext(f"Cannot order by field {order_name} without grouping by {group_by_key}.")
-        raise serializers.ValidationError(error)
+    if order_name in data.get("order_by", {}):
+        # Ensure group_by_keys is a list of keys to check
+        if not isinstance(group_by_keys, list):
+            group_by_keys = [group_by_keys]
+
+        # Check if none of the required group_by keys are present
+        if not any(key in data.get("group_by", {}) for key in group_by_keys):
+            error["order_by"] = gettext(
+                f"Cannot order by field {order_name} without grouping by one of {', '.join(group_by_keys)}."
+            )
+            raise serializers.ValidationError(error)
 
 
 class OCPGroupBySerializer(GroupSerializer):
@@ -165,7 +173,7 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
             error["order_by"] = gettext("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
         order_by_field_requires_group_by(data, DISTRIBUTED_COST_INTERNAL["distributed_cost"], "project")
-        order_by_field_requires_group_by(data, "storage_class", "persistentvolumeclaim")
+        order_by_field_requires_group_by(data, "storage_class", ["persistentvolumeclaim", "storageclass"])
         order_by_field_requires_group_by(data, "persistentvolumeclaim", "persistentvolumeclaim")
         if data.get("delta") == DISTRIBUTED_COST_INTERNAL["distributed_cost"] and "project" not in data.get(
             "group_by", {}
