@@ -868,7 +868,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler.ReportManifestDBAccessor") as mock_accessor:
             mock_accessor.return_value.__enter__.return_value = mock_manifest_accessor
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
-                with patch("masu.external.kafka_msg_handler.is_customer_large", return_value=True):
+                with patch("masu.external.kafka_msg_handler.get_customer_queue", return_value=OCPQueue.XL):
                     msg_handler.summarize_manifest(report_meta, self.manifest_id)
                     self.assertIn(OCPQueue.XL, mock_summarize_reports.call_args.args)
 

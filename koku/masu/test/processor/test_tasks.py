@@ -385,7 +385,7 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_uuid"] = provider_uuid
         report_meta["manifest_id"] = 1
         reports_to_summarize = [report_meta]
-        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             summarize_reports(reports_to_summarize)
             mock_update_summary.s.return_value.apply_async.assert_called_with(queue=SummaryQueue.XL)
 
@@ -947,7 +947,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def test_get_report_data_for_provider_with_XL_queue(self, mock_update):
         """Test GET report_data endpoint with provider and XL queue"""
         start_date = date.today()
-        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             update_all_summary_tables(start_date)
             mock_update.s.return_value.apply_async.assert_called_with(queue=SummaryQueue.XL)
 
@@ -1381,8 +1381,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.is_customer_large") as mock_customer:
-            mock_customer.return_value = True
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
                 mock_delay.reset_mock()
@@ -1643,8 +1642,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.is_customer_large") as mock_customer:
-            mock_customer.return_value = True
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
                 mock_delay.reset_mock()

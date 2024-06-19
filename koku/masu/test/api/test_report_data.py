@@ -106,7 +106,7 @@ class ReportDataTests(TestCase):
         }
         expected_key = "Report Data Task IDs"
 
-        with patch("masu.api.report_data.is_customer_large", return_value=True):
+        with patch("masu.api.report_data.get_customer_queue", return_value=PriorityQueue.XL):
             response = self.client.get(reverse("report_data"), params)
             body = response.json()
 

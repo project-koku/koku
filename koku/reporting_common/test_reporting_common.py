@@ -119,9 +119,9 @@ class TestCostUsageReportStatus(MasuTestCase):
         self.assertIsNotNone(stats.failed_status)
         self.assertEqual(stats.status, CombinedChoices.FAILED)
 
-    @patch("masu.processor.tasks.is_customer_large")
-    def test_delayed_summarize_current_month(self, mock_large_customer):
-        mock_large_customer.return_value = False
+    @patch("masu.processor.tasks.get_customer_queue")
+    def test_delayed_summarize_current_month(self, mock_get_customer_queue):
+        mock_get_customer_queue.return_value = SummaryQueue.DEFAULT
         test_matrix = {
             Provider.PROVIDER_AWS: self.aws_provider,
             Provider.PROVIDER_AZURE: self.azure_provider,
@@ -150,9 +150,9 @@ class TestCostUsageReportStatus(MasuTestCase):
                     self.assertEqual(db_entry.task_args, [self.schema_name])
                     self.assertEqual(db_entry.queue_name, SummaryQueue.DEFAULT)
 
-    @patch("masu.processor.tasks.is_customer_large")
-    def test_large_customer(self, mock_large_customer):
-        mock_large_customer.return_value = True
+    @patch("masu.processor.tasks.get_customer_queue")
+    def test_large_customer(self, mock_get_customer_queue):
+        mock_get_customer_queue.return_value = SummaryQueue.XL
         delayed_summarize_current_month(self.schema_name, [self.aws_provider.uuid], Provider.PROVIDER_AWS)
         with schema_context(self.schema):
             db_entry = DelayedCeleryTasks.objects.get(provider_uuid=self.aws_provider.uuid)

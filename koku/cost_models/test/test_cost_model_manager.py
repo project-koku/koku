@@ -220,7 +220,7 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                with patch("cost_models.cost_model_manager.is_customer_large", return_value=True):
+                with patch("cost_models.cost_model_manager.get_customer_queue", return_value=PriorityQueue.XL):
                     manager.update_provider_uuids(provider_uuids=[provider_uuid])
                     mock_update.s.return_value.set.assert_called_with(queue=PriorityQueue.XL)
 
