@@ -23,12 +23,11 @@ from model_bakery import baker
 from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
+from common.queues import OCPQueue
 from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
-from masu.processor.tasks import OCP_QUEUE
-from masu.processor.tasks import OCP_QUEUE_XL
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
 from masu.util.ocp import common as utils
@@ -525,7 +524,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=True):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta, self.manifest_id)
-                mock_summarize_reports.assert_called_with([expected_meta], OCP_QUEUE)
+                mock_summarize_reports.assert_called_with([expected_meta], OCPQueue.DEFAULT)
 
         with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=False):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
@@ -871,7 +870,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 with patch("masu.external.kafka_msg_handler.is_customer_large", return_value=True):
                     msg_handler.summarize_manifest(report_meta, self.manifest_id)
-                    self.assertIn(OCP_QUEUE_XL, mock_summarize_reports.call_args.args)
+                    self.assertIn(OCPQueue.XL, mock_summarize_reports.call_args.args)
 
     def test_extract_payload_content_and_process_cr(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -20,13 +20,11 @@ from rest_framework.settings import api_settings
 
 from api.provider.models import Provider
 from api.utils import get_months_in_date_range
-from masu.processor import is_customer_large
-from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
+from common.queues import get_customer_queue
+from common.queues import PriorityQueue
+from common.queues import QUEUE_LIST
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.tasks import delete_openshift_on_cloud_data
-from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE_XL
-from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import update_openshift_on_cloud as update_openshift_on_cloud_task
 
 LOG = logging.getLogger(__name__)
@@ -47,9 +45,7 @@ def update_openshift_on_cloud(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
-        fallback_queue = PRIORITY_QUEUE
-        if is_customer_large(schema_name):
-            fallback_queue = PRIORITY_QUEUE_XL
+        fallback_queue = get_customer_queue(schema_name, PriorityQueue)
         queue_name = params.get("queue") or fallback_queue
 
         if openshift_provider_uuid is None:

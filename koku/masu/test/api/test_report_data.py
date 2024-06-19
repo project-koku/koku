@@ -14,10 +14,9 @@ from django.urls import reverse
 
 from api.models import Provider
 from api.utils import DateHelper
-from masu.processor.tasks import OCP_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE_XL
-from masu.processor.tasks import QUEUE_LIST
+from common.queues import OCPQueue
+from common.queues import PriorityQueue
+from common.queues import QUEUE_LIST
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -63,7 +62,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
-            queue_name=PRIORITY_QUEUE,
+            queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=True,
             invoice_month=None,
         )
@@ -91,7 +90,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
-            queue_name=OCP_QUEUE,
+            queue_name=OCPQueue.DEFAULT,
             ocp_on_cloud=True,
             invoice_month=None,
         )
@@ -119,7 +118,7 @@ class ReportDataTests(TestCase):
                 params["provider_uuid"],
                 params["start_date"],
                 DateHelper().today.date().strftime("%Y-%m-%d"),
-                queue_name=PRIORITY_QUEUE_XL,
+                queue_name=PriorityQueue.XL,
                 ocp_on_cloud=True,
                 invoice_month=None,
             )
@@ -271,7 +270,7 @@ class ReportDataTests(TestCase):
                 params["provider_uuid"],
                 params["start_date"],
                 params["end_date"],
-                queue_name=PRIORITY_QUEUE,
+                queue_name=PriorityQueue.DEFAULT,
                 ocp_on_cloud=True,
                 invoice_month=None,
             )
@@ -285,7 +284,7 @@ class ReportDataTests(TestCase):
                     params["provider_uuid"],
                     params["start_date"],
                     params["start_date"],
-                    queue_name=PRIORITY_QUEUE,
+                    queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
                     invoice_month=None,
                 ),
@@ -295,7 +294,7 @@ class ReportDataTests(TestCase):
                     params["provider_uuid"],
                     params["end_date"],
                     params["end_date"],
-                    queue_name=PRIORITY_QUEUE,
+                    queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
                     invoice_month=None,
                 ),
@@ -328,7 +327,7 @@ class ReportDataTests(TestCase):
                 None,
                 params["start_date"],
                 params["end_date"],
-                queue_name=PRIORITY_QUEUE,
+                queue_name=PriorityQueue.DEFAULT,
                 ocp_on_cloud=True,
                 invoice_month=None,
             )
@@ -342,7 +341,7 @@ class ReportDataTests(TestCase):
                     None,
                     params["start_date"],
                     params["start_date"],
-                    queue_name=PRIORITY_QUEUE,
+                    queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
                     invoice_month=None,
                 ),
@@ -352,7 +351,7 @@ class ReportDataTests(TestCase):
                     None,
                     params["end_date"],
                     params["end_date"],
-                    queue_name=PRIORITY_QUEUE,
+                    queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
                     invoice_month=None,
                 ),
@@ -535,7 +534,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
-            queue_name=PRIORITY_QUEUE,
+            queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month=None,
         )
@@ -563,7 +562,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
-            queue_name=PRIORITY_QUEUE,
+            queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month=self.invoice,
         )
@@ -592,7 +591,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             params["end_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
-            queue_name=PRIORITY_QUEUE,
+            queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month=self.invoice,
         )
@@ -623,7 +622,7 @@ class ReportDataTests(TestCase):
             params["provider_uuid"],
             self.start_date,
             end_date,
-            queue_name=PRIORITY_QUEUE,
+            queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month="202209",
         )

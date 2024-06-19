@@ -31,6 +31,8 @@ from django_tenants.utils import schema_context
 
 from api.iam.models import Tenant
 from api.models import Provider
+from common.queues import PriorityQueue
+from common.queues import SummaryQueue
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -51,7 +53,6 @@ from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNo
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
-from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
@@ -64,7 +65,6 @@ from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
-from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE_XL
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
@@ -387,7 +387,7 @@ class ProcessReportFileTests(MasuTestCase):
         reports_to_summarize = [report_meta]
         with patch("masu.processor.tasks.is_customer_large", return_value=True):
             summarize_reports(reports_to_summarize)
-            mock_update_summary.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
+            mock_update_summary.s.return_value.apply_async.assert_called_with(queue=SummaryQueue.XL)
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
@@ -863,7 +863,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 manifest_list=[manifest_id],
                 ingress_report_uuid=None,
                 tracing_id=tracing_id,
-            ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
+            ).set(queue=PriorityQueue.DEFAULT)
         )
         mock_chain.return_value.apply_async.assert_called()
 
@@ -900,7 +900,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 manifest_list=[manifest_id],
                 ingress_report_uuid=None,
                 tracing_id=tracing_id,
-            ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
+            ).set(queue=PriorityQueue.DEFAULT)
         )
         mock_chain.return_value.apply_async.assert_called()
 
@@ -949,7 +949,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         start_date = date.today()
         with patch("masu.processor.tasks.is_customer_large", return_value=True):
             update_all_summary_tables(start_date)
-            mock_update.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
+            mock_update.s.return_value.apply_async.assert_called_with(queue=SummaryQueue.XL)
 
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):

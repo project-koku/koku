@@ -16,9 +16,8 @@ from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE
 from api.settings.cost_groups.query_handler import _remove_default_projects
 from api.settings.cost_groups.query_handler import put_openshift_namespaces
 from api.utils import DateHelper
+from common.queues import OCPQueue
 from koku.koku_test_runner import OCP_ON_GCP_CLUSTER_ID
-from masu.processor.tasks import OCP_QUEUE
-from masu.processor.tasks import OCP_QUEUE_XL
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OpenshiftCostCategory
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
@@ -258,7 +257,7 @@ class TestCostGroupsAPI(IamTestCase):
             provider_uuid=self.provider_uuid,
             start_date=DateHelper().this_month_start,
         )
-        mock_update_schedule.return_value.apply_async.assert_called_with(queue=OCP_QUEUE)
+        mock_update_schedule.return_value.apply_async.assert_called_with(queue=OCPQueue.DEFAULT)
 
     @patch("api.settings.cost_groups.view.update_summary_tables.s")
     @patch("api.settings.cost_groups.view.is_customer_large", return_value=False)
@@ -299,4 +298,4 @@ class TestCostGroupsAPI(IamTestCase):
             provider_uuid=self.provider_uuid,
             start_date=DateHelper().this_month_start,
         )
-        mock_update_schedule.return_value.apply_async.assert_called_with(queue=OCP_QUEUE_XL)
+        mock_update_schedule.return_value.apply_async.assert_called_with(queue=OCPQueue.XL)
