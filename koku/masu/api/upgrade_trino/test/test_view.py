@@ -11,8 +11,8 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 from api.models import Provider
+from common.queues import DownloadQueue
 from masu.api.upgrade_trino.util.task_handler import FixParquetTaskHandler
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.test import MasuTestCase
 
 
@@ -65,4 +65,4 @@ class TestUpgradeTrinoView(MasuTestCase):
                         "bill_date": self.bill_date,
                         "cleaned_column_mapping": cleaned_column_mapping,
                     }
-                    patch_celery.assert_called_once_with((), async_kwargs, queue=GET_REPORT_FILES_QUEUE)
+                    patch_celery.assert_called_once_with((), async_kwargs, queue=DownloadQueue.DEFAULT)
