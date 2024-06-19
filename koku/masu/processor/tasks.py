@@ -36,6 +36,7 @@ from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_customer_large
+from masu.processor import is_customer_rhel_only
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -382,6 +383,12 @@ def summarize_reports(  # noqa: C901
     if schema_name:
         kwargs["schema_name"] = schema_name
 
+    # Skip summary tasks if customer is marked as rhel only processing
+    # TODO May want to be provider specific in the future
+    if is_customer_rhel_only(schema_name):
+        LOG.info(log_json(msg="skip summary as customer is rhel only", **kwargs))
+        return
+
     LOG.info(log_json("summarize_reports", msg="deduplicating reports", **kwargs))
     for report_list in reports_by_source.values():
         if report and report.get("provider_type") in dedup_func_map:
@@ -489,6 +496,11 @@ def update_summary_tables(  # noqa: C901
         "provider_uuid": provider_uuid,
         "manifest_id": manifest_id,
     }
+    # Skip summary tasks if customer is marked as rhel only processing
+    # TODO May want to be provider specific in the future
+    if is_customer_rhel_only(schema):
+        LOG.info(log_json(msg="skip summary as customer is rhel only", context=context))
+        return
     if is_summary_processing_disabled(schema) or is_source_disabled(provider_uuid):
         return
     if is_ocp_on_cloud_summary_disabled(schema):

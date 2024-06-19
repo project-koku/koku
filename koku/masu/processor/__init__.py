@@ -157,3 +157,10 @@ def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+
+
+def is_customer_rhel_only(account):  # pragma: no cover
+    """Flag the customer as RHEL/Swatch only."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return True  # UNLEASH_CLIENT.is_enabled("cost-management.backend.rhel-only-customer", context)
