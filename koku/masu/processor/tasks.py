@@ -470,6 +470,8 @@ def update_summary_tables(  # noqa: C901
     fallback_update_cost_model_queue = get_customer_queue(schema, CostModelQueue)
     fallback_mark_manifest_complete_queue = get_customer_queue(schema, PriorityQueue)
     timeout = settings.WORKER_CACHE_TIMEOUT
+    if fallback_update_summary_tables_queue != SummaryQueue.DEFAULT:
+        timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
     if not synchronous:
         worker_cache = WorkerCache()
