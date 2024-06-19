@@ -18,9 +18,9 @@ from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
 from api.ingress.reports.serializers import IngressReportsSerializer
+from common.queues import DownloadQueue
+from common.queues import QUEUE_LIST
 from masu.celery.tasks import check_report_updates
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import QUEUE_LIST
 from reporting.ingress.models import IngressReports
 
 LOG = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def ingress_reports(request):
         provider_uuid = params.get("provider_uuid")
         schema_name = params.get("schema_name")
 
-        queue_name = params.get("queue") or GET_REPORT_FILES_QUEUE
+        queue_name = params.get("queue") or DownloadQueue.DEFAULT
         if schema_name is None:
             errmsg = "schema_name must be supplied as a parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
