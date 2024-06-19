@@ -12,11 +12,11 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
+from common.queues import PriorityQueue
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from masu.processor.tasks import PRIORITY_QUEUE_XL
 
 
 class MockResponse:
@@ -220,9 +220,9 @@ class CostModelManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
             with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
-                with patch("cost_models.cost_model_manager.is_customer_large", return_value=True):
+                with patch("cost_models.cost_model_manager.get_customer_queue", return_value=PriorityQueue.XL):
                     manager.update_provider_uuids(provider_uuids=[provider_uuid])
-                    mock_update.s.return_value.set.assert_called_with(queue=PRIORITY_QUEUE_XL)
+                    mock_update.s.return_value.set.assert_called_with(queue=PriorityQueue.XL)
 
     def test_update_provider_uuids(self):
         """Test creating a cost model then update with a provider uuid."""

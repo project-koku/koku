@@ -11,11 +11,10 @@ from django.core.management.base import BaseCommand
 from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
+from common.queues import get_customer_queue
+from common.queues import PriorityQueue
 from koku.database import cascade_delete
 from koku.feature_flags import UNLEASH_CLIENT
-from masu.processor import is_customer_large
-from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import update_summary_tables
 from reporting.models import AWSCostEntryBill
 
@@ -74,7 +73,7 @@ def cleanup_aws_bills(delete: bool) -> int:
                     payer_account_id=None,
                     billing_period_start=start_date,
                 ):
-                    queue_name = PRIORITY_QUEUE_XL if is_customer_large(schema) else PRIORITY_QUEUE
+                    queue_name = get_customer_queue(schema, PriorityQueue)
                     total_cleaned_bills += len(bills)
                     if delete:
                         formatted_start = start_date.strftime(DATE_FORMAT)
