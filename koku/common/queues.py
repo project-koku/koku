@@ -13,37 +13,37 @@ DEFAULT = "celery"
 class DownloadQueue(StrEnum):
     DEFAULT = "download"
     XL = "download_xl"
-    PENALTY_BOX = "download_penalty_box"
+    PENALTY_BOX = "download_penalty"
 
 
 class OCPQueue(StrEnum):
     DEFAULT = "ocp"
     XL = "ocp_xl"
-    PENALTY_BOX = "ocp_penalty_box"
+    PENALTY_BOX = "ocp_penalty"
 
 
 class PriorityQueue(StrEnum):
     DEFAULT = "priority"
     XL = "priority_xl"
-    PENALTY_BOX = "priority_penalty_box"
+    PENALTY_BOX = "priority_penalty"
 
 
 class SummaryQueue(StrEnum):
     DEFAULT = "summary"
     XL = "summary_xl"
-    PENALTY_BOX = "summary_penalty_box"
+    PENALTY_BOX = "summary_penalty"
 
 
 class CostModelQueue(StrEnum):
     DEFAULT = "cost_model"
     XL = "cost_model_xl"
-    PENALTY_BOX = "cost_model_penalty_box"
+    PENALTY_BOX = "cost_model_penalty"
 
 
 class RefreshQueue(StrEnum):
     DEFAULT = "refresh"
     XL = "refresh_xl"
-    PENALTY_BOX = "refresh_penalty_box"
+    PENALTY_BOX = "refresh_penalty"
 
 
 # any additional queues should be added to this list
