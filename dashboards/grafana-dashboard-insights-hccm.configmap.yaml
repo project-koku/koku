@@ -623,7 +623,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery download_queue",
+          "description": "Cost Management celery download_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -735,7 +735,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery download_queue",
+          "description": "Cost Management celery download_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -797,6 +797,195 @@ data:
             }
           ],
           "title": "DL XL",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery download_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 450
+                  },
+                  {
+                    "color": "red",
+                    "value": 550
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 12,
+            "y": 19
+          },
+          "id": 86,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(download_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "interval": "",
+              "legendFormat": "Queue Size",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Download Penalty",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery download_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 450
+                  },
+                  {
+                    "color": "red",
+                    "value": 550
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 19
+          },
+          "id": 87,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(download_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "DL Penalty",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -997,7 +1186,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery download_queue",
+          "description": "Cost Management celery summary_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1108,7 +1297,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery download_queue",
+          "description": "Cost Management celery summary_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1170,6 +1359,194 @@ data:
             }
           ],
           "title": "Sum XL",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery summary_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 200
+                  },
+                  {
+                    "color": "red",
+                    "value": 300
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 12,
+            "y": 27
+          },
+          "id": 84,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(summary_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "legendFormat": "Queue Size",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Summary Penalty",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery summary_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 200
+                  },
+                  {
+                    "color": "red",
+                    "value": 300
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 27
+          },
+          "id": 85,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(summary_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Sum Penalty",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1368,7 +1745,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery priority_queue",
+          "description": "Cost Management celery priority_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1479,7 +1856,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery priority_queue",
+          "description": "Cost Management celery priority_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1540,7 +1917,195 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Pri XL",
+          "title": "Priority XL",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery priority_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 12,
+            "y": 35
+          },
+          "id": 70,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(priority_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "legendFormat": "Queue Size",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Priority Penalty",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery priority_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 35
+          },
+          "id": 80,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(priority_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Priority Penalty",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1739,7 +2304,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery ocp_queue",
+          "description": "Cost Management celery ocp_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1850,7 +2415,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery ocp_queue",
+          "description": "Cost Management celery ocp_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1912,6 +2477,194 @@ data:
             }
           ],
           "title": "OCP XL",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery ocp_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 200
+                  },
+                  {
+                    "color": "red",
+                    "value": 300
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 12,
+            "y": 43
+          },
+          "id": 88,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(ocp_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "legendFormat": "Queue Size",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "OCP Penalty",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery ocp_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 200
+                  },
+                  {
+                    "color": "red",
+                    "value": 300
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 43
+          },
+          "id": 89,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(ocp_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "OCP Penalty",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -2110,7 +2863,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery cost_model_queue",
+          "description": "Cost Management celery cost_model_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2221,7 +2974,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery cost_model_queue",
+          "description": "Cost Management celery cost_model_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2298,7 +3051,195 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery summary_queue",
+          "description": "Cost Management celery cost_model_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 12,
+            "y": 51
+          },
+          "id": 72,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(cost_model_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "legendFormat": "Queue Size",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Cost Model Penalty",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery cost_model_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 51
+          },
+          "id": 82,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(cost_model_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "CM Penalty",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery refresh_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2406,7 +3347,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery summary_queue",
+          "description": "Cost Management celery refresh_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2481,7 +3422,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery summary_queue",
+          "description": "Cost Management celery refresh_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2592,7 +3533,7 @@ data:
             "type": "prometheus",
             "uid": "${Datasource}"
           },
-          "description": "Cost Management celery summary_queue",
+          "description": "Cost Management celery refresh_xl_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2654,6 +3595,194 @@ data:
             }
           ],
           "title": "Ref XL",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery refresh_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 12,
+            "y": 59
+          },
+          "id": 94,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(refresh_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "legendFormat": "Queue Size",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Refresh Penalty",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${Datasource}"
+          },
+          "description": "Cost Management celery refresh_penalty_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 59
+          },
+          "id": 95,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "9.3.8",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${Datasource}"
+              },
+              "editorMode": "code",
+              "expr": "max(refresh_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Ref Penalty",
           "transformations": [
             {
               "id": "seriesToColumns",
