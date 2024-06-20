@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.7
         with:
           fetch-depth: 0
 
@@ -43,7 +43,7 @@ jobs:
         run: bash .github/scripts/get_description.sh
 
       - name: Set release body
-        uses: ncipollo/release-action@v1.11.1
+        uses: ncipollo/release-action@v1.14.0
         with:
           bodyFile: release_body.md
           commit: ${{ github.event.inputs.commit }}

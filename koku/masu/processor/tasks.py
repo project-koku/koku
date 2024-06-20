@@ -26,6 +26,14 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import DateHelper
 from api.utils import get_months_in_date_range
+from common.queues import CostModelQueue
+from common.queues import DEFAULT
+from common.queues import DownloadQueue
+from common.queues import get_customer_queue
+from common.queues import OCPQueue
+from common.queues import PriorityQueue
+from common.queues import RefreshQueue
+from common.queues import SummaryQueue
 from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
@@ -35,7 +43,6 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
-from masu.processor import is_customer_large
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -67,58 +74,15 @@ from reporting_common.models import DelayedCeleryTasks
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
 
-
 LOG = logging.getLogger(__name__)
 
-DEFAULT = "celery"
-GET_REPORT_FILES_QUEUE = "download"
-GET_REPORT_FILES_QUEUE_XL = "download_xl"
-OCP_QUEUE = "ocp"
-OCP_QUEUE_XL = "ocp_xl"
-PRIORITY_QUEUE = "priority"
-PRIORITY_QUEUE_XL = "priority_xl"
-MARK_MANIFEST_COMPLETE_QUEUE = "priority"
-MARK_MANIFEST_COMPLETE_QUEUE_XL = "priority_xl"
-REMOVE_EXPIRED_DATA_QUEUE = "summary"
-REMOVE_EXPIRED_DATA_QUEUE_XL = "summary_xl"
-SUMMARIZE_REPORTS_QUEUE = "summary"
-SUMMARIZE_REPORTS_QUEUE_XL = "summary_xl"
-UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
-UPDATE_COST_MODEL_COSTS_QUEUE_XL = "cost_model_xl"
-UPDATE_SUMMARY_TABLES_QUEUE = "summary"
-UPDATE_SUMMARY_TABLES_QUEUE_XL = "summary_xl"
-DELETE_TRUNCATE_QUEUE = "refresh"
-DELETE_TRUNCATE_QUEUE_XL = "refresh_xl"
-
-# any additional queues should be added to this list
-QUEUE_LIST = [
-    DEFAULT,
-    GET_REPORT_FILES_QUEUE,
-    GET_REPORT_FILES_QUEUE_XL,
-    OCP_QUEUE,
-    OCP_QUEUE_XL,
-    PRIORITY_QUEUE,
-    PRIORITY_QUEUE_XL,
-    MARK_MANIFEST_COMPLETE_QUEUE,
-    MARK_MANIFEST_COMPLETE_QUEUE_XL,
-    REMOVE_EXPIRED_DATA_QUEUE,
-    REMOVE_EXPIRED_DATA_QUEUE_XL,
-    SUMMARIZE_REPORTS_QUEUE,
-    SUMMARIZE_REPORTS_QUEUE_XL,
-    UPDATE_COST_MODEL_COSTS_QUEUE,
-    UPDATE_COST_MODEL_COSTS_QUEUE_XL,
-    UPDATE_SUMMARY_TABLES_QUEUE,
-    UPDATE_SUMMARY_TABLES_QUEUE_XL,
-]
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 
 
 def delayed_summarize_current_month(schema_name: str, provider_uuids: list, provider_type: str):
     """Delay Resummarize provider data for the current month."""
-    queue = UPDATE_SUMMARY_TABLES_QUEUE
-    if is_customer_large(schema_name):
-        queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+    queue = get_customer_queue(schema_name, SummaryQueue)
 
     for provider_uuid in provider_uuids:
         id = DelayedCeleryTasks.create_or_reset_timeout(
@@ -182,7 +146,7 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
     return already_processed
 
 
-@celery_app.task(name="masu.processor.tasks.get_report_files", queue=GET_REPORT_FILES_QUEUE, bind=True)  # noqa: C901
+@celery_app.task(name="masu.processor.tasks.get_report_files", queue=DownloadQueue.DEFAULT, bind=True)  # noqa: C901
 def get_report_files(  # noqa: C901
     self,
     customer_name,
@@ -216,6 +180,8 @@ def get_report_files(  # noqa: C901
         None
 
     """
+    if is_source_disabled(provider_uuid):
+        return
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
     context = {"schema": customer_name}
@@ -344,7 +310,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
     _remove_expired_data(schema_name, provider, simulate, provider_uuid)
 
 
-@celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)  # noqa: C901
+@celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SummaryQueue.DEFAULT)  # noqa: C901
 def summarize_reports(  # noqa: C901
     reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_uuid=None
 ):
@@ -423,9 +389,7 @@ def summarize_reports(  # noqa: C901
         # Updater classes for when full-month summarization is
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
-            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
-            if is_customer_large(report.get("schema_name")):
-                fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+            fallback_queue = get_customer_queue(schema_name, SummaryQueue)
             tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
 
             if not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
@@ -451,7 +415,7 @@ def summarize_reports(  # noqa: C901
                 ).apply_async(queue=queue_name or fallback_queue)
 
 
-@celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901
+@celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=SummaryQueue.DEFAULT)  # noqa: C901
 def update_summary_tables(  # noqa: C901
     schema,
     provider_type,
@@ -500,18 +464,13 @@ def update_summary_tables(  # noqa: C901
         cache_arg_date = start_date.strftime("%Y-%m")
     cache_args = [schema, provider_type, provider_uuid, cache_arg_date]
     ocp_on_cloud_infra_map = {}
-    is_large_customer = is_customer_large(schema)
     is_large_customer_rate_limited = is_rate_limit_customer_large(schema)
-    fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE
-    fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE
-    fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE
-    fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE
+    fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue)
+    fallback_delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
+    fallback_update_cost_model_queue = get_customer_queue(schema, CostModelQueue)
+    fallback_mark_manifest_complete_queue = get_customer_queue(schema, PriorityQueue)
     timeout = settings.WORKER_CACHE_TIMEOUT
-    if is_large_customer:
-        fallback_update_summary_tables_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
-        fallback_delete_truncate_queue = DELETE_TRUNCATE_QUEUE_XL
-        fallback_update_cost_model_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
-        fallback_mark_manifest_complete_queue = MARK_MANIFEST_COMPLETE_QUEUE_XL
+    if fallback_update_summary_tables_queue != SummaryQueue.DEFAULT:
         timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
     if not synchronous:
@@ -654,7 +613,9 @@ def update_summary_tables(  # noqa: C901
     if not manifest_list and manifest_id:
         manifest_list = [manifest_id]
 
-    if cost_model is not None:
+    # OCP cost distribution of unattributed costs occurs within the `update_cost_model_costs` method.
+    # This method should always be called for OCP providers even when it does not have a cost model
+    if cost_model is not None or provider_type == Provider.PROVIDER_OCP:
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
@@ -680,7 +641,7 @@ def update_summary_tables(  # noqa: C901
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@celery_app.task(name="masu.processor.tasks.delete_openshift_on_cloud_data", queue=DELETE_TRUNCATE_QUEUE)  # noqa: C901
+@celery_app.task(name="masu.processor.tasks.delete_openshift_on_cloud_data", queue=RefreshQueue.DEFAULT)  # noqa: C901
 def delete_openshift_on_cloud_data(
     schema_name,
     infrastructure_provider_uuid,
@@ -705,7 +666,7 @@ def delete_openshift_on_cloud_data(
     bind=True,
     autoretry_for=(ReportSummaryUpdaterCloudError,),
     max_retries=settings.MAX_UPDATE_RETRIES,
-    queue=UPDATE_SUMMARY_TABLES_QUEUE,
+    queue=SummaryQueue.DEFAULT,
 )
 def update_openshift_on_cloud(  # noqa: C901
     self,
@@ -739,11 +700,10 @@ def update_openshift_on_cloud(  # noqa: C901
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
+        fallback_queue = get_customer_queue(schema_name, SummaryQueue)
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
-        if is_customer_large(schema_name):
-            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
+        if fallback_queue != SummaryQueue.DEFAULT:
             timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
         if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
@@ -787,6 +747,12 @@ def update_openshift_on_cloud(  # noqa: C901
             infrastructure_provider_type,
             tracing_id,
         )
+        # Regardless of an attached cost model we must run an update for default distribution costs
+        LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
+        fallback_queue = get_customer_queue(schema_name, CostModelQueue)
+        update_cost_model_costs.s(
+            schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
+        ).apply_async(queue=queue_name or fallback_queue)
         # Set OpenShift manifest summary end time
         set_summary_timestamp(ManifestState.END, ocp_manifest_id)
     except ReportSummaryUpdaterCloudError as ex:
@@ -815,7 +781,7 @@ def update_openshift_on_cloud(  # noqa: C901
             worker_cache.release_single_task(task_name, cache_args)
 
 
-@celery_app.task(name="masu.processor.tasks.update_all_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
+@celery_app.task(name="masu.processor.tasks.update_all_summary_tables", queue=SummaryQueue.DEFAULT)
 def update_all_summary_tables(start_date, end_date=None):
     """Populate all the summary tables for reporting.
 
@@ -840,18 +806,15 @@ def update_all_summary_tables(start_date, end_date=None):
         schema_name = account.get("schema_name")
         provider_type = account.get("provider_type")
         provider_uuid = account.get("provider_uuid")
-        fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE
-        ocp_process_queue = OCP_QUEUE
-        if is_customer_large(schema_name):
-            fallback_queue = UPDATE_SUMMARY_TABLES_QUEUE_XL
-            ocp_process_queue = OCP_QUEUE_XL
+        fallback_queue = get_customer_queue(schema_name, SummaryQueue)
+        ocp_process_queue = get_customer_queue(schema_name, OCPQueue)
         queue_name = ocp_process_queue if provider_type and provider_type.lower() == "ocp" else None
         update_summary_tables.s(
             schema_name, provider_type, provider_uuid, str(start_date), end_date, queue_name=queue_name
         ).apply_async(queue=queue_name or fallback_queue)
 
 
-@celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=UPDATE_COST_MODEL_COSTS_QUEUE)
+@celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)
 def update_cost_model_costs(
     schema_name,
     provider_uuid,
@@ -873,13 +836,14 @@ def update_cost_model_costs(
         None
 
     """
+    # Override cost model start date str to calculate costs for full month
+    LOG.info("overriding cost model start date to process full month")
+    start_date = DateHelper().month_start(start_date).strftime("%Y-%m-%d")
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
-        fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE
-        if is_customer_large(schema_name):
-            fallback_queue = UPDATE_COST_MODEL_COSTS_QUEUE_XL
+        fallback_queue = get_customer_queue(schema_name, CostModelQueue)
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             LOG.debug(log_json(tracing_id, msg=msg))
@@ -919,7 +883,7 @@ def update_cost_model_costs(
         worker_cache.release_single_task(task_name, cache_args)
 
 
-@celery_app.task(name="masu.processor.tasks.mark_manifest_complete", queue=MARK_MANIFEST_COMPLETE_QUEUE)
+@celery_app.task(name="masu.processor.tasks.mark_manifest_complete", queue=PriorityQueue.DEFAULT)
 def mark_manifest_complete(
     schema,
     provider_type,
@@ -1111,9 +1075,11 @@ def remove_stale_tenants():
             LOG.info(f"Deleted tenant: {name}")
 
 
-@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud", queue=GET_REPORT_FILES_QUEUE, bind=True)
+@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud", queue=DownloadQueue.DEFAULT, bind=True)
 def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, tracing_id=None):
     """Process OpenShift on Cloud parquet files using Trino."""
+    if is_source_disabled(provider_uuid):
+        return
     provider = Provider.objects.get(uuid=provider_uuid)
     provider_type = provider.type.replace("-local", "")
 
@@ -1169,11 +1135,13 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         processor.process(file_name, [data_frame])
 
 
-@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_daily", queue=GET_REPORT_FILES_QUEUE, bind=True)
+@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_daily", queue=DownloadQueue.DEFAULT, bind=True)
 def process_daily_openshift_on_cloud(
     self, schema_name, provider_uuid, bill_date, start_date, end_date, tracing_id=None
 ):
     """Process daily partitioned OpenShift on Cloud parquet files using Trino."""
+    if is_source_disabled(provider_uuid):
+        return
     provider = Provider.objects.get(uuid=provider_uuid)
     provider_type = provider.type.replace("-local", "")
 
