@@ -11,9 +11,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from api.common import log_json
 from api.provider.models import Sources
 from api.provider.provider_manager import ProviderProcessingError
+from common.queues import PriorityQueue
+from common.queues import SummaryQueue
 from koku import celery_app
-from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from sources.api.source_status import SourceStatus
 from sources.sources_provider_coordinator import SourcesProviderCoordinator
 from sources.storage import load_providers_to_delete
@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
     autoretry_for=(ProviderProcessingError,),
     retry_backoff=True,
     max_retries=settings.MAX_SOURCE_DELETE_RETRIES,
-    queue=PRIORITY_QUEUE,
+    queue=PriorityQueue.DEFAULT,
 )
 def delete_source(self, source_id, auth_header, koku_uuid, account_number, org_id):
     """Delete Provider and Source."""
@@ -41,7 +41,7 @@ def delete_source(self, source_id, auth_header, koku_uuid, account_number, org_i
     LOG.info(log_json(msg="deleted provider", provider_uuid=koku_uuid, source_id=source_id))
 
 
-@celery_app.task(name="sources.tasks.delete_source_beat", queue=REMOVE_EXPIRED_DATA_QUEUE)
+@celery_app.task(name="sources.tasks.delete_source_beat", queue=SummaryQueue.DEFAULT)
 def delete_source_beat():
     providers = load_providers_to_delete()
     for p in providers:
@@ -51,7 +51,7 @@ def delete_source_beat():
         )
 
 
-@celery_app.task(name="sources.tasks.source_status_beat", queue=PRIORITY_QUEUE)
+@celery_app.task(name="sources.tasks.source_status_beat", queue=PriorityQueue.DEFAULT)
 def source_status_beat():
     """Source Status push."""
     sources_query = Sources.objects.filter(source_id__isnull=False).all()

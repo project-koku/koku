@@ -29,6 +29,9 @@ from api.iam.models import Tenant
 from api.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper
+from common.queues import DownloadQueue
+from common.queues import PriorityQueue
+from common.queues import SummaryQueue
 from koku import celery_app
 from koku.notifications import NotificationService
 from masu.api.upgrade_trino.util.verify_parquet_files import VerifyParquetFiles
@@ -41,9 +44,6 @@ from masu.processor import is_purge_trino_files_enabled
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import get_s3_resource
 from masu.util.oci.common import OCI_REPORT_TYPES
@@ -62,7 +62,7 @@ PROVIDER_REPORT_TYPE_MAP = {
 }
 
 
-@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=GET_REPORT_FILES_QUEUE)
+@celery_app.task(name="masu.celery.tasks.fix_parquet_data_types", queue=DownloadQueue.DEFAULT)
 def fix_parquet_data_types(*args, **kwargs):
     verify_parquet = VerifyParquetFiles(*args, **kwargs)
     verify_parquet.retrieve_verify_reload_s3_parquet()
@@ -183,7 +183,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
 
 @celery_app.task(  # noqa: C901
     name="masu.celery.tasks.delete_archived_data",
-    queue=REMOVE_EXPIRED_DATA_QUEUE,
+    queue=SummaryQueue.DEFAULT,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
@@ -503,7 +503,7 @@ def check_for_stale_ocp_source(provider_uuid=None):
         )
 
 
-@celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PRIORITY_QUEUE)
+@celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PriorityQueue.DEFAULT)
 def delete_provider_async(name, provider_uuid, schema_name):
     with schema_context(schema_name):
         LOG.info(f"Removing Provider without Source: {str(name)} ({str(provider_uuid)}")
@@ -515,7 +515,7 @@ def delete_provider_async(name, provider_uuid, schema_name):
             )
 
 
-@celery_app.task(name="masu.celery.tasks.out_of_order_source_delete_async", queue=PRIORITY_QUEUE)
+@celery_app.task(name="masu.celery.tasks.out_of_order_source_delete_async", queue=PriorityQueue.DEFAULT)
 def out_of_order_source_delete_async(source_id):
     LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
     try:
@@ -531,7 +531,7 @@ def out_of_order_source_delete_async(source_id):
     delete_source_helper(source)
 
 
-@celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
+@celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PriorityQueue.DEFAULT)
 def missing_source_delete_async(source_id):
     LOG.info(f"Removing missing Source: {str(source_id)}")
     try:
@@ -607,7 +607,7 @@ def get_celery_queue_items(self, queue_name=None, task_name=None):
     return decoded_tasks
 
 
-@celery_app.task(name="masu.celery.tasks.trigger_delayed_tasks", queue=GET_REPORT_FILES_QUEUE)
+@celery_app.task(name="masu.celery.tasks.trigger_delayed_tasks", queue=DownloadQueue.DEFAULT)
 def trigger_delayed_tasks(*args, **kwargs):
     """Removes the expired records starting the delayed celery tasks."""
     DelayedCeleryTasks.trigger_delayed_tasks()
