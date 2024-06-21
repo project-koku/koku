@@ -438,17 +438,18 @@ def drop_expired_partitions(tables, schemas):
                 months = 5
             else:
                 LOG.info("Only supported for managed tables at the moment")
-                return
+                continue
+
             source_column_param = manage_table_mapping[table]
             if not check_table_exists(schema, table):
                 LOG.info(f"{table} does not exist for {schema}")
-                return
-            continue
+                continue
+
             expired_partitions = find_expired_partitions(schema, months, table, source_column_param)
             if not expired_partitions:
                 LOG.info(f"No expired partitions found for {table} {schema}")
-                return
-            continue
+                continue
+
             LOG.info(f"Found {len(expired_partitions)}")
             for partition in expired_partitions:
                 year, month, source = partition
