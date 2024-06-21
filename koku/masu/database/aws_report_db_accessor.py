@@ -24,7 +24,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
-from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -283,9 +282,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        # Check if we're using the savingsplan unleash-gated feature
-        is_savingsplan_cost = is_ocp_savings_plan_cost_enabled(self.schema)
-
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -293,7 +289,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
-            "is_savingsplan_cost": is_savingsplan_cost,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
@@ -440,3 +435,42 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on AWS", schema=self.schema))
                 return False
         return True
+
+    def populate_ec2_compute_summary_table_trino(self, source_uuid, start_date, bill_id, markup_value):
+        """
+        Populate the monthly aggregated summary table for EC2 compute line items via Trino.
+
+        Args:
+            source_uuid (str): The unique identifier for the data source.
+            start_date (datetime.date): The date representing the start of the billing period to populate.
+            bill_id (int): The billing entry ID associated with the data being populated.
+            markup_value (float): The markup value to apply to the costs, if any.
+
+        Returns
+            (None)
+        """
+
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        table_name = self._table_map["ec2_compute_summary"]
+        msg = "Populating EC2 summary table"
+        context = {
+            "provider_uuid": source_uuid,
+            "schema": self.schema,
+            "start_date": f"{year}-{month}-01",
+            "table": table_name,
+        }
+        LOG.info(log_json(msg=msg, context=context))
+
+        sql = pkgutil.get_data("masu.database", f"trino_sql/{table_name}.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "source_uuid": source_uuid,
+            "year": year,
+            "month": month,
+            "markup": markup_value or 0,
+            "bill_id": bill_id,
+        }
+
+        self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")

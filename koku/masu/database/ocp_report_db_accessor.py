@@ -23,6 +23,7 @@ from api.common import log_json
 from api.metrics import constants as metric_constants
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
+from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -300,12 +301,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
         # Cast start_date to date
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
+        start_date = DateHelper().validate_is_date(start_date)
+        end_date = DateHelper().validate_is_date(end_date)
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
 
@@ -404,11 +401,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             provider_uuid (str): The str of the provider UUID
         """
 
+        # The boolean determines if this distribution should run if there is no cost model
         key_to_file_mapping = {
-            metric_constants.PLATFORM_COST: "distribute_platform_cost.sql",
-            metric_constants.WORKER_UNALLOCATED: "distribute_worker_cost.sql",
-            metric_constants.STORAGE_UNATTRIBUTED: "distribute_unattributed_storage_cost.sql",
-            metric_constants.NETWORK_UNATTRIBUTED: "distribute_unattributed_network_cost.sql",
+            metric_constants.PLATFORM_COST: ("distribute_platform_cost.sql", False),
+            metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
+            metric_constants.STORAGE_UNATTRIBUTED: ("distribute_unattributed_storage_cost.sql", True),
+            metric_constants.NETWORK_UNATTRIBUTED: ("distribute_unattributed_network_cost.sql", True),
         }
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
@@ -422,8 +420,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         report_period_id = report_period.id
 
-        for cost_model_key, sql_file in key_to_file_mapping.items():
-            populate = distribution_info.get(cost_model_key, False)
+        for cost_model_key, file_and_default in key_to_file_mapping.items():
+            sql_file, distribute_default = file_and_default
+            populate = distribution_info.get(cost_model_key, distribute_default)
             if populate:
                 log_msg = f"distributing {cost_model_key}"
             else:
@@ -587,12 +586,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
         # Cast string to date object
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
+        start_date = DateHelper().validate_is_date(start_date)
+        end_date = DateHelper().validate_is_date(end_date)
         table_name = self._table_map["node_label_line_item_daily"]
 
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpnodelabellineitem_daily.sql")
@@ -701,12 +696,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
+        start_date = DateHelper().validate_is_date(start_date)
+        end_date = DateHelper().validate_is_date(end_date)
         # updates costs from tags
         for rate_type in rate_types:
             rate = rate_type.get("rates")
@@ -785,12 +776,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
+        start_date = DateHelper().validate_is_date(start_date)
+        end_date = DateHelper().validate_is_date(end_date)
 
         # updates costs from tags
         for rate_type in rate_types:

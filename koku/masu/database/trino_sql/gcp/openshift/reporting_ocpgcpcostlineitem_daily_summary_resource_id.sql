@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_resource_mat
     instance_type varchar,
     service_id varchar,
     service_alias varchar,
+    data_transfer_direction varchar,
     sku_id varchar,
     sku_alias varchar,
     region varchar,
@@ -134,6 +135,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     instance_type varchar,
     service_id varchar,
     service_alias varchar,
+    data_transfer_direction varchar,
     sku_id varchar,
     sku_alias varchar,
     region varchar,
@@ -546,9 +548,10 @@ FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
-                (strpos(lower(gcp.labels), 'openshift_project') != 0 AND strpos(lower(gcp.labels), lower(ocp.namespace)) != 0)
-                OR (strpos(lower(gcp.labels), 'openshift_node') != 0 AND strpos(lower(gcp.labels), lower(ocp.node)) != 0)
-                OR (strpos(lower(gcp.labels), 'openshift_cluster') != 0 AND (strpos(lower(gcp.labels), lower(ocp.cluster_id)) != 0 OR strpos(lower(gcp.labels), lower(ocp.cluster_alias)) != 0))
+                json_query(gcp.labels, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
+                OR json_query(gcp.labels, 'strict $.openshift_node' OMIT QUOTES) = ocp.node
+                OR json_query(gcp.labels, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_alias
+                OR json_query(gcp.labels, 'strict $.openshift_cluster' OMIT QUOTES) = ocp.cluster_id
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )

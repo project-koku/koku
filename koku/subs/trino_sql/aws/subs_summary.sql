@@ -22,24 +22,18 @@ SELECT
     ELSE 'Premium'
   END as subs_sla,
   CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel'))
-    WHEN 'rhel 7 els' THEN
-      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
-        WHEN 'sap' THEN '69-204-146'
-        WHEN 'hpc' THEN '76'
-        ELSE '69-204'
-      END
-    WHEN 'rhel 8 els' THEN
-      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
-        WHEN 'sap' THEN '479-204-241'
-        WHEN 'hpc' THEN '479'
-        ELSE '479-204'
-      END
-    ELSE
-      CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_variant'))
-        WHEN 'sap' THEN '479-241'
-        ELSE '479'
-      END
-  END as subs_product_ids
+    WHEN '7' THEN '69'
+    WHEN '8' THEN '479'
+    ELSE '479'
+  END as subs_rhel_version,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_addon'))
+    WHEN 'els' THEN '204'
+    ELSE NULL
+  END as subs_addon_id,
+  CASE lower(json_extract_scalar(tags, '$.com_redhat_rhel_conversion'))
+    WHEN 'true' THEN 'true'
+    ELSE 'false'
+  END as subs_conversion
 FROM
   (
     SELECT *,
@@ -54,7 +48,9 @@ FROM
               ARRAY[ 'com_redhat_rhel',
               'com_redhat_rhel_variant',
               'com_redhat_rhel_usage',
-              'com_redhat_rhel_sla' ],
+              'com_redhat_rhel_sla',
+              'com_redhat_rhel_addon',
+              'com_redhat_rhel_conversion'],
               lower(k)
             )
           ),

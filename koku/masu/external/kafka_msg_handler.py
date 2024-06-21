@@ -32,6 +32,8 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
 from api.provider.models import Provider
+from common.queues import get_customer_queue
+from common.queues import OCPQueue
 from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer
 from kafka_utils.utils import get_producer
@@ -42,12 +44,9 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.ros_report_shipper import ROSReportShipper
-from masu.processor import is_customer_large
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
-from masu.processor.tasks import OCP_QUEUE
-from masu.processor.tasks import OCP_QUEUE_XL
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import summarize_reports
@@ -622,9 +621,7 @@ def summarize_manifest(report_meta, manifest_uuid):
         "end_date": end_date,
     }
 
-    ocp_processing_queue = OCP_QUEUE
-    if is_customer_large(schema):
-        ocp_processing_queue = OCP_QUEUE_XL
+    ocp_processing_queue = get_customer_queue(schema, OCPQueue)
 
     if not MANIFEST_ACCESSOR.manifest_ready_for_summary(manifest_id):
         return
