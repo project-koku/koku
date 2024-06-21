@@ -14,7 +14,9 @@ from django.db import connection
 from django.db import models
 from django.db import router
 from django.db import transaction
+from django.db.models import F
 from django.db.models import JSONField
+from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.db.models.signals import post_delete
 from django.utils import timezone
@@ -92,8 +94,18 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
         if limit < 1:
             # Django can't do negative indexing, so just return all the Providers.
             # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
-            return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)
-        return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
+            # Adding filter for data_updated_timestamp, prevent triggering new tasks if one is still in progress
+            # TODO Additional check in here if processing fails and data_updated_timestamp is not updated
+            return (
+                self.filter(**filters)
+                .filter(Q(polling_timestamp__isnull=True) | Q(polling_timestamp__lt=F("data_updated_timestamp")))
+                .exclude(polling_timestamp__gt=polling_delta)
+            )
+        return (
+            self.filter(**filters)
+            .filter(Q(polling_timestamp__isnull=True) | Q(polling_timestamp__lt=F("data_updated_timestamp")))
+            .exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
+        )
 
 
 class Provider(models.Model):
