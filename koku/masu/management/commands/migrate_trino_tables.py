@@ -141,9 +141,9 @@ class Action(BaseModel):
 
         return self.schemas
 
-    def get_schemas(self) -> list[str]:
+    def get_schemas(self) -> set[str]:
         LOG.info("Finding all schema for migration")
-        schema_list = []
+        result = set()
         for col in self.list_of_cols.list:
             schemas = run_trino_sql(textwrap.dedent(self.find_query.format(col=col)))
             schemas = [
@@ -152,9 +152,9 @@ class Action(BaseModel):
                 for schema in listed_schema
                 if schema not in ["default", "information_schema"]
             ]
-            schema_list.extend(schemas)
+            result.update(schemas)
 
-        return schema_list
+        return result
 
     def run(self) -> None:
         if not self.schemas:
