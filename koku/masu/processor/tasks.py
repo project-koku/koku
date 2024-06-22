@@ -564,7 +564,8 @@ def update_summary_tables(  # noqa: C901
 
     # Create queued tasks for each OpenShift on Cloud cluster
     delete_signature_list = []
-    if ocp_on_cloud_infra_map:
+    # Large customers dont finish processing before OCP flows trigger more summary tasks
+    if ocp_on_cloud_infra_map and fallback_update_summary_tables_queue == SummaryQueue.DEFAULT:
         trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
         for table_name, operation in trunc_delete_map.items():
             delete_signature_list.append(
