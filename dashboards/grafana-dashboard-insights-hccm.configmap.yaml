@@ -6670,7 +6670,7 @@ data:
             "current": {
               "selected": false,
               "text": "crcp01ue1-prometheus",
-              "value": "PC1EAC84DCBBF0697"
+              "value": "crcp01ue1-prometheus"
             },
             "hide": 0,
             "includeAll": false,
@@ -6745,7 +6745,7 @@ data:
             "current": {
               "selected": false,
               "text": "app-sre-prod-01-prometheus",
-              "value": "P465885893AA82E04"
+              "value": "app-sre-prod-01-prometheus"
             },
             "hide": 0,
             "includeAll": false,
@@ -6763,8 +6763,8 @@ data:
         ]
       },
       "time": {
-        "from": "2024-06-22T17:32:26.326Z",
-        "to": "2024-06-22T18:35:43.741Z"
+        "from": "now-24h",
+        "to": "now"
       },
       "timepicker": {
         "refresh_intervals": [
