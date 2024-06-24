@@ -89,21 +89,23 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
     def get_polling_batch(self, limit=-1, offset=0, filters=None):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
         polling_delta = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
+        process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.PROCESSING_WAIT_TIMER)
+        filter_condition = (
+            Q(polling_timestamp__isnull=True)
+            | Q(polling_timestamp__lt=F("data_updated_timestamp"))
+            | Q(data_updated_timestamp__lte=process_wait_delta)
+        )
         if not filters:
             filters = {}
         if limit < 1:
             # Django can't do negative indexing, so just return all the Providers.
             # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
             # Adding filter for data_updated_timestamp, prevent triggering new tasks if one is still in progress
-            # TODO Additional check in here if processing fails and data_updated_timestamp is not updated
-            return (
-                self.filter(**filters)
-                .filter(Q(polling_timestamp__isnull=True) | Q(polling_timestamp__lt=F("data_updated_timestamp")))
-                .exclude(polling_timestamp__gt=polling_delta)
-            )
+            # Additional 7 day check here if processing fails and data_updated_timestamp is not updated
+            return self.filter(**filters).filter(filter_condition).exclude(polling_timestamp__gt=polling_delta)
         return (
             self.filter(**filters)
-            .filter(Q(polling_timestamp__isnull=True) | Q(polling_timestamp__lt=F("data_updated_timestamp")))
+            .filter(filter_condition)
             .exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
         )
 

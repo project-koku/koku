@@ -540,6 +540,8 @@ PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default
 AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
 POLLING_BATCH_SIZE = ENVIRONMENT.int("POLLING_BATCH_SIZE", default=100)
 POLLING_TIMER = ENVIRONMENT.int("POLLING_TIMER", default=86400)
+# PROCESSING_WAIT_TIMER, used to prevent queuing new tasks until previous ones are complete
+PROCESSING_WAIT_TIMER = ENVIRONMENT.int("PROCESSING_WAIT_TIMER", default=7)
 QE_SCHEMA = ENVIRONMENT.get_value("QE_SCHEMA", default=None)
 
 # Flag for maximum retries for source delete before proceeding
