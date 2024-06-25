@@ -11,11 +11,10 @@ from django.db import transaction
 
 from api.provider.models import Provider
 from api.utils import DateHelper
+from common.queues import get_customer_queue
+from common.queues import PriorityQueue
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
-from masu.processor import is_customer_large
-from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE_XL
 from masu.processor.tasks import update_cost_model_costs
 
 
@@ -88,9 +87,7 @@ class CostModelManager:
             else:
                 if provider.active:
                     schema_name = provider.customer.schema_name
-                    fallback_queue = PRIORITY_QUEUE
-                    if is_customer_large(schema_name):
-                        fallback_queue = PRIORITY_QUEUE_XL
+                    fallback_queue = get_customer_queue(schema_name, PriorityQueue)
                     # Because this is triggered from the UI, we use the priority queue
                     LOG.info(
                         f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "

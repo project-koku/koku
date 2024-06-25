@@ -11,7 +11,7 @@ from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
 
-from masu.processor.tasks import QUEUE_LIST
+from common.queues import QUEUE_LIST
 from masu.test import MasuTestCase
 
 
