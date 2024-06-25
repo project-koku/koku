@@ -21,6 +21,8 @@ def log_json(tracing_id="", *, msg, context=None, **kwargs):
         stmt |= context
     stmt |= kwargs
     for key, value in stmt.items():
+        if key == "split_files":
+            stmt[key] = len(value)
         if isinstance(value, UUID):
             stmt[key] = str(value)
     return stmt
