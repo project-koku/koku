@@ -17,23 +17,21 @@ from api.common import log_json
 from api.provider.models import check_provider_setup_complete
 from api.provider.models import Provider
 from api.utils import DateHelper
+from common.queues import DownloadQueue
+from common.queues import get_customer_queue
+from common.queues import SummaryQueue
 from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_cloud_source_processing_disabled
-from masu.processor import is_customer_large
 from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
-from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
-from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import update_account_aliases
 from subs.tasks import extract_subs_data_from_reports
@@ -189,12 +187,9 @@ class Orchestrator:
             REPORT_QUEUE = self.queue_name
             HCS_Q = self.queue_name
         else:
-            SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
-            REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+            SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue)
+            REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue)
             HCS_Q = HCS_QUEUE
-            if is_customer_large(schema_name):
-                SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE_XL
-                REPORT_QUEUE = GET_REPORT_FILES_QUEUE_XL
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,

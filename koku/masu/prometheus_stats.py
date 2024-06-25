@@ -62,6 +62,12 @@ DOWNLOAD_XL_BACKLOG = Gauge(
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
+DOWNLOAD_PENALTY_BACKLOG = Gauge(
+    "download_penalty_backlog",
+    "Number of celery tasks in the download_penalty queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 SUMMARY_BACKLOG = Gauge(
     "summary_backlog",
     "Number of celery tasks in the summary queue",
@@ -71,6 +77,12 @@ SUMMARY_BACKLOG = Gauge(
 SUMMARY_XL_BACKLOG = Gauge(
     "summary_xl_backlog",
     "Number of celery tasks in the summary_xl queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+SUMMARY_PENALTY_BACKLOG = Gauge(
+    "summary_penalty_backlog",
+    "Number of celery tasks in the summary_penalty queue",
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
@@ -86,6 +98,12 @@ PRIORITY_XL_BACKLOG = Gauge(
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
+PRIORITY_PENALTY_BACKLOG = Gauge(
+    "priority_penalty_backlog",
+    "Number of celery tasks in the priority_penalty queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 REFRESH_BACKLOG = Gauge(
     "refresh_backlog",
     "Number of celery tasks in the refresh queue",
@@ -95,6 +113,12 @@ REFRESH_BACKLOG = Gauge(
 REFRESH_XL_BACKLOG = Gauge(
     "refresh_xl_backlog",
     "Number of celery tasks in the refresh_xl queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+REFRESH_PENALTY_BACKLOG = Gauge(
+    "refresh_penalty_backlog",
+    "Number of celery tasks in the refresh_penalty queue",
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
@@ -110,6 +134,12 @@ COST_MODEL_XL_BACKLOG = Gauge(
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
+COST_MODEL_PENALTY_BACKLOG = Gauge(
+    "cost_model_penalty_backlog",
+    "Number of celery tasks in the cost_model_penalty queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
 DEFAULT_BACKLOG = Gauge(
     "default_backlog",
     "Number of celery tasks in the default queue",
@@ -122,6 +152,12 @@ OCP_BACKLOG = Gauge(
 OCP_XL_BACKLOG = Gauge(
     "ocp_xl_backlog",
     "Number of celery tasks in the OCP_xl queue",
+    registry=WORKER_REGISTRY,
+    multiprocess_mode="livesum",
+)
+OCP_PENALTY_BACKLOG = Gauge(
+    "ocp_penalty_backlog",
+    "Number of celery tasks in the OCP_penalty queue",
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
@@ -147,17 +183,23 @@ SUBS_TRANSMISSION_BACKLOG = Gauge(
 QUEUES = {
     "download": DOWNLOAD_BACKLOG,
     "download_xl": DOWNLOAD_XL_BACKLOG,
+    "download_penalty": DOWNLOAD_PENALTY_BACKLOG,
     "summary": SUMMARY_BACKLOG,
     "summary_xl": SUMMARY_XL_BACKLOG,
+    "summary_penalty": SUMMARY_PENALTY_BACKLOG,
     "priority": PRIORITY_BACKLOG,
     "priority_xl": PRIORITY_XL_BACKLOG,
+    "priority_penalty": PRIORITY_PENALTY_BACKLOG,
     "refresh": REFRESH_BACKLOG,
     "refresh_xl": REFRESH_XL_BACKLOG,
+    "refresh_penalty": REFRESH_PENALTY_BACKLOG,
     "cost_model": COST_MODEL_BACKLOG,
     "cost_model_xl": COST_MODEL_XL_BACKLOG,
+    "cost_model_penalty": COST_MODEL_PENALTY_BACKLOG,
     "celery": DEFAULT_BACKLOG,
     "ocp": OCP_BACKLOG,
     "ocp_xl": OCP_XL_BACKLOG,
+    "ocp_penalty": OCP_PENALTY_BACKLOG,
     "hcs": HCS_BACKLOG,
     "subs_extraction": SUBS_EXTRACTION_BACKLOG,
     "subs_transmission": SUBS_TRANSMISSION_BACKLOG,
