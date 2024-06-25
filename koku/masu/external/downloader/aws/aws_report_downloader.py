@@ -42,7 +42,15 @@ class AWSReportDownloaderNoFileError(Exception):
 
 
 def get_processing_date(
-    local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+    local_file,
+    s3_csv_path,
+    manifest_id,
+    provider_uuid,
+    start_date,
+    end_date,
+    context,
+    tracing_id,
+    ingress_reports=None,
 ):
     """
     Fetch initial dataframe from CSV plus processing date and time_inteval.
@@ -70,8 +78,9 @@ def get_processing_date(
         base_cols = copy.deepcopy(utils.RECOMMENDED_ALT_COLUMNS) | copy.deepcopy(utils.OPTIONAL_ALT_COLS)
         data_frame = pd.read_csv(local_file, usecols=[invoice_bill], nrows=1)
     use_cols = com_utils.fetch_optional_columns(local_file, base_cols, optional_cols, tracing_id, context)
+    # ingress custom filter flow should always reprocess everything
     if (
-        data_frame[invoice_bill].any() and start_date.month != DateHelper().now_utc.month
+        data_frame[invoice_bill].any() and start_date.month != DateHelper().now_utc.month or ingress_reports
     ) or not check_provider_setup_complete(provider_uuid):
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, start_date)
@@ -91,6 +100,7 @@ def create_daily_archives(  # noqa C901
     manifest_id,
     start_date,
     context,
+    ingress_reports=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -113,7 +123,7 @@ def create_daily_archives(  # noqa C901
         account, Provider.PROVIDER_AWS, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
     use_cols, time_interval, process_date = get_processing_date(
-        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+        local_file, s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports
     )
     try:
         LOG.info(log_json(tracing_id, msg="pandas read csv with following usecols", usecols=use_cols, context=context))
@@ -437,6 +447,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     manifest_id,
                     start_date,
                     self.context,
+                    self.ingress_reports,
                 )
 
         msg = f"Download complete for {key}"

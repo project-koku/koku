@@ -6,6 +6,7 @@
 import contextlib
 import datetime
 import logging
+import math
 import re
 import time
 import typing as t
@@ -790,23 +791,27 @@ def delete_s3_objects_not_matching_metadata(
 
 
 def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
+    keys_to_delete = [{"Key": key} for key in keys_to_delete]
+    LOG.info(log_json(request_id, msg="attempting to batch delete s3 files", context=context))
     s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
     try:
-        removed = []
-        for key in keys_to_delete:
-            s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
-            removed.append(key)
-        if removed:
-            LOG.info(
-                log_json(
-                    request_id,
-                    msg="removed files from s3 bucket",
-                    context=context,
-                    bucket=settings.S3_BUCKET_NAME,
-                    file_list=removed,
-                )
+        batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
+        for batch_number in range(math.ceil(len(keys_to_delete) / batch_size)):
+            batch_start = batch_size * batch_number
+            batch_end = batch_start + batch_size
+            object_keys_batch = keys_to_delete[batch_start:batch_end]
+            s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
+        LOG.info(
+            log_json(
+                request_id,
+                msg="removed files from s3 bucket",
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
+                file_list=keys_to_delete,
             )
-        return removed
+        )
+        return keys_to_delete
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
             log_json(
