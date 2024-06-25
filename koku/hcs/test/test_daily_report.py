@@ -9,6 +9,7 @@ from unittest.mock import patch
 from api.provider.models import Provider
 from api.utils import DateHelper
 from hcs.daily_report import ReportHCS
+from hcs.exceptions import HCSTableNotFoundError
 from hcs.test import HCSTestCase
 
 
@@ -40,3 +41,32 @@ class TestReportHCS(HCSTestCase):
         reporter = ReportHCS(self.schema, self.aws_provider_type, self.aws_provider_uuid, self.tracing_id)
         reporter.generate_report(self.yesterday, self.today)
         mock_daily_summary.assert_not_called()
+
+    @patch("hcs.database.report_db_accessor.HCSReportDBAccessor.get_hcs_daily_summary")
+    @patch("hcs.database.report_db_accessor.HCSReportDBAccessor.schema_exists_trino")
+    def test_hcs_table_not_found_error(self, mock_schema, mock_daily_summary):
+        """Test that HCSTableNotFoundError is handled and logged correctly."""
+        mock_schema.return_value = True
+        expected_error_msg = "Table not found"
+        mock_daily_summary.side_effect = HCSTableNotFoundError(expected_error_msg)
+
+        with self.assertLogs("hcs.daily_report", level="INFO") as log:
+            reporter = ReportHCS(self.schema, self.aws_provider_type, self.aws_provider_uuid, self.tracing_id)
+            reporter.generate_report(self.yesterday, self.today)
+
+        self.assertIn(expected_error_msg, log.output[0])
+
+    @patch("hcs.database.report_db_accessor.HCSReportDBAccessor.get_hcs_daily_summary")
+    @patch("hcs.database.report_db_accessor.HCSReportDBAccessor.schema_exists_trino")
+    def test_general_exception(self, mock_schema, mock_daily_summary):
+        """Test that a general exception is handled and logged correctly."""
+        mock_schema.return_value = True
+        expected_error_msg = "General exception"
+        mock_daily_summary.side_effect = Exception(expected_error_msg)
+
+        with self.assertLogs("hcs.daily_report", level="WARNING") as log:
+            reporter = ReportHCS(self.schema, self.aws_provider_type, self.aws_provider_uuid, self.tracing_id)
+            reporter.generate_report(self.yesterday, self.today)
+
+        self.assertIn(expected_error_msg, log.output[0])
+        self.assertIn("get_hcs_daily_summary exception", log.output[0])
