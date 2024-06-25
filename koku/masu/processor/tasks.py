@@ -465,10 +465,11 @@ def update_summary_tables(  # noqa: C901
     cache_args = [schema, provider_type, provider_uuid, cache_arg_date]
     ocp_on_cloud_infra_map = {}
     is_large_customer_rate_limited = is_rate_limit_customer_large(schema)
+    # Fallback should only be used for non-ocp processing
     fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue)
-    fallback_delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
-    fallback_update_cost_model_queue = get_customer_queue(schema, CostModelQueue)
-    fallback_mark_manifest_complete_queue = get_customer_queue(schema, PriorityQueue)
+    delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
+    update_cost_model_queue = get_customer_queue(schema, CostModelQueue)
+    mark_manifest_complete_queue = get_customer_queue(schema, PriorityQueue)
     timeout = settings.WORKER_CACHE_TIMEOUT
     if fallback_update_summary_tables_queue != SummaryQueue.DEFAULT:
         timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
@@ -577,7 +578,7 @@ def update_summary_tables(  # noqa: C901
                     operation,
                     manifest_id=manifest_id,
                     tracing_id=tracing_id,
-                ).set(queue=queue_name or fallback_delete_truncate_queue)
+                ).set(queue=delete_truncate_queue)
             )
 
     signature_list = []
@@ -596,7 +597,7 @@ def update_summary_tables(  # noqa: C901
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
-            ).set(queue=queue_name or fallback_update_summary_tables_queue)
+            ).set(queue=fallback_update_summary_tables_queue)
         )
 
     # Apply OCP on Cloud tasks
@@ -619,10 +620,10 @@ def update_summary_tables(  # noqa: C901
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
-        ).set(queue=queue_name or fallback_update_cost_model_queue) | mark_manifest_complete.si(
+        ).set(queue=update_cost_model_queue) | mark_manifest_complete.si(
             schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(
-            queue=queue_name or fallback_mark_manifest_complete_queue
+            queue=mark_manifest_complete_queue
         )
     else:
         LOG.info(log_json(tracing_id, msg="skipping cost model updates", context=context))
@@ -633,7 +634,7 @@ def update_summary_tables(  # noqa: C901
             manifest_list=manifest_list,
             ingress_report_uuid=ingress_report_uuid,
             tracing_id=tracing_id,
-        ).set(queue=queue_name or fallback_mark_manifest_complete_queue)
+        ).set(queue=mark_manifest_complete_queue)
 
     chain(linked_tasks).apply_async()
 
