@@ -142,7 +142,7 @@ class Action(BaseModel):
         return self.schemas
 
     def get_schemas(self) -> set[str]:
-        LOG.info("Finding all schema for migration")
+        LOG.info("Finding all schemas for migration...")
         result = set()
         for col in self.list_of_cols.list:
             schemas = run_trino_sql(textwrap.dedent(self.find_query.format(col=col)))
@@ -161,13 +161,15 @@ class Action(BaseModel):
             LOG.info("No schemas to update found")
             return
 
-        LOG.info(f"Running against the following schemas: {self.schemas}")
-        for schema in self.schemas:
-            LOG.info(f"Modifying tables for schema {schema}")
+        log_start(self.schemas)
+        schema_count = len(self.schemas)
+        for count, schema in enumerate(self.schemas):
+            LOG.info(f"Modifying tables for schema {schema} ({count + 1} / {schema_count})")
             for col in self.list_of_cols.list:
                 try:
+                    LOG.info(f"    {schema}: Altering table {col.table}...")
                     result = run_trino_sql(textwrap.dedent(self.modify_query.format(col=col)), schema)
-                    LOG.info(f"ALTER TABLE result: {result}")
+                    LOG.info(f"    {schema}: Altered table {col.table} {result}")
                 except Exception as e:
                     LOG.error(e)
                     return
@@ -176,8 +178,8 @@ class Action(BaseModel):
         LOG.info("Migration successful")
 
     def validate(self) -> None:
-        schemas = self.get_schemas()
         LOG.info("Validating...")
+        schemas = self.get_schemas()
         if schemas:
             LOG.error(f"Migration failed for the follow schemas: {schemas}")
             sys.exit(1)
@@ -341,6 +343,13 @@ def run_trino_sql(sql, schema=None) -> t.Optional[str]:
             LOG.error(err.message)
             return schema
 
+
+def log_start(schemas: list[str]) -> str:
+    message = f"Running against the following schemas: {schemas}"
+    if (schema_count := len(schemas)) > 10:
+        message = f"Running against {schema_count} schemas"
+
+    LOG.info(message)
 
 def drop_tables(tables, schemas) -> None:
     """drop specified tables"""
