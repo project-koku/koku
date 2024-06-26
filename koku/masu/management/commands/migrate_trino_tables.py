@@ -317,13 +317,13 @@ def get_all_schemas() -> list[str]:
 
 
 def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
-    retries = 5
+    retries = 8
     for n in range(1, retries + 1):
         attempt = n
         remaining_retries = retries - n
         # Exponential backoff with a little bit of randomness and a
         # minimum wait of 0.5 and max wait of 7
-        wait = (min(2**n, 7) + secrets.randbelow(1000) / 1000) or 0.5
+        wait = (min(2**n, 12) + secrets.randbelow(1000) / 1000) or 0.5
         try:
             with trino_db.connect(schema=schema) as conn:
                 cur = conn.cursor()
