@@ -376,7 +376,7 @@ def drop_tables(tables, schemas) -> None:
                 LOG.error(e)
 
 
-def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas: list) -> None:
+def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas: list) -> None:  # noqa: C901
     """drop specified partitions from tables"""
     if not schemas:
         schemas = get_all_schemas()
