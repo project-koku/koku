@@ -316,7 +316,7 @@ def get_all_schemas() -> list[str]:
     return schemas
 
 
-def run_trino_sql(sql, schema=None) -> t.Optional[str]:
+def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
     retries = 5
     for n in range(1, retries + 1):
         attempt = n
@@ -341,7 +341,7 @@ def run_trino_sql(sql, schema=None) -> t.Optional[str]:
                 raise err
         except TrinoUserError as err:
             LOG.error(err.message)
-            return schema
+            return []
 
 
 def log_start(schemas: list[str]) -> str:
