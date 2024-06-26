@@ -474,8 +474,8 @@ def update_summary_tables(  # noqa: C901
     if fallback_update_summary_tables_queue != SummaryQueue.DEFAULT:
         timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
 
+    worker_cache = WorkerCache()
     if not synchronous:
-        worker_cache = WorkerCache()
         rate_limited = False
         if is_large_customer_rate_limited:
             rate_limited = rate_limit_tasks(task_name, schema)
@@ -617,6 +617,20 @@ def update_summary_tables(  # noqa: C901
     # OCP cost distribution of unattributed costs occurs within the `update_cost_model_costs` method.
     # This method should always be called for OCP providers even when it does not have a cost model
     if cost_model is not None or provider_type == Provider.PROVIDER_OCP:
+        # Prevent running duplicate tasks for the same source date range.
+        cache_key = f"{provider_uuid}:{start_date}:{end_date}"
+        if worker_cache.task_is_running(cache_key):
+            LOG.info(
+                log_json(
+                    tracing_id, msg="cost model update for range already queued, skipping new task.", context=context
+                )
+            )
+            # We still want to mark the manifest complete for the processed reports
+            linked_tasks = mark_manifest_complete.si(
+                schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
+            ).set(queue=mark_manifest_complete_queue)
+            return
+        worker_cache.add_task_to_cache(cache_key)
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
@@ -839,8 +853,9 @@ def update_cost_model_costs(
     """
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid, start_date, end_date]
+    worker_cache = WorkerCache()
+    cache_key = f"{provider_uuid}:{start_date}:{end_date}"
     if not synchronous:
-        worker_cache = WorkerCache()
         fallback_queue = get_customer_queue(schema_name, CostModelQueue)
         if worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
@@ -875,10 +890,13 @@ def update_cost_model_costs(
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
+        worker_cache.remove_task_from_cache(cache_key)
         raise ex
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
+
+    worker_cache.remove_task_from_cache(cache_key)
 
 
 @celery_app.task(name="masu.processor.tasks.mark_manifest_complete", queue=PriorityQueue.DEFAULT)
