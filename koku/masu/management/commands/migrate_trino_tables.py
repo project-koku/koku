@@ -358,7 +358,8 @@ def drop_tables(tables, schemas) -> None:
         schemas = get_all_schemas()
 
     if not set(tables).issubset(EXTERNAL_TABLES):
-        raise ValueError("Attempting to drop non-external table, revise the list of tables to drop.", tables)
+        LOG.error(f"Attempting to drop non-external table, revise the list of tables to drop. {tables}")
+        sys.exit()
 
     log_start(schemas)
     schema_count = len(schemas)
