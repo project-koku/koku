@@ -135,6 +135,16 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['azure_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
+-- Now create our proper table if it does not exist
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp
+(
+    resource_id varchar,
+    capacity integer,
+    usage_start timestamp,
+    ocp_source varchar
+);
+
+
 INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp (
     uuid,
     usage_start,
@@ -286,7 +296,55 @@ GROUP BY coalesce(azure.date, azure.usagedatetime),
 ;
 
 {% if unattributed_storage %}
--- Persistent Volumes without PVCs Unattributed Storage
+INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp (
+    resource_id,
+    capacity,
+    usage_start,
+    ocp_source
+)
+WITH cte_ocp_filtered_resources as (
+    SELECT
+        distinct azure.resource_id as azure_partial_resource_id
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
+        ON (azure.usage_start = ocp.usage_start)
+        AND (
+                (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
+            OR
+                (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
+            )
+    WHERE ocp.source = {{ocp_source_uuid}}
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND ocp.usage_start >= {{start_date}}
+        AND ocp.usage_start < date_add('day', 1, {{end_date}})
+        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.year = {{year}}
+        AND azure.month = {{month}}
+)
+SELECT
+    ocp_filtered.azure_partial_resource_id,
+    max(az_disk_capacity.capacity) as capacity,
+    date(coalesce(date, usagedatetime)) as usage_start,
+    {{ocp_source_uuid}} as ocp_source
+FROM azure_line_items as azure
+JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
+    ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
+    AND az_disk_capacity.provider_type = 'Azure'
+JOIN cte_ocp_filtered_resources as ocp_filtered
+    ON split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) = ocp_filtered.azure_partial_resource_id
+WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
+    AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
+    AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
+GROUP BY ocp_filtered.azure_partial_resource_id, date(coalesce(date, usagedatetime))
+{% endif %}
+;
+
+{% if unattributed_storage %}
+-- Storage Disk resource_id matching
+-- Customer's Cost: (PV’s Capacity) / Disk Capacity * Cost of Disk
+-- Persistent Volumes without PVCs are Unattributed Storage
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -332,73 +390,15 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     year,
     month
 )
-WITH cte_ocp_filtered_resources as (
-    SELECT
-        distinct azure.resource_id as azure_partial_resource_id
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
-        ON (azure.usage_start = ocp.usage_start)
-        AND (
-                (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
-            OR
-                (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
-            )
-    WHERE ocp.source = {{ocp_source_uuid}}
-        AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}}
-        AND ocp.usage_start >= {{start_date}}
-        AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NULL OR ocp.resource_id = '')
-        AND ocp.persistentvolume is not null
-        AND persistentvolumeclaim = ''
-        AND azure.ocp_source = {{ocp_source_uuid}}
-        AND azure.year = {{year}}
-        AND azure.month = {{month}}
-),
-cte_az_resource_to_disk_capacity as (
-    SELECT
-        ocp_filtered.azure_partial_resource_id as resource_id,
-        max(az_disk_capacity.capacity) as capacity,
-        date(coalesce(date, usagedatetime)) as usage_start
-    FROM azure_line_items as azure
-    JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
-        ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
-        AND az_disk_capacity.provider_type = 'Azure'
-    JOIN cte_ocp_filtered_resources as ocp_filtered
-        ON split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) = ocp_filtered.azure_partial_resource_id
-    WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
-        AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
-    GROUP BY ocp_filtered.azure_partial_resource_id, date(coalesce(date, usagedatetime))
-),
-cte_total_pv_capacity as (
-    SELECT
-        SUM(combined_requests.capacity) as total_pv_capacity
-    FROM (
-        SELECT
-            ocp.persistentvolume,
-            max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity
-        FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
-        ON (azure.usage_start = ocp.usage_start)
-        AND (
-                (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
-            OR
-                (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
-            )
-        WHERE ocp.year = {{year}}
-            AND lpad(ocp.month, 2, '0') = {{month}}
-            AND ocp.usage_start >= {{start_date}}
-            AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        GROUP BY ocp.persistentvolume
-    ) as combined_requests
-)
 SELECT azure.uuid as azure_uuid,
     max(ocp.cluster_id) as cluster_id,
     max(ocp.cluster_alias) as cluster_alias,
     'Storage' as data_source,
-    'Storage unattributed' as namespace,
+    CASE
+        WHEN max(persistentvolumeclaim) = ''
+            THEN 'Storage unattributed'
+        ELSE max(namespace)
+    END as namespace,
     cast(NULL as varchar) as node,
     max(persistentvolumeclaim) as persistentvolumeclaim,
     max(persistentvolume) as persistentvolume,
@@ -445,18 +445,15 @@ SELECT azure.uuid as azure_uuid,
             OR
                 (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
-    JOIN cte_az_resource_to_disk_capacity AS az_disk
+    JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
-    LEFT JOIN cte_total_pv_capacity as pv_cap
-        ON 1 = 1
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
         AND ocp.persistentvolume is not null
-        AND persistentvolumeclaim = ''
         -- Filter out Node Network Costs because they cannot be tied to namespace level
         AND azure.data_transfer_direction IS NULL
         AND azure.ocp_source = {{ocp_source_uuid}}
@@ -469,8 +466,6 @@ SELECT azure.uuid as azure_uuid,
 ;
 
 {% if unattributed_storage %}
--- Storage Disk resource_id matching
--- Customer's Cost: (PV’s Capacity) / Disk Capacity * Cost of Disk
 -- Unallocated Cost: ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
@@ -517,45 +512,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     year,
     month
 )
-WITH cte_ocp_filtered_resources as (
-    SELECT
-        distinct azure.resource_id as azure_partial_resource_id
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
-        ON (azure.usage_start = ocp.usage_start)
-        AND (
-                (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
-            OR
-                (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
-            )
-    WHERE ocp.source = {{ocp_source_uuid}}
-        AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}}
-        AND ocp.usage_start >= {{start_date}}
-        AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
-        AND azure.ocp_source = {{ocp_source_uuid}}
-        AND azure.year = {{year}}
-        AND azure.month = {{month}}
-),
-cte_az_resource_to_disk_capacity as (
-    SELECT
-        ocp_filtered.azure_partial_resource_id as resource_id,
-        max(az_disk_capacity.capacity) as capacity,
-        date(coalesce(date, usagedatetime)) as usage_start
-    FROM azure_line_items as azure
-    JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
-        ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
-        AND az_disk_capacity.provider_type = 'Azure'
-    JOIN cte_ocp_filtered_resources as ocp_filtered
-        ON split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) = ocp_filtered.azure_partial_resource_id
-    WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
-        AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
-    GROUP BY ocp_filtered.azure_partial_resource_id, date(coalesce(date, usagedatetime))
-),
-cte_total_pv_capacity as (
+WITH cte_total_pv_capacity as (
     SELECT
         SUM(combined_requests.capacity) as total_pv_capacity
     FROM (
@@ -577,61 +534,16 @@ cte_total_pv_capacity as (
         GROUP BY ocp.persistentvolume
     ) as combined_requests
 )
-SELECT
-    disk_cost.azure_uuid as azure_disk,
-    disk_cost.cluster_id as cluster_id,
-    disk_cost.cluster_alias as cluster_alias,
-    disk_cost.data_source as data_source,
-    disk_cost.namespace as namespace,
-    disk_cost.node as node,
-    disk_cost.persistentvolumeclaim as persistentvolumeclaim,
-    disk_cost.persistentvolume as persistentvolume,
-    disk_cost.storageclass as storageclass,
-    disk_cost.resource_id as resource_id,
-    disk_cost.usage_start as usage_start,
-    disk_cost.usage_end as usage_end,
-    disk_cost.service_name as service_name,
-    disk_cost.instance_type as instance_type,
-    disk_cost.subscription_guid as subscription_guid,
-    disk_cost.subscription_name as subscription_name,
-    disk_cost.resource_location as resource_location,
-    disk_cost.unit_of_measure as unit_of_measure,
-    disk_cost.usage_quantity as usage_quantity,
-    disk_cost.currency as currency,
-    disk_cost.pretax_cost as pretax_cost,
-    disk_cost.markup_cost as markup_cost,
-    disk_cost.pod_cost as pod_cost,
-    disk_cost.project_markup_cost as project_markup_cost,
-    disk_cost.pod_usage_cpu_core_hours as pod_usage_cpu_core_hours,
-    disk_cost.pod_request_cpu_core_hours as pod_request_cpu_core_hours,
-    disk_cost.pod_effective_usage_cpu_core_hours as pod_effective_usage_cpu_core_hours,
-    disk_cost.pod_limit_cpu_core_hours as pod_limit_cpu_core_hours,
-    disk_cost.pod_usage_memory_gigabyte_hours as pod_usage_memory_gigabyte_hours,
-    disk_cost.pod_request_memory_gigabyte_hours as pod_request_memory_gigabyte_hours,
-    disk_cost.pod_effective_usage_memory_gigabyte_hours as pod_effective_usage_memory_gigabyte_hours,
-    disk_cost.node_capacity_cpu_core_hours as node_capacity_cpu_core_hours,
-    disk_cost.node_capacity_memory_gigabyte_hours as node_capacity_memory_gigabyte_hours,
-    disk_cost.cluster_capacity_cpu_core_hours as cluster_capacity_cpu_core_hours,
-    disk_cost.cluster_capacity_memory_gigabyte_hours as cluster_capacity_memory_gigabyte_hours,
-    disk_cost.pod_labels as pod_labels,
-    disk_cost.volume_labels as volume_labels,
-    disk_cost.tags as tags,
-    disk_cost.resource_id_matched as resource_id_matched,
-    disk_cost.cost_category_id as cost_category_id,
-    disk_cost.ocp_source as ocp_source,
-    disk_cost.year as year,
-    disk_cost.month as month
-FROM (
-    SELECT azure.uuid as azure_uuid,
+SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will deduplicate
         max(ocp.cluster_id) as cluster_id,
         max(ocp.cluster_alias) as cluster_alias,
         'Storage' as data_source,
         'Storage unattributed' as namespace,
         cast(NULL as varchar) as node,
-        cast(NULL as varchar) as persistentvolumeclaim,
-        cast(NULL as varchar) as persistentvolume,
-        cast(NULL as varchar) as storageclass,
-        azure.resource_id as resource_id,
+        max(persistentvolumeclaim) as persistentvolumeclaim,
+        max(persistentvolume) as persistentvolume,
+        max(storageclass) as storageclass,
+        max(azure.resource_id) as resource_id,
         max(azure.usage_start) as usage_start,
         max(azure.usage_start) as usage_end,
         max(nullif(azure.service_name, '')) as service_name,
@@ -673,7 +585,7 @@ FROM (
             OR
                 (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
-    JOIN cte_az_resource_to_disk_capacity AS az_disk
+    JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
     LEFT JOIN cte_total_pv_capacity as pv_cap
@@ -683,80 +595,11 @@ FROM (
         AND lpad(ocp.month, 2, '0') = {{month}}
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
         AND azure.ocp_source = {{ocp_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
         AND ocp.namespace != 'Storage unattributed'
     GROUP BY azure.uuid, ocp.data_source, azure.resource_id
-    UNION
-    SELECT azure.uuid as azure_uuid,
-        max(ocp.cluster_id) as cluster_id,
-        max(ocp.cluster_alias) as cluster_alias,
-        ocp.data_source,
-        ocp.namespace as namespace,
-        max(ocp.node) as node,
-        max(persistentvolumeclaim) as persistentvolumeclaim,
-        max(persistentvolume) as persistentvolume,
-        max(storageclass) as storageclass,
-        max(azure.resource_id) as resource_id,
-        max(azure.usage_start) as usage_start,
-        max(azure.usage_start) as usage_end,
-        max(nullif(azure.service_name, '')) as service_name,
-        max(azure.instance_type) as instance_type,
-        max(azure.subscription_guid) as subscription_guid,
-        max(azure.subscription_name) as subscription_name,
-        max(nullif(azure.resource_location, '')) as resource_location,
-        max(azure.unit_of_measure) as unit_of_measure,
-        max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
-        max(azure.currency) as currency,
-        max(persistentvolumeclaim_capacity_gigabyte) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))  as pretax_cost,
-        (max(persistentvolumeclaim_capacity_gigabyte) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
-        cast(NULL as double) as pod_cost,
-        cast(NULL as double) as project_markup_cost,
-        cast(NULL as double) as pod_usage_cpu_core_hours,
-        cast(NULL as double) as pod_request_cpu_core_hours,
-        cast(NULL as double) as pod_effective_usage_cpu_core_hours,
-        cast(NULL as double) as pod_limit_cpu_core_hours,
-        cast(NULL as double) as pod_usage_memory_gigabyte_hours,
-        cast(NULL as double) as pod_request_memory_gigabyte_hours,
-        cast(NULL as double) as pod_effective_usage_memory_gigabyte_hours,
-        cast(NULL as double) as node_capacity_cpu_core_hours,
-        cast(NULL as double) as node_capacity_memory_gigabyte_hours,
-        cast(NULL as double) as cluster_capacity_cpu_core_hours,
-        cast(NULL as double) as cluster_capacity_memory_gigabyte_hours,
-        cast(NULL as varchar) as pod_labels,
-        ocp.volume_labels as volume_labels,
-        max(azure.tags) as tags,
-        max(azure.resource_id_matched) as resource_id_matched,
-        max(ocp.cost_category_id) as cost_category_id,
-        {{ocp_source_uuid}} as ocp_source,
-        max(azure.year) as year,
-        max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
-        ON (azure.usage_start = ocp.usage_start)
-        AND (
-                (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
-            OR
-                (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
-            )
-    JOIN cte_az_resource_to_disk_capacity AS az_disk
-        ON az_disk.usage_start = azure.usage_start
-        AND az_disk.resource_id = azure.resource_id
-    WHERE ocp.source = {{ocp_source_uuid}}
-        AND ocp.year = {{year}}
-        AND lpad(ocp.month, 2, '0') = {{month}}
-        AND ocp.usage_start >= {{start_date}}
-        AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
-        AND azure.ocp_source = {{ocp_source_uuid}}
-        AND azure.year = {{year}}
-        AND azure.month = {{month}}
-        AND ocp.namespace != 'Storage unattributed'
-    GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
-) as disk_cost
--- The endif needs to come before the ; when using sqlparse
 {% endif %}
 ;
 

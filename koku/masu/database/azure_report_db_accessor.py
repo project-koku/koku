@@ -301,6 +301,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "reporting_ocpazurecostlineitem_project_daily_summary_temp",
             "azure_openshift_daily_resource_matched_temp",
             "azure_openshift_daily_tag_matched_temp",
+            "azure_openshift_disk_capacities_temp",
         ]
         for table in tables:
             self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
