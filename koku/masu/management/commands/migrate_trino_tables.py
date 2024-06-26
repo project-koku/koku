@@ -351,21 +351,26 @@ def log_start(schemas: list[str]) -> str:
 
     LOG.info(message)
 
+
 def drop_tables(tables, schemas) -> None:
     """drop specified tables"""
     if not schemas:
         schemas = get_all_schemas()
+
     if not set(tables).issubset(EXTERNAL_TABLES):
         raise ValueError("Attempting to drop non-external table, revise the list of tables to drop.", tables)
-    LOG.info(f"Running against the following schemas: {schemas}")
-    for schema in schemas:
-        LOG.info(f"Dropping tables {tables} for schema {schema}")
+
+    log_start(schemas)
+    schema_count = len(schemas)
+    for count, schema in enumerate(schemas):
+        prefix = f"    {schema}: "
+        LOG.info(f"Dropping tables {tables} for {schema} ({count + 1} / {schema_count})")
         for table_name in tables:
-            LOG.info(f"Dropping table {table_name}")
+            LOG.info(f"{prefix}Dropping table {table_name}")
             sql = f"DROP TABLE IF EXISTS {table_name}"
             try:
                 result = run_trino_sql(sql, schema)
-                LOG.info(f"DROP TABLE result: {result}")
+                LOG.info(f"{prefix}DROP TABLE result: {result}")
             except Exception as e:
                 LOG.error(e)
 
@@ -374,14 +379,22 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
     """drop specified partitions from tables"""
     if not schemas:
         schemas = get_all_schemas()
-    LOG.info(f"Running against the following schemas: {schemas}")
-    for schema in schemas:
-        LOG.info(f"Dropping partition from tables for schema {schema}")
+
+    log_start(schemas)
+    for count, schema in enumerate(schemas):
+        prefix = f"    {schema}: "
+        schema_count = len(schemas)
+        LOG.info(f"Looking for partitions to delete schema {schema} ({count + 1} / {schema_count})")
         for part in list_of_partitions.list:
             sql = f"SELECT count(DISTINCT {part.partition_column}) FROM {part.table}"
             try:
                 result = run_trino_sql(sql, schema)
                 partition_count = result[0][0]
+
+                if not partition_count:
+                    LOG.info(f"{prefix}No partitions to delete")
+                    continue
+
                 limit = 10000
                 for i in range(0, partition_count, limit):
                     sql = f"SELECT DISTINCT {part.partition_column} FROM {part.table} OFFSET {i} LIMIT {limit}"
@@ -389,10 +402,10 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
                     partitions = [res[0] for res in result]
 
                     for partition in partitions:
-                        LOG.info(f"Deleting {part.table} partition {part.partition_column} = {partition}")
+                        LOG.info(f"{prefix}Deleting {part.table} partition {part.partition_column} = {partition}")
                         sql = f"DELETE FROM {part.table} WHERE {part.partition_column} = '{partition}'"
                         result = run_trino_sql(sql, schema)
-                        LOG.info(f"DELETE PARTITION result: {result}")
+                        LOG.info(f"{prefix}DELETE PARTITION result: {result}")
             except Exception as e:
                 LOG.error(e)
 
@@ -404,9 +417,7 @@ def check_table_exists(schema, table):
 
 def find_expired_partitions(schema, months, table, source_column_param):
     """Finds the expired partitions"""
-    expiration_msg = "Report data expiration is {} for a {} month retention policy"
     today = DateHelper().today
-    LOG.info("Current date time is %s", today)
     middle_of_current_month = today.replace(day=15)
     num_of_days_to_expire_date = months * timedelta(days=30)
     middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
@@ -416,9 +427,9 @@ def find_expired_partitions(schema, months, table, source_column_param):
         day=1,
         tzinfo=settings.UTC,
     )
-    expiration_date_param = str(expiration_date.date())
-    msg = expiration_msg.format(expiration_date_param, months)
-    LOG.info(msg)
+
+    prefix = f"    {schema}: "
+    LOG.info(f"{prefix}Report data expiration is {expiration_date.date()!s} for a {months} month retention policy")
     expired_partitions_query = f"""
         SELECT partitions.year, partitions.month, partitions.source
     FROM (
@@ -429,40 +440,44 @@ def find_expired_partitions(schema, months, table, source_column_param):
             {source_column_param} as source
         FROM  "{table}$partitions"
     ) as partitions
-    WHERE partitions.partition_date < DATE '{expiration_date_param}'
+    WHERE partitions.partition_date < DATE '{expiration_date.date()!s}'
     GROUP BY partitions.year, partitions.month, partitions.source
         """
-    LOG.info(f"Finding expired partitions for {schema} {table}")
-    return run_trino_sql(expired_partitions_query, schema)
+    LOG.info(f"{prefix}Finding expired partitions for {schema} {table}")
+    return run_trino_sql(textwrap.dedent(expired_partitions_query), schema)
 
 
 def drop_expired_partitions(tables, schemas):
     """Drop expired partitions"""
     if not schemas:
         schemas = get_all_schemas()
-    LOG.info(f"running against the following schemas: {schemas}")
-    for schema in schemas:
+
+    log_start(schemas)
+    schema_count = len(schemas)
+    for count, schema in enumerate(schemas):
+        LOG.info(f"Checking partitions for {schema} ({count + 1} / {schema_count})")
+        prefix = f"    {schema}: "
         for table in tables:
             if table in MANAGED_TABLES:
                 months = 5
             else:
-                LOG.info("Only supported for managed tables at the moment")
+                LOG.info(f"{prefix}Only supported for managed tables at the moment")
                 continue
 
             source_column_param = manage_table_mapping[table]
             if not check_table_exists(schema, table):
-                LOG.info(f"{table} does not exist for {schema}")
+                LOG.info(f"{prefix}{table} does not exist for {schema}")
                 continue
 
             expired_partitions = find_expired_partitions(schema, months, table, source_column_param)
             if not expired_partitions:
-                LOG.info(f"No expired partitions found for {table} {schema}")
+                LOG.info(f"{prefix}No expired partitions found for {table} {schema}")
                 continue
 
-            LOG.info(f"Found {len(expired_partitions)}")
+            LOG.info(f"{prefix}Found {len(expired_partitions)}")
             for partition in expired_partitions:
                 year, month, source = partition
-                LOG.info(f"Removing partition for {source} {year}-{month}")
+                LOG.info(f"{prefix}Removing partition for {source} {year}-{month}...")
                 # Using same query as what we use in db accessor
                 delete_partition_query = f"""
                             DELETE FROM hive.{schema}.{table}
@@ -470,5 +485,5 @@ def drop_expired_partitions(tables, schemas):
                             AND year = '{year}'
                             AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                             """
-                result = run_trino_sql(delete_partition_query, schema)
-                LOG.info(f"DELETE PARTITION result: {result}")
+                result = run_trino_sql(textwrap.dedent(delete_partition_query), schema)
+                LOG.info(f"{prefix}DELETE PARTITION result: {result}")
