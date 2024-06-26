@@ -390,7 +390,11 @@ def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas:
             sql = f"SELECT count(DISTINCT {part.partition_column}) FROM {part.table}"
             try:
                 result = run_trino_sql(sql, schema)
-                partition_count = result[0][0]
+                try:
+                    partition_count = result[0][0]
+                except IndexError:
+                    LOG.warning(f"{prefix}Unable to get partition count")
+                    continue
 
                 if not partition_count:
                     LOG.info(f"{prefix}No partitions to delete")
