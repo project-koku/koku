@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import random
+from collections import namedtuple
 from datetime import datetime
 from unittest import TestCase
+from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import mock_open
 from unittest.mock import patch
@@ -36,6 +38,7 @@ from reporting.models import AWSCostEntryBill
 AWS_REGIONS = list(filter(lambda reg: not reg.startswith("cn-"), AWS_REGIONS))
 REGION = random.choice(AWS_REGIONS)
 
+KEY = Faker()
 NAME = Faker().word()
 BUCKET = Faker().word()
 PREFIX = Faker().word()
@@ -61,6 +64,8 @@ response = {
     }
 }
 MOCK_BOTO_CLIENT.assume_role.return_value = response
+
+DummyS3Object = namedtuple("DummyS3Object", "key")
 
 
 class TestAWSUtils(MasuTestCase):
@@ -467,6 +472,27 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertListEqual(filtered, [])
 
+    @patch("masu.util.aws.common.get_s3_resource")
+    def test_batch_delete_s3_objects(self, mock_resource):
+        """Test that delete_archived_data correctly interacts with AWS S3."""
+        context = {"test_delete": "testing"}
+        # Generate enough fake objects to expect calling the S3 delete api twice.
+        mock_bucket = mock_resource.return_value.Bucket.return_value
+        bucket_objects = [DummyS3Object(key=KEY.file_path()) for _ in range(1234)]
+        keys = [bucket_object.key for bucket_object in bucket_objects]
+        expected_keys = [{"Key": bucket_object.key} for bucket_object in bucket_objects]
+
+        # Leave one object mysteriously not deleted to cover the LOG.warning use case.
+        mock_bucket.objects.filter.side_effect = [bucket_objects, bucket_objects[:1]]
+
+        with self.assertLogs("masu.util.aws.common") as captured_logs:
+            utils.delete_s3_objects("request_id", keys, context)
+        mock_resource.assert_called()
+        mock_bucket.delete_objects.assert_has_calls(
+            [call(Delete={"Objects": expected_keys[:1000]}), call(Delete={"Objects": expected_keys[1000:]})]
+        )
+        self.assertIn("removed files from s3 bucket", captured_logs.output[-1])
+
     def test_remove_s3_objects_not_matching_metadata(self):
         """Test remove_s3_objects_not_matching_metadata."""
         metadata_key = "manifestid"
@@ -496,7 +522,7 @@ class TestAWSUtils(MasuTestCase):
             removed = utils.delete_s3_objects_not_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
-            self.assertListEqual(removed, [expected_key])
+            self.assertListEqual(removed, [{"Key": expected_key}])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             client_error_object = Mock()
@@ -514,7 +540,7 @@ class TestAWSUtils(MasuTestCase):
             "masu.util.aws.common.get_s3_resource"
         ) as mock_s3:
             mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
-            mock_get_objects.return_value = [expected_key]
+            mock_get_objects.return_value = []
             removed = utils.delete_s3_objects_not_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
@@ -604,7 +630,7 @@ class TestAWSUtils(MasuTestCase):
             removed = utils.delete_s3_objects_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
-            self.assertListEqual(removed, [expected_key])
+            self.assertListEqual(removed, [{"Key": expected_key}])
 
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             client_error_object = Mock()
@@ -622,7 +648,7 @@ class TestAWSUtils(MasuTestCase):
             "masu.util.aws.common.get_s3_resource"
         ) as mock_s3:
             mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
-            mock_get_objects.return_value = [expected_key]
+            mock_get_objects.return_value = []
             removed = utils.delete_s3_objects_matching_metadata(
                 "request_id", s3_csv_path, metadata_key=metadata_key, metadata_value_check=metadata_value
             )
