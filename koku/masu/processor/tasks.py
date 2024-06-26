@@ -852,9 +852,11 @@ def update_cost_model_costs(
 
     """
     task_name = "masu.processor.tasks.update_cost_model_costs"
-    cache_args = [schema_name, provider_uuid, start_date, end_date]
+    # Remove queued task from cache
     worker_cache = WorkerCache()
     cache_key = f"{provider_uuid}:{start_date}:{end_date}"
+    worker_cache.remove_task_from_cache(cache_key)
+    cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         fallback_queue = get_customer_queue(schema_name, CostModelQueue)
         if worker_cache.single_task_is_running(task_name, cache_args):
@@ -890,13 +892,10 @@ def update_cost_model_costs(
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
-        worker_cache.remove_task_from_cache(cache_key)
         raise ex
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
-
-    worker_cache.remove_task_from_cache(cache_key)
 
 
 @celery_app.task(name="masu.processor.tasks.mark_manifest_complete", queue=PriorityQueue.DEFAULT)
