@@ -1,13 +1,11 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: clowder-scheduler
+    name: clowder-worker-priority-penalty
     metadata:
       annotations:
-        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently scheduling is a singleton
-        ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery beat which does not easily support readiness checks
-        ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery beat which does not easily support liveness checks
-    replicas: ${{SCHEDULER_REPLICAS}}
+        ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
+    replicas: ${{WORKER_PRIORITY_PENALTY_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -16,16 +14,14 @@
     podSpec:
       metadata:
         annotations:
-          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod as currently scheduling is a singleton
-          ignore-check.kube-linter.io/no-readiness-probe: This deployment uses celery beat which does not easily support readiness checks
-          ignore-check.kube-linter.io/no-liveness-probe: This deployment uses celery beat which does not easily support liveness checks
+          ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
       image: ${IMAGE}:${IMAGE_TAG}
       command:
         - /bin/bash
         - -c
         - > # ${APP_HOME} is `/opt/koku/koku` which is defined in the Dockerfile
           PYTHONPATH=${APP_HOME}
-          celery -A koku beat -l $CELERY_LOG_LEVEL
+          celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -39,6 +35,12 @@
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psk
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -59,6 +61,8 @@
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: PANDAS_COLUMN_BATCH_SIZE
+          value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_ENABLE_SENTRY
@@ -74,21 +78,9 @@
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
-          value: ${SCHEDULER_WORKER_QUEUE}
-        - name: REPORT_DOWNLOAD_SCHEDULE
-          value: ${REPORT_DOWNLOAD_SCHEDULE}
-        - name: SCHEDULE_REPORT_CHECKS
-          value: ${SCHEDULE_REPORT_CHECKS}
-        - name: SOURCE_STATUS_SCHEDULE
-          value: ${SOURCE_STATUS_SCHEDULE}
-        - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
-          value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
-        - name: REMOVE_EXPIRED_REPORT_UTC_TIME
-          value: ${REMOVE_EXPIRED_REPORT_UTC_TIME}
-        - name: VACUUM_DATA_DAY_OF_WEEK
-          value: ${VACUUM_DATA_DAY_OF_WEEK}
-        - name: VACUUM_DATA_UTC_TIME
-          value: ${VACUUM_DATA_UTC_TIME}
+          value: ${WORKER_PRIORITY_PENALTY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: DATE_OVERRIDE
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
@@ -101,6 +93,12 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: DELAYED_TASK_TIME
+          value: ${DELAYED_TASK_TIME}
+        - name: DELAYED_TASK_POLLING_MINUTES
+          value: ${DELAYED_TASK_POLLING_MINUTES}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -111,23 +109,54 @@
           value: ${REPORT_PROCESSING_BATCH_SIZE}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT}
+        - name: WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS
+          value: ${WORKER_CACHE_LARGE_CUSTOMER_CONCURRENT_TASKS}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+      livenessProbe:
+        httpGet:
+          path: /livez
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      terminationGracePeriodSeconds: 3600
       resources:
         limits:
-          cpu: ${SCHEDULER_CPU_LIMIT}
-          memory: ${SCHEDULER_MEMORY_LIMIT}
+          cpu: ${WORKER_PRIORITY_PENALTY_CPU_LIMIT}
+          memory: ${WORKER_PRIORITY_PENALTY_MEMORY_LIMIT}
         requests:
-          cpu: ${SCHEDULER_CPU_REQUEST}
-          memory: ${SCHEDULER_MEMORY_REQUEST}
+          cpu: ${WORKER_PRIORITY_PENALTY_CPU_REQUEST}
+          memory: ${WORKER_PRIORITY_PENALTY_MEMORY_REQUEST}
       volumeMounts:
       - name: aws-credentials
         mountPath: /etc/aws
         readOnly: true
+      - mountPath: /var/tmp/masu/
+        name: koku-worker-data
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
@@ -138,6 +167,8 @@
         mountPath: ${TMP_DIR}
       volumes:
       - name: tmp-data
+        emptyDir: {}
+      - name: koku-worker-data
         emptyDir: {}
       - name: aws-credentials
         secret:
@@ -164,53 +195,41 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: SCHEDULER_REPLICAS
+    name: WORKER_PRIORITY_PENALTY_REPLICAS
     required: true
-    value: '1'
+    value: '2'
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: SCHEDULER_MEMORY_REQUEST
-    required: true
-    value: 200Mi
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Memory Limit
-    name: SCHEDULER_MEMORY_LIMIT
+    name: WORKER_PRIORITY_PENALTY_MEMORY_REQUEST
     required: true
     value: 400Mi
 - op: add
   path: /parameters/-
   value:
-    displayName: CPU Request
-    name: SCHEDULER_CPU_REQUEST
+    displayName: Memory Limit
+    name: WORKER_PRIORITY_PENALTY_MEMORY_LIMIT
     required: true
-    value: 50m
+    value: 750Mi
+- op: add
+  path: /parameters/-
+  value:
+    displayName: CPU Request
+    name: WORKER_PRIORITY_PENALTY_CPU_REQUEST
+    required: true
+    value: 150m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: SCHEDULER_CPU_LIMIT
+    name: WORKER_PRIORITY_PENALTY_CPU_LIMIT
     required: true
-    value: 100m
+    value: 300m
 - op: add
   path: /parameters/-
   value:
     displayName: Worker Queue
-    name: SCHEDULER_WORKER_QUEUE
+    name: WORKER_PRIORITY_PENALTY_WORKER_QUEUE
     required: true
-    value: 'cost_model,cost_model_xl,cost_model_penalty,download,download_xl,download_penalty,hcs,ocp,ocp_xl,ocp_penalty,priority,priority_xl,priority_penalty,refresh,refresh_xl,refresh_penalty,summary,summary_xl,summary_penalty'
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Scheduler report checks
-    name: SCHEDULE_REPORT_CHECKS
-    value: "True"
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Frequency to check sources availability (minutes)
-    name: SOURCE_STATUS_SCHEDULE
-    value: "0 3 * * *"
+    value: 'priority_penalty'

@@ -762,6 +762,7 @@ class OCPProviderMap(ProviderMap):
                             },
                         },
                         "cost_units_key": "raw_currency",
+                        "usage_units_key": "GB",
                         "sum_columns": [
                             "usage",
                             "data_transfer_in",

@@ -12,21 +12,23 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import build_matching_tags_key
 from koku.cache import get_cached_infra_map
-from koku.cache import get_cached_matching_tags
 from koku.cache import get_cached_tag_rate_map
+from koku.cache import get_value_from_cache
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import invalidate_view_cache_for_tenant_and_source_types
+from koku.cache import is_key_in_cache
 from koku.cache import KokuCacheError
 from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
 from koku.cache import OPENSHIFT_CACHE_PREFIX
 from koku.cache import set_cached_infra_map
-from koku.cache import set_cached_matching_tags
 from koku.cache import set_cached_tag_rate_map
+from koku.cache import set_value_in_cache
 
 
 CACHE_PREFIXES = (
@@ -232,18 +234,6 @@ class KokuCacheTest(IamTestCase):
             for key in cache_data:
                 self.assertIsNone(self.cache.get(key))
 
-    def test_matching_tags_cache(self):
-        """Test that getting/setting matching tags works."""
-        provider_type = Provider.PROVIDER_AWS
-        initial = get_cached_matching_tags(self.schema_name, provider_type)
-        self.assertIsNone(initial)
-
-        matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
-        set_cached_matching_tags(self.schema_name, provider_type, matched_tags)
-
-        cached = get_cached_matching_tags(self.schema_name, provider_type)
-        self.assertEqual(cached, matched_tags)
-
     def test_infra_map_cache(self):
         """Test that getting/setting infra_map works."""
         provider_type = Provider.PROVIDER_AWS
@@ -263,3 +253,30 @@ class KokuCacheTest(IamTestCase):
         self.assertIsNone(initial)
         cached = get_cached_tag_rate_map(schema)
         self.assertEqual(cached, tag_map)
+
+    def test_build_matching_tags_key(self):
+        """Test that the matching tags key is constructed properly."""
+        provider_type = Provider.PROVIDER_AWS
+        expected = f"OCP-on-{provider_type}:{self.schema_name}:matching-tags"
+        actual = build_matching_tags_key(self.schema_name, provider_type)
+        self.assertEqual(expected, actual)
+
+    def test_get_and_set_value_from_cache(self):
+        """Test that getting a value from the cache and setting a value in the cache works as intended."""
+        cache_key = "my-fake-key-get-test"
+        expected_value = "my-fake-value"
+
+        actual = get_value_from_cache(cache_key)
+        self.assertIsNone(actual)
+
+        set_value_in_cache(cache_key, expected_value)
+        actual = get_value_from_cache(cache_key)
+        self.assertEqual(expected_value, actual)
+
+    def test_is_key_in_cache(self):
+        """Test that checking the cache for key presence works as intended"""
+        cache_key = "fake-key-for-bool-test"
+        self.assertFalse(is_key_in_cache(cache_key))
+
+        set_value_in_cache(cache_key, "fake-value")
+        self.assertTrue(is_key_in_cache(cache_key))
