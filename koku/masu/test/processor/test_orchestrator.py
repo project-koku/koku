@@ -566,3 +566,11 @@ class OrchestratorTest(MasuTestCase):
         provider_failed.data_updated_timestamp = seven_days_ago
         result = check_currently_processing(self.schema_name, provider_failed)
         self.assertEqual(result, False)
+        # Check we have task processing but likely failed, needs repolling
+        with patch("masu.processor.orchestrator.is_customer_large", return_value=True):
+            nine_days_ago = now - timedelta(days=9)
+            provider_failed = SimpleNamespace()
+            provider_failed.polling_timestamp = two_days_ago
+            provider_failed.data_updated_timestamp = nine_days_ago
+            result = check_currently_processing(self.schema_name, provider_failed)
+            self.assertEqual(result, False)
