@@ -92,8 +92,6 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
         if limit < 1:
             # Django can't do negative indexing, so just return all the Providers.
             # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
-            # Adding filter for data_updated_timestamp, prevent triggering new tasks if one is still in progress
-            # Additional 7 day check here if processing fails and data_updated_timestamp is not updated
             return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)
         return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
 
