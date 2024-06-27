@@ -618,19 +618,21 @@ def update_summary_tables(  # noqa: C901
     # This method should always be called for OCP providers even when it does not have a cost model
     if cost_model is not None or provider_type == Provider.PROVIDER_OCP:
         # Prevent running duplicate tasks for the same source date range.
-        cache_key = f"{provider_uuid}:{start_date}:{end_date}"
-        if worker_cache.task_is_running(cache_key):
+        cache_key = f"cost-model:{provider_uuid}:{start_date}:{end_date}"
+        queued_task = worker_cache.get_task_from_cache_key(cache_key)
+        if queued_task:
             LOG.info(
                 log_json(
                     tracing_id, msg="cost model update for range already queued, skipping new task.", context=context
                 )
             )
-            # We still want to mark the manifest complete for the processed reports
-            linked_tasks = mark_manifest_complete.si(
-                schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
-            ).set(queue=mark_manifest_complete_queue)
+            # Attempt to link manifest task to currently queued cost model update.
+            queued_task.link(
+                mark_manifest_complete.si(
+                    schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
+                ).set(queue=mark_manifest_complete_queue)
+            )
             return
-        worker_cache.add_task_to_cache(cache_key)
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
         linked_tasks = update_cost_model_costs.s(
             schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
@@ -650,7 +652,11 @@ def update_summary_tables(  # noqa: C901
             tracing_id=tracing_id,
         ).set(queue=mark_manifest_complete_queue)
 
-    chain(linked_tasks).apply_async()
+    result = chain(linked_tasks).apply_async()
+    if not queued_task:
+        # If we can assign the task id to the cache_key we can potentially
+        # look up the queued task and link the new manifest update task to it.
+        worker_cache.set_cache_task_id(cache_key, result.id)
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
@@ -851,10 +857,14 @@ def update_cost_model_costs(
         None
 
     """
+    LOG.info(f"\n\n PAUSE COST MODEL \n\n")
+    import time
+
+    time.sleep(100)
     task_name = "masu.processor.tasks.update_cost_model_costs"
     # Remove queued task from cache
     worker_cache = WorkerCache()
-    cache_key = f"{provider_uuid}:{start_date}:{end_date}"
+    cache_key = f"cost-model:{provider_uuid}:{start_date}:{end_date}"
     worker_cache.remove_task_from_cache(cache_key)
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:

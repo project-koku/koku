@@ -5,6 +5,7 @@
 """Cache of worker tasks currently running."""
 import logging
 
+from celery.result import AsyncResult
 from django.conf import settings
 from django.core.cache import caches
 from django.db import connection
@@ -152,6 +153,19 @@ class WorkerCache:
         """Check if a task is in the cache."""
         task_list = self.get_all_running_tasks()
         return task_key in task_list
+
+    def get_task_from_cache_key(self, cache_key):
+        """Return the currently queued task"""
+        task = None
+        for i in self.get_all_running_tasks():
+            if cache_key in i:
+                task_id = i.split(":")[-1]
+                task = AsyncResult(task_id)
+        return task
+
+    def set_cache_task_id(self, cache_key, task_id):
+        """Set task id for cached key"""
+        return
 
     def single_task_is_running(self, task_name, task_args=None):
         """Check for a single task key in the cache."""
