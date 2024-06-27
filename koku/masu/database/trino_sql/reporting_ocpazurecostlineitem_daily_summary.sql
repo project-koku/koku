@@ -141,8 +141,11 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.azure_openshift_disk_capaci
     resource_id varchar,
     capacity integer,
     usage_start timestamp,
-    ocp_source varchar
-);
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
+;
 
 
 INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp (
@@ -300,7 +303,9 @@ INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp (
     resource_id,
     capacity,
     usage_start,
-    ocp_source
+    ocp_source,
+    year,
+    month
 )
 WITH cte_ocp_filtered_resources as (
     SELECT
@@ -326,7 +331,9 @@ SELECT
     ocp_filtered.azure_partial_resource_id,
     max(az_disk_capacity.capacity) as capacity,
     date(coalesce(date, usagedatetime)) as usage_start,
-    {{ocp_source_uuid}} as ocp_source
+    {{ocp_source_uuid}} as ocp_source,
+    max(ocp_filtered.year) as year,
+    max(ocp_filtered.month) as month
 FROM azure_line_items as azure
 JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
     ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
