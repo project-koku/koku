@@ -73,13 +73,10 @@ def get_billing_months(number_of_months):
 
 def check_currently_processing(schema, provider):
     result = False
-    LOG.info(f"\n\n MINUS \n\n")
     if provider.polling_timestamp:
-        LOG.info(f"\n\n FIRST \n\n")
         # Set processing delta wait time
         process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.PROCESSING_WAIT_TIMER)
         if is_customer_large(schema):
-            LOG.info(f"\n\n SECOND \n\n")
             process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.LARGE_PROCESSING_WAIT_TIMER)
         # Fallback to creation timestamp if its a new provider
         check_timestamp = (
@@ -87,11 +84,9 @@ def check_currently_processing(schema, provider):
         )
         # Check processing, if polling timestamp more recent than updated timestamp skip polling
         if provider.polling_timestamp > check_timestamp:
-            LOG.info(f"\n\n THIRD \n\n")
             result = True
             # Check failed processing, if updated timestamp not updated in x days we should polling again
             if process_wait_delta > check_timestamp:
-                LOG.info(f"\n\n FORTH \n\n")
                 result = False
     return result
 
