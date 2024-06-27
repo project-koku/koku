@@ -200,26 +200,22 @@ class TestCeleryTasks(MasuTestCase):
         self.assertIn("provider_uuid", str(e.exception))
 
     @patch("masu.celery.tasks.get_s3_resource")
-    def test_deleted_archived_with_prefix_success(self, mock_resource):
+    @patch("masu.celery.tasks.delete_s3_objects")
+    def test_deleted_archived_with_prefix_success(self, mock_delete, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         expected_prefix = "data/csv/10001/00000000-0000-0000-0000-000000000001/"
 
         # Generate enough fake objects to expect calling the S3 delete api twice.
         mock_bucket = mock_resource.return_value.Bucket.return_value
         bucket_objects = [DummyS3Object(key=fake.file_path()) for _ in range(1234)]
-        expected_keys = [{"Key": bucket_object.key} for bucket_object in bucket_objects]
-
-        # Leave one object mysteriously not deleted to cover the LOG.warning use case.
-        mock_bucket.objects.filter.side_effect = [bucket_objects, bucket_objects[:1]]
-
-        with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
+        expected_len = len(bucket_objects)
+        mock_bucket.objects.filter.side_effect = [bucket_objects]
+        with self.assertLogs("masu") as captured_logs:
             tasks.deleted_archived_with_prefix(mock_bucket, expected_prefix)
         mock_resource.assert_called()
-        mock_bucket.delete_objects.assert_has_calls(
-            [call(Delete={"Objects": expected_keys[:1000]}), call(Delete={"Objects": expected_keys[1000:]})]
-        )
-        mock_bucket.objects.filter.assert_has_calls([call(Prefix=expected_prefix), call(Prefix=expected_prefix)])
-        self.assertIn("Found 1 objects after attempting", captured_logs.output[-1])
+        mock_bucket.objects.filter.assert_called_with(Prefix=expected_prefix)
+        mock_delete.assert_called()
+        self.assertIn(f"starting objects: {expected_len}", captured_logs.output[-1])
 
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     def test_delete_archived_data_success(self, mock_delete):

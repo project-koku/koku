@@ -41,7 +41,9 @@ class AzureReportDownloaderNoFileError(Exception):
     """Azure Report Downloader error for missing file."""
 
 
-def get_processing_date(s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id):
+def get_processing_date(
+    s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports=None
+):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
 
@@ -56,12 +58,14 @@ def get_processing_date(s3_csv_path, manifest_id, provider_uuid, start_date, end
     """
     dh = DateHelper()
     # Azure does not have an invoice column so we have to do some guessing here
+    # Ingres reports should always clear and process everything
     if (
         start_date.year < dh.today.year
         and dh.today.day > 1
         or start_date.month < dh.today.month
         and dh.today.day > 1
         or not check_provider_setup_complete(provider_uuid)
+        or ingress_reports
     ):
         process_date = start_date
         ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
@@ -82,6 +86,7 @@ def create_daily_archives(
     manifest_id,
     start_date,
     context,
+    ingress_reports=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -103,7 +108,7 @@ def create_daily_archives(
         account, Provider.PROVIDER_AZURE, provider_uuid, start_date, Config.CSV_DATA_TYPE
     )
     process_date = get_processing_date(
-        s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id
+        s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports
     )
     time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
@@ -456,6 +461,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_id,
             start_date,
             self.context,
+            self.ingress_reports,
         )
 
         msg = f"Download complete for {key}"
