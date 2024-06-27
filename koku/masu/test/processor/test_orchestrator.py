@@ -16,6 +16,7 @@ from api.models import Provider
 from masu.config import Config
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.orchestrator import check_currently_processing
 from masu.processor.orchestrator import get_billing_month_start
 from masu.processor.orchestrator import get_billing_months
 from masu.processor.orchestrator import Orchestrator
@@ -92,7 +93,11 @@ class OrchestratorTest(MasuTestCase):
         "masu.processor.orchestrator.is_cloud_source_processing_disabled",
         return_value=True,
     )
-    def test_unleash_is_cloud_source_processing_disabled(self, mock_processing, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_unleash_is_cloud_source_processing_disabled(self, mock_processing_check, mock_processing, mock_inspect):
         """Test the is_cloud_source_processing_disabled."""
         expected_result = "processing disabled"
         orchestrator = Orchestrator()
@@ -142,7 +147,13 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=ReportDownloaderError)
-    def test_prepare_w_downloader_error(self, mock_task, mock_account_alias_updater, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_prepare_w_downloader_error(
+        self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect
+    ):
         """Test that Orchestrator.prepare() handles downloader errors."""
 
         orchestrator = Orchestrator()
@@ -153,7 +164,11 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=Exception)
-    def test_prepare_w_exception(self, mock_task, mock_account_alias_updater, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_prepare_w_exception(self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() handles broad exceptions."""
 
         orchestrator = Orchestrator()
@@ -164,7 +179,13 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
-    def test_prepare_w_manifest_processing_successful(self, mock_task, mock_account_alias_updater, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_prepare_w_manifest_processing_successful(
+        self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect
+    ):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
         # mock_account_alias_updater().get_label_details.return_value = (True, True)
 
@@ -175,8 +196,12 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
     def test_prepare_w_ingress_reports_processing_successful(
-        self, mock_task, mock_account_alias_updater, mock_inspect
+        self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect
     ):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
         # mock_account_alias_updater().get_label_details.return_value = (True, True)
@@ -445,7 +470,11 @@ class OrchestratorTest(MasuTestCase):
         self.assertEqual(result, expected)
 
     @patch("masu.processor.orchestrator.WorkerCache")
-    def test_orchestrator_args_polling_batch(self, *args):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_orchestrator_args_polling_batch(self, mock_check_processing, *args):
         """Test that args to Orchestrator change the polling-batch result"""
         # providing a UUID overrides the polling timestamp
         o = Orchestrator(provider_uuid=self.aws_provider_uuid)
@@ -513,3 +542,9 @@ class OrchestratorTest(MasuTestCase):
 
         result = get_billing_month_start(test_input.date())
         self.assertEqual(result, expected)
+
+    def test_check_currently_processing(self):
+        """Test to check if we should poll a provider that may have tasks in progress."""
+        # Check we would process if not processed before
+        result = check_currently_processing(self.schema_name, self.ocp_provider)
+        self.assertEqual(result, False)
