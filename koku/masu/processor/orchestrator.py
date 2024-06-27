@@ -6,6 +6,7 @@
 import copy
 import logging
 from datetime import datetime
+from datetime import timedelta
 
 from celery import chord
 from celery import group
@@ -26,6 +27,7 @@ from masu.config import Config
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_cloud_source_processing_disabled
+from masu.processor import is_customer_large
 from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import record_all_manifest_files
@@ -67,6 +69,26 @@ def get_billing_months(number_of_months):
         calculated_month = current_month + relativedelta(months=-month)
         months.append(calculated_month.date())
     return months
+
+
+def check_currently_processing(schema, provider):
+    result = False
+    if provider.polling_timestamp:
+        # Set processing delta wait time
+        process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.PROCESSING_WAIT_TIMER)
+        if is_customer_large(schema):
+            process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.LARGE_PROCESSING_WAIT_TIMER)
+        # Fallback to creation timestamp if its a new provider
+        check_timestamp = (
+            provider.data_updated_timestamp if provider.data_updated_timestamp else provider.created_timestamp
+        )
+        # Check processing, if polling timestamp more recent than updated timestamp skip polling
+        if provider.polling_timestamp > check_timestamp:
+            result = True
+            # Check failed processing, if updated timestamp not updated in x days we should polling again
+            if process_wait_delta > check_timestamp:
+                result = False
+    return result
 
 
 class Orchestrator:
@@ -111,6 +133,9 @@ class Orchestrator:
             provider.polling_timestamp = self.dh.now_utc
             provider.save(update_fields=["polling_timestamp"])
             schema_name = provider.account.get("schema_name")
+            # Check processing delta wait and skip polling if provider not completed processing
+            if check_currently_processing(schema_name, provider):
+                continue
             # If a source is disabled/re-enabled it may not be collected till after the process_wait_delta expires
             if is_cloud_source_processing_disabled(schema_name):
                 LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))

@@ -14,9 +14,7 @@ from django.db import connection
 from django.db import models
 from django.db import router
 from django.db import transaction
-from django.db.models import F
 from django.db.models import JSONField
-from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.db.models.signals import post_delete
 from django.utils import timezone
@@ -89,12 +87,6 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
     def get_polling_batch(self, limit=-1, offset=0, filters=None):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
         polling_delta = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
-        process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.PROCESSING_WAIT_TIMER)
-        filter_condition = (
-            Q(polling_timestamp__isnull=True)
-            | Q(polling_timestamp__lt=F("data_updated_timestamp"))
-            | Q(data_updated_timestamp__lte=process_wait_delta)
-        )
         if not filters:
             filters = {}
         if limit < 1:
@@ -102,12 +94,8 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
             # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
             # Adding filter for data_updated_timestamp, prevent triggering new tasks if one is still in progress
             # Additional 7 day check here if processing fails and data_updated_timestamp is not updated
-            return self.filter(**filters).filter(filter_condition).exclude(polling_timestamp__gt=polling_delta)
-        return (
-            self.filter(**filters)
-            .filter(filter_condition)
-            .exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
-        )
+            return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)
+        return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
 
 
 class Provider(models.Model):
