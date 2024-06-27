@@ -7,6 +7,8 @@ import logging
 import random
 from datetime import date
 from datetime import datetime
+from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -545,6 +547,22 @@ class OrchestratorTest(MasuTestCase):
 
     def test_check_currently_processing(self):
         """Test to check if we should poll a provider that may have tasks in progress."""
+        now = self.dh.now_utc
         # Check we would process if not processed before
         result = check_currently_processing(self.schema_name, self.ocp_provider)
+        self.assertEqual(result, False)
+        # Check we have task processing, no polling
+        one_days_ago = now - timedelta(days=1)
+        two_days_ago = now - timedelta(days=2)
+        provider_processing = SimpleNamespace()
+        provider_processing.polling_timestamp = one_days_ago
+        provider_processing.data_updated_timestamp = two_days_ago
+        result = check_currently_processing(self.schema_name, provider_processing)
+        self.assertEqual(result, True)
+        # Check we have task processing but likely failed, needs repolling
+        seven_days_ago = now - timedelta(days=7)
+        provider_failed = SimpleNamespace()
+        provider_failed.polling_timestamp = two_days_ago
+        provider_failed.data_updated_timestamp = seven_days_ago
+        result = check_currently_processing(self.schema_name, provider_failed)
         self.assertEqual(result, False)
