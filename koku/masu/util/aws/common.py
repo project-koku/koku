@@ -637,7 +637,6 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
         delete_s3_objects(request_id, to_delete, context)
         manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
         ReportManifestDBAccessor().mark_s3_csv_cleared(manifest)
-        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
         LOG.info(
             log_json(msg="removed csv files, marked manifest csv cleared and parquet not cleared", context=context)
         )
@@ -823,7 +822,7 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
 
 
 def clear_s3_files(
-    csv_s3_path, provider_uuid, start_date, metadata_key, metadata_value_check, context, request_id, invoice_month=None
+    csv_s3_path, provider_uuid, start_date, metadata_key, manifest_id, context, request_id, invoice_month=None
 ):
     """Clear s3 files for daily archive processing"""
     account = context.get("account")
@@ -858,7 +857,7 @@ def clear_s3_files(
             try:
                 existing_object = obj_summary.Object()
                 metadata_value = existing_object.metadata.get(metadata_key)
-                if str(metadata_value) != str(metadata_value_check):
+                if str(metadata_value) != str(manifest_id):
                     to_delete.append(existing_object.key)
             except (ClientError) as err:
                 LOG.warning(
@@ -871,6 +870,8 @@ def clear_s3_files(
                     exc_info=err,
                 )
     delete_s3_objects(request_id, to_delete, context)
+    manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+    ReportManifestDBAccessor().mark_s3_parquet_cleared(manifest)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):
