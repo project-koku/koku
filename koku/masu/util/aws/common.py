@@ -872,6 +872,9 @@ def clear_s3_files(
     delete_s3_objects(request_id, to_delete, context)
     manifest_accessor = ReportManifestDBAccessor()
     manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+    # Note: Marking the parquet files cleared here prevents all
+    # the parquet files for the manifest from being deleted
+    # later on in report_parquet_processor
     manifest_accessor.mark_s3_parquet_cleared(manifest)
 
 
