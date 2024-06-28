@@ -340,7 +340,14 @@ _koku-wait:
      done
 
 docker-build:
+    # HACK: Remove the ARG TARGETARCH directive to make the build work with docker
+    #       until https://github.com/containers/podman/issues/23046 is resolved.
+	@tail -n +3 Dockerfile > Dockerfile.temp
+	@mv Dockerfile.temp Dockerfile
 	$(DOCKER_COMPOSE) build koku-base
+	@echo "ARG TARGETARCH\n" | cat - Dockerfile > Dockerfile.temp
+	@mv Dockerfile.temp Dockerfile
+
 
 docker-up: docker-build
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
