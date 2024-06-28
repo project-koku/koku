@@ -515,6 +515,12 @@ parameters:
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
+- displayName: Timer to prevent triggering tasks while still processing in days
+  name: PROCESSING_WAIT_TIMER
+  value: "3"
+- displayName: Timer to prevent triggering tasks while still processing in days
+  name: LARGE_PROCESSING_WAIT_TIMER
+  value: "7"
 - displayName: Enable Tags Limit
   name: TAG_ENABLED_LIMIT
   value: "200"
