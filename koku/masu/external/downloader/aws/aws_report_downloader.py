@@ -82,7 +82,6 @@ def get_processing_date(
     if (
         data_frame[invoice_bill].any() and start_date.month != DateHelper().now_utc.month or ingress_reports
     ) or not check_provider_setup_complete(provider_uuid):
-        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, start_date)
     else:
         process_date = utils.get_or_clear_daily_s3_by_date(

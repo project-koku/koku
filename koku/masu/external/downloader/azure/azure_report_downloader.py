@@ -68,7 +68,6 @@ def get_processing_date(
         or ingress_reports
     ):
         process_date = start_date
-        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
     else:
         process_date = get_or_clear_daily_s3_by_date(

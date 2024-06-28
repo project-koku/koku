@@ -245,14 +245,6 @@ class ReportManifestDBAccessor:
             update_fields = ["s3_parquet_cleared"]
         manifest.save(update_fields=update_fields)
 
-    def mark_s3_parquet_to_be_cleared(self, manifest_id):
-        """Mark manifest to clear parquet files."""
-        manifest = self.get_manifest_by_id(manifest_id)
-        if manifest:
-            # Set this to false to reprocesses a full month of files for AWS/Azure
-            manifest.s3_parquet_cleared = False
-            manifest.save(update_fields=["s3_parquet_cleared"])
-
     def set_manifest_daily_start_date(self, manifest_id, date):
         """
         Mark manifest processing daily archive start date.
