@@ -870,8 +870,9 @@ def clear_s3_files(
                     exc_info=err,
                 )
     delete_s3_objects(request_id, to_delete, context)
-    manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
-    ReportManifestDBAccessor().mark_s3_parquet_cleared(manifest)
+    manifest_accessor = ReportManifestDBAccessor()
+    manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+    manifest_accessor.mark_s3_parquet_cleared(manifest)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):
