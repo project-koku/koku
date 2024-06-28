@@ -472,11 +472,7 @@ class OrchestratorTest(MasuTestCase):
         self.assertEqual(result, expected)
 
     @patch("masu.processor.orchestrator.WorkerCache")
-    @patch(
-        "masu.processor.orchestrator.check_currently_processing",
-        return_value=False,
-    )
-    def test_orchestrator_args_polling_batch(self, mock_check_processing, *args):
+    def test_orchestrator_args_polling_batch(self, *args):
         """Test that args to Orchestrator change the polling-batch result"""
         # providing a UUID overrides the polling timestamp
         o = Orchestrator(provider_uuid=self.aws_provider_uuid)
@@ -500,6 +496,12 @@ class OrchestratorTest(MasuTestCase):
         p = o.get_polling_batch()
         self.assertGreater(len(p), 0)
         self.assertEqual(len(p), expected_providers.count())
+
+        # Check polling time updated while we are still processing
+        with patch("masu.processor.orchestrator.check_currently_processing", return_value=True):
+            o = Orchestrator(type=Provider.PROVIDER_AWS_LOCAL)
+            p = o.get_polling_batch()
+            self.assertEqual(len(p), 0)
 
     def test_get_billing_months(self):
         """Test get_billing_months"""

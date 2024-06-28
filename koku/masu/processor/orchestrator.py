@@ -142,6 +142,14 @@ class Orchestrator:
             # Check processing delta wait and skip polling if provider not completed processing
             if check_currently_processing(schema_name, provider):
                 # We still need to update the timestamp between runs
+                LOG.info(
+                    log_json(
+                        "get_polling_batch",
+                        msg="processing currently in progress for provider",
+                        schema=schema_name,
+                        provider=provider.uuid,
+                    )
+                )
                 provider.polling_timestamp = self.dh.now_utc
                 provider.save(update_fields=["polling_timestamp"])
                 continue
