@@ -138,12 +138,16 @@ class Orchestrator:
 
         batch = []
         for provider in providers:
-            provider.polling_timestamp = self.dh.now_utc
-            provider.save(update_fields=["polling_timestamp"])
             schema_name = provider.account.get("schema_name")
             # Check processing delta wait and skip polling if provider not completed processing
             if check_currently_processing(schema_name, provider):
+                # We still need to update the timestamp between runs
+                provider.polling_timestamp = self.dh.now_utc
+                provider.save(update_fields=["polling_timestamp"])
                 continue
+            # This needs to happen after the first check since we use the original polling_timestamp
+            provider.polling_timestamp = self.dh.now_utc
+            provider.save(update_fields=["polling_timestamp"])
             # If a source is disabled/re-enabled it may not be collected till after the process_wait_delta expires
             if is_cloud_source_processing_disabled(schema_name):
                 LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))

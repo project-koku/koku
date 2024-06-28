@@ -574,3 +574,24 @@ class OrchestratorTest(MasuTestCase):
             provider_failed.data_updated_timestamp = nine_days_ago
             result = check_currently_processing(self.schema_name, provider_failed)
             self.assertEqual(result, False)
+        # Check initial ingest
+        initial_prov = SimpleNamespace()
+        initial_prov.polling_timestamp = now
+        initial_prov.created_timestamp = now
+        initial_prov.data_updated_timestamp = None
+        result = check_currently_processing(self.schema_name, initial_prov)
+        self.assertEqual(result, False)
+        # Check initial ingest processing
+        provider_initial_prov = SimpleNamespace()
+        provider_initial_prov.polling_timestamp = now
+        provider_initial_prov.created_timestamp = one_days_ago
+        provider_initial_prov.data_updated_timestamp = None
+        result = check_currently_processing(self.schema_name, provider_initial_prov)
+        self.assertEqual(result, True)
+        # Check initial ingest failed, needs repolling
+        initial_prov_failed = SimpleNamespace()
+        initial_prov_failed.polling_timestamp = now
+        initial_prov_failed.created_timestamp = nine_days_ago
+        initial_prov_failed.data_updated_timestamp = None
+        result = check_currently_processing(self.schema_name, initial_prov_failed)
+        self.assertEqual(result, False)
