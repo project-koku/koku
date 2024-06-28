@@ -78,16 +78,24 @@ def check_currently_processing(schema, provider):
         process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.PROCESSING_WAIT_TIMER)
         if is_customer_large(schema):
             process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.LARGE_PROCESSING_WAIT_TIMER)
-        # Fallback to creation timestamp if its a new provider
-        check_timestamp = (
-            provider.data_updated_timestamp if provider.data_updated_timestamp else provider.created_timestamp
-        )
         # Check processing, if polling timestamp more recent than updated timestamp skip polling
-        if provider.polling_timestamp > check_timestamp:
+        if provider.data_updated_timestamp:
+            if provider.polling_timestamp > provider.data_updated_timestamp:
+                result = True
+                # Check failed processing, if updated timestamp not updated in x days we should polling again
+                if process_wait_delta > provider.data_updated_timestamp:
+                    result = False
+        # Fallback to creation timestamp if its a new provider
+        else:
+            # Dont trigger provider that has no updated timestamp
             result = True
-            # Check failed processing, if updated timestamp not updated in x days we should polling again
-            if process_wait_delta > check_timestamp:
+            # Enable initial ingest for new providers
+            if datetime.now(tz=settings.UTC) - timedelta(days=1) < provider.created_timestamp:
                 result = False
+            # Reprocess new providers that may have fialed to complete their first download
+            if process_wait_delta > provider.created_timestamp:
+                result = False
+
     return result
 
 
