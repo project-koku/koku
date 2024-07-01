@@ -715,12 +715,18 @@ def get_s3_objects_matching_metadata(
     if context is None:
         context = {}
     try:
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.S3_ACCESS_KEY,
+            aws_secret_access_key=settings.S3_SECRET,
+            region_name=settings.S3_REGION,
+        )
         keys = []
         for obj_summary in _get_s3_objects(s3_path):
-            existing_object = obj_summary.Object()
-            metadata_value = existing_object.metadata.get(metadata_key)
+            response = s3_client.head_object(Bucket=obj_summary.bucket_name, Key=obj_summary.key)
+            metadata_value = response["Metadata"].get(metadata_key)
             if metadata_value == metadata_value_check:
-                keys.append(existing_object.key)
+                keys.append(obj_summary.key)
         return keys
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
@@ -743,12 +749,18 @@ def get_s3_objects_not_matching_metadata(
     if context is None:
         context = {}
     try:
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.S3_ACCESS_KEY,
+            aws_secret_access_key=settings.S3_SECRET,
+            region_name=settings.S3_REGION,
+        )
         keys = []
         for obj_summary in _get_s3_objects(s3_path):
-            existing_object = obj_summary.Object()
-            metadata_value = existing_object.metadata.get(metadata_key)
+            response = s3_client.head_object(Bucket=obj_summary.bucket_name, Key=obj_summary.key)
+            metadata_value = response["Metadata"].get(metadata_key)
             if metadata_value != metadata_value_check:
-                keys.append(existing_object.key)
+                keys.append(obj_summary.key)
         return keys
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
