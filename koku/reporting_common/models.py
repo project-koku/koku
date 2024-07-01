@@ -43,7 +43,7 @@ class CostUsageReportManifest(models.Model):
     # s3_csv_cleared used in AWS/Azure to indicate csv's have been cleared for daily archive processing
     s3_csv_cleared = models.BooleanField(default=False, null=True)
     # s3_parquet_cleared used to indicate parquet files have been cleared prior to csv to parquet conversion
-    s3_parquet_cleared = models.BooleanField(default=True, null=True)
+    s3_parquet_cleared = models.BooleanField(default=False, null=True)
     # Indicates what initial date to start at for daily processing
     daily_archive_start_date = models.DateTimeField(null=True)
     operator_version = models.TextField(null=True)
