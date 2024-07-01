@@ -341,7 +341,7 @@ _koku-wait:
 
 docker-build:
     # TARGETARCH: https://github.com/containers/podman/issues/23046 is resolved.
-	$(DOCKER_COMPOSE) build --build-arg TARGETARCH=$(shell uname -m) koku-base
+	$(DOCKER_COMPOSE) build --build-arg TARGETARCH=$(shell uname -m | sed s/x86_64/amd64/) koku-base
 
 
 docker-up: docker-build
