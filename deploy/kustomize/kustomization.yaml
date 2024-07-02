@@ -42,11 +42,19 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-cost-model-penalty.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/worker-download.yaml
   target:
     version: v1
     kind: Template
 - path: patches/worker-download-xl.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-download-penalty.yaml
   target:
     version: v1
     kind: Template
@@ -58,11 +66,19 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-ocp-penalty.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/worker-priority.yaml
   target:
     version: v1
     kind: Template
 - path: patches/worker-priority-xl.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-priority-penalty.yaml
   target:
     version: v1
     kind: Template
@@ -74,11 +90,19 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-refresh-penalty.yaml
+  target:
+    version: v1
+    kind: Template
 - path: patches/worker-summary.yaml
   target:
     version: v1
     kind: Template
 - path: patches/worker-summary-xl.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/worker-summary-penalty.yaml
   target:
     version: v1
     kind: Template

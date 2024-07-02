@@ -10,12 +10,11 @@ from django.http import QueryDict
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
+from common.queues import DownloadQueue
+from common.queues import get_customer_queue
 from masu.api.upgrade_trino.util.constants import ConversionContextKeys
 from masu.api.upgrade_trino.util.state_tracker import StateTracker
 from masu.celery.tasks import fix_parquet_data_types
-from masu.processor import is_customer_large
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.util.common import strip_characters_from_column_name
 from reporting.provider.aws.models import TRINO_REQUIRED_COLUMNS as AWS_TRINO_REQUIRED_COLUMNS
 from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS as AZURE_TRINO_REQUIRED_COLUMNS
@@ -102,9 +101,7 @@ class FixParquetTaskHandler:
             providers = Provider.objects.filter(active=True, paused=False, type=self.provider_type)
 
         for provider in providers:
-            queue_name = GET_REPORT_FILES_QUEUE
-            if is_customer_large(provider.account["schema_name"]):
-                queue_name = GET_REPORT_FILES_QUEUE_XL
+            queue_name = get_customer_queue(provider.account["schema_name"], DownloadQueue)
 
             account = copy.deepcopy(provider.account)
             conversion_metadata = provider.additional_context.get(ConversionContextKeys.metadata, {})

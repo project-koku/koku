@@ -1,11 +1,11 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: clowder-worker-download
+    name: clowder-worker-refresh-penalty
     metadata:
       annotations:
         ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
-    replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
+    replicas: ${{WORKER_REFRESH_PENALTY_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -61,8 +61,6 @@
           value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
-        - name: PANDAS_COLUMN_BATCH_SIZE
-          value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
         - name: KOKU_ENABLE_SENTRY
@@ -78,7 +76,7 @@
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
-          value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
+          value: ${WORKER_REFRESH_PENALTY_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: DATE_OVERRIDE
@@ -97,8 +95,6 @@
           value: ${PROCESSING_WAIT_TIMER}
         - name: LARGE_PROCESSING_WAIT_TIMER
           value: ${LARGE_PROCESSING_WAIT_TIMER}
-        - name: TAG_ENABLED_LIMIT
-          value: ${TAG_ENABLED_LIMIT}
         - name: TRINO_HOST
           value: ${TRINO_HOST}
         - name: TRINO_PORT
@@ -146,11 +142,11 @@
       terminationGracePeriodSeconds: 3600
       resources:
         limits:
-          cpu: ${WORKER_DOWNLOAD_CPU_LIMIT}
-          memory: ${WORKER_DOWNLOAD_MEMORY_LIMIT}
+          cpu: ${WORKER_REFRESH_PENALTY_CPU_LIMIT}
+          memory: ${WORKER_REFRESH_PENALTY_MEMORY_LIMIT}
         requests:
-          cpu: ${WORKER_DOWNLOAD_CPU_REQUEST}
-          memory: ${WORKER_DOWNLOAD_MEMORY_REQUEST}
+          cpu: ${WORKER_REFRESH_PENALTY_CPU_REQUEST}
+          memory: ${WORKER_REFRESH_PENALTY_MEMORY_REQUEST}
       volumeMounts:
       - name: aws-credentials
         mountPath: /etc/aws
@@ -195,41 +191,41 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_DOWNLOAD_REPLICAS
+    name: WORKER_REFRESH_PENALTY_REPLICAS
     required: true
     value: '2'
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: WORKER_DOWNLOAD_MEMORY_REQUEST
+    name: WORKER_REFRESH_PENALTY_MEMORY_REQUEST
+    required: true
+    value: 256Mi
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Memory Limit
+    name: WORKER_REFRESH_PENALTY_MEMORY_LIMIT
     required: true
     value: 512Mi
 - op: add
   path: /parameters/-
   value:
-    displayName: Memory Limit
-    name: WORKER_DOWNLOAD_MEMORY_LIMIT
+    displayName: CPU Request
+    name: WORKER_REFRESH_PENALTY_CPU_REQUEST
     required: true
-    value: 1Gi
+    value: 100m
 - op: add
   path: /parameters/-
   value:
-    displayName: CPU Request
-    name: WORKER_DOWNLOAD_CPU_REQUEST
+    displayName: CPU Limit
+    name: WORKER_REFRESH_PENALTY_CPU_LIMIT
     required: true
     value: 200m
 - op: add
   path: /parameters/-
   value:
-    displayName: CPU Limit
-    name: WORKER_DOWNLOAD_CPU_LIMIT
-    required: true
-    value: 400m
-- op: add
-  path: /parameters/-
-  value:
     displayName: Worker Queue
-    name: WORKER_DOWNLOAD_WORKER_QUEUE
+    name: WORKER_REFRESH_PENALTY_WORKER_QUEUE
     required: true
-    value: 'download'
+    value: 'refresh_penalty'
