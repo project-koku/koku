@@ -57,7 +57,7 @@ class SUBSDataMessenger:
         self.org_id = subs_cust.org_id
         self.download_path = mkdtemp(prefix="subs")
         self.instance_map = {}
-        self.date_map = defaultdict(list)
+        self.date_map = defaultdict(dict)
 
     def determine_azure_instance_and_tenant_id(self, row):
         """For Azure we have to query the instance id if its not provided by a tag and the tenant_id."""
@@ -222,18 +222,23 @@ class SUBSDataMessenger:
         """Process an Azure row into subs kafka messages."""
         msg_count = 0
         # Azure can unexplicably generate strange records with a second entry per day
-        # so we track the resource ids we've seen for a specific day so we don't send a record twice
-        if self.date_map.get(row["subs_start_time"]) and row["subs_resource_id"] in self.date_map.get(
-            row["subs_start_time"]
-        ):
-            return msg_count
-        self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
+        # these two values should sum to the total usage so we need to track what was already
+        # sent for a specific instance so we get the full usage amount
+        range_start = 0
+        resource_id = row["subs_resource_id"]
+        start_time = row["subs_start_time"]
+        usage = int(row["subs_usage_quantity"])
+        if self.date_map.get(start_time) and resource_id in self.date_map.get(start_time):
+            range_start = self.date_map.get(start_time).get(resource_id)
+        self.date_map[start_time] = {resource_id: usage + range_start}
         instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
         if not instance_id:
             return msg_count
         # Azure is daily records but subs need hourly records
-        start = parser.parse(row["subs_start_time"])
-        for i in range(int(row["subs_usage_quantity"])):
+        start = parser.parse(start_time)
+        # if data for the day was previously sent, start at next hour
+        start = start + timedelta(hours=range_start)
+        for i in range(range_start, range_start + usage):
             end = start + timedelta(hours=1)
             subs_dict = self.build_azure_subs_dict(
                 instance_id,
