@@ -25,10 +25,12 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
 
     """
 
-    LOG.info(log_json(msg="Remove expired data", schema=schema_name, provider=provider, simulate=simulate))
+    context = {"schema": schema_name, "provider_type": provider, "provider_uuid": provider_uuid, "simulate": simulate}
+
+    LOG.info(log_json(msg="Remove expired data", context=context))
 
     remover = ExpiredDataRemover(schema_name, provider)
     removed_data = remover.remove(simulate=simulate, provider_uuid=provider_uuid)
     if removed_data:
         status_msg = "Expired Data" if simulate else "Removed Data"
-        LOG.info(log_json(msg=status_msg, removed_data=removed_data))
+        LOG.info(log_json(msg=status_msg, removed_data=removed_data, context=context))
