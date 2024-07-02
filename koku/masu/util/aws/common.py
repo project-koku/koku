@@ -865,22 +865,12 @@ def clear_s3_files(
         s3_prefixes.append(parquet_ocp_on_cloud_path_s3 + path)
     to_delete = []
     for prefix in s3_prefixes:
-        for obj_summary in _get_s3_objects(prefix):
-            try:
-                existing_object = obj_summary.Object()
-                metadata_value = existing_object.metadata.get(metadata_key)
-                if str(metadata_value) != str(manifest_id):
-                    to_delete.append(existing_object.key)
-            except (ClientError) as err:
-                LOG.warning(
-                    log_json(
-                        request_id,
-                        msg="unable to get matching object, likely deleted by another worker",
-                        context=context,
-                        bucket=settings.S3_BUCKET_NAME,
-                    ),
-                    exc_info=err,
-                )
+        to_delete.extend(
+            get_s3_objects_not_matching_metadata(
+                request_id, prefix, metadata_key=metadata_key, metadata_value_check=str(manifest_id), context=context
+            )
+        )
+
     delete_s3_objects(request_id, to_delete, context)
     manifest_accessor = ReportManifestDBAccessor()
     manifest = manifest_accessor.get_manifest_by_id(manifest_id)

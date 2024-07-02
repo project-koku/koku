@@ -567,23 +567,32 @@ class TestAWSUtils(MasuTestCase):
             self.account_id, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, Config.CSV_DATA_TYPE
         )
         expected_key = "not_matching_key"
-        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
         not_matching_summary = Mock()
-        not_matching_summary.Object.return_value = mock_object
+        not_matching_summary.key = expected_key
+
         not_expected_key = "matching_key"
-        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
         matching_summary = Mock()
-        matching_summary.Object.return_value = mock_object
+        matching_summary.key = not_expected_key
+
+        def mock_head_object(Bucket, Key):
+            if Key == expected_key:
+                return {"Metadata": {metadata_key: "this will be deleted"}}
+            elif Key == not_expected_key:
+                return {"Metadata": {metadata_key: metadata_value}}
+            raise ClientError({}, "Error")
+
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
                 not_matching_summary,
                 matching_summary,
             ]
-            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
-                utils.clear_s3_files(
-                    s3_csv_path, self.aws_provider_uuid, start_date, "manifestid", 1, context, "requiest_id"
-                )
-                mock_delete.assert_called
+            with patch("boto3.client") as mock_s3_client:
+                mock_s3_client.return_value.head_object.side_effect = mock_head_object
+                with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                    utils.clear_s3_files(
+                        s3_csv_path, self.aws_provider_uuid, start_date, "manifestid", 1, context, "request_id"
+                    )
+                    mock_delete.assert_called()
 
     def test_clear_s3_files_gcp(self):
         """Test clearing s3 GCP ingress files."""
@@ -595,21 +604,30 @@ class TestAWSUtils(MasuTestCase):
         start_date = self.dh.this_month_start.replace(tzinfo=None)
         s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
         expected_key = "not_matching_key"
-        mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
         not_matching_summary = Mock()
-        not_matching_summary.Object.return_value = mock_object
+        not_matching_summary.key = expected_key
+
         not_expected_key = "matching_key"
-        mock_object = Mock(metadata={metadata_key: metadata_value}, key=not_expected_key)
         matching_summary = Mock()
-        matching_summary.Object.return_value = mock_object
+        matching_summary.key = not_expected_key
+
+        def mock_head_object(Bucket, Key):
+            if Key == expected_key:
+                return {"Metadata": {metadata_key: "this will be deleted"}}
+            elif Key == not_expected_key:
+                return {"Metadata": {metadata_key: metadata_value}}
+            raise ClientError({}, "Error")
+
         with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
             mock_s3.return_value.Bucket.return_value.objects.filter.return_value = [
                 not_matching_summary,
                 matching_summary,
             ]
-            with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
-                utils.clear_s3_files(s3_csv_path, prov_uuid, start_date, "manifestid", 1, context, "requiest_id")
-                mock_delete.assert_called
+            with patch("boto3.client") as mock_s3_client:
+                mock_s3_client.return_value.head_object.side_effect = mock_head_object
+                with patch("masu.util.aws.common.delete_s3_objects") as mock_delete:
+                    utils.clear_s3_files(s3_csv_path, prov_uuid, start_date, "manifestid", 1, context, "request_id")
+                    mock_delete.assert_called()
 
     def test_remove_s3_objects_matching_metadata(self):
         """Test remove_s3_objects_matching_metadata."""
