@@ -236,7 +236,7 @@ class SUBSDataMessenger:
             return msg_count
         # Azure is daily records but subs need hourly records
         start = parser.parse(start_time)
-        # if data for the day was previously sent, start at next hour
+        # if data for the day was previously sent, start at hour following previous events
         start = start + timedelta(hours=range_start)
         for i in range(range_start, range_start + usage):
             end = start + timedelta(hours=1)
