@@ -126,26 +126,6 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
-    def __cost_model_distributed_cost(self, cost_model_rate_type=None):
-        """Return ORM term for cost model distributed cost."""
-
-        if cost_model_rate_type:
-            return Sum(
-                Case(
-                    When(
-                        cost_model_rate_type=cost_model_rate_type,
-                        then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
-                    ),
-                    default=Value(0, output_field=DecimalField()),
-                )
-                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
-            )
-        else:
-            return Sum(
-                (Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())))
-                * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
-            )
-
     def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._schema_name = schema_name
@@ -247,9 +227,13 @@ class OCPProviderMap(ProviderMap):
                             "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
-                            + self.cost_model_distributed_cost_by_project,
-                            "cost_platform_distributed": self.platform_distributed_cost_by_project,
-                            "cost_worker_unallocated_distributed": self.worker_unallocated_distributed_cost_by_project,
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unattributed_storage_cost,
+                            "cost_platform_distributed": self.distributed_platform_cost,
+                            "cost_worker_unallocated_distributed": self.distributed_worker_cost,
+                            "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
                         },
                         "default_ordering": {"cost_total": "desc"},
                         "annotations": {
@@ -272,9 +256,13 @@ class OCPProviderMap(ProviderMap):
                             "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
-                            + self.cost_model_distributed_cost_by_project,
-                            "cost_platform_distributed": self.platform_distributed_cost_by_project,
-                            "cost_worker_unallocated_distributed": self.worker_unallocated_distributed_cost_by_project,
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
+                            "cost_platform_distributed": self.distributed_platform_cost,
+                            "cost_worker_unallocated_distributed": self.distributed_worker_cost,
+                            "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -291,7 +279,10 @@ class OCPProviderMap(ProviderMap):
                             "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
-                            + self.cost_model_distributed_cost_by_project,
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
                         },
                         "filter": [{}],
                         "cost_units_key": "raw_currency",
@@ -367,7 +358,10 @@ class OCPProviderMap(ProviderMap):
                             "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
-                            + self.cost_model_distributed_cost_by_project,
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "conditionals": {
@@ -918,16 +912,57 @@ class OCPProviderMap(ProviderMap):
         )
 
     @cached_property
-    def platform_distributed_cost_by_project(self):
-        """Return platform distributed cost model costs."""
-        return self.__cost_model_distributed_cost(cost_model_rate_type="platform_distributed")
+    def distributed_unattributed_storage_cost(self):
+        """The unattributed storage cost needs to have the infra exchange rate applied to it."""
+        return Sum(
+            Case(
+                When(
+                    cost_model_rate_type="unattributed_storage",
+                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
+                ),
+                default=Value(0, output_field=DecimalField()),
+            )
+            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
 
     @cached_property
-    def worker_unallocated_distributed_cost_by_project(self):
-        """Return worker unallocated distributed cost model costs."""
-        return self.__cost_model_distributed_cost(cost_model_rate_type="worker_distributed")
+    def distributed_unattributed_network_cost(self):
+        """The unattributed network cost needs to have the infra exchange rate applied to it."""
+        return Sum(
+            Case(
+                When(
+                    cost_model_rate_type="unattributed_network",
+                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
+                ),
+                default=Value(0, output_field=DecimalField()),
+            )
+            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
+        )
 
     @cached_property
-    def cost_model_distributed_cost_by_project(self):
-        """Return cost model distributed cost."""
-        return self.__cost_model_distributed_cost()
+    def distributed_platform_cost(self):
+        """Platform distributed cost"""
+        return Sum(
+            Case(
+                When(
+                    cost_model_rate_type="platform_distributed",
+                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
+                ),
+                default=Value(0, output_field=DecimalField()),
+            )
+            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+        )
+
+    @cached_property
+    def distributed_worker_cost(self):
+        """Worker unallocated distributed cost"""
+        return Sum(
+            Case(
+                When(
+                    cost_model_rate_type="worker_distributed",
+                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
+                ),
+                default=Value(0, output_field=DecimalField()),
+            )
+            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+        )
