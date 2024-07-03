@@ -9,6 +9,7 @@ from datetime import timedelta
 
 from django.conf import settings
 
+from api.common import log_json
 from api.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
@@ -138,10 +139,11 @@ class ExpiredDataRemover:
                 if not simulate:
                     manifest_accessor.purge_expired_report_manifest_provider_uuid(provider_uuid, expiration_date)
                 LOG.info(
-                    """Removed CostUsageReportManifest for
-                    provider uuid: %s before billing period: %s""",
-                    provider_uuid,
-                    expiration_date,
+                    log_json(
+                        msg="Removed CostUsageReportManifest",
+                        provider_uuid=provider_uuid,
+                        expiration_date=expiration_date,
+                    )
                 )
         else:
             expiration_date = self._calculate_expiration_date()
@@ -151,10 +153,9 @@ class ExpiredDataRemover:
                 if not simulate:
                     manifest_accessor.purge_expired_report_manifest(self._provider, expiration_date)
                 LOG.info(
-                    """Removed CostUsageReportManifest for
-                    provider type: %s before billing period: %s""",
-                    self._provider,
-                    expiration_date,
+                    log_json(
+                        msg="Removed CostUsageReportManifest", provider=self._provider, expiration_date=expiration_date
+                    )
                 )
         return removed_data
 

@@ -6,6 +6,7 @@
 import contextlib
 import datetime
 import logging
+import math
 import re
 import time
 import typing as t
@@ -586,10 +587,13 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
     Fetches latest processed date based on daily csv files and clears relevant s3 files
     """
     # We do this if we have multiple workers running different files for a single manifest.
-    processing_date = ReportManifestDBAccessor().get_manifest_daily_start_date(manifest_id)
+    manifest_accessor = ReportManifestDBAccessor()
+    manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+    processing_date = manifest_accessor.get_manifest_daily_start_date(manifest_id)
     if processing_date:
-        # Prevent other works running trino queries until all files are removed.
-        clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
+        if not manifest_accessor.get_s3_parquet_cleared(manifest):
+            # Prevent other works running trino queries until all files are removed.
+            clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
         return processing_date
     processing_date = start_date
     try:
@@ -609,7 +613,7 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
             )
             # Set processing date for all workers
-            processing_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+            processing_date = manifest_accessor.set_manifest_daily_start_date(manifest_id, processing_date)
         # Try to clear s3 files for dates. Small edge case, we may have parquet files even without csvs
         clear_s3_files(csv_s3_path, provider_uuid, processing_date, "manifestid", manifest_id, context, request_id)
     except (EndpointConnectionError, ClientError, AttributeError, ValueError):
@@ -625,7 +629,7 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
                 bucket=settings.S3_BUCKET_NAME,
             ),
         )
-        processing_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, processing_date)
+        processing_date = manifest_accessor.set_manifest_daily_start_date(manifest_id, processing_date)
         to_delete = get_s3_objects_not_matching_metadata(
             request_id,
             csv_s3_path,
@@ -634,9 +638,7 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
             context=context,
         )
         delete_s3_objects(request_id, to_delete, context)
-        manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
-        ReportManifestDBAccessor().mark_s3_csv_cleared(manifest)
-        ReportManifestDBAccessor().mark_s3_parquet_to_be_cleared(manifest_id)
+        manifest_accessor.mark_s3_csv_cleared(manifest)
         LOG.info(
             log_json(msg="removed csv files, marked manifest csv cleared and parquet not cleared", context=context)
         )
@@ -790,23 +792,27 @@ def delete_s3_objects_not_matching_metadata(
 
 
 def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
+    keys_to_delete = [{"Key": key} for key in keys_to_delete]
+    LOG.info(log_json(request_id, msg="attempting to batch delete s3 files", context=context))
     s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
     try:
-        removed = []
-        for key in keys_to_delete:
-            s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
-            removed.append(key)
-        if removed:
-            LOG.info(
-                log_json(
-                    request_id,
-                    msg="removed files from s3 bucket",
-                    context=context,
-                    bucket=settings.S3_BUCKET_NAME,
-                    file_list=removed,
-                )
+        batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
+        for batch_number in range(math.ceil(len(keys_to_delete) / batch_size)):
+            batch_start = batch_size * batch_number
+            batch_end = batch_start + batch_size
+            object_keys_batch = keys_to_delete[batch_start:batch_end]
+            s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
+        LOG.info(
+            log_json(
+                request_id,
+                msg="removed files from s3 bucket",
+                context=context,
+                bucket=settings.S3_BUCKET_NAME,
+                file_list=keys_to_delete,
             )
-        return removed
+        )
+        return keys_to_delete
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
             log_json(
@@ -818,7 +824,7 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
 
 
 def clear_s3_files(
-    csv_s3_path, provider_uuid, start_date, metadata_key, metadata_value_check, context, request_id, invoice_month=None
+    csv_s3_path, provider_uuid, start_date, metadata_key, manifest_id, context, request_id, invoice_month=None
 ):
     """Clear s3 files for daily archive processing"""
     account = context.get("account")
@@ -849,23 +855,18 @@ def clear_s3_files(
         s3_prefixes.append(parquet_ocp_on_cloud_path_s3 + path)
     to_delete = []
     for prefix in s3_prefixes:
-        for obj_summary in _get_s3_objects(prefix):
-            try:
-                existing_object = obj_summary.Object()
-                metadata_value = existing_object.metadata.get(metadata_key)
-                if str(metadata_value) != str(metadata_value_check):
-                    to_delete.append(existing_object.key)
-            except (ClientError) as err:
-                LOG.warning(
-                    log_json(
-                        request_id,
-                        msg="unable to get matching object, likely deleted by another worker",
-                        context=context,
-                        bucket=settings.S3_BUCKET_NAME,
-                    ),
-                    exc_info=err,
-                )
+        to_delete.extend(
+            get_s3_objects_not_matching_metadata(
+                request_id, prefix, metadata_key=metadata_key, metadata_value_check=str(manifest_id), context=context
+            )
+        )
     delete_s3_objects(request_id, to_delete, context)
+    manifest_accessor = ReportManifestDBAccessor()
+    manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+    # Note: Marking the parquet files cleared here prevents all
+    # the parquet files for the manifest from being deleted
+    # later on in report_parquet_processor
+    manifest_accessor.mark_s3_parquet_cleared(manifest)
 
 
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context=None):

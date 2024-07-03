@@ -6,6 +6,7 @@
 import copy
 import logging
 from datetime import datetime
+from datetime import timedelta
 
 from celery import chord
 from celery import group
@@ -17,6 +18,9 @@ from api.common import log_json
 from api.provider.models import check_provider_setup_complete
 from api.provider.models import Provider
 from api.utils import DateHelper
+from common.queues import DownloadQueue
+from common.queues import get_customer_queue
+from common.queues import SummaryQueue
 from hcs.tasks import collect_hcs_report_data_from_manifest
 from hcs.tasks import HCS_QUEUE
 from masu.config import Config
@@ -26,15 +30,11 @@ from masu.processor import is_cloud_source_processing_disabled
 from masu.processor import is_customer_large
 from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import GET_REPORT_FILES_QUEUE_XL
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import remove_expired_trino_partitions
 from masu.processor.tasks import summarize_reports
-from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
-from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE_XL
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import update_account_aliases
 from subs.tasks import extract_subs_data_from_reports
@@ -70,6 +70,34 @@ def get_billing_months(number_of_months):
         calculated_month = current_month + relativedelta(months=-month)
         months.append(calculated_month.date())
     return months
+
+
+def check_currently_processing(schema, provider):
+    result = False
+    if provider.polling_timestamp:
+        # Set processing delta wait time
+        process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.PROCESSING_WAIT_TIMER)
+        if is_customer_large(schema):
+            process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.LARGE_PROCESSING_WAIT_TIMER)
+        # Check processing, if polling timestamp more recent than updated timestamp skip polling
+        if provider.data_updated_timestamp:
+            if provider.polling_timestamp > provider.data_updated_timestamp:
+                result = True
+                # Check failed processing, if updated timestamp not updated in x days we should polling again
+                if process_wait_delta > provider.data_updated_timestamp:
+                    result = False
+        # Fallback to creation timestamp if its a new provider
+        else:
+            # Dont trigger provider that has no updated timestamp
+            result = True
+            # Enable initial ingest for new providers
+            if datetime.now(tz=settings.UTC) - timedelta(days=1) < provider.created_timestamp:
+                result = False
+            # Reprocess new providers that may have fialed to complete their first download
+            if process_wait_delta > provider.created_timestamp:
+                result = False
+
+    return result
 
 
 class Orchestrator:
@@ -111,9 +139,25 @@ class Orchestrator:
 
         batch = []
         for provider in providers:
-            provider.polling_timestamp = self.dh.now
-            provider.save(update_fields=["polling_timestamp"])
             schema_name = provider.account.get("schema_name")
+            # Check processing delta wait and skip polling if provider not completed processing
+            if check_currently_processing(schema_name, provider):
+                # We still need to update the timestamp between runs
+                LOG.info(
+                    log_json(
+                        "get_polling_batch",
+                        msg="processing currently in progress for provider",
+                        schema=schema_name,
+                        provider=provider.uuid,
+                    )
+                )
+                provider.polling_timestamp = self.dh.now_utc
+                provider.save(update_fields=["polling_timestamp"])
+                continue
+            # This needs to happen after the first check since we use the original polling_timestamp
+            provider.polling_timestamp = self.dh.now_utc
+            provider.save(update_fields=["polling_timestamp"])
+            # If a source is disabled/re-enabled it may not be collected till after the process_wait_delta expires
             if is_cloud_source_processing_disabled(schema_name):
                 LOG.info(log_json("get_polling_batch", msg="processing disabled for schema", schema=schema_name))
                 continue
@@ -190,12 +234,9 @@ class Orchestrator:
             REPORT_QUEUE = self.queue_name
             HCS_Q = self.queue_name
         else:
-            SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
-            REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+            SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue)
+            REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue)
             HCS_Q = HCS_QUEUE
-            if is_customer_large(schema_name):
-                SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE_XL
-                REPORT_QUEUE = GET_REPORT_FILES_QUEUE_XL
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,

@@ -74,14 +74,16 @@ class OCPReportDBCleaner:
                     all_cluster_ids.add(usage_period.cluster_id)
                     all_period_starts.add(str(usage_period.report_period_start))
 
-                    LOG.info(
-                        log_json(
-                            msg="deleting provider billing data",
-                            schema=self._schema,
-                            provider_uuid=provider_uuid,
-                            start_date=usage_period.report_period_start,
-                        )
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data",
+                        schema=self._schema,
+                        provider_uuid=provider_uuid,
+                        report_periods=all_report_periods,
+                        cluster_ids=all_cluster_ids,
+                        period_starts=all_period_starts,
                     )
+                )
 
                 if not simulate:
                     cascade_delete(usage_period_objs.query.model, usage_period_objs)
@@ -116,14 +118,15 @@ class OCPReportDBCleaner:
                 all_cluster_ids.add(usage_period.cluster_id)
                 all_period_starts.add(str(usage_period.report_period_start))
 
-                LOG.info(
-                    log_json(
-                        msg="removing all data related to cluster_ids",
-                        cluster_ids=all_cluster_ids,
-                        period_starts=all_period_starts,
-                        schema=self._schema,
-                    )
+            LOG.info(
+                log_json(
+                    msg="removing all data related to cluster_ids",
+                    report_periods=all_report_periods,
+                    cluster_ids=all_cluster_ids,
+                    period_starts=all_period_starts,
+                    schema=self._schema,
                 )
+            )
 
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
