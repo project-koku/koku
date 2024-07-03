@@ -74,14 +74,14 @@ class GCPReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-                LOG.info(
-                    log_json(
-                        msg="deleting provider billing data for GCP",
-                        schema=self._schema,
-                        provider_uuid=bill.provider_id,
-                        start_date=bill.billing_period_start,
-                    )
+            LOG.info(
+                log_json(
+                    msg="deleting provider billing data for GCP",
+                    schema=self._schema,
+                    providers=all_providers,
+                    period_starts=all_period_starts,
                 )
+            )
 
             if not simulate:
                 cascade_delete(bill_objects.query.model, bill_objects)
@@ -132,13 +132,13 @@ class GCPReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-                LOG.info(
-                    log_json(
-                        msg="deleting provider billing data for GCP",
-                        schema=self._schema,
-                        provider_uuid=bill.provider_id,
-                        start_date=bill.billing_period_start,
-                    )
+            LOG.info(
+                log_json(
+                    msg="deleting provider billing data for GCP",
+                    schema=self._schema,
+                    providers=all_providers,
+                    period_starts=all_period_starts,
                 )
+            )
 
         return removed_items
