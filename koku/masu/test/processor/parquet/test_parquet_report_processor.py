@@ -275,8 +275,11 @@ class TestParquetReportProcessor(MasuTestCase):
             with patch(
                 "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", return_value=None
             ):
-                with self.assertRaises(ParquetReportProcessorError):
-                    self.report_processor_ocp.convert_to_parquet()
+                with patch(
+                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"
+                ):
+                    with self.assertRaises(ParquetReportProcessorError):
+                        self.report_processor_ocp.convert_to_parquet()
 
         expected = "no split files to convert to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(

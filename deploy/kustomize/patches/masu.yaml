@@ -106,6 +106,10 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: PROCESSING_WAIT_TIMER
+          value: ${PROCESSING_WAIT_TIMER}
+        - name: LARGE_PROCESSING_WAIT_TIMER
+          value: ${LARGE_PROCESSING_WAIT_TIMER}
         - name: TAG_ENABLED_LIMIT
           value: ${TAG_ENABLED_LIMIT}
         - name: KAFKA_CONNECT
