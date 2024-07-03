@@ -349,9 +349,10 @@ GROUP BY ocp_filtered.azure_partial_resource_id, date(coalesce(date, usagedateti
 ;
 
 {% if unattributed_storage %}
--- Storage Disk resource_id matching
--- Customer's Cost: (PV’s Capacity) / Disk Capacity * Cost of Disk
--- Persistent Volumes without PVCs are Unattributed Storage
+-- resource_id matching
+-- Storage disk resources:
+-- (PV’s Capacity) / Disk Capacity * Cost of Disk
+-- PV without PVCs are Unattributed Storage
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -704,19 +705,25 @@ SELECT azure.uuid as azure_uuid,
         ON (azure.usage_start = ocp.usage_start)
         AND (
                 (replace(lower(azure.resource_id), '_osdisk', '') = lower(ocp.node) AND ocp.data_source = 'Pod')
-                {% if not unattributed_storage %} OR (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage') {% endif %}
+                OR (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
             )
+    LEFT JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp as disk_cap
+        ON azure.resource_id = disk_cap.resource_id
+        AND azure.ocp_source = disk_cap.ocp_source
+        AND azure.year = disk_cap.year
+        AND azure.month = disk_cap.month
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '') -- This excludes claimless PVs
+        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
         -- Filter out Node Network Costs because they cannot be tied to namespace level
         AND azure.data_transfer_direction IS NULL
         AND azure.ocp_source = {{ocp_source_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
+        AND disk_cap.resource_id is NULL -- exclude any resource used in disk capacity calculations
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
