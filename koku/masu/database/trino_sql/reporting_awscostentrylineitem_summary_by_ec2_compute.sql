@@ -99,6 +99,7 @@ FROM (
                 WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
                 THEN 0.0
                 ELSE lineitem_usageamount
+            END
         ) as usage_amount,
         max(lineitem_normalizationfactor) as normalization_factor,
         sum(lineitem_normalizedusageamount) as normalized_usage_amount,
@@ -109,6 +110,7 @@ FROM (
                 WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
                 THEN 0.0
                 ELSE lineitem_unblendedcost
+            END
         ) as unblended_cost,
         max(lineitem_blendedrate) as blended_rate,
         sum(lineitem_blendedcost) as blended_cost,
