@@ -189,6 +189,8 @@ class Provider(models.Model):
     customer = models.ForeignKey("Customer", null=True, on_delete=models.PROTECT)
     created_by = models.ForeignKey("User", null=True, on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
+    # Used for data validation checks
+    data_valid = models.BooleanField(null=True, default=None)
 
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     polling_timestamp = models.DateTimeField(blank=True, null=True, default=None)

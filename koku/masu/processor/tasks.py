@@ -34,6 +34,7 @@ from common.queues import OCPQueue
 from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
+from data_validation.common import check_data_integrity
 from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
@@ -618,13 +619,18 @@ def update_summary_tables(  # noqa: C901
     # This method should always be called for OCP providers even when it does not have a cost model
     if cost_model is not None or provider_type == Provider.PROVIDER_OCP:
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
-        linked_tasks = update_cost_model_costs.s(
-            schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
-        ).set(queue=update_cost_model_queue) | mark_manifest_complete.si(
-            schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
-        ).set(
-            queue=mark_manifest_complete_queue
+        linked_tasks = (
+            update_cost_model_costs.s(schema, provider_uuid, start_date, end_date, tracing_id=tracing_id).set(
+                queue=update_cost_model_queue
+            )
+            | mark_manifest_complete.si(
+                schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
+            ).set(queue=mark_manifest_complete_queue)
+            | validate_daily_data.si(schema, provider_uuid, start_date, end_date, context).set(
+                queue=fallback_update_summary_tables_queue
+            )
         )
+
     else:
         LOG.info(log_json(tracing_id, msg="skipping cost model updates", context=context))
         linked_tasks = mark_manifest_complete.s(
@@ -634,7 +640,11 @@ def update_summary_tables(  # noqa: C901
             manifest_list=manifest_list,
             ingress_report_uuid=ingress_report_uuid,
             tracing_id=tracing_id,
-        ).set(queue=mark_manifest_complete_queue)
+        ).set(queue=mark_manifest_complete_queue) | validate_daily_data.si(
+            schema, provider_uuid, start_date, end_date, context
+        ).set(
+            queue=fallback_update_summary_tables_queue
+        )
 
     chain(linked_tasks).apply_async()
 
@@ -1203,3 +1213,9 @@ def process_daily_openshift_on_cloud(
 
             file_name = f"ocp_on_{provider_type}_{i}"
             processor.process(file_name, [data_frame])
+
+
+@celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=SummaryQueue.DEFAULT)
+def validate_daily_data(schema, provider_uuid, start_date, end_date, context=None):
+    # collect and validate cost metrics between postgres and trino tables.
+    check_data_integrity(schema, provider_uuid, start_date, end_date, context)
