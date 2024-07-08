@@ -491,7 +491,7 @@ class TestAWSUtils(MasuTestCase):
         mock_bucket.delete_objects.assert_has_calls(
             [call(Delete={"Objects": expected_keys[:1000]}), call(Delete={"Objects": expected_keys[1000:]})]
         )
-        self.assertIn("removed files from s3 bucket", captured_logs.output[-1])
+        self.assertIn("removed batch files from s3 bucket", captured_logs.output[-1])
 
     def test_remove_s3_objects_not_matching_metadata(self):
         """Test remove_s3_objects_not_matching_metadata."""

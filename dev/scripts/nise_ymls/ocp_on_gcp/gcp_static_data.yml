@@ -4,8 +4,33 @@ generators:
       start_date: {{start_date}}
       end_date: {{end_date}}
       price: 2
+      sku_id: CF4E-A0C7-E3BF
       usage.amount_in_pricing_units: 1
       usage.pricing_unit: hour
+      currency: USD
+      instance_type: m2-megamem-416
+      location.region: australia-southeast1-a
+      resource.name: projects/nise-populator/instances/gcp_compute1
+      resource.global_name: //compute.googleapis.com/projects/nise-populator/zones/australia-southeast1-a/instances/3447398860992947181
+      labels: [{"environment": "clyde", "app":"winter", "version":"green", "kubernetes-io-cluster-c32se93c-73z3-3s3d-cs23-d3245sj45349": "owned"}]
+  - ComputeEngineGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 2
+      sku_id: BBF8-C07D-1DF4 #inbound data transfer
+      usage.amount_in_pricing_units: 50
+      currency: USD
+      instance_type: m2-megamem-416
+      location.region: australia-southeast1-a
+      resource.name: projects/nise-populator/instances/gcp_compute1
+      resource.global_name: //compute.googleapis.com/projects/nise-populator/zones/australia-southeast1-a/instances/3447398860992947181
+      labels: [{"environment": "clyde", "app":"winter", "version":"green", "kubernetes-io-cluster-c32se93c-73z3-3s3d-cs23-d3245sj45349": "owned"}]
+  - ComputeEngineGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 30
+      sku_id: 9DE9-9092-B3BC # outbound data transfer
+      usage.amount_in_pricing_units: 10
       currency: USD
       instance_type: m2-megamem-416
       location.region: australia-southeast1-a
