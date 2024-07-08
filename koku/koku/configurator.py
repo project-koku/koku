@@ -5,6 +5,8 @@
 """
 Handler module for gathering configuration data.
 """
+import pathlib
+
 from .env import ENVIRONMENT
 
 
@@ -500,26 +502,51 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_database_name():
         """Obtain database name."""
+        if ClowderConfigurator._use_read_replica():
+            try:
+                return pathlib.Path("/etc/db/readreplica/db_name").read_text().rstrip()
+            except FileNotFoundError:
+                pass
         return LoadedConfig.database.name
 
     @staticmethod
     def get_database_user():
         """Obtain database user."""
+        if ClowderConfigurator._use_read_replica():
+            try:
+                return pathlib.Path("/etc/db/readreplica/db_user").read_text().rstrip()
+            except FileNotFoundError:
+                pass
         return LoadedConfig.database.username
 
     @staticmethod
     def get_database_password():
         """Obtain database password."""
+        if ClowderConfigurator._use_read_replica():
+            try:
+                return pathlib.Path("/etc/db/readreplica/db_password").read_text().rstrip()
+            except FileNotFoundError:
+                pass
         return LoadedConfig.database.password
 
     @staticmethod
     def get_database_host():
         """Obtain database host."""
+        if ClowderConfigurator._use_read_replica():
+            try:
+                return pathlib.Path("/etc/db/readreplica/db_host").read_text().rstrip()
+            except FileNotFoundError:
+                pass
         return LoadedConfig.database.hostname
 
     @staticmethod
     def get_database_port():
         """Obtain database port."""
+        if ClowderConfigurator._use_read_replica():
+            try:
+                return pathlib.Path("/etc/db/readreplica/db_port").read_text().rstrip()
+            except FileNotFoundError:
+                pass
         return LoadedConfig.database.port
 
     @staticmethod
@@ -533,6 +560,18 @@ class ClowderConfigurator(Configurator):
         if LoadedConfig.database.rdsCa:
             return LoadedConfig.rds_ca()
         return None
+
+    @staticmethod
+    def _use_read_replica() -> bool:
+        read_replica_file_list = [
+            "/etc/db/readreplica/db_host",
+            "/etc/db/readreplica/db_port",
+            "/etc/db/readreplica/db_name",
+            "/etc/db/readreplica/db_user",
+            "/etc/db/readreplica/db_password",
+        ]
+        use_read_replica = ENVIRONMENT.bool("USE_READREPLICA", default=False)
+        return use_read_replica and all(pathlib.Path(file).is_file() for file in read_replica_file_list)
 
     @staticmethod
     def get_metrics_port():
