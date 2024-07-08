@@ -420,7 +420,7 @@ SELECT azure.uuid as azure_uuid,
     max(azure.subscription_name) as subscription_name,
     max(nullif(azure.resource_location, '')) as resource_location,
     'GB-Mo' as unit_of_measure, -- Has to have this unit to show up on ocp on cloud storage endpoint
-    cast(NULL as double) as usage_quantity,
+    max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
     max(azure.currency) as currency,
     max(persistentvolumeclaim_capacity_gigabyte) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))  as pretax_cost,
     (max(persistentvolumeclaim_capacity_gigabyte) / max(az_disk.capacity) * max(cast(azure.pretax_cost as decimal(24,9)))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
