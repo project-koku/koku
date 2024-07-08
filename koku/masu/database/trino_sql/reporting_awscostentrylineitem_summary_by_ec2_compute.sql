@@ -91,9 +91,12 @@ FROM (
         resourcetags as tags,
         costcategory,
         nullif(pricing_unit, '') as unit,
-        -- according to AWS docs on savings plans,
-        -- https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
-        -- SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items that offset that cost and usage.
+        /* According to AWS docs on Savings Plans:
+           SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+           that offset that cost and usage.
+           For more information, refer to:
+           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
         sum(
             CASE
                 WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
