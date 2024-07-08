@@ -91,30 +91,12 @@ FROM (
         resourcetags as tags,
         costcategory,
         nullif(pricing_unit, '') as unit,
-        /* According to AWS docs on Savings Plans:
-           SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
-           that offset that cost and usage.
-           For more information, refer to:
-           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
-        */
-        sum(
-            CASE
-                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
-                THEN 0.0
-                ELSE lineitem_usageamount
-            END
-        ) as usage_amount,
+        sum(lineitem_usageamount) as usage_amount,
         max(lineitem_normalizationfactor) as normalization_factor,
         sum(lineitem_normalizedusageamount) as normalized_usage_amount,
         max(lineitem_currencycode) as currency_code,
         max(lineitem_unblendedrate) as unblended_rate,
-        sum(
-            CASE
-                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
-                THEN 0.0
-                ELSE lineitem_unblendedcost
-            END
-        ) as unblended_cost,
+        sum(lineitem_unblendedcost) as unblended_cost,
         max(lineitem_blendedrate) as blended_rate,
         sum(lineitem_blendedcost) as blended_cost,
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
@@ -135,6 +117,11 @@ FROM (
         AND month = '{{month | sqlsafe}}'
         AND lineitem_productcode = 'AmazonEC2'
         AND product_productfamily LIKE '%Compute Instance%'
+        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+           that offset that cost and usage.
+           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
+        AND lineitem_lineitemtype != 'SavingsPlanCoveredUsage'
         AND lineitem_resourceid != ''
     GROUP BY lineitem_resourceid,
         lineitem_usageaccountid,
