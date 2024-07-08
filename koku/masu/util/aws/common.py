@@ -803,15 +803,15 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
             batch_end = batch_start + batch_size
             object_keys_batch = keys_to_delete[batch_start:batch_end]
             s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
-        LOG.info(
-            log_json(
-                request_id,
-                msg="removed files from s3 bucket",
-                context=context,
-                bucket=settings.S3_BUCKET_NAME,
-                file_list=keys_to_delete,
+            LOG.info(
+                log_json(
+                    request_id,
+                    msg="removed batch files from s3 bucket",
+                    context=context,
+                    bucket=settings.S3_BUCKET_NAME,
+                    file_list=object_keys_batch,
+                )
             )
-        )
         return keys_to_delete
     except (EndpointConnectionError, ClientError) as err:
         LOG.warning(
