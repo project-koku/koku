@@ -456,6 +456,7 @@ SELECT azure.uuid as azure_uuid,
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
+        AND az_disk.ocp_source = {{ocp_source_uuid}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -596,6 +597,7 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
+        AND az_disk.ocp_source = {{ocp_source_uuid}}
     LEFT JOIN cte_total_pv_capacity as pv_cap
         ON 1 = 1
     WHERE ocp.source = {{ocp_source_uuid}}

@@ -126,6 +126,18 @@ class OCPProviderMap(ProviderMap):
                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
             )
 
+    def __cost_model_distributed_cost(self, cost_model_rate_type, exchange_rate_column):
+        return Sum(
+            Case(
+                When(
+                    cost_model_rate_type=cost_model_rate_type,
+                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
+                ),
+                default=Value(0, output_field=DecimalField()),
+            )
+            * Coalesce(exchange_rate_column, Value(1, output_field=DecimalField())),
+        )
+
     def __init__(self, provider, report_type, schema_name):
         """Constructor."""
         self._schema_name = schema_name
@@ -914,55 +926,19 @@ class OCPProviderMap(ProviderMap):
     @cached_property
     def distributed_unattributed_storage_cost(self):
         """The unattributed storage cost needs to have the infra exchange rate applied to it."""
-        return Sum(
-            Case(
-                When(
-                    cost_model_rate_type="unattributed_storage",
-                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
-                ),
-                default=Value(0, output_field=DecimalField()),
-            )
-            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-        )
+        return self.__cost_model_distributed_cost("unattributed_storage", "infra_exchange_rate")
 
     @cached_property
     def distributed_unattributed_network_cost(self):
         """The unattributed network cost needs to have the infra exchange rate applied to it."""
-        return Sum(
-            Case(
-                When(
-                    cost_model_rate_type="unattributed_network",
-                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
-                ),
-                default=Value(0, output_field=DecimalField()),
-            )
-            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-        )
+        return self.__cost_model_distributed_cost("unattributed_network", "infra_exchange_rate")
 
     @cached_property
     def distributed_platform_cost(self):
         """Platform distributed cost"""
-        return Sum(
-            Case(
-                When(
-                    cost_model_rate_type="platform_distributed",
-                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
-                ),
-                default=Value(0, output_field=DecimalField()),
-            )
-            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
-        )
+        return self.__cost_model_distributed_cost("platform_distributed", "exchange_rate")
 
     @cached_property
     def distributed_worker_cost(self):
         """Worker unallocated distributed cost"""
-        return Sum(
-            Case(
-                When(
-                    cost_model_rate_type="worker_distributed",
-                    then=Coalesce(F("distributed_cost"), Value(0, output_field=DecimalField())),
-                ),
-                default=Value(0, output_field=DecimalField()),
-            )
-            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
-        )
+        return self.__cost_model_distributed_cost("worker_distributed", "exchange_rate")
