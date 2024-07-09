@@ -245,22 +245,17 @@ class ReportDBAccessorBase:
                 year,
                 month,
             )
-            for i in range(retries):
-                try:
-                    sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
-                    WHERE ocp_source = '{source}'
-                    AND year = '{year}'
-                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                    """
-                    self._execute_trino_raw_sql_query(
-                        sql,
-                        log_ref=f"delete_hive_partition_by_month for {year}-{month}",
-                        attempts_left=(retries - 1) - i,
-                    )
-                    break
-                except TrinoExternalError as err:
-                    if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                        continue
-                    else:
-                        raise err
+            try:
+                sql = f"""
+                DELETE FROM hive.{self.schema}.{table}
+                WHERE ocp_source = '{source}'
+                AND year = '{year}'
+                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                """
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_hive_partition_by_month for {year}-{month}",
+                    attempts_left=retries,
+                )
+            except TrinoExternalError as err:
+                raise err
