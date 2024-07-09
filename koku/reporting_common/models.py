@@ -13,6 +13,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from api.common import log_json
+from api.provider.models import Provider
 from koku import celery_app
 from reporting_common.states import CombinedChoices
 from reporting_common.states import ReportStep
@@ -42,7 +43,7 @@ class CostUsageReportManifest(models.Model):
     # s3_csv_cleared used in AWS/Azure to indicate csv's have been cleared for daily archive processing
     s3_csv_cleared = models.BooleanField(default=False, null=True)
     # s3_parquet_cleared used to indicate parquet files have been cleared prior to csv to parquet conversion
-    s3_parquet_cleared = models.BooleanField(default=True, null=True)
+    s3_parquet_cleared = models.BooleanField(default=False, null=True)
     # Indicates what initial date to start at for daily processing
     daily_archive_start_date = models.DateTimeField(null=True)
     operator_version = models.TextField(null=True)
@@ -222,3 +223,19 @@ def trigger_celery_task(sender, instance, **kwargs):
         "result_id": result.id,
     }
     LOG.info(log_json(tracing_id=tracing_id, msg=log_msg, context=log_context))
+
+
+class DiskCapacity(models.Model):
+    """Mapping of product substrings to capacity in GiB.
+
+    Azure bills do not report capacity so we build this information externally.
+    """
+
+    class Meta:
+        """Meta for CostUsageReportStatus."""
+
+        unique_together = ("product_substring", "capacity", "provider_type")
+
+    product_substring = models.CharField(max_length=20, primary_key=True)
+    capacity = models.IntegerField()
+    provider_type = models.CharField(max_length=50, null=False, choices=Provider.CLOUD_PROVIDER_CHOICES)

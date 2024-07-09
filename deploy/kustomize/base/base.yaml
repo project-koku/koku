@@ -176,7 +176,7 @@ objects:
 - apiVersion: v1
   kind: ConfigMap
   metadata:
-    name: nginx-conf
+    name: koku-api-nginx-conf
   data:
     nginx.conf: |-
       worker_processes  1;
@@ -199,11 +199,22 @@ objects:
         keepalive_timeout   65;
         server_tokens       off;
 
-        upstream koku-api {
-          server koku-api:8000;
+        upstream koku-api-reads {
+          server koku-api-reads:8000;
+        }
+        upstream koku-api-writes {
+          server koku-api-writes:8000;
         }
         upstream ros-ocp-api {
           server ${ROS_OCP_API}:8000;
+        }
+        map $request_method $upstream_location {
+                    GET     koku-api-reads;
+                    HEAD    koku-api-reads;
+                    POST    koku-api-writes;
+                    PUT     koku-api-writes;
+                    DELETE  koku-api-writes;
+                    default koku-api-writes;
         }
 
         server {
@@ -229,7 +240,7 @@ objects:
               return              200;
           }
           location ^~/ {
-            proxy_pass http://koku-api;
+            proxy_pass http://$upstream_location;
             proxy_read_timeout 600s;
           }
           location /api/cost-management/v1/recommendations/ {
@@ -515,6 +526,12 @@ parameters:
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
+- displayName: Timer to prevent triggering tasks while still processing in days
+  name: PROCESSING_WAIT_TIMER
+  value: "3"
+- displayName: Timer to prevent triggering tasks while still processing in days
+  name: LARGE_PROCESSING_WAIT_TIMER
+  value: "7"
 - displayName: Enable Tags Limit
   name: TAG_ENABLED_LIMIT
   value: "200"

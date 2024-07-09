@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
     persistentvolumeclaim_usage_gigabyte_months double,
     source_uuid varchar,
     infrastructure_usage_cost varchar,
+    csi_volume_handle varchar,
     cost_category_id int,
     source varchar,
     year varchar,
@@ -83,6 +84,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     infrastructure_usage_cost,
+    csi_volume_handle,
     cost_category_id,
     source,
     year,
@@ -249,6 +251,7 @@ SELECT null as uuid,
     NULL as persistentvolumeclaim_usage_gigabyte_months,
     pua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
+    NULL as csi_volume_handle,
     pua.cost_category_id,
     {{source}} as source,
     cast(year(pua.usage_start) as varchar) as year,
@@ -371,6 +374,7 @@ SELECT null as uuid,
         power(2, -30)) as persistentvolumeclaim_usage_gigabyte_months,
     sua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
+    sua.csi_volume_handle,
     sua.cost_category_id,
     {{source}} as source,
     cast(year(sua.usage_start) as varchar) as year,
@@ -397,6 +401,7 @@ FROM (
             )
         ) as volume_labels,
         sli.source as source_uuid,
+        sli.csi_volume_handle as csi_volume_handle,
         max(cat_ns.cost_category_id) as cost_category_id,
         max(sli.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         sum(sli.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
@@ -432,6 +437,7 @@ FROM (
         sli.persistentvolumeclaim,
         sli.persistentvolume,
         sli.storageclass,
+        sli.csi_volume_handle,
         date(sli.interval_start),
         8,  /* THIS ORDINAL MUST BE KEPT IN SYNC WITH THE map_filter EXPRESSION */
             /* The map_filter expression was too complex for trino to use */
@@ -533,6 +539,7 @@ cte_unallocated_capacity AS (
         AND lids.usage_start < date_add('day', 1, {{end_date}})
         AND lids.namespace != 'Platform unallocated'
         AND lids.namespace != 'Worker unallocated'
+        AND lids.namespace != 'Network unattributed'
         AND lids.node IS NOT NULL
         AND lids.data_source = 'Pod'
     GROUP BY lids.node, lids.usage_start, lids.source_uuid

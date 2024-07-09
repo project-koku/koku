@@ -15,7 +15,6 @@ from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
 from masu.util.common import convert_account
 
-
 LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
@@ -80,20 +79,18 @@ def is_customer_large(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
 
 
+def is_customer_penalty(account):  # pragma: no cover
+    """Flag the customer as penalised."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.penalty-customer", context)
+
+
 def is_rate_limit_customer_large(account):  # pragma: no cover
     """Flag the customer as large and to be rate limited."""
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
-
-
-def is_ocp_savings_plan_cost_enabled(account):  # pragma: no cover
-    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
-    )
 
 
 def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
@@ -156,6 +153,14 @@ def is_feature_cost_3592_tag_mapping_enabled(account):
 def is_feature_cost_3083_all_labels_enabled(account):
     """Should all labels column be enabled."""
     unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+
+
+def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
+    """Should EC2 individual VM compute cost be enabled."""
+    unleash_flag = "cost-management.backend.feature-4403-enable-ec2-compute-processing"
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)

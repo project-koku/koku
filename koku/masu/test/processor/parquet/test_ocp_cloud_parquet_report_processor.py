@@ -22,6 +22,7 @@ from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 from reporting.provider.all.models import EnabledTagKeys
+from reporting_common.models import CostUsageReportStatus
 
 
 class TestOCPCloudParquetReportProcessor(MasuTestCase):
@@ -414,7 +415,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
         mock_get_tags.reset_mock()
         with patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_cached_matching_tags",
+            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_value_from_cache",
             return_value=matched_tags,
         ):
             self.report_processor.get_matched_tags([])
@@ -438,8 +439,25 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
         mock_get_tags.reset_mock()
         with patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_cached_matching_tags",
+            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_value_from_cache",
             return_value=matched_tags,
         ):
             self.report_processor.get_matched_tags([])
             mock_get_tags.assert_not_called()
+
+    def test_instantiating_processor_without_manifest_id(self):
+        """Assert that report_status exists and is None."""
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP_LOCAL,
+            manifest_id=0,
+            context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
+        )
+        self.assertIsNone(report_processor.report_status)
+
+    def test_instantiating_processor_with_manifest_id(self):
+        """Assert that report_status exists and is not None."""
+        self.assertIsNotNone(self.report_processor.report_status)
+        self.assertIsInstance(self.report_processor.report_status, CostUsageReportStatus)

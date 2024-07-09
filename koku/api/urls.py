@@ -15,6 +15,7 @@ from api.views import AWSAccountView
 from api.views import AWSCategoryView
 from api.views import AWSCostForecastView
 from api.views import AWSCostView
+from api.views import AWSEC2ComputeView
 from api.views import AWSInstanceTypeView
 from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
@@ -238,6 +239,13 @@ urlpatterns = [
             AWSInstanceTypeView.as_view()
         ),
         name="reports-aws-instance-type",
+    ),
+    path(
+        "reports/aws/resources/ec2-compute/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(
+            AWSEC2ComputeView.as_view()
+        ),
+        name="reports-aws-ec2-compute",
     ),
     path(
         "reports/aws/storage/",

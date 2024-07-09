@@ -26,10 +26,15 @@ from api.report.constants import AND_TAG_PREFIX
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import OR_AWS_CATEGORY_PREFIX
 from api.report.constants import OR_TAG_PREFIX
+from api.report.constants import RESOLUTION_DAILY
+from api.report.constants import RESOLUTION_MONTHLY
 from api.report.constants import TAG_PREFIX
+from api.report.constants import TIME_SCOPE_UNITS_DAILY
+from api.report.constants import TIME_SCOPE_UNITS_MONTHLY
+from api.report.constants import TIME_SCOPE_VALUES_DAILY
+from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
-from api.tags.serializers import month_list
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
@@ -421,21 +426,48 @@ class QueryParameters:
         start_date = self.get_start_date()
         end_date = self.get_end_date()
         resolution = self.get_filter("resolution")
-        if not (start_date or end_date):
-            if not time_scope_value:
-                time_scope_value = -1 if time_scope_units == "month" else -10
-            if not time_scope_units:
-                time_scope_units = "month" if int(time_scope_value) in month_list else "day"
-            if not resolution:
-                resolution = "monthly" if int(time_scope_value) in month_list else "daily"
-            self.set_filter(
-                time_scope_value=str(time_scope_value),
-                time_scope_units=str(time_scope_units),
-                resolution=str(resolution),
+
+        filter_params = {}
+
+        if self.report_type == "ec2_compute":
+            filter_params["time_scope_units"] = (
+                time_scope_units if time_scope_units == TIME_SCOPE_UNITS_MONTHLY else TIME_SCOPE_UNITS_MONTHLY
             )
+            filter_params["time_scope_value"] = (
+                time_scope_value if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else TIME_SCOPE_VALUES_MONTHLY[0]
+            )
+            filter_params["resolution"] = resolution if resolution == RESOLUTION_MONTHLY else RESOLUTION_MONTHLY
         else:
-            if not resolution:
-                self.set_filter(resolution="daily")
+            if not (start_date or end_date):
+                if not time_scope_value:
+                    time_scope_value = (
+                        TIME_SCOPE_VALUES_MONTHLY[0]
+                        if time_scope_units == TIME_SCOPE_UNITS_MONTHLY
+                        else TIME_SCOPE_VALUES_DAILY[0]
+                    )
+                if not time_scope_units:
+                    time_scope_units = (
+                        TIME_SCOPE_UNITS_MONTHLY
+                        if time_scope_value in TIME_SCOPE_VALUES_MONTHLY
+                        else TIME_SCOPE_UNITS_DAILY
+                    )
+                if not resolution:
+                    resolution = (
+                        RESOLUTION_MONTHLY if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else RESOLUTION_DAILY
+                    )
+                filter_params["resolution"] = resolution
+                filter_params["time_scope_units"] = time_scope_units
+                filter_params["time_scope_value"] = time_scope_value
+            else:
+                if not resolution:
+                    filter_params["resolution"] = RESOLUTION_DAILY
+
+            if filter_params:
+                self.set_filter(
+                    time_scope_value=filter_params.get("time_scope_value", time_scope_value),
+                    time_scope_units=filter_params.get("time_scope_units", time_scope_units),
+                    resolution=filter_params.get("resolution", resolution),
+                )
 
     def _validate(self, query_params):
         """Validate query parameters.

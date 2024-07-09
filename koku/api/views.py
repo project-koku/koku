@@ -29,6 +29,7 @@ from api.report.aws.openshift.view import OCPAWSCostView
 from api.report.aws.openshift.view import OCPAWSInstanceTypeView
 from api.report.aws.openshift.view import OCPAWSStorageView
 from api.report.aws.view import AWSCostView
+from api.report.aws.view import AWSEC2ComputeView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
 from api.report.azure.openshift.view import OCPAzureCostView

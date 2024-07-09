@@ -13,6 +13,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import AWSEC2ComputePagination
 from api.common.pagination import OrgUnitPagination
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
@@ -22,21 +23,22 @@ from api.query_params import QueryParameters
 LOG = logging.getLogger(__name__)
 
 
-def get_paginator(filter_query_params, count, group_by_params=False):
+def get_paginator(filter_query_params, count, group_by_params=False, **kwargs):
     """Determine which paginator to use based on query params."""
+
     if group_by_params and (
         "group_by[org_unit_id]" in group_by_params or "group_by[or:org_unit_id]" in group_by_params
     ):
         paginator = OrgUnitPagination(filter_query_params)
-        paginator.others = count
     else:
         if "offset" in filter_query_params:
             paginator = ReportRankedPagination()
             paginator.count = count
-            paginator.others = count
+        elif kwargs.get("report_type", "") == "ec2_compute":
+            paginator = AWSEC2ComputePagination()
         else:
             paginator = ReportPagination()
-            paginator.others = count
+    paginator.others = count
     return paginator
 
 
@@ -78,7 +80,11 @@ class ReportView(APIView):
 
         max_rank = handler.max_rank
 
-        paginator = get_paginator(params.parameters.get("filter", {}), max_rank, request.query_params)
+        get_report_type = getattr(handler, "_report_type", None)
+
+        paginator = get_paginator(
+            params.parameters.get("filter", {}), max_rank, request.query_params, report_type=get_report_type
+        )
         paginated_result = paginator.paginate_queryset(output, request)
 
         return paginator.get_paginated_response(paginated_result)

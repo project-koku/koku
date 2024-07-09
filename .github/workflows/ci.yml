@@ -15,15 +15,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.7
 
       - name: Install Python
-        uses: actions/setup-python@v4.3.0
+        uses: actions/setup-python@v5.1.0
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Run pre-commit checks
-        uses: pre-commit/action@v3.0.0
+        uses: pre-commit/action@v3.0.1
         env:
           SETUPTOOLS_USE_DISTUTILS: stdlib
 
@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.7
         with:
           fetch-depth: 0
 
@@ -57,7 +57,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v41.0.0
+        uses: tj-actions/changed-files@v44.5.2
         with:
           files_from_source_file: docker-files.txt
 
@@ -70,7 +70,7 @@ jobs:
 
       - name: Setting smokes-required label
         if: env.RUN_TESTS == 'true'
-        uses: actions/github-script@v6.3.3
+        uses: actions/github-script@v7.0.1
         continue-on-error: true
         with:
           script: |
@@ -89,7 +89,7 @@ jobs:
 
       - name: Remove smokes-required label
         if: env.RUN_TESTS != 'true'
-        uses: actions/github-script@v6.3.3
+        uses: actions/github-script@v7.0.1
         continue-on-error: true
         with:
           script: |
@@ -114,13 +114,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.7
         with:
           fetch-depth: 0
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v41.0.0
+        uses: tj-actions/changed-files@v44.5.2
         with:
           files: |
             db_functions/**
@@ -153,14 +153,14 @@ jobs:
       max-parallel: 4
       matrix:
         python-version:
-          - '3.9'
+          - '3.11'
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
       - name: Checkout
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.7
         with:
           fetch-depth: 0
 
@@ -174,7 +174,7 @@ jobs:
 
       - name: Set up Python ${{ matrix.python-version }}
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/setup-python@v4.3.0
+        uses: actions/setup-python@v5.1.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -185,7 +185,7 @@ jobs:
       - name: Cache dependencies
         if: needs.changed-files.outputs.run_tests == 'true'
         id: cache-dependencies
-        uses: actions/cache@v3.0.11
+        uses: actions/cache@v4.0.2
         with:
           path: |
             ~/.cache/pipenv
@@ -243,10 +243,11 @@ jobs:
 
       - name: Upload test coverage file
         if: steps.unit_tests_run.outcome == 'success'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.3.3
         with:
           name: coverage
           path: coverage.xml
+          overwrite: true
 
   coverage:
     name: Coverage
@@ -258,19 +259,19 @@ jobs:
         # this checkout is required for the coverage report. If we don't do this, then
         # the uploaded report is invalid and codecov doesn't know how to process it.
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.7
         with:
           fetch-depth: 0
 
       - name: Download coverage result from units
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: coverage
 
       - name: Upload coverage to Codecov
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: codecov/codecov-action@v4.2.0
+        uses: codecov/codecov-action@v4.4.1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:

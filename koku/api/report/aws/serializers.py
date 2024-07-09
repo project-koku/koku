@@ -7,9 +7,13 @@ from django.utils.translation import gettext
 from rest_framework import serializers
 
 from api.report.constants import AWS_COST_TYPE_CHOICES
+from api.report.constants import RESOLUTION_MONTHLY
+from api.report.constants import TIME_SCOPE_UNITS_MONTHLY
+from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
+from api.report.serializers import handle_invalid_fields
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
@@ -49,7 +53,16 @@ class AWSGroupBySerializer(GroupSerializer):
 class AWSOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("usage", "account", "account_alias", "region", "service", "product_family", "date")
+    _opfields = (
+        "usage",
+        "account",
+        "account_alias",
+        "region",
+        "service",
+        "product_family",
+        "date",
+    )
+
     _aws_category = True
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -67,6 +80,7 @@ class AWSFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
     _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
+
     _aws_category = True
 
     account = StringOrListField(child=serializers.CharField(), required=False)
@@ -184,3 +198,122 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                         }
                         raise serializers.ValidationError(error)
         return value
+
+
+class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
+    """Serializer for handling EC2 compute specific query parameter filter."""
+
+    RESOLUTION_CHOICES = (("monthly", "monthly"),)
+    TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
+    TIME_UNIT_CHOICES = (("month", "month"),)
+
+    _opfields = (
+        "resource_id",
+        "instance_name",
+        "account",
+        "operating_system",
+        "region",
+        # "tags"
+    )
+
+    _aws_category = True
+
+    resource_id = StringOrListField(child=serializers.CharField(), required=False)
+    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    operating_system = StringOrListField(child=serializers.CharField(), required=False)
+    account = StringOrListField(child=serializers.CharField(), required=False)
+    region = StringOrListField(child=serializers.CharField(), required=False)
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter inputs are invalid
+
+        """
+        handle_invalid_fields(self, data)
+
+        resolution = data.get("resolution")
+        time_scope_value = data.get("time_scope_value")
+        time_scope_units = data.get("time_scope_units")
+
+        errors = {}
+
+        if not time_scope_units:
+            time_scope_units = TIME_SCOPE_UNITS_MONTHLY
+        if not time_scope_value:
+            time_scope_value = TIME_SCOPE_VALUES_MONTHLY[0]
+        if not resolution:
+            resolution = RESOLUTION_MONTHLY
+        if time_scope_units != TIME_SCOPE_UNITS_MONTHLY:
+            errors["time_scope_units"] = f"The valid value for time_scope_units is {TIME_SCOPE_UNITS_MONTHLY}."
+        if time_scope_value not in TIME_SCOPE_VALUES_MONTHLY:
+            errors["time_scope_value"] = f"The valid values for time_scope_value are {TIME_SCOPE_VALUES_MONTHLY}."
+        if resolution != RESOLUTION_MONTHLY:
+            errors["resolution"] = f"The valid value for resolution is {RESOLUTION_MONTHLY}."
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return data
+
+
+class AWSEC2ExcludeSerializer(AWSExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
+    _opfields = ("account", "region")
+
+
+class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
+    """Serializer for handling EC2 compute specific query parameter order_by."""
+
+    _opfields = (
+        "resource_id",
+        "account",
+        "usage_amount",
+        "instance_type",
+        "region",
+        "operating_system",
+        "instance_name",
+    )
+
+    resource_id = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    usage_amount = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    instance_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+
+class AWSEC2GroupBySerializer(GroupSerializer):
+    """Serializer for handling EC2 Compute query parameter group_by."""
+
+    def validate(self, data):
+        raise serializers.ValidationError("Group by queries are not allowed.")
+
+
+class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
+    """Serializer for handling EC2 compute query parameters."""
+
+    order_by_allowlist = (
+        "resource_id",
+        "account",
+        "usage_amount",
+        "instance_type",
+        "region",
+        "operating_system",
+        "instance_name",
+        "cost",
+        "usage",
+    )
+
+    DELTA_CHOICES = ()
+    FILTER_SERIALIZER = AWSEC2ComputeFilterSerializer
+    ORDER_BY_SERIALIZER = AWSEC2ComputeOrderBySerializer
+    EXCLUDE_SERIALIZER = AWSEC2ExcludeSerializer
+    GROUP_BY_SERIALIZER = AWSEC2GroupBySerializer

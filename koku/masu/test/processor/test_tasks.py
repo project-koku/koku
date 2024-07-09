@@ -31,6 +31,8 @@ from django_tenants.utils import schema_context
 
 from api.iam.models import Tenant
 from api.models import Provider
+from common.queues import PriorityQueue
+from common.queues import SummaryQueue
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -51,7 +53,6 @@ from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNo
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
-from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
@@ -64,7 +65,6 @@ from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
-from masu.processor.tasks import UPDATE_SUMMARY_TABLES_QUEUE_XL
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
@@ -385,9 +385,9 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_uuid"] = provider_uuid
         report_meta["manifest_id"] = 1
         reports_to_summarize = [report_meta]
-        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             summarize_reports(reports_to_summarize)
-            mock_update_summary.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
+            mock_update_summary.s.return_value.apply_async.assert_called_with(queue=SummaryQueue.XL)
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
@@ -645,18 +645,78 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
 
     @patch.object(ExpiredDataRemover, "remove")
-    def test_remove_expired_data(self, fake_remover):
+    def test_remove_expired_data_simulate(self, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         fake_remover.return_value = expected_results
 
-        expected = "INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}"
+        schema = self.schema
+        provider = Provider.PROVIDER_AWS
+        simulate = True
+
+        expected_initial_remove_log = (
+            "INFO:masu.processor._tasks.remove_expired:"
+            "{'message': 'Remove expired data', 'tracing_id': '', "
+            "'schema': '" + schema + "', "
+            "'provider_type': '" + provider + "', "
+            "'provider_uuid': " + str(None) + ", "
+            "'simulate': " + str(simulate) + "}"
+        )
+
+        expected_expired_data_log = (
+            "INFO:masu.processor._tasks.remove_expired:"
+            "{'message': 'Expired Data', 'tracing_id': '', "
+            "'schema': '" + schema + "', "
+            "'provider_type': '" + provider + "', "
+            "'provider_uuid': " + str(None) + ", "
+            "'simulate': " + str(simulate) + ", "
+            "'removed_data': " + str(expected_results) + "}"
+        )
 
         # disable logging override set in masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
-            remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
-            self.assertIn(expected.format(str(expected_results)), logger.output)
+            remove_expired_data(schema_name=schema, provider=provider, simulate=simulate)
+
+            self.assertIn(expected_initial_remove_log, logger.output)
+            self.assertIn(expected_expired_data_log, logger.output)
+
+    @patch.object(ExpiredDataRemover, "remove")
+    def test_remove_expired_data_no_simulate(self, fake_remover):
+        """Test task."""
+        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
+        fake_remover.return_value = expected_results
+
+        schema = self.schema
+        provider = Provider.PROVIDER_AWS
+        simulate = False
+
+        expected_initial_remove_log = (
+            "INFO:masu.processor._tasks.remove_expired:"
+            "{'message': 'Remove expired data', 'tracing_id': '', "
+            "'schema': '" + schema + "', "
+            "'provider_type': '" + provider + "', "
+            "'provider_uuid': " + str(None) + ", "
+            "'simulate': " + str(simulate) + "}"
+        )
+
+        expected_expired_data_log = (
+            "INFO:masu.processor._tasks.remove_expired:"
+            "{'message': 'Expired Data', 'tracing_id': '', "
+            "'schema': '" + schema + "', "
+            "'provider_type': '" + provider + "', "
+            "'provider_uuid': " + str(None) + ", "
+            "'simulate': " + str(simulate) + ", "
+            "'removed_data': " + str(expected_results) + "}"
+        )
+
+        # disable logging override set in masu/__init__.py
+        logging.disable(logging.NOTSET)
+        with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
+            remove_expired_data(schema_name=schema, provider=provider, simulate=simulate)
+
+            self.assertIn(expected_initial_remove_log, logger.output)
+            self.assertNotIn(expected_expired_data_log, logger.output)
 
 
 class TestUpdateSummaryTablesTask(MasuTestCase):
@@ -863,7 +923,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 manifest_list=[manifest_id],
                 ingress_report_uuid=None,
                 tracing_id=tracing_id,
-            ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
+            ).set(queue=PriorityQueue.DEFAULT)
         )
         mock_chain.return_value.apply_async.assert_called()
 
@@ -900,7 +960,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 manifest_list=[manifest_id],
                 ingress_report_uuid=None,
                 tracing_id=tracing_id,
-            ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
+            ).set(queue=PriorityQueue.DEFAULT)
         )
         mock_chain.return_value.apply_async.assert_called()
 
@@ -947,9 +1007,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def test_get_report_data_for_provider_with_XL_queue(self, mock_update):
         """Test GET report_data endpoint with provider and XL queue"""
         start_date = date.today()
-        with patch("masu.processor.tasks.is_customer_large", return_value=True):
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             update_all_summary_tables(start_date)
-            mock_update.s.return_value.apply_async.assert_called_with(queue=UPDATE_SUMMARY_TABLES_QUEUE_XL)
+            mock_update.s.return_value.apply_async.assert_called_with(queue=SummaryQueue.XL)
 
     @patch("masu.processor.tasks.connection")
     def test_vacuum_schema(self, mock_conn):
@@ -1160,7 +1220,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.assertEqual(CostUsageReportStatus.objects.filter(report_name=report_file).count(), 1)
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
-    def test_update_openshift_on_cloud(self, mock_updater):
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    def test_update_openshift_on_cloud(self, mock_cost_updater, mock_updater):
         """Test that this task runs."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.today.date()
@@ -1380,8 +1441,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.is_customer_large") as mock_customer:
-            mock_customer.return_value = True
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
                 mock_delay.reset_mock()
@@ -1583,7 +1643,10 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_update_openshift_on_cloud_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay, mock_update):
+    @patch("masu.processor.tasks.update_cost_model_costs.s")
+    def test_update_openshift_on_cloud_throttled(
+        self, mock_model_update, mock_inspect, mock_lock, mock_release, mock_delay, mock_update
+    ):
         """Test that refresh materialized views runs with cache lock."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.today.date()
@@ -1615,6 +1678,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
             start_date,
             end_date,
         )
+        mock_model_update.assert_called_once()
         mock_delay.assert_not_called()
         update_openshift_on_cloud(
             self.schema,
@@ -1638,8 +1702,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         time.sleep(3)
         self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
-        with patch("masu.processor.tasks.is_customer_large") as mock_customer:
-            mock_customer.return_value = True
+        with patch("masu.processor.tasks.get_customer_queue", return_value=SummaryQueue.XL):
             with patch("masu.processor.tasks.rate_limit_tasks") as mock_rate_limit:
                 mock_rate_limit.return_value = False
                 mock_delay.reset_mock()

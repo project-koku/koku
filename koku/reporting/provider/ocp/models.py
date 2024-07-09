@@ -48,6 +48,9 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_pod_summary_by_project_p",
     "reporting_ocp_volume_summary_p",
     "reporting_ocp_volume_summary_by_project_p",
+    "reporting_ocp_network_summary_p",
+    "reporting_ocp_network_summary_by_node_p",
+    "reporting_ocp_network_summary_by_project_p",
 )
 
 
@@ -403,6 +406,7 @@ class OCPPVC(models.Model):
     persistent_volume_claim = models.TextField()
     persistent_volume = models.TextField()
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+    csi_volume_handle = models.TextField(null=True)
 
 
 class OpenshiftCostCategory(models.Model):

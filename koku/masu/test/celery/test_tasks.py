@@ -25,6 +25,7 @@ from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnit
 from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
 from reporting.models import TRINO_MANAGED_TABLES
+from reporting_common.models import DiskCapacity
 
 fake = faker.Faker()
 DummyS3Object = namedtuple("DummyS3Object", "key")
@@ -199,26 +200,22 @@ class TestCeleryTasks(MasuTestCase):
         self.assertIn("provider_uuid", str(e.exception))
 
     @patch("masu.celery.tasks.get_s3_resource")
-    def test_deleted_archived_with_prefix_success(self, mock_resource):
+    @patch("masu.celery.tasks.delete_s3_objects")
+    def test_deleted_archived_with_prefix_success(self, mock_delete, mock_resource):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         expected_prefix = "data/csv/10001/00000000-0000-0000-0000-000000000001/"
 
         # Generate enough fake objects to expect calling the S3 delete api twice.
         mock_bucket = mock_resource.return_value.Bucket.return_value
         bucket_objects = [DummyS3Object(key=fake.file_path()) for _ in range(1234)]
-        expected_keys = [{"Key": bucket_object.key} for bucket_object in bucket_objects]
-
-        # Leave one object mysteriously not deleted to cover the LOG.warning use case.
-        mock_bucket.objects.filter.side_effect = [bucket_objects, bucket_objects[:1]]
-
-        with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
+        expected_len = len(bucket_objects)
+        mock_bucket.objects.filter.side_effect = [bucket_objects]
+        with self.assertLogs("masu") as captured_logs:
             tasks.deleted_archived_with_prefix(mock_bucket, expected_prefix)
         mock_resource.assert_called()
-        mock_bucket.delete_objects.assert_has_calls(
-            [call(Delete={"Objects": expected_keys[:1000]}), call(Delete={"Objects": expected_keys[1000:]})]
-        )
-        mock_bucket.objects.filter.assert_has_calls([call(Prefix=expected_prefix), call(Prefix=expected_prefix)])
-        self.assertIn("Found 1 objects after attempting", captured_logs.output[-1])
+        mock_bucket.objects.filter.assert_called_with(Prefix=expected_prefix)
+        mock_delete.assert_called()
+        self.assertIn(f"starting objects: {expected_len}", captured_logs.output[-1])
 
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     def test_delete_archived_data_success(self, mock_delete):
@@ -483,3 +480,45 @@ class TestCeleryTasks(MasuTestCase):
         expected_queue = "summary"
         queue_tasks = tasks.get_celery_queue_items(queue_name=expected_queue, task_name="not_found")
         self.assertEqual(queue_tasks, expected_output)
+
+    @patch("masu.celery.tasks.celery_app")
+    def test_scrape_azure_storage_capacities(self, mock_celery_app):
+        """Test the scrape storage capacities."""
+        DiskCapacity.objects.all().delete()
+        beforeRows = DiskCapacity.objects.count()
+        result = """
+            | Standard SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            | Standard Disk Type | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            | Premium SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
+            |-------------------|----|----|----|----|----|-----|-----|-----|-----|-----|-----|------|------|------|
+            | Disk size in GiB | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384 | 32767 |
+        """
+        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+        with requests_mock.mock() as reqmock:
+            reqmock.register_uri("GET", f"{main_url}disk-storage-premium-ssd-sizes.md", status_code=200, text=result)
+            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-hdd-sizes.md", status_code=200, text=result)
+            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-ssd-sizes.md", status_code=200, text=result)
+            tasks.scrape_azure_storage_capacities()
+        afterRows = DiskCapacity.objects.count()
+        self.assertNotEqual(beforeRows, afterRows)
+        self.assertEqual(afterRows, 14)
+
+    def test_error_scrape_azure_storage_capacities(self):
+        """Test HTTP error capture."""
+        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
+        with self.assertLogs("masu.celery.tasks", "ERROR") as captured_logs:
+            with requests_mock.Mocker() as reqmock:
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-premium-ssd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-standard-hdd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                reqmock.register_uri(
+                    "GET", f"{main_url}disk-storage-standard-ssd-sizes.md", exc=HTTPError("Raised intentionally")
+                )
+                result = tasks.scrape_azure_storage_capacities()
+
+        self.assertIsNone(result)
+        self.assertIn("Unable to retrieve azure disk capacities", captured_logs.output[0])
+        self.assertIn("Raised intentionally", captured_logs.output[1])
