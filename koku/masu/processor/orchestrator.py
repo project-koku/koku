@@ -556,7 +556,6 @@ class Orchestrator:
         )
         # <QuerySet ['org1234567', 'org1234567', 'org1234567', 'org1234567']>
         # distinct is not removing duplicates from this list, so using a set to reduce instead
-
         for schema in schemas:
             LOG.info("Calling remove_expired_trino_partitions with account: %s", schema)
             async_result = remove_expired_trino_partitions.delay(
@@ -570,4 +569,6 @@ class Orchestrator:
                 schema,
                 str(async_result),
             )
+            async_results.append(async_result)
+
         return async_results

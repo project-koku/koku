@@ -46,6 +46,7 @@ from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.expired_data_remover import ExpiredDataRemoverError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
@@ -752,14 +753,16 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
                         schema_name=self.schema, provider_type=Provider.PROVIDER_OCP, simulate=simulate
                     )
 
-                    # Debugging output
-                    print("Logger output:", logger.output)
-
                     self.assertIn(expected_initial_remove_log, logger.output)
                     if simulate:
                         self.assertNotIn(expected_expired_data_log, logger.output)
                     else:
                         self.assertIn(expected_expired_data_log, logger.output)
+
+    def test_failed_remover_error(self):
+        """Test that a fake provider will result in an error."""
+        with self.assertRaises(ExpiredDataRemoverError):
+            remove_expired_trino_partitions(self.schema, "FAKE_PROVIDER", False)
 
 
 class TestUpdateSummaryTablesTask(MasuTestCase):
