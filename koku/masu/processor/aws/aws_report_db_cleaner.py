@@ -58,7 +58,7 @@ class AWSReportDBCleaner:
 
         removed_items = []
         all_account_ids = set()
-        all_period_start = set()
+        all_period_starts = set()
 
         with AWSReportDBAccessor(self._schema) as accessor:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
@@ -85,16 +85,16 @@ class AWSReportDBCleaner:
                         }
                     )
                     all_account_ids.add(bill.payer_account_id)
-                    all_period_start.add(str(bill.billing_period_start))
+                    all_period_starts.add(str(bill.billing_period_start))
 
-                    LOG.info(
-                        log_json(
-                            msg="deleting provider billing data for AWS",
-                            schema=self._schema,
-                            provider_uuid=bill.payer_account_id,
-                            start_date=bill.billing_period_start,
-                        )
+                LOG.info(
+                    log_json(
+                        msg="deleting provider billing data for AWS",
+                        schema=self._schema,
+                        accounts=all_account_ids,
+                        period_starts=all_period_starts,
                     )
+                )
 
                 if not simulate:
                     cascade_delete(bill_objects.query.model, bill_objects)
@@ -105,7 +105,7 @@ class AWSReportDBCleaner:
         partition_from = str(date(expired_date.year, expired_date.month, 1))
         removed_items = []
         all_account_ids = set()
-        all_period_start = set()
+        all_period_starts = set()
 
         with AWSReportDBAccessor(self._schema) as accessor:
             all_bill_objects = accessor.get_bill_query_before_date(expired_date).all()
@@ -114,16 +114,16 @@ class AWSReportDBCleaner:
                     {"account_payer_id": bill.payer_account_id, "billing_period_start": str(bill.billing_period_start)}
                 )
                 all_account_ids.add(bill.payer_account_id)
-                all_period_start.add(str(bill.billing_period_start))
+                all_period_starts.add(str(bill.billing_period_start))
 
-                LOG.info(
-                    log_json(
-                        msg="deleting provider billing data for AWS",
-                        schema=self._schema,
-                        provider_uuid=bill.payer_account_id,
-                        start_date=bill.billing_period_start,
-                    )
+            LOG.info(
+                log_json(
+                    msg="deleting provider billing data for AWS",
+                    schema=self._schema,
+                    accounts=all_account_ids,
+                    period_starts=all_period_starts,
                 )
+            )
 
             table_names = [
                 accessor._table_map["ocp_on_aws_daily_summary"],

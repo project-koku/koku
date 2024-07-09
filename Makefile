@@ -340,7 +340,9 @@ _koku-wait:
      done
 
 docker-build:
-	$(DOCKER_COMPOSE) build koku-base
+	# TARGETARCH: https://github.com/containers/podman/issues/23046 is resolved.
+	$(DOCKER_COMPOSE) build --build-arg TARGETARCH=$(shell uname -m | sed s/x86_64/amd64/) koku-base
+
 
 docker-up: docker-build
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)

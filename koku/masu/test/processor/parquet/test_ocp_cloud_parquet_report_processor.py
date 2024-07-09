@@ -415,7 +415,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
         mock_get_tags.reset_mock()
         with patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_cached_matching_tags",
+            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_value_from_cache",
             return_value=matched_tags,
         ):
             self.report_processor.get_matched_tags([])
@@ -439,7 +439,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         matched_tags = [{"tag_one": "value_one"}, {"tag_two": "value_bananas"}]
         mock_get_tags.reset_mock()
         with patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_cached_matching_tags",
+            "masu.processor.parquet.ocp_cloud_parquet_report_processor.get_value_from_cache",
             return_value=matched_tags,
         ):
             self.report_processor.get_matched_tags([])

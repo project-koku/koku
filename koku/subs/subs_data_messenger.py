@@ -27,6 +27,16 @@ from providers.azure.client import AzureClientFactory
 
 LOG = logging.getLogger(__name__)
 
+HPC_ROLE = "Red Hat Enterprise Linux Compute Node"
+SAP_ROLE = "SAP"
+RHEL_7 = "69"
+RHEL_8 = "479"
+ELS = "204"
+RHEL_7_HPC_ID = "76"
+RHEL_7_SAP_ID = "146"
+RHEL_8_HPC_ID = "479"
+RHEL_8_SAP_ID = "241"
+
 
 class SUBSDataMessenger:
     def __init__(self, context, schema_name, tracing_id):
@@ -47,7 +57,7 @@ class SUBSDataMessenger:
         self.org_id = subs_cust.org_id
         self.download_path = mkdtemp(prefix="subs")
         self.instance_map = {}
-        self.date_map = defaultdict(list)
+        self.date_map = defaultdict(dict)
 
     def determine_azure_instance_and_tenant_id(self, row):
         """For Azure we have to query the instance id if its not provided by a tag and the tenant_id."""
@@ -106,10 +116,12 @@ class SUBSDataMessenger:
                             row["subs_start_time"],
                             row["subs_end_time"],
                             row["subs_vcpu"],
+                            row["subs_rhel_version"],
                             row["subs_sla"],
                             row["subs_usage"],
                             row["subs_role"],
-                            row["subs_product_ids"].split("-"),
+                            row["subs_conversion"],
+                            row["subs_addon_id"],
                         )
                         msg = bytes(json.dumps(subs_dict), "utf-8")
                         self.send_kafka_message(msg)
@@ -130,8 +142,11 @@ class SUBSDataMessenger:
         producer.produce(SUBS_TOPIC, key=self.org_id, value=msg, callback=delivery_callback)
         producer.poll(0)
 
-    def build_base_subs_dict(self, instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids):
+    def build_base_subs_dict(
+        self, instance_id, tstamp, expiration, cpu_count, version, sla, usage, role, conversion, addon
+    ):
         """Gathers the relevant information for the kafka message and returns a filled dictionary of information."""
+        product_ids = self.determine_product_ids(version, addon, role)
         subs_dict = {
             "event_id": str(uuid.uuid4()),
             "event_source": "cost-management",
@@ -149,29 +164,55 @@ class SUBSDataMessenger:
             "sla": sla,
             "usage": usage,
             "billing_provider": self.provider_type.lower(),
-            "conversion": True,
         }
+        if conversion == "true":
+            subs_dict["conversion"] = True
+        else:
+            subs_dict["conversion"] = False
         # SAP is identified only through product ids and does not have an associated Role
-        if role != "SAP":
+        if role != SAP_ROLE:
             subs_dict["role"] = role
         return subs_dict
 
     def build_aws_subs_dict(
-        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+        self,
+        instance_id,
+        billing_account_id,
+        tstamp,
+        expiration,
+        cpu_count,
+        version,
+        sla,
+        usage,
+        role,
+        conversion,
+        addon,
     ):
         """Adds AWS specific fields to the base subs dict."""
         subs_dict = self.build_base_subs_dict(
-            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+            instance_id, tstamp, expiration, cpu_count, version, sla, usage, role, conversion, addon
         )
         subs_dict["billing_account_id"] = billing_account_id
         return subs_dict
 
     def build_azure_subs_dict(
-        self, instance_id, billing_account_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids, tenant_id
+        self,
+        instance_id,
+        billing_account_id,
+        tstamp,
+        expiration,
+        cpu_count,
+        version,
+        sla,
+        usage,
+        role,
+        conversion,
+        addon,
+        tenant_id,
     ):
         """Adds Azure specific fields to the base subs dict."""
         subs_dict = self.build_base_subs_dict(
-            instance_id, tstamp, expiration, cpu_count, sla, usage, role, product_ids
+            instance_id, tstamp, expiration, cpu_count, version, sla, usage, role, conversion, addon
         )
         subs_dict["azure_subscription_id"] = billing_account_id
         subs_dict["azure_tenant_id"] = tenant_id
@@ -181,18 +222,23 @@ class SUBSDataMessenger:
         """Process an Azure row into subs kafka messages."""
         msg_count = 0
         # Azure can unexplicably generate strange records with a second entry per day
-        # so we track the resource ids we've seen for a specific day so we don't send a record twice
-        if self.date_map.get(row["subs_start_time"]) and row["subs_resource_id"] in self.date_map.get(
-            row["subs_start_time"]
-        ):
-            return msg_count
-        self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
+        # these two values should sum to the total usage so we need to track what was already
+        # sent for a specific instance so we get the full usage amount
+        range_start = 0
+        resource_id = row["subs_resource_id"]
+        start_time = row["subs_start_time"]
+        usage = int(row["subs_usage_quantity"])
+        if self.date_map.get(start_time) and resource_id in self.date_map.get(start_time):
+            range_start = self.date_map.get(start_time).get(resource_id)
+        self.date_map[start_time] = {resource_id: usage + range_start}
         instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
         if not instance_id:
             return msg_count
         # Azure is daily records but subs need hourly records
-        start = parser.parse(row["subs_start_time"])
-        for i in range(int(row["subs_usage_quantity"])):
+        start = parser.parse(start_time)
+        # if data for the day was previously sent, start at hour following previous events
+        start = start + timedelta(hours=range_start)
+        for i in range(range_start, range_start + usage):
             end = start + timedelta(hours=1)
             subs_dict = self.build_azure_subs_dict(
                 instance_id,
@@ -200,10 +246,12 @@ class SUBSDataMessenger:
                 start.isoformat(),
                 end.isoformat(),
                 row["subs_vcpu"],
+                row["subs_rhel_version"],
                 row["subs_sla"],
                 row["subs_usage"],
                 row["subs_role"],
-                row["subs_product_ids"].split("-"),
+                row["subs_conversion"],
+                row["subs_addon_id"],
                 tenant_id,
             )
             msg = bytes(json.dumps(subs_dict), "utf-8")
@@ -212,3 +260,28 @@ class SUBSDataMessenger:
             self.send_kafka_message(msg)
             msg_count += 1
         return msg_count
+
+    def determine_product_ids(self, rhel_version, addon, role):
+        """Determine the appropriate product id's based on the RHEL version, addon and role.
+
+        HPC variants overwrite the product id's and are handled via ROLE.
+        SAP variants are additional product id's.
+        """
+        product_ids = []
+        if rhel_version == RHEL_7:
+            if role == HPC_ROLE:
+                return [RHEL_7_HPC_ID]
+            elif role == SAP_ROLE:
+                product_ids.append(RHEL_7_SAP_ID)
+            product_ids.append(RHEL_7)
+        elif rhel_version == RHEL_8:
+            if role == HPC_ROLE:
+                return [RHEL_8_HPC_ID]
+            elif role == SAP_ROLE:
+                product_ids.append(RHEL_8_SAP_ID)
+            product_ids.append(RHEL_8)
+
+        if addon == ELS:
+            product_ids.append(ELS)
+
+        return product_ids

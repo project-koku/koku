@@ -22,6 +22,11 @@ class ReportHCS:
         self._provider = provider.removesuffix("-local")
         self._provider_uuid = provider_uuid
         self._tracing_id = tracing_id
+        self._ctx = {
+            "schema_name": schema_name,
+            "provider_uuid": provider_uuid,
+            "provider_type": self._provider,
+        }
 
     def generate_report(self, start_date, end_date, finalize=False):
         """Generate HCS daily report
@@ -34,6 +39,11 @@ class ReportHCS:
         sql_file = f"sql/reporting_{self._provider.lower()}_hcs_daily_summary.sql"
 
         with HCSReportDBAccessor(self._schema_name) as accessor:
+            if not accessor.schema_exists_trino():
+                LOG.info(
+                    log_json(self._tracing_id, msg="schema does not exist, skipping hcs summary", context=self._ctx)
+                )
+                return
             try:
                 for date in date_range(start_date, end_date, step=1):
                     accessor.get_hcs_daily_summary(
@@ -41,7 +51,9 @@ class ReportHCS:
                     )
 
             except HCSTableNotFoundError as tnfe:
-                LOG.info(log_json(self._tracing_id, msg=f"{tnfe}, skipping..."))
+                LOG.info(log_json(self._tracing_id, msg=f"{tnfe}, skipping...", context=self._ctx))
 
             except Exception as e:
-                LOG.warning(log_json(self._tracing_id, msg="get_hcs_daily_summary exception"), exc_info=e)
+                LOG.warning(
+                    log_json(self._tracing_id, msg="get_hcs_daily_summary exception", context=self._ctx), exc_info=e
+                )
