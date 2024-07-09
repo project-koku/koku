@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import timedelta
 from tempfile import mkdtemp
 
+from azure.core.exceptions import ResourceNotFoundError
 from dateutil import parser
 from django.conf import settings
 
@@ -57,10 +58,11 @@ class SUBSDataMessenger:
         self.org_id = subs_cust.org_id
         self.download_path = mkdtemp(prefix="subs")
         self.instance_map = {}
-        self.date_map = defaultdict(list)
+        self.date_map = defaultdict(dict)
 
     def determine_azure_instance_and_tenant_id(self, row):
         """For Azure we have to query the instance id if its not provided by a tag and the tenant_id."""
+        instance_id = None
         if row["subs_resource_id"] in self.instance_map:
             return self.instance_map.get(row["subs_resource_id"])
         prov = Provider.objects.get(uuid=row["source"])
@@ -68,24 +70,27 @@ class SUBSDataMessenger:
         tenant_id = credentials.get("tenant_id")
         if row["subs_instance"] != "":
             instance_id = row["subs_instance"]
+            return instance_id, tenant_id
         # attempt to query azure for instance id
-        else:
-            # if its a local Azure provider, don't query Azure
-            if self.local_prov:
-                return "", tenant_id
-            subscription_id = credentials.get("subscription_id")
-            client_id = credentials.get("client_id")
-            client_secret = credentials.get("client_secret")
-            _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-            compute_client = _factory.compute_client
-            resource_group = row["resourcegroup"] if row.get("resourcegroup") else row["resourcegroupname"]
+        # if its a local Azure provider, don't query Azure
+        if self.local_prov:
+            return "", tenant_id
+        subscription_id = credentials.get("subscription_id")
+        client_id = credentials.get("client_id")
+        client_secret = credentials.get("client_secret")
+        _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
+        compute_client = _factory.compute_client
+        resource_group = row["resourcegroup"] if row.get("resourcegroup") else row["resourcegroupname"]
+        try:
             response = compute_client.virtual_machines.get(
                 resource_group_name=resource_group,
                 vm_name=row["subs_resource_id"],
             )
             instance_id = response.vm_id
-
-        self.instance_map[row["subs_resource_id"]] = (instance_id, tenant_id)
+        except ResourceNotFoundError as rnfe:
+            logging.error(msg="Failed to obtain resource id for VM.", exc_info=rnfe)
+        if instance_id:
+            self.instance_map[row["subs_resource_id"]] = (instance_id, tenant_id)
         return instance_id, tenant_id
 
     def process_and_send_subs_message(self, upload_keys):
@@ -222,18 +227,23 @@ class SUBSDataMessenger:
         """Process an Azure row into subs kafka messages."""
         msg_count = 0
         # Azure can unexplicably generate strange records with a second entry per day
-        # so we track the resource ids we've seen for a specific day so we don't send a record twice
-        if self.date_map.get(row["subs_start_time"]) and row["subs_resource_id"] in self.date_map.get(
-            row["subs_start_time"]
-        ):
-            return msg_count
-        self.date_map[row["subs_start_time"]].append(row["subs_resource_id"])
+        # these two values should sum to the total usage so we need to track what was already
+        # sent for a specific instance so we get the full usage amount
+        range_start = 0
+        resource_id = row["subs_resource_id"]
+        start_time = row["subs_start_time"]
+        usage = int(row["subs_usage_quantity"])
+        if self.date_map.get(start_time) and resource_id in self.date_map.get(start_time):
+            range_start = self.date_map.get(start_time).get(resource_id)
+        self.date_map[start_time] = {resource_id: usage + range_start}
         instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
         if not instance_id:
             return msg_count
         # Azure is daily records but subs need hourly records
-        start = parser.parse(row["subs_start_time"])
-        for i in range(int(row["subs_usage_quantity"])):
+        start = parser.parse(start_time)
+        # if data for the day was previously sent, start at hour following previous events
+        start = start + timedelta(hours=range_start)
+        for i in range(range_start, range_start + usage):
             end = start + timedelta(hours=1)
             subs_dict = self.build_azure_subs_dict(
                 instance_id,

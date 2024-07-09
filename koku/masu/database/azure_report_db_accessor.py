@@ -154,31 +154,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the cost entry bill objects with billing period before provided date."""
         return AzureCostEntryBill.objects.filter(billing_period_start__lte=date)
 
-    def populate_ocp_on_azure_cost_daily_summary(self, start_date, end_date, cluster_id, bill_ids, markup_value):
-        """Populate the daily cost aggregated summary for OCP on Azure.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-
-        Returns
-            (None)
-
-        """
-        table_name = self._table_map["ocp_on_azure_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazurecostlineitem_daily_summary.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "cluster_id": cluster_id,
-            "schema": self.schema,
-            "markup": markup_value or 0,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
     def populate_ocp_on_azure_tag_information(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}

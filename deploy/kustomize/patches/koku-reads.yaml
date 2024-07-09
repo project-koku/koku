@@ -1,8 +1,8 @@
 - op: replace  # only koku is replace, all other services are appended to this one
   path: /objects/0/spec/deployments/0
   value:
-    name: api
-    replicas: ${{KOKU_REPLICAS}}
+    name: api-reads
+    replicas: ${{KOKU_READS_REPLICAS}}
     webServices:
       public:
         enabled: true
@@ -10,13 +10,6 @@
         enabled: false
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      initContainers:
-        - command:
-            - /bin/bash
-            - -c
-            - $APP_ROOT/scripts/run_migrations.sh
-          image: ${IMAGE}:${IMAGE_TAG}
-          inheritEnv: true
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -89,7 +82,7 @@
         - name: POD_CPU_LIMIT # required to spin up appropriate number of gunicorn workers
           valueFrom:
             resourceFieldRef:
-              containerName: koku-api
+              containerName: koku-api-reads
               resource: limits.cpu
         - name: GUNICORN_WORKERS
           value: ${GUNICORN_WORKERS}
@@ -115,6 +108,8 @@
           value: ${CACHE_TIMEOUT}
         - name: TAG_ENABLED_LIMIT
           value: ${TAG_ENABLED_LIMIT}
+        - name: USE_READREPLICA
+          value: "${USE_READREPLICA}"
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
@@ -137,11 +132,11 @@
         timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${KOKU_CPU_LIMIT}
-          memory: ${KOKU_MEMORY_LIMIT}
+          cpu: ${KOKU_READS_CPU_LIMIT}
+          memory: ${KOKU_READS_MEMORY_LIMIT}
         requests:
-          cpu: ${KOKU_CPU_REQUEST}
-          memory: ${KOKU_MEMORY_REQUEST}
+          cpu: ${KOKU_READS_CPU_REQUEST}
+          memory: ${KOKU_READS_MEMORY_REQUEST}
       volumeMounts:
       - name: aws-credentials
         mountPath: /etc/aws
@@ -154,6 +149,9 @@
         readOnly: true
       - name: tmp-data
         mountPath: ${TMP_DIR}
+      - mountPath: /etc/db/readreplica
+        name: koku-read-only-db
+        readOnly: true
       volumes:
       - name: tmp-data
         emptyDir: {}
@@ -177,39 +175,54 @@
               path: oci-credentials.pem
             - key: oci-config
               path: oci-config
+      - name: koku-read-only-db
+        secret:
+          items:
+          - key: db.host
+            path: db_host
+          - key: db.name
+            path: db_name
+          - key: db.password
+            path: db_password
+          - key: db.port
+            path: db_port
+          - key: db.user
+            path: db_user
+          secretName: ${KOKU_READ_ONLY_DB}
+          optional: true
 - op: add
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: KOKU_REPLICAS
+    name: KOKU_READS_REPLICAS
     required: true
     value: '3'
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: KOKU_MEMORY_REQUEST
+    name: KOKU_READS_MEMORY_REQUEST
     required: true
     value: 512Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: KOKU_MEMORY_LIMIT
+    name: KOKU_READS_MEMORY_LIMIT
     required: true
     value: 1Gi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: KOKU_CPU_REQUEST
+    name: KOKU_READS_CPU_REQUEST
     required: true
     value: 250m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: KOKU_CPU_LIMIT
+    name: KOKU_READS_CPU_LIMIT
     required: true
     value: 500m
 - op: add
@@ -219,3 +232,17 @@
     name: KOKU_KOKU_LOG_LEVEL
     required: true
     value: INFO
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Determine whether the reads API uses the read replica
+    name: USE_READREPLICA
+    required: true
+    value: 'false'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Determine whether the reads API uses the read replica
+    name: KOKU_READ_ONLY_DB
+    required: true
+    value: cost-db-ro

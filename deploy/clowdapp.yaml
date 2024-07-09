@@ -17,7 +17,7 @@ objects:
     - rbac
     - sources-api
     deployments:
-    - name: api
+    - name: api-reads
       podSpec:
         env:
         - name: CLOWDER_ENABLED
@@ -91,7 +91,196 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-api
+              containerName: koku-api-reads
+              resource: limits.cpu
+        - name: GUNICORN_WORKERS
+          value: ${GUNICORN_WORKERS}
+        - name: GUNICORN_THREADS
+          value: ${GUNICORN_THREADS}
+        - name: ACCOUNT_ENHANCED_METRICS
+          value: ${ACCOUNT_ENHANCED_METRICS}
+        - name: CACHED_VIEWS_DISABLED
+          value: ${CACHED_VIEWS_DISABLED}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: NOTIFICATION_CHECK_TIME
+          value: ${NOTIFICATION_CHECK_TIME}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        - name: RBAC_CACHE_TIMEOUT
+          value: ${RBAC_CACHE_TIMEOUT}
+        - name: CACHE_TIMEOUT
+          value: ${CACHE_TIMEOUT}
+        - name: TAG_ENABLED_LIMIT
+          value: ${TAG_ENABLED_LIMIT}
+        - name: USE_READREPLICA
+          value: ${USE_READREPLICA}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: ${API_PATH_PREFIX}/v1/status/
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: ${API_PATH_PREFIX}/v1/status/
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${KOKU_READS_CPU_LIMIT}
+            memory: ${KOKU_READS_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_READS_CPU_REQUEST}
+            memory: ${KOKU_READS_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        - mountPath: /etc/db/readreplica
+          name: koku-read-only-db
+          readOnly: true
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            - key: oci-config
+              path: oci-config
+            secretName: koku-oci
+        - name: koku-read-only-db
+          secret:
+            items:
+            - key: db.host
+              path: db_host
+            - key: db.name
+              path: db_name
+            - key: db.password
+              path: db_password
+            - key: db.port
+              path: db_port
+            - key: db.user
+              path: db_user
+            optional: true
+            secretName: ${KOKU_READ_ONLY_DB}
+      replicas: ${{KOKU_READS_REPLICAS}}
+      webServices:
+        private:
+          enabled: false
+        public:
+          enabled: true
+    - name: api-writes
+      podSpec:
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              key: django-secret-key
+              name: koku-secret
+              optional: false
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: OCI_SHARED_CREDENTIALS_FILE
+          value: ${OCI_SHARED_CREDENTIALS_FILE}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: API_PATH_PREFIX
+          value: ${API_PATH_PREFIX}
+        - name: APP_DOMAIN
+          value: ${APP_DOMAIN}
+        - name: MAX_GROUP_BY_OVERRIDE
+          value: ${MAX_GROUP_BY_OVERRIDE}
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: DJANGO_LOG_LEVEL
+          value: ${DJANGO_LOG_LEVEL}
+        - name: DJANGO_LOG_FORMATTER
+          value: ${DJANGO_LOG_FORMATTER}
+        - name: DJANGO_LOG_HANDLERS
+          value: ${DJANGO_LOG_HANDLERS}
+        - name: DJANGO_LOG_DIRECTORY
+          value: ${DJANGO_LOG_DIRECTORY}
+        - name: DJANGO_LOGGING_FILE
+          value: ${DJANGO_LOG_FILE}
+        - name: RBAC_SERVICE_PATH
+          value: ${RBAC_SERVICE_PATH}
+        - name: RBAC_CACHE_TTL
+          value: ${RBAC_CACHE_TTL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: KOKU_ENABLE_SENTRY
+          value: ${KOKU_ENABLE_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: ${GLITCHTIP_KEY_NAME}
+              name: ${GLITCHTIP_SECRET_NAME}
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: POD_CPU_LIMIT
+          valueFrom:
+            resourceFieldRef:
+              containerName: koku-api-writes
               resource: limits.cpu
         - name: GUNICORN_WORKERS
           value: ${GUNICORN_WORKERS}
@@ -147,11 +336,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${KOKU_CPU_LIMIT}
-            memory: ${KOKU_MEMORY_LIMIT}
+            cpu: ${KOKU_WRITES_CPU_LIMIT}
+            memory: ${KOKU_WRITES_MEMORY_LIMIT}
           requests:
-            cpu: ${KOKU_CPU_REQUEST}
-            memory: ${KOKU_MEMORY_REQUEST}
+            cpu: ${KOKU_WRITES_CPU_REQUEST}
+            memory: ${KOKU_WRITES_MEMORY_REQUEST}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -187,7 +376,7 @@ objects:
             - key: oci-config
               path: oci-config
             secretName: koku-oci
-      replicas: ${{KOKU_REPLICAS}}
+      replicas: ${{KOKU_WRITES_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -208,7 +397,7 @@ objects:
               fieldPath: metadata.name
         - name: ROS_OCP_API
           value: ${ROS_OCP_API}
-        image: quay.io/app-sre/ubi8-nginx-118
+        image: quay.io/cloudservices/ubi8-nginx-124
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -241,7 +430,7 @@ objects:
           name: koku-api-nginx-conf
         volumes:
         - configMap:
-            name: nginx-conf
+            name: koku-api-nginx-conf
           name: koku-api-nginx-conf
       replicas: ${{NGINX_REPLICAS}}
       webServices:
@@ -5336,11 +5525,22 @@ objects:
         keepalive_timeout   65;
         server_tokens       off;
 
-        upstream koku-api {
-          server koku-api:8000;
+        upstream koku-api-reads {
+          server koku-api-reads:8000;
+        }
+        upstream koku-api-writes {
+          server koku-api-writes:8000;
         }
         upstream ros-ocp-api {
           server ${ROS_OCP_API}:8000;
+        }
+        map $request_method $upstream_location {
+                    GET     koku-api-reads;
+                    HEAD    koku-api-reads;
+                    POST    koku-api-writes;
+                    PUT     koku-api-writes;
+                    DELETE  koku-api-writes;
+                    default koku-api-writes;
         }
 
         server {
@@ -5366,7 +5566,7 @@ objects:
               return              200;
           }
           location ^~/ {
-            proxy_pass http://koku-api;
+            proxy_pass http://$upstream_location;
             proxy_read_timeout 600s;
           }
           location /api/cost-management/v1/recommendations/ {
@@ -5377,7 +5577,7 @@ objects:
       }
   kind: ConfigMap
   metadata:
-    name: nginx-conf
+    name: koku-api-nginx-conf
 parameters:
 - name: ENV_NAME
   required: true
@@ -5740,23 +5940,55 @@ parameters:
   name: ENABLE_SUBS_PROVIDER_TYPES
   value: AWS
 - displayName: Minimum replicas
-  name: KOKU_REPLICAS
+  name: KOKU_READS_REPLICAS
   required: true
   value: "3"
 - displayName: Memory Request
-  name: KOKU_MEMORY_REQUEST
+  name: KOKU_READS_MEMORY_REQUEST
   required: true
   value: 512Mi
 - displayName: Memory Limit
-  name: KOKU_MEMORY_LIMIT
+  name: KOKU_READS_MEMORY_LIMIT
   required: true
   value: 1Gi
 - displayName: CPU Request
-  name: KOKU_CPU_REQUEST
+  name: KOKU_READS_CPU_REQUEST
   required: true
   value: 250m
 - displayName: CPU Limit
-  name: KOKU_CPU_LIMIT
+  name: KOKU_READS_CPU_LIMIT
+  required: true
+  value: 500m
+- displayName: Log Level for koku-api
+  name: KOKU_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
+- displayName: Determine whether the reads API uses the read replica
+  name: USE_READREPLICA
+  required: true
+  value: "false"
+- displayName: Determine whether the reads API uses the read replica
+  name: KOKU_READ_ONLY_DB
+  required: true
+  value: cost-db-ro
+- displayName: Minimum replicas
+  name: KOKU_WRITES_REPLICAS
+  required: true
+  value: "3"
+- displayName: Memory Request
+  name: KOKU_WRITES_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- displayName: Memory Limit
+  name: KOKU_WRITES_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- displayName: CPU Request
+  name: KOKU_WRITES_CPU_REQUEST
+  required: true
+  value: 250m
+- displayName: CPU Limit
+  name: KOKU_WRITES_CPU_LIMIT
   required: true
   value: 500m
 - displayName: Log Level for koku-api
@@ -5786,7 +6018,7 @@ parameters:
 - displayName: ROS OCP API Name
   name: ROS_OCP_API
   required: true
-  value: koku-api
+  value: koku-api-writes
 - displayName: Minimum replicas
   name: LISTENER_REPLICAS
   required: true
