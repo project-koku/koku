@@ -335,7 +335,6 @@ def remove_expired_trino_partitions(schema_name, provider_type, simulate, provid
     _remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid)
 
 
-
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SummaryQueue.DEFAULT)  # noqa: C901
 def summarize_reports(  # noqa: C901
     reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_uuid=None

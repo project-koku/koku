@@ -157,7 +157,6 @@ class OCPReportDBCleaner:
             raise OCPReportDBCleanerError(err)
 
         with OCPReportDBAccessor(self._schema) as accessor:
-            LOG.info(EXPIRE_MANAGED_TABLES.items())
             for table, source_column in EXPIRE_MANAGED_TABLES.items():
                 LOG.debug(f"{table}, {source_column}")
                 results = accessor.find_expired_trino_partitions(table, source_column, str(expired_date.date()))
