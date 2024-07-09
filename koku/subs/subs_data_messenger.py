@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import timedelta
 from tempfile import mkdtemp
 
+from azure.core.exceptions import ResourceNotFoundError
 from dateutil import parser
 from django.conf import settings
 
@@ -61,6 +62,7 @@ class SUBSDataMessenger:
 
     def determine_azure_instance_and_tenant_id(self, row):
         """For Azure we have to query the instance id if its not provided by a tag and the tenant_id."""
+        instance_id = None
         if row["subs_resource_id"] in self.instance_map:
             return self.instance_map.get(row["subs_resource_id"])
         prov = Provider.objects.get(uuid=row["source"])
@@ -68,24 +70,27 @@ class SUBSDataMessenger:
         tenant_id = credentials.get("tenant_id")
         if row["subs_instance"] != "":
             instance_id = row["subs_instance"]
+            return instance_id, tenant_id
         # attempt to query azure for instance id
-        else:
-            # if its a local Azure provider, don't query Azure
-            if self.local_prov:
-                return "", tenant_id
-            subscription_id = credentials.get("subscription_id")
-            client_id = credentials.get("client_id")
-            client_secret = credentials.get("client_secret")
-            _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-            compute_client = _factory.compute_client
-            resource_group = row["resourcegroup"] if row.get("resourcegroup") else row["resourcegroupname"]
+        # if its a local Azure provider, don't query Azure
+        if self.local_prov:
+            return "", tenant_id
+        subscription_id = credentials.get("subscription_id")
+        client_id = credentials.get("client_id")
+        client_secret = credentials.get("client_secret")
+        _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
+        compute_client = _factory.compute_client
+        resource_group = row["resourcegroup"] if row.get("resourcegroup") else row["resourcegroupname"]
+        try:
             response = compute_client.virtual_machines.get(
                 resource_group_name=resource_group,
                 vm_name=row["subs_resource_id"],
             )
             instance_id = response.vm_id
-
-        self.instance_map[row["subs_resource_id"]] = (instance_id, tenant_id)
+        except ResourceNotFoundError as rnfe:
+            logging.error(msg="Failed to obtain resource id for VM.", exc_info=rnfe)
+        if instance_id:
+            self.instance_map[row["subs_resource_id"]] = (instance_id, tenant_id)
         return instance_id, tenant_id
 
     def process_and_send_subs_message(self, upload_keys):
