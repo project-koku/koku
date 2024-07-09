@@ -114,7 +114,7 @@ class ReportDBAccessorBase:
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=3, conn_params=None
+        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=0, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
@@ -133,8 +133,7 @@ class ReportDBAccessorBase:
 
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         attempts_left = max(attempts_left, 1)
-        LOG.info("#####" * 30)
-        LOG.info(attempts_left)
+
         for i in range(attempts_left):
             t1 = time.time()
             trino_conn = trino_db.connect(schema=self.schema, **conn_params)
