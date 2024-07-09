@@ -116,7 +116,13 @@ FROM (
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
         AND lineitem_productcode = 'AmazonEC2'
-        AND product_productfamily LIKE '%Compute%'
+        AND product_productfamily LIKE '%Compute Instance%'
+        AND lineitem_resourceid != ''
+        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+           that offset that cost and usage.
+           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
+        AND lineitem_lineitemtype != 'SavingsPlanCoveredUsage'
     GROUP BY lineitem_resourceid,
         lineitem_usageaccountid,
         product_instancetype,
