@@ -19,7 +19,6 @@ from api.common import log_json
 from api.utils import DateHelper
 from koku.database_exc import get_extended_exception_by_type
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -115,7 +114,7 @@ class ReportDBAccessorBase:
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=0, conn_params=None
+        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=3, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
@@ -133,21 +132,34 @@ class ReportDBAccessorBase:
             ctx = {}
 
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
-        t1 = time.time()
-        trino_conn = trino_db.connect(schema=self.schema, **conn_params)
-        LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
-        try:
-            trino_cur = trino_conn.cursor()
-            trino_cur.execute(sql, bind_params)
-            results = trino_cur.fetchall()
-            description = trino_cur.description
-        except Exception as ex:
-            if attempts_left == 0:
-                LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
-            raise ex
-        running_time = time.time() - t1
-        LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
-        return results, description
+        attempts_left = max(attempts_left, 1)
+        LOG.info("#####" * 30)
+        LOG.info(attempts_left)
+        for i in range(attempts_left):
+            t1 = time.time()
+            trino_conn = trino_db.connect(schema=self.schema, **conn_params)
+            LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
+            try:
+                trino_cur = trino_conn.cursor()
+                trino_cur.execute(sql, bind_params)
+                results = trino_cur.fetchall()
+                description = trino_cur.description
+                running_time = time.time() - t1
+                LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
+                return results, description
+            except Exception as ex:
+                if attempts_left > 0:
+                    LOG.warning(
+                        log_json(msg="failed trino sql execution, retrying", log_ref=log_ref, context=ctx), exc_info=ex
+                    )
+                else:
+                    LOG.error(
+                        log_json(
+                            msg="failed trino sql execution, no more attempts left", log_ref=log_ref, context=ctx
+                        ),
+                        exc_info=ex,
+                    )
+                    raise ex
 
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Trino."""

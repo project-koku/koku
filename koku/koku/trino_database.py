@@ -8,7 +8,6 @@ import trino
 from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
-
 LOG = logging.getLogger(__name__)
 
 POSITIONAL_VARS = re.compile("%s")
@@ -107,7 +106,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, attempts_left=0):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -138,20 +137,23 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
             else:
                 stmt, s_params = p_stmt, params
 
-            try:
-                cur = trino_conn.cursor()
-                cur.execute(stmt, params=s_params)
-                results = cur.fetchall()
-            except TrinoQueryError as trino_exc:
-                trino_statement_error = TrinoStatementExecError(
-                    statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
-                )
-                LOG.warning(f"{trino_statement_error!s}")
-                raise trino_statement_error from trino_exc
-            except Exception as exc:
-                LOG.warning(str(exc))
-                raise
-
-            all_results.extend(results)
+            attempts_left = max(attempts_left, 1)
+            for i in range(attempts_left):
+                try:
+                    cur = trino_conn.cursor()
+                    cur.execute(stmt, params=s_params)
+                    results = cur.fetchall()
+                    LOG.info(f"executed trino sql statement {stmt_num}")
+                    all_results.extend(results)
+                    break
+                except TrinoQueryError as trino_exc:
+                    trino_statement_error = TrinoStatementExecError(
+                        statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
+                    )
+                    LOG.warning(f"{trino_statement_error!s}")
+                    raise trino_statement_error from trino_exc
+                except Exception as exc:
+                    LOG.warning(str(exc))
+                    raise
 
     return all_results
