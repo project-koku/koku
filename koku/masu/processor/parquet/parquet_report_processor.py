@@ -458,6 +458,13 @@ class ParquetReportProcessor:
             return parquet_base_filename, daily_data_frames
 
         for csv_filename in file_list:
+
+            # set start date based on data in the file being processed:
+            if self.provider_type == Provider.PROVIDER_OCI:
+                self.start_date = str(csv_filename).split(".")[1]
+            elif self.provider_type == Provider.PROVIDER_OCP:
+                self.start_date = self.ocp_files_to_process[csv_filename]["meta_reportdatestart"]
+
             self.prepare_parquet_s3(Path(csv_filename))
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 msg = "could not establish report type"
@@ -470,9 +477,7 @@ class ParquetReportProcessor:
                     )
                 )
                 raise ParquetReportProcessorError(msg)
-            if self.provider_type == Provider.PROVIDER_OCI:
-                file_specific_start_date = str(csv_filename).split(".")[1]
-                self.start_date = file_specific_start_date
+
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
