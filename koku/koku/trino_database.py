@@ -106,7 +106,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, attempts_left=0):
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, attempts_left=3):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -137,7 +137,6 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, atte
             else:
                 stmt, s_params = p_stmt, params
 
-            attempts_left = max(attempts_left, 1)
             for i in range(attempts_left):
                 try:
                     cur = trino_conn.cursor()
@@ -147,12 +146,21 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, atte
                     all_results.extend(results)
                     break
                 except TrinoQueryError as trino_exc:
+                    if i < attempts_left - 1:
+                        LOG.warning(
+                            f"Trino Query Error ({trino_exc.error_name}) : {trino_exc.message} "
+                            f"statement number {stmt_num}, retrying"
+                        )
+                        continue
                     trino_statement_error = TrinoStatementExecError(
                         statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
                     )
                     LOG.warning(f"{trino_statement_error!s}")
                     raise trino_statement_error from trino_exc
                 except Exception as exc:
+                    if i < attempts_left - 1:
+                        LOG.warning(f"Error executing statement number {stmt_num}, retrying")
+                        continue
                     LOG.warning(str(exc))
                     raise
 

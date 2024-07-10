@@ -106,7 +106,7 @@ class ReportDBAccessorBase:
         running_time = time.time() - t1
         LOG.info(log_json(msg=f"finished {operation}", row_count=row_count, table=table, running_time=running_time))
 
-    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
+    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=3):
         """Execute a single trino query returning only the fetchall results"""
         results, _ = self._execute_trino_raw_sql_query_with_description(
             sql, sql_params=sql_params, context=context, log_ref=log_ref, attempts_left=attempts_left
@@ -114,7 +114,7 @@ class ReportDBAccessorBase:
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=0, conn_params=None
+        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=3, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
@@ -132,7 +132,6 @@ class ReportDBAccessorBase:
             ctx = {}
 
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
-        attempts_left = max(attempts_left, 1)
 
         for i in range(attempts_left):
             t1 = time.time()
@@ -147,7 +146,7 @@ class ReportDBAccessorBase:
                 LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
                 return results, description
             except Exception as ex:
-                if attempts_left > 0:
+                if i < attempts_left - 1:
                     LOG.warning(
                         log_json(msg="failed trino sql execution, retrying", log_ref=log_ref, context=ctx), exc_info=ex
                     )
@@ -163,7 +162,10 @@ class ReportDBAccessorBase:
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Trino."""
         trino_conn = trino_db.connect(schema=self.schema)
-        return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
+        retries = settings.HIVE_EXECUTE_QUERY_RETRIES
+        return trino_db.executescript(
+            trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query, attempts_left=retries
+        )
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
