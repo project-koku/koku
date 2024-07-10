@@ -320,7 +320,7 @@ class ReportQueryHandler(QueryHandler):
         fields = self._mapper._provider_map.get("filters")
 
         # add filter parameters for specific report type.
-        report_type_fields = self._mapper.report_type_map.get("filters", {})
+        report_type_fields = self._mapper.report_type_map.get("report_type_filters", {})
         fields.update(report_type_fields)
 
         access_filters = QueryFilterCollection()

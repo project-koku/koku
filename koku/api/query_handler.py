@@ -193,7 +193,7 @@ class QueryHandler:
 
         """
 
-        get_default_report_value = self._mapper._report_type_map.get("time_period_settings", {}).get(
+        get_default_report_value = self._mapper._report_type_map.get("default_time_period", {}).get(
             "resolution", RESOLUTION_DAILY
         )
         return self.parameters.get_filter("resolution", default=get_default_report_value)
@@ -221,7 +221,7 @@ class QueryHandler:
         if self.time_scope_units:
             return self.time_scope_units
 
-        get_default_report_value = self._mapper._report_type_map.get("time_period_settings", {}).get(
+        get_default_report_value = self._mapper._report_type_map.get("default_time_period", {}).get(
             "time_scope_units", TIME_SCOPE_UNITS_DAILY
         )
         time_scope_units = self.parameters.get_filter("time_scope_units", default=get_default_report_value)
@@ -238,7 +238,7 @@ class QueryHandler:
         if self.time_scope_value:
             return self.time_scope_value
 
-        get_default_report_value = self._mapper._report_type_map.get("time_period_settings", {}).get(
+        get_default_report_value = self._mapper._report_type_map.get("default_time_period", {}).get(
             "time_scope_value", TIME_SCOPE_VALUES_DAILY[0]
         )
         time_scope_value = self.parameters.get_filter("time_scope_value", default=get_default_report_value)

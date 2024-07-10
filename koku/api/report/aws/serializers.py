@@ -317,3 +317,29 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
     ORDER_BY_SERIALIZER = AWSEC2ComputeOrderBySerializer
     EXCLUDE_SERIALIZER = AWSEC2ExcludeSerializer
     GROUP_BY_SERIALIZER = AWSEC2GroupBySerializer
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filters are not supported
+
+        """
+        super().validate(data)
+        unsupported_filters = []
+
+        if data.get("start_date"):
+            unsupported_filters.append("start_date")
+        if data.get("end_date"):
+            unsupported_filters.append("end_date")
+
+        if unsupported_filters:
+            errors = {}
+            for filter in unsupported_filters:
+                errors[filter] = gettext("Unsupported parameter")
+            raise serializers.ValidationError(errors)
+        return data

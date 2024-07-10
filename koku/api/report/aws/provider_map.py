@@ -366,7 +366,7 @@ class AWSProviderMap(ProviderMap):
                             "tags": ArrayAgg(F("tags")),
                         },
                         "filter": [{}],
-                        "filters": {
+                        "report_type_filters": {
                             # report specific filters
                             "operating_system": {"field": "operating_system", "operation": "icontains"},
                             "instance_name": {"field": "instance_name", "operation": "icontains"},
@@ -380,7 +380,7 @@ class AWSProviderMap(ProviderMap):
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"resource_id": "desc"},
                         "tables": {"query": AWSCostEntryLineItemSummaryByEC2Compute},
-                        "time_period_settings": {
+                        "default_time_period": {
                             "time_scope_value": "-1",
                             "time_scope_units": "month",
                             "resolution": "monthly",
