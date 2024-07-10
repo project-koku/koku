@@ -313,3 +313,21 @@ Examples commands and results:
 'schema1': {'PG': {'reporting_awscostentrylineitem_daily_summary': 'All data complete for table: reporting_awscostentrylineitem_daily_summary'}, 'TRINO': 'PG data complete so skipping trino query'}},
 'schema3': {'PG': {'reporting_awscostentrylineitem_daily_summary': 'All data complete for table: reporting_awscostentrylineitem_daily_summary'}, 'TRINO': 'PG data complete so skipping trino query'}}
 ```
+
+## Monitoring Celery ##
+
+[Flower] is a tool for monitoring Celery clusters. It provides detailed information about the status of workers and tasks.
+
+Flower is installed with the dev dependencies but it is not run by default. To start Flower, run
+
+```
+celery -A koku flower
+```
+
+Open http://localhost:5555 to see Celery details.
+
+See the [Flower documentation][flower] for detailed usage information.
+
+
+
+[flower]: https://flower.readthedocs.io/en/latest/index.html

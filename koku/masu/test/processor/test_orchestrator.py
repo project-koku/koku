@@ -7,6 +7,8 @@ import logging
 import random
 from datetime import date
 from datetime import datetime
+from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -16,6 +18,7 @@ from api.models import Provider
 from masu.config import Config
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.orchestrator import check_currently_processing
 from masu.processor.orchestrator import get_billing_month_start
 from masu.processor.orchestrator import get_billing_months
 from masu.processor.orchestrator import Orchestrator
@@ -92,7 +95,11 @@ class OrchestratorTest(MasuTestCase):
         "masu.processor.orchestrator.is_cloud_source_processing_disabled",
         return_value=True,
     )
-    def test_unleash_is_cloud_source_processing_disabled(self, mock_processing, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_unleash_is_cloud_source_processing_disabled(self, mock_processing_check, mock_processing, mock_inspect):
         """Test the is_cloud_source_processing_disabled."""
         expected_result = "processing disabled"
         orchestrator = Orchestrator()
@@ -142,7 +149,13 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=ReportDownloaderError)
-    def test_prepare_w_downloader_error(self, mock_task, mock_account_alias_updater, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_prepare_w_downloader_error(
+        self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect
+    ):
         """Test that Orchestrator.prepare() handles downloader errors."""
 
         orchestrator = Orchestrator()
@@ -153,7 +166,11 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", side_effect=Exception)
-    def test_prepare_w_exception(self, mock_task, mock_account_alias_updater, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_prepare_w_exception(self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect):
         """Test that Orchestrator.prepare() handles broad exceptions."""
 
         orchestrator = Orchestrator()
@@ -164,7 +181,13 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
-    def test_prepare_w_manifest_processing_successful(self, mock_task, mock_account_alias_updater, mock_inspect):
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
+    def test_prepare_w_manifest_processing_successful(
+        self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect
+    ):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
         # mock_account_alias_updater().get_label_details.return_value = (True, True)
 
@@ -175,8 +198,12 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.update_account_aliases")
     @patch("masu.processor.orchestrator.Orchestrator.start_manifest_processing", return_value=([], True))
+    @patch(
+        "masu.processor.orchestrator.check_currently_processing",
+        return_value=False,
+    )
     def test_prepare_w_ingress_reports_processing_successful(
-        self, mock_task, mock_account_alias_updater, mock_inspect
+        self, mock_check_processing, mock_task, mock_account_alias_updater, mock_inspect
     ):
         """Test that Orchestrator.prepare() works when manifest processing is successful."""
         # mock_account_alias_updater().get_label_details.return_value = (True, True)
@@ -470,6 +497,12 @@ class OrchestratorTest(MasuTestCase):
         self.assertGreater(len(p), 0)
         self.assertEqual(len(p), expected_providers.count())
 
+        # Check polling time updated while we are still processing
+        with patch("masu.processor.orchestrator.check_currently_processing", return_value=True):
+            o = Orchestrator(type=Provider.PROVIDER_AWS_LOCAL)
+            p = o.get_polling_batch()
+            self.assertEqual(len(p), 0)
+
     def test_get_billing_months(self):
         """Test get_billing_months"""
         # test that num_months = 1 returns the current month
@@ -513,3 +546,54 @@ class OrchestratorTest(MasuTestCase):
 
         result = get_billing_month_start(test_input.date())
         self.assertEqual(result, expected)
+
+    def test_check_currently_processing(self):
+        """Test to check if we should poll a provider that may have tasks in progress."""
+        now = self.dh.now_utc
+        # Check we would process if not processed before
+        result = check_currently_processing(self.schema_name, self.ocp_provider)
+        self.assertEqual(result, False)
+        # Check we have task processing, no polling
+        one_days_ago = now - timedelta(days=1)
+        two_days_ago = now - timedelta(days=2)
+        provider_processing = SimpleNamespace()
+        provider_processing.polling_timestamp = one_days_ago
+        provider_processing.data_updated_timestamp = two_days_ago
+        result = check_currently_processing(self.schema_name, provider_processing)
+        self.assertEqual(result, True)
+        # Check we have task processing but likely failed, needs repolling
+        seven_days_ago = now - timedelta(days=7)
+        provider_failed = SimpleNamespace()
+        provider_failed.polling_timestamp = two_days_ago
+        provider_failed.data_updated_timestamp = seven_days_ago
+        result = check_currently_processing(self.schema_name, provider_failed)
+        self.assertEqual(result, False)
+        # Check we have task processing but likely failed, needs repolling
+        with patch("masu.processor.orchestrator.is_customer_large", return_value=True):
+            nine_days_ago = now - timedelta(days=9)
+            provider_failed = SimpleNamespace()
+            provider_failed.polling_timestamp = two_days_ago
+            provider_failed.data_updated_timestamp = nine_days_ago
+            result = check_currently_processing(self.schema_name, provider_failed)
+            self.assertEqual(result, False)
+        # Check initial ingest
+        initial_prov = SimpleNamespace()
+        initial_prov.polling_timestamp = now
+        initial_prov.created_timestamp = now
+        initial_prov.data_updated_timestamp = None
+        result = check_currently_processing(self.schema_name, initial_prov)
+        self.assertEqual(result, False)
+        # Check initial ingest processing
+        provider_initial_prov = SimpleNamespace()
+        provider_initial_prov.polling_timestamp = now
+        provider_initial_prov.created_timestamp = one_days_ago
+        provider_initial_prov.data_updated_timestamp = None
+        result = check_currently_processing(self.schema_name, provider_initial_prov)
+        self.assertEqual(result, True)
+        # Check initial ingest failed, needs repolling
+        initial_prov_failed = SimpleNamespace()
+        initial_prov_failed.polling_timestamp = now
+        initial_prov_failed.created_timestamp = nine_days_ago
+        initial_prov_failed.data_updated_timestamp = None
+        result = check_currently_processing(self.schema_name, initial_prov_failed)
+        self.assertEqual(result, False)

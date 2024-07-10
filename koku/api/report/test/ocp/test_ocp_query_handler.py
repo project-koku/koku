@@ -131,28 +131,31 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_storage_class_order_bys(self):
         """Test that we can order by the pvc values."""
-        url = "?group_by[project]=*&group_by[persistentvolumeclaim]=*&order_by[storage_class]=desc"
-        query_params = self.mocked_query_params(url, OCPVolumeView)
-        handler = OCPReportQueryHandler(query_params)
-        query_data = handler.execute_query()
-        self.assertIsNotNone(query_data.get("data"))
-        self.assertIsNotNone(query_data.get("total"))
-        self.assertIsNotNone(query_data["total"].get("storage_class"))
-        first_date = query_data["data"][0]
-        tested = False
-        for cluster in first_date.get("projects", []):
-            pvc_list = cluster.get("persistentvolumeclaims")
-            storage_class_order_result = []
-            expected = None
-            for pvc in pvc_list:
-                for pvc_value in pvc.get("values", []):
-                    storage_class_order_result.append(pvc_value.get("storage_class"))
-            if not expected:
-                expected = deepcopy(storage_class_order_result)
-                expected.sort(reverse=True)
-            self.assertEqual(storage_class_order_result, expected)
-            tested = True
-        self.assertTrue(tested)
+        group_bys = ["persistentvolumeclaim", "storageclass"]
+        for group_by in group_bys:
+            with self.subTest(group_by=group_by):
+                url = f"?group_by[project]=*&group_by[{group_by}]=*&order_by[storage_class]=desc"
+                query_params = self.mocked_query_params(url, OCPVolumeView)
+                handler = OCPReportQueryHandler(query_params)
+                query_data = handler.execute_query()
+                self.assertIsNotNone(query_data.get("data"))
+                self.assertIsNotNone(query_data.get("total"))
+                self.assertIsNotNone(query_data["total"].get("storage_class"))
+                first_date = query_data["data"][0]
+                tested = False
+                for project in first_date.get("projects", []):
+                    group_list = project.get(f"{group_by}s")
+                    storage_class_order_result = []
+                    expected = None
+                    for element in group_list:
+                        for element_value in element.get("values", []):
+                            storage_class_order_result.append(element_value.get("storage_class"))
+                    if not expected:
+                        expected = deepcopy(storage_class_order_result)
+                        expected.sort(reverse=True)
+                    self.assertEqual(storage_class_order_result, expected)
+                    tested = True
+                self.assertTrue(tested)
 
     def test_persistentvolumeclaim_order_by(self):
         """Test that we can order by the pvc values."""

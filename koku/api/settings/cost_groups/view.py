@@ -20,9 +20,8 @@ from api.settings.cost_groups.query_handler import put_openshift_namespaces
 from api.settings.cost_groups.serializers import CostGroupProjectSerializer
 from api.settings.cost_groups.serializers import CostGroupQueryParamSerializer
 from api.utils import DateHelper
-from masu.processor import is_customer_large
-from masu.processor.tasks import OCP_QUEUE
-from masu.processor.tasks import OCP_QUEUE_XL
+from common.queues import get_customer_queue
+from common.queues import OCPQueue
 from masu.processor.tasks import update_summary_tables
 from reporting.provider.ocp.models import OCPProject
 
@@ -69,9 +68,7 @@ class CostGroupsView(APIView):
     def _summarize_current_month(self, schema_name: str, projects: list[dict[str, str]]) -> list[str]:
         """Resummarize OCP data for the current month."""
         projects_to_summarize = [proj["project"] for proj in projects]
-        ocp_queue = OCP_QUEUE
-        if is_customer_large(schema_name):
-            ocp_queue = OCP_QUEUE_XL
+        ocp_queue = get_customer_queue(schema_name, OCPQueue)
 
         provider_uuids = (
             OCPProject.objects.filter(project__in=projects_to_summarize)
