@@ -407,7 +407,7 @@ SELECT azure.uuid as azure_uuid,
             THEN 'Storage unattributed'
         ELSE max(namespace)
     END as namespace,
-    cast(NULL as varchar) as node,
+    max(ocp.node) as node,
     max(persistentvolumeclaim) as persistentvolumeclaim,
     max(persistentvolume) as persistentvolume,
     max(storageclass) as storageclass,
