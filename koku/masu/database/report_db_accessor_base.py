@@ -17,6 +17,8 @@ from trino.exceptions import TrinoExternalError
 import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
+from koku.cache import is_key_in_cache
+from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
 
 
@@ -213,13 +215,25 @@ class ReportDBAccessorBase:
 
     def table_exists_trino(self, table_name):
         """Check if table exists."""
+        cache_key = f"table-exists-{self.schema}-{table_name}"
+        if is_key_in_cache(cache_key):
+            return True
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        return bool(self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino"))
+        if bool(self._execute_trino_raw_sql_query(table_check_sql, log_ref="table_exists_trino")):
+            set_value_in_cache(cache_key, True)
+            return True
+        return False
 
     def schema_exists_trino(self):
         """Check if table exists."""
+        cache_key = f"schema-exists-{self.schema}"
+        if is_key_in_cache(cache_key):
+            return True
         check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
-        return bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
+        if bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino")):
+            set_value_in_cache(cache_key, True)
+            return True
+        return False
 
     def delete_hive_partition_by_month(self, table, source, year, month):
         """Deletes partitions individually by month."""
