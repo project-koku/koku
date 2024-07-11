@@ -448,7 +448,7 @@ def find_expired_partitions(schema, months, table, source_column_param):
     WHERE partitions.partition_date < DATE '{expiration_date.date()!s}'
     GROUP BY partitions.year, partitions.month, partitions.source
         """
-    LOG.info(f"{prefix}Finding expired partitions for {schema} {table}")
+    LOG.info(f"{prefix}Finding expired partitions for {table}")
     return run_trino_sql(textwrap.dedent(expired_partitions_query), schema)
 
 
@@ -471,12 +471,12 @@ def drop_expired_partitions(tables, schemas):
 
             source_column_param = manage_table_mapping[table]
             if not check_table_exists(schema, table):
-                LOG.info(f"{prefix}{table} does not exist for {schema}")
+                LOG.info(f"{prefix}{table} does not exist")
                 continue
 
             expired_partitions = find_expired_partitions(schema, months, table, source_column_param)
             if not expired_partitions:
-                LOG.info(f"{prefix}No expired partitions found for {table} {schema}")
+                LOG.info(f"{prefix}No expired partitions found for {table}")
                 continue
 
             LOG.info(f"{prefix}Found {len(expired_partitions)}")
