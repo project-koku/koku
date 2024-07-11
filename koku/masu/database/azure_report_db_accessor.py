@@ -36,6 +36,7 @@ from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
 
+
 LOG = logging.getLogger(__name__)
 
 
@@ -50,7 +51,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         super().__init__(schema)
         self._table_map = AZURE_REPORT_TABLE_MAP
-        self._retries = settings.HIVE_EXECUTE_QUERY_RETRIES
 
     @property
     def line_item_daily_summary_table(self):
@@ -106,10 +106,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         self._execute_trino_raw_sql_query(
-            sql,
-            sql_params=sql_params,
-            log_ref="reporting_azurecostentrylineitem_daily_summary.sql",
-            attempts_left=self._retries,
+            sql, sql_params=sql_params, log_ref="reporting_azurecostentrylineitem_daily_summary.sql"
         )
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
@@ -219,9 +216,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "azure_source_uuid": azure_provider_uuid,
                 "ocp_source_uuid": openshift_provider_uuid,
             }
-            self._execute_trino_raw_sql_query(
-                sql, sql_params=sql_params, log_ref=f"{table_name}.sql", attempts_left=self._retries
-            )
+            self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
     def delete_ocp_on_azure_hive_partition_by_day(self, days, az_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""

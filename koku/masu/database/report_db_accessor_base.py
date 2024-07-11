@@ -19,6 +19,7 @@ from api.common import log_json
 from api.utils import DateHelper
 from koku.database_exc import get_extended_exception_by_type
 
+
 LOG = logging.getLogger(__name__)
 
 
@@ -106,7 +107,7 @@ class ReportDBAccessorBase:
         running_time = time.time() - t1
         LOG.info(log_json(msg=f"finished {operation}", row_count=row_count, table=table, running_time=running_time))
 
-    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=3):
+    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""
         results, _ = self._execute_trino_raw_sql_query_with_description(
             sql, sql_params=sql_params, context=context, log_ref=log_ref, attempts_left=attempts_left
@@ -114,7 +115,7 @@ class ReportDBAccessorBase:
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=3, conn_params=None
+        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=0, conn_params=None
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
@@ -132,40 +133,26 @@ class ReportDBAccessorBase:
             ctx = {}
 
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
-
-        for i in range(attempts_left):
-            t1 = time.time()
-            trino_conn = trino_db.connect(schema=self.schema, **conn_params)
-            LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
-            try:
-                trino_cur = trino_conn.cursor()
-                trino_cur.execute(sql, bind_params)
-                results = trino_cur.fetchall()
-                description = trino_cur.description
-                running_time = time.time() - t1
-                LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
-                return results, description
-            except Exception as ex:
-                if i < attempts_left - 1:
-                    LOG.warning(
-                        log_json(msg="failed trino sql execution, retrying", log_ref=log_ref, context=ctx), exc_info=ex
-                    )
-                else:
-                    LOG.error(
-                        log_json(
-                            msg="failed trino sql execution, no more attempts left", log_ref=log_ref, context=ctx
-                        ),
-                        exc_info=ex,
-                    )
-                    raise ex
+        t1 = time.time()
+        trino_conn = trino_db.connect(schema=self.schema, **conn_params)
+        LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
+        try:
+            trino_cur = trino_conn.cursor()
+            trino_cur.execute(sql, bind_params)
+            results = trino_cur.fetchall()
+            description = trino_cur.description
+        except Exception as ex:
+            if attempts_left == 0:
+                LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
+            raise ex
+        running_time = time.time() - t1
+        LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
+        return results, description
 
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Trino."""
         trino_conn = trino_db.connect(schema=self.schema)
-        retries = settings.HIVE_EXECUTE_QUERY_RETRIES
-        return trino_db.executescript(
-            trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query, attempts_left=retries
-        )
+        return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
@@ -247,17 +234,22 @@ class ReportDBAccessorBase:
                 year,
                 month,
             )
-            try:
-                sql = f"""
-                DELETE FROM hive.{self.schema}.{table}
-                WHERE ocp_source = '{source}'
-                AND year = '{year}'
-                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                """
-                self._execute_trino_raw_sql_query(
-                    sql,
-                    log_ref=f"delete_hive_partition_by_month for {year}-{month}",
-                    attempts_left=retries,
-                )
-            except TrinoExternalError as err:
-                raise err
+            for i in range(retries):
+                try:
+                    sql = f"""
+                    DELETE FROM hive.{self.schema}.{table}
+                    WHERE ocp_source = '{source}'
+                    AND year = '{year}'
+                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                    """
+                    self._execute_trino_raw_sql_query(
+                        sql,
+                        log_ref=f"delete_hive_partition_by_month for {year}-{month}",
+                        attempts_left=(retries - 1) - i,
+                    )
+                    break
+                except TrinoExternalError as err:
+                    if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                        continue
+                    else:
+                        raise err
