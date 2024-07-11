@@ -348,10 +348,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             with self.assertRaises(TrinoExternalError):
                 self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_called()
-            # Confirms that the error log would be logged on attempts
-            self.assertEqual(
-                mock_trino.call_args_list[-1].kwargs.get("attempts_left"), settings.HIVE_PARTITION_DELETE_RETRIES
-            )
+            # Confirms that the error log would be logged on last attempt
+            self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
+            self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
         # Test that deletions short circuit if the schema does not exist
         mock_trino.reset_mock()
