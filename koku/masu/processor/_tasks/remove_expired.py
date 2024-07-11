@@ -35,7 +35,6 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
     if removed_data:
         status_msg = "Expired Data" if simulate else "Removed Data"
         LOG.info(log_json(msg=status_msg, removed_data=removed_data, context=context))
-    # We could extend the logic below here, or keep it as a separate celery task
 
 
 def _remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid=None):

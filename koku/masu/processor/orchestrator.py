@@ -549,13 +549,12 @@ class Orchestrator:
         Removes expired trino partitions for each account.
         """
         async_results = []
-        schemas = set(
-            Provider.objects.filter(type=Provider.PROVIDER_OCP)
+        schemas = (
+            Provider.objects.order_by()
+            .filter(type=Provider.PROVIDER_OCP)
             .values_list("customer__schema_name", flat=True)
             .distinct()
         )
-        # <QuerySet ['org1234567', 'org1234567', 'org1234567', 'org1234567']>
-        # distinct is not removing duplicates from this list, so using a set to reduce instead
         for schema in schemas:
             LOG.info("Calling remove_expired_trino_partitions with account: %s", schema)
             async_result = remove_expired_trino_partitions.delay(
