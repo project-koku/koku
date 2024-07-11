@@ -2,7 +2,11 @@ resources:
 - base/base.yaml
 
 patches:
-- path: patches/koku.yaml
+- path: patches/koku-reads.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/koku-writes.yaml
   target:
     version: v1
     kind: Template

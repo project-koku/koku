@@ -6,6 +6,11 @@ import argparse
 import json
 import logging
 import re
+import secrets
+import sys
+import textwrap
+import time
+import typing as t
 from datetime import datetime
 from datetime import timedelta
 
@@ -81,7 +86,7 @@ VALID_CHARACTERS = re.compile(r"^[\w.-]+$")
 
 
 class CommaSeparatedArgs(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None) -> None:
         vals = values.split(",")
         if not all(VALID_CHARACTERS.match(v) for v in vals):
             raise ValueError(f"String should match pattern '{VALID_CHARACTERS.pattern}': {vals}")
@@ -89,7 +94,7 @@ class CommaSeparatedArgs(argparse.Action):
 
 
 class JSONArgs(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(self, parser, namespace, values, option_string=None) -> None:
         setattr(namespace, self.dest, json.loads(values))
 
 
@@ -121,25 +126,125 @@ class ListDropPartitions(BaseModel):
     list: list[DropPartition]
 
 
+class Action(BaseModel):
+    list_of_cols: t.Union[ListAddColumns, ListDropColumns]
+    schemas: t.Optional[list[str]] = Field(default_factory=list)
+    find_query: str
+    modify_query: str
+
+    def model_post_init(self, *arg, **kwargs) -> None:
+        if not self.schemas:
+            try:
+                self.schemas = self.get_schemas()
+            except TrinoExternalError as exc:
+                LOG.error(exc)
+
+        return self.schemas
+
+    def get_schemas(self) -> set[str]:
+        LOG.info("Finding all schema for migration")
+        result = set()
+        for col in self.list_of_cols.list:
+            schemas = run_trino_sql(textwrap.dedent(self.find_query.format(col=col)))
+            schemas = [
+                schema
+                for listed_schema in schemas
+                for schema in listed_schema
+                if schema not in ["default", "information_schema"]
+            ]
+            result.update(schemas)
+
+        return result
+
+    def run(self) -> None:
+        if not self.schemas:
+            LOG.info("No schemas to update found")
+            return
+
+        LOG.info(f"Running against the following schemas: {self.schemas}")
+        for schema in self.schemas:
+            LOG.info(f"Modifying tables for schema {schema}")
+            for col in self.list_of_cols.list:
+                try:
+                    result = run_trino_sql(textwrap.dedent(self.modify_query.format(col=col)), schema)
+                    LOG.info(f"ALTER TABLE result: {result}")
+                except Exception as e:
+                    LOG.error(e)
+                    return
+
+        self.validate()
+        LOG.info("Migration successful")
+
+    def validate(self) -> None:
+        schemas = self.get_schemas()
+        LOG.info("Validating...")
+        if schemas:
+            LOG.error(f"Migration failed for the follow schemas: {schemas}")
+            sys.exit(1)
+
+
+class AddColumnAction(Action):
+    @classmethod
+    def build(cls, list_of_cols: ListAddColumns, schemas: list[str]):
+        find_query = """
+            SELECT t.table_schema
+            FROM information_schema.tables AS t
+            LEFT JOIN information_schema.columns AS c
+            ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
+            WHERE t.table_name = '{col.table}'
+            AND c.column_name IS NULL
+            AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
+            AND t.table_type = 'BASE TABLE'
+        """
+        return cls(
+            list_of_cols=list_of_cols,
+            schemas=schemas,
+            find_query=find_query,
+            modify_query="ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}",
+        )
+
+
+class DropColumnAction(Action):
+    @classmethod
+    def build(cls, list_of_cols: ListDropColumns, schemas: list[str]):
+        find_query = """
+            SELECT t.table_schema
+            FROM information_schema.tables AS t
+            LEFT JOIN information_schema.columns AS c
+            ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND c.column_name = '{col.column}'
+            WHERE t.table_name = '{col.table}'
+            AND c.column_name IS NOT NULL
+            AND t.table_schema NOT IN ('information_schema', 'sys', 'mysql', 'performance_schema')
+            AND t.table_type = 'BASE TABLE'
+        """
+        return cls(
+            list_of_cols=list_of_cols,
+            schemas=schemas,
+            find_query=find_query,
+            modify_query="ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}",
+        )
+
+
 class Command(BaseCommand):
 
     help = ""
 
-    def add_arguments(self, parser: argparse.ArgumentParser):
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        exclusive_group = parser.add_mutually_exclusive_group()
         parser.add_argument(
             "--schemas",
             action=CommaSeparatedArgs,
             help="a comma separated list of schemas to run the provided command against. default is all schema in db",
             default=[],
         )
-        parser.add_argument(
+        exclusive_group.add_argument(
             "--drop-tables",
             action=CommaSeparatedArgs,
             default=[],
             help="a comma separated list of tables to drop",
             dest="tables_to_drop",
         )
-        parser.add_argument(
+        exclusive_group.add_argument(
             "--drop-columns",
             action=JSONArgs,
             help=(
@@ -148,7 +253,7 @@ class Command(BaseCommand):
             ),
             dest="columns_to_drop",
         )
-        parser.add_argument(
+        exclusive_group.add_argument(
             "--drop-partitions",
             action=JSONArgs,
             help=(
@@ -157,7 +262,7 @@ class Command(BaseCommand):
             ),
             dest="partitions_to_drop",
         )
-        parser.add_argument(
+        exclusive_group.add_argument(
             "--add-columns",
             action=JSONArgs,
             help=(
@@ -166,47 +271,35 @@ class Command(BaseCommand):
             ),
             dest="columns_to_add",
         )
-        parser.add_argument(
+        exclusive_group.add_argument(
             "--remove-expired-partitions", action=CommaSeparatedArgs, default=[], dest="remove_expired_partitions"
         )
+        parser.add_argument(
+            "--rerun",
+            action="store_true",
+            help="a flag to indicate we should find schemas missing the migration",
+            dest="rerun",
+        )
 
-    def handle(self, *args, **options):  # noqa C901
-        schemas = get_schemas(options["schemas"])
-        if not schemas:
-            LOG.info("no schema in db to update")
-            return
-        LOG.info(f"running against the following schemas: {schemas}")
-
+    def handle(self, *args, **options) -> None:
         if columns_to_add := options["columns_to_add"]:
             columns_to_add = ListAddColumns(list=columns_to_add)
-        if columns_to_drop := options["columns_to_drop"]:
+            action = AddColumnAction.build(list_of_cols=columns_to_add, schemas=options["schemas"])
+            action.run()
+        elif columns_to_drop := options["columns_to_drop"]:
             columns_to_drop = ListDropColumns(list=columns_to_drop)
-        if partitions_to_drop := options["partitions_to_drop"]:
+            action = DropColumnAction.build(list_of_cols=columns_to_drop, schemas=options["schemas"])
+            action.run()
+        elif partitions_to_drop := options["partitions_to_drop"]:
             partitions_to_drop = ListDropPartitions(list=partitions_to_drop)
-        tables_to_drop = options["tables_to_drop"]
-        expired_partition_tables = options["remove_expired_partitions"]
-
-        for schema in schemas:
-            if tables_to_drop:
-                LOG.info(f"*** dropping tables {tables_to_drop} for schema {schema} ***")
-                drop_tables(tables_to_drop, schema)
-            if columns_to_add:
-                LOG.info(f"*** adding column to tables for schema {schema} ***")
-                add_columns_to_tables(columns_to_add, schema)
-            if columns_to_drop:
-                LOG.info(f"*** dropping column from tables for schema {schema} ***")
-                drop_columns_from_tables(columns_to_drop, schema)
-            if partitions_to_drop:
-                LOG.info(f"*** dropping partition from tables for schema {schema} ***")
-                drop_partitions_from_tables(partitions_to_drop, schema)
-            if expired_partition_tables:
-                LOG.info(f"** dropping expired partitions from table for {schema}")
-                drop_expired_partitions(expired_partition_tables, schema)
+            drop_partitions_from_tables(partitions_to_drop, options["schemas"])
+        elif tables_to_drop := options["tables_to_drop"]:
+            drop_tables(tables_to_drop, options["schemas"])
+        elif expired_partition_tables := options["remove_expired_partitions"]:
+            drop_expired_partitions(expired_partition_tables, options["schemas"])
 
 
-def get_schemas(schemas: None):
-    if schemas:
-        return schemas
+def get_all_schemas() -> list[str]:
     sql = "SELECT schema_name FROM information_schema.schemata"
     schemas = run_trino_sql(sql)
     schemas = [
@@ -215,85 +308,84 @@ def get_schemas(schemas: None):
         for schema in listed_schema
         if schema not in ["default", "information_schema"]
     ]
+    if not schemas:
+        LOG.info("No schema in DB to update")
+
     return schemas
 
 
-def run_trino_sql(sql, schema=None):
+def run_trino_sql(sql, schema=None) -> t.Optional[str]:
     retries = 5
-    for i in range(retries):
+    for n in range(1, retries + 1):
+        attempt = n
+        remaining_retries = retries - n
+        # Exponential backoff with a little bit of randomness and a
+        # minimum wait of 0.5 and max wait of 7
+        wait = (min(2**n, 7) + secrets.randbelow(1000) / 1000) or 0.5
         try:
             with trino_db.connect(schema=schema) as conn:
                 cur = conn.cursor()
                 cur.execute(sql)
                 return cur.fetchall()
         except TrinoExternalError as err:
-            if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                continue
+            if err.error_name == "HIVE_METASTORE_ERROR" and n < (retries):
+                LOG.warn(
+                    f"{err.message}. Attempt number {attempt} of {retries} failed. "
+                    f"Trying {remaining_retries} more time{'s' if remaining_retries > 1 else ''} "
+                    f"after waiting {wait:.2f}s."
+                )
+                time.sleep(wait)
             else:
                 raise err
         except TrinoUserError as err:
-            LOG.info(err.message)
-            return
+            LOG.error(err.message)
+            return schema
 
 
-def drop_tables(tables, schema):
+def drop_tables(tables, schemas) -> None:
     """drop specified tables"""
+    if not schemas:
+        schemas = get_all_schemas()
     if not set(tables).issubset(EXTERNAL_TABLES):
         raise ValueError("Attempting to drop non-external table, revise the list of tables to drop.", tables)
-    for table_name in tables:
-        LOG.info(f"dropping table {table_name}")
-        sql = f"DROP TABLE IF EXISTS {table_name}"
-        try:
-            result = run_trino_sql(sql, schema)
-            LOG.info(f"DROP TABLE result: {result}")
-        except Exception as e:
-            LOG.info(e)
-
-
-def add_columns_to_tables(list_of_cols: ListAddColumns, schema: str):
-    """add specified columns with datatypes to the tables"""
-    for col in list_of_cols.list:
-        LOG.info(f"adding column {col.column} of type {col.datatype} to table {col.table}")
-        sql = f"ALTER TABLE IF EXISTS {col.table} ADD COLUMN IF NOT EXISTS {col.column} {col.datatype}"
-        try:
-            result = run_trino_sql(sql, schema)
-            LOG.info(f"ALTER TABLE result: {result}")
-        except Exception as e:
-            LOG.info(e)
-
-
-def drop_columns_from_tables(list_of_cols: ListDropColumns, schema: str):
-    """drop specified columns from tables"""
-    for col in list_of_cols.list:
-        LOG.info(f"dropping column {col.column} from table {col.table}")
-        sql = f"ALTER TABLE IF EXISTS {col.table} DROP COLUMN IF EXISTS {col.column}"
-        try:
-            result = run_trino_sql(sql, schema)
-            LOG.info(f"ALTER TABLE result: {result}")
-        except Exception as e:
-            LOG.info(e)
-
-
-def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schema: str):
-    """drop specified partitions from tables"""
-    for part in list_of_partitions.list:
-        sql = f"SELECT count(DISTINCT {part.partition_column}) FROM {part.table}"
-        try:
-            result = run_trino_sql(sql, schema)
-            partition_count = result[0][0]
-            limit = 10000
-            for i in range(0, partition_count, limit):
-                sql = f"SELECT DISTINCT {part.partition_column} FROM {part.table} OFFSET {i} LIMIT {limit}"
+    LOG.info(f"Running against the following schemas: {schemas}")
+    for schema in schemas:
+        LOG.info(f"Dropping tables {tables} for schema {schema}")
+        for table_name in tables:
+            LOG.info(f"Dropping table {table_name}")
+            sql = f"DROP TABLE IF EXISTS {table_name}"
+            try:
                 result = run_trino_sql(sql, schema)
-                partitions = [res[0] for res in result]
+                LOG.info(f"DROP TABLE result: {result}")
+            except Exception as e:
+                LOG.error(e)
 
-                for partition in partitions:
-                    LOG.info(f"*** Deleting {part.table} partition {part.partition_column} = {partition} ***")
-                    sql = f"DELETE FROM {part.table} WHERE {part.partition_column} = '{partition}'"
+
+def drop_partitions_from_tables(list_of_partitions: ListDropPartitions, schemas: list) -> None:
+    """drop specified partitions from tables"""
+    if not schemas:
+        schemas = get_all_schemas()
+    LOG.info(f"Running against the following schemas: {schemas}")
+    for schema in schemas:
+        LOG.info(f"Dropping partition from tables for schema {schema}")
+        for part in list_of_partitions.list:
+            sql = f"SELECT count(DISTINCT {part.partition_column}) FROM {part.table}"
+            try:
+                result = run_trino_sql(sql, schema)
+                partition_count = result[0][0]
+                limit = 10000
+                for i in range(0, partition_count, limit):
+                    sql = f"SELECT DISTINCT {part.partition_column} FROM {part.table} OFFSET {i} LIMIT {limit}"
                     result = run_trino_sql(sql, schema)
-                    LOG.info(f"DELETE PARTITION result: {result}")
-        except Exception as e:
-            LOG.info(e)
+                    partitions = [res[0] for res in result]
+
+                    for partition in partitions:
+                        LOG.info(f"Deleting {part.table} partition {part.partition_column} = {partition}")
+                        sql = f"DELETE FROM {part.table} WHERE {part.partition_column} = '{partition}'"
+                        result = run_trino_sql(sql, schema)
+                        LOG.info(f"DELETE PARTITION result: {result}")
+            except Exception as e:
+                LOG.error(e)
 
 
 def check_table_exists(schema, table):
@@ -335,33 +427,39 @@ def find_expired_partitions(schema, months, table, source_column_param):
     return run_trino_sql(expired_partitions_query, schema)
 
 
-def drop_expired_partitions(tables, schema):
+def drop_expired_partitions(tables, schemas):
     """Drop expired partitions"""
+    if not schemas:
+        schemas = get_all_schemas()
+    LOG.info(f"running against the following schemas: {schemas}")
+    for schema in schemas:
+        for table in tables:
+            if table in MANAGED_TABLES:
+                months = 5
+            else:
+                LOG.info("Only supported for managed tables at the moment")
+                continue
 
-    for table in tables:
-        if table in MANAGED_TABLES:
-            months = 5
-        else:
-            LOG.info("Only supported for managed tables at the moment")
-            return
-        source_column_param = manage_table_mapping[table]
-        if not check_table_exists(schema, table):
-            LOG.info(f"{table} does not exist for {schema}")
-            continue
-        expired_partitions = find_expired_partitions(schema, months, table, source_column_param)
-        if not expired_partitions:
-            LOG.info(f"No expired partitions found for {table} {schema}")
-            continue
-        LOG.info(f"Found {len(expired_partitions)}")
-        for partition in expired_partitions:
-            year, month, source = partition
-            LOG.info(f"Removing partition for {source} {year}-{month}")
-            # Using same query as what we use in db accessor
-            delete_partition_query = f"""
-                        DELETE FROM hive.{schema}.{table}
-                        WHERE {source_column_param} = '{source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        """
-            result = run_trino_sql(delete_partition_query, schema)
-            LOG.info(f"DELETE PARTITION result: {result}")
+            source_column_param = manage_table_mapping[table]
+            if not check_table_exists(schema, table):
+                LOG.info(f"{table} does not exist for {schema}")
+                continue
+
+            expired_partitions = find_expired_partitions(schema, months, table, source_column_param)
+            if not expired_partitions:
+                LOG.info(f"No expired partitions found for {table} {schema}")
+                continue
+
+            LOG.info(f"Found {len(expired_partitions)}")
+            for partition in expired_partitions:
+                year, month, source = partition
+                LOG.info(f"Removing partition for {source} {year}-{month}")
+                # Using same query as what we use in db accessor
+                delete_partition_query = f"""
+                            DELETE FROM hive.{schema}.{table}
+                            WHERE {source_column_param} = '{source}'
+                            AND year = '{year}'
+                            AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                            """
+                result = run_trino_sql(delete_partition_query, schema)
+                LOG.info(f"DELETE PARTITION result: {result}")
