@@ -165,10 +165,8 @@ class OCPReportDBCleaner:
                 else:
                     LOG.info("No expired partitions")
                     return
-                if simulate:
-                    for partition in results:
-                        LOG.info(f"partition_info: {partition}")
-                else:
-                    for result in results:
-                        year, month, source_value = result
+                for partition in results:
+                    LOG.info(f"partition_info: {partition}")
+                    if not simulate:
+                        year, month, source_value = partition
                         accessor.delete_hive_partition_by_month(table, source_value, year, month, source_column)
