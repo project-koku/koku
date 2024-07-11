@@ -106,7 +106,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, attempts_left=3):
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, trino_external_error_retries=3):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
@@ -142,14 +142,14 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, atte
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
             except TrinoQueryError as trino_exc:
-                if "NoSuchKey" in str(trino_exc) and attempts_left > 0:
+                if "NoSuchKey" in str(trino_exc) and trino_external_error_retries > 0:
                     LOG.debug("TrinoExternalError Exception, retrying...")
                     return executescript(
                         trino_conn=trino_conn,
                         sqlscript=sqlscript,
                         params=params,
                         preprocessor=preprocessor,
-                        attempts_left=attempts_left - 1,
+                        trino_external_error_retries=trino_external_error_retries - 1,
                     )
                 trino_statement_error = TrinoStatementExecError(
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc

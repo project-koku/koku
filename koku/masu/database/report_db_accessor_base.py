@@ -114,7 +114,15 @@ class ReportDBAccessorBase:
         return results
 
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=3, conn_params=None
+        self,
+        sql,
+        *,
+        sql_params=None,
+        context=None,
+        log_ref="Trino query",
+        attempts_left=0,
+        conn_params=None,
+        trino_external_error_retries=3,
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
@@ -142,7 +150,7 @@ class ReportDBAccessorBase:
             description = trino_cur.description
         except TrinoExternalError as ex:
             return self._handle_trino_external_error(
-                ex, sql, sql_params, context, log_ref, attempts_left, conn_params, ctx
+                ex, sql, sql_params, context, log_ref, attempts_left, trino_external_error_retries, conn_params, ctx
             )
         except Exception as ex:
             if attempts_left == 0:
@@ -152,8 +160,10 @@ class ReportDBAccessorBase:
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
         return results, description
 
-    def _handle_trino_external_error(self, ex, sql, sql_params, context, log_ref, attempts_left, conn_params, ctx):
-        if "NoSuchKey" in str(ex) and attempts_left > 0:
+    def _handle_trino_external_error(
+        self, ex, sql, sql_params, context, log_ref, attempts_left, trino_external_error_retries, conn_params, ctx
+    ):
+        if "NoSuchKey" in str(ex) and trino_external_error_retries > 0:
             LOG.warning(
                 log_json(msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=ctx), exc_info=ex
             )
@@ -162,7 +172,8 @@ class ReportDBAccessorBase:
                 sql_params=sql_params,
                 context=context,
                 log_ref=log_ref,
-                attempts_left=attempts_left - 1,
+                attempts_left=attempts_left,
+                trino_external_error_retries=trino_external_error_retries - 1,
                 conn_params=conn_params,
             )
         LOG.error(
