@@ -304,16 +304,16 @@ class Command(BaseCommand):
 def get_all_schemas() -> list[str]:
     sql = "SELECT schema_name FROM information_schema.schemata"
     schemas = run_trino_sql(sql)
-    schemas = [
+    schemas = {
         schema
         for listed_schema in schemas
         for schema in listed_schema
         if schema not in ["default", "information_schema"]
-    ]
+    }
     if not schemas:
         LOG.info("No schema in DB to update")
 
-    return schemas
+    return sorted(schemas)
 
 
 def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
