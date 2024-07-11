@@ -142,7 +142,7 @@ class Action(BaseModel):
         return self.schemas
 
     def get_schemas(self) -> set[str]:
-        LOG.info("Finding all schemas for migration...")
+        LOG.info("Finding schemas...")
         result = set()
         for col in self.list_of_cols.list:
             schemas = run_trino_sql(textwrap.dedent(self.find_query.format(col=col)))
@@ -345,7 +345,7 @@ def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
 
 
 def log_start(schemas: list[str]) -> str:
-    message = f"Running against the following schemas: {schemas}"
+    message = f"Running against the following schemas: {', '.join(schemas)}"
     if (schema_count := len(schemas)) > 10:
         message = f"Running against {schema_count} schemas"
 
