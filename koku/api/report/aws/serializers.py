@@ -207,14 +207,7 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("month", "month"),)
 
-    _opfields = (
-        "resource_id",
-        "instance_name",
-        "account",
-        "operating_system",
-        "region",
-        # "tags"
-    )
+    _opfields = ("resource_id", "instance_name", "account", "operating_system", "region")
 
     _aws_category = True
 
@@ -339,7 +332,7 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
 
         if unsupported_filters:
             errors = {}
-            for filter in unsupported_filters:
-                errors[filter] = gettext("Unsupported parameter")
+            for _filter in unsupported_filters:
+                errors[_filter] = gettext("Unsupported parameter")
             raise serializers.ValidationError(errors)
         return data
