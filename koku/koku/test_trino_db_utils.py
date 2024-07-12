@@ -114,6 +114,50 @@ select a from b;
             conn = FakerFakeTrinoConn()
             executescript(conn, sqlscript)
 
+    def test_retry_logic_on_no_such_key_error(self):
+        def t_exec_error(*args, **kwargs):
+            raise ValueError("Nope!")
+
+        class FakerFakeTrinoCur(FakeTrinoCur):
+            execute_calls = 0
+
+            def execute(self, *args, **kwargs):
+                self.__class__.execute_calls += 1
+                if self.__class__.execute_calls == 1:
+                    raise TrinoQueryError(
+                        {
+                            "errorName": "TRINO_NO_SUCH_KEY",
+                            "errorType": "USER_ERROR",
+                            "message": "NoSuchKey error occurred",
+                            "query_id": "fake_query_id",
+                        }
+                    )
+                # return super().execute(*args, **kwargs)
+                return [["eek"]] * 6
+
+        class FakerFakeTrinoConn(FakeTrinoConn):
+            def cursor(self):
+                return FakerFakeTrinoCur()
+
+        sqlscript = "SELECT * FROM table"
+        params = {
+            "uuid": "some_uuid",
+            "schema": "test_schema",
+            "int_data": 255,
+            "txt_data": "This is a test",
+        }
+        conn = FakerFakeTrinoConn()
+        results = executescript(
+            trino_conn=conn,
+            sqlscript=sqlscript,
+            params=params,
+            preprocessor=None,  # Assuming no preprocessor is needed for this test
+            trino_external_error_retries=1,
+        )
+
+        self.assertEqual(results, [["eek"]])
+        self.assertEqual(FakerFakeTrinoCur.execute_calls, 2)
+
 
 class TestTrinoStatementExecError(TestCase):
     def test_trino_statement_exec_error(self):
