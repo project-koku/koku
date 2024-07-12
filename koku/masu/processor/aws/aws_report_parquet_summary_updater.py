@@ -60,7 +60,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         ec2_compute_summary_table = AWS_CUR_TABLE_MAP["ec2_compute_summary"]
 
         with schema_context(self._schema):
-            partition_summary_tables = UI_SUMMARY_TABLES + (ec2_compute_summary_table,)
+            partition_summary_tables = (*UI_SUMMARY_TABLES, ec2_compute_summary_table)
             self._handle_partitions(self._schema, partition_summary_tables, start_date, end_date)
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:

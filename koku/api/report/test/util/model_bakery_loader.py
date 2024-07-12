@@ -254,7 +254,7 @@ class ModelBakeryDataLoader(DataLoader):
                         source_uuid=provider.uuid,
                     )
 
-                baker.make_recipe(  #
+                baker.make_recipe(
                     "api.report.test.util.aws_ec2_compute_summary",
                     cost_entry_bill=bill,
                     usage_account_id=cycle(usage_account_ids),
