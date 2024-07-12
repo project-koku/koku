@@ -100,7 +100,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 "NoSuchKey", "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
             )
 
-            # Assertions
             mock_retry.assert_called_once()
             mock_log.warning.assert_called()
             mock_log.error.assert_not_called()
@@ -117,7 +116,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 error_instance, "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
             )
 
-        # Assertions
         mock_retry.assert_not_called()
         mock_log.error.assert_called()
 

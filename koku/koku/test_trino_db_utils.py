@@ -115,9 +115,6 @@ select a from b;
             executescript(conn, sqlscript)
 
     def test_retry_logic_on_no_such_key_error(self):
-        def t_exec_error(*args, **kwargs):
-            raise ValueError("Nope!")
-
         class FakerFakeTrinoCur(FakeTrinoCur):
             execute_calls = 0
 
@@ -132,7 +129,6 @@ select a from b;
                             "query_id": "fake_query_id",
                         }
                     )
-                # return super().execute(*args, **kwargs)
                 return [["eek"]] * 6
 
         class FakerFakeTrinoConn(FakeTrinoConn):
