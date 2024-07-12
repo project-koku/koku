@@ -11,6 +11,7 @@ from api.models import Provider
 from api.utils import DateHelper
 from hcs.database.report_db_accessor import HCSReportDBAccessor
 from hcs.test import HCSTestCase
+from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 
 def mock_sql_query(self, schema, sql, bind_params=None):
@@ -84,3 +85,19 @@ class TestHCSReportDBAccessor(HCSTestCase):
             )
             self.assertIn("acquiring marketplace data", _logs.output[0])
             self.assertIn("data found", _logs.output[1])
+
+    def test_handle_trino_external_error_with_no_such_key(self):
+        """Test handle_trino_external_error with NoSuchKey error."""
+        accessor = ReportDBAccessorBase(schema="test_schema")
+
+        with patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry, patch(
+            "masu.database.report_db_accessor_base.LOG"
+        ) as mock_log:
+            accessor._handle_trino_external_error(
+                "NoSuchKey", "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
+            )
+
+            # Assertions
+            mock_retry.assert_called_once()
+            mock_log.warning.assert_called()
+            mock_log.error.assert_not_called()
