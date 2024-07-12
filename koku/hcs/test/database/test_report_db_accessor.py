@@ -4,6 +4,7 @@
 #
 """Test HCSReportDBAccessor."""
 from datetime import timedelta
+from unittest import mock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -119,3 +120,32 @@ class TestHCSReportDBAccessor(HCSTestCase):
         # Assertions
         mock_retry.assert_not_called()
         mock_log.error.assert_called()
+
+    @mock.patch("koku.trino_database.connect")
+    def test_handle_trino_external_error_invocation(self, mock_connect):
+        """Test handle_trino_external_error invocation."""
+        mock_cursor = mock.MagicMock()
+        mock_cursor.execute.side_effect = TrinoExternalError({"error": "Trino Error"})
+        mock_conn = mock.MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        accessor = ReportDBAccessorBase(schema="test_schema")
+        sql = "SELECT * FROM test_table"
+        sql_params = {"param1": "value1"}
+        context = {}
+        log_ref = "Test Query"
+        attempts_left = 1
+        trino_external_error_retries = 1
+        conn_params = {}
+
+        with self.assertRaises(TrinoExternalError):
+            accessor._execute_trino_raw_sql_query_with_description(
+                sql,
+                sql_params=sql_params,
+                context=context,
+                log_ref=log_ref,
+                attempts_left=attempts_left,
+                trino_external_error_retries=trino_external_error_retries,
+                conn_params=conn_params,
+            )
