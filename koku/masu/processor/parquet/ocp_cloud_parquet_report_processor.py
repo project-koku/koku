@@ -13,8 +13,10 @@ from django_tenants.utils import schema_context
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
-from koku.cache import get_cached_matching_tags
-from koku.cache import set_cached_matching_tags
+from koku.cache import build_matching_tags_key
+from koku.cache import get_value_from_cache
+from koku.cache import is_key_in_cache
+from koku.cache import set_value_in_cache
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -147,13 +149,15 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def get_matched_tags(self, ocp_provider_uuids):
         """Get tags that match between OCP and the cloud source."""
         # Get matching tags
-        matched_tags = get_cached_matching_tags(self.schema_name, self.provider_type)
+        cache_key = build_matching_tags_key(self.schema_name, self.provider_type)
+        matched_tags = get_value_from_cache(cache_key)
         ctx = {
             "schema": self.schema_name,
             "provider_uuid": self.provider_uuid,
             "provider_type": self.provider_type,
         }
-        if matched_tags:
+        # If the key is in the cache but the value is None, there are no matching tags
+        if matched_tags or is_key_in_cache(cache_key):
             LOG.info(log_json(msg="retreived matching tags from cache", context=ctx))
             return matched_tags
         if self.has_enabled_ocp_labels:
@@ -171,7 +175,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     self.end_date,
                     invoice_month_date=self.invoice_month_date,
                 )
-        set_cached_matching_tags(self.schema_name, self.provider_type, matched_tags)
+        set_value_in_cache(cache_key, matched_tags)
         return matched_tags
 
     def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename):

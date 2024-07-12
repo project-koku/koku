@@ -10,7 +10,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 from api.utils import DateHelper
-from masu.processor.tasks import QUEUE_LIST
+from common.queues import QUEUE_LIST
 from masu.test import MasuTestCase
 
 

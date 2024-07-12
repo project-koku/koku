@@ -18,10 +18,9 @@ from rest_framework.settings import api_settings
 
 from api.models import Provider
 from api.utils import get_months_in_date_range
-from masu.processor import is_customer_large
-from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE_XL
-from masu.processor.tasks import QUEUE_LIST
+from common.queues import get_customer_queue
+from common.queues import PriorityQueue
+from common.queues import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
@@ -48,9 +47,7 @@ def report_data(request):
         end_date = params.get("end_date")
         invoice_month = params.get("invoice_month")
         provider = None
-        fallback_queue = PRIORITY_QUEUE
-        if is_customer_large(schema_name):
-            fallback_queue = PRIORITY_QUEUE_XL
+        fallback_queue = get_customer_queue(schema_name, PriorityQueue)
 
         ocp_on_cloud = params.get("ocp_on_cloud", "true").lower()
         ocp_on_cloud = ocp_on_cloud == "true"
