@@ -57,9 +57,10 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        ec2_compute_summary_table = AWS_CUR_TABLE_MAP["ec2_compute_summary"]
 
         with schema_context(self._schema):
-            partition_summary_tables = UI_SUMMARY_TABLES + (AWS_CUR_TABLE_MAP["ec2_compute_summary"],)
+            partition_summary_tables = (*UI_SUMMARY_TABLES, ec2_compute_summary_table)
             self._handle_partitions(self._schema, partition_summary_tables, start_date, end_date)
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
@@ -118,13 +119,18 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     self._provider.uuid,
                     month_start_date,
                     end_date,
-                    table=AWS_CUR_TABLE_MAP["ec2_compute_summary"],
+                    table=ec2_compute_summary_table,
                     filters={"source_uuid": self._provider.uuid},
                 )
 
                 # Populate EC2 compute summary table
                 accessor.populate_ec2_compute_summary_table_trino(
                     self._provider.uuid, start_date, current_bill_id, markup_value
+                )
+
+                # Update mapped tags in EC2 compute summary table
+                accessor.update_line_item_daily_summary_with_tag_mapping(
+                    month_start_date, end_date, bill_ids, table_name=ec2_compute_summary_table
                 )
 
             for bill in bills:

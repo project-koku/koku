@@ -68,6 +68,17 @@ AWS_COST_CATEGORIES = (
     None,
     None,
 )
+AWS_VCPUS = (2, 4, 8, 32, 48, 96, 128)
+AWS_MEMORY = ("16 GiB", "8 GiB", "32 GiB", "128 GiB", "512 GiB", "64 GiB", "1024 GiB")
+AWS_OPERATING_SYSTEMS = (
+    "Ubuntu",
+    "Red Hat Enterprise Linux",
+    "Fedora",
+    "Debian",
+    "CentOS",
+    "Oracle Linux",
+    "FreeBSD",
+)
 
 AWS_CONSTANTS = SameLengthDict(
     {
@@ -78,6 +89,9 @@ AWS_CONSTANTS = SameLengthDict(
         "resource_ids": AWS_RESOURCE_IDS,
         "units": AWS_UNITS,
         "cost_category": AWS_COST_CATEGORIES,
+        "operating_systems": AWS_OPERATING_SYSTEMS,
+        "vcpus": AWS_VCPUS,
+        "memory": AWS_MEMORY,
     }
 )
 

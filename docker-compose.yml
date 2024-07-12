@@ -71,7 +71,7 @@ services:
       - 8001:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
@@ -140,7 +140,7 @@ services:
       - 5001:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
@@ -222,7 +222,7 @@ services:
       - 5678:5678
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './testing:/testing'
@@ -290,7 +290,7 @@ services:
       - 7001-7020:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
     depends_on:
@@ -343,7 +343,7 @@ services:
       - 7021:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './dev/credentials:/etc/credentials'
@@ -403,7 +403,7 @@ services:
       - 4001:9000
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './dev/credentials:/etc/credentials'
@@ -439,7 +439,7 @@ services:
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
       - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
+      - './dev/containers/unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
     depends_on:
@@ -524,6 +524,15 @@ services:
       # This will really increase the log file size
       # - -c
       # - log_statement_stats=true
+    healthcheck:
+      test:
+        - "CMD"
+        - "pg_isready"
+        - "--host=127.0.0.1"
+        - "--port=5432"
+      interval: 1s
+      timeout: 30s
+      retries: 10
 
   redis:
     container_name: koku_redis
@@ -560,9 +569,10 @@ services:
 
   unleash:
     container_name: koku-unleash
-    image: unleashorg/unleash-server:5.6.9
+    image: unleashorg/unleash-server:5.8.2
     environment:
-      - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
+      - INIT_ADMIN_API_TOKENS=${UNLEASH_ADMIN_TOKEN:?}
+      - INIT_CLIENT_API_TOKENS=${UNLEASH_TOKEN:?}
       - CHECK_VERSION=false
       - DATABASE_HOST=db
       - DATABASE_NAME=unleash
@@ -575,9 +585,10 @@ services:
     ports:
       - 4242:4242
     volumes:
-      - './.unleash:/.unleash'
+      - './dev/containers/unleash:/.unleash'
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   minio:
     container_name: koku-minio
