@@ -12,6 +12,8 @@ import pandas as pd
 from django.test.utils import override_settings
 
 from api.common import log_json
+from koku.cache import build_trino_schema_exists_key
+from koku.cache import build_trino_table_exists_key
 from masu.processor.report_parquet_processor_base import PostgresSummaryTableError
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
@@ -157,23 +159,55 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
             self.processor.sync_hive_partitions()
             self.assertIn(expected_log, logger.output)
 
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
-    def test_schema_exists(self, mock_execute):
-        """Test that hive partitions are synced."""
-        expected_log = self.log_output_info + str(log_json(msg="checking for schema", schema=self.schema_name))
-        with self.assertLogs(self.log_base, level="INFO") as logger:
-            self.processor.schema_exists()
-            self.assertIn(expected_log, logger.output)
+    @patch.object(ReportParquetProcessorBase, "_execute_sql")
+    def test_schema_exists_cache_value_in_cache(self, trino_mock):
+        with patch(
+            "masu.processor.report_parquet_processor_base.get_value_from_cache",
+            return_value=True,
+        ):
+            self.assertTrue(self.processor.schema_exists())
+            trino_mock.assert_not_called()
 
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
-    def test_table_exists(self, mock_execute):
-        """Test that hive partitions are synced."""
-        expected_log = self.log_output_info + str(
-            log_json(msg="checking for table", table=self.table_name, schema=self.schema_name)
-        )
-        with self.assertLogs(self.log_base, level="INFO") as logger:
-            self.processor.table_exists()
-            self.assertIn(expected_log, logger.output)
+    @patch.object(ReportParquetProcessorBase, "_execute_sql")
+    def test_schema_exists_cache_value_not_in_cache(self, trino_mock):
+        trino_mock.return_value = True
+        key = build_trino_schema_exists_key(self.account)
+        with patch("masu.processor.report_parquet_processor_base.set_value_in_cache") as mock_cache_set:
+            self.assertTrue(self.processor.schema_exists())
+            mock_cache_set.assert_called_with(key, True)
+
+    @patch.object(ReportParquetProcessorBase, "_execute_sql")
+    def test_schema_exists_cache_value_not_in_cache_not_exists(self, trino_mock):
+        trino_mock.return_value = False
+        key = build_trino_schema_exists_key(self.account)
+        with patch("masu.processor.report_parquet_processor_base.set_value_in_cache") as mock_cache_set:
+            self.assertFalse(self.processor.schema_exists())
+            mock_cache_set.assert_called_with(key, False)
+
+    @patch.object(ReportParquetProcessorBase, "_execute_sql")
+    def test_table_exists_cache_value_in_cache(self, trino_mock):
+        with patch(
+            "masu.processor.report_parquet_processor_base.get_value_from_cache",
+            return_value=True,
+        ):
+            self.assertTrue(self.processor.table_exists())
+            trino_mock.assert_not_called()
+
+    @patch.object(ReportParquetProcessorBase, "_execute_sql")
+    def test_table_exists_cache_value_not_in_cache(self, trino_mock):
+        trino_mock.return_value = True
+        key = build_trino_table_exists_key(self.account, self.table_name)
+        with patch("masu.processor.report_parquet_processor_base.set_value_in_cache") as mock_cache_set:
+            self.assertTrue(self.processor.table_exists())
+            mock_cache_set.assert_called_with(key, True)
+
+    @patch.object(ReportParquetProcessorBase, "_execute_sql")
+    def test_table_exists_cache_value_not_in_cache_not_exists(self, trino_mock):
+        trino_mock.return_value = False
+        key = build_trino_table_exists_key(self.account, self.table_name)
+        with patch("masu.processor.report_parquet_processor_base.set_value_in_cache") as mock_cache_set:
+            self.assertFalse(self.processor.table_exists())
+            mock_cache_set.assert_called_with(key, False)
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_create_schema(self, mock_execute):

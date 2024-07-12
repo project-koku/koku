@@ -5,6 +5,8 @@
 """Test the ReportDBAccessorBase utility object."""
 from unittest.mock import patch
 
+from koku.cache import build_trino_schema_exists_key
+from koku.cache import build_trino_table_exists_key
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.test import MasuTestCase
 
@@ -30,16 +32,18 @@ class ReportDBAccessorBaseTest(MasuTestCase):
     @patch.object(ReportDBAccessorBase, "_execute_trino_raw_sql_query")
     def test_schema_exists_cache_value_not_in_cache(self, trino_mock):
         trino_mock.return_value = True
+        key = build_trino_schema_exists_key(self.schema)
         with patch("masu.database.report_db_accessor_base.set_value_in_cache") as mock_cache_set:
             self.assertTrue(self.accessor.schema_exists_trino())
-            mock_cache_set.assert_called()
+            mock_cache_set.assert_called_with(key, True)
 
     @patch.object(ReportDBAccessorBase, "_execute_trino_raw_sql_query")
     def test_schema_exists_cache_value_not_in_cache_not_exists(self, trino_mock):
         trino_mock.return_value = False
+        key = build_trino_schema_exists_key(self.schema)
         with patch("masu.database.report_db_accessor_base.set_value_in_cache") as mock_cache_set:
             self.assertFalse(self.accessor.schema_exists_trino())
-            mock_cache_set.assert_not_called()
+            mock_cache_set.assert_called_with(key, False)
 
     @patch.object(ReportDBAccessorBase, "_execute_trino_raw_sql_query")
     def test_table_exists_cache_value_in_cache(self, trino_mock):
@@ -53,13 +57,17 @@ class ReportDBAccessorBaseTest(MasuTestCase):
     @patch.object(ReportDBAccessorBase, "_execute_trino_raw_sql_query")
     def test_table_exists_cache_value_not_in_cache(self, trino_mock):
         trino_mock.return_value = True
+        table = "table"
+        key = build_trino_table_exists_key(self.schema, table)
         with patch("masu.database.report_db_accessor_base.set_value_in_cache") as mock_cache_set:
-            self.assertTrue(self.accessor.table_exists_trino("table"))
-            mock_cache_set.assert_called()
+            self.assertTrue(self.accessor.table_exists_trino(table))
+            mock_cache_set.assert_called_with(key, True)
 
     @patch.object(ReportDBAccessorBase, "_execute_trino_raw_sql_query")
     def test_table_exists_cache_value_not_in_cache_not_exists(self, trino_mock):
         trino_mock.return_value = False
+        table = "table"
+        key = build_trino_table_exists_key(self.schema, table)
         with patch("masu.database.report_db_accessor_base.set_value_in_cache") as mock_cache_set:
-            self.assertFalse(self.accessor.table_exists_trino("table"))
-            mock_cache_set.assert_not_called()
+            self.assertFalse(self.accessor.table_exists_trino(table))
+            mock_cache_set.assert_called_with(key, False)

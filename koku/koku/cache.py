@@ -143,6 +143,14 @@ def build_matching_tags_key(schema_name, provider_type):
     return f"OCP-on-{provider_type}:{schema_name}:matching-tags"
 
 
+def build_trino_schema_exists_key(schema_name):
+    return f"schema-exists-{schema_name}"
+
+
+def build_trino_table_exists_key(schema_name, table_name):
+    return f"table-exists-{schema_name}-{table_name}"
+
+
 def get_cached_matching_tags(schema_name, provider_type):
     """Return cached OCP on Cloud matched tags if exists."""
     cache = caches["default"]
