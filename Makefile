@@ -67,7 +67,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
 	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
-	@echo "  delete-trino-data                     Delete old trino data from .trino/parquet_data/koku-bucket/."
+	@echo "  delete-trino-data                     Delete old trino data from the Minio koku-bucket bucket."
 	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
@@ -167,10 +167,11 @@ delete-testing:
 	@$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 delete-trino:
-	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
+	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/trino/data/*
+	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/trino/logs/*
 
 delete-trino-data:
-	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/koku-bucket/*
+	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/minio/koku-bucket/*
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
@@ -382,7 +383,7 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/{parquet_data,trino}
+CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/dev/containers/minio $(TOPDIR)/dev/containers/trino/{data,logs}
 docker-host-dir-setup:
 	@mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
 	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS)

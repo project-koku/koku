@@ -605,7 +605,7 @@ services:
       - 9090:9090
     command: server /home/kminio/data --console-address ":9090"
     volumes:
-      - ./.trino/parquet_data:/home/kminio/data
+      - ./dev/containers/minio:/home/kminio/data
 
   create-parquet-bucket:
     image: minio/mc:latest
@@ -676,8 +676,8 @@ services:
       - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
       - ./dev/containers/trino/etc/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
-      - ./.trino/trino/trino-data:/data/trino/data
-      - ./.trino/trino/trino-logs:/data/trino/logs
+      - ./dev/containers/trino/data:/data/trino/data
+      - ./dev/containers/trino/logs:/data/trino/logs
     links:
       - hive-metastore
     depends_on:
