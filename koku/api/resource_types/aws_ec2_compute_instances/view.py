@@ -25,29 +25,24 @@ class AWSEC2ComputeInstanceView(generics.ListAPIView):
 
     queryset = (
         AWSCostEntryLineItemSummaryByEC2Compute.objects.annotate(
-            **(
-                {
-                    "value": F("resource_id"),
-                    "alias": Coalesce(F("instance_name"), "resource_id"),
-                }
-            )
+            value=F("resource_id"), ec2_instance_name=Coalesce(F("instance_name"), "resource_id")
         )
-        .values("value", "alias")
+        .values("value", "ec2_instance_name")
         .distinct()
     )
 
     serializer_class = ResourceTypeSerializer
     permission_classes = [AwsAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value", "alias"]
-    search_fields = ["value", "alias"]
+    ordering = ["value", "ec2_instance_name"]
+    search_fields = ["value", "ec2_instance_name"]
     pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the aws ec2 compute instances info and displays values related to what the user has access to.
         supported_query_params = ["search", "limit"]
-        user_access = []
+        user_access = None
         error_message = {}
         # Test for only supported query_params
         if self.request.query_params:
@@ -62,5 +57,4 @@ class AWSEC2ComputeInstanceView(generics.ListAPIView):
         if user_access and user_access[0] == "*":
             return super().list(request)
         self.queryset = self.queryset.filter(usage_account_id__in=user_access)
-
         return super().list(request)

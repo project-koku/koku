@@ -23,7 +23,7 @@ class AWSEC2ComputeOperatingSystemView(generics.ListAPIView):
     """API GET list view for AWS EC2 compute operating systems."""
 
     queryset = (
-        AWSCostEntryLineItemSummaryByEC2Compute.objects.annotate(**{"value": F("operating_system")})
+        AWSCostEntryLineItemSummaryByEC2Compute.objects.annotate(value=F("operating_system"))
         .values("value")
         .distinct()
         .filter(operating_system__isnull=False)
