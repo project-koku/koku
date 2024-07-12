@@ -844,6 +844,8 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.month = {{month}}
     -- Network related costs
     AND aws.data_transfer_direction IS NOT NULL
+    -- Storage and Pod can have the same resource_id and we want the Pod
+    AND ocp.data_source = 'Pod'
 GROUP BY
     aws.uuid,
     ocp.node,
