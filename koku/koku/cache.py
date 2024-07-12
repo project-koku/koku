@@ -144,11 +144,11 @@ def build_matching_tags_key(schema_name, provider_type):
 
 
 def build_trino_schema_exists_key(schema_name):
-    return f"schema-exists-{schema_name}"
+    return f"schema-exists-trino-{schema_name}"
 
 
 def build_trino_table_exists_key(schema_name, table_name):
-    return f"table-exists-{schema_name}-{table_name}"
+    return f"table-exists-trino-{schema_name}-{table_name}"
 
 
 def get_cached_matching_tags(schema_name, provider_type):
