@@ -7,6 +7,8 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from trino.exceptions import TrinoExternalError
+
 from api.models import Provider
 from api.utils import DateHelper
 from hcs.database.report_db_accessor import HCSReportDBAccessor
@@ -101,3 +103,19 @@ class TestHCSReportDBAccessor(HCSTestCase):
             mock_retry.assert_called_once()
             mock_log.warning.assert_called()
             mock_log.error.assert_not_called()
+
+    def test_handle_trino_external_error_without_no_such_key(self):
+        """Test handle_trino_external_error without NoSuchKey error."""
+        accessor = ReportDBAccessorBase(schema="test_schema")
+        error_instance = TrinoExternalError({"error": "Trino Error"})
+
+        with patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry, patch(
+            "masu.database.report_db_accessor_base.LOG"
+        ) as mock_log, self.assertRaises(TrinoExternalError):
+            accessor._handle_trino_external_error(
+                error_instance, "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
+            )
+
+        # Assertions
+        mock_retry.assert_not_called()
+        mock_log.error.assert_called()
