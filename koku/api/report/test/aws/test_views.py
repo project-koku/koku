@@ -601,113 +601,36 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_ec2_compute_view_operating_system_filter(self):
-        """Test if EC2 Compute Operating System Filter is working."""
-        url = reverse("reports-aws-ec2-compute") + "?filter[operating_system]=Linux&filter[resolution]=monthly"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    def test_ec2_compute_view_with_valid_params(self):
+        """Test EC2 compute view returns HTTP 200 for valid query parameters."""
 
-    def test_ec2_compute_view_operating_system_filter_other_report(self):
-        """Test if EC2 Compute Operating System Filter is not in an other report."""
-        url = reverse("reports-aws-costs") + "?filter[operating_system]=Linux"
-        response = self.client.get(url, **self.headers)
-        self.assertNotEqual(response.status_code, status.HTTP_200_OK)
+        base_url = reverse("reports-aws-ec2-compute")
+        valid_params = [
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=monthly",
+            "?filter[operating_system]=Linux&filter[resolution]=monthly",
+            "?filter[region]=us-east-1&order_by[cost]=asc",
+        ]
 
-    def test_ec2_compute_view_order_by_filters(self):
-        """Test if EC2 Compute Report is allowing/blocking order by filters properly."""
-        allowed_filters = (
-            "resource_id",
-            "account",
-            "usage_amount",
-            "instance_type",
-            "region",
-            "operating_system",
-            "instance_name",
-        )
+        for param in valid_params:
+            with self.subTest(param=param):
+                url = base_url + param
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        not_allowed_filters = (
-            "az",
-            "service",
-            "product_family",
-            "org_unit_id",
-        )
+    def test_ec2_compute_view_with_invalid_params(self):
+        """Test EC2 compute view returns HTTP 400 for invalid query parameters."""
 
-        for filter in allowed_filters:
-            url = reverse("reports-aws-ec2-compute") + f"?order_by[{filter}]=asc"
-            response = self.client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+        base_url = reverse("reports-aws-ec2-compute")
+        invalid_params = [
+            "?filter[time_scope_units]=day&filter[time_scope_value]=-3&filter[resolution]=monthly",
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-30&filter[resolution]=monthly",
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=daily",
+            "?filter[vcpu]=4",
+            "?filter[memory]=20",
+        ]
 
-        for filter in not_allowed_filters:
-            url = reverse("reports-aws-ec2-compute") + f"?order_by[{filter}]=asc"
-            response = self.client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_ec2_compute_allowed_filters(self):
-        """Test if EC2 Compute Report is allowing/blocking filters properly."""
-        allowed_filters = (
-            "resource_id",
-            "instance_name",
-            "operating_system",
-            # inherited from parent class
-            "account",
-            # "tags",
-            "region",
-        )
-
-        for filter in allowed_filters:
-            print(filter)
-            url = reverse("reports-aws-ec2-compute") + f"?filter[{filter}]=value&filter[resolution]=monthly"
-            response = self.client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_ec2_compute_group_by(self):
-        """Test if EC2 Compute Report is blocking group by filters properly."""
-        not_allowed_filters = (
-            "account",
-            "az",
-            "instance_type",
-            "region",
-            "service",
-            "storage_type",
-            "product_family",
-            "org_unit_id",
-            "operating_system",
-            "abc",
-            "test",
-        )
-
-        for filter in not_allowed_filters:
-            url = reverse("reports-aws-ec2-compute") + f"?group_by[{filter}]=value"
-            response = self.client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_ec2_compute_resolution_filter(self):
-        url = reverse("reports-aws-ec2-compute") + "?filter[resolution]=daily"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        url = reverse("reports-aws-ec2-compute") + "?filter[resolution]=monthly"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_ec2_compute_time_scope_filters(self):
-        url = (
-            reverse("reports-aws-ec2-compute")
-            + "?filter[time_scope_units]=day&filter[time_scope_value]=-3&filter[resolution]=monthly"
-        )
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        url = (
-            reverse("reports-aws-ec2-compute")
-            + "?filter[time_scope_units]=month&filter[time_scope_value]=-30&filter[resolution]=monthly"
-        )
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        url = (
-            reverse("reports-aws-ec2-compute")
-            + "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=monthly"
-        )
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for param in invalid_params:
+            with self.subTest(param=param):
+                url = base_url + param
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

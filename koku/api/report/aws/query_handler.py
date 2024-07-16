@@ -320,7 +320,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
 
         if self._report_type == "ec2_compute":
-            self.query_data = self._format_ec2_response()
+            self.query_data = self._format_ec2_response(copy.deepcopy(self.query_data))
 
         output = self._initialize_response_output(self.parameters)
         output["data"] = self.query_data
@@ -560,24 +560,36 @@ class AWSReportQueryHandler(ReportQueryHandler):
             LOG.error(f"Error getting sub org units: \n{e}")
             return []
 
-    def _format_ec2_response(self):
-        _data = copy.deepcopy(self.query_data)
+    def _format_ec2_response(self, ec2_data):
+        """
+        Format EC2 response data tansforming tags to the desired UI format.
 
-        # transform tags to desired ui format
-        for item in _data:
+        Example transformation:
+
+        Input:
+        "tags": [
+            {"Map":"c2"},
+            {"Name":"instance_name_3"},
+        ]
+
+
+        Output:
+        "tags": [
+            {
+                "key": "Map",
+                "values": ["c2"]
+            },
+            {
+                "key": "Name",
+                "values": ["instance_name_3"]
+            },
+        ]
+        """
+
+        for item in ec2_data:
             for resource in item["resource_ids"]:
                 resource_values = resource["values"][0]
-                resource_values["tags"] = self._transform_tags(resource_values["tags"])
-
-        # add EC2 no-compute row to output data
-
-        return _data
-
-    def _transform_tags(self, tags: list) -> list:
-
-        transformed_tags = []
-        for tag in tags:
-            for key, value in tag.items():
-                _tag = {"key": key, "values": [value]}
-                transformed_tags.append(_tag)
-        return transformed_tags
+                resource_values["tags"] = [
+                    {"key": key, "values": [value]} for tag in resource_values["tags"] for key, value in tag.items()
+                ]
+        return ec2_data
