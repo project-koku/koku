@@ -320,7 +320,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
 
         if self._report_type == "ec2_compute":
-            self.query_data = self._format_ec2_response(copy.deepcopy(self.query_data))
+            self._format_ec2_response()
 
         output = self._initialize_response_output(self.parameters)
         output["data"] = self.query_data
@@ -560,7 +560,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             LOG.error(f"Error getting sub org units: \n{e}")
             return []
 
-    def _format_ec2_response(self, ec2_data):
+    def _format_ec2_response(self):
         """
         Format EC2 response data tansforming tags to the desired UI format.
 
@@ -586,10 +586,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         ]
         """
 
-        for item in ec2_data:
+        for item in self.query_data:
             for resource in item["resource_ids"]:
                 resource_values = resource["values"][0]
                 resource_values["tags"] = [
                     {"key": key, "values": [value]} for tag in resource_values["tags"] for key, value in tag.items()
                 ]
-        return ec2_data

@@ -23,7 +23,7 @@ from api.query_params import QueryParameters
 LOG = logging.getLogger(__name__)
 
 
-def get_paginator(filter_query_params, count, group_by_params=False, **kwargs):
+def get_paginator(filter_query_params, count, group_by_params=False, report_type=None):
     """Determine which paginator to use based on query params."""
 
     if group_by_params and (
@@ -34,7 +34,7 @@ def get_paginator(filter_query_params, count, group_by_params=False, **kwargs):
         if "offset" in filter_query_params:
             paginator = ReportRankedPagination()
             paginator.count = count
-        elif kwargs.get("report_type", "") == "ec2_compute":
+        elif report_type and report_type == "ec2_compute":
             paginator = AWSEC2ComputePagination()
         else:
             paginator = ReportPagination()

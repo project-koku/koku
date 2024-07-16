@@ -457,10 +457,8 @@ class QueryParameters:
                 time_scope_value=(
                     time_scope_value if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else TIME_SCOPE_VALUES_MONTHLY[0]
                 ),
-                time_scope_units=(
-                    time_scope_units if time_scope_units == TIME_SCOPE_UNITS_MONTHLY else TIME_SCOPE_UNITS_MONTHLY
-                ),
-                resolution=resolution if resolution == RESOLUTION_MONTHLY else RESOLUTION_MONTHLY,
+                time_scope_units=TIME_SCOPE_UNITS_MONTHLY,
+                resolution=RESOLUTION_MONTHLY,
             )
 
     def _validate(self, query_params):

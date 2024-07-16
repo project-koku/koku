@@ -69,6 +69,9 @@ class AWSProviderMap(ProviderMap):
                     "org_unit_id": {"field": "organizational_unit__org_unit_path", "operation": "icontains"},
                     "org_unit_single_level": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
+                    "operating_system": {"field": "operating_system", "operation": "icontains"},
+                    "instance_name": {"field": "instance_name", "operation": "icontains"},
+                    "resource_id": {"field": "resource_id", "operation": "icontains"},
                 },
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
@@ -366,12 +369,6 @@ class AWSProviderMap(ProviderMap):
                             "tags": ArrayAgg(F("tags")),
                         },
                         "filter": [{}],
-                        "report_type_filters": {
-                            # report specific filters
-                            "operating_system": {"field": "operating_system", "operation": "icontains"},
-                            "instance_name": {"field": "instance_name", "operation": "icontains"},
-                            "resource_id": {"field": "resource_id", "operation": "icontains"},
-                        },
                         "group_by": ["resource_id"],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",

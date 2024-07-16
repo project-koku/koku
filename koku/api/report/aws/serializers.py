@@ -211,6 +211,11 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
 
     _aws_category = True
 
+    # override filtering with limit and offset params in the base `FilterSerializer` class.
+    # Not valid for this endpoint.
+    limit = None
+    offset = None
+
     resource_id = StringOrListField(child=serializers.CharField(), required=False)
     instance_name = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
@@ -311,28 +316,7 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
     EXCLUDE_SERIALIZER = AWSEC2ExcludeSerializer
     GROUP_BY_SERIALIZER = AWSEC2GroupBySerializer
 
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filters are not supported
-
-        """
-        super().validate(data)
-        unsupported_filters = []
-
-        if data.get("start_date"):
-            unsupported_filters.append("start_date")
-        if data.get("end_date"):
-            unsupported_filters.append("end_date")
-
-        if unsupported_filters:
-            errors = {}
-            for _filter in unsupported_filters:
-                errors[_filter] = gettext("Unsupported parameter")
-            raise serializers.ValidationError(errors)
-        return data
+    # override start_date and end_date params in the base `ParamSerializer` class.
+    # Not valid for this endpoint.
+    start_date = None
+    end_date = None
