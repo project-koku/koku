@@ -50,7 +50,7 @@ generators:
       rate: 0.05
       tags:
         storageclass: Thor
-  - StorageGenerator:
+  - ManagedDiskGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111123
@@ -60,7 +60,8 @@ generators:
       rate: 0.01
       tags:
         storageclass: Baldur
-  - StorageGenerator:
+      meter_name: "P80 LRS Disk"
+  - ManagedDiskGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111122
@@ -70,7 +71,8 @@ generators:
       rate: 0.01
       tags:
         storageclass: Loki
-  - StorageGenerator:
+      meter_name: "P80 LRS Disk"
+  - ManagedDiskGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111121
@@ -80,6 +82,7 @@ generators:
       rate: 0.01
       tags:
         storageclass: Odin
+      meter_name: "P80 LRS Disk"
   - StorageGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
