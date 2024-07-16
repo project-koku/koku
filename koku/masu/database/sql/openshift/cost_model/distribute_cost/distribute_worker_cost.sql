@@ -95,6 +95,7 @@ cte_line_items as (
         AND report_period_id = {{report_period_id}}
         AND lids.namespace IS NOT NULL
         AND lids.namespace != 'Network unattributed'
+        AND lids.namespace != 'Storage unattributed'
         AND data_source = 'Pod'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id
