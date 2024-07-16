@@ -42,7 +42,7 @@ class ProviderBuilderTest(IamTestCase):
         super().setUpClass()
         cls.account = "12345"
         cls.org_id = "3333333"
-        IdentityHeaderMiddleware.create_customer(cls.account, cls.org_id)
+        IdentityHeaderMiddleware.create_customer(cls.account, cls.org_id, "POST")
 
     def setUp(self):
         """Test case setup."""

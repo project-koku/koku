@@ -76,7 +76,8 @@ cte_line_items as (
                     COALESCE(cost_model_volume_cost, 0)
                 )
         END AS distributed_cost,
-        max(cost_category_id) as cost_category_id
+        max(cost_category_id) as cost_category_id,
+        max(raw_currency) as raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     LEFT JOIN unattributed_storage_cost as usc
         ON usc.usage_start = lids.usage_start
@@ -130,7 +131,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     source_uuid,
     cost_model_rate_type,
     distributed_cost,
-    cost_category_id
+    cost_category_id,
+    raw_currency
 )
 SELECT
     uuid_generate_v4(),
@@ -169,7 +171,8 @@ SELECT
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     'unattributed_storage' as cost_model_rate_type,
     ctl.distributed_cost,
-    ctl.cost_category_id
+    ctl.cost_category_id,
+    ctl.raw_currency
 FROM cte_line_items as ctl
 WHERE ctl.distributed_cost != 0;
 {% endif %}
