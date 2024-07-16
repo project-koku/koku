@@ -299,7 +299,7 @@ class EmptyResultsSetPagination(StandardResultsSetPagination):
 
 
 class AWSEC2ComputePagination(ReportPagination):
-    """A specialty paginator for AWS EC2 compute instances report data."""
+    """Paginator for AWS EC2 compute instances report data."""
 
     def get_count(self, queryset):
         """Special case count for EC2 resource IDs."""

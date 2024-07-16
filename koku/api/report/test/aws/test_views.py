@@ -601,6 +601,15 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_ec2_compute_view_returns_default_time_period_params(self):
+        """Test EC2 compute view returns HTTP 200 and valid default meta filter."""
+
+        expected_filters = {"time_scope_value": "-1", "time_scope_units": "month", "resolution": "monthly"}
+        url = reverse("reports-aws-ec2-compute")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["meta"]["filter"], expected_filters)
+
     def test_ec2_compute_view_with_valid_params(self):
         """Test EC2 compute view returns HTTP 200 for valid query parameters."""
 
