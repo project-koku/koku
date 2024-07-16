@@ -2,7 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""View for AWS accounts."""
+"""View for AWS EC2 operating systems."""
 from django.conf import settings
 from django.db.models import F
 from django.utils.decorators import method_decorator

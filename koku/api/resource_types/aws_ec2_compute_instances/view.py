@@ -2,7 +2,7 @@
 # Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""View for AWS accounts."""
+"""View for AWS EC2 instances."""
 from django.conf import settings
 from django.db.models import F
 from django.db.models.functions import Coalesce
