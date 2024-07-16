@@ -16,6 +16,10 @@ from trino.exceptions import TrinoUserError
 
 from api.common import log_json
 from api.models import Provider
+from koku.cache import build_trino_schema_exists_key
+from koku.cache import build_trino_table_exists_key
+from koku.cache import get_value_from_cache
+from koku.cache import set_value_in_cache
 from koku.pg_partition import get_or_create_partition
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
@@ -84,20 +88,24 @@ class ReportParquetProcessorBase:
     def schema_exists(self):
         """Check if schema exists."""
         LOG.info(log_json(msg="checking for schema", schema=self._schema_name))
+        cache_key = build_trino_schema_exists_key(self._schema_name)
+        if result := get_value_from_cache(cache_key):
+            return result
         schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
-        schema = self._execute_sql(schema_check_sql, "default")
-        if schema:
-            return True
-        return False
+        exists = bool(self._execute_sql(schema_check_sql, "default"))
+        set_value_in_cache(cache_key, exists)
+        return exists
 
     def table_exists(self):
         """Check if table exists."""
         LOG.info(log_json(msg="checking for table", table=self._table_name, schema=self._schema_name))
+        cache_key = build_trino_table_exists_key(self._schema_name, self._table_name)
+        if result := get_value_from_cache(cache_key):
+            return result
         table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
-        table = self._execute_sql(table_check_sql, self._schema_name)
-        if table:
-            return True
-        return False
+        exists = bool(self._execute_sql(table_check_sql, self._schema_name))
+        set_value_in_cache(cache_key, exists)
+        return exists
 
     def create_schema(self):
         """Create Trino schema."""

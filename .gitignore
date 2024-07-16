@@ -144,6 +144,7 @@ dev/*.yml
 
 # unleash cache
 .unleash/cache/
+dev/containers/unleash/cache/
 
 # performance profiling
 /koku.iml
