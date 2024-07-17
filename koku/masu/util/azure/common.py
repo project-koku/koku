@@ -23,15 +23,12 @@ INGRESS_REQUIRED_COLUMNS = {
     "SubscriptionGuid",
     "ResourceGroup",
     "ResourceLocation",
-    "UsageDateTime",
     "MeterCategory",
     "MeterSubcategory",
     "MeterId",
     "MeterName",
     "MeterRegion",
-    "UsageQuantity",
     "ResourceRate",
-    "PreTaxCost",
     "ConsumedService",
     "ResourceType",
     "InstanceId",
@@ -238,7 +235,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         (data_frame["resource_id_matched"] == True)  # noqa: E712
         | (data_frame["special_case_tag_matched"] == True)  # noqa: E712
         | (data_frame["matched_tag"] != "")  # noqa: E712
-    ]
+        ]
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
     openshift_matched_data_frame = openshift_matched_data_frame.drop(

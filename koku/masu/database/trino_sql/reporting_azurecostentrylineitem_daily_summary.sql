@@ -8,7 +8,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     service_name,
     instance_type,
     pretax_cost,
-    usage_quantity,
+    quantity,
     unit_of_measure,
     currency,
     tags,
@@ -25,8 +25,8 @@ WITH cte_line_items AS (
         resourcelocation as resource_location,
         coalesce(nullif(servicename, ''), metercategory) as service_name,
         json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_type,
-        cast(coalesce(nullif(quantity, 0), usagequantity) as DECIMAL(24,9)) as usage_quantity,
-        cast(coalesce(nullif(costinbillingcurrency, 0), pretaxcost) as DECIMAL(24,9)) as pretax_cost,
+        cast(coalesce(nullif(quantity, 0), 0) as DECIMAL(24,9)) as quantity,
+        cast(coalesce(nullif(costinbillingcurrency, 0), 0) as DECIMAL(24,9)) as costinbillingcurrency,
         coalesce(nullif(billingcurrencycode, ''), nullif(currency, ''), billingcurrency) as currency,
         json_parse(tags) as tags,
         coalesce(nullif(resourceid, ''), instanceid) as instance_id,
@@ -70,7 +70,7 @@ SELECT uuid() as uuid,
     -- Azure meters usage in large blocks e.g. blocks of 100 Hours
     -- We normalize this down to Hours and multiply the usage appropriately
     sum(li.pretax_cost) AS pretax_cost,
-    sum(li.usage_quantity * li.multiplier) AS usage_quantity,
+    sum(li.quantity * li.multiplier) AS quantity,
     max(li.unit_of_measure) as unit_of_measure,
     max(li.currency) as currency,
     cast(

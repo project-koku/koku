@@ -74,14 +74,11 @@ class AzurePostProcessor:
         Return source specific parquet column converters.
         """
         converters = {
-            "usagedatetime": azure_date_converter,
             "date": azure_date_converter,
             "billingperiodstartdate": azure_date_converter,
             "billingperiodenddate": azure_date_converter,
-            "usagequantity": safe_float,
             "quantity": safe_float,
             "resourcerate": safe_float,
-            "pretaxcost": safe_float,
             "costinbillingcurrency": safe_float,
             "effectiveprice": safe_float,
             "unitprice": safe_float,

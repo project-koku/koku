@@ -1,7 +1,7 @@
 SELECT
   *,
-  with_timezone(COALESCE(date, usagedatetime), 'UTC') as subs_start_time,
-  with_timezone(date_add('day', 1, COALESCE(date, usagedatetime)), 'UTC') as subs_end_time,
+  with_timezone(date, 'UTC') as subs_start_time,
+  with_timezone(date_add('day', 1, date), 'UTC') as subs_end_time,
   json_extract_scalar(lower(additionalinfo), '$.vcpus') as subs_vcpu,
   COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as subs_account,
   regexp_extract(COALESCE(NULLIF(resourceid, ''), instanceid), '([^/]+$)') as subs_resource_id,
@@ -46,13 +46,13 @@ WHERE
     AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL
     AND json_extract_scalar(lower(lower(tags)), '$.com_redhat_rhel') IS NOT NULL
     -- ensure there is usage
-    AND ceil(coalesce(nullif(quantity, 0), usagequantity)) > 0
+    AND ceil(coalesce(nullif(quantity, 0), 0)) > 0
     AND (
         {% for item in resources %}
             (
                 coalesce(NULLIF(resourceid, ''), instanceid) = {{item.rid}} AND
-                coalesce(date, usagedatetime) >= {{item.start}} AND
-                coalesce(date, usagedatetime) <= {{item.end}}
+                date >= {{item.start}} AND
+                date <= {{item.end}}
             )
             {% if not loop.last %}
                 OR

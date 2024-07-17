@@ -10,13 +10,13 @@ WHERE
     AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL
     AND json_extract_scalar(lower(lower(tags)), '$.com_redhat_rhel') IS NOT NULL
     -- ensure there is usage
-    AND ceil(coalesce(nullif(quantity, 0), usagequantity)) > 0
+    AND ceil(coalesce(nullif(quantity, 0), 0)) > 0
     AND (
         {% for item in resources %}
             (
                 coalesce(NULLIF(resourceid, ''), instanceid) = {{item.rid}} AND
-                coalesce(date, usagedatetime) >= {{item.start}} AND
-                coalesce(date, usagedatetime) <= {{item.end}}
+                date IS NOT NULL AND date >= {{item.start}} AND
+                date IS NOT NULL AND date <= {{item.end}}
             )
             {% if not loop.last %}
                 OR
