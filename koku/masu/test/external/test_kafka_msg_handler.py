@@ -486,7 +486,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "file": "/path/to/file.csv",
             "start": str(datetime.now()),
             "end": str(datetime.now()),
-            "ocp_files_to_process": {"meta_reportdatestart": str(datetime.now())},
+            "ocp_files_to_process": {"filename": {"meta_reportdatestart": str(datetime.now())}},
         }
 
         with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=True):
@@ -510,7 +510,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "file": "/path/to/file.csv",
             "start": str(datetime.now()),
             "end": str(datetime.now()),
-            "ocp_files_to_process": {"meta_reportdatestart": str(datetime.now())},
+            "ocp_files_to_process": {"filename": {"meta_reportdatestart": str(datetime.now())}},
         }
         expected_meta = {
             "schema": report_meta.get("schema_name"),
@@ -862,7 +862,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_id": "1",
             "start": str(datetime.now()),
             "end": str(datetime.now()),
-            "ocp_files_to_process": {"meta_reportdatestart": str(datetime.now())},
+            "ocp_files_to_process": {"filename": {"meta_reportdatestart": str(datetime.now())}},
         }
 
         # Check when manifest is done
