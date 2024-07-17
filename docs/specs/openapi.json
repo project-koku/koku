@@ -3502,6 +3502,74 @@
                 }
             }
         },
+        "/resource-types/aws-ec2-compute-instances/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS EC2 Instances For RBAC",
+                "operationId": "listResourcesAwsEC2Instances",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-ec2-compute-os/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS EC2 Operating Systems For RBAC",
+                "operationId": "listResourcesAwsEC2OperatingSystems",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/gcp-accounts/": {
             "get": {
                 "tags": [
