@@ -206,6 +206,8 @@ class AWSPostProcessor:
                 "lineitem_productcode",
                 "lineitem_availabilityzone",
                 "lineitem_lineitemtype",
+                "lineitem_usagetype",
+                "lineitem_operation",
                 "product_productfamily",
                 "product_operatingsystem",
                 "product_instancetype",

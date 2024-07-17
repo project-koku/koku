@@ -53,6 +53,8 @@ from api.report.ocp.view import OCPNetworkView
 from api.report.ocp.view import OCPVolumeView
 from api.resource_types.aws_accounts.view import AWSAccountView
 from api.resource_types.aws_category.view import AWSCategoryView
+from api.resource_types.aws_ec2_compute_instances.view import AWSEC2ComputeInstanceView
+from api.resource_types.aws_ec2_compute_os.view import AWSEC2ComputeOperatingSystemView
 from api.resource_types.aws_org_unit.view import AWSOrganizationalUnitView
 from api.resource_types.aws_regions.view import AWSAccountRegionView
 from api.resource_types.aws_services.view import AWSServiceView
