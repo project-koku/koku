@@ -24,7 +24,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
-from masu.processor import is_ocp_savings_plan_cost_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -283,9 +282,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        # Check if we're using the savingsplan unleash-gated feature
-        is_savingsplan_cost = is_ocp_savings_plan_cost_enabled(self.schema)
-
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -293,7 +289,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
-            "is_savingsplan_cost": is_savingsplan_cost,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
@@ -354,7 +349,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
                     ).update(markup_cost=(F("unblended_cost") * markup))
 
-    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids=None):
+    def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids=None, table_name=None):
         """
         Updates the line item daily summary table with tag mapping pieces.
 
@@ -373,14 +368,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.debug("No tag mappings for AWS.")
                 return
 
-        table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/aws/aws_tag_mapping_update_daily_summary.sql")
+        table_name = table_name if table_name else self._table_map["line_item_daily_summary"]
+        sql = pkgutil.get_data("masu.database", "sql/aws/aws_tag_mapping_update_summary_tables.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
             "schema": self.schema,
+            "table": table_name,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 

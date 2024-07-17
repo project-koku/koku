@@ -10,7 +10,7 @@
       private:
         enabled: false
     podSpec:
-      image: quay.io/app-sre/ubi8-nginx-118
+      image: quay.io/cloudservices/ubi8-nginx-124
       command:
         - nginx
         - "-g"
@@ -57,7 +57,7 @@
       volumes:
         - name: koku-api-nginx-conf
           configMap:
-            name: nginx-conf
+            name: koku-api-nginx-conf
 
 - op: add
   path: /parameters/-
@@ -100,4 +100,4 @@
     displayName: ROS OCP API Name
     name: ROS_OCP_API
     required: true
-    value: 'koku-api'  # Defaults to the Koku API for standalone deployments where ROS isn't deployed -- https://stackoverflow.com/q/32845674
+    value: 'koku-api-writes'  # Defaults to the Koku API for standalone deployments where ROS isn't deployed -- https://stackoverflow.com/q/32845674

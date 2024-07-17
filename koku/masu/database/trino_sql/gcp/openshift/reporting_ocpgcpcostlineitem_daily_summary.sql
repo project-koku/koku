@@ -342,6 +342,7 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         AND ocp.namespace != 'Worker unallocated'
         AND ocp.namespace != 'Platform unallocated'
         AND ocp.namespace != 'Network unattributed'
+        AND ocp.namespace != 'Storage unattributed'
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
 WHERE gcp.source = {{gcp_source_uuid}}

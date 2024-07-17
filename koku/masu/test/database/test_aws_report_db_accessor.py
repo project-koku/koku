@@ -34,6 +34,7 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -297,16 +298,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
         self.assertTrue(value)
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_raw_sql_query")
-    @patch("masu.database.aws_report_db_accessor.is_ocp_savings_plan_cost_enabled")
-    def test_back_populate_ocp_infrastructure_costs(self, mock_unleash, mock_execute):
+    def test_back_populate_ocp_infrastructure_costs(self, mock_execute):
         """Test that we back populate raw cost to OCP."""
-        is_savingsplan_cost = True
-        mock_unleash.return_value = is_savingsplan_cost
         report_period_id = 1
-
         start_date = self.dh.this_month_start
         end_date = self.dh.today
-
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -314,32 +310,13 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "start_date": start_date,
             "end_date": end_date,
             "report_period_id": report_period_id,
-            "is_savingsplan_cost": is_savingsplan_cost,
         }
 
         mock_jinja = Mock()
-
         mock_jinja.return_value = sql, sql_params
         accessor = AWSReportDBAccessor(schema=self.schema)
         accessor.prepare_query = mock_jinja
         accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
-        accessor.prepare_query.assert_called_with(sql, sql_params)
-        mock_execute.assert_called()
-
-        mock_jinja.reset_mock()
-        mock_execute.reset_mock()
-        mock_unleash.reset_mock()
-        is_savingsplan_cost = False
-        mock_unleash.return_value = is_savingsplan_cost
-        accessor.back_populate_ocp_infrastructure_costs(start_date, end_date, report_period_id)
-
-        sql_params = {
-            "schema": self.schema,
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_id": report_period_id,
-            "is_savingsplan_cost": is_savingsplan_cost,
-        }
 
         accessor.prepare_query.assert_called_with(sql, sql_params)
         mock_execute.assert_called()
@@ -389,36 +366,53 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
     def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
         """
-        This tests the tag mapping feature.
+        Test that mapped tags are updated in aws line item summary tables.
+        After the update, the child tag's key-value data is cleared and the parent tag's data is updated accordingly.
         """
         mock_unleash.return_value = True
         populated_keys = []
-        with schema_context(self.schema):
-            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
-            for enabled_tag in enabled_tags:
-                tag_count = AWSCostEntryLineItemDailySummary.objects.filter(
-                    tags__has_key=enabled_tag.key,
-                    usage_start__gte=self.dh.this_month_start,
-                    usage_start__lte=self.dh.today,
-                ).count()
-                if tag_count > 0:
-                    key_metadata = [enabled_tag.key, enabled_tag, tag_count]
-                    populated_keys.append(key_metadata)
-                if len(populated_keys) == 2:
-                    break
-            parent_key, parent_obj, parent_count = populated_keys[0]
-            child_key, child_obj, child_count = populated_keys[1]
-            TagMapping.objects.create(parent=parent_obj, child=child_obj)
-            self.accessor.update_line_item_daily_summary_with_tag_mapping(self.dh.this_month_start, self.dh.today)
-            expected_parent_count = parent_count + child_count
-            actual_parent_count = AWSCostEntryLineItemDailySummary.objects.filter(
-                tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
-            ).count()
-            self.assertEqual(expected_parent_count, actual_parent_count)
-            actual_child_count = AWSCostEntryLineItemDailySummary.objects.filter(
-                tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
-            ).count()
-            self.assertEqual(0, actual_child_count)
+
+        table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2Compute]
+
+        for table_class in table_classes:
+            with self.subTest(table_class=table_class):
+                populated_keys = []
+                with schema_context(self.schema):
+                    enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
+                    for enabled_tag in enabled_tags:
+                        tag_count = table_class.objects.filter(
+                            tags__has_key=enabled_tag.key,
+                            usage_start__gte=self.dh.this_month_start,
+                            usage_start__lte=self.dh.today,
+                        ).count()
+                        if tag_count > 0:
+                            key_metadata = [enabled_tag.key, enabled_tag, tag_count]
+                            populated_keys.append(key_metadata)
+                        if len(populated_keys) == 2:
+                            break
+
+                    parent_key, parent_obj, parent_count = populated_keys[0]
+                    child_key, child_obj, child_count = populated_keys[1]
+                    TagMapping.objects.create(parent=parent_obj, child=child_obj)
+                    self.accessor.update_line_item_daily_summary_with_tag_mapping(
+                        self.dh.this_month_start, self.dh.today, table_name=table_class._meta.db_table
+                    )
+                    expected_parent_count = parent_count + child_count
+                    actual_parent_count = table_class.objects.filter(
+                        tags__has_key=parent_key,
+                        usage_start__gte=self.dh.this_month_start,
+                        usage_start__lte=self.dh.today,
+                    ).count()
+                    self.assertEqual(expected_parent_count, actual_parent_count)
+                    actual_child_count = table_class.objects.filter(
+                        tags__has_key=child_key,
+                        usage_start__gte=self.dh.this_month_start,
+                        usage_start__lte=self.dh.today,
+                    ).count()
+                    self.assertEqual(0, actual_child_count)
+
+                    # Clear TagMapping objects
+                    TagMapping.objects.filter(parent=parent_obj, child=child_obj).delete()
 
     @patch("masu.database.aws_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
     def test_populate_ocp_on_aws_tag_information(self, mock_unleash):

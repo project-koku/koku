@@ -56,9 +56,9 @@ class OCPReportViewNetworkTest(IamTestCase):
         meta = data.get("meta")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(meta["total"]["data_transfer_in"], self.total_usage_in)
-        self.assertEqual(meta["total"]["data_transfer_out"], self.total_usage_out)
-        self.assertEqual(meta["total"]["usage"], self.total_usage)
+        self.assertEqual(meta["total"]["data_transfer_in"]["value"], self.total_usage_in)
+        self.assertEqual(meta["total"]["data_transfer_out"]["value"], self.total_usage_out)
+        self.assertEqual(meta["total"]["usage"]["value"], self.total_usage)
 
     def test_get_node_network_costs_group_by_project(self):
         with schema_context(self.schema_name):

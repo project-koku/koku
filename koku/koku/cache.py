@@ -123,6 +123,34 @@ def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
         invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
 
 
+def get_value_from_cache(cache_key, cache_choice="default"):
+    cache = caches[cache_choice]
+    return cache.get(cache_key)
+
+
+def set_value_in_cache(cache_key, cache_value, cache_choice="default"):
+    cache = caches[cache_choice]
+    cache.set(cache_key, cache_value)
+
+
+def is_key_in_cache(cache_key, cache_choice="default"):
+    cache = caches[cache_choice]
+    return cache.has_key(cache_key)
+
+
+def build_matching_tags_key(schema_name, provider_type):
+    """Return the key for matching tags"""
+    return f"OCP-on-{provider_type}:{schema_name}:matching-tags"
+
+
+def build_trino_schema_exists_key(schema_name):
+    return f"schema-exists-trino-{schema_name}"
+
+
+def build_trino_table_exists_key(schema_name, table_name):
+    return f"table-exists-trino-{schema_name}-{table_name}"
+
+
 def get_cached_matching_tags(schema_name, provider_type):
     """Return cached OCP on Cloud matched tags if exists."""
     cache = caches["default"]

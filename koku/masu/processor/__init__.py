@@ -20,6 +20,14 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
+def is_feature_unattributed_storage_enabled(account):
+    """Should unattributed storage feature be enabled."""
+    unleash_flag = "cost-management.backend.unattributed_storage"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+
+
 def is_purge_trino_files_enabled(account):  # pragma: no cover
     """Helper to determine if account is enabled for deleting trino files."""
     account = convert_account(account)
@@ -79,20 +87,18 @@ def is_customer_large(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
 
 
+def is_customer_penalty(account):  # pragma: no cover
+    """Flag the customer as penalised."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.penalty-customer", context)
+
+
 def is_rate_limit_customer_large(account):  # pragma: no cover
     """Flag the customer as large and to be rate limited."""
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
-
-
-def is_ocp_savings_plan_cost_enabled(account):  # pragma: no cover
-    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.enable-ocp-savings-plan-cost", context, fallback_development_true
-    )
 
 
 def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover

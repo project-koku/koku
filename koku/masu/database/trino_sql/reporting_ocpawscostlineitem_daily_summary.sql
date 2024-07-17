@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.aws_openshift_daily_resource_mat
     region varchar,
     unit varchar,
     usage_amount double,
+    data_transfer_direction varchar,
     currency_code varchar,
     unblended_cost double,
     blended_cost double,
@@ -135,6 +136,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     region varchar,
     unit varchar,
     usage_amount double,
+    data_transfer_direction varchar,
     currency_code varchar,
     unblended_cost double,
     markup_cost double,
@@ -567,6 +569,8 @@ SELECT aws.uuid as aws_uuid,
             )
         AND namespace != 'Worker unallocated'
         AND namespace != 'Platform unallocated'
+        AND namespace != 'Storage unattributed'
+        AND namespace != 'Network unattributed'
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
