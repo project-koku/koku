@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 import uuid
+from datetime import date
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -501,8 +502,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_summarize_manifest_dates(self):
         """Test report summarization."""
-        start_date = datetime(year=2024, month=6, day=17).date()
-        end_date = datetime(year=2024, month=7, day=17).date()
+        start_date = date(year=2024, month=6, day=17)
+        end_date = date(year=2024, month=7, day=17)
         report_meta = {
             "schema_name": "test_schema",
             "manifest_id": "1",
@@ -524,8 +525,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 "provider_type": report_meta.get("provider_type"),
                 "provider_uuid": report_meta.get("provider_uuid"),
                 "manifest_id": report_meta.get("manifest_id"),
-                "start": datetime(year=2024, month=6, day=17).date(),
-                "end": datetime(year=2024, month=6, day=30).date(),
+                "start": date(year=2024, month=6, day=17),
+                "end": date(year=2024, month=6, day=30),
                 "manifest_uuid": "1234",
             },
             {
@@ -534,8 +535,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 "provider_type": report_meta.get("provider_type"),
                 "provider_uuid": report_meta.get("provider_uuid"),
                 "manifest_id": report_meta.get("manifest_id"),
-                "start": datetime(year=2024, month=7, day=1).date(),
-                "end": datetime(year=2024, month=7, day=17).date(),
+                "start": date(year=2024, month=7, day=1),
+                "end": date(year=2024, month=7, day=17),
                 "manifest_uuid": "1234",
             },
         ]
@@ -879,7 +880,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_id": "1",
             "start": str(datetime.now()),
             "end": str(datetime.now()),
-            "ocp_files_to_process": {"filename": {"meta_reportdatestart": str(datetime.now().date())}},
+            "ocp_files_to_process": {"filename": {"meta_reportdatestart": str(date.today())}},
         }
 
         # Check when manifest is done

@@ -649,7 +649,7 @@ def summarize_manifest(report_meta, manifest_uuid):
     if "0001-01-01 00:00:00+00:00" not in [str(start_date), str(end_date)]:
         dates = {
             datetime.strptime(meta["meta_reportdatestart"], "%Y-%m-%d").date()
-            for _, meta in report_meta["ocp_files_to_process"].items()
+            for meta in report_meta["ocp_files_to_process"].values()
         }
         min_date = min(dates)
         max_date = max(dates)
