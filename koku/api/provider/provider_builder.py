@@ -101,7 +101,7 @@ class ProviderBuilder:
             try:
                 customer = Customer.objects.filter(org_id=self.org_id).get()
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware.create_customer(self.account_number, self.org_id)
+                customer = IdentityHeaderMiddleware.create_customer(self.account_number, self.org_id, "POST")
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:

@@ -41,4 +41,3 @@ from masu.api.update_cost_model_costs import update_cost_model_costs
 from masu.api.update_openshift_on_cloud import update_openshift_on_cloud
 from masu.api.update_rates import update_azure_storage_capacity
 from masu.api.update_rates import update_exchange_rates
-from masu.api.upgrade_trino.view import fix_parquet

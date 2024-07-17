@@ -23,7 +23,6 @@ from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
 from masu.api.views import expired_trino_partitions
 from masu.api.views import explain_query
-from masu.api.views import fix_parquet
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
@@ -52,7 +51,6 @@ ROUTER.register(r"manifests", ManifestStatusViewSet, basename="manifests")
 
 
 urlpatterns = [
-    path("fix_parquet/", fix_parquet, name="fix_parquet"),
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
     path("ingress_reports/", ingress_reports, name="ingress_reports"),
