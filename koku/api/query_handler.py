@@ -71,9 +71,7 @@ class QueryHandler:
 
         self.time_scope_units = self.parameters.get_filter("time_scope_units")
         self.time_scope_value = (
-            int(self.parameters.get_filter("time_scope_value"))
-            if self.parameters.get_filter("time_scope_value")
-            else None
+            int(time_scope_value) if (time_scope_value := self.parameters.get_filter("time_scope_value")) else None
         )
 
         # self.start_datetime = parameters["start_date"]
@@ -218,14 +216,12 @@ class QueryHandler:
             (String): The value of how data will be sliced.
 
         """
-        if self.time_scope_units:
-            return self.time_scope_units
-
-        get_default_report_value = self._mapper._report_type_map.get("default_time_period", {}).get(
-            "time_scope_units", TIME_SCOPE_UNITS_DAILY
-        )
-        time_scope_units = self.parameters.get_filter("time_scope_units", default=get_default_report_value)
-        self.time_scope_units = time_scope_units
+        if not self.time_scope_units:
+            get_default_report_value = self._mapper._report_type_map.get("default_time_period", {}).get(
+                "time_scope_units", TIME_SCOPE_UNITS_DAILY
+            )
+            time_scope_units = self.parameters.get_filter("time_scope_units", default=get_default_report_value)
+            self.time_scope_units = time_scope_units
         return self.time_scope_units
 
     def get_time_scope_value(self):
@@ -235,14 +231,12 @@ class QueryHandler:
             (Integer): time relative value providing query scope
 
         """
-        if self.time_scope_value:
-            return self.time_scope_value
-
-        get_default_report_value = self._mapper._report_type_map.get("default_time_period", {}).get(
-            "time_scope_value", TIME_SCOPE_VALUES_DAILY[0]
-        )
-        time_scope_value = self.parameters.get_filter("time_scope_value", default=get_default_report_value)
-        self.time_scope_value = int(time_scope_value)
+        if not self.time_scope_value:
+            get_default_report_value = self._mapper._report_type_map.get("default_time_period", {}).get(
+                "time_scope_value", TIME_SCOPE_VALUES_DAILY[0]
+            )
+            time_scope_value = self.parameters.get_filter("time_scope_value", default=get_default_report_value)
+            self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
     def _get_timeframe(self):
