@@ -32,7 +32,7 @@ TRINO_FILTER_MAP = {
     Provider.PROVIDER_OCI: {"date": "lineitem_intervalusagestart", "metric": "cost_mycost"},
     Provider.PROVIDER_OCP: {
         "date": "usage_start",
-        "metric": "pod_usage_cpu_core_hours",
+        "metric": "pod_effective_usage_cpu_core_hours",
     },
 }
 PG_FILTER_MAP = {
@@ -48,7 +48,7 @@ PG_FILTER_MAP = {
     Provider.PROVIDER_OCI: {"date": "usage_start", "metric": "cost"},
     Provider.PROVIDER_OCP: {
         "date": "usage_start",
-        "metric": "pod_usage_cpu_core_hours",
+        "metric": "pod_effective_usage_cpu_core_hours",
     },
 }
 
@@ -96,6 +96,8 @@ def data_validation(pg_data, trino_data, tolerance=1):
     """Validate if postgres and trino query data cost matches per day"""
     incomplete_days = {}
     valid_cost = True
+    if trino_data == []:
+        return incomplete_days, False
     for date in trino_data:
         if date in pg_data:
             if not abs(pg_data[date] - trino_data[date]) <= tolerance:
@@ -123,26 +125,26 @@ def execute_relevant_query(schema, provider_uuid, provider_type, start_date, end
     for start, end in date_range_pair(start_date, end_date, step=date_step):
         if trino:
             sql = f"""
-                SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date FROM hive.{schema}.{table}
+                SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date
+                FROM hive.{schema}.{table}
                     WHERE source = '{provider_uuid}'
                     AND {query_filters.get("date")} >= date('{start}')
                     AND {query_filters.get("date")} <= date('{end}')
                     AND year = '{year}'
-                    AND month = '{month}'
+                    AND lpad(month, 2, '0') = '{month}'
                     GROUP BY {query_filters.get("date")}
                     ORDER BY {query_filters.get("date")}"""
             result = report_db_accessor._execute_trino_raw_sql_query(sql, log_ref="data validation query")
         else:
             sql = f"""
-                SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date FROM {schema}.{table}_{year}_{month}
+                SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date
+                FROM {schema}.{table}_{year}_{month}
                     WHERE source_uuid = '{provider_uuid}'
                     AND {query_filters.get("date")} >= '{start}'
                     AND {query_filters.get("date")} <= '{end}'
                     GROUP BY {query_filters.get("date")}
                     ORDER BY {query_filters.get("date")}"""
-            result = report_db_accessor._prepare_and_execute_raw_sql_query(
-                query_filters.get("table"), sql, operation="VALIDATION_QUERY"
-            )
+            result = report_db_accessor._prepare_and_execute_raw_sql_query(table, sql, operation="VALIDATION_QUERY")
         if result != []:
             for day in result:
                 key = day[1].date() if isinstance(day[1], datetime) else day[1]
@@ -157,7 +159,7 @@ def check_data_integrity(schema, provider_uuid, start_date, end_date, context, d
     daily_difference = {}
     LOG.info(log_json(msg=f"validation started for provider: {provider_uuid}", context=context))
     provider = Provider.objects.filter(uuid=provider_uuid).first()
-    # Postgres query to get daily cost
+    # Postgres query to get daily values
     try:
         pg_data = execute_relevant_query(
             schema, provider_uuid, provider.type.strip("-local"), start_date, end_date, date_step
@@ -165,7 +167,7 @@ def check_data_integrity(schema, provider_uuid, start_date, end_date, context, d
     except Exception as e:
         LOG.warning(log_json(msg=f"data validation postgres query failed: {e}", context=context))
         return QueryError
-    # Trino query to get daily cost
+    # Trino query to get daily values
     try:
         trino_data = execute_relevant_query(
             schema, provider_uuid, provider.type.strip("-local"), start_date, end_date, date_step, True
@@ -173,7 +175,7 @@ def check_data_integrity(schema, provider_uuid, start_date, end_date, context, d
     except Exception as e:
         LOG.warning(log_json(msg=f"data validation trino query failed: {e}", context=context))
         return QueryError
-    # Compare results, looking for discrepency in cost
+    # Compare results
     daily_difference, valid_cost = data_validation(pg_data, trino_data)
     if valid_cost:
         LOG.info(log_json(msg=f"all data complete for provider: {provider_uuid}", context=context))
