@@ -355,6 +355,7 @@ GROUP BY ocp_filtered.azure_partial_resource_id, date(coalesce(date, usagedateti
 -- Storage disk resources:
 -- (PV’s Capacity) / Disk Capacity * Cost of Disk
 -- PV without PVCs are Unattributed Storage
+-- 2 volumes can share the same disk id
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -387,7 +388,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     year,
     month
 )
-SELECT azure.uuid as azure_uuid,
+SELECT cast(uuid() as varchar) as azure_uuid,
     max(ocp.cluster_id) as cluster_id,
     max(ocp.cluster_alias) as cluster_alias,
     'Storage' as data_source,
