@@ -536,25 +536,41 @@ class TestSUBSDataMessenger(SUBSTestCase):
     def test_process_and_send_subs_message_azure_time_already_processed(
         self, mock_msg_builder, mock_reader, mock_producer, mock_remove, mock_azure_id
     ):
-        """Tests that the functions are not called for a provider that has already processed."""
+        """Tests that the start for the range is updated."""
+        mock_azure_id.return_value = ("expected", "expected")
+        mock_msg_builder.return_value = {"fake": "msg"}
         upload_keys = ["fake_key"]
-        self.azure_messenger.date_map["2023-07-01T01:00:00Z"] = "i-55555556"
+        self.azure_messenger.date_map = {"2024-07-01T00:00:00Z": {"i-55555556": 12}}
+        instance = "expected"
+        account = "9999999999999"
+        vcpu = "2"
+        rhel_version = "7"
+        sla = "Premium"
+        usage = "Production"
+        role = "Red Hat Enterprise Linux Server"
+        conversion = "true"
+        addon_id = "ELS"
+        tenant_id = "expected"
+        expected_start = "2024-07-01T12:00:00+00:00"
+        expected_end = "2024-07-01T13:00:00+00:00"
         mock_reader.return_value = [
             {
                 "resourceid": "i-55555556",
-                "subs_start_time": "2023-07-01T01:00:00Z",
-                "subs_end_time": "2023-07-01T02:00:00Z",
+                "subs_start_time": "2024-07-01T00:00:00Z",
+                "subs_end_time": "2024-07-02T00:00:00Z",
                 "subs_resource_id": "i-55555556",
-                "subs_account": "9999999999999",
+                "subs_account": account,
                 "physical_cores": "1",
                 "subs_vcpu": "2",
                 "variant": "Server",
-                "subs_usage": "Production",
-                "subs_sla": "Premium",
-                "subs_role": "Red Hat Enterprise Linux Server",
-                "subs_product_ids": "479-70",
-                "subs_addon": "false",
-                "subs_instance": "",
+                "subs_usage": usage,
+                "subs_usage_quantity": "1",
+                "subs_sla": sla,
+                "subs_role": role,
+                "subs_rhel_version": rhel_version,
+                "subs_addon_id": addon_id,
+                "subs_instance": instance,
+                "subs_conversion": conversion,
                 "source": self.azure_provider.uuid,
                 "resourcegroup": "my-fake-rg",
             }
@@ -562,9 +578,22 @@ class TestSUBSDataMessenger(SUBSTestCase):
         mock_op = mock_open(read_data="x,y,z")
         with patch("builtins.open", mock_op):
             self.azure_messenger.process_and_send_subs_message(upload_keys)
-        mock_azure_id.assert_not_called()
-        mock_msg_builder.assert_not_called()
-        mock_producer.assert_not_called()
+        mock_azure_id.assert_called_once()
+        mock_msg_builder.assert_called_with(
+            instance,
+            account,
+            expected_start,
+            expected_end,
+            vcpu,
+            rhel_version,
+            sla,
+            usage,
+            role,
+            conversion,
+            addon_id,
+            tenant_id,
+        )
+        mock_producer.assert_called_once()
 
     def test_determine_product_ids(self):
         """Test that different combinations of inputs result in expected product IDs"""

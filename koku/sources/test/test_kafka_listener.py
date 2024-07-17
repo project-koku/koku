@@ -126,7 +126,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         post_save.disconnect(storage_callback, sender=Sources)
         account = "10001"
         org_id = "1234567"
-        IdentityHeaderMiddleware.create_customer(account, org_id)
+        IdentityHeaderMiddleware.create_customer(account, org_id, "POST")
 
     def setUp(self):
         """Setup the test method."""

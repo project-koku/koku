@@ -173,7 +173,7 @@ class SourcesViewTests(IamTestCase):
         other_account = "10002"
         other_org_id = "2222222"
         customer = self._create_customer_data(account=other_account, org_id=other_org_id)
-        IdentityHeaderMiddleware.create_customer(other_account, other_org_id)
+        IdentityHeaderMiddleware.create_customer(other_account, other_org_id, "POST")
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
 
         with requests_mock.mock() as m:
@@ -210,7 +210,7 @@ class SourcesViewTests(IamTestCase):
         other_account = "10002"
         other_org_id = "2222222"
         customer = self._create_customer_data(account=other_account, org_id=other_org_id)
-        IdentityHeaderMiddleware.create_customer(other_account, other_org_id)
+        IdentityHeaderMiddleware.create_customer(other_account, other_org_id, "POST")
 
         request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         with requests_mock.mock() as m:

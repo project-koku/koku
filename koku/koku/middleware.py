@@ -235,7 +235,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
     @staticmethod
-    def create_customer(account, org_id):
+    def create_customer(account, org_id, request_method):
         """Create a customer.
         Args:
             account (str): The account identifier
@@ -247,9 +247,10 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             with transaction.atomic():
                 schema_name = create_schema_name(org_id)
                 customer = Customer(account_id=account, org_id=org_id, schema_name=schema_name)
-                customer.save()
-                UNIQUE_ACCOUNT_COUNTER.inc()
-                LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
+                if request_method and request_method not in ["GET", "HEAD"]:
+                    customer.save()
+                    UNIQUE_ACCOUNT_COUNTER.inc()
+                    LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
         except IntegrityError:
             customer = Customer.objects.filter(org_id=org_id).get()
 
@@ -273,7 +274,10 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 context = {"request": request, "customer": customer}
                 serializer = UserSerializer(data=user_data, context=context)
                 if serializer.is_valid(raise_exception=True):
-                    new_user = serializer.save()
+                    if request and request.method in ["GET", "HEAD"]:
+                        new_user = User(username=username, email=email, customer=customer)
+                    else:
+                        new_user = serializer.save()
 
                 UNIQUE_USER_COUNTER.labels(account=customer.account_id, user=username).inc()
                 LOG.info("Created new user %s for customer(org_id %s).", username, customer.org_id)
@@ -360,7 +364,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 else:
                     customer = IdentityHeaderMiddleware.customer_cache[org_id]
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware.create_customer(account, org_id)
+                customer = IdentityHeaderMiddleware.create_customer(account, org_id, request.method)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
