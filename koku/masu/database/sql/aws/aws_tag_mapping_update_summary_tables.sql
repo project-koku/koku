@@ -37,7 +37,7 @@ cte_update_tag_keys as (
                 )
         END as update_tags
     FROM
-        {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS lids
+        {{schema | sqlsafe}}.{{table | sqlsafe}} AS lids
     CROSS JOIN (
         SELECT
             jsonb_object_agg(child_key, parent_key) AS tag_map
@@ -51,7 +51,7 @@ cte_update_tag_keys as (
         AND lids.cost_entry_bill_id in {{ bill_ids | inclause }}
         {% endif %}
 )
-UPDATE {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS lids
+UPDATE {{schema | sqlsafe}}.{{table | sqlsafe}} AS lids
 SET tags = update_data.update_tags
 FROM cte_update_tag_keys as update_data
 WHERE lids.uuid = update_data.uuid
