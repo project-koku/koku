@@ -32,6 +32,7 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from common.queues import get_customer_queue
 from common.queues import OCPQueue
 from kafka_utils.utils import extract_from_header
@@ -626,16 +627,18 @@ def summarize_manifest(report_meta, manifest_uuid):
     if not MANIFEST_ACCESSOR.manifest_ready_for_summary(manifest_id):
         return
 
-    new_report_meta = {
-        "schema": schema,
-        "schema_name": schema,
-        "provider_type": report_meta.get("provider_type"),
-        "provider_uuid": report_meta.get("provider_uuid"),
-        "manifest_id": manifest_id,
-        "manifest_uuid": manifest_uuid,
-        "start": start_date,
-        "end": end_date,
-    }
+    new_report_meta = [
+        {
+            "schema": schema,
+            "schema_name": schema,
+            "provider_type": report_meta.get("provider_type"),
+            "provider_uuid": report_meta.get("provider_uuid"),
+            "manifest_id": manifest_id,
+            "manifest_uuid": manifest_uuid,
+            "start": start_date,
+            "end": end_date,
+        }
+    ]
     if not (start_date or end_date):
         # we cannot process without start and end dates
         LOG.info(
@@ -644,9 +647,35 @@ def summarize_manifest(report_meta, manifest_uuid):
         return
 
     if "0001-01-01 00:00:00+00:00" not in [str(start_date), str(end_date)]:
+        dates = {
+            datetime.strptime(meta["meta_reportdatestart"], "%Y-%m-%d").date()
+            for meta in report_meta["ocp_files_to_process"].values()
+        }
+        min_date = min(dates)
+        max_date = max(dates)
+        # if we cross the month boundary, then we need to create 2 manifests:
+        # 1 for each month so that we summarize all the data correctly within the month bounds
+        if min_date.month != max_date.month:
+            dh = DateHelper()
+            new_report_meta[0]["start"] = min_date
+            new_report_meta[0]["end"] = dh.month_end(min_date)
+
+            new_report_meta.append(
+                {
+                    "schema": schema,
+                    "schema_name": schema,
+                    "provider_type": report_meta.get("provider_type"),
+                    "provider_uuid": report_meta.get("provider_uuid"),
+                    "manifest_id": manifest_id,
+                    "manifest_uuid": manifest_uuid,
+                    "start": dh.month_start(max_date),
+                    "end": max_date,
+                }
+            )
+
         # we have valid dates, so we can summarize the payload
         LOG.info(log_json(manifest_uuid, msg="summarizing ocp reports", context=context))
-        return summarize_reports.s([new_report_meta], ocp_processing_queue).apply_async(queue=ocp_processing_queue)
+        return summarize_reports.s(new_report_meta, ocp_processing_queue).apply_async(queue=ocp_processing_queue)
 
     cr_status = report_meta.get("cr_status", {})
     if data_collection_message := cr_status.get("reports", {}).get("data_collection_message", ""):
@@ -782,8 +811,7 @@ def process_messages(msg):
                 )
             )
         process_complete = report_metas_complete(report_metas)
-        summary_task_id = summarize_manifest(report_meta, tracing_id)
-        if summary_task_id:
+        if summary_task_id := summarize_manifest(report_meta, tracing_id):
             LOG.info(log_json(tracing_id, msg=f"Summarization celery uuid: {summary_task_id}"))
 
     if status and not settings.DEBUG:

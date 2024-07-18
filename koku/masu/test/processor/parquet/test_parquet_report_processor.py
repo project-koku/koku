@@ -61,7 +61,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first().id
         self.ocp_manifest_id = CostUsageReportManifest.objects.filter(cluster_id__isnull=False).first().id
         self.start_date = self.today
-        self.report_name = "koku-1.csv.gz"
+        self.report_name = Path("koku-1.csv.gz")
         self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
         self.report_processor = ParquetReportProcessor(
             schema_name=self.schema,
@@ -85,7 +85,17 @@ class TestParquetReportProcessor(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
             manifest_id=self.manifest_id,
-            context={"tracing_id": self.tracing_id, "start_date": self.today, "create_table": True},
+            context={
+                "tracing_id": self.tracing_id,
+                "start_date": self.today,
+                "create_table": True,
+                "ocp_files_to_process": {
+                    self.report_name.stem: {
+                        "meta_reportdatestart": "2023-01-01",
+                        "meta_reportnumhours": "2",
+                    }
+                },
+            },
         )
         ingress_uuid = "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
         self.ingress_report_dict = {
@@ -271,15 +281,11 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertEqual(file_name, "")
             self.assertTrue(data_frame.empty)
 
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
-            with patch(
-                "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", return_value=None
-            ):
-                with patch(
-                    "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"
-                ):
-                    with self.assertRaises(ParquetReportProcessorError):
-                        self.report_processor_ocp.convert_to_parquet()
+        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch(
+            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", return_value=None
+        ), patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"):
+            with self.assertRaises(ParquetReportProcessorError):
+                self.report_processor_ocp.convert_to_parquet()
 
         expected = "no split files to convert to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
