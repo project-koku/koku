@@ -13,7 +13,6 @@ from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
-from api.report.serializers import handle_invalid_fields
 from api.report.serializers import OrderSerializer
 from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
@@ -221,43 +220,24 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
-
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter inputs are invalid
-
-        """
-        handle_invalid_fields(self, data)
-
-        resolution = data.get("resolution")
-        time_scope_value = data.get("time_scope_value")
-        time_scope_units = data.get("time_scope_units")
-
-        errors = {}
-
-        if not time_scope_units:
-            time_scope_units = TIME_SCOPE_UNITS_MONTHLY
-        if not time_scope_value:
-            time_scope_value = TIME_SCOPE_VALUES_MONTHLY[0]
-        if not resolution:
-            resolution = RESOLUTION_MONTHLY
-        if time_scope_units != TIME_SCOPE_UNITS_MONTHLY:
-            errors["time_scope_units"] = f"The valid value for time_scope_units is {TIME_SCOPE_UNITS_MONTHLY}."
-        if time_scope_value not in TIME_SCOPE_VALUES_MONTHLY:
-            errors["time_scope_value"] = f"The valid values for time_scope_value are {TIME_SCOPE_VALUES_MONTHLY}."
-        if resolution != RESOLUTION_MONTHLY:
-            errors["resolution"] = f"The valid value for resolution is {RESOLUTION_MONTHLY}."
-
-        if errors:
-            raise serializers.ValidationError(errors)
-
-        return data
+    resolution = serializers.ChoiceField(
+        choices=RESOLUTION_CHOICES,
+        required=False,
+        default=TIME_SCOPE_UNITS_MONTHLY,
+        error_messages={"invalid_choice": f"valid choice is '{RESOLUTION_MONTHLY}'"},
+    )
+    time_scope_value = serializers.ChoiceField(
+        choices=TIME_CHOICES,
+        required=False,
+        default=TIME_SCOPE_VALUES_MONTHLY[0],
+        error_messages={"invalid_choice": f"valid choices are '{TIME_SCOPE_VALUES_MONTHLY}'"},
+    )
+    time_scope_units = serializers.ChoiceField(
+        choices=TIME_UNIT_CHOICES,
+        required=False,
+        default=RESOLUTION_MONTHLY,
+        error_messages={"invalid_choice": f"valid choice is '{TIME_SCOPE_UNITS_MONTHLY}'"},
+    )
 
 
 class AWSEC2ExcludeSerializer(AWSExcludeSerializer):
