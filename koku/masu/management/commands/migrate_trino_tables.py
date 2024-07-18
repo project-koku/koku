@@ -376,7 +376,9 @@ def drop_tables(tables, schemas) -> None:
             try:
                 result = run_trino_sql(sql, schema)
                 LOG.info(f"{prefix}DROP TABLE result: {result}")
-                delete_value_from_cache(build_trino_table_exists_key(schema, table_name))
+                key = build_trino_table_exists_key(schema, table_name)
+                result = delete_value_from_cache(key)
+                LOG.info(f"{prefix}delete cache key {key}: {result}")
             except Exception as e:
                 LOG.error(e)
 
