@@ -35,7 +35,6 @@ TRINO_REQUIRED_COLUMNS = {
     "currency": "",
     "effectiveprice": 0.0,
     "frequency": "",
-    "instanceid": "",
     "invoicesectionid": "",
     "invoicesectionname": "",
     "isazurecrediteligible": "",
