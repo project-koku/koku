@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 import uuid
+from datetime import date
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -486,6 +487,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "file": "/path/to/file.csv",
             "start": str(datetime.now()),
             "end": str(datetime.now()),
+            "ocp_files_to_process": {"filename": {"meta_reportdatestart": str(datetime.now().date())}},
         }
 
         with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=True):
@@ -500,6 +502,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_summarize_manifest_dates(self):
         """Test report summarization."""
+        start_date = date(year=2024, month=6, day=17)
+        end_date = date(year=2024, month=7, day=17)
         report_meta = {
             "schema_name": "test_schema",
             "manifest_id": "1",
@@ -507,24 +511,40 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "provider_type": "OCP",
             "compression": "UNCOMPRESSED",
             "file": "/path/to/file.csv",
-            "start": str(datetime.now()),
-            "end": str(datetime.now()),
+            "start": "2024-07-17 17:00:00.000000",
+            "end": "2024-07-17 17:00:00.000000",
+            "ocp_files_to_process": {
+                "filename1": {"meta_reportdatestart": str(start_date)},
+                "filename2": {"meta_reportdatestart": str(end_date)},
+            },
         }
-        expected_meta = {
-            "schema": report_meta.get("schema_name"),
-            "schema_name": report_meta.get("schema_name"),
-            "provider_type": report_meta.get("provider_type"),
-            "provider_uuid": report_meta.get("provider_uuid"),
-            "manifest_id": report_meta.get("manifest_id"),
-            "start": report_meta.get("start"),
-            "end": report_meta.get("end"),
-            "manifest_uuid": "1234",
-        }
+        expected_meta = [
+            {
+                "schema": report_meta.get("schema_name"),
+                "schema_name": report_meta.get("schema_name"),
+                "provider_type": report_meta.get("provider_type"),
+                "provider_uuid": report_meta.get("provider_uuid"),
+                "manifest_id": report_meta.get("manifest_id"),
+                "start": date(year=2024, month=6, day=17),
+                "end": date(year=2024, month=6, day=30),
+                "manifest_uuid": "1234",
+            },
+            {
+                "schema": report_meta.get("schema_name"),
+                "schema_name": report_meta.get("schema_name"),
+                "provider_type": report_meta.get("provider_type"),
+                "provider_uuid": report_meta.get("provider_uuid"),
+                "manifest_id": report_meta.get("manifest_id"),
+                "start": date(year=2024, month=7, day=1),
+                "end": date(year=2024, month=7, day=17),
+                "manifest_uuid": "1234",
+            },
+        ]
 
         with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=True):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta, self.manifest_id)
-                mock_summarize_reports.assert_called_with([expected_meta], OCPQueue.DEFAULT)
+                mock_summarize_reports.assert_called_with(expected_meta, OCPQueue.DEFAULT)
 
         with patch("masu.external.kafka_msg_handler.MANIFEST_ACCESSOR.manifest_ready_for_summary", return_value=False):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
@@ -860,6 +880,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_id": "1",
             "start": str(datetime.now()),
             "end": str(datetime.now()),
+            "ocp_files_to_process": {"filename": {"meta_reportdatestart": str(date.today())}},
         }
 
         # Check when manifest is done

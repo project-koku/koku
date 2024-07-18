@@ -136,6 +136,12 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, trin
                 LOG.debug(f"processed templated sql:\n\tstmt: {stmt}\n\ts_params: {s_params}")
             else:
                 stmt, s_params = p_stmt, params
+            if stmt == "":
+                # When using if in jinja's we have to put the endif before
+                # the semicolon otherwise sqlparse will will cut off the
+                # the endif jinja tag. After the preprocessor is run
+                # if the condition is false an empty line is returned.
+                continue
 
             try:
                 cur = trino_conn.cursor()

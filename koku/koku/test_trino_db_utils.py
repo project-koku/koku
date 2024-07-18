@@ -23,6 +23,38 @@ class TestTrinoDatabaseUtils(IamTestCase):
         self.assertEqual(conn.schema, self.schema_name)
         self.assertEqual(conn.catalog, "hive")
 
+    def test_executescript_jinja_conditionals(self):
+        """
+        Test that execute of a buffer with jinja conditionals.
+        """
+        sqlscript = """
+{% if populate %}
+SELECT * FROM hive.{{schema | sqlsafe}}.fake_table
+{% endif %}
+;
+"""
+        conn = FakeTrinoConn()
+        params = {
+            "schema": self.schema_name,
+            "populate": False,
+        }
+        results = executescript(
+            conn, sqlscript, params=params, preprocessor=JinjaSql(param_style="format").prepare_query
+        )
+        self.assertEqual(results, [])
+
+    def test_executescript_empty_string(self):
+        sqlscript = ""
+        conn = FakeTrinoConn()
+        params = {
+            "schema": self.schema_name,
+            "populate": False,
+        }
+        results = executescript(
+            conn, sqlscript, params=params, preprocessor=JinjaSql(param_style="format").prepare_query
+        )
+        self.assertEqual(results, [])
+
     def test_executescript(self):
         """
         Test execution of a buffer containing multiple statements

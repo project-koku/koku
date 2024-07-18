@@ -42,6 +42,20 @@ aws_daily_summary = Recipe(
     _quantity=10,
 )
 
+aws_ec2_compute_summary = Recipe(
+    "AWSCostEntryLineItemSummaryByEC2Compute",
+    resource_id=cycle(f"i-000000{i}" for i in range(AWS_CONSTANTS.length - 1)),
+    instance_type=cycle(AWS_CONSTANTS["instance_types"]),
+    operating_system=cycle(AWS_CONSTANTS["operating_systems"]),
+    unit=cycle(AWS_CONSTANTS["units"]),
+    region=cycle(AWS_GEOG["regions"]),
+    memory=cycle(AWS_CONSTANTS["memory"]),
+    vcpu=cycle(AWS_CONSTANTS["vcpus"]),
+    cost_category=cycle(AWS_CONSTANTS["cost_category"]),
+    _fill_optional=True,
+    _quantity=AWS_CONSTANTS.length,
+)
+
 azure_daily_summary = Recipe(
     "AzureCostEntryLineItemDailySummary",
     service_name=cycle(AZURE_CONSTANTS["service_names"]),
