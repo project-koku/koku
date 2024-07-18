@@ -186,9 +186,9 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "usage": Sum("usage_quantity"),
+                            "usage": Sum("quantity"),
                         },
-                        "aggregate_key": "usage_quantity",
+                        "aggregate_key": "quantity",
                         "annotations": {
                             "infra_total": Sum(
                                 (
@@ -228,7 +228,7 @@ class AzureProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum("usage_quantity"),
+                            "usage": Sum("quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
                                 Value("Hrs", output_field=CharField()),
@@ -237,7 +237,7 @@ class AzureProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "delta_key": {"usage": Sum("usage_quantity")},
+                        "delta_key": {"usage": Sum("quantity")},
                         "filter": [
                             {"field": "instance_type", "operation": "isnull", "parameter": False},
                             {"field": "unit_of_measure", "operation": "exact", "parameter": "Hrs"},
@@ -288,9 +288,9 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "usage": Sum("usage_quantity"),
+                            "usage": Sum("quantity"),
                         },
-                        "aggregate_key": "usage_quantity",
+                        "aggregate_key": "quantity",
                         "annotations": {
                             "infra_total": Sum(
                                 (
@@ -330,7 +330,7 @@ class AzureProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum("usage_quantity"),
+                            "usage": Sum("quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
                                 Value("GB-Mo", output_field=CharField()),
@@ -339,7 +339,7 @@ class AzureProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "delta_key": {"usage": Sum("usage_quantity")},
+                        "delta_key": {"usage": Sum("quantity")},
                         "filter": [
                             {"field": "service_name", "operation": "icontains", "parameter": "Storage"},
                             {"field": "unit_of_measure", "operation": "exact", "parameter": "GB-Mo"},
