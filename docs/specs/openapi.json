@@ -8098,6 +8098,12 @@
                             "type": "string"
                         },
                         "example": ["us-east-1"]
+                    },
+                    "operating_system": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             },
