@@ -37,7 +37,6 @@ INGRESS_REQUIRED_COLUMNS = {
     "ServiceInfo2",
     "ServiceName",
     "ServiceTier",
-    "Currency",
     "UnitOfMeasure",
 }
 

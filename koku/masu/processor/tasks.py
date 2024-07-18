@@ -147,18 +147,18 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
 
 @celery_app.task(name="masu.processor.tasks.get_report_files", queue=DownloadQueue.DEFAULT, bind=True)  # noqa: C901
 def get_report_files(  # noqa: C901
-        self,
-        customer_name,
-        authentication,
-        billing_source,
-        provider_type,
-        schema_name,
-        provider_uuid,
-        report_month,
-        report_context,
-        tracing_id,
-        ingress_reports=None,
-        ingress_reports_uuid=None,
+    self,
+    customer_name,
+    authentication,
+    billing_source,
+    provider_type,
+    schema_name,
+    provider_uuid,
+    report_month,
+    report_context,
+    tracing_id,
+    ingress_reports=None,
+    ingress_reports_uuid=None,
 ):
     """
     Task to download a Report and process the report.
@@ -311,7 +311,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SummaryQueue.DEFAULT)  # noqa: C901
 def summarize_reports(  # noqa: C901
-        reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_uuid=None
+    reports_to_summarize, queue_name=None, manifest_list=None, ingress_report_uuid=None
 ):
     """
     Summarize reports returned from line summary task.
@@ -416,19 +416,19 @@ def summarize_reports(  # noqa: C901
 
 @celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=SummaryQueue.DEFAULT)  # noqa: C901
 def update_summary_tables(  # noqa: C901
-        schema,
-        provider_type,
-        provider_uuid,
-        start_date,
-        end_date=None,
-        manifest_id=None,
-        ingress_report_uuid=None,
-        queue_name=None,
-        synchronous=False,
-        tracing_id=None,
-        ocp_on_cloud=True,
-        manifest_list=None,
-        invoice_month=None,
+    schema,
+    provider_type,
+    provider_uuid,
+    start_date,
+    end_date=None,
+    manifest_id=None,
+    ingress_report_uuid=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
+    ocp_on_cloud=True,
+    manifest_list=None,
+    invoice_month=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -643,14 +643,14 @@ def update_summary_tables(  # noqa: C901
 
 @celery_app.task(name="masu.processor.tasks.delete_openshift_on_cloud_data", queue=RefreshQueue.DEFAULT)  # noqa: C901
 def delete_openshift_on_cloud_data(
-        schema_name,
-        infrastructure_provider_uuid,
-        start_date,
-        end_date,
-        table_name,
-        operation,
-        manifest_id=None,
-        tracing_id=None,
+    schema_name,
+    infrastructure_provider_uuid,
+    start_date,
+    end_date,
+    table_name,
+    operation,
+    manifest_id=None,
+    tracing_id=None,
 ):
     """Clear existing data from tables for date range."""
     updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
@@ -669,17 +669,17 @@ def delete_openshift_on_cloud_data(
     queue=SummaryQueue.DEFAULT,
 )
 def update_openshift_on_cloud(  # noqa: C901
-        self,
-        schema_name,
-        openshift_provider_uuid,
-        infrastructure_provider_uuid,
-        infrastructure_provider_type,
-        start_date,
-        end_date,
-        manifest_id=None,
-        queue_name=None,
-        synchronous=False,
-        tracing_id=None,
+    self,
+    schema_name,
+    openshift_provider_uuid,
+    infrastructure_provider_uuid,
+    infrastructure_provider_type,
+    start_date,
+    end_date,
+    manifest_id=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     # Get latest manifest id for running OCP provider
@@ -816,13 +816,13 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)
 def update_cost_model_costs(
-        schema_name,
-        provider_uuid,
-        start_date=None,
-        end_date=None,
-        queue_name=None,
-        synchronous=False,
-        tracing_id=None,
+    schema_name,
+    provider_uuid,
+    start_date=None,
+    end_date=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
 ):
     """Update usage charge information.
 
@@ -882,12 +882,12 @@ def update_cost_model_costs(
 
 @celery_app.task(name="masu.processor.tasks.mark_manifest_complete", queue=PriorityQueue.DEFAULT)
 def mark_manifest_complete(
-        schema,
-        provider_type,
-        provider_uuid,
-        ingress_report_uuid=None,
-        tracing_id=None,
-        manifest_list=None,
+    schema,
+    provider_type,
+    provider_uuid,
+    ingress_report_uuid=None,
+    tracing_id=None,
+    manifest_list=None,
 ):
     """Mark a manifest and provider as complete"""
     context = {
@@ -1134,7 +1134,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
 
 @celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_daily", queue=DownloadQueue.DEFAULT, bind=True)
 def process_daily_openshift_on_cloud(
-        self, schema_name, provider_uuid, bill_date, start_date, end_date, tracing_id=None
+    self, schema_name, provider_uuid, bill_date, start_date, end_date, tracing_id=None
 ):
     """Process daily partitioned OpenShift on Cloud parquet files using Trino."""
     if is_source_disabled(provider_uuid):
@@ -1147,7 +1147,7 @@ def process_daily_openshift_on_cloud(
             "table": "gcp_line_items_daily",
             "date_columns": ["usage_start_time", "usage_end_time"],
             "date_where_clause": "usage_start_time >= TIMESTAMP '{0}' AND usage_start_time < date_add('day', 1, "
-                                 "TIMESTAMP '{0}')",
+            "TIMESTAMP '{0}')",
         },
     }
     table_name = table_info.get(provider_type).get("table")
