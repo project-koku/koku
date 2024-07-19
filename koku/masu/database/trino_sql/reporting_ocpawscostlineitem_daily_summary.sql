@@ -249,7 +249,8 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.product_region,
     aws.lineitem_usagetype,
     aws.resourcetags,
-    aws.costcategory
+    aws.costcategory,
+    lineitem_operation
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
