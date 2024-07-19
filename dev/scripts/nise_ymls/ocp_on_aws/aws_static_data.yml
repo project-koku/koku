@@ -329,7 +329,7 @@ generators:
         costCategory/env: ephemeral
   - DataTransferGenerator:
       product_sku: VEAJHRNKTJZQ
-      resource_id: i-55555555
+      resource_id: 55555555
       tags:
         resourceTags/user:app: analytics
         resourceTags/user:Mapping: d1
@@ -340,7 +340,7 @@ generators:
       start_date: {{start_date}}
       end_date: {{end_date}}
       product_sku: VEAJHRNKTJAA
-      resource_id: i-55555556
+      resource_id: 55555556
       tags:
         resourceTags/user:app: cost
         resourceTags/user:Mapping: d1
@@ -351,7 +351,7 @@ generators:
       start_date: {{start_date}}
       end_date: {{end_date}}
       product_sku: VEAJHRNKTJAB
-      resource_id: i-55555557
+      resource_id: 55555557
       tags:
         resourceTags/user:app: catalog
         resourceTags/user:Mapping: d1
@@ -362,7 +362,7 @@ generators:
       start_date: {{start_date}}
       end_date: {{end_date}}
       product_sku: VEAJHRNKTJAC
-      resource_id: i-55555558
+      resource_id: 55555558
       tags:
         resourceTags/user:app: catalog
         resourceTags/user:Mapping: d1
@@ -374,7 +374,7 @@ generators:
       start_date: {{start_date}}
       end_date: {{end_date}}
       product_sku: VEAJHRNAAAAA
-      resource_id: i-55555559
+      resource_id: 55555559
       tags:
         resourceTags/user:app: cost
         resourceTags/user:Mapping: d1
@@ -420,7 +420,7 @@ generators:
   - DataTransferGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
-      resource_id: i-55555554
+      resource_id: 55555554
       product_sku: AERJHRNCCCCC
       product_code: AmazonRDS
       product_name: Amazon Relational Database Service

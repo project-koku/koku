@@ -75,7 +75,10 @@ class OCPReportViewTest(IamTestCase):
             cls.provider_map.cloud_infrastructure_cost_by_project
             + cls.provider_map.markup_cost_by_project
             + cls.provider_map.cost_model_cost
-            + cls.provider_map.cost_model_distributed_cost_by_project
+            + cls.provider_map.distributed_platform_cost
+            + cls.provider_map.distributed_unattributed_network_cost
+            + cls.provider_map.distributed_unattributed_storage_cost
+            + cls.provider_map.distributed_worker_cost
         )
 
     def setUp(self):
@@ -700,7 +703,10 @@ class OCPReportViewTest(IamTestCase):
             self.provider_map.cloud_infrastructure_cost_by_project
             + self.provider_map.markup_cost_by_project
             + self.provider_map.cost_model_cost
-            + self.provider_map.cost_model_distributed_cost_by_project
+            + self.provider_map.distributed_platform_cost
+            + self.provider_map.distributed_worker_cost
+            + self.provider_map.distributed_unattributed_network_cost
+            + self.provider_map.distributed_unattributed_storage_cost
         )
 
         with tenant_context(self.tenant):

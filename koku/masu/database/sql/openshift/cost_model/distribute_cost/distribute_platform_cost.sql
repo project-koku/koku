@@ -99,6 +99,7 @@ cte_line_items as (
         AND lids.namespace IS NOT NULL
         AND lids.namespace != 'Worker unallocated'
         AND lids.namespace != 'Network unattributed'
+        AND lids.namespace != 'Storage unattributed'
     GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id, cost_category_id, lids.data_source
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (

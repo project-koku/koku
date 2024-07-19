@@ -1874,6 +1874,76 @@
                 }]
             }
         },
+        "/reports/aws/resources/ec2-compute/": {
+            "get": {
+                "tags": [
+                    "AWS Reports"
+                ],
+                "summary": "Query to obtain AWS EC2 compute instances data",
+                "operationId": "getAWSEC2ComputeReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportAWSEC2InstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportAWSEC2InstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/reports/openshift/compute/": {
             "get": {
                 "tags": [
@@ -3229,6 +3299,74 @@
                 ],
                 "summary": "List AWS Services For RBAC",
                 "operationId": "listResourcesAwsServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-ec2-compute-instances/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS EC2 Instances For RBAC",
+                "operationId": "listResourcesAwsEC2Instances",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/aws-ec2-compute-os/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List AWS EC2 Operating Systems For RBAC",
+                "operationId": "listResourcesAwsEC2OperatingSystems",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
                     },
@@ -6285,7 +6423,7 @@
                     "type": "object"
                 },
                 "example": {
-                    "project": "desc"
+                    "usage": "desc"
                 }
             },
             "QueryOffset": {
@@ -7913,6 +8051,62 @@
                     }
                 }
             },
+            "ReportAWSEC2ComputeFilter": {
+                "type": "object",
+                "properties": {
+                    "resolution": {
+                        "type": "string",
+                        "example": "monthly",
+                        "description": "The resolution to apply to the report. Default resolution is daily."
+                    },
+                    "time_scope_value": {
+                        "type": "integer",
+                        "enum": [
+                            -1,
+                            -2,
+                            -3
+                        ],
+                        "example": -1,
+                        "description": "The time scope to apply to the report. Default time scope is '-1', which is used for current month, '-2' is used for last month, amd '-3' is used for previous month."
+                    },
+                    "time_scope_units": {
+                        "type": "string",
+                        "example": "month",
+                        "description": "The units to apply to the report. 'month' is the only valid value for this report."
+                    },
+                    "resource_id": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "instance_name": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "account": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "region": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "example": ["us-east-1"]
+                    },
+                    "operating_system": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
             "ReportOpenShiftFilter": {
                 "type": "object",
                 "properties": {
@@ -8537,6 +8731,64 @@
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
             },
+            "ReportAWSEC2ComputeOrdering": {
+                "type": "object",
+                "properties": {
+                    "cost": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "usage": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "account": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "operating_system": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "resource_id": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "instance_name": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "instance_type": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    }
+                },
+                "example": {
+                    "cost": "asc"
+                },
+                "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
             "ReportInventoryOpenShiftOrdering": {
                 "type": "object",
                 "properties": {
@@ -8892,6 +9144,53 @@
                 ],
                 "description": "The resources scope to apply to the report. Default resource scope is null, meaning no product or service filtering."
             },
+            "ReportValueUnit":{
+                "type":"object",
+                "properties":{
+                    "value":{
+                        "type":"number",
+                        "description": "The numerical value returned",
+                        "example": 0.0
+                    },
+                    "units": {
+                        "description": "The units for the output data.",
+                        "type": "string",
+                        "example": "USD"
+                    }
+                }
+            },
+            "ReportMetaTotalItem": {
+                "type": "object",
+                "properties":{
+                    "raw": {
+                        "$ref":"#/components/schemas/ReportValueUnit"
+                    },
+                    "markup": {
+                        "$ref":"#/components/schemas/ReportValueUnit"
+                    },
+                    "usage": {
+                        "$ref":"#/components/schemas/ReportValueUnit"
+                    },
+                    "total": {
+                        "$ref":"#/components/schemas/ReportValueUnit"
+                    }
+                }
+            },
+            "ReportMetaTotal": {
+                "type": "object",
+                "properties": {
+                    "infrastructure": {
+                        "$ref": "#/components/schemas/ReportMetaTotalItem"
+                    },
+                    "supplementary": {
+                        "$ref": "#/components/schemas/ReportMetaTotalItem"
+                    },
+                    "cost": {
+                        "$ref": "#/components/schemas/ReportMetaTotalItem"
+                    }
+                },
+                "description": "The meta total object returned."
+            },
             "ReportPaginationMeta": {
                 "properties": {
                     "count": {
@@ -8959,10 +9258,8 @@
                             }
                         ]
                     },
-                    "units": {
-                        "description": "The units for the output data.",
-                        "type": "string",
-                        "example": ""
+                    "total": {
+                        "$ref": "#/components/schemas/ReportMetaTotal"
                     }
                 }
             },
@@ -9877,6 +10174,249 @@
                         }
                     }
                 ]
+            },
+            "ReportAWSEC2InstanceInventory": {
+                "allOf": [{
+                    "properties": {
+                        "meta": {
+                            "properties": {
+                                "count": {
+                                    "type": "integer",
+                                    "format": "int64",
+                                    "example": 30
+                                },
+                                "order_by": {
+                                    "$ref": "#/components/schemas/ReportAWSEC2ComputeOrdering"
+                                },
+                                "filter": {
+                                    "$ref": "#/components/schemas/ReportAWSEC2ComputeFilter"
+                                },
+                                "total": {
+                                    "$ref": "#/components/schemas/ReportMetaTotal"
+                                }
+                            }
+                        },
+                        "links": {
+                            "$ref": "#/components/schemas/PaginationLinks"
+                        }
+                    }
+                    },
+                    {
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "example": [
+                                        [{
+                                            "date": "2024-07",
+                                            "resource_ids": [
+                                                {
+                                                    "resource_id": "i-55555558",
+                                                    "values": [
+                                                        {
+                                                            "resource_id": "i-55555558",
+                                                            "date": "2024-07",
+                                                            "usage": {
+                                                                "value": 276.0,
+                                                                "units": "Hrs"
+                                                            },
+                                                            "source_uuid": [
+                                                                "cfbf64c7-3d58-43fd-a18f-4cd217e6a2d4"
+                                                            ],
+                                                            "account_alias": "sample-account",
+                                                            "account": "9999999999998",
+                                                            "instance_name": null,
+                                                            "instance_type": "m5.large",
+                                                            "operating_system": "Fedora CoreOS",
+                                                            "region": "us-east-1",
+                                                            "vcpu": 2,
+                                                            "memory": "8 GiB",
+                                                            "tags": [
+                                                                {
+                                                                    "key": "Map",
+                                                                    "values": [
+                                                                        "d2"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "key": "Mapping",
+                                                                    "values": [
+                                                                        "d1"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "key": "version",
+                                                                    "values": [
+                                                                        "master"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "key": "dashed-key-on-aws",
+                                                                    "values": [
+                                                                        "dashed-value"
+                                                                    ]
+                                                                }
+                                                            ],
+                                                            "infrastructure": {
+                                                                "raw": {
+                                                                    "value": 26.496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "markup": {
+                                                                    "value": 2.6496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "usage": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "total": {
+                                                                    "value": 29.1456,
+                                                                    "units": "USD"
+                                                                }
+                                                            },
+                                                            "supplementary": {
+                                                                "raw": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "markup": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "usage": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "total": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                }
+                                                            },
+                                                            "cost": {
+                                                                "raw": {
+                                                                    "value": 26.496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "markup": {
+                                                                    "value": 2.6496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "usage": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "total": {
+                                                                    "value": 29.1456,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "resource_id": "i-55555557",
+                                                    "values": [
+                                                        {
+                                                            "resource_id": "i-55555557",
+                                                            "date": "2024-07",
+                                                            "usage": {
+                                                                "value": 276.0,
+                                                                "units": "Hrs"
+                                                            },
+                                                            "source_uuid": [
+                                                                "cfbf64c7-3d58-43fd-a18f-4cd217e6a2d4"
+                                                            ],
+                                                            "account_alias": "sample-account",
+                                                            "account": "9999999999998",
+                                                            "instance_name": "instance_name_3",
+                                                            "instance_type": "m5.large",
+                                                            "operating_system": "Debian",
+                                                            "region": "us-east-1",
+                                                            "vcpu": 2,
+                                                            "memory": "8 GiB",
+                                                            "tags": [
+                                                                {
+                                                                    "key": "Name",
+                                                                    "values": [
+                                                                        "instance_name_3"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "key": "com_REDHAT_addon",
+                                                                    "values": [
+                                                                        "ELS"
+                                                                    ]
+                                                                }
+                                                            ],
+                                                            "infrastructure": {
+                                                                "raw": {
+                                                                    "value": 26.496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "markup": {
+                                                                    "value": 2.6496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "usage": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "total": {
+                                                                    "value": 29.1456,
+                                                                    "units": "USD"
+                                                                }
+                                                            },
+                                                            "supplementary": {
+                                                                "raw": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "markup": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "usage": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "total": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                }
+                                                            },
+                                                            "cost": {
+                                                                "raw": {
+                                                                    "value": 26.496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "markup": {
+                                                                    "value": 2.6496,
+                                                                    "units": "USD"
+                                                                },
+                                                                "usage": {
+                                                                    "value": 0.0,
+                                                                    "units": "USD"
+                                                                },
+                                                                "total": {
+                                                                    "value": 29.1456,
+                                                                    "units": "USD"
+                                                                }
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }]
+                                    ]
+                                }
+                            }
+                        }
+                }]
             },
             "ReportOpenShiftAWSStorageInventory": {
                 "allOf": [{

@@ -15,6 +15,9 @@ from api.views import AWSAccountView
 from api.views import AWSCategoryView
 from api.views import AWSCostForecastView
 from api.views import AWSCostView
+from api.views import AWSEC2ComputeInstanceView
+from api.views import AWSEC2ComputeOperatingSystemView
+from api.views import AWSEC2ComputeView
 from api.views import AWSInstanceTypeView
 from api.views import AWSOrganizationalUnitView
 from api.views import AWSOrgView
@@ -240,6 +243,13 @@ urlpatterns = [
         name="reports-aws-instance-type",
     ),
     path(
+        "reports/aws/resources/ec2-compute/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(
+            AWSEC2ComputeView.as_view()
+        ),
+        name="reports-aws-ec2-compute",
+    ),
+    path(
         "reports/aws/storage/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSStorageView.as_view()),
         name="reports-aws-storage",
@@ -396,6 +406,16 @@ urlpatterns = [
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),
     path("user-access/", UserAccessView.as_view(), name="user-access"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
+    path(
+        "resource-types/aws-ec2-compute-instances/",
+        AWSEC2ComputeInstanceView.as_view(),
+        name="aws-ec2-compute-instances",
+    ),
+    path(
+        "resource-types/aws-ec2-compute-os/",
+        AWSEC2ComputeOperatingSystemView.as_view(),
+        name="aws-ec2-compute-os",
+    ),
     path(
         "resource-types/aws-categories/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSCategoryView.as_view()),

@@ -358,7 +358,7 @@ docker-up-min-no-build-with-listener: docker-up-min-no-build
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
 	$(DOCKER_COMPOSE) up -d unleash
-	dev/scripts/setup_unleash.py
+	$(PYTHON) dev/scripts/setup_unleash.py
 
 docker-up-db-monitor:
 	$(DOCKER_COMPOSE) up --build -d grafana
