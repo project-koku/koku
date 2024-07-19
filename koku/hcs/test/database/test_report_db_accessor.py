@@ -93,9 +93,10 @@ class TestHCSReportDBAccessor(HCSTestCase):
         """Test handle_trino_external_error with NoSuchKey error."""
         accessor = ReportDBAccessorBase(schema="test_schema")
 
-        with patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry, patch(
-            "masu.database.report_db_accessor_base.LOG"
-        ) as mock_log:
+        with (
+            patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry,
+            patch("masu.database.report_db_accessor_base.LOG") as mock_log
+        ):
             accessor._handle_trino_external_error(
                 "NoSuchKey", "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
             )
