@@ -67,7 +67,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  delete-testing                        Delete stale files/subdirectories from the testing directory."
 	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
-	@echo "  delete-trino-data                     Delete old trino data from .trino/parquet_data/koku-bucket/."
+	@echo "  delete-trino-data                     Delete old trino data from the Minio koku-bucket bucket."
 	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
@@ -97,7 +97,7 @@ help:
 	@echo "  make-migrations                       make migrations for the database"
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
-	@echo "  delete-db                             delete local directory $(TOPDIR)/pg_data"
+	@echo "  delete-db                             delete local directory $(TOPDIR)/dev/containers/postgresql/data"
 	@echo "  delete-test-db                        delete the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
@@ -111,9 +111,6 @@ help:
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
-	@echo "  unleash-export                        export feature-flags to file"
-	@echo "  unleash-import                        import feature-flags from file"
-	@echo "  unleash-import-drop                   import feature-flags from file AND wipe current database"
 	@echo "  scan_project                          run security scan"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
@@ -170,10 +167,11 @@ delete-testing:
 	@$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 delete-trino:
-	@$(PREFIX) rm -rf $(TOPDIR)/.trino/trino/*
+	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/trino/data/*
+	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/trino/logs/*
 
 delete-trino-data:
-	@$(PREFIX) rm -rf $(TOPDIR)/.trino/parquet_data/koku-bucket/*
+	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/minio/koku-bucket/*
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
@@ -216,7 +214,7 @@ make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models key_metrics
 
 delete-db:
-	@$(PREFIX) rm -rf $(TOPDIR)/pg_data/data/*
+	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/postgresql/data/
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -255,19 +253,6 @@ unittest:
 
 superuser:
 	$(DJANGO_MANAGE) createsuperuser
-
-unleash-export:
-	curl -X GET -H "Authorization: Basic YWRtaW46" \
-	"http://localhost:4242/api/admin/state/export?format=json&featureToggles=1&strategies=0&tags=0&projects=0&download=1" \
-	-s | python -m json.tool > .unleash/flags.json
-
-unleash-import:
-	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
-	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import
-
-unleash-import-drop:
-	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
-	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
 
 clowdapp: kustomize
 	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
@@ -372,12 +357,8 @@ docker-up-min-no-build-with-listener: docker-up-min-no-build
 
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
-	@until pg_isready -h $${POSTGRES_SQL_SERVICE_HOST:-localhost} -p $${POSTGRES_SQL_SERVICE_PORT:-15432} >/dev/null ; do \
-	    printf '.'; \
-	    sleep 0.5 ; \
-    done
-	@echo ' PostgreSQL is available!'
 	$(DOCKER_COMPOSE) up -d unleash
+	$(PYTHON) dev/scripts/setup_unleash.py
 
 docker-up-db-monitor:
 	$(DOCKER_COMPOSE) up --build -d grafana
@@ -402,7 +383,7 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions delete-testing
 	./testing/run_vortex_api_tests.sh
 
-CONTAINER_DIRS = $(TOPDIR)/pg_data/data $(TOPDIR)/.trino/{parquet_data,trino}
+CONTAINER_DIRS = $(TOPDIR)/dev/containers/postgresql/data $(TOPDIR)/dev/containers/minio $(TOPDIR)/dev/containers/trino/{data,logs}
 docker-host-dir-setup:
 	@mkdir -p -m 0755 $(CONTAINER_DIRS) 2>&1 > /dev/null
 	@chown $(USER_ID):$(GROUP_ID) $(CONTAINER_DIRS)
@@ -584,7 +565,7 @@ backup-local-db-dir:
 	$(DOCKER_COMPOSE) stop db
 	@cd $(TOPDIR)
 	@echo "Copying pg_data to pg_data.bak..."
-	@$(PREFIX) cp -rp ./pg_data ./pg_data.bak
+	@$(PREFIX) cp -rp ./dev/containers/postgresql/data ./dev/containers/postgresql/data.bak
 	@cd - >/dev/null
 	$(DOCKER_COMPOSE) start db
 
@@ -597,12 +578,12 @@ local-upload-data:
 
 restore-local-db-dir:
 	@cd $(TOPDIR)
-	@if [ -d ./pg_data.bak ] ; then \
+	@if [ -d ./dev/containers/postgresql/data.bak ] ; then \
 	    $(DOCKER_COMPOSE) stop db ; \
 	    echo "Removing pg_data..." ; \
-	    $(PREFIX) rm -rf ./pg_data ; \
+	    $(PREFIX) rm -rf ./dev/containers/postgresql/data ; \
 	    echo "Renaming pg_data.bak to pg_data..." ; \
-	    $(PREFIX) mv -f ./pg_data.bak ./pg_data ; \
+	    $(PREFIX) mv -f ./dev/containers/postgresql/data.bak ./dev/containers/postgresql/data ; \
 	    $(DOCKER_COMPOSE) start db ; \
 	    echo "NOTE :: Migrations may need to be run." ; \
 	else \

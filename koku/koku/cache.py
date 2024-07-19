@@ -128,6 +128,11 @@ def get_value_from_cache(cache_key, cache_choice="default"):
     return cache.get(cache_key)
 
 
+def delete_value_from_cache(cache_key, cache_choice="default"):
+    cache = caches[cache_choice]
+    return cache.delete(cache_key)
+
+
 def set_value_in_cache(cache_key, cache_value, cache_choice="default"):
     cache = caches[cache_choice]
     cache.set(cache_key, cache_value)
@@ -141,6 +146,14 @@ def is_key_in_cache(cache_key, cache_choice="default"):
 def build_matching_tags_key(schema_name, provider_type):
     """Return the key for matching tags"""
     return f"OCP-on-{provider_type}:{schema_name}:matching-tags"
+
+
+def build_trino_schema_exists_key(schema_name):
+    return f"schema-exists-trino-{schema_name}"
+
+
+def build_trino_table_exists_key(schema_name, table_name):
+    return f"table-exists-trino-{schema_name}-{table_name}"
 
 
 def get_cached_matching_tags(schema_name, provider_type):

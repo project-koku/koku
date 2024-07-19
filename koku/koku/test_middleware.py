@@ -242,8 +242,8 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         customer = self._create_customer_data()
         account_id = customer["account_id"]
         org_id = customer["org_id"]
-        orig_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id)
-        dup_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id)
+        orig_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id, "POST")
+        dup_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id, "POST")
         self.assertEqual(orig_cust, dup_cust)
 
     def test_race_condition_user(self):

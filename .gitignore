@@ -108,6 +108,8 @@ ENV/
 # Local Postgres data
 pg_data/
 pg_data.bak*/
+dev/containers/postgresql/data/
+dev/containers/postgresql/data.bak*/
 
 # static files
 koku/staticfiles/
@@ -144,6 +146,7 @@ dev/*.yml
 
 # unleash cache
 .unleash/cache/
+dev/containers/unleash/cache/
 
 # performance profiling
 /koku.iml

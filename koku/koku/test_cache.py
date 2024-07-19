@@ -13,6 +13,7 @@ from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import build_matching_tags_key
+from koku.cache import delete_value_from_cache
 from koku.cache import get_cached_infra_map
 from koku.cache import get_cached_tag_rate_map
 from koku.cache import get_value_from_cache
@@ -280,3 +281,15 @@ class KokuCacheTest(IamTestCase):
 
         set_value_in_cache(cache_key, "fake-value")
         self.assertTrue(is_key_in_cache(cache_key))
+
+    def test_delete_value_from_cache(self):
+        """Test that getting a value from the cache and setting a value in the cache works as intended."""
+        cache_key = "my-fake-key-get-test"
+        expected_value = "my-fake-value"
+
+        self.assertFalse(is_key_in_cache(cache_key))
+        # basically, test that this does not cause an issue when the key does not exist
+        self.assertFalse(delete_value_from_cache(cache_key))
+
+        set_value_in_cache(cache_key, expected_value)
+        self.assertTrue(delete_value_from_cache(cache_key))
