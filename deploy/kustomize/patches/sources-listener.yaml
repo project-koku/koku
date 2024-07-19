@@ -121,11 +121,11 @@
         timeoutSeconds: 10
       resources:
         requests:
-          cpu: ${SOURCES_LISTENER_CPU_REQUEST}
-          memory: ${SOURCES_LISTENER_MEMORY_REQUEST}
+          cpu: ${CPU_REQUEST_SOURCES_LISTENER}
+          memory: ${MEMORY_REQUEST_SOURCES_LISTENER}
         limits:
-          cpu: ${SOURCES_LISTENER_CPU_LIMIT}
-          memory: ${SOURCES_LISTENER_MEMORY_LIMIT}
+          cpu: ${CPU_LIMIT_SOURCES_LISTENER}
+          memory: ${MEMORY_LIMIT_SOURCES_LISTENER}
       volumeMounts:
       - name: aws-credentials
         mountPath: /etc/aws
@@ -173,28 +173,28 @@
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: SOURCES_LISTENER_MEMORY_REQUEST
+    name: MEMORY_REQUEST_SOURCES_LISTENER
     required: true
     value: 250Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: SOURCES_LISTENER_MEMORY_LIMIT
+    name: MEMORY_LIMIT_SOURCES_LISTENER
     required: true
     value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: SOURCES_LISTENER_CPU_REQUEST
+    name: CPU_REQUEST_SOURCES_LISTENER
     required: true
     value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: SOURCES_LISTENER_CPU_LIMIT
+    name: CPU_LIMIT_SOURCES_LISTENER
     required: true
     value: 200m
 - op: add
