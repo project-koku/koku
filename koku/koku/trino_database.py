@@ -1,6 +1,8 @@
 import logging
 import os
+import random
 import re
+import time
 import typing as t
 
 import sqlparse
@@ -150,6 +152,10 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, trin
             except TrinoQueryError as trino_exc:
                 if "NoSuchKey" in trino_exc.message and trino_external_error_retries > 0:
                     LOG.warning("TrinoExternalError Exception, retrying...")
+                    backoff = min(2 ** trino_external_error_retries, 30)
+                    jitter = random.uniform(0, 1)
+                    delay = backoff + jitter
+                    time.sleep(delay)
                     return executescript(
                         trino_conn=trino_conn,
                         sqlscript=sqlscript,
