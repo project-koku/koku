@@ -12,6 +12,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.aws.serializers import AWSEC2GroupBySerializer
 from api.report.aws.serializers import AWSExcludeSerializer
 from api.report.aws.serializers import AWSFilterSerializer
 from api.report.aws.serializers import AWSGroupBySerializer
@@ -432,6 +433,14 @@ class GroupBySerializerTest(TestCase):
         serializer = AWSGroupBySerializer(data=group_by_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_aws_ec2_group_by_param_raises_error(self):
+        """Test that group_by param on AWS EC2 compute endpoint raises ValidationError with correct message."""
+        group_params = {"invalid": "param"}
+        serializer = AWSEC2GroupBySerializer(data=group_params)
+        with self.assertRaises(serializers.ValidationError) as context:
+            serializer.is_valid(raise_exception=True)
+            self.assertEqual(str(context.exception.detail[0]), "Group by queries are not allowed.")
 
 
 class OrderBySerializerTest(TestCase):
