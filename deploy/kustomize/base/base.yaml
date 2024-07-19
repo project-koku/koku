@@ -61,11 +61,11 @@ objects:
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_MIGRATIONS_CPU_LIMIT}
-            memory: ${KOKU_MIGRATIONS_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_KOKU_MIGRATIONS}
+            memory: ${MEMORY_LIMIT_KOKU_MIGRATIONS}
           requests:
-            cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
-            memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_KOKU_MIGRATIONS}
+            memory: ${MEMORY_REQUEST_KOKU_MIGRATIONS}
         args:
         - /bin/bash
         - -c
@@ -97,11 +97,11 @@ objects:
         image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_MGMT_CPU_LIMIT}
-            memory: ${KOKU_MGMT_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_KOKU_MGMT}
+            memory: ${MEMORY_LIMIT_KOKU_MGMT}
           requests:
-            cpu: ${KOKU_MGMT_CPU_REQUEST}
-            memory: ${KOKU_MGMT_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_KOKU_MGMT}
+            memory: ${MEMORY_REQUEST_KOKU_MGMT}
         args:
         - /bin/bash
         - -c
@@ -314,19 +314,19 @@ parameters:
   required: false
   value: ""
 - displayName: Memory Request
-  name: KOKU_MIGRATIONS_MEMORY_REQUEST
+  name: MEMORY_REQUEST_KOKU_MIGRATIONS
   required: true
   value: 1Gi
 - displayName: Memory Limit
-  name: KOKU_MIGRATIONS_MEMORY_LIMIT
+  name: MEMORY_LIMIT_KOKU_MIGRATIONS
   required: true
   value: 2Gi
 - displayName: CPU Request
-  name: KOKU_MIGRATIONS_CPU_REQUEST
+  name: CPU_REQUEST_KOKU_MIGRATIONS
   required: true
   value: "2"
 - displayName: CPU Limit
-  name: KOKU_MIGRATIONS_CPU_LIMIT
+  name: CPU_LIMIT_KOKU_MIGRATIONS
   required: true
   value: "3"
 - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
@@ -352,19 +352,19 @@ parameters:
   name: MGMT_COMMAND
   value: "echo 'No Command to Run'"
 - displayName: Memory Request
-  name: KOKU_MGMT_MEMORY_REQUEST
+  name: MEMORY_REQUEST_KOKU_MGMT
   required: true
   value: 20Mi
 - displayName: Memory Limit
-  name: KOKU_MGMT_MEMORY_LIMIT
+  name: MEMORY_LIMIT_KOKU_MGMT
   required: true
   value: 20Mi
 - displayName: CPU Request
-  name: KOKU_MGMT_CPU_REQUEST
+  name: CPU_REQUEST_KOKU_MGMT
   required: true
   value: "10m"
 - displayName: CPU Limit
-  name: KOKU_MGMT_CPU_LIMIT
+  name: CPU_LIMIT_KOKU_MGMT
   required: true
   value: "10m"
 
