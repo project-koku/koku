@@ -148,11 +148,12 @@ select a from b;
 
     def test_retry_logic_on_no_such_key_error(self):
         class FakerFakeTrinoCur(FakeTrinoCur):
-            execute_calls = 0
+            def __init__(self, *args, **kwargs):
+                self.execute_calls = 0
 
             def execute(self, *args, **kwargs):
-                self.__class__.execute_calls += 1
-                if self.__class__.execute_calls == 1:
+                self.execute_calls += 1
+                if self.execute_calls == 1:
                     raise TrinoQueryError(
                         {
                             "errorName": "TRINO_NO_SUCH_KEY",
