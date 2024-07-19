@@ -17,11 +17,11 @@ EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 class TrinoStatementExecError(Exception):
     def __init__(
-        self,
-        statement: str,
-        statement_number: int,
-        sql_params: dict[str, t.Any],
-        trino_error: t.Optional[TrinoQueryError] = None,
+            self,
+            statement: str,
+            statement_number: int,
+            sql_params: dict[str, t.Any],
+            trino_error: t.Optional[TrinoQueryError] = None,
     ):
         self.statement = statement
         self.statement_number = statement_number
@@ -95,9 +95,9 @@ def connect(**connect_args):
         "user": (connect_args.get("user") or os.environ.get("TRINO_USER") or "admin"),
         "catalog": (connect_args.get("catalog") or os.environ.get("TRINO_DEFAULT_CATALOG") or "hive"),
         "isolation_level": (
-            connect_args.get("isolation_level")
-            or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
-            or IsolationLevel.AUTOCOMMIT
+                connect_args.get("isolation_level")
+                or os.environ.get("TRINO_DEFAULT_ISOLATION_LEVEL")
+                or IsolationLevel.AUTOCOMMIT
         ),
         "schema": connect_args["schema"],
         "legacy_primitive_types": connect_args.get("legacy_primitive_types", False),
@@ -148,8 +148,8 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, trin
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
             except TrinoQueryError as trino_exc:
-                if "NoSuchKey" in str(trino_exc) and trino_external_error_retries > 0:
-                    LOG.debug("TrinoExternalError Exception, retrying...")
+                if "NoSuchKey" in trino_exc.message and trino_external_error_retries > 0:
+                    LOG.warning("TrinoExternalError Exception, retrying...")
                     return executescript(
                         trino_conn=trino_conn,
                         sqlscript=sqlscript,

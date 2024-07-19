@@ -165,8 +165,11 @@ select a from b;
                 return [["eek"]] * 6
 
         class FakerFakeTrinoConn(FakeTrinoConn):
+            def __init__(self, *args, **kwargs):
+                self.cur = FakerFakeTrinoCur()
+
             def cursor(self):
-                return FakerFakeTrinoCur()
+                return self.cur
 
         sqlscript = "SELECT * FROM table"
         params = {
@@ -181,11 +184,11 @@ select a from b;
             sqlscript=sqlscript,
             params=params,
             preprocessor=None,  # Assuming no preprocessor is needed for this test
-            trino_external_error_retries=1,
+            trino_external_error_retries=2,
         )
 
         self.assertEqual(results, [["eek"]])
-        self.assertEqual(FakerFakeTrinoCur.execute_calls, 2)
+        self.assertEqual(conn.cur.execute_calls, 2)
 
 
 class TestTrinoStatementExecError(TestCase):
