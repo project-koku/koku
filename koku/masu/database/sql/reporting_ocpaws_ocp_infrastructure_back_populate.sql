@@ -71,11 +71,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
         CASE
             WHEN upper(data_transfer_direction) = 'IN' THEN sum(infrastructure_data_in_gigabytes)
-            ELSE 0
+            ELSE NULL
         END as infrastructure_data_in_gigabytes,
         CASE
             WHEN upper(data_transfer_direction) = 'OUT' THEN sum(infrastructure_data_out_gigabytes)
-            ELSE 0
+            ELSE NULL
         END as infrastructure_data_out_gigabytes,
         0 as pod_usage_cpu_core_hours,
         0 as pod_request_cpu_core_hours,
