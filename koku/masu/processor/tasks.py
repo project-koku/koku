@@ -34,7 +34,7 @@ from common.queues import OCPQueue
 from common.queues import PriorityQueue
 from common.queues import RefreshQueue
 from common.queues import SummaryQueue
-from data_validation.common import check_data_integrity
+from data_validation.common import DataValidator
 from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
@@ -1218,4 +1218,5 @@ def process_daily_openshift_on_cloud(
 @celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=SummaryQueue.DEFAULT)
 def validate_daily_data(schema, provider_uuid, start_date, end_date, context=None):
     # collect and validate cost metrics between postgres and trino tables.
-    check_data_integrity(schema, provider_uuid, start_date, end_date, context)
+    data_validator = DataValidator(schema, provider_uuid, start_date, end_date, context)
+    data_validator.check_data_integrity()
