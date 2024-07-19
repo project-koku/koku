@@ -6,6 +6,7 @@
 import logging
 import os
 import time
+from functools import wraps
 
 from django.conf import settings
 from django.db import connection
@@ -24,6 +25,38 @@ from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
 
 LOG = logging.getLogger(__name__)
+
+
+def handle_trino_external_error(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        trino_external_error_retries = kwargs.get("trino_external_error_retries", 3)
+        sql_params = kwargs.get("sql_params", {})
+        context = kwargs.get("context", {})
+        log_ref = kwargs.get("log_ref", "Trino query")
+        ctx = (
+            self.extract_context_from_sql_params(sql_params)
+            if sql_params
+            else self.extract_context_from_sql_params(context)
+        )
+
+        try:
+            return func(self, *args, **kwargs)
+        except TrinoExternalError as ex:
+            if "NoSuchKey" in str(ex) and trino_external_error_retries > 0:
+                LOG.warning(
+                    log_json(msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=ctx),
+                    exc_info=ex,
+                )
+                kwargs["trino_external_error_retries"] -= 1
+                return wrapper(self, *args, **kwargs)
+            LOG.error(
+                log_json(msg="failed trino sql execution: TrinoExternalError", log_ref=log_ref, context=ctx),
+                exc_info=ex,
+            )
+            raise ex
+
+    return wrapper
 
 
 class ReportDBAccessorException(Exception):
@@ -117,6 +150,7 @@ class ReportDBAccessorBase:
         )
         return results
 
+    @handle_trino_external_error
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
@@ -152,10 +186,6 @@ class ReportDBAccessorBase:
             trino_cur.execute(sql, bind_params)
             results = trino_cur.fetchall()
             description = trino_cur.description
-        except TrinoExternalError as ex:
-            return self._handle_trino_external_error(
-                ex, sql, sql_params, context, log_ref, attempts_left, trino_external_error_retries, conn_params, ctx
-            )
         except Exception as ex:
             if attempts_left == 0:
                 LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)

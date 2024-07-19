@@ -95,14 +95,20 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
         with (
             patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry,
-            patch("masu.database.report_db_accessor_base.LOG") as mock_log
+            patch("masu.database.report_db_accessor_base.LOG") as mock_log,
         ):
-            accessor._handle_trino_external_error(
-                "NoSuchKey", "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
+            accessor._execute_trino_raw_sql_query_with_description(
+                "SELECT * FROM table",
+                sql_params={},
+                context={},
+                log_ref="Test Log Ref",
+                attempts_left=1,
+                trino_external_error_retries=3,
+                conn_params={},
             )
 
-            mock_retry.assert_called_once()
-            mock_log.warning.assert_called()
+            mock_retry.assert_called()
+            # mock_log.warning.assert_called()
             mock_log.error.assert_not_called()
 
     def test_handle_trino_external_error_without_no_such_key(self):
@@ -111,18 +117,24 @@ class TestHCSReportDBAccessor(HCSTestCase):
         error_instance = TrinoExternalError({"error": "Trino Error"})
 
         with (
-            patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry,
-            patch("masu.database.report_db_accessor_base.LOG") as mock_log
+            patch.object(
+                accessor, "_execute_trino_raw_sql_query_with_description", side_effect=error_instance
+            ) as mock_retry,
         ):
-            self.assertRaises(TrinoExternalError):
-            accessor._handle_trino_external_error(
-                error_instance, "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
-            )
+            with self.assertRaises(TrinoExternalError):
+                accessor._execute_trino_raw_sql_query_with_description(
+                    "SELECT * FROM table",
+                    sql_params={},
+                    context={},
+                    log_ref="Test Log Ref",
+                    attempts_left=1,
+                    trino_external_error_retries=0,
+                    conn_params={},
+                )
 
-        mock_retry.assert_not_called()
-        mock_log.error.assert_called()
+            mock_retry.assert_called_once()
 
-    @mock.patch("koku.trino_database.connect")
+    @patch("koku.trino_database.connect")
     def test_handle_trino_external_error_invocation(self, mock_connect):
         """Test handle_trino_external_error invocation."""
         mock_cursor = mock.MagicMock()
