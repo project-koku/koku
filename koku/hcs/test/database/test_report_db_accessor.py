@@ -109,9 +109,11 @@ class TestHCSReportDBAccessor(HCSTestCase):
         accessor = ReportDBAccessorBase(schema="test_schema")
         error_instance = TrinoExternalError({"error": "Trino Error"})
 
-        with patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry, patch(
-            "masu.database.report_db_accessor_base.LOG"
-        ) as mock_log, self.assertRaises(TrinoExternalError):
+        with (
+            patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry,
+            patch("masu.database.report_db_accessor_base.LOG") as mock_log
+        ):
+            self.assertRaises(TrinoExternalError):
             accessor._handle_trino_external_error(
                 error_instance, "SELECT * FROM table", {}, {}, "Test Log Ref", 1, 3, {}, {}
             )
