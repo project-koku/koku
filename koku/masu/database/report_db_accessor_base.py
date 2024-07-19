@@ -194,27 +194,6 @@ class ReportDBAccessorBase:
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
         return results, description
 
-    def _handle_trino_external_error(
-        self, ex, sql, sql_params, context, log_ref, attempts_left, trino_external_error_retries, conn_params, ctx
-    ):
-        if "NoSuchKey" in str(ex) and trino_external_error_retries > 0:
-            LOG.warning(
-                log_json(msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=ctx), exc_info=ex
-            )
-            return self._execute_trino_raw_sql_query_with_description(
-                sql,
-                sql_params=sql_params,
-                context=context,
-                log_ref=log_ref,
-                attempts_left=attempts_left,
-                trino_external_error_retries=trino_external_error_retries - 1,
-                conn_params=conn_params,
-            )
-        LOG.error(
-            log_json(msg="failed trino sql execution: TrinoExternalError", log_ref=log_ref, context=ctx), exc_info=ex
-        )
-        raise ex
-
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Trino."""
         trino_conn = trino_db.connect(schema=self.schema)
