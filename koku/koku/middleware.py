@@ -357,8 +357,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     if not customer.account_id and account:
                         customer.account_id = account
                         customer.date_updated = DateHelper().now_utc
-                        customer.save()
-                        LOG.info(f"adding account_id {account} to Customer (org_id {org_id})")
+                        if request.method not in ["GET", "HEAD"]:
+                            customer.save()
+                            LOG.info(f"adding account_id {account} to Customer (org_id {org_id})")
                     IdentityHeaderMiddleware.customer_cache[org_id] = customer
                     LOG.debug(f"Customer added to cache: {org_id}")
                 else:
