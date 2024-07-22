@@ -8,7 +8,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     service_name,
     instance_type,
     pretax_cost,
-    quantity,
+    usage_quantity,
     unit_of_measure,
     currency,
     tags,
