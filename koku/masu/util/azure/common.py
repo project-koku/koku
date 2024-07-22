@@ -23,20 +23,25 @@ INGRESS_REQUIRED_COLUMNS = {
     "SubscriptionGuid",
     "ResourceGroup",
     "ResourceLocation",
+    "UsageDateTime",
     "MeterCategory",
     "MeterSubcategory",
     "MeterId",
     "MeterName",
     "MeterRegion",
+    "UsageQuantity",
     "ResourceRate",
+    "PreTaxCost",
     "ConsumedService",
     "ResourceType",
+    "InstanceId",
     "OfferId",
     "AdditionalInfo",
     "ServiceInfo1",
     "ServiceInfo2",
     "ServiceName",
     "ServiceTier",
+    "Currency",
     "UnitOfMeasure",
 }
 
@@ -181,6 +186,8 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     matchable_resources = [x for x in matchable_resources if x is not None and x != ""]
     data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["resourceid"]
+    if resource_id_df.eq("").all():
+        resource_id_df = data_frame["instanceid"]
 
     if not resource_id_df.eq("").all():
         LOG.info("Matching OpenShift on Azure by resource ID.")

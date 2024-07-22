@@ -15,8 +15,8 @@ WHERE
         {% for item in resources %}
             (
                 coalesce(NULLIF(resourceid, ''), instanceid) = {{item.rid}} AND
-                date IS NOT NULL AND date >= {{item.start}} AND
-                date IS NOT NULL AND date <= {{item.end}}
+                date >= {{item.start}} AND
+                date <= {{item.end}}
             )
             {% if not loop.last %}
                 OR

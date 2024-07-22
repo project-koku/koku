@@ -18,14 +18,16 @@ from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
 class AzureReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
         numeric_columns = [
+            "usagequantity",
             "quantity",
             "resourcerate",
+            "pretaxcost",
             "costinbillingcurrency",
             "effectiveprice",
             "unitprice",
             "paygprice",
         ]
-        date_columns = ["date", "billingperiodstartdate", "billingperiodenddate"]
+        date_columns = ["usagedatetime", "date", "billingperiodstartdate", "billingperiodenddate"]
         boolean_columns = ["resource_id_matched"]
         column_types = {
             "numeric_columns": numeric_columns,

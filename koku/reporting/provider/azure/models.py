@@ -53,7 +53,7 @@ TRINO_REQUIRED_COLUMNS = {
     "productordername": "",
     "publishername": "",
     "publishertype": "",
-    "quantity": 0.0,
+    "usage_quantity": 0.0,
     "reservationid": "",
     "reservationname": "",
     "resourcegroup": "",
@@ -144,7 +144,7 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     tags = JSONField(null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=True)
-    quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
@@ -349,7 +349,7 @@ class AzureComputeSummaryP(models.Model):
     instance_type = models.TextField(null=True)
     instance_ids = ArrayField(models.TextField(), null=True)
     instance_count = models.IntegerField(null=True)
-    quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -385,7 +385,7 @@ class AzureStorageSummaryP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
-    quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -421,7 +421,7 @@ class AzureNetworkSummaryP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
-    quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -457,7 +457,7 @@ class AzureDatabaseSummaryP(models.Model):
     usage_end = models.DateField(null=False)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=False)
-    quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_of_measure = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)

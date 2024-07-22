@@ -109,7 +109,9 @@ def create_daily_archives(
     process_date = get_processing_date(
         s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports
     )
-    time_interval = pd.read_csv(local_file, nrows=0).columns.intersection({"Date", "date"})[0]
+    time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
+        {"UsageDateTime", "Date", "date", "usagedatetime"}
+    )[0]
     try:
         with pd.read_csv(
             local_file,

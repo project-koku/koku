@@ -33,10 +33,10 @@ class TestAzureUtils(MasuTestCase):
         matched_tags = [{"key": "value"}]
 
         data = [
-            {"resourceid": "id1", "tags": '{"key": "value"}'},
-            {"resourceid": "id2", "tags": '{"key": "other_value"}'},
-            {"resourceid": "id4", "tags": '{"keyz": "value"}'},
-            {"resourceid": "id5", "tags": '{"key": "value"}'},
+            {"resourceid": "id1", "pretaxcost": 1, "tags": '{"key": "value"}'},
+            {"resourceid": "id2", "pretaxcost": 1, "tags": '{"key": "other_value"}'},
+            {"resourceid": "id4", "pretaxcost": 1, "tags": '{"keyz": "value"}'},
+            {"resourceid": "id5", "pretaxcost": 1, "tags": '{"key": "value"}'},
         ]
 
         df = pd.DataFrame(data)
@@ -115,9 +115,9 @@ class TestAzureUtils(MasuTestCase):
         ]
         matched_tags = []
         data = [
-            {"resourceid": "", "instanceid": "id1", "tags": '{"key": "value"}'},
-            {"resourceid": "", "instanceid": "id2", "tags": '{"key": "other_value"}'},
-            {"resourceid": "", "instanceid": "id3", "tags": '{"keyz": "value"}'},
+            {"resourceid": "", "instanceid": "id1", "pretaxcost": 1, "tags": '{"key": "value"}'},
+            {"resourceid": "", "instanceid": "id2", "pretaxcost": 1, "tags": '{"key": "other_value"}'},
+            {"resourceid": "", "instanceid": "id3", "pretaxcost": 1, "tags": '{"keyz": "value"}'},
         ]
 
         df = pd.DataFrame(data)
@@ -147,7 +147,7 @@ class TestAzureUtils(MasuTestCase):
 
         matched_tags = [{"key": "value"}]
         data = [
-            {"resourceid": "id1", "tags": ""},
+            {"resourceid": "id1", "pretaxcost": 1, "tags": ""},
         ]
 
         df = pd.DataFrame(data)

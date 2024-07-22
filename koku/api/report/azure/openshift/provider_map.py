@@ -164,7 +164,7 @@ class OCPAzureProviderMap(ProviderMap):
                             )
                         },
                         "filter": [{}],
-                        "cost_units_key": "billingcurrencycode",
+                        "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "sum_columns": ["cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"cost_total": "desc"},
@@ -207,7 +207,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "usage": Sum(F("quantity")),
+                            "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
                                 Value("GB-Mo", output_field=CharField()),
@@ -252,7 +252,7 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum(F("quantity")),
+                            "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
                                 Value("GB-Mo", output_field=CharField()),
@@ -262,12 +262,12 @@ class OCPAzureProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "delta_key": {"usage": Sum("quantity")},
+                        "delta_key": {"usage": Sum("usage_quantity")},
                         "filter": [
                             {"field": "service_name", "operation": "icontains", "parameter": "Storage"},
                             {"field": "unit_of_measure", "operation": "exact", "parameter": "GB-Mo"},
                         ],
-                        "cost_units_key": "billingcurrencycode",
+                        "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "GB-Mo",
@@ -312,13 +312,13 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "usage": Sum(F("quantity")),
+                            "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
                                 Value("Hrs", output_field=CharField()),
                             ),
                         },
-                        "aggregate_key": "quantity",
+                        "aggregate_key": "usage_quantity",
                         "annotations": {
                             "infra_total": Sum(
                                 (
@@ -358,7 +358,7 @@ class OCPAzureProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum(F("quantity")),
+                            "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
                                 Value("Hrs", output_field=CharField()),
@@ -368,13 +368,13 @@ class OCPAzureProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "delta_key": {"usage": Sum("quantity")},
+                        "delta_key": {"usage": Sum("usage_quantity")},
                         "filter": [
                             {"field": "instance_type", "operation": "isnull", "parameter": False},
                             {"field": "unit_of_measure", "operation": "exact", "parameter": "Hrs"},
                         ],
                         "group_by": ["instance_type"],
-                        "cost_units_key": "billingcurrencycode",
+                        "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Hrs",
