@@ -34,6 +34,10 @@ def handle_trino_external_error(func):
         sql_params = kwargs.get("sql_params", {})
         context = kwargs.get("context", {})
         log_ref = kwargs.get("log_ref", "Trino query")
+        if sql_params is None:
+            sql_params = {}
+        if context is None:
+            context = {}
         ctx = (
             self.extract_context_from_sql_params(sql_params)
             if sql_params
@@ -169,14 +173,12 @@ class ReportDBAccessorBase:
             context = {}
         if conn_params is None:
             conn_params = {}
-
         if sql_params:
             ctx = self.extract_context_from_sql_params(sql_params)
         elif context:
             ctx = self.extract_context_from_sql_params(context)
         else:
             ctx = {}
-
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
