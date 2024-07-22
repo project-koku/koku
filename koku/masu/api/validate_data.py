@@ -28,13 +28,14 @@ REPORT_DATA_KEY = "Report Data Task IDs"
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def validate_cost_data(request):
+def validate_cost_data(request):  # noqa: C901
     """Masu endpoint to trigger cost validation for a provider"""
     if request.method == "GET":
         async_results = []
         params = request.query_params
         async_result = None
         provider_uuid = params.get("provider_uuid")
+        ocp_on_cloud_type = params.get("ocp_on_cloud_type", None)
         start_date = params.get("start_date")
         end_date = params.get("end_date")
         if start_date is None:
@@ -51,9 +52,18 @@ def validate_cost_data(request):
             provider = Provider.objects.get(uuid=provider_uuid)
             provider_schema = provider.account.get("schema_name")
         except Provider.DoesNotExist:
-            errmsg = f"provider_uuid {provider_uuid} does not exist"
+            errmsg = f"provider_uuid {provider_uuid} does not exist."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         provider_schema = provider.account.get("schema_name")
+
+        if ocp_on_cloud_type:
+            if provider.type != Provider.PROVIDER_OCP:
+                errmsg = "ocp_on_cloud_type must by used with an ocp provider."
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            supported_types = [Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP]
+            if ocp_on_cloud_type not in supported_types:
+                errmsg = f"ocp on cloud type must match: {supported_types}"
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         fallback_queue = get_customer_queue(provider_schema, PriorityQueue)
         queue_name = params.get("queue") or fallback_queue
@@ -61,14 +71,15 @@ def validate_cost_data(request):
         if queue_name not in QUEUE_LIST:
             errmsg = f"'queue' must be one of {QUEUE_LIST}."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-        context = {"tracing_id": f"running provider validation via masu for provider: {provider_uuid}"}
+        context = {"tracing_id": "running provider validation via masu"}
 
         async_result = validate_daily_data.s(
             provider_schema,
-            provider_uuid,
             start_date,
             end_date,
-            context,
+            provider_uuid,
+            ocp_on_cloud_type,
+            context=context,
         ).apply_async(queue=queue_name)
         async_results.append(str(async_result))
     return Response({REPORT_DATA_KEY: async_results})

@@ -34,6 +34,9 @@ TRINO_FILTER_MAP = {
         "date": "usage_start",
         "metric": "pod_effective_usage_cpu_core_hours",
     },
+    "OCPAWS": {"date": "usage_start", "metric": "unblended_cost"},
+    "OCPAzure": {"date": "usage_start", "metric": "pretax_cost"},
+    "OCPGCP": {"date": "usage_start", "metric": "unblended_cost"},
 }
 PG_FILTER_MAP = {
     Provider.PROVIDER_AWS: {
@@ -50,6 +53,9 @@ PG_FILTER_MAP = {
         "date": "usage_start",
         "metric": "pod_effective_usage_cpu_core_hours",
     },
+    "OCPAWS": {"date": "usage_start", "metric": "unblended_cost"},
+    "OCPAzure": {"date": "usage_start", "metric": "pretax_cost"},
+    "OCPGCP": {"date": "usage_start", "metric": "unblended_cost"},
 }
 
 # Table maps
@@ -60,8 +66,8 @@ PG_TABLE_MAP = {
     Provider.PROVIDER_OCI: OCI_CUR_TABLE_MAP.get("line_item_daily_summary"),
     Provider.PROVIDER_OCP: OCP_REPORT_TABLE_MAP.get("line_item_daily_summary"),
     "OCPAWS": AWS_CUR_TABLE_MAP.get("ocp_on_aws_project_daily_summary"),
-    "OCPAZURE": AZURE_REPORT_TABLE_MAP.get("ocp_on_aws_project_daily_summary"),
-    "OCPGCP": GCP_REPORT_TABLE_MAP.get("ocp_on_aws_project_daily_summary"),
+    "OCPAzure": AZURE_REPORT_TABLE_MAP.get("ocp_on_azure_project_daily_summary"),
+    "OCPGCP": GCP_REPORT_TABLE_MAP.get("ocp_on_gcp_project_daily_summary"),
 }
 
 TRINO_TABLE_MAP = {
@@ -71,23 +77,27 @@ TRINO_TABLE_MAP = {
     Provider.PROVIDER_OCI: OCI_TRINO_LINE_ITEM_DAILY_TABLE.get("cost"),
     Provider.PROVIDER_OCP: "reporting_ocpusagelineitem_daily_summary",
     "OCPAWS": "reporting_ocpawscostlineitem_project_daily_summary",
-    "OCPAZURE": "reporting_ocpazurecostlineitem_project_daily_summary",
+    "OCPAzure": "reporting_ocpazurecostlineitem_project_daily_summary",
     "OCPGCP": "reporting_ocpgcpcostlineitem_project_daily_summary",
 }
-
-
-class QueryError(Exception):
-    """Errors specific to Trino query"""
-
-    pass
 
 
 class DataValidator:
     """Class to check data is valid for providers"""
 
-    def __init__(self, schema, provider_uuid, start_date, end_date, context, date_step=settings.TRINO_DATE_STEP):
+    def __init__(
+        self,
+        schema,
+        start_date,
+        end_date,
+        provider_uuid,
+        ocp_on_cloud_type,
+        context,
+        date_step=settings.TRINO_DATE_STEP,
+    ):
         self.schema = schema
         self.provider_uuid = provider_uuid
+        self.ocp_on_cloud_type = ocp_on_cloud_type
         self.start_date = start_date
         self.end_date = end_date
         self.context = context
@@ -95,18 +105,21 @@ class DataValidator:
 
     def get_table_filters_for_provider(self, provider_type, trino=False):
         """Get relevant table and query filters for given provider type"""
-        table = PG_TABLE_MAP.get(provider_type)
-        query_filters = PG_FILTER_MAP.get(provider_type)
+        table_map = provider_type
+        if self.ocp_on_cloud_type:
+            table_map = f"OCP{provider_type}"
+        table = PG_TABLE_MAP.get(table_map)
+        query_filters = PG_FILTER_MAP.get(table_map)
         if trino:
-            table = TRINO_TABLE_MAP.get(provider_type)
-            query_filters = TRINO_FILTER_MAP.get(provider_type)
+            table = TRINO_TABLE_MAP.get(table_map)
+            query_filters = TRINO_FILTER_MAP.get(table_map)
         return table, query_filters
 
     def compare_data(self, pg_data, trino_data, tolerance=1):
         """Validate if postgres and trino query data cost matches per day"""
         incomplete_days = {}
         valid_cost = True
-        if trino_data == []:
+        if trino_data == {}:
             return incomplete_days, False
         for date in trino_data:
             if date in pg_data:
@@ -120,23 +133,27 @@ class DataValidator:
             else:
                 incomplete_days[date] = "missing daily data"
                 valid_cost = False
-
         return incomplete_days, valid_cost
 
-    def execute_relevant_query(self, provider_type, trino=False):
-        # query trino/postgres
-        table, query_filters = self.get_table_filters_for_provider(provider_type, trino)
-        report_db_accessor = ReportDBAccessorBase(self.schema)
+    def execute_relevant_query(self, provider_type, cluster_id=None, trino=False):
+        """Make relevant postgres or Trino queries"""
         daily_result = {}
+        # year and month for running partitioned queries
         dh = DateHelper()
         year = dh.bill_year_from_date(self.start_date)
         month = dh.bill_month_from_date(self.start_date)
+        report_db_accessor = ReportDBAccessorBase(self.schema)
+        # Set provider filter, when running ocp{aws/gcp/azure} checks we need to rely on the cluster id
+        provider_filter = self.provider_uuid if not self.ocp_on_cloud_type else cluster_id
+        # query trino/postgres
+        table, query_filters = self.get_table_filters_for_provider(provider_type, trino)
         for start, end in date_range_pair(self.start_date, self.end_date, step=self.date_step):
             if trino:
+                source = "source" if not self.ocp_on_cloud_type else "cluster_id"
                 sql = f"""
                     SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date
                     FROM hive.{self.schema}.{table}
-                        WHERE source = '{self.provider_uuid}'
+                        WHERE {source} = '{provider_filter}'
                         AND {query_filters.get("date")} >= date('{start}')
                         AND {query_filters.get("date")} <= date('{end}')
                         AND year = '{year}'
@@ -145,10 +162,11 @@ class DataValidator:
                         ORDER BY {query_filters.get("date")}"""
                 result = report_db_accessor._execute_trino_raw_sql_query(sql, log_ref="data validation query")
             else:
+                source = "source_uuid" if not self.ocp_on_cloud_type else "cluster_id"
                 sql = f"""
                     SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date
                     FROM {self.schema}.{table}_{year}_{month}
-                        WHERE source_uuid = '{self.provider_uuid}'
+                        WHERE {source} = '{provider_filter}'
                         AND {query_filters.get("date")} >= '{start}'
                         AND {query_filters.get("date")} <= '{end}'
                         GROUP BY {query_filters.get("date")}
@@ -163,25 +181,32 @@ class DataValidator:
         return daily_result
 
     def check_data_integrity(self):
+        """Helper to call the query and validation methods for validating data"""
         valid_cost = False
         pg_data = None
         trino_data = None
+        cluster_id = None
         daily_difference = {}
-        LOG.info(log_json(msg=f"validation started for provider: {self.provider_uuid}", context=self.context))
+        LOG.info(log_json(msg="validation started for provider", context=self.context))
         provider = Provider.objects.filter(uuid=self.provider_uuid).first()
+        provider_type = provider.type.strip("-local")
+        if self.ocp_on_cloud_type:
+            provider_type = self.ocp_on_cloud_type.strip("-local")
+            cluster_id = provider.authentication.credentials.get("cluster_id")
         # Postgres query to get daily values
         try:
-            pg_data = self.execute_relevant_query(provider.type.strip("-local"))
+            pg_data = self.execute_relevant_query(provider_type, cluster_id)
         except Exception as e:
             LOG.warning(log_json(msg=f"data validation postgres query failed: {e}", context=self.context))
-            return QueryError
+            return
         # Trino query to get daily values
         try:
-            trino_data = self.execute_relevant_query(provider.type.strip("-local"), True)
+            trino_data = self.execute_relevant_query(provider_type, cluster_id, True)
         except Exception as e:
             LOG.warning(log_json(msg=f"data validation trino query failed: {e}", context=self.context))
-            return QueryError
+            return
         # Compare results
+        LOG.debug(f"\n PG: {pg_data} \n Trino data: {trino_data} \n")
         daily_difference, valid_cost = self.compare_data(pg_data, trino_data)
         if valid_cost:
             LOG.info(log_json(msg=f"all data complete for provider: {self.provider_uuid}", context=self.context))

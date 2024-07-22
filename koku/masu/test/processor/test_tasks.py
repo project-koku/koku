@@ -66,6 +66,7 @@ from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
+from masu.processor.tasks import validate_daily_data
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
@@ -639,6 +640,13 @@ class TestProcessorTasks(MasuTestCase):
         mock_trino.assert_has_calls(expected_calls, any_order=True)
         mock_s3_delete.assert_called()
         mock_process.assert_called()
+
+    @patch("masu.processor.tasks.DataValidator")
+    def test_validate_data_task(self, mock_validate_daily_data):
+        """Test validate data task."""
+        context = {"unit": "test"}
+        validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
+        mock_validate_daily_data.assert_called()
 
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
