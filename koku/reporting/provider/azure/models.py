@@ -17,8 +17,8 @@ TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
 TRINO_REQUIRED_COLUMNS = {
     "billingperiodstartdate": pd.NaT,
     "billingperiodenddate": pd.NaT,
-    "date": pd.NaT,
     "usagedatetime": pd.NaT,
+    "date": pd.NaT,
     "accountname": "",
     "accountownerid": "",
     "additionalinfo": "",
