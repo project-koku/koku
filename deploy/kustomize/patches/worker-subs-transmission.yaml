@@ -130,11 +130,11 @@
       terminationGracePeriodSeconds: 3600
       resources:
         limits:
-          cpu: ${WORKER_SUBS_TRANSMISSION_CPU_LIMIT}
-          memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT}
+          cpu: ${CPU_LIMIT_WORKER_SUBS_TRANSMISSION}
+          memory: ${MEMORY_LIMIT_WORKER_SUBS_TRANSMISSION}
         requests:
-          cpu: ${WORKER_SUBS_TRANSMISSION_CPU_REQUEST}
-          memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST}
+          cpu: ${CPU_REQUEST_WORKER_SUBS_TRANSMISSION}
+          memory: ${MEMORY_REQUEST_WORKER_SUBS_TRANSMISSION}
       volumeMounts:
       - name: aws-credentials
         mountPath: /etc/aws
@@ -186,28 +186,28 @@
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST
+    name: MEMORY_REQUEST_WORKER_SUBS_TRANSMISSION
     required: true
     value: 300Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT
+    name: MEMORY_LIMIT_WORKER_SUBS_TRANSMISSION
     required: true
     value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: WORKER_SUBS_TRANSMISSION_CPU_REQUEST
+    name: CPU_REQUEST_WORKER_SUBS_TRANSMISSION
     required: true
     value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: WORKER_SUBS_TRANSMISSION_CPU_LIMIT
+    name: CPU_LIMIT_WORKER_SUBS_TRANSMISSION
     required: true
     value: 200m
 - op: add
