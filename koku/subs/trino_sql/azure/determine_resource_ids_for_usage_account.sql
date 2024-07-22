@@ -7,7 +7,7 @@ SELECT
 FROM (
     SELECT
      COALESCE(NULLIF(resourceid, ''), instanceid) resource_id,
-     max(COALESCE(date)) max_date
+     max(date) max_date
    FROM
      hive.{{schema | sqlsafe}}.azure_line_items
    WHERE
