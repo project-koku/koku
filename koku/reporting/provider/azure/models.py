@@ -18,6 +18,7 @@ TRINO_REQUIRED_COLUMNS = {
     "billingperiodstartdate": pd.NaT,
     "billingperiodenddate": pd.NaT,
     "date": pd.NaT,
+    "usagedatetime": pd.NaT,
     "accountname": "",
     "accountownerid": "",
     "additionalinfo": "",
@@ -36,6 +37,7 @@ TRINO_REQUIRED_COLUMNS = {
     "effectiveprice": 0.0,
     "frequency": "",
     "invoicesectionid": "",
+    "instanceid": "",
     "invoicesectionname": "",
     "isazurecrediteligible": "",
     "metercategory": "",
@@ -48,6 +50,7 @@ TRINO_REQUIRED_COLUMNS = {
     "paygprice": 0.0,
     "planname": "",
     "pricingmodel": "",
+    "pretaxcost": 0.0,
     "productname": "",
     "productorderid": "",
     "productordername": "",
@@ -74,6 +77,7 @@ TRINO_REQUIRED_COLUMNS = {
     "term": "",
     "unitofmeasure": "",
     "unitprice": 0.0,
+    "usagequantity": 0.0,
 }
 
 UI_SUMMARY_TABLES = (
