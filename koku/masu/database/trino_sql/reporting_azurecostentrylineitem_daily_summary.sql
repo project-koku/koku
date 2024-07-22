@@ -27,7 +27,7 @@ WITH cte_line_items AS (
         json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_type,
         cast(coalesce(nullif(quantity, 0), 0) as DECIMAL(24,9)) as quantity,
         cast(coalesce(nullif(costinbillingcurrency, 0), 0) as DECIMAL(24,9)) as costinbillingcurrency,
-        coalesce(nullif(billingcurrencycode, ''), nullif(currency, ''), billingcurrency) as currency,
+        coalesce(nullif(billingcurrencycode, ''), billingcurrency) as currency,
         json_parse(tags) as tags,
         coalesce(nullif(resourceid, ''), instanceid) as instance_id,
         cast(source as UUID) as source_uuid,
