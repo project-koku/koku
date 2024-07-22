@@ -318,8 +318,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = self._initialize_response_output(self.parameters)
 
+        if self._report_type == "ec2_compute":
+            self._format_ec2_response()
+
+        output = self._initialize_response_output(self.parameters)
         output["data"] = self.query_data
         output["total"] = self.query_sum
 
@@ -556,3 +559,36 @@ class AWSReportQueryHandler(ReportQueryHandler):
         except Exception as e:
             LOG.error(f"Error getting sub org units: \n{e}")
             return []
+
+    def _format_ec2_response(self):
+        """
+        Format EC2 response data tansforming tags to the desired UI format.
+
+        Example transformation:
+
+        Input:
+        "tags": [
+            {"Map":"c2"},
+            {"Name":"instance_name_3"},
+        ]
+
+
+        Output:
+        "tags": [
+            {
+                "key": "Map",
+                "values": ["c2"]
+            },
+            {
+                "key": "Name",
+                "values": ["instance_name_3"]
+            },
+        ]
+        """
+
+        for item in self.query_data:
+            for resource in item["resource_ids"]:
+                resource_values = resource["values"][0]
+                resource_values["tags"] = [
+                    {"key": key, "values": [value]} for tag in resource_values["tags"] for key, value in tag.items()
+                ]

@@ -20,6 +20,7 @@ from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
 from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSCostSummaryByRegionP
 from reporting.provider.aws.models import AWSCostSummaryByServiceP
@@ -28,7 +29,6 @@ from reporting.provider.aws.models import AWSDatabaseSummaryP
 from reporting.provider.aws.models import AWSNetworkSummaryP
 from reporting.provider.aws.models import AWSStorageSummaryByAccountP
 from reporting.provider.aws.models import AWSStorageSummaryP
-
 
 CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
 
@@ -69,6 +69,9 @@ class AWSProviderMap(ProviderMap):
                     "org_unit_id": {"field": "organizational_unit__org_unit_path", "operation": "icontains"},
                     "org_unit_single_level": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
+                    "operating_system": {"field": "operating_system", "operation": "icontains"},
+                    "instance_name": {"field": "instance_name", "operation": "icontains"},
+                    "resource_id": {"field": "resource_id", "operation": "icontains"},
                 },
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
@@ -270,6 +273,116 @@ class AWSProviderMap(ProviderMap):
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"usage": "desc"},
                     },
+                    "ec2_compute": {
+                        "aggregates": {
+                            "infra_raw": Sum(
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_usage": Sum(Value(0, output_field=DecimalField())),
+                            "infra_markup": Sum(
+                                Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": Sum(Value(0, output_field=DecimalField())),
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": Sum(Value(0, output_field=DecimalField())),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_raw": Sum(
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_usage": Sum(Value(0, output_field=DecimalField())),
+                            "cost_markup": Sum(
+                                Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "usage": Sum("usage_amount"),
+                        },
+                        "aggregate_key": "usage_amount",
+                        "annotations": {
+                            "infra_raw": Sum(
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Sum(
+                                Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "sup_raw": Value(0, output_field=DecimalField()),
+                            "sup_usage": Value(0, output_field=DecimalField()),
+                            "sup_markup": Value(0, output_field=DecimalField()),
+                            "sup_total": Value(0, output_field=DecimalField()),
+                            "cost_raw": Sum(
+                                Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_usage": Value(0, output_field=DecimalField()),
+                            "cost_markup": Sum(
+                                Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F(self.cost_type), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
+                            "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
+                            "usage": Sum("usage_amount"),
+                            "usage_units": Coalesce(Max("unit"), Value("Hrs")),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
+                            "account_alias": Max("account_alias"),
+                            "account": Max("usage_account_id"),
+                            "instance_name": Max("instance_name"),
+                            "instance_type": Max("instance_type"),
+                            "operating_system": Max("operating_system"),
+                            "region": Max("region"),
+                            "vcpu": Max("vcpu"),
+                            "memory": Max("memory"),
+                            "tags": ArrayAgg(F("tags")),
+                        },
+                        "filter": [{}],
+                        "group_by": ["resource_id"],
+                        "cost_units_key": "currency_code",
+                        "cost_units_fallback": "USD",
+                        "usage_units_key": "unit",
+                        "usage_units_fallback": "Hrs",
+                        "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
+                        "default_ordering": {"resource_id": "desc"},
+                        "tables": {"query": AWSCostEntryLineItemSummaryByEC2Compute},
+                        "default_time_period": {
+                            "time_scope_value": "-1",
+                            "time_scope_units": "month",
+                            "resolution": "monthly",
+                        },
+                    },
                     "storage": {
                         "aggregates": {
                             "infra_total": Sum(
@@ -445,6 +558,9 @@ class AWSProviderMap(ProviderMap):
                 ("account", "instance_type"): AWSComputeSummaryByAccountP,
                 ("account", "org_unit_id"): AWSComputeSummaryByAccountP,
                 ("org_unit_id",): AWSComputeSummaryByAccountP,
+            },
+            "ec2_compute": {
+                "default": AWSCostEntryLineItemSummaryByEC2Compute,
             },
             "storage": {
                 "default": AWSStorageSummaryP,
