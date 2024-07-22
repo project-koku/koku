@@ -142,11 +142,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${KOKU_READS_CPU_LIMIT}
-            memory: ${KOKU_READS_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_KOKU_READS}
+            memory: ${MEMORY_LIMIT_KOKU_READS}
           requests:
-            cpu: ${KOKU_READS_CPU_REQUEST}
-            memory: ${KOKU_READS_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_KOKU_READS}
+            memory: ${MEMORY_REQUEST_KOKU_READS}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -336,11 +336,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${KOKU_WRITES_CPU_LIMIT}
-            memory: ${KOKU_WRITES_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_KOKU_WRITES}
+            memory: ${MEMORY_LIMIT_KOKU_WRITES}
           requests:
-            cpu: ${KOKU_WRITES_CPU_REQUEST}
-            memory: ${KOKU_WRITES_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_KOKU_WRITES}
+            memory: ${MEMORY_REQUEST_KOKU_WRITES}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -420,11 +420,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${NGINX_CPU_LIMIT}
-            memory: ${NGINX_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_NGINX}
+            memory: ${MEMORY_LIMIT_NGINX}
           requests:
-            cpu: ${NGINX_CPU_REQUEST}
-            memory: ${NGINX_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_NGINX}
+            memory: ${MEMORY_REQUEST_NGINX}
         volumeMounts:
         - mountPath: /etc/nginx
           name: koku-api-nginx-conf
@@ -535,11 +535,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${LISTENER_CPU_LIMIT}
-            memory: ${LISTENER_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_LISTENER}
+            memory: ${MEMORY_LIMIT_LISTENER}
           requests:
-            cpu: ${LISTENER_CPU_REQUEST}
-            memory: ${LISTENER_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_LISTENER}
+            memory: ${MEMORY_REQUEST_LISTENER}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -728,11 +728,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${MASU_CPU_LIMIT}
-            memory: ${MASU_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_MASU}
+            memory: ${MEMORY_LIMIT_MASU}
           requests:
-            cpu: ${MASU_CPU_REQUEST}
-            memory: ${MASU_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_MASU}
+            memory: ${MEMORY_REQUEST_MASU}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -895,11 +895,11 @@ objects:
               beat which does not easily support readiness checks
         resources:
           limits:
-            cpu: ${SCHEDULER_CPU_LIMIT}
-            memory: ${SCHEDULER_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_SCHEDULER}
+            memory: ${MEMORY_LIMIT_SCHEDULER}
           requests:
-            cpu: ${SCHEDULER_CPU_REQUEST}
-            memory: ${SCHEDULER_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_SCHEDULER}
+            memory: ${MEMORY_REQUEST_SCHEDULER}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -1057,11 +1057,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${SOURCES_CLIENT_CPU_LIMIT}
-            memory: ${SOURCES_CLIENT_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_SOURCES_CLIENT}
+            memory: ${MEMORY_LIMIT_SOURCES_CLIENT}
           requests:
-            cpu: ${SOURCES_CLIENT_CPU_REQUEST}
-            memory: ${SOURCES_CLIENT_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_SOURCES_CLIENT}
+            memory: ${MEMORY_REQUEST_SOURCES_CLIENT}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -1221,11 +1221,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${SOURCES_LISTENER_CPU_LIMIT}
-            memory: ${SOURCES_LISTENER_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_SOURCES_LISTENER}
+            memory: ${MEMORY_LIMIT_SOURCES_LISTENER}
           requests:
-            cpu: ${SOURCES_LISTENER_CPU_REQUEST}
-            memory: ${SOURCES_LISTENER_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_SOURCES_LISTENER}
+            memory: ${MEMORY_REQUEST_SOURCES_LISTENER}
         volumeMounts:
         - mountPath: /etc/aws
           name: aws-credentials
@@ -1396,11 +1396,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_CELERY_CPU_LIMIT}
-            memory: ${WORKER_CELERY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_CELERY}
+            memory: ${MEMORY_LIMIT_WORKER_CELERY}
           requests:
-            cpu: ${WORKER_CELERY_CPU_REQUEST}
-            memory: ${WORKER_CELERY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_CELERY}
+            memory: ${MEMORY_REQUEST_WORKER_CELERY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -1582,11 +1582,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_COST_MODEL_CPU_LIMIT}
-            memory: ${WORKER_COST_MODEL_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_COST_MODEL}
+            memory: ${MEMORY_LIMIT_WORKER_COST_MODEL}
           requests:
-            cpu: ${WORKER_COST_MODEL_CPU_REQUEST}
-            memory: ${WORKER_COST_MODEL_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_COST_MODEL}
+            memory: ${MEMORY_REQUEST_WORKER_COST_MODEL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -1768,11 +1768,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_COST_MODEL_XL_CPU_LIMIT}
-            memory: ${WORKER_COST_MODEL_XL_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_COST_MODEL_XL}
+            memory: ${MEMORY_LIMIT_WORKER_COST_MODEL_XL}
           requests:
-            cpu: ${WORKER_COST_MODEL_XL_CPU_REQUEST}
-            memory: ${WORKER_COST_MODEL_XL_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_COST_MODEL_XL}
+            memory: ${MEMORY_REQUEST_WORKER_COST_MODEL_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -1954,11 +1954,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_COST_MODEL_PENALTY_CPU_LIMIT}
-            memory: ${WORKER_COST_MODEL_PENALTY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_COST_MODEL_PENALTY}
+            memory: ${MEMORY_LIMIT_WORKER_COST_MODEL_PENALTY}
           requests:
-            cpu: ${WORKER_COST_MODEL_PENALTY_CPU_REQUEST}
-            memory: ${WORKER_COST_MODEL_PENALTY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_COST_MODEL_PENALTY}
+            memory: ${MEMORY_REQUEST_WORKER_COST_MODEL_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -2144,11 +2144,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_DOWNLOAD_CPU_LIMIT}
-            memory: ${WORKER_DOWNLOAD_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_DOWNLOAD}
+            memory: ${MEMORY_LIMIT_WORKER_DOWNLOAD}
           requests:
-            cpu: ${WORKER_DOWNLOAD_CPU_REQUEST}
-            memory: ${WORKER_DOWNLOAD_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_DOWNLOAD}
+            memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -2334,11 +2334,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_DOWNLOAD_XL_CPU_LIMIT}
-            memory: ${WORKER_DOWNLOAD_XL_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_DOWNLOAD_XL}
+            memory: ${MEMORY_LIMIT_WORKER_DOWNLOAD_XL}
           requests:
-            cpu: ${WORKER_DOWNLOAD_XL_CPU_REQUEST}
-            memory: ${WORKER_DOWNLOAD_XL_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_DOWNLOAD_XL}
+            memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -2524,11 +2524,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_DOWNLOAD_PENALTY_CPU_LIMIT}
-            memory: ${WORKER_DOWNLOAD_PENALTY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_DOWNLOAD_PENALTY}
+            memory: ${MEMORY_LIMIT_WORKER_DOWNLOAD_PENALTY}
           requests:
-            cpu: ${WORKER_DOWNLOAD_PENALTY_CPU_REQUEST}
-            memory: ${WORKER_DOWNLOAD_PENALTY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_DOWNLOAD_PENALTY}
+            memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -2712,11 +2712,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_OCP_CPU_LIMIT}
-            memory: ${WORKER_OCP_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_OCP}
+            memory: ${MEMORY_LIMIT_WORKER_OCP}
           requests:
-            cpu: ${WORKER_OCP_CPU_REQUEST}
-            memory: ${WORKER_OCP_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_OCP}
+            memory: ${MEMORY_REQUEST_WORKER_OCP}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -2900,11 +2900,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_OCP_XL_CPU_LIMIT}
-            memory: ${WORKER_OCP_XL_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_OCP_XL}
+            memory: ${MEMORY_LIMIT_WORKER_OCP_XL}
           requests:
-            cpu: ${WORKER_OCP_XL_CPU_REQUEST}
-            memory: ${WORKER_OCP_XL_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_OCP_XL}
+            memory: ${MEMORY_REQUEST_WORKER_OCP_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -3088,11 +3088,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_OCP_PENALTY_CPU_LIMIT}
-            memory: ${WORKER_OCP_PENALTY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_OCP_PENALTY}
+            memory: ${MEMORY_LIMIT_WORKER_OCP_PENALTY}
           requests:
-            cpu: ${WORKER_OCP_PENALTY_CPU_REQUEST}
-            memory: ${WORKER_OCP_PENALTY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_OCP_PENALTY}
+            memory: ${MEMORY_REQUEST_WORKER_OCP_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -3282,11 +3282,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_PRIORITY_CPU_LIMIT}
-            memory: ${WORKER_PRIORITY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_PRIORITY}
+            memory: ${MEMORY_LIMIT_WORKER_PRIORITY}
           requests:
-            cpu: ${WORKER_PRIORITY_CPU_REQUEST}
-            memory: ${WORKER_PRIORITY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_PRIORITY}
+            memory: ${MEMORY_REQUEST_WORKER_PRIORITY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -3476,11 +3476,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_PRIORITY_XL_CPU_LIMIT}
-            memory: ${WORKER_PRIORITY_XL_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_PRIORITY_XL}
+            memory: ${MEMORY_LIMIT_WORKER_PRIORITY_XL}
           requests:
-            cpu: ${WORKER_PRIORITY_XL_CPU_REQUEST}
-            memory: ${WORKER_PRIORITY_XL_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_PRIORITY_XL}
+            memory: ${MEMORY_REQUEST_WORKER_PRIORITY_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -3670,11 +3670,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_PRIORITY_PENALTY_CPU_LIMIT}
-            memory: ${WORKER_PRIORITY_PENALTY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_PRIORITY_PENALTY}
+            memory: ${MEMORY_LIMIT_WORKER_PRIORITY_PENALTY}
           requests:
-            cpu: ${WORKER_PRIORITY_PENALTY_CPU_REQUEST}
-            memory: ${WORKER_PRIORITY_PENALTY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_PRIORITY_PENALTY}
+            memory: ${MEMORY_REQUEST_WORKER_PRIORITY_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -3856,11 +3856,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_REFRESH_CPU_LIMIT}
-            memory: ${WORKER_REFRESH_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_REFRESH}
+            memory: ${MEMORY_LIMIT_WORKER_REFRESH}
           requests:
-            cpu: ${WORKER_REFRESH_CPU_REQUEST}
-            memory: ${WORKER_REFRESH_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_REFRESH}
+            memory: ${MEMORY_REQUEST_WORKER_REFRESH}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -4042,11 +4042,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_REFRESH_XL_CPU_LIMIT}
-            memory: ${WORKER_REFRESH_XL_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_REFRESH_XL}
+            memory: ${MEMORY_LIMIT_WORKER_REFRESH_XL}
           requests:
-            cpu: ${WORKER_REFRESH_XL_CPU_REQUEST}
-            memory: ${WORKER_REFRESH_XL_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_REFRESH_XL}
+            memory: ${MEMORY_REQUEST_WORKER_REFRESH_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -4228,11 +4228,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_REFRESH_PENALTY_CPU_LIMIT}
-            memory: ${WORKER_REFRESH_PENALTY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_REFRESH_PENALTY}
+            memory: ${MEMORY_LIMIT_WORKER_REFRESH_PENALTY}
           requests:
-            cpu: ${WORKER_REFRESH_PENALTY_CPU_REQUEST}
-            memory: ${WORKER_REFRESH_PENALTY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_REFRESH_PENALTY}
+            memory: ${MEMORY_REQUEST_WORKER_REFRESH_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -4418,11 +4418,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_SUMMARY_CPU_LIMIT}
-            memory: ${WORKER_SUMMARY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_SUMMARY}
+            memory: ${MEMORY_LIMIT_WORKER_SUMMARY}
           requests:
-            cpu: ${WORKER_SUMMARY_CPU_REQUEST}
-            memory: ${WORKER_SUMMARY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_SUMMARY}
+            memory: ${MEMORY_REQUEST_WORKER_SUMMARY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -4608,11 +4608,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_SUMMARY_XL_CPU_LIMIT}
-            memory: ${WORKER_SUMMARY_XL_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_SUMMARY_XL}
+            memory: ${MEMORY_LIMIT_WORKER_SUMMARY_XL}
           requests:
-            cpu: ${WORKER_SUMMARY_XL_CPU_REQUEST}
-            memory: ${WORKER_SUMMARY_XL_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_SUMMARY_XL}
+            memory: ${MEMORY_REQUEST_WORKER_SUMMARY_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -4798,11 +4798,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_SUMMARY_PENALTY_CPU_LIMIT}
-            memory: ${WORKER_SUMMARY_PENALTY_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_SUMMARY_PENALTY}
+            memory: ${MEMORY_LIMIT_WORKER_SUMMARY_PENALTY}
           requests:
-            cpu: ${WORKER_SUMMARY_PENALTY_CPU_REQUEST}
-            memory: ${WORKER_SUMMARY_PENALTY_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_SUMMARY_PENALTY}
+            memory: ${MEMORY_REQUEST_WORKER_SUMMARY_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -4986,11 +4986,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_HCS_CPU_LIMIT}
-            memory: ${WORKER_HCS_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_HCS}
+            memory: ${MEMORY_LIMIT_WORKER_HCS}
           requests:
-            cpu: ${WORKER_HCS_CPU_REQUEST}
-            memory: ${WORKER_HCS_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_HCS}
+            memory: ${MEMORY_REQUEST_WORKER_HCS}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -5160,11 +5160,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_SUBS_EXTRACTION_CPU_LIMIT}
-            memory: ${WORKER_SUBS_EXTRACTION_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_SUBS_EXTRACTION}
+            memory: ${MEMORY_LIMIT_WORKER_SUBS_EXTRACTION}
           requests:
-            cpu: ${WORKER_SUBS_EXTRACTION_CPU_REQUEST}
-            memory: ${WORKER_SUBS_EXTRACTION_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_SUBS_EXTRACTION}
+            memory: ${MEMORY_REQUEST_WORKER_SUBS_EXTRACTION}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -5332,11 +5332,11 @@ objects:
           timeoutSeconds: 10
         resources:
           limits:
-            cpu: ${WORKER_SUBS_TRANSMISSION_CPU_LIMIT}
-            memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_WORKER_SUBS_TRANSMISSION}
+            memory: ${MEMORY_LIMIT_WORKER_SUBS_TRANSMISSION}
           requests:
-            cpu: ${WORKER_SUBS_TRANSMISSION_CPU_REQUEST}
-            memory: ${WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_WORKER_SUBS_TRANSMISSION}
+            memory: ${MEMORY_REQUEST_WORKER_SUBS_TRANSMISSION}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
         - mountPath: /etc/aws
@@ -5415,11 +5415,11 @@ objects:
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_MIGRATIONS_CPU_LIMIT}
-            memory: ${KOKU_MIGRATIONS_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_KOKU_MIGRATIONS}
+            memory: ${MEMORY_LIMIT_KOKU_MIGRATIONS}
           requests:
-            cpu: ${KOKU_MIGRATIONS_CPU_REQUEST}
-            memory: ${KOKU_MIGRATIONS_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_KOKU_MIGRATIONS}
+            memory: ${MEMORY_REQUEST_KOKU_MIGRATIONS}
     - name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
       podSpec:
         args:
@@ -5442,11 +5442,11 @@ objects:
         image: ${MGMT_IMAGE}:${MGMT_IMAGE_TAG}
         resources:
           limits:
-            cpu: ${KOKU_MGMT_CPU_LIMIT}
-            memory: ${KOKU_MGMT_MEMORY_LIMIT}
+            cpu: ${CPU_LIMIT_KOKU_MGMT}
+            memory: ${MEMORY_LIMIT_KOKU_MGMT}
           requests:
-            cpu: ${KOKU_MGMT_CPU_REQUEST}
-            memory: ${KOKU_MGMT_MEMORY_REQUEST}
+            cpu: ${CPU_REQUEST_KOKU_MGMT}
+            memory: ${MEMORY_REQUEST_KOKU_MGMT}
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -5637,19 +5637,19 @@ parameters:
   required: false
   value: ""
 - displayName: Memory Request
-  name: KOKU_MIGRATIONS_MEMORY_REQUEST
+  name: MEMORY_REQUEST_KOKU_MIGRATIONS
   required: true
   value: 1Gi
 - displayName: Memory Limit
-  name: KOKU_MIGRATIONS_MEMORY_LIMIT
+  name: MEMORY_LIMIT_KOKU_MIGRATIONS
   required: true
   value: 2Gi
 - displayName: CPU Request
-  name: KOKU_MIGRATIONS_CPU_REQUEST
+  name: CPU_REQUEST_KOKU_MIGRATIONS
   required: true
   value: "2"
 - displayName: CPU Limit
-  name: KOKU_MIGRATIONS_CPU_LIMIT
+  name: CPU_LIMIT_KOKU_MIGRATIONS
   required: true
   value: "3"
 - name: TENANT_MULTIPROCESSING_MAX_PROCESSES
@@ -5674,19 +5674,19 @@ parameters:
   name: MGMT_COMMAND
   value: echo 'No Command to Run'
 - displayName: Memory Request
-  name: KOKU_MGMT_MEMORY_REQUEST
+  name: MEMORY_REQUEST_KOKU_MGMT
   required: true
   value: 20Mi
 - displayName: Memory Limit
-  name: KOKU_MGMT_MEMORY_LIMIT
+  name: MEMORY_LIMIT_KOKU_MGMT
   required: true
   value: 20Mi
 - displayName: CPU Request
-  name: KOKU_MGMT_CPU_REQUEST
+  name: CPU_REQUEST_KOKU_MGMT
   required: true
   value: 10m
 - displayName: CPU Limit
-  name: KOKU_MGMT_CPU_LIMIT
+  name: CPU_LIMIT_KOKU_MGMT
   required: true
   value: 10m
 - displayName: App domain
@@ -5944,19 +5944,19 @@ parameters:
   required: true
   value: "3"
 - displayName: Memory Request
-  name: KOKU_READS_MEMORY_REQUEST
+  name: MEMORY_REQUEST_KOKU_READS
   required: true
   value: 512Mi
 - displayName: Memory Limit
-  name: KOKU_READS_MEMORY_LIMIT
+  name: MEMORY_LIMIT_KOKU_READS
   required: true
   value: 1Gi
 - displayName: CPU Request
-  name: KOKU_READS_CPU_REQUEST
+  name: CPU_REQUEST_KOKU_READS
   required: true
   value: 250m
 - displayName: CPU Limit
-  name: KOKU_READS_CPU_LIMIT
+  name: CPU_LIMIT_KOKU_READS
   required: true
   value: 500m
 - displayName: Log Level for koku-api
@@ -5976,19 +5976,19 @@ parameters:
   required: true
   value: "3"
 - displayName: Memory Request
-  name: KOKU_WRITES_MEMORY_REQUEST
+  name: MEMORY_REQUEST_KOKU_WRITES
   required: true
   value: 512Mi
 - displayName: Memory Limit
-  name: KOKU_WRITES_MEMORY_LIMIT
+  name: MEMORY_LIMIT_KOKU_WRITES
   required: true
   value: 1Gi
 - displayName: CPU Request
-  name: KOKU_WRITES_CPU_REQUEST
+  name: CPU_REQUEST_KOKU_WRITES
   required: true
   value: 250m
 - displayName: CPU Limit
-  name: KOKU_WRITES_CPU_LIMIT
+  name: CPU_LIMIT_KOKU_WRITES
   required: true
   value: 500m
 - displayName: Log Level for koku-api
@@ -6000,19 +6000,19 @@ parameters:
   required: true
   value: "3"
 - displayName: Memory Request
-  name: NGINX_MEMORY_REQUEST
+  name: MEMORY_REQUEST_NGINX
   required: true
   value: 100Mi
 - displayName: Memory Limit
-  name: NGINX_MEMORY_LIMIT
+  name: MEMORY_LIMIT_NGINX
   required: true
   value: 200Mi
 - displayName: CPU Request
-  name: NGINX_CPU_REQUEST
+  name: CPU_REQUEST_NGINX
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: NGINX_CPU_LIMIT
+  name: CPU_LIMIT_NGINX
   required: true
   value: 200m
 - displayName: ROS OCP API Name
@@ -6024,19 +6024,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: LISTENER_MEMORY_REQUEST
+  name: MEMORY_REQUEST_LISTENER
   required: true
   value: 300Mi
 - displayName: Memory Limit
-  name: LISTENER_MEMORY_LIMIT
+  name: MEMORY_LIMIT_LISTENER
   required: true
   value: 600Mi
 - displayName: CPU Request
-  name: LISTENER_CPU_REQUEST
+  name: CPU_REQUEST_LISTENER
   required: true
   value: 150m
 - displayName: CPU Limit
-  name: LISTENER_CPU_LIMIT
+  name: CPU_LIMIT_LISTENER
   required: true
   value: 300m
 - displayName: Log Level for listener
@@ -6048,19 +6048,19 @@ parameters:
   required: true
   value: "1"
 - displayName: Memory Request
-  name: MASU_MEMORY_REQUEST
+  name: MEMORY_REQUEST_MASU
   required: true
   value: 500Mi
 - displayName: Memory Limit
-  name: MASU_MEMORY_LIMIT
+  name: MEMORY_LIMIT_MASU
   required: true
   value: 700Mi
 - displayName: CPU Request
-  name: MASU_CPU_REQUEST
+  name: CPU_REQUEST_MASU
   required: true
   value: 50m
 - displayName: CPU Limit
-  name: MASU_CPU_LIMIT
+  name: CPU_LIMIT_MASU
   required: true
   value: 100m
 - displayName: Log Level for masu
@@ -6072,19 +6072,19 @@ parameters:
   required: true
   value: "1"
 - displayName: Memory Request
-  name: SCHEDULER_MEMORY_REQUEST
+  name: MEMORY_REQUEST_SCHEDULER
   required: true
   value: 200Mi
 - displayName: Memory Limit
-  name: SCHEDULER_MEMORY_LIMIT
+  name: MEMORY_LIMIT_SCHEDULER
   required: true
   value: 400Mi
 - displayName: CPU Request
-  name: SCHEDULER_CPU_REQUEST
+  name: CPU_REQUEST_SCHEDULER
   required: true
   value: 50m
 - displayName: CPU Limit
-  name: SCHEDULER_CPU_LIMIT
+  name: CPU_LIMIT_SCHEDULER
   required: true
   value: 100m
 - displayName: Worker Queue
@@ -6102,19 +6102,19 @@ parameters:
   required: true
   value: "1"
 - displayName: Memory Request
-  name: SOURCES_CLIENT_MEMORY_REQUEST
+  name: MEMORY_REQUEST_SOURCES_CLIENT
   required: true
   value: 650Mi
 - displayName: Memory Limit
-  name: SOURCES_CLIENT_MEMORY_LIMIT
+  name: MEMORY_LIMIT_SOURCES_CLIENT
   required: true
   value: 768Mi
 - displayName: CPU Request
-  name: SOURCES_CLIENT_CPU_REQUEST
+  name: CPU_REQUEST_SOURCES_CLIENT
   required: true
   value: 50m
 - displayName: CPU Limit
-  name: SOURCES_CLIENT_CPU_LIMIT
+  name: CPU_LIMIT_SOURCES_CLIENT
   required: true
   value: 100m
 - displayName: Log Level for sources client
@@ -6126,19 +6126,19 @@ parameters:
   required: true
   value: "1"
 - displayName: Memory Request
-  name: SOURCES_LISTENER_MEMORY_REQUEST
+  name: MEMORY_REQUEST_SOURCES_LISTENER
   required: true
   value: 250Mi
 - displayName: Memory Limit
-  name: SOURCES_LISTENER_MEMORY_LIMIT
+  name: MEMORY_LIMIT_SOURCES_LISTENER
   required: true
   value: 500Mi
 - displayName: CPU Request
-  name: SOURCES_LISTENER_CPU_REQUEST
+  name: CPU_REQUEST_SOURCES_LISTENER
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: SOURCES_LISTENER_CPU_LIMIT
+  name: CPU_LIMIT_SOURCES_LISTENER
   required: true
   value: 200m
 - displayName: Log Level for sources listener
@@ -6150,19 +6150,19 @@ parameters:
   required: true
   value: "1"
 - displayName: Memory Request
-  name: WORKER_CELERY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_CELERY
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_CELERY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_CELERY
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_CELERY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_CELERY
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_CELERY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_CELERY
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6174,19 +6174,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_COST_MODEL_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_COST_MODEL
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_COST_MODEL_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_COST_MODEL
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_COST_MODEL_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_COST_MODEL
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_COST_MODEL_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_COST_MODEL
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6198,19 +6198,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_COST_MODEL_XL_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_COST_MODEL_XL
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_COST_MODEL_XL_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_COST_MODEL_XL
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_COST_MODEL_XL_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_COST_MODEL_XL
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_COST_MODEL_XL_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_COST_MODEL_XL
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6222,19 +6222,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_COST_MODEL_PENALTY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_COST_MODEL_PENALTY
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_COST_MODEL_PENALTY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_COST_MODEL_PENALTY
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_COST_MODEL_PENALTY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_COST_MODEL_PENALTY
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_COST_MODEL_PENALTY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_COST_MODEL_PENALTY
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6246,19 +6246,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_DOWNLOAD_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_DOWNLOAD
   required: true
   value: 512Mi
 - displayName: Memory Limit
-  name: WORKER_DOWNLOAD_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_DOWNLOAD
   required: true
   value: 1Gi
 - displayName: CPU Request
-  name: WORKER_DOWNLOAD_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_DOWNLOAD
   required: true
   value: 200m
 - displayName: CPU Limit
-  name: WORKER_DOWNLOAD_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_DOWNLOAD
   required: true
   value: 400m
 - displayName: Worker Queue
@@ -6270,19 +6270,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_DOWNLOAD_XL_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_DOWNLOAD_XL
   required: true
   value: 512Mi
 - displayName: Memory Limit
-  name: WORKER_DOWNLOAD_XL_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_DOWNLOAD_XL
   required: true
   value: 1Gi
 - displayName: CPU Request
-  name: WORKER_DOWNLOAD_XL_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_DOWNLOAD_XL
   required: true
   value: 200m
 - displayName: CPU Limit
-  name: WORKER_DOWNLOAD_XL_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_DOWNLOAD_XL
   required: true
   value: 400m
 - displayName: Worker Queue
@@ -6294,19 +6294,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_DOWNLOAD_PENALTY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_DOWNLOAD_PENALTY
   required: true
   value: 512Mi
 - displayName: Memory Limit
-  name: WORKER_DOWNLOAD_PENALTY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_DOWNLOAD_PENALTY
   required: true
   value: 1Gi
 - displayName: CPU Request
-  name: WORKER_DOWNLOAD_PENALTY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_DOWNLOAD_PENALTY
   required: true
   value: 200m
 - displayName: CPU Limit
-  name: WORKER_DOWNLOAD_PENALTY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_DOWNLOAD_PENALTY
   required: true
   value: 400m
 - displayName: Worker Queue
@@ -6318,19 +6318,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_OCP_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_OCP
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_OCP_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_OCP
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_OCP_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_OCP
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_OCP_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_OCP
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6342,19 +6342,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_OCP_XL_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_OCP_XL
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_OCP_XL_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_OCP_XL
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_OCP_XL_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_OCP_XL
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_OCP_XL_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_OCP_XL
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6366,19 +6366,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_OCP_PENALTY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_OCP_PENALTY
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_OCP_PENALTY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_OCP_PENALTY
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_OCP_PENALTY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_OCP_PENALTY
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_OCP_PENALTY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_OCP_PENALTY
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6390,19 +6390,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_PRIORITY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_PRIORITY
   required: true
   value: 400Mi
 - displayName: Memory Limit
-  name: WORKER_PRIORITY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_PRIORITY
   required: true
   value: 750Mi
 - displayName: CPU Request
-  name: WORKER_PRIORITY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_PRIORITY
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_PRIORITY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_PRIORITY
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6414,19 +6414,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_PRIORITY_XL_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_PRIORITY_XL
   required: true
   value: 400Mi
 - displayName: Memory Limit
-  name: WORKER_PRIORITY_XL_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_PRIORITY_XL
   required: true
   value: 750Mi
 - displayName: CPU Request
-  name: WORKER_PRIORITY_XL_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_PRIORITY_XL
   required: true
   value: 150m
 - displayName: CPU Limit
-  name: WORKER_PRIORITY_XL_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_PRIORITY_XL
   required: true
   value: 300m
 - displayName: Worker Queue
@@ -6438,19 +6438,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_PRIORITY_PENALTY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_PRIORITY_PENALTY
   required: true
   value: 400Mi
 - displayName: Memory Limit
-  name: WORKER_PRIORITY_PENALTY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_PRIORITY_PENALTY
   required: true
   value: 750Mi
 - displayName: CPU Request
-  name: WORKER_PRIORITY_PENALTY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_PRIORITY_PENALTY
   required: true
   value: 150m
 - displayName: CPU Limit
-  name: WORKER_PRIORITY_PENALTY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_PRIORITY_PENALTY
   required: true
   value: 300m
 - displayName: Worker Queue
@@ -6462,19 +6462,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_REFRESH_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_REFRESH
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_REFRESH_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_REFRESH
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_REFRESH_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_REFRESH
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_REFRESH_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_REFRESH
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6486,19 +6486,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_REFRESH_XL_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_REFRESH_XL
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_REFRESH_XL_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_REFRESH_XL
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_REFRESH_XL_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_REFRESH_XL
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_REFRESH_XL_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_REFRESH_XL
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6510,19 +6510,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_REFRESH_PENALTY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_REFRESH_PENALTY
   required: true
   value: 256Mi
 - displayName: Memory Limit
-  name: WORKER_REFRESH_PENALTY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_REFRESH_PENALTY
   required: true
   value: 512Mi
 - displayName: CPU Request
-  name: WORKER_REFRESH_PENALTY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_REFRESH_PENALTY
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_REFRESH_PENALTY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_REFRESH_PENALTY
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6534,19 +6534,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_SUMMARY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_SUMMARY
   required: true
   value: 500Mi
 - displayName: Memory Limit
-  name: WORKER_SUMMARY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_SUMMARY
   required: true
   value: 750Mi
 - displayName: CPU Request
-  name: WORKER_SUMMARY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_SUMMARY
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_SUMMARY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_SUMMARY
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6558,19 +6558,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_SUMMARY_XL_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_SUMMARY_XL
   required: true
   value: 500Mi
 - displayName: Memory Limit
-  name: WORKER_SUMMARY_XL_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_SUMMARY_XL
   required: true
   value: 750Mi
 - displayName: CPU Request
-  name: WORKER_SUMMARY_XL_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_SUMMARY_XL
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_SUMMARY_XL_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_SUMMARY_XL
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6582,19 +6582,19 @@ parameters:
   required: true
   value: "2"
 - displayName: Memory Request
-  name: WORKER_SUMMARY_PENALTY_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_SUMMARY_PENALTY
   required: true
   value: 500Mi
 - displayName: Memory Limit
-  name: WORKER_SUMMARY_PENALTY_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_SUMMARY_PENALTY
   required: true
   value: 750Mi
 - displayName: CPU Request
-  name: WORKER_SUMMARY_PENALTY_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_SUMMARY_PENALTY
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_SUMMARY_PENALTY_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_SUMMARY_PENALTY
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6606,19 +6606,19 @@ parameters:
   required: true
   value: "1"
 - displayName: Memory Request
-  name: WORKER_HCS_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_HCS
   required: true
   value: 300Mi
 - displayName: Memory Limit
-  name: WORKER_HCS_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_HCS
   required: true
   value: 500Mi
 - displayName: CPU Request
-  name: WORKER_HCS_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_HCS
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_HCS_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_HCS
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6633,19 +6633,19 @@ parameters:
   required: true
   value: "0"
 - displayName: Memory Request
-  name: WORKER_SUBS_EXTRACTION_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_SUBS_EXTRACTION
   required: true
   value: 300Mi
 - displayName: Memory Limit
-  name: WORKER_SUBS_EXTRACTION_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_SUBS_EXTRACTION
   required: true
   value: 500Mi
 - displayName: CPU Request
-  name: WORKER_SUBS_EXTRACTION_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_SUBS_EXTRACTION
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_SUBS_EXTRACTION_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_SUBS_EXTRACTION
   required: true
   value: 200m
 - displayName: Worker Queue
@@ -6657,19 +6657,19 @@ parameters:
   required: true
   value: "0"
 - displayName: Memory Request
-  name: WORKER_SUBS_TRANSMISSION_MEMORY_REQUEST
+  name: MEMORY_REQUEST_WORKER_SUBS_TRANSMISSION
   required: true
   value: 300Mi
 - displayName: Memory Limit
-  name: WORKER_SUBS_TRANSMISSION_MEMORY_LIMIT
+  name: MEMORY_LIMIT_WORKER_SUBS_TRANSMISSION
   required: true
   value: 500Mi
 - displayName: CPU Request
-  name: WORKER_SUBS_TRANSMISSION_CPU_REQUEST
+  name: CPU_REQUEST_WORKER_SUBS_TRANSMISSION
   required: true
   value: 100m
 - displayName: CPU Limit
-  name: WORKER_SUBS_TRANSMISSION_CPU_LIMIT
+  name: CPU_LIMIT_WORKER_SUBS_TRANSMISSION
   required: true
   value: 200m
 - displayName: Worker Queue

@@ -274,6 +274,9 @@ def get_report_files(  # noqa: C901
         WorkerCache().remove_task_from_cache(cache_key)
         if not result:
             LOG.info(log_json(tracing_id, msg="no report files processed, skipping summary", context=context))
+            # update provider even when there are no new reports so we continue polling
+            if provider := Provider.objects.filter(uuid=provider_uuid).first():
+                provider.set_data_updated_timestamp()
             return None
 
         return report_meta

@@ -148,11 +148,11 @@
           timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${MASU_CPU_LIMIT}
-          memory: ${MASU_MEMORY_LIMIT}
+          cpu: ${CPU_LIMIT_MASU}
+          memory: ${MEMORY_LIMIT_MASU}
         requests:
-          cpu: ${MASU_CPU_REQUEST}
-          memory: ${MASU_MEMORY_REQUEST}
+          cpu: ${CPU_REQUEST_MASU}
+          memory: ${MEMORY_REQUEST_MASU}
       volumeMounts:
       - name: aws-credentials
         mountPath: /etc/aws
@@ -200,28 +200,28 @@
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: MASU_MEMORY_REQUEST
+    name: MEMORY_REQUEST_MASU
     required: true
     value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: MASU_MEMORY_LIMIT
+    name: MEMORY_LIMIT_MASU
     required: true
     value: 700Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: MASU_CPU_REQUEST
+    name: CPU_REQUEST_MASU
     required: true
     value: 50m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: MASU_CPU_LIMIT
+    name: CPU_LIMIT_MASU
     required: true
     value: 100m
 - op: add

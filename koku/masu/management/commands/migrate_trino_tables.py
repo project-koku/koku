@@ -23,6 +23,8 @@ from trino.exceptions import TrinoUserError
 
 import koku.trino_database as trino_db
 from api.utils import DateHelper
+from koku.cache import build_trino_table_exists_key
+from koku.cache import delete_value_from_cache
 
 LOG = logging.getLogger(__name__)
 # External tables can be dropped as the data in S3 will persist
@@ -374,6 +376,9 @@ def drop_tables(tables, schemas) -> None:
             try:
                 result = run_trino_sql(sql, schema)
                 LOG.info(f"{prefix}DROP TABLE result: {result}")
+                key = build_trino_table_exists_key(schema, table_name)
+                result = delete_value_from_cache(key)
+                LOG.info(f"{prefix}delete cache key {key}: {result}")
             except Exception as e:
                 LOG.error(e)
 
