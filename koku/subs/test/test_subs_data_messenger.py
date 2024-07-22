@@ -282,6 +282,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         product_ids = ["479", "204"]
         addon = "204"
         tenant_id = "my-fake-id"
+        vm_name = "my-fake-vm"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -304,6 +305,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "azure_subscription_id": lineitem_usageaccountid,
             "azure_tenant_id": tenant_id,
             "conversion": True,
+            "display_name": vm_name,
         }
         with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value = static_uuid
@@ -320,6 +322,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 converted,
                 addon,
                 tenant_id,
+                vm_name,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -340,6 +343,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         addon = "204"
         product_ids = ["241", "479", "204"]
         tenant_id = "my-fake-id"
+        vm_name = "my-fake-vm"
         static_uuid = uuid.uuid4()
         expected_subs_dict = {
             "event_id": str(static_uuid),
@@ -361,6 +365,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "azure_subscription_id": lineitem_usageaccountid,
             "azure_tenant_id": tenant_id,
             "conversion": True,
+            "display_name": vm_name,
         }
         with patch("subs.subs_data_messenger.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value = static_uuid
@@ -377,6 +382,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 converted,
                 addon,
                 tenant_id,
+                vm_name,
             )
         self.assertEqual(expected_subs_dict, actual)
 
@@ -405,32 +411,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_role": "Red Hat Enterprise Linux Server",
             "subs_product_ids": "479-70",
             "subs_addon": "false",
+            "resourcegroup": "my-fake-rg",
+            "subs_vmname": "my-fake-vm",
             "subs_instance": expected_instance,
-            "source": self.azure_provider.uuid,
-        }
-        actual_instance, actual_tenant = self.azure_messenger.determine_azure_instance_and_tenant_id(my_row)
-        self.assertEqual(expected_instance, actual_instance)
-        self.assertEqual(self.azure_tenant, actual_tenant)
-
-    def test_determine_azure_instance_and_tenant_id_local_prov(self):
-        """Test that a local provider does not reach out to Azure."""
-        self.azure_messenger.instance_map = {}
-        expected_instance = ""
-        my_row = {
-            "resourceid": "i-55555556",
-            "subs_start_time": "2023-07-01T01:00:00Z",
-            "subs_end_time": "2023-07-01T02:00:00Z",
-            "subs_resource_id": "i-55555556",
-            "subs_account": "9999999999999",
-            "physical_cores": "1",
-            "subs_vcpu": "2",
-            "variant": "Server",
-            "subs_usage": "Production",
-            "subs_sla": "Premium",
-            "subs_role": "Red Hat Enterprise Linux Server",
-            "subs_product_ids": "479-70",
-            "subs_addon": "false",
-            "subs_instance": "",
             "source": self.azure_provider.uuid,
         }
         actual_instance, actual_tenant = self.azure_messenger.determine_azure_instance_and_tenant_id(my_row)
@@ -464,15 +447,18 @@ class TestSUBSDataMessenger(SUBSTestCase):
         self.assertEqual(expected_tenant, actual_tenant)
 
     def test_determine_azure_instance_and_tenant_id(self):
-        """Test getting the azure instance id from mock Azure Compute Client returns as expected."""
-        expected_instance = "my-fake-id"
+        """Test building the Azure instance id returns as expected."""
+        subs_account = "9999999999999"
+        resource_group = "my-fake-rg"
+        vm_name = "my-fake-vm"
+        expected_instance = f"{subs_account}:{resource_group}:{vm_name}"
         self.messenger.instance_map = {}
         my_row = {
             "resourceid": "i-55555556",
             "subs_start_time": "2023-07-01T01:00:00Z",
             "subs_end_time": "2023-07-01T02:00:00Z",
             "subs_resource_id": "i-55555556",
-            "subs_account": "9999999999999",
+            "subs_account": subs_account,
             "physical_cores": "1",
             "subs_vcpu": "2",
             "variant": "Server",
@@ -483,11 +469,10 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_addon": "false",
             "subs_instance": "",
             "source": self.azure_provider.uuid,
-            "resourcegroup": "my-fake-rg",
+            "resourcegroup": resource_group,
+            "subs_vmname": vm_name,
         }
-        with patch("subs.subs_data_messenger.AzureClientFactory") as mock_factory:
-            mock_factory.return_value.compute_client.virtual_machines.get.return_value.vm_id = expected_instance
-            actual_instance, actual_tenant = self.messenger.determine_azure_instance_and_tenant_id(my_row)
+        actual_instance, actual_tenant = self.messenger.determine_azure_instance_and_tenant_id(my_row)
         self.assertEqual(expected_instance, actual_instance)
         self.assertEqual(self.azure_tenant, actual_tenant)
 
@@ -520,6 +505,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_instance": "",
                 "source": self.azure_provider.uuid,
                 "resourcegroup": "my-fake-rg",
+                "subs_vmname": "my-fake-vm",
             }
         ]
         mock_op = mock_open(read_data="x,y,z")
@@ -553,6 +539,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         tenant_id = "expected"
         expected_start = "2024-07-01T12:00:00+00:00"
         expected_end = "2024-07-01T13:00:00+00:00"
+        vm_name = "my-fake-vm"
         mock_reader.return_value = [
             {
                 "resourceid": "i-55555556",
@@ -573,6 +560,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_conversion": conversion,
                 "source": self.azure_provider.uuid,
                 "resourcegroup": "my-fake-rg",
+                "subs_vmname": vm_name,
             }
         ]
         mock_op = mock_open(read_data="x,y,z")
@@ -592,6 +580,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             conversion,
             addon_id,
             tenant_id,
+            vm_name,
         )
         mock_producer.assert_called_once()
 
