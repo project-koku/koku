@@ -1210,7 +1210,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_cost_model_costs.s")
-    def test_update_openshift_on_cloud(self, mock_cost_updater, mock_updater):
+    @patch("masu.processor.tasks.validate_daily_data.s")
+    def test_update_openshift_on_cloud(self, mock_data_validator, mock_cost_updater, mock_updater):
         """Test that this task runs."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.today.date()
@@ -1633,8 +1634,9 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.validate_daily_data.s")
     def test_update_openshift_on_cloud_throttled(
-        self, mock_model_update, mock_inspect, mock_lock, mock_release, mock_delay, mock_update
+        self, mock_data_validator, mock_model_update, mock_inspect, mock_lock, mock_release, mock_delay, mock_update
     ):
         """Test that refresh materialized views runs with cache lock."""
         start_date = self.dh.this_month_start.date()

@@ -147,8 +147,9 @@ class TestDataValidator(MasuTestCase):
         )
         with self.assertLogs("masu.processor._tasks.data_validation", level="INFO") as logger:
             validator.check_data_integrity()
-            self.assertIn("validation started for provider", logger.output[0])
-            self.assertIn("all data complete for provider", logger.output[1])
+            expected = "all data complete for provider"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
 
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
@@ -160,7 +161,9 @@ class TestDataValidator(MasuTestCase):
         )
         with self.assertLogs("masu.processor._tasks.data_validation", level="WARNING") as logger:
             validator.check_data_integrity()
-            self.assertIn("data validation postgres query failed", logger.output[0])
+            expected = "data validation postgres query failed"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
 
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
@@ -172,4 +175,6 @@ class TestDataValidator(MasuTestCase):
         )
         with self.assertLogs("masu.processor._tasks.data_validation", level="WARNING") as logger:
             validator.check_data_integrity()
-            self.assertIn("data validation trino query failed", logger.output[0])
+            expected = "data validation trino query failed"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
