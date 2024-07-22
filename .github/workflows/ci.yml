@@ -49,7 +49,7 @@ jobs:
         run: |
           echo .dockerignore >> docker-files.txt;
           echo Dockerfile >> docker-files.txt;
-          echo pr_check.sh >> docker-files.txt;
+          echo Jenkinsfile >> docker-files.txt;
           echo deploy/clowdapp.yaml >> docker-files.txt;
 
       - name: Show Dockerfiles
