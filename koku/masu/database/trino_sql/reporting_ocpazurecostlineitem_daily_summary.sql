@@ -190,7 +190,7 @@ SELECT cast(uuid() as varchar) as uuid,
             THEN  split_part(unitofmeasure, ' ', 2)
         ELSE unitofmeasure
     END) as unit_of_measure,
-    sum(coalesce(nullif(azure.quantity, 0), 0)) as quantity,
+    sum(azure.quantity) as usage_quantity,
     coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
     sum(azure.costinbillingcurrency) as pretax_cost,
     azure.tags,
