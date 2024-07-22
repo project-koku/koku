@@ -138,7 +138,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
         """Gather the data and upload it to S3 for a batch of resource ids"""
-        sql_params = sql_params = {
+        sql_params = {
             "source_uuid": self.provider_uuid,
             "year": year,
             "month": month,
