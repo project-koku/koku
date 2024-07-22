@@ -137,11 +137,11 @@
         timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${KOKU_WRITES_CPU_LIMIT}
-          memory: ${KOKU_WRITES_MEMORY_LIMIT}
+          cpu: ${CPU_LIMIT_KOKU_WRITES}
+          memory: ${MEMORY_LIMIT_KOKU_WRITES}
         requests:
-          cpu: ${KOKU_WRITES_CPU_REQUEST}
-          memory: ${KOKU_WRITES_MEMORY_REQUEST}
+          cpu: ${CPU_REQUEST_KOKU_WRITES}
+          memory: ${MEMORY_REQUEST_KOKU_WRITES}
       volumeMounts:
       - name: aws-credentials
         mountPath: /etc/aws
@@ -188,28 +188,28 @@
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: KOKU_WRITES_MEMORY_REQUEST
+    name: MEMORY_REQUEST_KOKU_WRITES
     required: true
     value: 512Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: KOKU_WRITES_MEMORY_LIMIT
+    name: MEMORY_LIMIT_KOKU_WRITES
     required: true
     value: 1Gi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: KOKU_WRITES_CPU_REQUEST
+    name: CPU_REQUEST_KOKU_WRITES
     required: true
     value: 250m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: KOKU_WRITES_CPU_LIMIT
+    name: CPU_LIMIT_KOKU_WRITES
     required: true
     value: 500m
 - op: add

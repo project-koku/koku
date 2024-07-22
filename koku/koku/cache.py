@@ -128,6 +128,11 @@ def get_value_from_cache(cache_key, cache_choice="default"):
     return cache.get(cache_key)
 
 
+def delete_value_from_cache(cache_key, cache_choice="default"):
+    cache = caches[cache_choice]
+    return cache.delete(cache_key)
+
+
 def set_value_in_cache(cache_key, cache_value, cache_choice="default"):
     cache = caches[cache_choice]
     cache.set(cache_key, cache_value)

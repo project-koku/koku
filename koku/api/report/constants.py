@@ -23,3 +23,10 @@ AWS_COST_TYPE_CHOICES = (
     # Use calculated_amortized_cost for the correct amortized cost value.
     ("savingsplan_effective_cost", "savingsplan_effective_cost"),
 )
+
+TIME_SCOPE_VALUES_MONTHLY = ("-1", "-2", "-3")
+TIME_SCOPE_VALUES_DAILY = ("-10", "-30", "-90")
+TIME_SCOPE_UNITS_MONTHLY = "month"
+TIME_SCOPE_UNITS_DAILY = "day"
+RESOLUTION_MONTHLY = "monthly"
+RESOLUTION_DAILY = "daily"
