@@ -206,7 +206,7 @@ class DataValidator:
             LOG.warning(log_json(msg=f"data validation trino query failed: {e}", context=self.context))
             return
         # Compare results
-        LOG.debug(f"\n PG: {pg_data} \n Trino data: {trino_data} \n")
+        LOG.info(f"PG: {pg_data} Trino data: {trino_data}")
         daily_difference, valid_cost = self.compare_data(pg_data, trino_data)
         if valid_cost:
             LOG.info(log_json(msg=f"all data complete for provider: {self.provider_uuid}", context=self.context))

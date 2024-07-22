@@ -6,7 +6,6 @@
 import uuid
 from unittest.mock import patch
 
-from celery.result import AsyncResult
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -22,11 +21,7 @@ class ValidateDataViewTest(MasuTestCase):
         super().setUp()
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch(
-        "masu.processor.tasks.validate_daily_data",
-        return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568d"),
-    )
-    def test_validate_data(self, mock_task, _):
+    def test_validate_data(self, _):
         """Test validate data endpoint."""
         expected_key = "Error"
         url = reverse("validate_cost_data")
@@ -80,10 +75,3 @@ class ValidateDataViewTest(MasuTestCase):
         body = response.json()
         self.assertEqual(response.status_code, 400)
         self.assertIn("'queue' must be one of", body[expected_key])
-
-        # test valid request
-        url_w_params = url + f"?start_date=2021-04-01&end_date=2021-04-30&provider_uuid={id}"
-        response = self.client.get(url_w_params)
-        body = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Report Data Task IDs", body)

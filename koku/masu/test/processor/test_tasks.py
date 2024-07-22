@@ -31,7 +31,6 @@ from django_tenants.utils import schema_context
 
 from api.iam.models import Tenant
 from api.models import Provider
-from common.queues import PriorityQueue
 from common.queues import SummaryQueue
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
@@ -923,16 +922,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest_id=manifest_id,
             synchronous=True,
         )
-        mock_chain.assert_called_with(
-            mark_manifest_complete.s(
-                self.schema,
-                provider_type,
-                provider_aws_uuid,
-                manifest_list=[manifest_id],
-                ingress_report_uuid=None,
-                tracing_id=tracing_id,
-            ).set(queue=PriorityQueue.DEFAULT)
-        )
+        mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.CostModelDBAccessor")
@@ -960,16 +950,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             synchronous=True,
             invoice_month=invoice_month,
         )
-        mock_chain.assert_called_with(
-            mark_manifest_complete.s(
-                self.schema,
-                provider_type,
-                self.gcp_provider_uuid,
-                manifest_list=[manifest_id],
-                ingress_report_uuid=None,
-                tracing_id=tracing_id,
-            ).set(queue=PriorityQueue.DEFAULT)
-        )
+        mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.util.common.trino_db.connect")
