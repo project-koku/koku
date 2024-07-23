@@ -3,10 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
+import functools
 import logging
 import os
+import random
 import time
-from functools import wraps
+import typing as t
 
 from django.conf import settings
 from django.db import connection
@@ -46,9 +48,11 @@ def retry_query(
                 try:
                     return func(*args, **kwargs)
                 except retry_on as ex:
-                    if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check ,""):
+                    if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check, ""):
                         LOG.warning(
-                            log_json(msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=context),
+                            log_json(
+                                msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=context
+                            ),
                             exc_info=ex,
                         )
                         backoff = min(2**attempt, max_wait)
@@ -58,7 +62,9 @@ def retry_query(
                         continue
 
                     LOG.error(
-                        log_json(msg="failed trino sql execution: TrinoExternalError", log_ref=log_ref, context=context),
+                        log_json(
+                            msg="failed trino sql execution: TrinoExternalError", log_ref=log_ref, context=context
+                        ),
                         exc_info=ex,
                     )
                     raise ex
@@ -158,11 +164,11 @@ class ReportDBAccessorBase:
     def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""
         results, _ = self._execute_trino_raw_sql_query_with_description(
-            sql, sql_params=sql_params, context=context, log_ref=log_ref, attempts_left=attempts_left
+            sql, sql_params=sql_params, context=context, log_ref=log_ref
         )
         return results
 
-    @retry_query
+    @retry_query(retry_on=(TrinoExternalError,), attribute_to_check="message")
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
@@ -189,15 +195,12 @@ class ReportDBAccessorBase:
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
         LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
-        try:
-            trino_cur = trino_conn.cursor()
-            trino_cur.execute(sql, bind_params)
-            results = trino_cur.fetchall()
-            description = trino_cur.description
-        except Exception as ex:
-            if attempts_left == 0:
-                LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
-            raise ex
+
+        trino_cur = trino_conn.cursor()
+        trino_cur.execute(sql, bind_params)
+        results = trino_cur.fetchall()
+        description = trino_cur.description
+
         running_time = time.time() - t1
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
         return results, description
