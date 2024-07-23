@@ -23,6 +23,7 @@ def retry_executescript(
     *,
     retries: int = 3,
     retry_on: tuple[Exception, ...],
+    attribute_to_check: str = "message",
     max_wait: int = 30,
 ):
     def _retry_executescript(callable: t.Callable):
@@ -32,9 +33,9 @@ def retry_executescript(
                 try:
                     return callable(*args, **kwargs)
                 except retry_on as ex:
-                    if attempt < retries:
+                    if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check, ""):
                         LOG.warning(
-                            f"Exception {ex} encountered, retrying... ({attempt + 1}/{retries})",
+                            msg="TrinoExternalError Exception, retrying...",
                             exc_info=ex,
                         )
                         backoff = min(2**attempt, max_wait)
@@ -44,7 +45,7 @@ def retry_executescript(
                         continue
 
                     LOG.error(
-                        f"Failed to execute script after {retries} attempts.",
+                        "Failed trino sql execution: TrinoExternalError",
                         exc_info=ex,
                     )
                     raise ex
