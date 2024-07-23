@@ -527,7 +527,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         mock_azure_id.return_value = ("expected", "expected")
         mock_msg_builder.return_value = {"fake": "msg"}
         upload_keys = ["fake_key"]
-        self.azure_messenger.date_map = {"2024-07-01T00:00:00Z": {"i-55555556": 12}}
+        self.azure_messenger.date_map = {"2024-07-01T00:00:00Z": {"i-55555556_my-fake-vm": 12}}
         instance = "expected"
         account = "9999999999999"
         vcpu = "2"
@@ -541,12 +541,14 @@ class TestSUBSDataMessenger(SUBSTestCase):
         expected_start = "2024-07-01T12:00:00+00:00"
         expected_end = "2024-07-01T13:00:00+00:00"
         vm_name = "my-fake-vm"
+        resource_id = "i-55555556"
+        self.azure_messenger.date_map = {"2024-07-01T00:00:00Z": {f"{resource_id}_{vm_name}": 12}}
         mock_reader.return_value = [
             {
-                "resourceid": "i-55555556",
+                "resourceid": resource_id,
                 "subs_start_time": "2024-07-01T00:00:00Z",
                 "subs_end_time": "2024-07-02T00:00:00Z",
-                "subs_resource_id": "i-55555556",
+                "subs_resource_id": resource_id,
                 "subs_account": account,
                 "physical_cores": "1",
                 "subs_vcpu": "2",

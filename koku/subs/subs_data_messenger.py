@@ -217,12 +217,12 @@ class SUBSDataMessenger:
         # these two values should sum to the total usage so we need to track what was already
         # sent for a specific instance so we get the full usage amount
         range_start = 0
-        resource_id = row["subs_resource_id"]
         start_time = row["subs_start_time"]
         usage = int(row["subs_usage_quantity"])
-        if self.date_map.get(start_time) and resource_id in self.date_map.get(start_time):
-            range_start = self.date_map.get(start_time).get(resource_id)
-        self.date_map[start_time] = {resource_id: usage + range_start}
+        instance_key = f"{row['subs_resource_id']}_{row['subs_vmname']}"
+        if self.date_map.get(start_time) and instance_key in self.date_map.get(start_time):
+            range_start = self.date_map.get(start_time).get(instance_key)
+        self.date_map[start_time] = {instance_key: usage + range_start}
         instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
         if not instance_id:
             return msg_count
