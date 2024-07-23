@@ -108,7 +108,8 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None, trino_external_error_retries=3):
+@retry(retries=3)
+def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
     will be parsed into individual statements for execution. If preprocessor is None,
