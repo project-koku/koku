@@ -240,10 +240,16 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     )
 
 
-class AWSEC2ExcludeSerializer(AWSExcludeSerializer):
+class AWSEC2ExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
-    _opfields = ("account", "region")
+    _opfields = ("account", "region", "resource_id", "instance_name", "operating_system")
+
+    account = StringOrListField(child=serializers.CharField(), required=False)
+    region = StringOrListField(child=serializers.CharField(), required=False)
+    resource_id = StringOrListField(child=serializers.CharField(), required=False)
+    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    operating_system = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
