@@ -60,8 +60,11 @@ class SUBSDataMessenger:
 
     def determine_azure_instance_and_tenant_id(self, row):
         """Build the instance id string and get the tenant for Azure."""
-        if row["subs_resource_id"] in self.instance_map:
-            return self.instance_map.get(row["subs_resource_id"])
+
+        # scalesets share a resourceid so including the VMName ensures uniqueness
+        instance_key = f"{row['subs_resource_id']}_{row['subs_vmname']}"
+        if instance_key in self.instance_map:
+            return self.instance_map.get(instance_key)
         prov = Provider.objects.get(uuid=row["source"])
         credentials = prov.account.get("credentials")
         tenant_id = credentials.get("tenant_id")
@@ -72,7 +75,7 @@ class SUBSDataMessenger:
             rg = row["resourcegroup"]
             vm = row["subs_vmname"]
             instance_id = f"{sub_id}:{rg}:{vm}"
-        self.instance_map[row["subs_resource_id"]] = (instance_id, tenant_id)
+        self.instance_map[instance_key] = (instance_id, tenant_id)
         return instance_id, tenant_id
 
     def process_and_send_subs_message(self, upload_keys):

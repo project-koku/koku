@@ -424,7 +424,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         """Test getting the azure instance id from the instance map returns as expected."""
         expected_instance = "oh-yeah"
         expected_tenant = "my-tenant"
-        self.azure_messenger.instance_map["i-55555556"] = (expected_instance, expected_tenant)
+        self.azure_messenger.instance_map["i-55555556_extra_fake"] = (expected_instance, expected_tenant)
         my_row = {
             "resourceid": "i-55555556",
             "subs_start_time": "2023-07-01T01:00:00Z",
@@ -440,6 +440,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_product_ids": "479-70",
             "subs_addon": "false",
             "subs_instance": "fake",
+            "subs_vmname": "extra_fake",
             "source": self.azure_provider.uuid,
         }
         actual_instance, actual_tenant = self.azure_messenger.determine_azure_instance_and_tenant_id(my_row)
