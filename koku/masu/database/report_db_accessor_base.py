@@ -27,40 +27,48 @@ from koku.database_exc import get_extended_exception_by_type
 LOG = logging.getLogger(__name__)
 
 
-def handle_trino_external_error(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        trino_external_error_retries = kwargs.get("trino_external_error_retries", 3)
-        sql_params = kwargs.get("sql_params", {})
-        context = kwargs.get("context", {})
-        log_ref = kwargs.get("log_ref", "Trino query")
-        if sql_params is None:
-            sql_params = {}
-        if context is None:
-            context = {}
-        ctx = (
-            self.extract_context_from_sql_params(sql_params)
-            if sql_params
-            else self.extract_context_from_sql_params(context)
-        )
+def retry_query(
+    original_callable: t.Callable = None,
+    *,
+    retries: int = 3,
+    retry_on: tuple[Exception, ...],
+    attribute_to_check: str = "message",
+    max_wait: int = 30,
+):
+    def _retry_query(callable: t.Callable):
+        @functools.wraps(callable)
+        def wrapper(func, *args, **kwargs):
+            sql_params = kwargs.get("sql_params", {})
+            log_ref = kwargs.get("log_ref", "Trino query")
+            context = ReportDBAccessorBase.extract_context_from_sql_params(sql_params)
 
-        try:
-            return func(self, *args, **kwargs)
-        except TrinoExternalError as ex:
-            if "NoSuchKey" in str(ex) and trino_external_error_retries > 0:
-                LOG.warning(
-                    log_json(msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=ctx),
-                    exc_info=ex,
-                )
-                kwargs["trino_external_error_retries"] -= 1
-                return wrapper(self, *args, **kwargs)
-            LOG.error(
-                log_json(msg="failed trino sql execution: TrinoExternalError", log_ref=log_ref, context=ctx),
-                exc_info=ex,
-            )
-            raise ex
+            for attempt in range(retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except retry_on as ex:
+                    if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check ,""):
+                        LOG.warning(
+                            log_json(msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=context),
+                            exc_info=ex,
+                        )
+                        backoff = min(2**attempt, max_wait)
+                        jitter = random.uniform(0, 1)
+                        delay = backoff + jitter
+                        time.sleep(delay)
+                        continue
 
-    return wrapper
+                    LOG.error(
+                        log_json(msg="failed trino sql execution: TrinoExternalError", log_ref=log_ref, context=context),
+                        exc_info=ex,
+                    )
+                    raise ex
+
+        return wrapper
+
+    if original_callable:
+        return _retry_query(original_callable)
+
+    return _retry_query
 
 
 class ReportDBAccessorException(Exception):
