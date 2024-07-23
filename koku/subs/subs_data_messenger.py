@@ -220,8 +220,8 @@ class SUBSDataMessenger:
         start_time = row["subs_start_time"]
         usage = int(row["subs_usage_quantity"])
         instance_key = f"{row['subs_resource_id']}_{row['subs_vmname']}"
-        if self.date_map.get(start_time) and instance_key in self.date_map.get(start_time):
-            range_start = self.date_map.get(start_time).get(instance_key)
+        if self.date_map.get(start_time):
+            range_start = self.date_map.get(start_time).get(instance_key) or 0
         self.date_map[start_time] = {instance_key: usage + range_start}
         instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
         if not instance_id:
