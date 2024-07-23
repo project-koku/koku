@@ -39,14 +39,15 @@ def retry_query(
 ):
     def _retry_query(callable: t.Callable):
         @functools.wraps(callable)
-        def wrapper(func, *args, **kwargs):
+        def wrapper(*args, **kwargs):
             sql_params = kwargs.get("sql_params", {})
             log_ref = kwargs.get("log_ref", "Trino query")
+            if sql_params is None:
+                sql_params = {}
             context = ReportDBAccessorBase.extract_context_from_sql_params(sql_params)
-
             for attempt in range(retries + 1):
                 try:
-                    return func(*args, **kwargs)
+                    return callable(*args, **kwargs)
                 except retry_on as ex:
                     if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check, ""):
                         LOG.warning(
@@ -168,7 +169,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry_query(retry_on=(TrinoExternalError,), attribute_to_check="message")
+    @retry_query(retry_on=(Exception,))
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
