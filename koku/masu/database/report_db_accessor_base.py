@@ -162,9 +162,7 @@ class ReportDBAccessorBase:
         sql_params=None,
         context=None,
         log_ref="Trino query",
-        attempts_left=0,
         conn_params=None,
-        trino_external_error_retries=3,
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
