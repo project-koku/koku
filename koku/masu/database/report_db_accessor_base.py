@@ -154,7 +154,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @handle_trino_external_error
+    @retry_query
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
