@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 from django.test import TestCase
 from jinjasql import JinjaSql
@@ -147,14 +148,19 @@ select a from b;
             executescript(conn, sqlscript)
 
     def test_retry_logic_on_no_such_key_error(self):
-        class FakerFakeTrinoCur(FakeTrinoCur):
+        class FakeTrinoQueryError(Exception):
+            def __init__(self, error):
+                self.error = error
+                self.message = error["message"]
+
+        class FakeTrinoCur:
             def __init__(self, *args, **kwargs):
                 self.execute_calls = 0
 
             def execute(self, *args, **kwargs):
                 self.execute_calls += 1
                 if self.execute_calls == 1:
-                    raise TrinoQueryError(
+                    raise FakeTrinoQueryError(
                         {
                             "errorName": "TRINO_NO_SUCH_KEY",
                             "errorType": "USER_ERROR",
@@ -164,9 +170,12 @@ select a from b;
                     )
                 return [["eek"]] * 6
 
-        class FakerFakeTrinoConn(FakeTrinoConn):
+            def fetchall(self):
+                return [["eek"]] * 6
+
+        class FakeTrinoConn:
             def __init__(self, *args, **kwargs):
-                self.cur = FakerFakeTrinoCur()
+                self.cur = FakeTrinoCur()
 
             def cursor(self):
                 return self.cur
@@ -178,16 +187,18 @@ select a from b;
             "int_data": 255,
             "txt_data": "This is a test",
         }
-        conn = FakerFakeTrinoConn()
-        results = executescript(
-            trino_conn=conn,
-            sqlscript=sqlscript,
-            params=params,
-            preprocessor=None,  # Assuming no preprocessor is needed for this test
-            trino_external_error_retries=2,
-        )
+        conn = FakeTrinoConn()
 
-        self.assertEqual(results, [["eek"]])
+        # Mock time.sleep to avoid delays during the test
+        with patch("time.sleep", return_value=None):
+            results = executescript(
+                trino_conn=conn,
+                sqlscript=sqlscript,
+                params=params,
+                preprocessor=None,  # Assuming no preprocessor is needed for this test
+            )
+
+        self.assertEqual(results, [["eek"]] * 6)
         self.assertEqual(conn.cur.execute_calls, 2)
 
 
