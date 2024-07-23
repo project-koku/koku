@@ -527,7 +527,6 @@ class TestSUBSDataMessenger(SUBSTestCase):
         mock_azure_id.return_value = ("expected", "expected")
         mock_msg_builder.return_value = {"fake": "msg"}
         upload_keys = ["fake_key"]
-        self.azure_messenger.date_map = {"2024-07-01T00:00:00Z": {"i-55555556_my-fake-vm": 12}}
         instance = "expected"
         account = "9999999999999"
         vcpu = "2"
