@@ -46,7 +46,7 @@ WHERE
     AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL
     AND json_extract_scalar(lower(lower(tags)), '$.com_redhat_rhel') IS NOT NULL
     -- ensure there is usage
-    AND quantity > 0
+    AND ceil(nullif(quantity, 0), usagequantity) > 0
     AND (
         {% for item in resources %}
             (

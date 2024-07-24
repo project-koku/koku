@@ -70,7 +70,7 @@ SELECT uuid() as uuid,
     -- Azure meters usage in large blocks e.g. blocks of 100 Hours
     -- We normalize this down to Hours and multiply the usage appropriately
     sum(li.pretax_cost) AS pretax_cost,
-    sum(li.quantity * li.multiplier) AS quantity,
+    sum(li.usage_quantity * li.multiplier) AS usage_quantity,
     max(li.unit_of_measure) as unit_of_measure,
     max(li.currency) as currency,
     cast(
