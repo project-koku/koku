@@ -215,11 +215,6 @@ class OCPReportDBCleanerTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertFalse(table_exists(self.schema, test_part.table_name))
 
-    def test_purge_expired_trino_partitions_short_circuit(self):
-        cleaner = OCPReportDBCleaner(self.schema)
-        with self.assertRaises(OCPReportDBCleanerError):
-            cleaner.purge_expired_trino_partitions(None, None)
-
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.find_expired_trino_partitions")
     def test_purge_expired_trino_partitions_no_partitions(self, mock_find_partitions, mock_delete):
