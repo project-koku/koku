@@ -731,7 +731,7 @@ SELECT azure.uuid as azure_uuid,
     max(subscription_name) as subscription_name,
     max(nullif(azure.resource_location, '')) as resource_location,
     max(azure.unit_of_measure) as unit_of_measure,
-    max(cast(azure.quantity as decimal(24,9))) as quantity,
+    max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
     max(azure.currency) as currency,
     max(cast(azure.pretax_cost as decimal(24,9))) as pretax_cost,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
@@ -932,7 +932,7 @@ SELECT azure.uuid as azure_uuid,
     max(azure.subscription_name) as subscription_name,
     max(nullif(azure.resource_location, '')) as resource_location,
     max(azure.unit_of_measure) as unit_of_measure,
-    max(cast(azure.quantity as decimal(24,9))) as quantity,
+    max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
     max(azure.currency) as currency,
     max(cast(azure.pretax_cost as decimal(24,9))) as pretax_cost,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
@@ -1018,11 +1018,11 @@ SELECT uuid(),
     instance_type,
     service_name,
     CASE
-        WHEN lower(data_transfer_direction) = 'datatrin' THEN quantity
+        WHEN lower(data_transfer_direction) = 'datatrin' THEN usage_quantity
         ELSE 0
     END as infrastructure_data_in_gigabytes,
     CASE
-        WHEN lower(data_transfer_direction) = 'datatrout' THEN quantity
+        WHEN lower(data_transfer_direction) = 'datatrout' THEN usage_quantity
         ELSE 0
     END as infrastructure_data_out_gigabytes,
     -- gives each row a unique identifier for group by during back populate
