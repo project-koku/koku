@@ -6,7 +6,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_database_summary_p (
     cluster_alias,
     subscription_guid,
     service_name,
-    usage_quantity,
+    quantity,
     unit_of_measure,
     pretax_cost,
     markup_cost,
@@ -18,13 +18,13 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_database_summary_p (
         usage_start as usage_end,
         {{cluster_id}},
         {{cluster_alias}},
-        COALESCE(subscription_guid, subscription_id) as subscription_guid,
+        subscription_guid,
         service_name,
-        sum(quantity) as usage_quantity,
+        sum(quantity) as quantity,
         max(unit_of_measure) as unit_of_measure,
-        sum(costinbillingcurrency) as pretax_cost,
+        sum(pretax_cost) as pretax_cost,
         sum(markup_cost) as markup_cost,
-        max(COALESCE(billingcurrency, billingcurrencycode)) as currency,
+        max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid
     FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE service_name IN ('Cosmos DB','Cache for Redis') OR service_name ILIKE '%%database%%'
