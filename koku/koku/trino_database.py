@@ -8,7 +8,7 @@ import trino
 from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
-from common.sql_retries import retry
+from common import retry
 
 LOG = logging.getLogger(__name__)
 

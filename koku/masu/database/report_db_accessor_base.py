@@ -17,7 +17,7 @@ from trino.exceptions import TrinoExternalError
 import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
-from common.sql_retries import retry
+from common import retry
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
