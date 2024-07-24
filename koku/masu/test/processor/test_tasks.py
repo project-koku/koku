@@ -735,7 +735,6 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
                         "{'message': 'Remove expired partitions', 'tracing_id': '', "
                         "'schema': '" + self.schema + "', "
                         "'provider_type': '" + Provider.PROVIDER_OCP + "', "
-                        "'provider_uuid': " + str(None) + ", "
                         "'simulate': " + str(simulate) + "}"
                     )
 
@@ -744,7 +743,6 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
                         "{'message': 'Removed Partitions', 'tracing_id': '', "
                         "'schema': '" + self.schema + "', "
                         "'provider_type': '" + Provider.PROVIDER_OCP + "', "
-                        "'provider_uuid': " + str(None) + ", "
                         "'simulate': " + str(simulate) + ", "
                         "'removed_data': " + str(expected_results) + "}"
                     )
