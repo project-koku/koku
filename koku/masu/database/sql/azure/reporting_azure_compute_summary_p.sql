@@ -37,13 +37,13 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
     FROM (
         -- this group by gets the counts
         SELECT usage_start,
-            subscription_guid,
+            COALESCE(subscription_guid, subscription_id) as subscription_guid,
             instance_type,
-            SUM(usage_quantity) AS usage_quantity,
+            SUM(quantity) AS usage_quantity,
             MAX(unit_of_measure) AS unit_of_measure,
-            SUM(pretax_cost) AS pretax_cost,
+            SUM(costinbillingcurrency) as pretax_cost,
             SUM(markup_cost) AS markup_cost,
-            MAX(currency) AS currency,
+            MAX(COALESCE(billingcurrency, billingcurrencycode)) as currency,
             subscription_name
         FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date
@@ -56,12 +56,12 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_compute_summary_p (
     JOIN (
         -- this group by gets the distinct resources running by day
         SELECT usage_start,
-            subscription_guid,
+            COALESCE(subscription_guid, subscription_id) as subscription_guid,
             instance_type,
             ARRAY_AGG(DISTINCT instance_id ORDER BY instance_id) as instance_ids
         FROM (
             SELECT usage_start,
-                subscription_guid,
+                COALESCE(subscription_guid, subscription_id) as subscription_guid,
                 instance_type,
                 UNNEST(instance_ids) AS instance_id
             FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary

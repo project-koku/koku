@@ -20,11 +20,11 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_storage_summary_p (
         {{cluster_alias}},
         subscription_guid,
         service_name,
-        sum(quantity) as quantity,
+        sum(quantity) as usage_quantity,
         max(unit_of_measure) as unit_of_measure,
-        sum(pretax_cost) as pretax_cost,
+        sum(costinbillingcurrency) as pretax_cost,
         sum(markup_cost) as markup_cost,
-        max(currency) as currency,
+        max(COALESCE(billingcurrency, billingcurrencycode)) as currency,
         {{source_uuid}}::uuid as source_uuid
     FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE service_name LIKE '%%Storage%%'

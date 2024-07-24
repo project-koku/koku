@@ -21,13 +21,13 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_network_summary_p (
     SELECT uuid_generate_v4() as id,
         usage_start as usage_start,
         usage_start as usage_end,
-        subscription_guid,
+        COALESCE(subscription_guid, subscription_id) as subscription_guid,
         service_name,
-        sum(usage_quantity) as usage_quantity,
+        sum(quantity) as usage_quantity,
         max(unit_of_measure) as unit_of_measure,
-        sum(pretax_cost) as pretax_cost,
+        sum(costinbillingcurrency) as pretax_cost,
         sum(markup_cost) as markup_cost,
-        max(currency) as currency,
+        max(COALESCE(billingcurrency, billingcurrencycode)) as currency,
         {{source_uuid}}::uuid as source_uuid,
         subscription_name
     FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary

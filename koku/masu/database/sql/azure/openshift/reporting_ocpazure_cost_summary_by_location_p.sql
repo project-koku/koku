@@ -16,11 +16,11 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_cost_summary_by_locatio
         usage_start as usage_end,
         {{cluster_id}},
         {{cluster_alias}},
-        subscription_guid,
+        COALESCE(subscription_guid, subscription_id) as subscription_guid,
         resource_location,
-        sum(pretax_cost) as pretax_cost,
+        sum(costinbillingcurrency) as pretax_cost,
         sum(markup_cost) as markup_cost,
-        max(currency) as currency,
+        max(COALESCE(billingcurrency, billingcurrencycode)) as currency,
         {{source_uuid}}::uuid as source_uuid
     FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
