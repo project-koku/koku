@@ -10,7 +10,6 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import JSONField
 
-
 TRINO_LINE_ITEM_TABLE = "azure_line_items"
 TRINO_LINE_ITEM_DAILY_TABLE = TRINO_LINE_ITEM_TABLE
 TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
@@ -37,8 +36,8 @@ TRINO_REQUIRED_COLUMNS = {
     "currency": "",
     "effectiveprice": 0.0,
     "frequency": "",
-    "instanceid": "",
     "invoicesectionid": "",
+    "instanceid": "",
     "invoicesectionname": "",
     "isazurecrediteligible": "",
     "metercategory": "",
@@ -50,14 +49,14 @@ TRINO_REQUIRED_COLUMNS = {
     "partnumber": "",
     "paygprice": 0.0,
     "planname": "",
-    "pretaxcost": 0.0,
     "pricingmodel": "",
+    "pretaxcost": 0.0,
     "productname": "",
     "productorderid": "",
     "productordername": "",
     "publishername": "",
     "publishertype": "",
-    "quantity": 0.0,
+    "usage_quantity": 0.0,
     "reservationid": "",
     "reservationname": "",
     "resourcegroup": "",
@@ -111,9 +110,7 @@ class AzureCostEntryBill(models.Model):
     summary_data_updated_datetime = models.DateTimeField(null=True)
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
-    provider = models.ForeignKey(
-        "reporting.TenantAPIProvider", on_delete=models.CASCADE
-    )
+    provider = models.ForeignKey("reporting.TenantAPIProvider", on_delete=models.CASCADE)
 
 
 class AzureCostEntryLineItemDailySummary(models.Model):
@@ -133,18 +130,10 @@ class AzureCostEntryLineItemDailySummary(models.Model):
         db_table = "reporting_azurecostentrylineitem_daily_summary"
         indexes = [
             models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start"),
-            models.Index(
-                fields=["resource_location"], name="ix_azurecstentrydlysumm_svc"
-            ),
-            models.Index(
-                fields=["subscription_guid"], name="ix_azurecstentrydlysumm_sub_id"
-            ),
-            models.Index(
-                fields=["instance_type"], name="ix_azurecstentrydlysumm_instyp"
-            ),
-            models.Index(
-                fields=["subscription_name"], name="ix_azurecstentrydlysumm_sub_na"
-            ),
+            models.Index(fields=["resource_location"], name="ix_azurecstentrydlysumm_svc"),
+            models.Index(fields=["subscription_guid"], name="ix_azurecstentrydlysumm_sub_id"),
+            models.Index(fields=["instance_type"], name="ix_azurecstentrydlysumm_instyp"),
+            models.Index(fields=["subscription_name"], name="ix_azurecstentrydlysumm_sub_na"),
         ]
         # A GIN functional index named "ix_azure_costentrydlysumm_service_name" was created manually
         # via RunSQL migration operation
@@ -222,9 +211,7 @@ class AzureCostSummaryP(models.Model):
         """Meta for AzureCostSummaryP."""
 
         db_table = "reporting_azure_cost_summary_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="azurecostsumm_usage_start")
-        ]
+        indexes = [models.Index(fields=["usage_start"], name="azurecostsumm_usage_start")]
 
     id = models.UUIDField(primary_key=True)
     usage_start = models.DateField(null=False)
@@ -233,11 +220,7 @@ class AzureCostSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
 
@@ -258,12 +241,8 @@ class AzureCostSummaryByAccountP(models.Model):
         db_table = "reporting_azure_cost_summary_by_account_p"
         indexes = [
             models.Index(fields=["usage_start"], name="azurecostsumm_acc_usage_start"),
-            models.Index(
-                fields=["subscription_guid"], name="azurecostsumm_acc_sub_guid"
-            ),
-            models.Index(
-                fields=["subscription_name"], name="azurecostsumm_acc_sub_name"
-            ),
+            models.Index(fields=["subscription_guid"], name="azurecostsumm_acc_sub_guid"),
+            models.Index(fields=["subscription_name"], name="azurecostsumm_acc_sub_name"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -274,11 +253,7 @@ class AzureCostSummaryByAccountP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
 
@@ -300,9 +275,7 @@ class AzureCostSummaryByLocationP(models.Model):
         db_table = "reporting_azure_cost_summary_by_location_p"
         indexes = [
             models.Index(fields=["usage_start"], name="azurecostsumm_loc_usage_start"),
-            models.Index(
-                fields=["resource_location"], name="azurecostsumm_loc_res_loc"
-            ),
+            models.Index(fields=["resource_location"], name="azurecostsumm_loc_res_loc"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -314,11 +287,7 @@ class AzureCostSummaryByLocationP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
 
@@ -352,11 +321,7 @@ class AzureCostSummaryByServiceP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
 
@@ -394,11 +359,7 @@ class AzureComputeSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
 
@@ -434,11 +395,7 @@ class AzureStorageSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
 
@@ -474,11 +431,7 @@ class AzureNetworkSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
 
@@ -514,10 +467,6 @@ class AzureDatabaseSummaryP(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
-        "reporting.TenantAPIProvider",
-        on_delete=models.CASCADE,
-        unique=False,
-        null=True,
-        db_column="source_uuid",
+        "reporting.TenantAPIProvider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     subscription_name = models.TextField(null=True)
