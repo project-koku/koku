@@ -1,9 +1,6 @@
-import functools
 import logging
 import os
-import random
 import re
-import time
 import typing as t
 
 import sqlparse
@@ -11,56 +8,13 @@ import trino
 from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
+from common.sql_retries import retry
+
 LOG = logging.getLogger(__name__)
 
 POSITIONAL_VARS = re.compile("%s")
 NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
-
-
-def retry_executescript(
-    original_callable: t.Callable = None,
-    *,
-    retries: int = 3,
-    retry_on: tuple[Exception, ...],
-    attribute_to_check: str = "message",
-    max_wait: int = 30,
-):
-    def _retry_executescript(callable: t.Callable):
-        @functools.wraps(callable)
-        def wrapper(*args, **kwargs):
-            for attempt in range(retries + 1):
-                try:
-                    return callable(*args, **kwargs)
-                except retry_on as ex:
-                    if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check, ""):
-                        LOG.warning(
-                            msg="TrinoExternalError Exception, retrying...",
-                            exc_info=ex,
-                        )
-                        backoff = min(2**attempt, max_wait)
-                        jitter = random.uniform(0, 1)
-                        delay = backoff + jitter
-                        time.sleep(delay)
-                        continue
-
-                    LOG.error(
-                        "Failed trino sql execution: TrinoExternalError",
-                        exc_info=ex,
-                    )
-                    raise TrinoStatementExecError(
-                        statement=kwargs.get("sqlscript"),
-                        statement_number=attempt,
-                        sql_params=kwargs.get("params"),
-                        trino_error=ex,
-                    )
-
-        return wrapper
-
-    if original_callable:
-        return _retry_executescript(original_callable)
-
-    return _retry_executescript
 
 
 class TrinoStatementExecError(Exception):
@@ -154,7 +108,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-@retry_executescript(retry_on=(Exception,))
+@retry(retry_on=(Exception,))
 def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it

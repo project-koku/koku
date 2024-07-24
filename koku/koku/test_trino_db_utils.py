@@ -120,7 +120,7 @@ select a from b;
                 )
 
         with (
-            self.assertRaisesRegex(TrinoStatementExecError, "type=INTERNAL_ERROR"),
+            self.assertRaisesRegex(TrinoQueryError, "type=INTERNAL_ERROR"),
             self.assertLogs("koku.trino_database", level="WARN") as logger,
         ):
             executescript(FakeTrinoConn(), "SELECT x from y")

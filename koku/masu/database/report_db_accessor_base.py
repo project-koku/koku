@@ -3,12 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
-import functools
 import logging
 import os
-import random
 import time
-import typing as t
 
 from django.conf import settings
 from django.db import connection
@@ -20,6 +17,7 @@ from trino.exceptions import TrinoExternalError
 import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
+from common.sql_retries import retry
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
@@ -27,55 +25,6 @@ from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
 
 LOG = logging.getLogger(__name__)
-
-
-def retry_query(
-    original_callable: t.Callable = None,
-    *,
-    retries: int = 3,
-    retry_on: tuple[Exception, ...],
-    attribute_to_check: str = "message",
-    max_wait: int = 30,
-):
-    def _retry_query(callable: t.Callable):
-        @functools.wraps(callable)
-        def wrapper(*args, **kwargs):
-            sql_params = kwargs.get("sql_params", {})
-            log_ref = kwargs.get("log_ref", "Trino query")
-            if sql_params is None:
-                sql_params = {}
-            context = ReportDBAccessorBase.extract_context_from_sql_params(sql_params)
-            for attempt in range(retries + 1):
-                try:
-                    return callable(*args, **kwargs)
-                except retry_on as ex:
-                    if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check, ""):
-                        LOG.warning(
-                            log_json(
-                                msg="TrinoExternalError Exception, retrying...", log_ref=log_ref, context=context
-                            ),
-                            exc_info=ex,
-                        )
-                        backoff = min(2**attempt, max_wait)
-                        jitter = random.uniform(0, 1)
-                        delay = backoff + jitter
-                        time.sleep(delay)
-                        continue
-
-                    LOG.error(
-                        log_json(
-                            msg="failed trino sql execution: TrinoExternalError", log_ref=log_ref, context=context
-                        ),
-                        exc_info=ex,
-                    )
-                    raise ex
-
-        return wrapper
-
-    if original_callable:
-        return _retry_query(original_callable)
-
-    return _retry_query
 
 
 class ReportDBAccessorException(Exception):
@@ -169,7 +118,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry_query(retry_on=(Exception,))
+    @retry(retry_on=(Exception,), context_extractor=extract_context_from_sql_params)
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
