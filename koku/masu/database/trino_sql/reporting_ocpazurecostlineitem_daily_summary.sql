@@ -228,7 +228,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_tag_matched_temp (
     subscription_name,
     resource_location,
     unit_of_measure,
-    usage_quantity,
+    quantity,
     currency,
     pretax_cost,
     tags,
