@@ -628,7 +628,7 @@ SELECT azure.uuid as azure_uuid,
     max(azure.subscription_name) as subscription_name,
     max(nullif(azure.resource_location, '')) as resource_location,
     max(azure.unit_of_measure) as unit_of_measure,
-    max(cast(azure.quantity as decimal(24,9))) as quantity,
+    max(cast(azure.usage_quantity as decimal(24,9))) as usage_quantity,
     max(azure.currency) as currency,
     max(cast(azure.pretax_cost as decimal(24,9))) as pretax_cost,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
