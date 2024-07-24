@@ -48,7 +48,12 @@ def retry_executescript(
                         "Failed trino sql execution: TrinoExternalError",
                         exc_info=ex,
                     )
-                    raise ex
+                    raise TrinoStatementExecError(
+                        statement=kwargs.get("sqlscript"),
+                        statement_number=attempt,
+                        sql_params=kwargs.get("params"),
+                        trino_error=ex,
+                    )
 
         return wrapper
 

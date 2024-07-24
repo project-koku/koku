@@ -125,7 +125,7 @@ select a from b;
         ):
             executescript(FakeTrinoConn(), "SELECT x from y")
 
-        self.assertIn("WARNING:koku.trino_database:Trino Query Error", logger.output[0])
+        self.assertIn("WARNING:koku.trino_database:TrinoQueryError", logger.output[0])
 
     def test_executescript_error(self):
         def t_exec_error(*args, **kwargs):
