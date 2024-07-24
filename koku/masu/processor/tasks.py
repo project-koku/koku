@@ -77,7 +77,6 @@ from reporting_common.states import ManifestStep
 LOG = logging.getLogger(__name__)
 
 
-
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 
 
