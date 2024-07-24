@@ -461,7 +461,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/distribute_cost/{sql_file}")
             sql = sql.decode("utf-8")
             LOG.info(log_json(msg=log_msg, context=sql_params))
-            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
 
     def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
         """
