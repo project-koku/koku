@@ -315,7 +315,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 
 @celery_app.task(name="masu.processor.tasks.remove_expired_trino_partitions", queue=DEFAULT)
-def remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid=None):
+def remove_expired_trino_partitions(schema_name, provider_type, simulate):
     """
     Remove expired report data.
 
@@ -332,10 +332,9 @@ def remove_expired_trino_partitions(schema_name, provider_type, simulate, provid
     context = {
         "schema": schema_name,
         "provider_type": provider_type,
-        "provider_uuid": provider_uuid,
     }
     LOG.info(log_json("remove_expired_data", msg="removing expired partitions", context=context))
-    _remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid)
+    _remove_expired_trino_partitions(schema_name, provider_type, simulate)
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SummaryQueue.DEFAULT)  # noqa: C901

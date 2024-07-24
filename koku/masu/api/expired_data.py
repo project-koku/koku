@@ -54,5 +54,5 @@ def expired_trino_partitions(request):
 
     response_key = "Async jobs for expired paritions removal"
     if simulate:
-        response_key = response_key + " (simulated)"
+        response_key += " (simulated)"
     return Response({response_key: str(async_delete_results)})

@@ -149,12 +149,9 @@ class OCPReportDBCleaner:
 
         return removed_items
 
-    def purge_expired_trino_partitions(self, expired_date, provider_uuid=None, simulate=False):
+    def purge_expired_trino_partitions(self, expired_date, simulate=False):
         """Removes expired trino partitions."""
-        LOG.debug(f"purge_expired_trino_partitions: {expired_date}, {provider_uuid}, {simulate}")
-        if expired_date is None and provider_uuid is None:
-            err = "This method must be called with expired_date or provider_uuid"
-            raise OCPReportDBCleanerError(err)
+        LOG.debug(f"purge_expired_trino_partitions: {expired_date}, {simulate}")
 
         with OCPReportDBAccessor(self._schema) as accessor:
             for table, source_column in EXPIRE_MANAGED_TABLES.items():

@@ -37,7 +37,7 @@ def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
         LOG.info(log_json(msg=status_msg, removed_data=removed_data, context=context))
 
 
-def _remove_expired_trino_partitions(schema_name, provider_type, simulate, provider_uuid=None):
+def _remove_expired_trino_partitions(schema_name, provider_type, simulate):
     """
     Task to remove expired data.
 
@@ -53,17 +53,17 @@ def _remove_expired_trino_partitions(schema_name, provider_type, simulate, provi
     context = {
         "schema": schema_name,
         "provider_type": provider_type,
-        "provider_uuid": provider_uuid,
         "simulate": simulate,
     }
     LOG.info(log_json(msg="Remove expired partitions", context=context))
 
     try:
         remover = ExpiredDataRemover(schema_name, provider_type)
-    except ExpiredDataRemoverError:
+    except ExpiredDataRemoverError as e:
+        LOG.error(log_json(msg="ExpiredDataRemoverError occurred", error=e))
         return
 
-    removed_trino_partitions = remover.remove_expired_trino_partitions(simulate=simulate, provider_uuid=provider_uuid)
+    removed_trino_partitions = remover.remove_expired_trino_partitions(simulate=simulate)
     if removed_trino_partitions:
         status_msg = "Expired Partitions" if simulate else "Removed Partitions"
         LOG.info(log_json(msg=status_msg, removed_data=removed_trino_partitions, context=context))
