@@ -5,6 +5,7 @@
 """Test the OCPReportDBCleaner utility object."""
 import datetime
 import uuid
+from unittest.mock import patch
 
 from dateutil import relativedelta
 from django.conf import settings
@@ -213,3 +214,30 @@ class OCPReportDBCleanerTest(MasuTestCase):
         self.assertEqual(len(removed_data), 1)
         with schema_context(self.schema):
             self.assertFalse(table_exists(self.schema, test_part.table_name))
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_hive_partition_by_month")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.find_expired_trino_partitions")
+    def test_purge_expired_trino_partitions_no_partitions(self, mock_find_partitions, mock_delete):
+        mock_find_partitions.return_value = []
+        cleaner = OCPReportDBCleaner(self.schema)
+        cutoff_date = datetime.datetime(2018, 12, 31, tzinfo=settings.UTC)
+        cleaner.purge_expired_trino_partitions(cutoff_date)
+        mock_delete.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_hive_partition_by_month")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.find_expired_trino_partitions")
+    def test_purge_expired_trino_partitions(self, mock_find_partitions, mock_delete):
+        mock_find_partitions.return_value = [("year", "month", "A")]
+        cleaner = OCPReportDBCleaner(self.schema)
+        cutoff_date = datetime.datetime(2018, 12, 31, tzinfo=settings.UTC)
+        cleaner.purge_expired_trino_partitions(cutoff_date)
+        mock_delete.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.delete_hive_partition_by_month")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.find_expired_trino_partitions")
+    def test_purge_expired_trino_partitions_simulate(self, mock_find_partitions, mock_delete):
+        mock_find_partitions.return_value = [("year", "month", "A")]
+        cleaner = OCPReportDBCleaner(self.schema)
+        cutoff_date = datetime.datetime(2018, 12, 31, tzinfo=settings.UTC)
+        cleaner.purge_expired_trino_partitions(cutoff_date, simulate=True)
+        mock_delete.assert_not_called()

@@ -59,6 +59,7 @@ from masu.processor.tasks import process_openshift_on_cloud
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import remove_expired_trino_partitions
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
@@ -717,6 +718,43 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
 
             self.assertIn(expected_initial_remove_log, logger.output)
             self.assertNotIn(expected_expired_data_log, logger.output)
+
+    @patch.object(ExpiredDataRemover, "remove_expired_trino_partitions")
+    def test_remove_expired_trino_partitions(self, fake_remover):
+        """Test task."""
+        expected_results = ["A"]
+        fake_remover.return_value = expected_results
+
+        # disable logging override set in masu/__init__.py
+        logging.disable(logging.NOTSET)
+        for simulate in [True, False]:
+            with self.subTest(simulate=simulate):
+                with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
+                    expected_initial_remove_log = (
+                        "INFO:masu.processor._tasks.remove_expired:"
+                        "{'message': 'Remove expired partitions', 'tracing_id': '', "
+                        "'schema': '" + self.schema + "', "
+                        "'provider_type': '" + Provider.PROVIDER_OCP + "', "
+                        "'simulate': " + str(simulate) + "}"
+                    )
+
+                    expected_expired_data_log = (
+                        "INFO:masu.processor._tasks.remove_expired:"
+                        "{'message': 'Removed Partitions', 'tracing_id': '', "
+                        "'schema': '" + self.schema + "', "
+                        "'provider_type': '" + Provider.PROVIDER_OCP + "', "
+                        "'simulate': " + str(simulate) + ", "
+                        "'removed_data': " + str(expected_results) + "}"
+                    )
+                    remove_expired_trino_partitions(
+                        schema_name=self.schema, provider_type=Provider.PROVIDER_OCP, simulate=simulate
+                    )
+
+                    self.assertIn(expected_initial_remove_log, logger.output)
+                    if simulate:
+                        self.assertNotIn(expected_expired_data_log, logger.output)
+                    else:
+                        self.assertIn(expected_expired_data_log, logger.output)
 
 
 class TestUpdateSummaryTablesTask(MasuTestCase):

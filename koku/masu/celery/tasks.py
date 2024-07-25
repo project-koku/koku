@@ -75,6 +75,7 @@ def remove_expired_data(simulate=False):
     LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
+    orchestrator.remove_expired_trino_partitions(simulate)
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
