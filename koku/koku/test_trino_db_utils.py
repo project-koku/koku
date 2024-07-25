@@ -121,11 +121,10 @@ select a from b;
 
         with (
             self.assertRaisesRegex(TrinoQueryError, "type=INTERNAL_ERROR"),
-            self.assertLogs("koku.trino_database", level="WARN") as logger,
+            self.assertLogs("common", level="WARN") as logger,
         ):
             executescript(FakeTrinoConn(), "SELECT x from y")
-
-        self.assertIn("WARNING:koku.trino_database:TrinoQueryError", logger.output[0])
+        self.assertIn("TrinoQueryError", logger.output[0])
 
     def test_executescript_error(self):
         def t_exec_error(*args, **kwargs):
