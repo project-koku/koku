@@ -161,6 +161,7 @@ OCP_ON_AZURE_PERSPECTIVES = (
     OCPAzureDatabaseSummaryP,
 )
 
+# These are cleaned during source delete
 TRINO_MANAGED_TABLES = {
     "reporting_ocpusagelineitem_daily_summary": "source",
     "reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
@@ -175,4 +176,32 @@ TRINO_MANAGED_TABLES = {
     "reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
     "gcp_openshift_daily_resource_matched_temp": "ocp_source",
     "gcp_openshift_daily_tag_matched_temp": "ocp_source",
+}
+
+# These are cleaned during expired_data flow
+EXPIRE_MANAGED_TABLES = {
+    "reporting_ocpusagelineitem_daily_summary": "source",
+    "reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
+    "reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
+}
+
+# TEMP tables are cleaned during day to day processing
+OCP_ON_AWS_TEMP_MANAGED_TABLES = {
+    "reporting_ocpawscostlineitem_project_daily_summary_temp",
+    "aws_openshift_daily_resource_matched_temp",
+    "aws_openshift_daily_tag_matched_temp",
+}
+
+OCP_ON_AZURE_TEMP_MANAGED_TABLES = {
+    "reporting_ocpazurecostlineitem_project_daily_summary_temp",
+    "azure_openshift_daily_resource_matched_temp",
+    "azure_openshift_daily_tag_matched_temp",
+    "azure_openshift_disk_capacities_temp",
+}
+
+OCP_ON_GCP_TEMP_MANAGED_TABLES = {
+    "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+    "gcp_openshift_daily_resource_matched_temp",
+    "gcp_openshift_daily_tag_matched_temp",
 }
