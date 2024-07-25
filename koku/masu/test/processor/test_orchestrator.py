@@ -597,3 +597,24 @@ class OrchestratorTest(MasuTestCase):
         initial_prov_failed.data_updated_timestamp = None
         result = check_currently_processing(self.schema_name, initial_prov_failed)
         self.assertEqual(result, False)
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch.object(ExpiredDataRemover, "remove_expired_trino_partitions")
+    @patch("masu.processor.orchestrator.remove_expired_trino_partitions.delay")
+    def test_remove_expired_trino_partitions(self, mock_task, mock_remover, mock_inspect):
+        """Test removing expired trino partitions."""
+        task_id = "123"
+        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
+        mock_remover.return_value = expected_results
+        mock_task.return_value = task_id
+        expected = (
+            "INFO:masu.processor.orchestrator:Expired partition removal queued - schema_name: org1234567, Task ID: {}"
+        )
+        # unset disabling all logging below CRITICAL from masu/__init__.py
+        logging.disable(logging.NOTSET)
+        with self.assertLogs("masu.processor.orchestrator", level="INFO") as logger:
+            orchestrator = Orchestrator()
+            results = orchestrator.remove_expired_trino_partitions()
+            self.assertTrue(results)
+            self.assertEqual(len(results), 1)
+            self.assertIn(expected.format(task_id), logger.output)
