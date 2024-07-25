@@ -36,3 +36,23 @@ def expired_data(request):
     if simulate:
         response_key = response_key + " (simulated)"
     return Response({response_key: str(async_delete_results)})
+
+
+@never_cache
+@api_view(http_method_names=["GET", "DELETE"])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def expired_trino_partitions(request):
+    """Return expired data."""
+    simulate = True
+    if request.method == "DELETE" and Config.DEBUG:
+        simulate = False
+    LOG.info("Simulate Flag: %s", simulate)
+
+    orchestrator = Orchestrator()
+    async_delete_results = orchestrator.remove_expired_trino_partitions(simulate=simulate)
+
+    response_key = "Async jobs for expired paritions removal"
+    if simulate:
+        response_key += " (simulated)"
+    return Response({response_key: str(async_delete_results)})
