@@ -188,17 +188,17 @@ select a from b;
         }
         conn = FakeTrinoConn()
 
-        # Mock time.sleep to avoid delays during the test
-        with patch("time.sleep", return_value=None):
+        with patch("time.sleep", return_value=None), self.assertRaises(FakeTrinoQueryError) as error_context:
             results = executescript(
                 trino_conn=conn,
                 sqlscript=sqlscript,
                 params=params,
-                preprocessor=None,  # Assuming no preprocessor is needed for this test
+                preprocessor=None,
             )
+            self.assertEqual(results, [["eek"]] * 6)
 
-        self.assertEqual(results, [["eek"]] * 6)
-        self.assertEqual(conn.cur.execute_calls, 2)
+        self.assertIn("NoSuchKey error occurred", str(error_context.exception))
+        self.assertEqual(conn.cur.execute_calls, 1)
 
 
 class TestTrinoStatementExecError(TestCase):
