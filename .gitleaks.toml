@@ -3,4 +3,5 @@ paths = [
     '''grafana\/grafana.db.sql''',
     '''.env.example''',
     '''docs\/devtools.md''',
+    '''dev\/scripts\/nise_ymls\/ocp_on_aws\/aws_static_data.yml''',
 ]

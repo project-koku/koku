@@ -4,6 +4,7 @@
 #
 """Test the AWS Report views."""
 import copy
+from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
@@ -600,3 +601,63 @@ class AWSReportViewTest(IamTestCase):
         url = reverse("reports-aws-costs") + "?group_by[aws_categroy:invalid]=value"
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ec2_compute_view_unleashed(self):
+        """Test EC2 compute view returns correct repsonses depending on unleash."""
+        url = reverse("reports-aws-ec2-compute")
+        with patch(
+            "api.report.aws.view.is_feature_cost_4403_ec2_compute_cost_enabled",
+            return_value=False,
+        ):
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        with patch(
+            "api.report.aws.view.is_feature_cost_4403_ec2_compute_cost_enabled",
+            return_value=True,
+        ):
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2_compute_view_returns_default_time_period_params(self):
+        """Test EC2 compute view returns HTTP 200 and valid default meta filter."""
+
+        expected_filters = {"time_scope_value": "-1", "time_scope_units": "month", "resolution": "monthly"}
+        url = reverse("reports-aws-ec2-compute")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["meta"]["filter"], expected_filters)
+
+    def test_ec2_compute_view_with_valid_params(self):
+        """Test EC2 compute view returns HTTP 200 for valid query parameters."""
+
+        base_url = reverse("reports-aws-ec2-compute")
+        valid_params = [
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=monthly",
+            "?filter[operating_system]=Linux&filter[resolution]=monthly",
+            "?filter[region]=us-east-1&order_by[cost]=asc",
+        ]
+
+        for param in valid_params:
+            with self.subTest(param=param):
+                url = base_url + param
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_ec2_compute_view_with_invalid_params(self):
+        """Test EC2 compute view returns HTTP 400 for invalid query parameters."""
+
+        base_url = reverse("reports-aws-ec2-compute")
+        invalid_params = [
+            "?filter[time_scope_units]=day&filter[time_scope_value]=-3&filter[resolution]=monthly",
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-30&filter[resolution]=monthly",
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=daily",
+            "?filter[vcpu]=4",
+            "?filter[memory]=20",
+        ]
+
+        for param in invalid_params:
+            with self.subTest(param=param):
+                url = base_url + param
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

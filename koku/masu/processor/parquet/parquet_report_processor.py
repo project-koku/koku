@@ -203,6 +203,14 @@ class ParquetReportProcessor:
             raise ParquetReportProcessorError(msg) from ex
 
     @property
+    def bill_date(self):
+        return self.start_date.replace(day=1)
+
+    @property
+    def trino_table_exists_key(self):
+        return f"{self.report_type}|{self.bill_date}"
+
+    @property
     def create_table(self):
         """Whether to create the Hive/Trino table"""
         return self._context.get("create_table", False)
@@ -434,7 +442,6 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
-        failed_conversion = []
         daily_data_frames = []
         file_list = self.file_list
 
@@ -458,6 +465,13 @@ class ParquetReportProcessor:
             return parquet_base_filename, daily_data_frames
 
         for csv_filename in file_list:
+
+            # set start date based on data in the file being processed:
+            if self.provider_type == Provider.PROVIDER_OCI:
+                self.start_date = str(csv_filename).split(".")[1]
+            elif self.provider_type == Provider.PROVIDER_OCP:
+                self.start_date = self.ocp_files_to_process[csv_filename.stem]["meta_reportdatestart"]
+
             self.prepare_parquet_s3(Path(csv_filename))
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 msg = "could not establish report type"
@@ -470,9 +484,7 @@ class ParquetReportProcessor:
                     )
                 )
                 raise ParquetReportProcessorError(msg)
-            if self.provider_type == Provider.PROVIDER_OCI:
-                file_specific_start_date = str(csv_filename).split(".")[1]
-                self.start_date = file_specific_start_date
+
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
@@ -487,7 +499,7 @@ class ParquetReportProcessor:
                         self.tracing_id,
                         msg=msg,
                         context=self.error_context,
-                        file_list=failed_conversion,
+                        failed_file=csv_filename,
                     )
                 )
                 raise ParquetReportProcessorError(msg)
@@ -498,16 +510,15 @@ class ParquetReportProcessor:
         # Skip empty files, if we have no storage report data we can't create the table
         if parquet_file:
             processor = self._get_report_processor(parquet_file, daily=daily)
-            bill_date = self.start_date.replace(day=1)
             if not processor.schema_exists():
                 processor.create_schema()
             if not processor.table_exists():
                 processor.create_table(partition_map=partition_map)
-            self.trino_table_exists[self.report_type] = True
-            processor.get_or_create_postgres_partition(bill_date=bill_date)
+            self.trino_table_exists[self.trino_table_exists_key] = True
+            processor.get_or_create_postgres_partition(bill_date=self.bill_date)
             processor.sync_hive_partitions()
             if not daily:
-                processor.create_bill(bill_date=bill_date)
+                processor.create_bill(bill_date=self.bill_date)
 
     def check_required_columns_for_ingress_reports(self, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
@@ -570,7 +581,7 @@ class ParquetReportProcessor:
                     )
                 )
                 self.post_processor.finalize_post_processing()
-            if self.create_table and not self.trino_table_exists.get(self.report_type):
+            if self.create_table and not self.trino_table_exists.get(self.trino_table_exists_key):
                 self.create_parquet_table(parquet_filepath)
 
         except Exception as err:

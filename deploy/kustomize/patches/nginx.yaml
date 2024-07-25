@@ -46,11 +46,11 @@
         timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${NGINX_CPU_LIMIT}
-          memory: ${NGINX_MEMORY_LIMIT}
+          cpu: ${CPU_LIMIT_NGINX}
+          memory: ${MEMORY_LIMIT_NGINX}
         requests:
-          cpu: ${NGINX_CPU_REQUEST}
-          memory: ${NGINX_MEMORY_REQUEST}
+          cpu: ${CPU_REQUEST_NGINX}
+          memory: ${MEMORY_REQUEST_NGINX}
       volumeMounts:
         - name: koku-api-nginx-conf
           mountPath: /etc/nginx
@@ -70,28 +70,28 @@
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: NGINX_MEMORY_REQUEST
+    name: MEMORY_REQUEST_NGINX
     required: true
     value: 100Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: NGINX_MEMORY_LIMIT
+    name: MEMORY_LIMIT_NGINX
     required: true
     value: 200Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: NGINX_CPU_REQUEST
+    name: CPU_REQUEST_NGINX
     required: true
     value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: NGINX_CPU_LIMIT
+    name: CPU_LIMIT_NGINX
     required: true
     value: 200m
 - op: add

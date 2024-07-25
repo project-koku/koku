@@ -318,6 +318,7 @@ class ReportQueryHandler(QueryHandler):
         """
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
+
         access_filters = QueryFilterCollection()
 
         aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)

@@ -2781,11 +2781,11 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:5675274050e7fd9242329a0c40035e60abdec988e95bd91316596636bb388fea",
-                "sha256:f09fbf9b795371fd3d1f93c641f6f64de8f146488399631eb507d59db372b052"
+                "sha256:4678257aac57c53b879f30ce5f518c227c492e33234660613c1f330bd8631ea7",
+                "sha256:cf6e3ec02398127979e942a573da7b6b798866ef44651a803012c77031c894e2"
             ],
             "index": "pypi",
-            "version": "==4.5.7"
+            "version": "==4.6.1"
         },
         "kombu": {
             "hashes": [

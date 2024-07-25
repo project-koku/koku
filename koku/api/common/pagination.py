@@ -139,6 +139,12 @@ class ReportPagination(StandardResultsSetPagination):
             return int(request.query_params.get(self.limit_query_param))
         return None
 
+    def get_paginated_data(self, queryset):
+        """Shared logic for paginating the data list."""
+        if self.limit:
+            return queryset.get("data", [])[self.offset : self.offset + self.limit]
+        return queryset.get("data", [])
+
     def paginate_queryset(self, queryset, request, view=None):
         """Override queryset pagination."""
         self.count = self.get_count(queryset)
@@ -157,12 +163,7 @@ class ReportPagination(StandardResultsSetPagination):
             queryset["data"] = []
             return queryset
 
-        if self.limit:
-            query_data = queryset.get("data", [])[self.offset : self.offset + self.limit]  # noqa
-        else:
-            query_data = queryset.get("data", [])
-
-        queryset["data"] = query_data
+        queryset["data"] = self.get_paginated_data(queryset)
 
         return queryset
 
@@ -295,3 +296,30 @@ class EmptyResultsSetPagination(StandardResultsSetPagination):
                 "data": self.data_set,
             }
         )
+
+
+class AWSEC2ComputePagination(ReportPagination):
+    """Paginator for AWS EC2 compute instances report data."""
+
+    def get_count(self, queryset):
+        """Special case count for EC2 resource IDs."""
+        return len(queryset.get("data", [])[0].get("resource_ids", []))
+
+    def get_paginated_data(self, queryset):
+        """Special case pagination for EC2 resource IDs."""
+
+        paginated_data = []
+
+        for item in queryset.get("data", []):
+            resource_ids = item.get("resource_ids", [])
+            resource_count = len(resource_ids)
+
+            # if the current offset is within the range of resource IDs.
+            if self.offset < resource_count:
+                paginated_item = item.copy()
+
+                # paginate resource IDs from current_offset to the limit
+                paginated_item["resource_ids"] = resource_ids[self.offset : self.offset + self.limit]
+                paginated_data.append(paginated_item)
+
+        return paginated_data
