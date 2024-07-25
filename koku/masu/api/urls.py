@@ -21,6 +21,7 @@ from masu.api.views import dbsettings
 from masu.api.views import download_report
 from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
+from masu.api.views import expired_trino_partitions
 from masu.api.views import explain_query
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
@@ -56,6 +57,7 @@ urlpatterns = [
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("update_azure_storage_capacity/", update_azure_storage_capacity, name="update_azure_storage_capacity"),
     path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
+    path("expired_trino_partitions/", expired_trino_partitions, name="expired_trino_partitions"),
     path("expired_data/", expired_data, name="expired_data"),
     path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
     path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
