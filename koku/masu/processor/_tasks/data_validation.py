@@ -212,7 +212,7 @@ class DataValidator:
             LOG.info(log_json(msg=f"all data complete for provider: {self.provider_uuid}", context=self.context))
             provider.data_valid = True
         else:
-            LOG.warning(
+            LOG.error(
                 log_json(
                     msg=f"provider has incomplete data for specified days: {daily_difference}", context=self.context
                 )
