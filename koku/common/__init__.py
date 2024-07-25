@@ -24,7 +24,7 @@ def retry(
     def _retry(callable: t.Callable):
         @functools.wraps(callable)
         def wrapper(*args, **kwargs):
-            sql_params = kwargs.get("sql_params", {})
+            sql_params = kwargs.get("sql_params") or {}
             context = context_extractor(sql_params) if context_extractor else {}
             for attempt in range(retries + 1):
                 try:
