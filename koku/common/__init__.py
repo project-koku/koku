@@ -4,8 +4,6 @@ import random
 import time
 import typing as t
 
-from api.common import log_json
-
 LOG = logging.getLogger(__name__)
 
 
@@ -24,31 +22,26 @@ def retry(
     def _retry(callable: t.Callable):
         @functools.wraps(callable)
         def wrapper(*args, **kwargs):
-            sql_params = kwargs.get("sql_params") or {}
-            context = context_extractor(sql_params) if context_extractor else {}
             for attempt in range(retries + 1):
                 try:
+                    LOG.debug(f"Attempt {attempt + 1} for {callable.__name__}")
                     return callable(*args, **kwargs)
                 except retry_on as ex:
-                    if attempt < retries and "NoSuchKey" in getattr(ex, attribute_to_check, ""):
+                    LOG.debug(f"Exception caught: {ex}")
+                    if attempt < retries:
                         LOG.warning(
-                            log_json(
-                                msg=log_message or "TrinoExternalError Exception, retrying...",
-                                log_ref=log_ref,
-                                context=context,
-                            ),
+                            f"{log_message} (attempt {attempt + 1})",
                             exc_info=ex,
                         )
                         backoff = min(2**attempt, max_wait)
                         jitter = random.uniform(0, 1)
                         delay = backoff + jitter
+                        LOG.debug(f"Sleeping for {delay} seconds before retrying")
                         time.sleep(delay)
                         continue
 
                     LOG.error(
-                        log_json(
-                            msg="Failed Trino SQL execution: TrinoExternalError", log_ref=log_ref, context=context
-                        ),
+                        f"Failed execution after {attempt + 1} attempts",
                         exc_info=ex,
                     )
                     if custom_exception:

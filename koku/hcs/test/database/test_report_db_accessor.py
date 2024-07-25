@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test HCSReportDBAccessor."""
+import time
 from datetime import timedelta
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -177,13 +178,23 @@ class TestHCSReportDBAccessor(HCSTestCase):
     def test_retry_backoff_and_jitter(self, mock_sleep):
         """Test delay for retries."""
 
-        @retry(retry_on=(Exception,), max_wait=30)
+        call_attempts = []
+
+        @retry(retry_on=(Exception,), max_wait=30, retries=3)
         def function_that_fails():
+            call_attempts.append(time.time())
             raise Exception("Trigger retry")
 
         with self.assertRaises(Exception):
             function_that_fails()
 
         delay_values = [call.args[0] for call in mock_sleep.call_args_list]
+        print(f"Delay values: {delay_values}")
+        self.assertEqual(len(delay_values), 3, "Should retry exactly 3 times")
+
         for i in range(1, len(delay_values)):
             self.assertTrue(delay_values[i] > delay_values[i - 1], "Delay should increase with each retry")
+
+        base_delays = [min(2**i, 30) for i in range(3)]
+        for base, actual in zip(base_delays, delay_values):
+            self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
