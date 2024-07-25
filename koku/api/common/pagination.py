@@ -306,19 +306,31 @@ class AWSEC2ComputePagination(ReportPagination):
         return len(queryset.get("data", [])[0].get("resource_ids", []))
 
     def get_paginated_data(self, queryset):
-        """Special case pagination for EC2 resource IDs."""
+        """
+        Pagination EC2 resource IDs based on the request type.
+
+        Args:
+        queryset (dict): The data containing resource IDs to be paginated.
+
+        Returns:
+        paginated_data (list): If the request expects CSV data, returns a slice of resource IDs.
+                                Otherwise, list containing a single dictionary with paginated resource IDs.
+        """
 
         paginated_data = []
 
-        for item in queryset.get("data", []):
-            resource_ids = item.get("resource_ids", [])
-            resource_count = len(resource_ids)
+        data = queryset.get("data", [])[0]  # only single month data expected
+        resource_ids = data.get("resource_ids", [])
+        resource_count = len(resource_ids)
 
-            # if the current offset is within the range of resource IDs.
-            if self.offset < resource_count:
-                paginated_item = item.copy()
+        if self.offset < resource_count:
+            # paginate resource IDs from current_offset to the limit
+            paginated_ids = resource_ids[self.offset : self.offset + self.limit]
 
-                # paginate resource IDs from current_offset to the limit
+            if self.request.accepted_media_type and "text/csv" in self.request.accepted_media_type:
+                paginated_data = paginated_ids
+            else:
+                paginated_item = data.copy()
                 paginated_item["resource_ids"] = resource_ids[self.offset : self.offset + self.limit]
                 paginated_data.append(paginated_item)
 

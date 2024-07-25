@@ -10,6 +10,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.response import Response
 
+from .pagination import AWSEC2ComputePagination
 from .pagination import PATH_INFO
 from .pagination import ReportPagination
 from .pagination import ReportRankedPagination
@@ -173,3 +174,45 @@ class ReportRankedPaginationTest(TestCase):
         """Test that the queryset is unaltered."""
         data = self.paginator.paginate_queryset(self.data, self.paginator.request)
         self.assertEqual(data.get("data", []), self.data.get("data", []))
+
+
+class AWSEC2ComputePaginationTest(TestCase):
+    """Tests for report AWS EC2 compute API pagination."""
+
+    def setUp(self):
+        """Set up each test case."""
+        self.paginator = AWSEC2ComputePagination()
+        self.paginator.request = Mock
+        self.paginator.request.META = {}
+        self.paginator.request.query_params = {}
+
+        self.data = {"data": [{"resource_ids": [f"resource_{i}" for i in range(100)]}]}
+
+    def test_get_count(self):
+        """Test that count is returned properly."""
+        expected_count = len(self.data.get("data", [])[0].get("resource_ids", []))
+        count = self.paginator.get_count(self.data)
+        self.assertEqual(count, expected_count)
+
+    def test_get_paginated_data_csv(self):
+        """Test paginated data for CSV output."""
+        self.paginator.request.accepted_media_type = "text/csv"
+        self.paginator.offset = 10
+        self.paginator.limit = 10
+
+        paginated_data = self.paginator.get_paginated_data(self.data)
+        expected_data = [f"resource_{i}" for i in range(10, 20)]
+
+        self.assertEqual(paginated_data, expected_data)
+
+    def test_get_paginated_data_non_csv(self):
+        """Test paginated data for non-CSV output."""
+        self.paginator.request.accepted_media_type = "application/json"
+        self.paginator.offset = 10
+        self.paginator.limit = 10
+
+        paginated_data = self.paginator.get_paginated_data(self.data)
+        expected_data = {"resource_ids": [f"resource_{i}" for i in range(10, 20)]}
+
+        self.assertEqual(len(paginated_data), 1)
+        self.assertEqual(paginated_data[0]["resource_ids"], expected_data["resource_ids"])
