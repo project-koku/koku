@@ -3,6 +3,8 @@ import typing as t
 
 def extract_context_from_sql_params(sql_params: dict[str, t.Any]) -> dict[str, t.Any]:
     ctx = {}
+    if sql_params is None:
+        return ctx
     if schema := sql_params.get("schema"):
         ctx["schema"] = schema
     if (start := sql_params.get("start")) or (start := sql_params.get("start_date")):

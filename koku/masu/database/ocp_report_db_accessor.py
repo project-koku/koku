@@ -243,7 +243,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
                         )
                         break
                     except TrinoExternalError as err:
