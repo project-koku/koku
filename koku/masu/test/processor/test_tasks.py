@@ -642,7 +642,11 @@ class TestProcessorTasks(MasuTestCase):
         mock_process.assert_called()
 
     @patch("masu.processor.tasks.DataValidator")
-    def test_validate_data_task(self, mock_validate_daily_data):
+    @patch(
+        "masu.processor.tasks.is_validation_enabled",
+        return_value=True,
+    )
+    def test_validate_data_task(self, mock_unleash, mock_validate_daily_data):
         """Test validate data task."""
         context = {"unit": "test"}
         validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)

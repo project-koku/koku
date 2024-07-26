@@ -255,13 +255,16 @@ class DateHelper:
     def n_days_ago_or_month_start(self, in_date, n_days):
         """Return n days ago or start of month.
         Args:
-            in_date    (string) input datetime
+            in_date    (datetime, date, string) input datetime
             n_days     (integer) number of days in the past
         Returns:
             (string): date in the past
 
         """
-        in_date = ciso8601.parse_datetime(in_date).replace(hour=0, minute=0, second=0, microsecond=0)
+        if isinstance(in_date, datetime.date):
+            in_date = datetime.datetime(in_date.year, in_date.month, in_date.day, tzinfo=settings.UTC)
+        if isinstance(in_date, str):
+            in_date = ciso8601.parse_datetime(in_date).replace(hour=0, minute=0, second=0, microsecond=0)
         n_days = self.n_days_ago(in_date, n_days)
 
         if n_days.month < in_date.month:

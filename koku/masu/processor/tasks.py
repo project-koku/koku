@@ -47,6 +47,7 @@ from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
 from masu.processor import is_summary_processing_disabled
+from masu.processor import is_validation_enabled
 from masu.processor._tasks.data_validation import DataValidator
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -1253,5 +1254,6 @@ def process_daily_openshift_on_cloud(
 @celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=SummaryQueue.DEFAULT)
 def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type=None, context=None):
     # collect and validate cost metrics between postgres and trino tables.
-    data_validator = DataValidator(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type, context)
-    data_validator.check_data_integrity()
+    if is_validation_enabled(schema):
+        data_validator = DataValidator(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type, context)
+        data_validator.check_data_integrity()
