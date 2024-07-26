@@ -108,7 +108,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-@retry(retry_on=(TrinoQueryError,))
+@retry(retry_on=(TrinoStatementExecError,))
 def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
@@ -146,9 +146,19 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 # if the condition is false an empty line is returned.
                 continue
 
-            cur = trino_conn.cursor()
-            cur.execute(stmt, params=s_params)
-            results = cur.fetchall()
+            try:
+                cur = trino_conn.cursor()
+                cur.execute(stmt, params=s_params)
+                results = cur.fetchall()
+            except TrinoQueryError as trino_exc:
+                trino_statement_error = TrinoStatementExecError(
+                    statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
+                )
+                LOG.warning(f"{trino_statement_error!s}")
+                raise trino_statement_error from trino_exc
+            except Exception as exc:
+                LOG.warning(str(exc))
+                raise
 
             all_results.extend(results)
 

@@ -18,6 +18,7 @@ import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
 from common import retry
+from common.util import extract_context_from_sql_params
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
@@ -64,20 +65,7 @@ class ReportDBAccessorBase:
 
     @staticmethod
     def extract_context_from_sql_params(sql_params: dict):
-        ctx = {}
-        if schema := sql_params.get("schema"):
-            ctx["schema"] = schema
-        if (start := sql_params.get("start")) or (start := sql_params.get("start_date")):
-            ctx["start_date"] = start
-        if (end := sql_params.get("end")) or (end := sql_params.get("end_date")):
-            ctx["end_date"] = end
-        if invoice_month := sql_params.get("invoice_month"):
-            ctx["invoice_month"] = invoice_month
-        if provider_uuid := sql_params.get("source_uuid"):
-            ctx["provider_uuid"] = provider_uuid
-        if cluster_id := sql_params.get("cluster_id"):
-            ctx["cluster_id"] = cluster_id
-        return ctx
+        return extract_context_from_sql_params(sql_params)
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
@@ -111,14 +99,14 @@ class ReportDBAccessorBase:
         running_time = time.time() - t1
         LOG.info(log_json(msg=f"finished {operation}", row_count=row_count, table=table, running_time=running_time))
 
-    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
+    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None):
         """Execute a single trino query returning only the fetchall results"""
         results, _ = self._execute_trino_raw_sql_query_with_description(
             sql, sql_params=sql_params, context=context, log_ref=log_ref
         )
         return results
 
-    @retry(retry_on=(Exception,), context_extractor=extract_context_from_sql_params)
+    @retry(retry_on=(Exception,))
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
@@ -261,7 +249,6 @@ class ReportDBAccessorBase:
                     self._execute_trino_raw_sql_query(
                         sql,
                         log_ref=f"delete_hive_partition_by_month for {year}-{month}",
-                        attempts_left=(retries - 1) - i,
                     )
                     break
                 except TrinoExternalError as err:
