@@ -302,15 +302,12 @@ class AWSEC2ComputePagination(ReportPagination):
     """Paginator for AWS EC2 compute instances report data."""
 
     def get_count(self, queryset):
-        """Special case count for EC2 resource IDs."""
-        data = []
-        if queryset_data := queryset.get("data", []):
-            data = queryset_data[0].get("resource_ids", [])
-        return len(data)
+        """Count EC2 compute resource IDs."""
+        return len(queryset.get("data", [{}])[0].get("resource_ids", []))
 
     def get_paginated_data(self, queryset):
         """
-        Pagination EC2 resource IDs based on the request type.
+        Paginate EC2 resource IDs based on the request type.
 
         Args:
         queryset (dict): The data containing resource IDs to be paginated.
