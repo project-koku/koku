@@ -5815,8 +5815,8 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
-- description: Number of days to expand the data validation to
-  displayName: Data validatoin
+- description: Number of days to expand the data validation
+  displayName: Data validation
   name: VALIDATION_RANGE
   required: true
   value: "5"
