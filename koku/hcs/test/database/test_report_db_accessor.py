@@ -198,3 +198,24 @@ class TestHCSReportDBAccessor(HCSTestCase):
         base_delays = [min(2**i, 30) for i in range(3)]
         for base, actual in zip(base_delays, delay_values):
             self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
+
+    @patch("time.sleep", side_effect=lambda x: None)
+    @patch("common.LOG")
+    def test_retry_logic_and_logging(self, mock_log, mock_sleep):
+        """Test retry logic and logging for retries and errors."""
+
+        @retry(retry_on=(Exception,), retries=3, max_wait=30)
+        def function_that_fails():
+            raise Exception("Trigger retry")
+
+        with self.assertRaises(Exception):
+            function_that_fails()
+
+        self.assertEqual(mock_sleep.call_count, 3)
+
+        delay_values = [call.args[0] for call in mock_sleep.call_args_list]
+        for i in range(1, len(delay_values)):
+            self.assertTrue(delay_values[i] > delay_values[i - 1], "Delay should increase with each retry")
+
+        self.assertTrue(any("Retrying..." in str(call) for call in mock_log.warning.call_args_list))
+        self.assertTrue(any("Failed execution after" in str(call) for call in mock_log.error.call_args_list))
