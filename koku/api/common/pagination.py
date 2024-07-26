@@ -303,7 +303,10 @@ class AWSEC2ComputePagination(ReportPagination):
 
     def get_count(self, queryset):
         """Special case count for EC2 resource IDs."""
-        return len(queryset.get("data", [])[0].get("resource_ids", []))
+        data = []
+        if queryset_data := queryset.get("data", []):
+            data = queryset_data[0].get("resource_ids", [])
+        return len(data)
 
     def get_paginated_data(self, queryset):
         """
@@ -319,7 +322,9 @@ class AWSEC2ComputePagination(ReportPagination):
 
         paginated_data = []
 
-        data = queryset.get("data", [])[0]  # only single month data expected
+        data = (
+            queryset_data[0] if (queryset_data := queryset.get("data", [])) else []
+        )  # only single month data expected
         resource_ids = data.get("resource_ids", [])
         resource_count = len(resource_ids)
 
