@@ -95,10 +95,12 @@ class DataValidator:
         context,
         date_step=settings.TRINO_DATE_STEP,
     ):
+        self.dh = DateHelper()
         self.schema = schema
         self.provider_uuid = provider_uuid
         self.ocp_on_cloud_type = ocp_on_cloud_type
-        self.start_date = start_date
+        # start_date should include a rolling window
+        self.start_date = self.dh.n_days_ago_or_month_start(start_date, settings.VALIDATION_RANGE)
         self.end_date = end_date
         self.context = context
         self.date_step = date_step
@@ -139,9 +141,8 @@ class DataValidator:
         """Make relevant postgres or Trino queries"""
         daily_result = {}
         # year and month for running partitioned queries
-        dh = DateHelper()
-        year = dh.bill_year_from_date(self.start_date)
-        month = dh.bill_month_from_date(self.start_date)
+        year = self.dh.bill_year_from_date(self.start_date)
+        month = self.dh.bill_month_from_date(self.start_date)
         report_db_accessor = ReportDBAccessorBase(self.schema)
         # Set provider filter, when running ocp{aws/gcp/azure} checks we need to rely on the cluster id
         provider_filter = self.provider_uuid if not self.ocp_on_cloud_type else cluster_id
@@ -187,7 +188,9 @@ class DataValidator:
         trino_data = None
         cluster_id = None
         daily_difference = {}
-        LOG.info(log_json(msg="validation started for provider", context=self.context))
+        LOG.info(
+            log_json(msg=f"validation started for provider using start date: {self.start_date}", context=self.context)
+        )
         provider = Provider.objects.filter(uuid=self.provider_uuid).first()
         provider_type = provider.type.strip("-local")
         if self.ocp_on_cloud_type:
@@ -210,13 +213,9 @@ class DataValidator:
         daily_difference, valid_cost = self.compare_data(pg_data, trino_data)
         if valid_cost:
             LOG.info(log_json(msg=f"all data complete for provider: {self.provider_uuid}", context=self.context))
-            provider.data_valid = True
         else:
             LOG.error(
                 log_json(
                     msg=f"provider has incomplete data for specified days: {daily_difference}", context=self.context
                 )
             )
-            provider.data_valid = False
-        # update provider object with validation state
-        provider.save(update_fields=["data_valid"])

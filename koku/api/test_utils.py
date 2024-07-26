@@ -192,6 +192,17 @@ class DateHelperTest(TestCase):
         two_days_ago = (today - delta_day) - delta_day
         self.assertEqual(self.date_helper.n_days_ago(today, 2), two_days_ago)
 
+    def test_n_days_ago_or_month_start(self):
+        """Test the n_days_ago_or_month_start method."""
+        # Test n_days_ago NOT month start
+        start_date = datetime.datetime(2024, 7, 5, 0, 0, 0, 0)
+        expected_date = "2024-07-03"
+        self.assertEqual(self.date_helper.n_days_ago_or_month_start(start_date, 2), expected_date)
+
+        # Test n_days_ago get month start
+        expected_date = "2024-07-01"
+        self.assertEqual(self.date_helper.n_days_ago_or_month_start(start_date, 10), expected_date)
+
     def test_month_start(self):
         """Test month start method."""
         today = self.date_helper.today
