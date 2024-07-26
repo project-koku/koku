@@ -277,8 +277,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_scope_units_empty_report_default(self):
         """Test get_time_scope_units returns report default value when query params are empty."""
-        url = "?"
-        query_params = self.mocked_query_params(url, AWSEC2ComputeView)
+        query_params = self.mocked_query_params("", AWSEC2ComputeView)
         handler = AWSReportQueryHandler(query_params)
         self.assertEqual(handler.get_time_scope_units(), "month")
 
@@ -298,8 +297,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_get_time_scope_value_empty_report_default(self):
         """Test get_time_scope_value returns report default value when query params are empty."""
-        url = "?"
-        query_params = self.mocked_query_params(url, AWSEC2ComputeView)
+        query_params = self.mocked_query_params("", AWSEC2ComputeView)
         handler = AWSReportQueryHandler(query_params)
         self.assertEqual(handler.get_time_scope_value(), -1)
 
@@ -3343,3 +3341,78 @@ class AWSQueryHandlerTest(IamTestCase):
                         self.assertIsNotNone(grouping_list)
                         for group_dict in grouping_list:
                             self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])
+
+    def test_format_ec2_response_not_csv(self):
+        query_params = self.mocked_query_params("", AWSEC2ComputeView)
+        handler = AWSReportQueryHandler(query_params)
+
+        # Input data
+        query_data = [
+            {
+                "resource_ids": [
+                    {
+                        "values": [
+                            {
+                                "tags": [
+                                    {"Map": "c2"},
+                                    {"Name": "instance_name_3"},
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+
+        # Expected output
+        expected_output = [
+            {
+                "resource_ids": [
+                    {
+                        "values": [
+                            {
+                                "tags": [
+                                    {"key": "Map", "values": ["c2"]},
+                                    {"key": "Name", "values": ["instance_name_3"]},
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+
+        result = handler.format_ec2_response(query_data)
+        self.assertEqual(result, expected_output)
+
+    def test_format_ec2_response_csv(self):
+
+        query_params = self.mocked_query_params("", AWSEC2ComputeView)
+        handler = AWSReportQueryHandler(query_params)
+        handler.is_csv_output = True
+        handler.time_interval = [self.dh.this_month_start]
+
+        # Input data
+        query_data = [
+            {
+                "resource_ids": [
+                    {
+                        "values": [
+                            {
+                                "tags": [
+                                    {"Map": "c2"},
+                                    {"Name": "instance_name_3"},
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+
+        # Expected output
+        expected_date_str = self.dh.this_month_start.strftime("%Y-%m")
+        expected_output = [{"date": expected_date_str, "resource_ids": query_data}]
+
+        result = handler.format_ec2_response(query_data)
+        self.assertEqual(result, expected_output)
