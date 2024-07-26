@@ -283,6 +283,26 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg="successfully deleted Hive partitions", context=ctx))
         return True
 
+    def find_expired_trino_partitions(self, table, source_column, date_str):
+        """Queries Trino for partitions less than the parition date."""
+        if not self.table_exists_trino(table):
+            LOG.info("Could not find table.")
+            return False
+        sql = f"""
+SELECT partitions.year, partitions.month, partitions.source
+FROM (
+    SELECT year as year,
+        month as month,
+        day as day,
+        cast(date_parse(concat(year, '-', month, '-', day), '%Y-%m-%d') as date) as partition_date,
+        {source_column} as source
+    FROM  "{table}$partitions"
+) as partitions
+WHERE partitions.partition_date < DATE '{date_str}'
+GROUP BY partitions.year, partitions.month, partitions.source
+"""
+        return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
+
     def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
     ):

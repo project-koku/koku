@@ -18,6 +18,7 @@ from masu.api.db_performance.dbp_views import stat_statements
 from masu.api.download import download_report
 from masu.api.enabled_tags import EnabledTagView
 from masu.api.expired_data import expired_data
+from masu.api.expired_data import expired_trino_partitions
 from masu.api.hcs_report_data import hcs_report_data
 from masu.api.hcs_report_finalization import hcs_report_finalization
 from masu.api.ingest_ocp_payload import ingest_ocp_payload

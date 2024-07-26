@@ -75,6 +75,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_usage": {"key": "usage", "group": "cost"},
             "cost_platform_distributed": {"key": "platform_distributed", "group": "cost"},
             "cost_worker_unallocated_distributed": {"key": "worker_unallocated_distributed", "group": "cost"},
+            "cost_network_unattributed_distributed": {"key": "network_unattributed_distributed", "group": "cost"},
             "cost_storage_unattributed_distributed": {"key": "storage_unattributed_distributed", "group": "cost"},
             "cost_total_distributed": {"key": "distributed", "group": "cost"},
             "cost_total": {"key": "total", "group": "cost"},
