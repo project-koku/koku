@@ -331,7 +331,7 @@ class AWSEC2ComputePagination(ReportPagination):
                 paginated_data = paginated_ids
             else:
                 paginated_item = data.copy()
-                paginated_item["resource_ids"] = resource_ids[self.offset : self.offset + self.limit]
+                paginated_item["resource_ids"] = paginated_ids
                 paginated_data.append(paginated_item)
 
         return paginated_data
