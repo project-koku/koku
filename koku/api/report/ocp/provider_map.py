@@ -245,6 +245,7 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unattributed_storage_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
+                            "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
                         },
                         "default_ordering": {"cost_total": "desc"},
@@ -274,6 +275,7 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unattributed_network_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
+                            "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),

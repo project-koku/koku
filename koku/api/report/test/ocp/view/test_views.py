@@ -593,8 +593,19 @@ class OCPReportViewTest(IamTestCase):
                 .get("total")
             )
             expected_total = cost if cost is not None else 0
-        total = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
+        meta_total_cost = data.get("meta", {}).get("total", {}).get("cost", {})
+        total = meta_total_cost.get("total", {}).get("value", 0)
         distributed_cost = data.get("meta", {}).get("total", {}).get("cost", {}).get("distributed", {}).get("value", 0)
+        expected_dist_cost_keys = {
+            "platform_distributed",
+            "worker_unallocated_distributed",
+            "network_unattributed_distributed",
+            "storage_unattributed_distributed",
+        }
+        self.assertTrue(
+            expected_dist_cost_keys.issubset(meta_total_cost),
+            f"Missing {expected_dist_cost_keys.difference(meta_total_cost)}",
+        )
         self.assertNotEqual(total, Decimal(0))
         self.assertNotEqual(distributed_cost, Decimal(0))
         self.assertAlmostEqual(distributed_cost, expected_total, 6)
