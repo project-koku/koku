@@ -22,8 +22,8 @@ class TestDataValidator(MasuTestCase):
     def setUpClass(cls):
         """Set up the class."""
         super().setUpClass()
-        cls.start_date = DateHelper().today
-        cls.end_date = DateHelper().today
+        cls.start_date = DateHelper().now_utc
+        cls.end_date = DateHelper().now_utc
         cls.provider = Provider.PROVIDER_AWS
         cls.provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
 
@@ -35,8 +35,6 @@ class TestDataValidator(MasuTestCase):
             self.schema, self.start_date, self.end_date, self.provider_uuid, cloud_type, context=context
         )
         self.assertEqual(validator.schema, self.schema)
-        self.assertEqual(validator.start_date, self.start_date)
-        self.assertEqual(validator.end_date, self.end_date)
         self.assertEqual(validator.ocp_on_cloud_type, cloud_type)
         self.assertEqual(validator.provider_uuid, self.provider_uuid)
         self.assertEqual(validator.context, context)

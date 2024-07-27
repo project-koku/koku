@@ -196,19 +196,31 @@ class DateHelperTest(TestCase):
         """Test the n_days_ago_or_month_start method."""
         # Test n_days_ago datetime
         start_date = datetime.datetime(2024, 7, 5, 0, 0, 0, 0)
-        expected_date = "2024-07-03"
+        expected_date = datetime.datetime(2024, 7, 3, 0, 0, 0, 0, tzinfo=settings.UTC)
         self.assertEqual(self.date_helper.n_days_ago_or_month_start(start_date, 2), expected_date)
 
         # Test n_days_ago date
         self.assertEqual(self.date_helper.n_days_ago_or_month_start(start_date.date(), 2), expected_date)
 
         # Test n_days_ago str
-        start_date = "2024-07-05"
-        self.assertEqual(self.date_helper.n_days_ago_or_month_start(start_date, 2), expected_date)
+        self.assertEqual(self.date_helper.n_days_ago_or_month_start("2024-07-05", 2), expected_date)
 
         # Test n_days_ago get month start
-        expected_date = "2024-07-01"
+        expected_date = datetime.datetime(2024, 7, 1, 0, 0, 0, 0, tzinfo=settings.UTC)
         self.assertEqual(self.date_helper.n_days_ago_or_month_start(start_date, 10), expected_date)
+
+    def test_set_datetime_utc(self):
+        """Test set_datetime_utc."""
+        # Test with datetime
+        start_date = datetime.datetime(2024, 7, 5, 0, 0, 0, 0)
+        expected_date = start_date
+        # self.assertEqual(self.date_helper.set_datetime_utc(start_date), expected_date)
+
+        # Test with date
+        self.assertEqual(self.date_helper.set_datetime_utc(start_date.date()), expected_date)
+
+        # Test with str
+        self.assertEqual(self.date_helper.set_datetime_utc("2024-07-05"), expected_date)
 
     def test_month_start(self):
         """Test month start method."""

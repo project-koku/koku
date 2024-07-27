@@ -101,7 +101,7 @@ class DataValidator:
         self.ocp_on_cloud_type = ocp_on_cloud_type
         # start_date should include a rolling window
         self.start_date = self.dh.n_days_ago_or_month_start(start_date, settings.VALIDATION_RANGE)
-        self.end_date = end_date
+        self.end_date = self.dh.set_datetime_utc(end_date)
         self.context = context
         self.date_step = date_step
 

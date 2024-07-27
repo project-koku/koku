@@ -238,6 +238,22 @@ class DateHelper:
         dt_prev_month = in_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0) - self.one_day
         return dt_prev_month.replace(day=1)
 
+    def set_datetime_utc(self, in_date):
+        """Return datetime with utc.
+        Args:
+            in_date    (datetime, date, string) input datetime
+        Returns:
+            (datetime): date in the past
+        """
+        if isinstance(in_date, datetime.date):
+            in_date = datetime.datetime(in_date.year, in_date.month, in_date.day)
+        if isinstance(in_date, str):
+            in_date = ciso8601.parse_datetime(in_date).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        in_date.replace(tzinfo=settings.UTC)
+
+        return in_date
+
     def n_days_ago(self, in_date, n_days):
         """Return midnight of the n days from the in_date in past.
 
@@ -258,19 +274,21 @@ class DateHelper:
             in_date    (datetime, date, string) input datetime
             n_days     (integer) number of days in the past
         Returns:
-            (string): date in the past
+            (datetime): date in the past
 
         """
         if isinstance(in_date, datetime.date):
             in_date = datetime.datetime(in_date.year, in_date.month, in_date.day, tzinfo=settings.UTC)
         if isinstance(in_date, str):
-            in_date = ciso8601.parse_datetime(in_date).replace(hour=0, minute=0, second=0, microsecond=0)
+            in_date = ciso8601.parse_datetime(in_date).replace(
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=settings.UTC
+            )
         n_days = self.n_days_ago(in_date, n_days)
 
         if n_days.month < in_date.month:
             n_days = in_date.replace(day=1)
 
-        return n_days.strftime("%Y-%m-%d")
+        return n_days
 
     def n_days_ahead(self, in_date, n_days):
         """Return midnight of the n days from the in_date in future.
