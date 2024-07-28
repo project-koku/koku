@@ -652,6 +652,17 @@ class TestProcessorTasks(MasuTestCase):
         validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
         mock_validate_daily_data.assert_called()
 
+    @patch("masu.processor.tasks.DataValidator")
+    def test_validate_data_task_skip(self, mock_validate_daily_data):
+        """Test skipping validate data task."""
+        context = {"unit": "test"}
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
+            mock_validate_daily_data.assert_not_called()
+            expected = "skipping validation, disabled for schema"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""

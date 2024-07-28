@@ -1257,3 +1257,5 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
     if is_validation_enabled(schema):
         data_validator = DataValidator(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type, context)
         data_validator.check_data_integrity()
+    else:
+        LOG.info(log_json(msg="skipping validation, disabled for schema", context=context))
