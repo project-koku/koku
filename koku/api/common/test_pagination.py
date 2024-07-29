@@ -214,8 +214,9 @@ class AWSEC2ComputePaginationTest(TestCase):
         self.paginator.request.accepted_media_type = "text/csv"
         paginated_data = self.paginator.get_paginated_data(self.data)
         expected_data = [{"resource_id": f"resource_{i}"} for i in range(0, 100)]
+        expected_count = len(self.data.get("data", [])[0].get("resource_ids", []))
 
-        self.assertEqual(self.paginator.limit, self.paginator.default_limit)
+        self.assertEqual(len(paginated_data), expected_count)
         self.assertEqual(paginated_data, expected_data)
 
     def test_get_paginated_data_non_csv(self):
