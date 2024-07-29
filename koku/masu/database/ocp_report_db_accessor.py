@@ -294,7 +294,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         return self._execute_trino_raw_sql_query(sql, log_ref="finding expired partitions")
 
     def populate_line_item_daily_summary_table_trino(
-            self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
+        self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
     ):
         """Populate the daily aggregate of line items table.
 
@@ -393,10 +393,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
             cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
         ).update(
             infrastructure_markup_cost=(
-                    (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                (Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))) * markup
             ),
             infrastructure_project_markup_cost=(
-                    (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
+                (Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))) * markup
             ),
         )
 
@@ -520,7 +520,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_monthly_tag_cost_sql(  # noqa: C901
-            self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
+        self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -668,7 +668,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_tag_usage_costs(  # noqa: C901
-            self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
     ):
         """
         Update the reporting_ocpusagelineitem_daily_summary table with
@@ -744,7 +744,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_tag_usage_default_costs(  # noqa: C901
-            self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
+        self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
     ):
         """
         Update the reporting_ocpusagelineitem_daily_summary table
@@ -1081,7 +1081,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         self._prepare_and_execute_raw_sql_query(table_name, sql)
 
     def delete_all_except_infrastructure_raw_cost_from_daily_summary(
-            self, provider_uuid, report_period_id, start_date, end_date
+        self, provider_uuid, report_period_id, start_date, end_date
     ):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         ctx = {

@@ -314,7 +314,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         for day, vals in initial_results_dict.get(value).items():
 
                             with self.subTest(
-                                    msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, id: {day}"
+                                msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, id: {day}"
                             ):
                                 if day >= start_date.date():
                                     expected_diff = float(vals[0] * rate)
@@ -473,7 +473,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     for value in mapper:
                         for day, vals in initial_results_dict.get(value).items():
                             with self.subTest(
-                                    msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, day: {day}"
+                                msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, day: {day}"
                             ):
                                 if value == "banking" or value == "mobile":
                                     expected_diff = 0
@@ -536,7 +536,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_trino")
     def test_populate_openshift_cluster_information_tables(
-            self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
+        self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
     ):
         """Test that we populate cluster info."""
         nodes = ["test_node_1", "test_node_2"]
@@ -594,7 +594,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_trino")
     def test_get_openshift_topology_for_multiple_providers(
-            self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
+        self, mock_get_nodes, mock_get_pvcs, mock_get_projects, mock_table
     ):
         """Test that OpenShift topology is populated."""
         nodes = ["test_node_1", "test_node_2"]
