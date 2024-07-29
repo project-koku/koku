@@ -185,8 +185,11 @@ class AWSEC2ComputePaginationTest(TestCase):
         self.paginator.request = Mock
         self.paginator.request.META = {}
         self.paginator.request.query_params = {}
+        self.paginator.request.accepted_media_type = "application/json"
+        self.paginator.offset = 10
+        self.paginator.limit = 10
 
-        self.data = {"data": [{"resource_ids": [f"resource_{i}" for i in range(100)]}]}
+        self.data = {"data": [{"resource_ids": [{"resource_id": f"resource_{i}"} for i in range(100)]}]}
 
     def test_get_count(self):
         """Test that count is returned properly."""
@@ -196,23 +199,28 @@ class AWSEC2ComputePaginationTest(TestCase):
 
     def test_get_paginated_data_csv(self):
         """Test paginated data for CSV output."""
-        self.paginator.request.accepted_media_type = "text/csv"
-        self.paginator.offset = 10
-        self.paginator.limit = 10
 
+        self.paginator.request.accepted_media_type = "text/csv"
         paginated_data = self.paginator.get_paginated_data(self.data)
-        expected_data = [f"resource_{i}" for i in range(10, 20)]
+        expected_data = [{"resource_id": f"resource_{i}"} for i in range(10, 20)]
 
         self.assertEqual(paginated_data, expected_data)
 
     def test_get_paginated_data_non_csv(self):
         """Test paginated data for non-CSV output."""
-        self.paginator.request.accepted_media_type = "application/json"
-        self.paginator.offset = 10
-        self.paginator.limit = 10
 
+        self.paginator.request.accepted_media_type = "application/json"
         paginated_data = self.paginator.get_paginated_data(self.data)
-        expected_data = {"resource_ids": [f"resource_{i}" for i in range(10, 20)]}
+        expected_data = {"resource_ids": [{"resource_id": f"resource_{i}"} for i in range(10, 20)]}
 
         self.assertEqual(len(paginated_data), 1)
         self.assertEqual(paginated_data[0]["resource_ids"], expected_data["resource_ids"])
+
+    def test_get_paginated_data_offset_gt_resource_count(self):
+        """Test pagination when offset is greater than resource counts."""
+
+        self.paginator.offset = 100
+        expected_output = []
+        result = self.paginator.get_paginated_data(self.data)
+
+        self.assertEqual(result, expected_output)
