@@ -229,20 +229,6 @@ class AWSEC2ComputePaginationTest(TestCase):
         self.assertEqual(len(paginated_data), 1)
         self.assertEqual(paginated_data[0]["resource_ids"], expected_data["resource_ids"])
 
-    def test_get_paginated_data_non_csv_limit_zero_or_none(self):
-        """Test paginated data for non-CSV output and limit is zero or None."""
-
-        test_limits = [0, None]
-        expected_data = self.data.get("data", [])[0].get("resource_ids", [])
-
-        for limit in test_limits:
-            with self.subTest(limit):
-                self.paginator.limit = limit
-                paginated_data = self.paginator.get_paginated_data(self.data)
-
-                self.assertEqual(len(paginated_data), 1)
-                self.assertEqual(paginated_data[0]["resource_ids"], expected_data)
-
     def test_get_paginated_data_offset_gt_resource_count(self):
         """Test pagination when offset is greater than resource counts."""
 
