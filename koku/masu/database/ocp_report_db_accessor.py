@@ -217,7 +217,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpusagelineitem_daily_summary"
-        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -231,25 +230,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                for i in range(retries):
-                    try:
-                        sql = f"""
-                        DELETE FROM hive.{self.schema}.{table}
-                        WHERE source = '{source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'
-                        """
-                        self._execute_trino_raw_sql_query(
-                            sql,
-                            log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
-                        )
-                        break
-                    except TrinoExternalError as err:
-                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                            continue
-                        else:
-                            raise err
+                sql = f"""
+                DELETE FROM hive.{self.schema}.{table}
+                WHERE source = '{source}'
+                AND year = '{year}'
+                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                AND day = '{day}'
+                """
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
+                )
 
     def delete_hive_partitions_by_source(self, table, partition_column, provider_uuid):
         """Deletes partitions individually for each day in days list."""
