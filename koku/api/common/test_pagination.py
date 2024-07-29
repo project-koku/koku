@@ -189,7 +189,7 @@ class AWSEC2ComputePaginationTest(TestCase):
         self.paginator.offset = 10
         self.paginator.limit = 10
 
-        self.data = {"data": [{"resource_ids": [{"resource_id": f"resource_{i}"} for i in range(100)]}]}
+        self.data = {"data": [{"resource_ids": [{"resource_id": f"resource_{i}"} for i in range(200)]}]}
 
     def test_get_count(self):
         """Test that count is returned properly."""
@@ -201,8 +201,9 @@ class AWSEC2ComputePaginationTest(TestCase):
         """Test paginated data for CSV output."""
 
         self.paginator.request.accepted_media_type = "text/csv"
+        self.paginator.limit = 0
         paginated_data = self.paginator.get_paginated_data(self.data)
-        expected_data = [{"resource_id": f"resource_{i}"} for i in range(10, 20)]
+        expected_data = self.data.get("data", [])[0].get("resource_ids", [])
 
         self.assertEqual(paginated_data, expected_data)
 
@@ -213,8 +214,8 @@ class AWSEC2ComputePaginationTest(TestCase):
         self.paginator.offset = 0
         self.paginator.request.accepted_media_type = "text/csv"
         paginated_data = self.paginator.get_paginated_data(self.data)
-        expected_data = [{"resource_id": f"resource_{i}"} for i in range(0, 100)]
-        expected_count = len(self.data.get("data", [])[0].get("resource_ids", []))
+        expected_data = self.data.get("data", [])[0].get("resource_ids", [])
+        expected_count = len(expected_data)
 
         self.assertEqual(len(paginated_data), expected_count)
         self.assertEqual(paginated_data, expected_data)
@@ -222,17 +223,30 @@ class AWSEC2ComputePaginationTest(TestCase):
     def test_get_paginated_data_non_csv(self):
         """Test paginated data for non-CSV output."""
 
-        self.paginator.request.accepted_media_type = "application/json"
         paginated_data = self.paginator.get_paginated_data(self.data)
         expected_data = {"resource_ids": [{"resource_id": f"resource_{i}"} for i in range(10, 20)]}
 
         self.assertEqual(len(paginated_data), 1)
         self.assertEqual(paginated_data[0]["resource_ids"], expected_data["resource_ids"])
 
+    def test_get_paginated_data_non_csv_limit_zero_or_none(self):
+        """Test paginated data for non-CSV output and limit is zero or None."""
+
+        test_limits = [0, None]
+        expected_data = self.data.get("data", [])[0].get("resource_ids", [])
+
+        for limit in test_limits:
+            with self.subTest(limit):
+                self.paginator.limit = limit
+                paginated_data = self.paginator.get_paginated_data(self.data)
+
+                self.assertEqual(len(paginated_data), 1)
+                self.assertEqual(paginated_data[0]["resource_ids"], expected_data)
+
     def test_get_paginated_data_offset_gt_resource_count(self):
         """Test pagination when offset is greater than resource counts."""
 
-        self.paginator.offset = 100
+        self.paginator.offset = 200
         expected_output = []
         result = self.paginator.get_paginated_data(self.data)
 
