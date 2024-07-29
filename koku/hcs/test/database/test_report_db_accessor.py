@@ -12,7 +12,7 @@ from trino.exceptions import TrinoExternalError
 
 from api.models import Provider
 from api.utils import DateHelper
-from common import retry
+from common.utils import retry
 from hcs.database.report_db_accessor import HCSReportDBAccessor
 from hcs.test import HCSTestCase
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -200,7 +200,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
             self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
 
     @patch("time.sleep", side_effect=lambda x: None)
-    @patch("common.LOG")
+    @patch("common.utils.LOG")
     def test_retry_logic_and_logging(self, mock_log, mock_sleep):
         """Test retry logic and logging for retries and errors."""
 
