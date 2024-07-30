@@ -48,7 +48,14 @@ def retry(
                     return callable(*args, **kwargs)
                 except retry_on as ex:
                     LOG.debug(f"Exception caught: {ex}")
-                    if attempt < retries:
+
+                    passed_check = True
+                    try:
+                        passed_check = getattr(ex, "error_name") == "HIVE_METASTORE_ERROR"
+                    except (TypeError, AttributeError):
+                        pass
+
+                    if passed_check and attempt < retries:
                         LOG.warning(
                             log_json(
                                 msg=f"{log_message} (attempt {attempt + 1})",
