@@ -5946,7 +5946,7 @@ parameters:
 - displayName: Memory Request
   name: MEMORY_REQUEST_KOKU_READS
   required: true
-  value: 512Mi
+  value: 768Mi
 - displayName: Memory Limit
   name: MEMORY_LIMIT_KOKU_READS
   required: true
