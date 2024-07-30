@@ -106,7 +106,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry(retry_on=(Exception,))
+    @retry(retry_on=TrinoQueryError)
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
