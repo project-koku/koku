@@ -327,6 +327,7 @@ class AWSEC2ComputePagination(ReportPagination):
 
         if self.offset < resource_count:
             # paginate resource IDs from current_offset to the limit
+            # limit=0 param is a special case that returns all data
             paginated_ids = resource_ids if self.limit == 0 else resource_ids[self.offset : self.offset + self.limit]
 
             if self.request.accepted_media_type and "text/csv" in self.request.accepted_media_type:
