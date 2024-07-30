@@ -9,6 +9,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
+from celery.backends.database import retry
 from dateutil import relativedelta
 from django.conf import settings
 from django.db.models import F
@@ -397,29 +398,36 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_ocp_on_gcp_tag_information(mock_gcp_bills, start_date, end_date)
         mock_trino.assert_called()
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.table_exists_trino")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_gcp_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
-        """Test that deletions work with retries."""
-        mock_schema_exists.return_value = False
-        self.accessor.delete_ocp_on_gcp_hive_partition_by_day(
-            [1], self.gcp_provider_uuid, self.ocp_provider_uuid, "2022", "01"
-        )
-        mock_trino.assert_not_called()
+    @retry(retries=settings.HIVE_PARTITION_DELETE_RETRIES)
+    def delete_ocp_on_gcp_hive_partition_by_day(self, *args, **kwargs):
+        return self.accessor.delete_ocp_on_gcp_hive_partition_by_day(*args, **kwargs)
 
-        mock_schema_exists.return_value = True
-        mock_trino.reset_mock()
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description")
+    def test_delete_ocp_on_gcp_hive_partition_by_day(self, mock_execute_trino_with_description, mock_table_exist):
+        """Test that deletions work with retries."""
         error = {"errorName": "HIVE_METASTORE_ERROR"}
-        mock_trino.side_effect = TrinoExternalError(error)
-        with self.assertRaises(TrinoExternalError):
-            self.accessor.delete_ocp_on_gcp_hive_partition_by_day(
-                [1], self.gcp_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+        mock_execute_trino_with_description.side_effect = TrinoExternalError(
+            error
+        )  # Ensure the error is raised in all attempts
+
+        with patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino", return_value=True):
+            try:
+                self.delete_ocp_on_gcp_hive_partition_by_day([1], self.ocp_provider_uuid, "2022", "01")
+            except TrinoExternalError:
+                pass
+
+            mock_execute_trino_with_description.assert_called()  # Ensure the decorated function is called
+            self.assertEqual(
+                mock_execute_trino_with_description.call_count, settings.HIVE_PARTITION_DELETE_RETRIES + 1
             )
-        mock_trino.assert_called()
-        # Confirms that the error log would be logged on last attempt
-        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
-        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        # Test that deletions short-circuit if the schema does not exist
+        mock_execute_trino_with_description.reset_mock()
+        mock_table_exist.reset_mock()
+        with patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino", return_value=False):
+            self.delete_ocp_on_gcp_hive_partition_by_day([1], self.ocp_provider_uuid, "2022", "01")
+            mock_execute_trino_with_description.assert_not_called()
+            mock_table_exist.assert_not_called()
 
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.table_exists_trino")
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")

@@ -262,7 +262,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     @retry(retries=settings.HIVE_PARTITION_DELETE_RETRIES)
     def delete_ocp_on_aws_hive_partition_by_day(self, *args, **kwargs):
-        return self.accessor.delete_ocp_hive_partition_by_day(*args, **kwargs)
+        return self.accessor.delete_ocp_on_aws_hive_partition_by_day(*args, **kwargs)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description")
     def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_execute_trino_with_description, mock_table_exist):
