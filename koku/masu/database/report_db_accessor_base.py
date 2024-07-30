@@ -13,6 +13,7 @@ from django.db import OperationalError
 from django.db import transaction
 from jinjasql import JinjaSql
 from trino.exceptions import TrinoExternalError
+from trino.exceptions import TrinoQueryError
 
 import koku.trino_database as trino_db
 from api.common import log_json
@@ -134,10 +135,14 @@ class ReportDBAccessorBase:
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
         LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
 
-        trino_cur = trino_conn.cursor()
-        trino_cur.execute(sql, bind_params)
-        results = trino_cur.fetchall()
-        description = trino_cur.description
+        try:
+            trino_cur = trino_conn.cursor()
+            trino_cur.execute(sql, bind_params)
+            results = trino_cur.fetchall()
+            description = trino_cur.description
+        except TrinoQueryError as ex:
+            LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
+            raise
 
         running_time = time.time() - t1
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
