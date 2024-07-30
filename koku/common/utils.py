@@ -34,7 +34,7 @@ def retry(
     original_callable: t.Callable = None,
     *,
     retries: int = settings.HIVE_PARTITION_DELETE_RETRIES,
-    retry_on: tuple[type[Exception], ...] = (Exception,),
+    retry_on: type[Exception] | tuple[type[Exception], ...] = Exception,
     max_wait: int = 30,
     log_ref: str = "Trino query",
     log_message: t.Optional[str] = "Retrying...",
