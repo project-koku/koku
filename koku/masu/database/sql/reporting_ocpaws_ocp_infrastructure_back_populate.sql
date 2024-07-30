@@ -21,6 +21,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     infrastructure_project_raw_cost,
     infrastructure_usage_cost,
     supplementary_usage_cost,
+    infrastructure_data_in_gigabytes,
+    infrastructure_data_out_gigabytes,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_limit_cpu_core_hours,
@@ -67,6 +69,14 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         sum(coalesce(nullif(ocp_aws.savingsplan_effective_cost, 0), ocp_aws.unblended_cost) + coalesce(nullif(ocp_aws.markup_cost_savingsplan, 0), ocp_aws.markup_cost)) AS infrastructure_project_raw_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
+        CASE
+            WHEN upper(data_transfer_direction) = 'IN' THEN sum(infrastructure_data_in_gigabytes)
+            ELSE NULL
+        END as infrastructure_data_in_gigabytes,
+        CASE
+            WHEN upper(data_transfer_direction) = 'OUT' THEN sum(infrastructure_data_out_gigabytes)
+            ELSE NULL
+        END as infrastructure_data_out_gigabytes,
         0 as pod_usage_cpu_core_hours,
         0 as pod_request_cpu_core_hours,
         0 as pod_limit_cpu_core_hours,
@@ -102,5 +112,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_aws.persistentvolumeclaim,
         ocp_aws.resource_id,
         ocp_aws.pod_labels,
+        ocp_aws.data_transfer_direction,
         rp.provider_id
 ;

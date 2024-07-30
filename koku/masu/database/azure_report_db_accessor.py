@@ -27,6 +27,7 @@ from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.processor import is_feature_unattributed_storage_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
+from reporting.models import OCP_ON_AZURE_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
@@ -272,13 +273,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        tables = [
-            "reporting_ocpazurecostlineitem_project_daily_summary_temp",
-            "azure_openshift_daily_resource_matched_temp",
-            "azure_openshift_daily_tag_matched_temp",
-            "azure_openshift_disk_capacities_temp",
-        ]
-        for table in tables:
+        for table in OCP_ON_AZURE_TEMP_MANAGED_TABLES:
             self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
