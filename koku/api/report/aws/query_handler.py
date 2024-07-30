@@ -300,6 +300,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
             # If not CSV output and org unit was applied, then reshape the output
             # structures for the JSON serializer
             query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
+        elif self._report_type == "ec2_compute":
+            # Handle formating EC2 compute response
+            query_data = self.format_ec2_response(query_data)
         else:
             query_data = self._set_csv_output_fields(query_data)
 
@@ -318,9 +321,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-
-        if self._report_type == "ec2_compute":
-            self._format_ec2_response()
 
         output = self._initialize_response_output(self.parameters)
         output["data"] = self.query_data
@@ -560,9 +560,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
             LOG.error(f"Error getting sub org units: \n{e}")
             return []
 
-    def _format_ec2_response(self):
+    def format_ec2_response(self, query_data):
         """
-        Format EC2 response data tansforming tags to the desired UI format.
+        Format EC2 response data.
+
+        If CSV output, nests query data under a date key.
+        If not CSV output, tansforming tags in resource data to the desired UI format.
 
         Example transformation:
 
@@ -584,11 +587,22 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 "values": ["instance_name_3"]
             },
         ]
+
+        Returns:
+        list: The formatted query data based on the output format.
         """
 
-        for item in self.query_data:
-            for resource in item["resource_ids"]:
-                resource_values = resource["values"][0]
-                resource_values["tags"] = [
-                    {"key": key, "values": [value]} for tag in resource_values["tags"] for key, value in tag.items()
-                ]
+        if not self.is_csv_output:
+            for item in query_data:
+                for resource in item["resource_ids"]:
+                    resource_values = resource["values"][0]
+                    resource_values["tags"] = [
+                        {"key": key, "values": [value]}
+                        for tag in resource_values["tags"]
+                        for key, value in tag.items()
+                    ]
+            return query_data
+
+        else:
+            date_string = self.date_to_string(self.time_interval[0])
+            return [{"date": date_string, "resource_ids": query_data}]
