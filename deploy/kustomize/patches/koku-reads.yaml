@@ -210,7 +210,7 @@
     displayName: Memory Limit
     name: MEMORY_LIMIT_KOKU_READS
     required: true
-    value: 1Gi
+    value: 1536Mi
 - op: add
   path: /parameters/-
   value:
