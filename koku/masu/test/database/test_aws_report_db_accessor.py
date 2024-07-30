@@ -10,7 +10,6 @@ from decimal import Decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from celery.backends.database import retry
 from dateutil import relativedelta
 from django.conf import settings
 from django.db.models import F
@@ -23,6 +22,7 @@ from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
+from common.utils import retry
 from koku.database import get_model
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor

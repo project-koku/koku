@@ -9,7 +9,6 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
-from celery.backends.database import retry
 from dateutil import relativedelta
 from django.conf import settings
 from django.db.models import F
@@ -21,6 +20,7 @@ from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
+from common.utils import retry
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
