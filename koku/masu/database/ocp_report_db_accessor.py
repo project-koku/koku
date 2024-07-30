@@ -271,7 +271,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._execute_trino_raw_sql_query(
                     sql,
                     log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
-                    attempts_left=(retries - 1) - i,
                 )
                 break
             except TrinoExternalError as err:
