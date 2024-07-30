@@ -29,6 +29,7 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
+from reporting.models import OCP_ON_GCP_TEMP_MANAGED_TABLES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
@@ -322,12 +323,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        tables = [
-            "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
-            "gcp_openshift_daily_resource_matched_temp",
-            "gcp_openshift_daily_tag_matched_temp",
-        ]
-        for table in tables:
+        for table in OCP_ON_GCP_TEMP_MANAGED_TABLES:
             self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
 
         days = self.date_helper.list_days(start_date, end_date)
