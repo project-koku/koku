@@ -605,4 +605,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         else:
             date_string = self.date_to_string(self.time_interval[0])
+            for item in query_data:
+                item.pop("tags")
             return [{"date": date_string, "resource_ids": query_data}]
