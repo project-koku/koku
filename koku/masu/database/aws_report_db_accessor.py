@@ -36,7 +36,6 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -208,7 +207,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
                         )
                         break
                     except TrinoExternalError as err:

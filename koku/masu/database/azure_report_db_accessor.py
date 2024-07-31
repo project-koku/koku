@@ -38,7 +38,6 @@ from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -250,7 +249,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
                         )
                         break
                     except TrinoExternalError as err:

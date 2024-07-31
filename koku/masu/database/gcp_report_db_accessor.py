@@ -112,7 +112,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         date_dicts = DateHelper().get_year_month_list_from_start_end(start_date, end_date)
         last_month_end = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
         if end_date == last_month_end:
-
             # For gcp in order to catch what we are calling cross over data
             # we need to extend the end date by a couple of days. For more
             # information see: https://issues.redhat.com/browse/COST-1771
@@ -441,7 +440,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         self._execute_trino_raw_sql_query(
                             sql,
                             log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
                         )
                         break
                     except TrinoExternalError as err:
