@@ -58,11 +58,9 @@ class SUBSDataMessenger:
         self.instance_map = {}
         self.date_map = defaultdict(dict)
 
-    def determine_azure_instance_and_tenant_id(self, row):
+    def determine_azure_instance_and_tenant_id(self, row, instance_key):
         """Build the instance id string and get the tenant for Azure."""
 
-        # scalesets share a resourceid so including the VMName ensures uniqueness
-        instance_key = f"{row['subs_resource_id']}_{row['subs_vmname']}"
         if instance_key in self.instance_map:
             return self.instance_map.get(instance_key)
         prov = Provider.objects.get(uuid=row["source"])
@@ -71,10 +69,7 @@ class SUBSDataMessenger:
         if row["subs_instance"] != "":
             instance_id = row["subs_instance"]
         else:
-            sub_id = row["subs_account"]
-            rg = row["resourcegroup"]
-            vm = row["subs_vmname"]
-            instance_id = f"{sub_id}:{rg}:{vm}"
+            instance_id = instance_key
         self.instance_map[instance_key] = (instance_id, tenant_id)
         return instance_id, tenant_id
 
@@ -219,11 +214,14 @@ class SUBSDataMessenger:
         range_start = 0
         start_time = row["subs_start_time"]
         usage = int(row["subs_usage_quantity"])
-        instance_key = f"{row['subs_resource_id']}_{row['subs_vmname']}"
+        sub_id = row["subs_account"]
+        rg = row["resourcegroup"]
+        vm = row["subs_vmname"]
+        instance_key = f"{sub_id}:{rg}:{vm}"
         if self.date_map.get(start_time):
             range_start = self.date_map.get(start_time).get(instance_key) or 0
         self.date_map[start_time] = {instance_key: usage + range_start}
-        instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
+        instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row, instance_key)
         if not instance_id:
             return msg_count
         # Azure is daily records but subs need hourly records

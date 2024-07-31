@@ -397,6 +397,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
         """Test getting the azure instance id from the row provided by a tag returns as expected."""
         expected_instance = "waffle-house"
         self.azure_messenger.instance_map = {}
+        instance_key = "fake-instance-key"
         my_row = {
             "resourceid": "i-55555556",
             "subs_start_time": "2023-07-01T01:00:00Z",
@@ -416,7 +417,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_instance": expected_instance,
             "source": self.azure_provider.uuid,
         }
-        actual_instance, actual_tenant = self.azure_messenger.determine_azure_instance_and_tenant_id(my_row)
+        actual_instance, actual_tenant = self.azure_messenger.determine_azure_instance_and_tenant_id(
+            my_row, instance_key
+        )
         self.assertEqual(expected_instance, actual_instance)
         self.assertEqual(self.azure_tenant, actual_tenant)
 
@@ -424,7 +427,8 @@ class TestSUBSDataMessenger(SUBSTestCase):
         """Test getting the azure instance id from the instance map returns as expected."""
         expected_instance = "oh-yeah"
         expected_tenant = "my-tenant"
-        self.azure_messenger.instance_map["i-55555556_extra_fake"] = (expected_instance, expected_tenant)
+        instance_key = "i-55555556_extra_fake"
+        self.azure_messenger.instance_map[instance_key] = (expected_instance, expected_tenant)
         my_row = {
             "resourceid": "i-55555556",
             "subs_start_time": "2023-07-01T01:00:00Z",
@@ -443,7 +447,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "subs_vmname": "extra_fake",
             "source": self.azure_provider.uuid,
         }
-        actual_instance, actual_tenant = self.azure_messenger.determine_azure_instance_and_tenant_id(my_row)
+        actual_instance, actual_tenant = self.azure_messenger.determine_azure_instance_and_tenant_id(
+            my_row, instance_key
+        )
         self.assertEqual(expected_instance, actual_instance)
         self.assertEqual(expected_tenant, actual_tenant)
 
@@ -452,7 +458,8 @@ class TestSUBSDataMessenger(SUBSTestCase):
         subs_account = "9999999999999"
         resource_group = "my-fake-rg"
         vm_name = "my-fake-vm"
-        expected_instance = f"{subs_account}:{resource_group}:{vm_name}"
+        instance_key = f"{subs_account}:{resource_group}:{vm_name}"
+        expected_instance = instance_key
         self.messenger.instance_map = {}
         my_row = {
             "resourceid": "i-55555556",
@@ -473,7 +480,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
             "resourcegroup": resource_group,
             "subs_vmname": vm_name,
         }
-        actual_instance, actual_tenant = self.messenger.determine_azure_instance_and_tenant_id(my_row)
+        actual_instance, actual_tenant = self.messenger.determine_azure_instance_and_tenant_id(my_row, instance_key)
         self.assertEqual(expected_instance, actual_instance)
         self.assertEqual(self.azure_tenant, actual_tenant)
 
@@ -541,7 +548,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
         expected_end = "2024-07-01T13:00:00+00:00"
         vm_name = "my-fake-vm"
         resource_id = "i-55555556"
-        self.azure_messenger.date_map = {"2024-07-01T00:00:00Z": {f"{resource_id}_{vm_name}": 12}}
+        rg = "my-fake-rg"
+        instance_key = f"{account}:{rg}:{vm_name}"
+        self.azure_messenger.date_map = {"2024-07-01T00:00:00Z": {instance_key: 12}}
         mock_reader.return_value = [
             {
                 "resourceid": resource_id,
@@ -561,7 +570,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
                 "subs_instance": instance,
                 "subs_conversion": conversion,
                 "source": self.azure_provider.uuid,
-                "resourcegroup": "my-fake-rg",
+                "resourcegroup": rg,
                 "subs_vmname": vm_name,
             }
         ]
