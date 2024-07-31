@@ -1,6 +1,6 @@
 SELECT
     resource_id,
-    CONCAT(sub, rg, vmname) as instance_key,
+    CONCAT(sub, ':', rg, ':', vmname) as instance_key,
     CASE
         WHEN max_date < date_add('day', -2, current_date) THEN max_date
         ELSE date_add('day', -1, max_date)
