@@ -3395,24 +3395,17 @@ class AWSQueryHandlerTest(IamTestCase):
         # Input data
         query_data = [
             {
-                "resource_ids": [
-                    {
-                        "values": [
-                            {
-                                "tags": [
-                                    {"Map": "c2"},
-                                    {"Name": "instance_name_3"},
-                                ]
-                            }
-                        ]
-                    }
-                ]
+                "resource_id": "i-55555559",
+                "tags": [
+                    {"Map": "c2"},
+                    {"Name": "instance_name_3"},
+                ],
             }
         ]
 
         # Expected output
         expected_date_str = self.dh.this_month_start.strftime("%Y-%m")
-        expected_output = [{"date": expected_date_str, "resource_ids": query_data}]
+        expected_output = [{"date": expected_date_str, "resource_ids": [{"resource_id": "i-55555559"}]}]
 
         result = handler.format_ec2_response(query_data)
         self.assertEqual(result, expected_output)
