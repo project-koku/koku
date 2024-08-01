@@ -798,6 +798,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertTrue(result)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_find_expired_trino_partitions_no_schema(self, mock_trino, mock_schema):
+        """Test that deletions work with retries."""
+        mock_schema.return_value = False
+        result = self.accessor.find_expired_trino_partitions("table", "source_column", "2024-06-01")
+        mock_trino.assert_not_called()
+        self.assertFalse(result)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_find_expired_trino_partitions_no_table(self, mock_trino, mock_table_exist, mock_schema):
