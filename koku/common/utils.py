@@ -38,6 +38,8 @@ def retry(
     max_wait: int = 30,
     log_message: t.Optional[str] = "Retrying...",
 ):
+    """Decorator with the retry logic."""
+
     def _retry(callable: t.Callable):
         @functools.wraps(callable)
         def wrapper(*args, **kwargs):
@@ -46,15 +48,22 @@ def retry(
                 try:
                     LOG.debug(f"Attempt {attempt + 1} for {callable.__name__}")
                     return callable(*args, **kwargs)
+
+                # The retry_on parameter can be a single exception or a tuple of exceptions
                 except retry_on as ex:
                     LOG.debug(f"Exception caught: {ex}")
 
                     passed_check = True
                     try:
+                        # Check if the exception has this Hive Metastore error
+                        # If it has, the except block will be passed
+                        # and the retry will be attempted
                         passed_check = getattr(ex, "error_name") == "HIVE_METASTORE_ERROR"
                     except (TypeError, AttributeError):
                         pass
 
+                    # If the exception has the error_name attribute
+                    # and there are attempts left, retry
                     if passed_check and attempt < retries:
                         LOG.warning(
                             log_json(
