@@ -94,7 +94,7 @@ class ReportDBAccessorBase:
         return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
 
     def _execute_raw_sql_query(self, table, sql, bind_params=None, operation="UPDATE"):
-        """Run a SQL statement via a cursor."""
+        """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY."""
         LOG.info(log_json(msg=f"triggering {operation}", table=table))
         row_count = None
         result = None
