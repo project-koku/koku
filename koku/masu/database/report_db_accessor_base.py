@@ -18,13 +18,13 @@ from trino.exceptions import TrinoQueryError
 import koku.trino_database as trino_db
 from api.common import log_json
 from api.utils import DateHelper
-from common.utils import extract_context_from_sql_params
-from common.utils import retry
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
+from koku.trino_database import extract_context_from_sql_params
+from koku.trino_database import retry
 
 LOG = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry(retry_on=TrinoQueryError)
+    @retry(retry_on=TrinoExternalError)
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
