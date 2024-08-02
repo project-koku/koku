@@ -12,9 +12,9 @@ from trino.exceptions import TrinoExternalError
 
 from api.models import Provider
 from api.utils import DateHelper
-from common.utils import retry
 from hcs.database.report_db_accessor import HCSReportDBAccessor
 from hcs.test import HCSTestCase
+from koku.trino_database import retry
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 
@@ -109,7 +109,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
             )
 
             mock_retry.assert_called()
-            # mock_log.warning.assert_called()
             mock_log.error.assert_not_called()
 
     def test_handle_trino_external_error_without_no_such_key(self):
@@ -174,33 +173,34 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 conn_params=conn_params,
             )
 
+
+@patch("time.sleep", side_effect=lambda x: None)
+def test_retry_backoff_and_jitter(self, mock_sleep):
+    """Test delay for retries."""
+
+    call_attempts = []
+
+    @retry(retry_on=(Exception,), max_wait=30, retries=3)
+    def function_that_fails():
+        call_attempts.append(time.time())
+        raise Exception("Trigger retry")
+
+    with self.assertRaises(Exception):
+        function_that_fails()
+
+    delay_values = [call.args[0] for call in mock_sleep.call_args_list]
+    print(f"Delay values: {delay_values}")
+    self.assertEqual(len(delay_values), 3, "Should retry exactly 3 times")
+
+    for i in range(1, len(delay_values)):
+        self.assertTrue(delay_values[i] > delay_values[i - 1], "Delay should increase with each retry")
+
+    base_delays = [min(2**i, 30) for i in range(3)]
+    for base, actual in zip(base_delays, delay_values):
+        self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
+
     @patch("time.sleep", side_effect=lambda x: None)
-    def test_retry_backoff_and_jitter(self, mock_sleep):
-        """Test delay for retries."""
-
-        call_attempts = []
-
-        @retry(retry_on=(Exception,), max_wait=30, retries=3)
-        def function_that_fails():
-            call_attempts.append(time.time())
-            raise Exception("Trigger retry")
-
-        with self.assertRaises(Exception):
-            function_that_fails()
-
-        delay_values = [call.args[0] for call in mock_sleep.call_args_list]
-        print(f"Delay values: {delay_values}")
-        self.assertEqual(len(delay_values), 3, "Should retry exactly 3 times")
-
-        for i in range(1, len(delay_values)):
-            self.assertTrue(delay_values[i] > delay_values[i - 1], "Delay should increase with each retry")
-
-        base_delays = [min(2**i, 30) for i in range(3)]
-        for base, actual in zip(base_delays, delay_values):
-            self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
-
-    @patch("time.sleep", side_effect=lambda x: None)
-    @patch("common.utils.LOG")
+    @patch("koku.trino_database.LOG")
     def test_retry_logic_and_logging(self, mock_log, mock_sleep):
         """Test retry logic and logging for retries and errors."""
 
