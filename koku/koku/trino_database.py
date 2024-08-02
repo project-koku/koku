@@ -1,14 +1,19 @@
+import functools
 import logging
 import os
+import random
 import re
+import time
 import typing as t
 
 import sqlparse
 import trino
+from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
-from common.utils import retry
+from api.common import log_json
+from koku import settings
 
 LOG = logging.getLogger(__name__)
 
@@ -79,6 +84,130 @@ class TrinoStatementExecError(Exception):
         return self._trino_error.query_id
 
 
+class NoSuchKeyViolation:
+    """Detect NoSuchKey violation in an exception or error message."""
+
+    NO_SUCH_KEY_REGEX_STR = r"NoSuchKey"
+    NO_SUCH_KEY_REGEX = re.compile(NO_SUCH_KEY_REGEX_STR)
+
+    def __init__(self, _exception):
+        """Accepts Exception or str"""
+        self.message = _exception if isinstance(_exception, str) else str(_exception)
+        self.__is_no_such_key_violation = bool(self.NO_SUCH_KEY_REGEX.search(self.message))
+
+    @property
+    def is_no_such_key_violation(self):
+        """Returns bool indicating if NoSuchKey violation was detected."""
+        return self.__is_no_such_key_violation
+
+    def __bool__(self):
+        return self.__is_no_such_key_violation
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        if self.__is_no_such_key_violation:
+            return f"NoSuchKey error detected: {self.message}"
+        else:
+            return "No NoSuchKey error detected."
+
+
+class TrinoNoSuchKeyException(Exception):
+    """Custom exception for NoSuchKey errors"""
+
+    pass
+
+
+def extract_context_from_sql_params(sql_params: dict[str, t.Any]) -> dict[str, t.Any]:
+    ctx = {}
+    if sql_params is None:
+        return ctx
+    if schema := sql_params.get("schema"):
+        ctx["schema"] = schema
+    if (start := sql_params.get("start")) or (start := sql_params.get("start_date")):
+        ctx["start_date"] = start
+    if (end := sql_params.get("end")) or (end := sql_params.get("end_date")):
+        ctx["end_date"] = end
+    if invoice_month := sql_params.get("invoice_month"):
+        ctx["invoice_month"] = invoice_month
+    if provider_uuid := sql_params.get("source_uuid"):
+        ctx["provider_uuid"] = provider_uuid
+    if cluster_id := sql_params.get("cluster_id"):
+        ctx["cluster_id"] = cluster_id
+
+    return ctx
+
+
+def retry(
+    original_callable: t.Callable = None,
+    *,
+    retries: int = settings.HIVE_PARTITION_DELETE_RETRIES,
+    retry_on: type[Exception] | tuple[type[Exception], ...] = TrinoExternalError,
+    max_wait: int = 30,
+    log_message: t.Optional[str] = "Retrying...",
+):
+    """Decorator with the retry logic."""
+
+    def _retry(callable: t.Callable):
+        @functools.wraps(callable)
+        def wrapper(*args, **kwargs):
+            context = kwargs.get("context", extract_context_from_sql_params(kwargs.get("sql_params", {}))) or None
+            for attempt in range(retries + 1):
+                try:
+                    LOG.debug(f"Attempt {attempt + 1} for {callable.__name__}")
+                    return callable(*args, **kwargs)
+
+                except retry_on as ex:
+                    LOG.debug(f"Exception caught: {ex}")
+
+                    # Verify if the exception contains "NoSuchKey"
+                    # If it does, retry the operation
+                    violation = NoSuchKeyViolation(ex)
+                    if violation.is_no_such_key_violation and attempt < retries:
+                        LOG.warning(
+                            log_json(
+                                msg=f"{log_message} (attempt {attempt + 1})",
+                                context=context,
+                                exc_info=ex,
+                            )
+                        )
+                        backoff = min(2**attempt, max_wait)
+                        jitter = random.uniform(0, 1)
+                        delay = backoff + jitter
+                        LOG.debug(f"Sleeping for {delay} seconds before retrying")
+                        time.sleep(delay)
+                        continue
+
+                    # If it is NoSuchKey and all attempts are over, raise TrinoNoSuchKeyException
+                    if violation.is_no_such_key_violation:
+                        LOG.error(
+                            log_json(
+                                msg=f"Failed execution after {attempt + 1} attempts",
+                                context=context,
+                                exc_info=ex,
+                            )
+                        )
+                        raise TrinoNoSuchKeyException(str(violation))
+                    else:
+                        # If it is not NoSuchKey, raise the original exception
+                        LOG.error(
+                            log_json(
+                                msg=f"Failed execution after {attempt + 1} attempts",
+                                context=context,
+                                exc_info=ex,
+                            )
+                        )
+                        raise
+
+        return wrapper
+
+    if original_callable:
+        return _retry(original_callable)
+
+    return _retry
+
+
 def connect(**connect_args):
     """
     Establish a trino connection.
@@ -108,7 +237,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-@retry(retry_on=TrinoStatementExecError)
+@retry(retry_on=TrinoExternalError)
 def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
