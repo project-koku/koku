@@ -11,6 +11,7 @@ from api.iam.test.iam_test_case import FakeTrinoCur
 from api.iam.test.iam_test_case import IamTestCase
 from koku.trino_database import connect
 from koku.trino_database import executescript
+from koku.trino_database import NoSuchKeyViolation
 from koku.trino_database import TrinoStatementExecError
 
 
@@ -200,6 +201,22 @@ select a from b;
 
         self.assertIn("NoSuchKey error occurred", str(error_context.exception))
         self.assertEqual(conn.cur.execute_calls, 1)
+
+    def test_no_such_key_violation_detected(self):
+        """Test detection of NoSuchKey violation."""
+        exception_message = "Error: NoSuchKey found in the database"
+        violation = NoSuchKeyViolation(exception_message)
+        self.assertTrue(violation.is_no_such_key_violation)
+        self.assertTrue(bool(violation))
+        self.assertEqual(str(violation), f"NoSuchKey error detected: {exception_message}")
+
+    def test_no_such_key_violation_not_detected(self):
+        """Test no detection of NoSuchKey violation."""
+        exception_message = "Error: Some other error"
+        violation = NoSuchKeyViolation(exception_message)
+        self.assertFalse(violation.is_no_such_key_violation)
+        self.assertFalse(bool(violation))
+        self.assertEqual(str(violation), "No NoSuchKey error detected.")
 
 
 class TestTrinoStatementExecError(TestCase):
