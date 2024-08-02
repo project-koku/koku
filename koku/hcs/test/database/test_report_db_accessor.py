@@ -15,6 +15,7 @@ from api.utils import DateHelper
 from hcs.database.report_db_accessor import HCSReportDBAccessor
 from hcs.test import HCSTestCase
 from koku.trino_database import retry
+from koku.trino_database import TrinoNoSuchKeyException
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 
@@ -173,31 +174,33 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 conn_params=conn_params,
             )
 
+    @patch("time.sleep", side_effect=lambda x: None)
+    def test_retry_backoff_and_jitter(self, mock_sleep):
+        """Test delay for retries."""
 
-@patch("time.sleep", side_effect=lambda x: None)
-def test_retry_backoff_and_jitter(self, mock_sleep):
-    """Test delay for retries."""
+        call_attempts = []
 
-    call_attempts = []
+        @retry(retry_on=(Exception,), max_wait=30, retries=3)
+        def function_that_fails():
+            call_attempts.append(time.time())
+            raise Exception("NoSuchKey error occurred")
 
-    @retry(retry_on=(Exception,), max_wait=30, retries=3)
-    def function_that_fails():
-        call_attempts.append(time.time())
-        raise Exception("Trigger retry")
+        with self.assertRaises(TrinoNoSuchKeyException):
+            function_that_fails()
 
-    with self.assertRaises(Exception):
-        function_that_fails()
+        # Check the number of delay values
+        delay_values = [call.args[0] for call in mock_sleep.call_args_list]
+        print(f"Delay values: {delay_values}")
+        self.assertEqual(len(delay_values), 3, "Should retry exactly 3 times")
 
-    delay_values = [call.args[0] for call in mock_sleep.call_args_list]
-    print(f"Delay values: {delay_values}")
-    self.assertEqual(len(delay_values), 3, "Should retry exactly 3 times")
+        # Check that the delay increases with each retry
+        for i in range(1, len(delay_values)):
+            self.assertTrue(delay_values[i] >= delay_values[i - 1], "Delay should increase with each retry")
 
-    for i in range(1, len(delay_values)):
-        self.assertTrue(delay_values[i] > delay_values[i - 1], "Delay should increase with each retry")
-
-    base_delays = [min(2**i, 30) for i in range(3)]
-    for base, actual in zip(base_delays, delay_values):
-        self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
+        # Check that the delays include jitter
+        base_delays = [min(2**i, 30) for i in range(3)]
+        for base, actual in zip(base_delays, delay_values):
+            self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
 
     @patch("time.sleep", side_effect=lambda x: None)
     @patch("koku.trino_database.LOG")
