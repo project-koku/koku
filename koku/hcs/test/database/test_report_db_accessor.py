@@ -209,9 +209,9 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
         @retry(retry_on=(Exception,), retries=3, max_wait=30)
         def function_that_fails():
-            raise Exception("Trigger retry")
+            raise Exception("NoSuchKey error occurred")
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(TrinoNoSuchKeyException):
             function_that_fails()
 
         self.assertEqual(mock_sleep.call_count, 3)
