@@ -358,7 +358,7 @@ class AWSProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "account_alias": Max("account_alias"),
+                            "account_alias": Max("account_alias__account_alias"),
                             "account": Max("usage_account_id"),
                             "instance_name": Max("instance_name"),
                             "instance_type": Max("instance_type"),
