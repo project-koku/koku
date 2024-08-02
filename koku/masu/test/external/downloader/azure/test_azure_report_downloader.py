@@ -410,8 +410,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
             os.remove(temp_path)
 
-    @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives(self, mock_copy):
+    def test_create_daily_archives(self):
         """Test that we correctly create daily archive files."""
         file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
         file_name = f"{file}.csv"
@@ -420,27 +419,18 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        expected_daily_files = [
-            f"{temp_dir}/2019-07-28_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
-            f"{temp_dir}/2019-07-29_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
-        ]
+        expected = "Azure v1 reports not supported"
         start_date = self.dh.this_month_start.replace(year=2019, month=7, tzinfo=None)
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
             return_value=start_date,
         ):
-            daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
-            )
-            expected_date_range = {"start": "2019-07-28", "end": "2019-07-29", "invoice_month": None}
-            mock_copy.assert_called()
-            self.assertEqual(date_range, expected_date_range)
-            self.assertIsInstance(daily_file_names, list)
-            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
-            for daily_file in expected_daily_files:
-                self.assertTrue(os.path.exists(daily_file))
-                os.remove(daily_file)
-            os.remove(temp_path)
+            with self.assertLogs("masu.external.downloader.azure.azure_report_downloader", level="ERROR") as logger:
+                create_daily_archives(
+                    "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+                )
+                found = any(expected in log for log in logger.output)
+                self.assertTrue(found)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_check_leading_zeros(self, mock_copy):
