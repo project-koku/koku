@@ -25,6 +25,7 @@ from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
+from koku.trino_database import TrinoNoSuchKeyException
 
 LOG = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry(retry_on=TrinoExternalError)
+    @retry(retry_on=TrinoNoSuchKeyException)
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
@@ -147,8 +148,9 @@ class ReportDBAccessorBase:
             description = trino_cur.description
         except TrinoQueryError as ex:
             LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
+            if "NoSuchKey" in str(ex):
+                raise TrinoNoSuchKeyException
             raise
-
         running_time = time.time() - t1
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
         return results, description

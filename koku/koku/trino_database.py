@@ -84,39 +84,16 @@ class TrinoStatementExecError(Exception):
         return self._trino_error.query_id
 
 
-class NoSuchKeyViolation:
-    """Detect NoSuchKey violation in an exception or error message."""
-
-    NO_SUCH_KEY_REGEX_STR = r"NoSuchKey"
-    NO_SUCH_KEY_REGEX = re.compile(NO_SUCH_KEY_REGEX_STR)
-
-    def __init__(self, _exception):
-        """Accepts Exception or str"""
-        self.message = _exception if isinstance(_exception, str) else str(_exception)
-        self.__is_no_such_key_violation = bool(self.NO_SUCH_KEY_REGEX.search(self.message))
-
-    @property
-    def is_no_such_key_violation(self):
-        """Returns bool indicating if NoSuchKey violation was detected."""
-        return self.__is_no_such_key_violation
-
-    def __bool__(self):
-        return self.__is_no_such_key_violation
-
-    def __repr__(self):
-        return str(self)
-
-    def __str__(self):
-        if self.__is_no_such_key_violation:
-            return f"NoSuchKey error detected: {self.message}"
-        else:
-            return "No NoSuchKey error detected."
-
-
 class TrinoNoSuchKeyException(Exception):
     """Custom exception for NoSuchKey errors"""
 
-    pass
+    def __init__(self, message, query_id=None, error_code=None):
+        super().__init__(message)
+        self.query_id = query_id
+        self.error_code = error_code
+
+    def __str__(self):
+        return f"TrinoNoSuchKeyException: {self.args[0]}, Query ID: {self.query_id}, Error Code: {self.error_code}"
 
 
 def extract_context_from_sql_params(sql_params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -160,11 +137,7 @@ def retry(
 
                 except retry_on as ex:
                     LOG.debug(f"Exception caught: {ex}")
-
-                    # Verify if the exception contains "NoSuchKey"
-                    # If it does, retry the operation
-                    violation = NoSuchKeyViolation(ex)
-                    if violation.is_no_such_key_violation and attempt < retries:
+                    if attempt < retries:
                         LOG.warning(
                             log_json(
                                 msg=f"{log_message} (attempt {attempt + 1})",
@@ -179,26 +152,14 @@ def retry(
                         time.sleep(delay)
                         continue
 
-                    # If it is NoSuchKey and all attempts are over, raise TrinoNoSuchKeyException
-                    if violation.is_no_such_key_violation:
-                        LOG.error(
-                            log_json(
-                                msg=f"Failed execution after {attempt + 1} attempts",
-                                context=context,
-                                exc_info=ex,
-                            )
+                    LOG.error(
+                        log_json(
+                            msg=f"Failed execution after {attempt + 1} attempts",
+                            context=context,
+                            exc_info=ex,
                         )
-                        raise TrinoNoSuchKeyException(str(violation))
-                    else:
-                        # If it is not NoSuchKey, raise the original exception
-                        LOG.error(
-                            log_json(
-                                msg=f"Failed execution after {attempt + 1} attempts",
-                                context=context,
-                                exc_info=ex,
-                            )
-                        )
-                        raise
+                    )
+                    raise
 
         return wrapper
 
@@ -237,7 +198,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-@retry(retry_on=TrinoExternalError)
+@retry(retry_on=TrinoNoSuchKeyException)
 def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
@@ -280,10 +241,13 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
             except TrinoQueryError as trino_exc:
+                LOG.warning(f"{trino_exc!s}")
+                if "NoSuchKey" in str(trino_exc):
+                    raise TrinoNoSuchKeyException
+
                 trino_statement_error = TrinoStatementExecError(
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
                 )
-                LOG.warning(f"{trino_statement_error!s}")
                 raise trino_statement_error from trino_exc
             except Exception as exc:
                 LOG.warning(str(exc))
