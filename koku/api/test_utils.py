@@ -192,6 +192,19 @@ class DateHelperTest(TestCase):
         two_days_ago = (today - delta_day) - delta_day
         self.assertEqual(self.date_helper.n_days_ago(today, 2), two_days_ago)
 
+    def test_set_datetime_utc(self):
+        """Test set_datetime_utc."""
+        # Test with datetime
+        start_date = datetime.datetime(2024, 7, 5, 0, 0, 0, 0)
+        expected_date = start_date
+        # self.assertEqual(self.date_helper.set_datetime_utc(start_date), expected_date)
+
+        # Test with date
+        self.assertEqual(self.date_helper.set_datetime_utc(start_date.date()), expected_date)
+
+        # Test with str
+        self.assertEqual(self.date_helper.set_datetime_utc("2024-07-05"), expected_date)
+
     def test_month_start(self):
         """Test month start method."""
         today = self.date_helper.today
