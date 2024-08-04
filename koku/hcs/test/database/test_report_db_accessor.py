@@ -183,7 +183,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
         @retry(retry_on=(Exception,), max_wait=30, retries=3)
         def function_that_fails():
             call_attempts.append(time.time())
-            raise Exception("NoSuchKey error occurred")
+            raise TrinoNoSuchKeyException("NoSuchKey error occurred")
 
         with self.assertRaises(TrinoNoSuchKeyException):
             function_that_fails()
@@ -209,7 +209,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
         @retry(retry_on=(Exception,), retries=3, max_wait=30)
         def function_that_fails():
-            raise Exception("NoSuchKey error occurred")
+            raise TrinoNoSuchKeyException("NoSuchKey error occurred")
 
         with self.assertRaises(TrinoNoSuchKeyException):
             function_that_fails()
