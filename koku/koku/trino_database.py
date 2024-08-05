@@ -88,7 +88,7 @@ class TrinoNoSuchKeyException(Exception):
     """Custom exception for NoSuchKey errors"""
 
     def __init__(self, message, query_id=None, error_code=None):
-        super().__init__(message)
+        self.message = message
         self.query_id = query_id
         self.error_code = error_code
 
