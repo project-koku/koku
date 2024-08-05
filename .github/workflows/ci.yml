@@ -170,7 +170,7 @@ jobs:
 
       - name: Start the postgres DB
         if: needs.changed-files.outputs.run_tests == 'true'
-        run: docker-compose up -d db
+        run: docker compose up -d db
 
       - name: Set up Python ${{ matrix.python-version }}
         if: needs.changed-files.outputs.run_tests == 'true'

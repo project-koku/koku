@@ -63,6 +63,8 @@
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
