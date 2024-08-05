@@ -145,7 +145,7 @@ class ReportParquetProcessorBase:
             sql += ",".join([f"{item[0]} {item[1]} " for item in list(partition_map.items())])
             partition_column_str = ", ".join([f"'{key}'" for key in partition_map.keys()])
             sql += (
-                f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
+                f") WITH(external_location = 's3://{s3_path}', format = 'PARQUET',"
                 f" partitioned_by=ARRAY[{partition_column_str}])"
             )
         else:
@@ -153,7 +153,7 @@ class ReportParquetProcessorBase:
             sql += ",source varchar, year varchar, month varchar"
 
             sql += (
-                f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
+                f") WITH(external_location = 's3://{s3_path}', format = 'PARQUET',"
                 " partitioned_by=ARRAY['source', 'year', 'month'])"
             )
         return sql
