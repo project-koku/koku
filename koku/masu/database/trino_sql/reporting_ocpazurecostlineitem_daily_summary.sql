@@ -428,7 +428,7 @@ SELECT cast(uuid() as varchar) as azure_uuid,
     max(azure.resource_id_matched) as resource_id_matched,
     CASE
         WHEN max(persistentvolumeclaim) = ''
-            THEN NULL,
+            THEN NULL
         ELSE max(ocp.cost_category_id)
     END as cost_category_id,
     {{ocp_source_uuid}} as ocp_source,
