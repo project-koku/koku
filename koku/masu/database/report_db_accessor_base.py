@@ -154,7 +154,7 @@ class ReportDBAccessorBase:
                     query_id=ex.query_id,
                     error_code=ex.error_code,
                 )
-                
+
             raise
         running_time = time.time() - t1
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
