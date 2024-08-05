@@ -241,10 +241,6 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
             except TrinoQueryError as trino_exc:
-                LOG.warning(f"{trino_exc!s}")
-                if "NoSuchKey" in str(trino_exc):
-                    raise TrinoNoSuchKeyException
-
                 exc_to_raise = TrinoStatementExecError(
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
                 )
