@@ -44,7 +44,6 @@ from reporting.ingress.models import IngressReports
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
 
-
 LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
@@ -545,8 +544,6 @@ class ParquetReportProcessor:
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
-            if self.ingress_reports:
-                self.check_required_columns_for_ingress_reports(col_names)
 
             csv_converters, kwargs = self.post_processor.get_column_converters(col_names, kwargs)
             with pd.read_csv(

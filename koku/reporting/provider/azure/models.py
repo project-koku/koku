@@ -10,7 +10,6 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import JSONField
 
-
 TRINO_LINE_ITEM_TABLE = "azure_line_items"
 TRINO_LINE_ITEM_DAILY_TABLE = TRINO_LINE_ITEM_TABLE
 TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
@@ -50,7 +49,6 @@ TRINO_REQUIRED_COLUMNS = {
     "partnumber": "",
     "paygprice": 0.0,
     "planname": "",
-    "pretaxcost": 0.0,
     "pricingmodel": "",
     "productname": "",
     "productorderid": "",
@@ -78,7 +76,6 @@ TRINO_REQUIRED_COLUMNS = {
     "term": "",
     "unitofmeasure": "",
     "unitprice": 0.0,
-    "usagequantity": 0.0,
 }
 
 UI_SUMMARY_TABLES = (
