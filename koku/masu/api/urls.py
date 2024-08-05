@@ -44,6 +44,7 @@ from masu.api.views import update_azure_storage_capacity
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
 from masu.api.views import update_openshift_on_cloud
+from masu.api.views import validate_cost_data
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
@@ -77,6 +78,7 @@ urlpatterns = [
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
     path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
     path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
+    path("validate_cost_data/", validate_cost_data, name="validate_cost_data"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
     path("db-performance/db-settings/", dbsettings, name="db_settings"),

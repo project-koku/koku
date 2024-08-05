@@ -47,6 +47,8 @@ from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
 from masu.processor import is_summary_processing_disabled
+from masu.processor import is_validation_enabled
+from masu.processor._tasks.data_validation import DataValidator
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
@@ -645,13 +647,18 @@ def update_summary_tables(  # noqa: C901
     # This method should always be called for OCP providers even when it does not have a cost model
     if cost_model is not None or provider_type == Provider.PROVIDER_OCP:
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
-        linked_tasks = update_cost_model_costs.s(
-            schema, provider_uuid, start_date, end_date, tracing_id=tracing_id
-        ).set(queue=update_cost_model_queue) | mark_manifest_complete.si(
-            schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
-        ).set(
-            queue=mark_manifest_complete_queue
+        linked_tasks = (
+            update_cost_model_costs.s(schema, provider_uuid, start_date, end_date, tracing_id=tracing_id).set(
+                queue=update_cost_model_queue
+            )
+            | mark_manifest_complete.si(
+                schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
+            ).set(queue=mark_manifest_complete_queue)
+            | validate_daily_data.si(schema, start_date, end_date, provider_uuid, context=context).set(
+                queue=fallback_update_summary_tables_queue
+            )
         )
+
     else:
         LOG.info(log_json(tracing_id, msg="skipping cost model updates", context=context))
         linked_tasks = mark_manifest_complete.s(
@@ -661,7 +668,11 @@ def update_summary_tables(  # noqa: C901
             manifest_list=manifest_list,
             ingress_report_uuid=ingress_report_uuid,
             tracing_id=tracing_id,
-        ).set(queue=mark_manifest_complete_queue)
+        ).set(queue=mark_manifest_complete_queue) | validate_daily_data.si(
+            schema, start_date, end_date, provider_uuid, context=context
+        ).set(
+            queue=fallback_update_summary_tables_queue
+        )
 
     chain(linked_tasks).apply_async()
 
@@ -783,6 +794,14 @@ def update_openshift_on_cloud(  # noqa: C901
         ).apply_async(queue=queue_name or fallback_queue)
         # Set OpenShift manifest summary end time
         set_summary_timestamp(ManifestState.END, ocp_manifest_id)
+        validate_daily_data.s(
+            schema_name,
+            start_date,
+            end_date,
+            openshift_provider_uuid,
+            ocp_on_cloud_type=infrastructure_provider_type,
+            context=ctx,
+        ).apply_async(queue=queue_name or fallback_queue)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
             log_json(
@@ -1230,3 +1249,13 @@ def process_daily_openshift_on_cloud(
 
             file_name = f"ocp_on_{provider_type}_{i}"
             processor.process(file_name, [data_frame])
+
+
+@celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=SummaryQueue.DEFAULT)
+def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type=None, context=None):
+    # collect and validate cost metrics between postgres and trino tables.
+    if is_validation_enabled(schema):
+        data_validator = DataValidator(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type, context)
+        data_validator.check_data_integrity()
+    else:
+        LOG.info(log_json(msg="skipping validation, disabled for schema", context=context))
