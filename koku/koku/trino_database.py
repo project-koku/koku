@@ -93,7 +93,7 @@ class TrinoNoSuchKeyException(Exception):
         self.error_code = error_code
 
     def __str__(self):
-        return f"TrinoNoSuchKeyException: {self.args[0]}, Query ID: {self.query_id}, Error Code: {self.error_code}"
+        return f"{self.__class__.__name__}: {self.message}, Query ID: {self.query_id}, Error Code: {self.error_code}"
 
 
 def extract_context_from_sql_params(sql_params: dict[str, t.Any]) -> dict[str, t.Any]:
