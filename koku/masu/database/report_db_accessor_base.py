@@ -94,15 +94,19 @@ class ReportDBAccessorBase:
         return self._execute_raw_sql_query(table, sql, bind_params=sql_params, operation=operation)
 
     def _execute_raw_sql_query(self, table, sql, bind_params=None, operation="UPDATE"):
-        """Run a SQL statement via a cursor."""
+        """Run a SQL statement via a cursor. This also returns a result if the operation is VALIDATION_QUERY."""
         LOG.info(log_json(msg=f"triggering {operation}", table=table))
         row_count = None
+        result = None
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             t1 = time.time()
             try:
                 cursor.execute(sql, params=bind_params)
                 row_count = cursor.rowcount
+                if operation == "VALIDATION_QUERY":
+                    result = cursor.fetchall()
+
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
                 LOG.warning(log_json(os.getpid(), msg=str(db_exc), context=db_exc.as_dict()))
@@ -110,6 +114,7 @@ class ReportDBAccessorBase:
 
         running_time = time.time() - t1
         LOG.info(log_json(msg=f"finished {operation}", row_count=row_count, table=table, running_time=running_time))
+        return result
 
     def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
         """Execute a single trino query returning only the fetchall results"""
