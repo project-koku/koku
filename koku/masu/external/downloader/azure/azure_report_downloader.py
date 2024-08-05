@@ -112,6 +112,9 @@ def create_daily_archives(
     time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
+    if time_interval not in ["Date", "date"]:
+        LOG.error(log_json(msg="Azure v1 reports not supported", context=context))
+        return [], {}
     try:
         with pd.read_csv(
             local_file,
