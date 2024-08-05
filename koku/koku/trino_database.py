@@ -245,10 +245,18 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 if "NoSuchKey" in str(trino_exc):
                     raise TrinoNoSuchKeyException
 
-                trino_statement_error = TrinoStatementExecError(
+                exc_to_raise = TrinoStatementExecError(
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
                 )
-                raise trino_statement_error from trino_exc
+                if "NoSuchKey" in str(trino_exc):
+                    exc_to_raise = TrinoNoSuchKeyException(
+                        message=trino_exc.message,
+                        query_id=trino_exc.query_id,
+                        error_code=trino_exc.error_code,
+                    )
+
+                LOG.warning(f"{exc_to_raise!s}")
+                raise exc_to_raise from trino_exc
             except Exception as exc:
                 LOG.warning(str(exc))
                 raise
