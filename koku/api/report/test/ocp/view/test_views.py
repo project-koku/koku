@@ -1131,7 +1131,7 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_costs_query_with_tag_filter(self, mock_unleash):
+    def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
