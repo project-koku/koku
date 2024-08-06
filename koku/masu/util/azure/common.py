@@ -23,7 +23,6 @@ INGRESS_REQUIRED_COLUMNS = {
     "additionalinfo",
     "billingaccountid",
     "billingaccountname",
-    "billingcurrencycode",
     "billingperiodenddate",
     "billingperiodstartdate",
     "chargetype",
@@ -43,7 +42,6 @@ INGRESS_REQUIRED_COLUMNS = {
     "quantity",
     "reservationid",
     "reservationname",
-    "resourcegroup",
     "resourceid",
     "resourcelocation",
     "resourcename",
@@ -55,6 +53,8 @@ INGRESS_REQUIRED_COLUMNS = {
     "unitofmeasure",
     "unitprice",
 }
+
+INGRESS_REQUIRED_ALT_COLUMNS = [["billingcurrencycode", "billingcurrency"], ["resourcegroup", "resourcegroupname"]]
 
 
 class AzureBlobExtension(Enum):
