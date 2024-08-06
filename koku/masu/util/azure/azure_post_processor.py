@@ -82,7 +82,6 @@ class AzurePostProcessor:
             "billingperiodstartdate": azure_date_converter,
             "billingperiodenddate": azure_date_converter,
             "quantity": safe_float,
-            "usagequantity": safe_float,
             "resourcerate": safe_float,
             "costinbillingcurrency": safe_float,
             "effectiveprice": safe_float,

@@ -17,7 +17,6 @@ TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
 TRINO_REQUIRED_COLUMNS = {
     "billingperiodstartdate": pd.NaT,
     "billingperiodenddate": pd.NaT,
-    "usagedatetime": pd.NaT,
     "date": pd.NaT,
     "accountname": "",
     "accountownerid": "",
@@ -33,7 +32,6 @@ TRINO_REQUIRED_COLUMNS = {
     "consumedservice": "",
     "costcenter": "",
     "costinbillingcurrency": 0.0,
-    "currency": "",
     "effectiveprice": 0.0,
     "frequency": "",
     "instanceid": "",
@@ -76,7 +74,6 @@ TRINO_REQUIRED_COLUMNS = {
     "term": "",
     "unitofmeasure": "",
     "unitprice": 0.0,
-    "usagequantity": 0.0,
 }
 
 UI_SUMMARY_TABLES = (
