@@ -10,7 +10,8 @@ with connect(host="localhost", port=8080, user="admin", catalog="hive", schema="
     cur = con.cursor()
     cur.execute("CREATE SCHEMA IF NOT EXISTS org1234567").fetchall()
 
-table_path = "s3://mskarbek-glue/data/parquet/org1234567/AWS"
+bucket = "mskarbek-glue"
+table_path = f"s3://{bucket}/data/parquet/org1234567/AWS"
 sql = f"""
 CREATE TABLE IF NOT EXISTS hive.org1234567.fake_line_items (
     name varchar,
@@ -51,7 +52,7 @@ with connect(host="localhost", port=8080, user="admin", catalog="hive", schema="
     cur.execute("CALL system.sync_partition_metadata('org1234567', 'fake_line_items', 'FULL')").fetchall()
 
 
-table_path = "s3://mskarbek-glue/data/parquet/daily/org1234567/AWS"
+table_path = f"s3://{bucket}/data/parquet/daily/org1234567/AWS"
 sql = f"""
 CREATE TABLE IF NOT EXISTS hive.org1234567.fake_line_items_daily (
     name varchar,
