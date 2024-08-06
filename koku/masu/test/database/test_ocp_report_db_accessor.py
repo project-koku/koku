@@ -22,7 +22,7 @@ from trino.exceptions import TrinoUserError
 
 from api.provider.models import Provider
 from api.report.test.util.constants import OCP_PVC_LABELS
-from common.utils import retry
+from koku.trino_database import retry
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor

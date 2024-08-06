@@ -17,7 +17,7 @@ from trino.exceptions import TrinoExternalError
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
 from api.utils import DateHelper
-from common.utils import retry
+from koku.trino_database import retry
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
