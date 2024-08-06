@@ -426,7 +426,11 @@ SELECT cast(uuid() as varchar) as azure_uuid,
     END as volume_labels,
     max(azure.tags) as tags,
     max(azure.resource_id_matched) as resource_id_matched,
-    max(ocp.cost_category_id) as cost_category_id,
+    CASE
+        WHEN max(persistentvolumeclaim) = ''
+            THEN NULL
+        ELSE max(ocp.cost_category_id)
+    END as cost_category_id,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
@@ -483,7 +487,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     pretax_cost,
     markup_cost,
     resource_id_matched,
-    cost_category_id,
     ocp_source,
     year,
     month
@@ -533,7 +536,6 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
         (max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)  as pretax_cost,
         ((max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
         max(azure.resource_id_matched) as resource_id_matched,
-        max(ocp.cost_category_id) as cost_category_id,
         {{ocp_source_uuid}} as ocp_source,
         max(azure.year) as year,
         max(azure.month) as month
@@ -906,7 +908,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     pod_cost,
     project_markup_cost,
     tags,
-    cost_category_id,
     azure_source,
     ocp_source,
     year,
@@ -939,7 +940,6 @@ SELECT azure.uuid as azure_uuid,
     max(cast(azure.pretax_cost as decimal(24,9))) as pod_cost,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as project_markup_cost,
     max(azure.tags) as tags,
-    max(ocp.cost_category_id) as cost_category_id,
     {{azure_source_uuid}} as azure_source,
     {{ocp_source_uuid}} as ocp_source,
     max(azure.year) as year,
