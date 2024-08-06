@@ -76,6 +76,7 @@ TRINO_REQUIRED_COLUMNS = {
     "term": "",
     "unitofmeasure": "",
     "unitprice": 0.0,
+    "usagequantity": 0.0,
 }
 
 UI_SUMMARY_TABLES = (
