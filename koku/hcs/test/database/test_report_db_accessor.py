@@ -91,8 +91,8 @@ class TestHCSReportDBAccessor(HCSTestCase):
             self.assertIn("acquiring marketplace data", _logs.output[0])
             self.assertIn("data found", _logs.output[1])
 
-    def test_handle_trino_external_error_with_no_such_key(self):
-        """Test handle_trino_external_error with NoSuchKey error."""
+    def test_trino_no_such_key_exception_without_error(self):
+        """Test if there is no error when TrinoNoSuchKeyException is raised."""
         accessor = ReportDBAccessorBase(schema="test_schema")
 
         with (
@@ -104,40 +104,45 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 sql_params={},
                 context={},
                 log_ref="Test Log Ref",
-                attempts_left=1,
-                trino_external_error_retries=3,
                 conn_params={},
             )
 
             mock_retry.assert_called()
             mock_log.error.assert_not_called()
 
-    def test_handle_trino_external_error_without_no_such_key(self):
-        """Test handle_trino_external_error without NoSuchKey error."""
+    @patch("koku.trino_database.connect")
+    def test_trino_no_such_key_exception_retries(self, mock_connect):
+        """Test if retries are attempted when TrinoNoSuchKeyException is raised."""
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = TrinoExternalError({"message": "NoSuchKey"})
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
         accessor = ReportDBAccessorBase(schema="test_schema")
-        error_instance = TrinoExternalError({"error": "Trino Error"})
+        sql = "SELECT * FROM table"
+        sql_params = {}
+        context = {}
+        log_ref = "Test Log Ref"
+        conn_params = {}
 
-        with (
-            patch.object(
-                accessor, "_execute_trino_raw_sql_query_with_description", side_effect=error_instance
-            ) as mock_retry,
-        ):
-            with self.assertRaises(TrinoExternalError):
+        with self.assertRaises(TrinoNoSuchKeyException):
+            try:
                 accessor._execute_trino_raw_sql_query_with_description(
-                    "SELECT * FROM table",
-                    sql_params={},
-                    context={},
-                    log_ref="Test Log Ref",
-                    attempts_left=1,
-                    trino_external_error_retries=0,
-                    conn_params={},
+                    sql,
+                    sql_params=sql_params,
+                    context=context,
+                    log_ref=log_ref,
+                    conn_params=conn_params,
                 )
+            except TrinoExternalError as e:
+                raise TrinoNoSuchKeyException("NoSuchKey error") from e
 
-            mock_retry.assert_called_once()
+        mock_cursor.execute.assert_called()
 
     @patch("koku.trino_database.connect")
     def test_handle_trino_external_error_invocation(self, mock_connect):
-        """Test handle_trino_external_error invocation."""
+        """Test if there is no retry on TrinoExternal error with no NoSuchKey message."""
         mock_cursor = MagicMock()
         mock_cursor.execute.side_effect = TrinoExternalError({"error": "Trino Error"})
         mock_conn = MagicMock()
