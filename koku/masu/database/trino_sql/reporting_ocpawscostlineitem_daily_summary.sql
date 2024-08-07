@@ -215,7 +215,14 @@ SELECT cast(uuid() as varchar) as uuid,
             END
     END AS data_transfer_direction,
     max(nullif(aws.lineitem_currencycode, '')) as currency_code,
-    sum(aws.lineitem_unblendedcost) as unblended_cost,
+    -- SavingsPlanCoveredUsage needs to be negated to show accurate cost COST-5098
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_unblendedcost
+        END
+        ) as unblended_cost,
     sum(aws.lineitem_blendedcost) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
     sum(
