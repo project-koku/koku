@@ -117,6 +117,30 @@ class TestSUBSDataExtractor(SUBSTestCase):
     @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource_batch")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.get_resource_ids_for_usage_account")
     @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_ids_for_provider")
+    def test_extract_data_to_s3_azure(
+        self,
+        mock_ids,
+        mock_resources,
+        mock_gather,
+        mock_bulk_update,
+    ):
+        """Test the flow of extracting data to S3 calls the right functions"""
+        expected_key = "fake_key"
+        mock_gather.return_value = [expected_key]
+        expected_upload_keys = [expected_key]
+        mock_ids.return_value = ["12345"]
+        mock_resources.return_value = [("23456", "fake:key", MagicMock()), ("34567", "bigfake:key", MagicMock())]
+        upload_keys = self.azure_extractor.extract_data_to_s3(self.dh.month_start(self.yesterday))
+        mock_ids.assert_called_once()
+        mock_resources.assert_called_once()
+        mock_gather.assert_called_once()
+        mock_bulk_update.assert_called()
+        self.assertEqual(expected_upload_keys, upload_keys)
+
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.bulk_update_latest_processed_time")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.gather_and_upload_for_resource_batch")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.get_resource_ids_for_usage_account")
+    @patch("subs.subs_data_extractor.SUBSDataExtractor.determine_ids_for_provider")
     def test_extract_data_to_s3_no_usage_ids_found(
         self,
         mock_ids,
@@ -264,6 +288,34 @@ class TestSUBSDataExtractor(SUBSTestCase):
             )
             subs_record_2 = SubsLastProcessed.objects.get(
                 source_uuid_id=self.aws_provider.uuid, resource_id=rid2, year=year, month=month
+            )
+            self.assertEqual(subs_record_1.latest_processed_time, expected_time)
+            self.assertEqual(subs_record_2.latest_processed_time, expected_time)
+
+    def test_bulk_update_latest_processed_time_azure(self):
+        """Test that timestamps for multiple resources are update in the DB when bulk updating processed times."""
+        year = "2023"
+        month = "04"
+        rid1 = "54321"
+        rid2 = "98765"
+        instance_key_one = "my:fake:key"
+        instance_key_two = "my:second:key"
+        expected_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+        resources = [(rid1, instance_key_one, expected_time), (rid2, instance_key_two, expected_time)]
+        with schema_context(self.schema):
+            SubsLastProcessed.objects.create(
+                source_uuid_id=self.azure_provider.uuid, resource_id=instance_key_one, year=year, month=month
+            ).save()
+            SubsLastProcessed.objects.create(
+                source_uuid_id=self.azure_provider.uuid, resource_id=instance_key_two, year=year, month=month
+            ).save()
+        self.azure_extractor.bulk_update_latest_processed_time(resources, year, month)
+        with schema_context(self.schema):
+            subs_record_1 = SubsLastProcessed.objects.get(
+                source_uuid_id=self.azure_provider.uuid, resource_id=instance_key_one, year=year, month=month
+            )
+            subs_record_2 = SubsLastProcessed.objects.get(
+                source_uuid_id=self.azure_provider.uuid, resource_id=instance_key_two, year=year, month=month
             )
             self.assertEqual(subs_record_1.latest_processed_time, expected_time)
             self.assertEqual(subs_record_2.latest_processed_time, expected_time)
