@@ -265,7 +265,7 @@ SELECT cast(uuid() as varchar) as uuid,
     END) as unit_of_measure,
     sum(nullif(azure.quantity, 0)) as usage_quantity,
     coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
-    sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pretax_cost,
+    sum(nullif(azure.costinbillingcurrency, 0)) as pretax_cost,
     json_format(
         cast(
             map_filter(
