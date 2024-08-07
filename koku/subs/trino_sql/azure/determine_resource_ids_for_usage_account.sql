@@ -1,5 +1,6 @@
 SELECT
     resource_id,
+    CONCAT(sub, ':', rg, ':', vmname) as instance_key,
     CASE
         WHEN max_date < date_add('day', -2, current_date) THEN max_date
         ELSE date_add('day', -1, max_date)
@@ -7,7 +8,11 @@ SELECT
 FROM (
     SELECT
      NULLIF(resourceid, '') resource_id,
-     max(date) max_date
+     COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as sub,
+     resourcegroup as rg,
+     -- if the VMName isn't present in additionalinfo, the end of the resourceid should be the VMName
+     COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(COALESCE(NULLIF(resourceid, ''), instanceid), '([^/]+$)')) as vmname,
+      max(date) max_date
    FROM
      hive.{{schema | sqlsafe}}.azure_line_items
    WHERE
@@ -21,5 +26,5 @@ FROM (
     {% if excluded_ids %}
         and NULLIF(resourceid, '') NOT IN {{excluded_ids | inclause}}
     {% endif %}
-   GROUP BY resourceid
+   GROUP BY resourceid, subscriptionguid, subscriptionid, resourcegroup, json_extract_scalar(lower(additionalinfo), '$.vmname')
 )
