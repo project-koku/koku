@@ -82,7 +82,7 @@ FROM (
         max(date(lineitem_usagestartdate)) as usage_end,
         lineitem_usageaccountid as usage_account_id,
         lineitem_resourceid as resource_id,
-        json_extract_scalar(json_parse(resourcetags), '$.Name') AS instance_name,
+        json_extract_scalar(json_parse(lower(resourcetags)), '$.name') AS instance_name,
         nullif(product_instancetype, '') as instance_type,
         nullif(product_operatingsystem, '') as operating_system,
         nullif(product_region, '') as region,
@@ -103,7 +103,17 @@ FROM (
         sum(lineitem_normalizedusageamount) as normalized_usage_amount,
         max(lineitem_currencycode) as currency_code,
         max(lineitem_unblendedrate) as unblended_rate,
-        sum(lineitem_unblendedcost) as unblended_cost,
+        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+           that offset that cost.
+           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                THEN 0.0
+                ELSE lineitem_unblendedcost
+            END
+        ) as unblended_cost,
         max(lineitem_blendedrate) as blended_rate,
         sum(lineitem_blendedcost) as blended_cost,
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
@@ -125,11 +135,6 @@ FROM (
         AND lineitem_productcode = 'AmazonEC2'
         AND product_productfamily LIKE '%Compute Instance%'
         AND lineitem_resourceid != ''
-        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
-           that offset that cost and usage.
-           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
-        */
-        AND lineitem_lineitemtype != 'SavingsPlanCoveredUsage'
     GROUP BY lineitem_resourceid,
         lineitem_usageaccountid,
         product_instancetype,
