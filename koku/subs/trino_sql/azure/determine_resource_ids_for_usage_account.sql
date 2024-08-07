@@ -6,7 +6,7 @@ SELECT
     END
 FROM (
     SELECT
-     COALESCE(NULLIF(resourceid, ''), instanceid) resource_id,
+     NULLIF(resourceid, '') resource_id,
      max(date) max_date
    FROM
      hive.{{schema | sqlsafe}}.azure_line_items
@@ -19,7 +19,7 @@ FROM (
     AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL
     AND (subscriptionid = {{usage_account}} or subscriptionguid = {{usage_account}})
     {% if excluded_ids %}
-        and coalesce(NULLIF(resourceid, ''), instanceid) NOT IN {{excluded_ids | inclause}}
+        and NULLIF(resourceid, '') NOT IN {{excluded_ids | inclause}}
     {% endif %}
-   GROUP BY resourceid, instanceid
+   GROUP BY resourceid
 )

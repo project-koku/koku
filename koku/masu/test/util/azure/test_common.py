@@ -115,22 +115,22 @@ class TestAzureUtils(MasuTestCase):
         ]
         matched_tags = []
         data = [
-            {"resourceid": "", "instanceid": "id1", "costinbillingcurrency": 1, "tags": '{"key": "value"}'},
-            {"resourceid": "", "instanceid": "id2", "costinbillingcurrency": 1, "tags": '{"key": "other_value"}'},
-            {"resourceid": "", "instanceid": "id3", "costinbillingcurrency": 1, "tags": '{"keyz": "value"}'},
+            {"resourceid": "id1", "costinbillingcurrency": 1, "tags": '{"key": "value"}'},
+            {"resourceid": "id2", "costinbillingcurrency": 1, "tags": '{"key": "other_value"}'},
+            {"resourceid": "id3", "costinbillingcurrency": 1, "tags": '{"keyz": "value"}'},
         ]
 
         df = pd.DataFrame(data)
         matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
 
         # resource id matching
-        result = matched_df[matched_df["instanceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["resourceid"] == "id1"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.any(bool_only=True))
 
-        result = matched_df[matched_df["instanceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["resourceid"] == "id2"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.any(bool_only=True))
 
-        result = matched_df[matched_df["instanceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
+        result = matched_df[matched_df["resourceid"] == "id3"]["resource_id_matched"] == True  # noqa: E712
         self.assertTrue(result.any(bool_only=True))
 
     def test_match_openshift_resource_with_nan_labels(self):

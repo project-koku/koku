@@ -29,7 +29,7 @@ WITH cte_line_items AS (
         cast(costinbillingcurrency as DECIMAL(24,9)) as pretax_cost,
         coalesce(nullif(billingcurrencycode, ''), billingcurrency) as currency,
         json_parse(tags) as tags,
-        coalesce(nullif(resourceid, ''), instanceid) as instance_id,
+        nullif(resourceid, '') as instance_id,
         cast(source as UUID) as source_uuid,
         coalesce(nullif(subscriptionname, ''), nullif(subscriptionid, ''), subscriptionguid) as subscription_name,
         CASE

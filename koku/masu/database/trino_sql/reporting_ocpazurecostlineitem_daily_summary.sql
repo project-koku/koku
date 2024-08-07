@@ -170,7 +170,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_tem
 )
 SELECT cast(uuid() as varchar) as uuid,
     azure.date as usage_start,
-    split_part(coalesce(nullif(resourceid, ''), instanceid), '/', 9) as resource_id,
+    split_part(nullif(resourceid, ''), '/', 9) as resource_id,
     coalesce(nullif(servicename, ''), metercategory) as service_name,
     CASE
         WHEN coalesce(nullif(servicename, ''), metercategory) = 'Virtual Network' AND lower(consumedservice)='microsoft.compute' AND json_exists(lower(additionalinfo), 'strict $.datatransferdirection')
@@ -205,7 +205,7 @@ WHERE azure.source = {{azure_source_uuid}}
     AND azure.date >= {{start_date}}
     AND azure.date < date_add('day', 1, {{end_date}})
     azureurce_id_matched = TRUdate,
-    split_part(coalesce(nullif(resourceid, ''), instanceid), '/', 9),
+    split_part(nullif(resourceid, ''), '/', 9),
     lower(azure.consumedservice),
     5, -- data transfer direction
     coalesce(nullif(servicename, ''), metercategory),
@@ -248,7 +248,7 @@ WITH cte_enabled_tag_keys AS (
 )
 SELECT cast(uuid() as varchar) as uuid,
     azure.date as usage_start,
-    split_part(coalesce(resourceid, instanceid), '/', 9) as resource_id,
+    split_part(resourceid, '/', 9) as resource_id,
     coalesce(nullif(servicename, ''), metercategory) as service_name,
     max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
     coalesce(nullif(azure.subscriptionid, ''), azure.subscriptionguid) as subscription_guid,
@@ -287,7 +287,7 @@ WHERE azure.source = {{azure_source_uuid}}
     AND azure.date < date_add('day', 1, {{end_date}})
     AND (azure.resource_id_matched = FALSE OR azure.resource_id_matched IS NULL)
 GROUP BY azure.date,
-    split_part(coalesce(resourceid, instanceid), '/', 9),
+    split_part(resourceid, '/', 9),
     coalesce(nullif(servicename, ''), metercategory),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
     azure.subscriptionname,
@@ -338,11 +338,11 @@ JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
     ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
     AND az_disk_capacity.provider_type = 'Azure'
 JOIN cte_ocp_filtered_resources as ocp_filtered
-    ON split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) = ocp_filtered.azure_partial_resource_id
+    ON split_part(nullif(azure.resourceid, ''), '/', 9) = ocp_filtered.azure_partial_resource_id
 WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
-    AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
+    AND nullif(azure.resourceid, '') LIKE '%%Microsoft.Compute/disks/%%'
     AND azure.year = {{year}}
     AND azure.month = {{month}}
 GROUP BY ocp_filtered.azure_partial_resource_id, date(date)

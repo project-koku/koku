@@ -14,7 +14,7 @@ WHERE
     AND (
         {% for item in resources %}
             (
-                coalesce(NULLIF(resourceid, ''), instanceid) = {{item.rid}} AND
+                NULLIF(resourceid, '') = {{item.rid}} AND
                 date >= {{item.start}} AND
                 date <= {{item.end}}
             )
