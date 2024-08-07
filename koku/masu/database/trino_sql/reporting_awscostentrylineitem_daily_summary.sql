@@ -94,6 +94,7 @@ FROM (
         costcategory,
         nullif(product_instancetype, '') as instance_type,
         nullif(pricing_unit, '') as unit,
+        -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
         sum(
             CASE
                 WHEN lineitem_lineitemtype='SavingsPlanNegation'
