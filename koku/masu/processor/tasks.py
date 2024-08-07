@@ -79,7 +79,6 @@ from reporting_common.states import ManifestStep
 
 LOG = logging.getLogger(__name__)
 
-
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 
 
@@ -1129,7 +1128,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
 
     table_info = {
         Provider.PROVIDER_AWS: {"table": "aws_line_items_daily", "date_columns": ["lineitem_usagestartdate"]},
-        Provider.PROVIDER_AZURE: {"table": "azure_line_items", "date_columns": ["usagedatetime", "date"]},
+        Provider.PROVIDER_AZURE: {"table": "azure_line_items", "date_columns": ["date"]},
         Provider.PROVIDER_GCP: {
             "table": "gcp_line_items_daily",
             "date_columns": ["usage_start_time", "usage_end_time"],
@@ -1193,7 +1192,8 @@ def process_daily_openshift_on_cloud(
         Provider.PROVIDER_GCP: {
             "table": "gcp_line_items_daily",
             "date_columns": ["usage_start_time", "usage_end_time"],
-            "date_where_clause": "usage_start_time >= TIMESTAMP '{0}' AND usage_start_time < date_add('day', 1, TIMESTAMP '{0}')",  # noqa: E501
+            "date_where_clause": "usage_start_time >= TIMESTAMP '{0}' AND "
+            "usage_start_time < date_add('day', 1, TIMESTAMP '{0}')",
         },
     }
     table_name = table_info.get(provider_type).get("table")

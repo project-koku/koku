@@ -27,7 +27,7 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             "unitprice",
             "paygprice",
         ]
-        date_columns = ["usagedatetime", "date", "billingperiodstartdate", "billingperiodenddate"]
+        date_columns = ["date", "billingperiodstartdate", "billingperiodenddate"]
         boolean_columns = ["resource_id_matched"]
         column_types = {
             "numeric_columns": numeric_columns,

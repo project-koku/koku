@@ -19,7 +19,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     subscription_name
 )
 WITH cte_line_items AS (
-    SELECT date(coalesce(date, usagedatetime)) as usage_date,
+    SELECT date(date) as usage_date,
         INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
         coalesce(nullif(subscriptionid, ''), subscriptionguid) as subscription_guid,
         resourcelocation as resource_location,
@@ -50,8 +50,8 @@ WITH cte_line_items AS (
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
-        AND coalesce(date, usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(date, usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND date >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
 ),
 cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys

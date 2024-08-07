@@ -189,7 +189,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         if self.provider_type == Provider.PROVIDER_AZURE and (
             date_field not in data_frame.columns or not data_frame[date_field].any()
         ):
-            date_field = "usagedatetime"
+            date_field = "date"
         unique_usage_days = data_frame[date_field].unique()
         for usage_day in unique_usage_days:
             usage_date = pd.to_datetime(usage_day).date()
