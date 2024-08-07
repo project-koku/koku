@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test HCSReportDBAccessor."""
+import logging
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -91,14 +92,22 @@ class TestHCSReportDBAccessor(HCSTestCase):
             self.assertIn("acquiring marketplace data", _logs.output[0])
             self.assertIn("data found", _logs.output[1])
 
-    def test_trino_no_such_key_exception_without_error(self):
-        """Test if there is no error when TrinoNoSuchKeyException is raised."""
+    @patch("koku.trino_database.connect")
+    def test_no_retry_on_trino_external_error(self, mock_connect):
+        """Test that we don't retry on TrinoError that aren't NoSuchKey related."""
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = TrinoExternalError({"message": "TrinoError"})
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
         accessor = ReportDBAccessorBase(schema="test_schema")
 
         with (
-            patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_retry,
-            patch("masu.database.report_db_accessor_base.LOG") as mock_log,
+            self.assertRaises(TrinoExternalError),
+            # No log messages indicates no retries
+            self.assertLogs("koku.trino_database", "ERROR") as error_logs,
         ):
+            logging.disable(logging.NOTSET)
             accessor._execute_trino_raw_sql_query_with_description(
                 "SELECT * FROM table",
                 sql_params={},
@@ -107,8 +116,8 @@ class TestHCSReportDBAccessor(HCSTestCase):
                 conn_params={},
             )
 
-            mock_retry.assert_called()
-            mock_log.error.assert_not_called()
+        self.assertFalse(error_logs.output)
+        logging.disable(logging.CRITICAL)
 
     @patch("koku.trino_database.connect")
     def test_trino_no_such_key_exception_retries(self, mock_connect):
@@ -126,58 +135,21 @@ class TestHCSReportDBAccessor(HCSTestCase):
         log_ref = "Test Log Ref"
         conn_params = {}
 
-        with self.assertRaises(TrinoNoSuchKeyException):
-            try:
-                accessor._execute_trino_raw_sql_query_with_description(
-                    sql,
-                    sql_params=sql_params,
-                    context=context,
-                    log_ref=log_ref,
-                    conn_params=conn_params,
-                )
-            except TrinoExternalError as e:
-                raise TrinoNoSuchKeyException("NoSuchKey error") from e
-
-        mock_cursor.execute.assert_called()
-
-    @patch("koku.trino_database.connect")
-    def test_handle_trino_external_error_invocation(self, mock_connect):
-        """Test if there is no retry on TrinoExternal error with no NoSuchKey message."""
-        mock_cursor = MagicMock()
-        mock_cursor.execute.side_effect = TrinoExternalError({"error": "Trino Error"})
-        mock_conn = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
-
-        accessor = ReportDBAccessorBase(schema="test_schema")
-        sql = "SELECT * FROM test_table"
-        sql_params = {"param1": "value1"}
-        context = {}
-        log_ref = "Test Query"
-        attempts_left = 1
-        trino_external_error_retries = 1
-        conn_params = {}
-
-        with patch.object(accessor, "_execute_trino_raw_sql_query_with_description") as mock_method:
+        with (
+            self.assertRaises(TrinoNoSuchKeyException),
+            self.assertLogs("koku.trino_database", "ERROR") as error_logs,
+        ):
+            logging.disable(logging.NOTSET)
             accessor._execute_trino_raw_sql_query_with_description(
                 sql,
                 sql_params=sql_params,
                 context=context,
                 log_ref=log_ref,
-                attempts_left=attempts_left,
-                trino_external_error_retries=trino_external_error_retries,
                 conn_params=conn_params,
             )
 
-            mock_method.assert_called_once_with(
-                sql,
-                sql_params=sql_params,
-                context=context,
-                log_ref=log_ref,
-                attempts_left=attempts_left,
-                trino_external_error_retries=trino_external_error_retries,
-                conn_params=conn_params,
-            )
+        self.assertIn("failed execution", error_logs.output[0].lower())
+        logging.disable(logging.CRITICAL)
 
     @patch("time.sleep", side_effect=lambda x: None)
     def test_retry_backoff_and_jitter(self, mock_sleep):
