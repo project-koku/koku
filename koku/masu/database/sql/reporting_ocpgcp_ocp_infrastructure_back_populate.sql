@@ -65,8 +65,16 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_gcp.pod_labels as all_labels,
         max(ocp_gcp.cost_category_id) as cost_category_id,
         rp.provider_id as source_uuid,
-        sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost + ocp_gcp.credit_amount) AS infrastructure_raw_cost,
-        sum(ocp_gcp.unblended_cost + ocp_gcp.project_markup_cost + ocp_gcp.pod_credit) AS infrastructure_project_raw_cost,
+        sum(
+            coalesce(ocp_gcp.unblended_cost, 0)
+            + coalesce(ocp_gcp.markup_cost, 0)
+            + coalesce(ocp_gcp.credit_amount, 0)
+        ) AS infrastructure_raw_cost,
+        sum(
+            coalesce(ocp_gcp.unblended_cost ,0)
+            + coalesce(ocp_gcp.project_markup_cost, 0)
+            + coalesce(ocp_gcp.pod_credit, 0)
+        ) AS infrastructure_project_raw_cost,
         CASE
             WHEN upper(data_transfer_direction) = 'IN' THEN sum(infrastructure_data_in_gigabytes)
             ELSE NULL
