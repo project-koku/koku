@@ -45,6 +45,12 @@ df = pd.DataFrame(
 path = f"{table_path}/year=2024/month=08"
 filename = "file01.parquet"
 
+storage_options = {
+    "key": "kokuminioaccess",
+    "secret": "kokuminiosecret",
+    "client_kwargs": {"endpoint_url": "http://localhost:9000"},
+}
+
 df.to_parquet(f"{path}/{filename}", allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
 
 with connect(host="localhost", port=8080, user="admin", catalog="hive", schema="org1234567") as con:
