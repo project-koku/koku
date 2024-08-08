@@ -343,7 +343,7 @@ JOIN cte_ocp_filtered_resources as ocp_filtered
 WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
-    AND nullif(azure.resourceid, '') LIKE '%%Microsoft.Compute/disks/%%'
+    AND azure.resourceid LIKE '%%Microsoft.Compute/disks/%%'
     AND azure.year = {{year}}
     AND azure.month = {{month}}
 GROUP BY ocp_filtered.azure_partial_resource_id, date(date)
