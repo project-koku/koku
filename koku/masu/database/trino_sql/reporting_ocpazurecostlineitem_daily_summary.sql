@@ -206,9 +206,8 @@ WHERE azure.source = {{azure_source_uuid}}
     AND azure.date < date_add('day', 1, {{end_date}})
     AND azure.resource_id_matched = TRUE
 GROUP BY azure.date,
-    split_part(coalesce(nullif(resourceid, ''), instanceid), '/', 9),
-    lower(azure.consumedservice),
     split_part(resourceid, '/', 9),
+    lower(azure.consumedservice),
     5, -- data transfer direction
     coalesce(nullif(servicename, ''), metercategory),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
