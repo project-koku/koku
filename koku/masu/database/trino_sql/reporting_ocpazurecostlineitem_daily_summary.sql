@@ -339,7 +339,7 @@ JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
     ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
     AND az_disk_capacity.provider_type = 'Azure'
 JOIN cte_ocp_filtered_resources as ocp_filtered
-    ON split_part(nullif(azure.resourceid, ''), '/', 9) = ocp_filtered.azure_partial_resource_id
+    ON split_part(azure.resourceid, '/', 9) = ocp_filtered.azure_partial_resource_id
 WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
