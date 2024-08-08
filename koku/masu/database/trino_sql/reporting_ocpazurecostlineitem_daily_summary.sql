@@ -213,7 +213,7 @@ GROUP BY azure.date,
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
     azure.subscriptionname,
     azure.resourcelocation,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency),
     azure.tags
 ;
 
@@ -293,7 +293,7 @@ GROUP BY azure.date,
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
     azure.subscriptionname,
     azure.resourcelocation,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency),
     13, -- tags
     azure.matched_tag
 ;
