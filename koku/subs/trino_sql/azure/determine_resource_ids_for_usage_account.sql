@@ -24,7 +24,7 @@ FROM (
     AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL
     AND (subscriptionid = {{usage_account}} or subscriptionguid = {{usage_account}})
     {% if excluded_ids %}
-        and NULLIF(resourceid, '') NOT IN {{excluded_ids | inclause}}
+        and resourceid NOT IN {{excluded_ids | inclause}}
     {% endif %}
    GROUP BY resourceid, subscriptionguid, subscriptionid, resourcegroup, json_extract_scalar(lower(additionalinfo), '$.vmname')
 )
