@@ -91,7 +91,14 @@ FROM (
         resourcetags as tags,
         costcategory,
         nullif(pricing_unit, '') as unit,
-        sum(lineitem_usageamount) as usage_amount,
+        -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanNegation'
+                THEN 0.0
+                ELSE lineitem_usageamount
+            END
+        ) as usage_amount,
         max(lineitem_normalizationfactor) as normalization_factor,
         sum(lineitem_normalizedusageamount) as normalized_usage_amount,
         max(lineitem_currencycode) as currency_code,
