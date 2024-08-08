@@ -170,7 +170,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_tem
 )
 SELECT cast(uuid() as varchar) as uuid,
     azure.date as usage_start,
-    split_part(nullif(resourceid, ''), '/', 9) as resource_id,
+    split_part(resourceid, '/', 9) as resource_id,
     coalesce(nullif(servicename, ''), metercategory) as service_name,
     CASE
         WHEN coalesce(nullif(servicename, ''), metercategory) = 'Virtual Network' AND lower(consumedservice)='microsoft.compute' AND json_exists(lower(additionalinfo), 'strict $.datatransferdirection')
