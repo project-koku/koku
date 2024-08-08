@@ -52,7 +52,7 @@ WHERE
     AND (
         {% for item in resources %}
             (
-                NULLIF(resourceid, '') = {{item.rid}} AND
+                resourceid = {{item.rid}} AND
                 date >= {{item.start}} AND
                 date <= {{item.end}}
             )
