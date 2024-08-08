@@ -21,6 +21,8 @@ generators:
         environment: Jupiter
         version: MilkyWay
         dashed-key-on-azure: dashed-value
+        com_redhat_rhel: 7
+        com_redhat_rhel_addon: ELS
   - VMGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -32,6 +34,9 @@ generators:
         environment: Jupiter
         version: Andromeda
         dashed-key-on-azure: dashed-value
+        com_redhat_rhel: 7
+        com_redhat_rhel_addon: ELS
+        com_redhat_rhel_conversion: true
   - VMGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}

@@ -138,7 +138,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
         """Gather the data and upload it to S3 for a batch of resource ids"""
-        sql_params = sql_params = {
+        sql_params = {
             "source_uuid": self.provider_uuid,
             "year": year,
             "month": month,
@@ -179,7 +179,12 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             LOG.info(
                 log_json(self.tracing_id, msg="beginning last processed update for resources.", context=self.context)
             )
-            for resource, latest_timestamp in resources:
+            for item in resources:
+                if self.provider_type == Provider.PROVIDER_AZURE:
+                    # Azure returns resource_id, instance_key, timestamp, base this off instance key to handle scalesets
+                    _, resource, latest_timestamp = item
+                else:
+                    resource, latest_timestamp = item
                 last_processed_obj = SubsLastProcessed.objects.get_or_create(
                     source_uuid_id=self.provider_uuid, resource_id=resource, year=year, month=month
                 )[0]
@@ -234,8 +239,14 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                     context=self.context | {"usage_account": usage_account, "num_batches": batches},
                 )
             )
-            for rid, end_time in resource_ids:
-                start_time = max(last_processed_dict.get(rid, month_start), self.creation_processing_time)
+            for item in resource_ids:
+                # Azure returns resource_id, instance_key, timestamp, base this off instance key to handle scalesets
+                if self.provider_type == Provider.PROVIDER_AZURE:
+                    rid, instance_key, end_time = item
+                else:
+                    rid, end_time = item
+                    instance_key = rid
+                start_time = max(last_processed_dict.get(instance_key, month_start), self.creation_processing_time)
                 batch.append({"rid": rid, "start": start_time, "end": end_time})
                 if len(batch) >= 100:
                     upload_keys.extend(
