@@ -4,7 +4,7 @@ SELECT
   with_timezone(date_add('day', 1, date), 'UTC') as subs_end_time,
   json_extract_scalar(lower(additionalinfo), '$.vcpus') as subs_vcpu,
   COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as subs_account,
-  regexp_extract(NULLIF(resourceid, ''), '([^/]+$)') as subs_resource_id,
+  regexp_extract(resourceid, '([^/]+$)') as subs_resource_id,
   CAST(ceil(quantity) AS INTEGER) as subs_usage_quantity,
   CASE lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
