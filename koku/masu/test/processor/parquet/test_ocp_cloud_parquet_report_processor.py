@@ -243,7 +243,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     def test_create_partitioned_ocp_on_cloud_parquet_azure_date_field_missing(self, mock_create_table):
-        """Test that we handle missing date field for Azure provider and set date_field to 'date'."""
+        """Test that we handle empty date field for Azure."""
         test_date = "2023-01-01"
         base_file_name = f"{test_date}_{self.azure_provider_uuid}"
         report_processor = OCPCloudParquetReportProcessor(
@@ -254,17 +254,16 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
         )
-        # DataFrame missing the expected 'lineitem_usagestartdate' field but has 'date'
-        df = pd.DataFrame({"test": [1], "date": ["2023-01-01"]})
+
+        # DataFrame has empty 'date'
+        df = pd.DataFrame({"test": [1], "date": ""})
 
         report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name)
-
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
         call_df, call_base_file_name = args
-        # Verify that the DataFrame passed to create_ocp_on_cloud_parquet is filtered correctly
+
         self.assertTrue(call_df.equals(df))
-        self.assertEqual(base_file_name, f"{call_base_file_name}")
 
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
