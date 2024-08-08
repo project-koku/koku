@@ -1192,8 +1192,7 @@ def process_daily_openshift_on_cloud(
         Provider.PROVIDER_GCP: {
             "table": "gcp_line_items_daily",
             "date_columns": ["usage_start_time", "usage_end_time"],
-            "date_where_clause": "usage_start_time >= TIMESTAMP '{0}' AND "
-            "usage_start_time < date_add('day', 1, TIMESTAMP '{0}')",
+            "date_where_clause": "usage_start_time >= TIMESTAMP '{0}' AND usage_start_time < date_add('day', 1, TIMESTAMP '{0}')",  # noqa: E501
         },
     }
     table_name = table_info.get(provider_type).get("table")

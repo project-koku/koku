@@ -191,7 +191,7 @@ SELECT cast(uuid() as varchar) as uuid,
         ELSE unitofmeasure
     END) as unit_of_measure,
     sum(azure.quantity) as usage_quantity,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency) as currency,
     sum(azure.costinbillingcurrency) as pretax_cost,
     azure.tags,
     max(azure.resource_id_matched) as resource_id_matched,
@@ -204,9 +204,11 @@ WHERE azure.source = {{azure_source_uuid}}
     AND azure.month = {{month}}
     AND azure.date >= {{start_date}}
     AND azure.date < date_add('day', 1, {{end_date}})
-    azureurce_id_matched = TRUdate,
-    split_part(nullif(resourceid, ''), '/', 9),
-    lower(azure.consumedservice),
+    AND azure.resource_id_matched = TRUE
+GROUP BY azure.date,
+    split_part(coalesce(nullif(resourceid, ''), instanceid), '/', 9),
+    split_part(nullif(resourceid,    ''), '/', 9),
+    AND azure.resource_id_matched = TRUE
     5, -- data transfer direction
     coalesce(nullif(servicename, ''), metercategory),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
@@ -264,7 +266,7 @@ SELECT cast(uuid() as varchar) as uuid,
         ELSE unitofmeasure
     END) as unit_of_measure,
     sum(nullif(azure.quantity, 0)) as usage_quantity,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency) as currency,
     sum(nullif(azure.costinbillingcurrency, 0)) as pretax_cost,
     json_format(
         cast(

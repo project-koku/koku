@@ -7,7 +7,7 @@ SELECT
     END
 FROM (
     SELECT
-     NULLIF(resourceid, '') resource_id,
+     resourceid as resource_id,
      COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as sub,
      resourcegroup as rg,
      -- if the VMName isn't present in additionalinfo, the end of the resourceid should be the VMName
