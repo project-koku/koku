@@ -208,7 +208,6 @@ WHERE azure.source = {{azure_source_uuid}}
 GROUP BY azure.date,
     split_part(coalesce(nullif(resourceid, ''), instanceid), '/', 9),
     split_part(nullif(resourceid,    ''), '/', 9),
-    AND azure.resource_id_matched = TRUE
     5, -- data transfer direction
     coalesce(nullif(servicename, ''), metercategory),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
