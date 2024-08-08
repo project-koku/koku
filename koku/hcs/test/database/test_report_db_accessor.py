@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test HCSReportDBAccessor."""
-# import logging
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -107,7 +106,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
             # No log messages indicates no retries
             self.assertLogs("koku.trino_database", "ERROR") as error_logs,
         ):
-            # logging.disable(logging.NOTSET)
             accessor._execute_trino_raw_sql_query_with_description(
                 "SELECT * FROM table",
                 sql_params={},
@@ -117,8 +115,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
             )
 
         self.assertFalse(error_logs.output)
-
-    #         logging.disable(logging.CRITICAL)
 
     @patch("koku.trino_database.connect")
     def test_trino_no_such_key_exception_retries(self, mock_connect):
@@ -140,7 +136,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
             self.assertRaises(TrinoNoSuchKeyException),
             self.assertLogs("koku.trino_database", "ERROR") as error_logs,
         ):
-            # logging.disable(logging.NOTSET)
             accessor._execute_trino_raw_sql_query_with_description(
                 sql,
                 sql_params=sql_params,
@@ -150,8 +145,6 @@ class TestHCSReportDBAccessor(HCSTestCase):
             )
 
         self.assertIn("failed execution", error_logs.output[0].lower())
-
-    #         logging.disable(logging.CRITICAL)
 
     @patch("time.sleep", side_effect=lambda x: None)
     def test_retry_backoff_and_jitter(self, mock_sleep):
