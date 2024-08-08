@@ -60,6 +60,7 @@ watchtower = "==1.0.6"  # new version breaks for unknown reason
 whitenoise = ">=5.0"
 pydantic = ">=2"
 sqlparse = "*"
+packaging = "*"
 
 [dev-packages]
 argh = ">=0.26.2"
