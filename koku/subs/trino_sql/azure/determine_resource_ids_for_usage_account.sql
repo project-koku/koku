@@ -11,7 +11,7 @@ FROM (
      COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as sub,
      resourcegroup as rg,
      -- if the VMName isn't present in additionalinfo, the end of the resourceid should be the VMName
-     COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(COALESCE(NULLIF(resourceid, ''), instanceid), '([^/]+$)')) as vmname,
+     COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(resourceid, '([^/]+$)')) as vmname,
       max(date) max_date
    FROM
      hive.{{schema | sqlsafe}}.azure_line_items
