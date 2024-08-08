@@ -58,7 +58,10 @@ SELECT 'GCP' as source_type,
        max(unit) as unit,
        sum(unblended_cost + credit_amount) as unblended_cost,
        sum(project_markup_cost) as project_markup_cost,
-       sum(pod_cost + pod_credit) as pod_cost,
+       sum(
+           coalesce(pod_cost, 0)
+           + coalesce(pod_credit, 0)
+       ) as pod_cost,
        max(currency) as currency_code,
        max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid as source_uuid
