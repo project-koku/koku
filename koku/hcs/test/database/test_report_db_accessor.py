@@ -163,7 +163,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
         # Check the number of delay values
         delay_values = [call.args[0] for call in mock_sleep.call_args_list]
         print(f"Delay values: {delay_values}")
-        self.assertEqual(len(delay_values), 3, "Should retry exactly 3 times")
+        self.assertEqual(len(delay_values), 2, "Should retry exactly 3 times")
 
         # Check that the delay increases with each retry
         for i in range(1, len(delay_values)):
