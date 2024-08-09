@@ -155,7 +155,7 @@ class ReportDBAccessorBase:
                     error_code=ex.error_code,
                 )
 
-            if "HIVE_METASTORE_ERROR" in str(ex):
+            if ex.error_name == "HIVE_METASTORE_ERROR":
                 raise TrinoHiveMetastoreError(
                     message=ex.message,
                     query_id=ex.query_id,
