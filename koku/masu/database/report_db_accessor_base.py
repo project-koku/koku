@@ -25,6 +25,7 @@ from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
+from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyException
 
 LOG = logging.getLogger(__name__)
@@ -113,7 +114,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry(retry_on=TrinoNoSuchKeyException)
+    @retry(retry_on=(TrinoNoSuchKeyException, TrinoHiveMetastoreError))
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
@@ -140,7 +141,6 @@ class ReportDBAccessorBase:
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
         LOG.info(log_json(msg="executing trino sql", log_ref=log_ref, context=ctx))
-
         try:
             trino_cur = trino_conn.cursor()
             trino_cur.execute(sql, bind_params)
@@ -150,6 +150,13 @@ class ReportDBAccessorBase:
             LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
             if "NoSuchKey" in str(ex):
                 raise TrinoNoSuchKeyException(
+                    message=ex.message,
+                    query_id=ex.query_id,
+                    error_code=ex.error_code,
+                )
+
+            if "HIVE_METASTORE_ERROR" in str(ex):
+                raise TrinoHiveMetastoreError(
                     message=ex.message,
                     query_id=ex.query_id,
                     error_code=ex.error_code,
