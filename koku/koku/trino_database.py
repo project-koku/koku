@@ -137,7 +137,7 @@ def retry(
 
                 except retry_on as ex:
                     LOG.debug(f"Exception caught: {ex}")
-                    if attempt < retries:
+                    if attempt < retries - 1: 
                         LOG.warning(
                             log_json(
                                 msg=f"{log_message} (attempt {attempt + 1})",
