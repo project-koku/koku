@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 from django.test import TestCase
 from jinjasql import JinjaSql
@@ -123,8 +124,8 @@ select a from b;
             self.assertLogs("koku.trino_database", level="WARN") as logger,
         ):
             executescript(FakeTrinoConn(), "SELECT x from y")
-
-        self.assertIn("WARNING:koku.trino_database:Trino Query Error", logger.output[0])
+        self.assertTrue(logger.output)
+        self.assertIn("TrinoQueryError", logger.output[0])
 
     def test_executescript_error(self):
         def t_exec_error(*args, **kwargs):
@@ -145,6 +146,60 @@ select a from b;
         with self.assertRaises(ValueError):
             conn = FakerFakeTrinoConn()
             executescript(conn, sqlscript)
+
+    def test_retry_logic_on_no_such_key_error(self):
+        class FakeTrinoQueryError(Exception):
+            def __init__(self, error):
+                self.error = error
+                self.message = error["message"]
+
+        class FakeTrinoCur:
+            def __init__(self, *args, **kwargs):
+                self.execute_calls = 0
+
+            def execute(self, *args, **kwargs):
+                self.execute_calls += 1
+                if self.execute_calls == 1:
+                    raise FakeTrinoQueryError(
+                        {
+                            "errorName": "TRINO_NO_SUCH_KEY",
+                            "errorType": "USER_ERROR",
+                            "message": "NoSuchKey error occurred",
+                            "query_id": "fake_query_id",
+                        }
+                    )
+                return [["eek"]] * 6
+
+            def fetchall(self):
+                return [["eek"]] * 6
+
+        class FakeTrinoConn:
+            def __init__(self, *args, **kwargs):
+                self.cur = FakeTrinoCur()
+
+            def cursor(self):
+                return self.cur
+
+        sqlscript = "SELECT * FROM table"
+        params = {
+            "uuid": "some_uuid",
+            "schema": "test_schema",
+            "int_data": 255,
+            "txt_data": "This is a test",
+        }
+        conn = FakeTrinoConn()
+
+        with patch("time.sleep", return_value=None), self.assertRaises(FakeTrinoQueryError) as error_context:
+            results = executescript(
+                trino_conn=conn,
+                sqlscript=sqlscript,
+                params=params,
+                preprocessor=None,
+            )
+            self.assertEqual(results, [["eek"]] * 6)
+
+        self.assertIn("NoSuchKey error occurred", str(error_context.exception))
+        self.assertEqual(conn.cur.execute_calls, 1)
 
 
 class TestTrinoStatementExecError(TestCase):

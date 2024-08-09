@@ -9,12 +9,10 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.models import Provider
@@ -37,7 +35,6 @@ from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
-
 
 LOG = logging.getLogger(__name__)
 
@@ -223,7 +220,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_ocp_on_azure_hive_partition_by_day(self, days, az_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpazurecostlineitem_project_daily_summary"
-        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -238,26 +234,17 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                for i in range(retries):
-                    try:
-                        sql = f"""
-                            DELETE FROM hive.{self.schema}.{table}
-                                WHERE azure_source = '{az_source}'
-                                AND ocp_source = '{ocp_source}'
-                                AND year = '{year}'
-                                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                                AND day = '{day}'"""
-                        self._execute_trino_raw_sql_query(
-                            sql,
-                            log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
-                        )
-                        break
-                    except TrinoExternalError as err:
-                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                            continue
-                        else:
-                            raise err
+                sql = f"""
+                    DELETE FROM hive.{self.schema}.{table}
+                        WHERE azure_source = '{az_source}'
+                        AND ocp_source = '{ocp_source}'
+                        AND year = '{year}'
+                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                        AND day = '{day}'"""
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
+                )
 
     def populate_ocp_on_azure_cost_daily_summary_trino(
         self,

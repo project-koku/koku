@@ -12,12 +12,10 @@ from os import path
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -112,7 +110,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         date_dicts = DateHelper().get_year_month_list_from_start_end(start_date, end_date)
         last_month_end = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
         if end_date == last_month_end:
-
             # For gcp in order to catch what we are calling cross over data
             # we need to extend the end date by a couple of days. For more
             # information see: https://issues.redhat.com/browse/COST-1771
@@ -414,7 +411,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_ocp_on_gcp_hive_partition_by_day(self, days, gcp_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpgcpcostlineitem_project_daily_summary"
-        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -429,26 +425,17 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                for i in range(retries):
-                    try:
-                        sql = f"""
-                            DELETE FROM hive.{self.schema}.{table}
-                                WHERE gcp_source = '{gcp_source}'
-                                AND ocp_source = '{ocp_source}'
-                                AND year = '{year}'
-                                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                                AND day = '{day}'"""
-                        self._execute_trino_raw_sql_query(
-                            sql,
-                            log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
-                        )
-                        break
-                    except TrinoExternalError as err:
-                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                            continue
-                        else:
-                            raise err
+                sql = f"""
+                    DELETE FROM hive.{self.schema}.{table}
+                        WHERE gcp_source = '{gcp_source}'
+                        AND ocp_source = '{ocp_source}'
+                        AND year = '{year}'
+                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                        AND day = '{day}'"""
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day}",
+                )
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
