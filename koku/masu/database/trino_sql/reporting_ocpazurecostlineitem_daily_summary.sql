@@ -169,8 +169,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_tem
     month
 )
 SELECT cast(uuid() as varchar) as uuid,
-    coalesce(azure.date, azure.usagedatetime) as usage_start,
-    split_part(coalesce(nullif(resourceid, ''), instanceid), '/', 9) as resource_id,
+    azure.date as usage_start,
+    split_part(resourceid, '/', 9) as resource_id,
     coalesce(nullif(servicename, ''), metercategory) as service_name,
     CASE
         WHEN coalesce(nullif(servicename, ''), metercategory) = 'Virtual Network' AND lower(consumedservice)='microsoft.compute' AND json_exists(lower(additionalinfo), 'strict $.datatransferdirection')
@@ -190,9 +190,9 @@ SELECT cast(uuid() as varchar) as uuid,
             THEN  split_part(unitofmeasure, ' ', 2)
         ELSE unitofmeasure
     END) as unit_of_measure,
-    sum(coalesce(nullif(azure.quantity, 0), azure.usagequantity)) as usage_quantity,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
-    sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pretax_cost,
+    sum(azure.quantity) as usage_quantity,
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency) as currency,
+    sum(azure.costinbillingcurrency) as pretax_cost,
     azure.tags,
     max(azure.resource_id_matched) as resource_id_matched,
     {{ocp_source_uuid}} as ocp_source,
@@ -202,18 +202,18 @@ FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
 WHERE azure.source = {{azure_source_uuid}}
     AND azure.year = {{year}}
     AND azure.month = {{month}}
-    AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
-    AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
+    AND azure.date >= {{start_date}}
+    AND azure.date < date_add('day', 1, {{end_date}})
     AND azure.resource_id_matched = TRUE
-GROUP BY coalesce(azure.date, azure.usagedatetime),
-    split_part(coalesce(nullif(resourceid, ''), instanceid), '/', 9),
+GROUP BY azure.date,
+    split_part(resourceid, '/', 9),
     lower(azure.consumedservice),
     5, -- data transfer direction
     coalesce(nullif(servicename, ''), metercategory),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
     azure.subscriptionname,
     azure.resourcelocation,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency),
     azure.tags
 ;
 
@@ -248,8 +248,8 @@ WITH cte_enabled_tag_keys AS (
         AND provider_type = 'Azure'
 )
 SELECT cast(uuid() as varchar) as uuid,
-    coalesce(azure.date, azure.usagedatetime) as usage_start,
-    split_part(coalesce(resourceid, instanceid), '/', 9) as resource_id,
+    azure.date as usage_start,
+    split_part(resourceid, '/', 9) as resource_id,
     coalesce(nullif(servicename, ''), metercategory) as service_name,
     max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
     coalesce(nullif(azure.subscriptionid, ''), azure.subscriptionguid) as subscription_guid,
@@ -264,9 +264,9 @@ SELECT cast(uuid() as varchar) as uuid,
             THEN  split_part(unitofmeasure, ' ', 2)
         ELSE unitofmeasure
     END) as unit_of_measure,
-    sum(coalesce(nullif(azure.quantity, 0), azure.usagequantity)) as usage_quantity,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency) as currency,
-    sum(coalesce(nullif(azure.costinbillingcurrency, 0), azure.pretaxcost)) as pretax_cost,
+    sum(azure.quantity) as usage_quantity,
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency) as currency,
+    sum(azure.costinbillingcurrency) as pretax_cost,
     json_format(
         cast(
             map_filter(
@@ -284,16 +284,16 @@ CROSS JOIN cte_enabled_tag_keys as etk
 WHERE azure.source = {{azure_source_uuid}}
     AND azure.year = {{year}}
     AND azure.month = {{month}}
-    AND coalesce(azure.date, azure.usagedatetime) >= {{start_date}}
-    AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, {{end_date}})
+    AND azure.date >= {{start_date}}
+    AND azure.date < date_add('day', 1, {{end_date}})
     AND (azure.resource_id_matched = FALSE OR azure.resource_id_matched IS NULL)
-GROUP BY coalesce(azure.date, azure.usagedatetime),
-    split_part(coalesce(resourceid, instanceid), '/', 9),
+GROUP BY azure.date,
+    split_part(resourceid, '/', 9),
     coalesce(nullif(servicename, ''), metercategory),
     coalesce(nullif(subscriptionid, ''), subscriptionguid),
     azure.subscriptionname,
     azure.resourcelocation,
-    coalesce(nullif(azure.billingcurrencycode, ''), nullif(azure.currency, ''), azure.billingcurrency),
+    coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency),
     13, -- tags
     azure.matched_tag
 ;
@@ -330,7 +330,7 @@ WITH cte_ocp_filtered_resources as (
 SELECT
     ocp_filtered.azure_partial_resource_id,
     max(az_disk_capacity.capacity) as capacity,
-    date(coalesce(date, usagedatetime)) as usage_start,
+    date(date) as usage_start,
     {{ocp_source_uuid}} as ocp_source,
     {{year}} as year,
     {{month}} as month
@@ -339,14 +339,14 @@ JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
     ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
     AND az_disk_capacity.provider_type = 'Azure'
 JOIN cte_ocp_filtered_resources as ocp_filtered
-    ON split_part(coalesce(nullif(azure.resourceid, ''), azure.instanceid), '/', 9) = ocp_filtered.azure_partial_resource_id
-WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-    AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    ON split_part(azure.resourceid, '/', 9) = ocp_filtered.azure_partial_resource_id
+WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
+    AND azure.date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND coalesce(nullif(azure.servicename, ''), azure.metercategory) LIKE '%Storage%'
-    AND coalesce(nullif(azure.resourceid, ''), azure.instanceid) LIKE '%%Microsoft.Compute/disks/%%'
+    AND azure.resourceid LIKE '%%Microsoft.Compute/disks/%%'
     AND azure.year = {{year}}
     AND azure.month = {{month}}
-GROUP BY ocp_filtered.azure_partial_resource_id, date(coalesce(date, usagedatetime))
+GROUP BY ocp_filtered.azure_partial_resource_id, date(date)
 {% endif %}
 ;
 

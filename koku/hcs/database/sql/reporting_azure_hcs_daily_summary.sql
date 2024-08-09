@@ -8,8 +8,8 @@ WHERE
   source = {{provider_uuid}}
   AND year = {{year}}
   AND month = {{month}}
-  AND coalesce(date, usagedatetime) >= {{date}}
-  AND coalesce(date, usagedatetime) < date_add(
+  AND date >= {{date}}
+  AND date < date_add(
     'day', 1, {{date}}
   )
   AND (

@@ -19,17 +19,17 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily
     subscription_name
 )
 WITH cte_line_items AS (
-    SELECT date(coalesce(date, usagedatetime)) as usage_date,
+    SELECT date(date) as usage_date,
         INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
         coalesce(nullif(subscriptionid, ''), subscriptionguid) as subscription_guid,
         resourcelocation as resource_location,
         coalesce(nullif(servicename, ''), metercategory) as service_name,
         json_extract_scalar(json_parse(additionalinfo), '$.ServiceType') as instance_type,
-        cast(coalesce(nullif(quantity, 0), usagequantity) as DECIMAL(24,9)) as usage_quantity,
-        cast(coalesce(nullif(costinbillingcurrency, 0), pretaxcost) as DECIMAL(24,9)) as pretax_cost,
-        coalesce(nullif(billingcurrencycode, ''), nullif(currency, ''), billingcurrency) as currency,
+        cast(quantity as DECIMAL(24,9)) as usage_quantity,
+        cast(costinbillingcurrency as DECIMAL(24,9)) as pretax_cost,
+        coalesce(nullif(billingcurrencycode, ''), billingcurrency) as currency,
         json_parse(tags) as tags,
-        coalesce(nullif(resourceid, ''), instanceid) as instance_id,
+        resourceid as instance_id,
         cast(source as UUID) as source_uuid,
         coalesce(nullif(subscriptionname, ''), nullif(subscriptionid, ''), subscriptionguid) as subscription_name,
         CASE
@@ -50,8 +50,8 @@ WITH cte_line_items AS (
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
-        AND coalesce(date, usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(date, usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND date >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
 ),
 cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys

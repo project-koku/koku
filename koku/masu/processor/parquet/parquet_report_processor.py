@@ -44,7 +44,6 @@ from reporting.ingress.models import IngressReports
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
 
-
 LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
