@@ -885,12 +885,17 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     resource_ids = chain.from_iterable(
         cluster_topology.get("resource_ids", []) for cluster_topology in cluster_topologies
     )
-    resource_ids = tuple(resource_ids)
+    csi_volume_handles = chain.from_iterable(
+        cluster_topology.get("csi_volume_handle", []) for cluster_topology in cluster_topologies
+    )
+    matchable_resources = [*resource_ids, *csi_volume_handles]
+    matchable_resources = [x for x in matchable_resources if x is not None and x != ""]
+    matchable_resources = tuple(matchable_resources)
     data_frame["resource_id_matched"] = False
     resource_id_df = data_frame["lineitem_resourceid"]
     if not resource_id_df.eq("").all():
         LOG.info("Matching OpenShift on AWS by resource ID.")
-        resource_id_matched = resource_id_df.str.endswith(resource_ids)
+        resource_id_matched = resource_id_df.str.endswith(matchable_resources)
         data_frame["resource_id_matched"] = resource_id_matched
 
     data_frame["special_case_tag_matched"] = False
