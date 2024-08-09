@@ -174,7 +174,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
         for base, actual in zip(base_delays, delay_values):
             self.assertTrue(base <= actual < base + 1, "Jitter should be between 0 and 1")
 
-    @patch("time.sleep", side_effect=lambda x: None)
+    @patch("time.sleep", side_effect=None)
     @patch("koku.trino_database.LOG")
     def test_retry_logic_and_logging(self, mock_log, mock_sleep):
         """Test retry logic and logging for retries and errors."""
