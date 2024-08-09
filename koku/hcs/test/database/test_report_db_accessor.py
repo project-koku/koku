@@ -146,7 +146,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
         self.assertIn("failed execution", error_logs.output[0].lower())
 
-    @patch("time.sleep", side_effect=lambda x: None)
+    @patch("time.sleep", side_effect=None)
     def test_retry_backoff_and_jitter(self, mock_sleep):
         """Test delay for retries."""
 
