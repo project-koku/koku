@@ -186,7 +186,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
         with self.assertRaises(TrinoNoSuchKeyException):
             function_that_fails()
 
-        self.assertEqual(mock_sleep.call_count, 3)
+        self.assertEqual(mock_sleep.call_count, 2)
 
         delay_values = [call.args[0] for call in mock_sleep.call_args_list]
         for i in range(1, len(delay_values)):

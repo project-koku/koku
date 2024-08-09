@@ -822,25 +822,29 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_hive_partitions_by_source_failure(self, mock_trino, mock_table_exist, mock_schema_exists):
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    @patch("time.sleep", return_value=None)
+    def test_delete_hive_partitions_by_source_failure(
+        self, mock_sleep, mock_trino, mock_table_exist, mock_schema_exists
+    ):
         """Test that deletions work with retries."""
         mock_schema_exists.return_value = False
         self.accessor.delete_hive_partitions_by_source("table", "partition_column", self.ocp_provider_uuid)
         mock_trino.assert_not_called()
+        mock_trino.reset_mock()
 
         mock_schema_exists.return_value = True
-        mock_trino.reset_mock()
-        error = {"errorName": "HIVE_METASTORE_ERROR"}
-        mock_trino.side_effect = TrinoExternalError(error)
-        with self.assertRaises(TrinoExternalError):
-            result = self.accessor.delete_hive_partitions_by_source(
-                "table", "partition_column", self.ocp_provider_uuid
-            )
-            self.assertFalse(result)
-        mock_trino.assert_called()
-        # Confirms that the error log would be logged on last attempt
-        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        # Setting up the mock so that the cursor execute causes a TrinoExternalError
+        mock_cursor = mock_trino.return_value.cursor.return_value
+        mock_cursor.execute.side_effect = TrinoExternalError({"errorName": "HIVE_METASTORE_ERROR"})
+
+        # Asserting that the function raises TrinoHiveMetastoreError error
+        with self.assertRaises(TrinoHiveMetastoreError):
+            self.accessor.delete_hive_partitions_by_source("table", "partition_column", self.ocp_provider_uuid)
+
+        mock_cursor.execute.assert_called()
+        self.assertEqual(mock_cursor.execute.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_get_max_min_timestamp_from_parquet(self, mock_query):
