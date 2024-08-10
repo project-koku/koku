@@ -22,7 +22,23 @@ NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
-class TrinoStatementExecError(Exception):
+class KokuError(Exception):
+    ...
+
+
+class KokuTrinoError(KokuError):
+    """Base exception for our custom Trino errors"""
+
+    def __init__(self, message, query_id=None, error_code=None):
+        self.message = message
+        self.query_id = query_id
+        self.error_code = error_code
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.message}, Query ID: {self.query_id}, Error Code: {self.error_code}"
+
+
+class TrinoStatementExecError(KokuTrinoError):
     def __init__(
         self,
         statement: str,
@@ -84,28 +100,12 @@ class TrinoStatementExecError(Exception):
         return self._trino_error.query_id
 
 
-class TrinoNoSuchKeyException(Exception):
-    """Custom exception for NoSuchKey errors"""
-
-    def __init__(self, message, query_id=None, error_code=None):
-        self.message = message
-        self.query_id = query_id
-        self.error_code = error_code
-
-    def __str__(self):
-        return f"{self.__class__.__name__}: {self.message}, Query ID: {self.query_id}, Error Code: {self.error_code}"
+class TrinoNoSuchKeyError(KokuTrinoError):
+    """NoSuchKey errors raised by Trino"""
 
 
-class TrinoHiveMetastoreError(Exception):
-    """Custom exception for HIVE_METASTORE_ERROR errors"""
-
-    def __init__(self, message, query_id=None, error_code=None):
-        self.message = message
-        self.query_id = query_id
-        self.error_code = error_code
-
-    def __str__(self):
-        return f"{self.__class__.__name__}: {self.message}, Query ID: {self.query_id}, Error Code: {self.error_code}"
+class TrinoHiveMetastoreError(KokuTrinoError):
+    """Hive Metastore errors raised by Trino"""
 
 
 def extract_context_from_sql_params(sql_params: dict[str, t.Any]) -> dict[str, t.Any]:
@@ -210,7 +210,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
-@retry(retry_on=(TrinoNoSuchKeyException, TrinoHiveMetastoreError))
+@retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
 def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
@@ -256,7 +256,7 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
                 )
                 if "NoSuchKey" in str(trino_exc):
-                    exc_to_raise = TrinoNoSuchKeyException(
+                    exc_to_raise = TrinoNoSuchKeyError(
                         message=trino_exc.message,
                         query_id=trino_exc.query_id,
                         error_code=trino_exc.error_code,

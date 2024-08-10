@@ -26,7 +26,7 @@ from koku.database_exc import get_extended_exception_by_type
 from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
-from koku.trino_database import TrinoNoSuchKeyException
+from koku.trino_database import TrinoNoSuchKeyError
 
 LOG = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class ReportDBAccessorBase:
         )
         return results
 
-    @retry(retry_on=(TrinoNoSuchKeyException, TrinoHiveMetastoreError))
+    @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
     def _execute_trino_raw_sql_query_with_description(
         self,
         sql,
@@ -149,7 +149,7 @@ class ReportDBAccessorBase:
         except TrinoQueryError as ex:
             LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
             if "NoSuchKey" in str(ex):
-                raise TrinoNoSuchKeyException(
+                raise TrinoNoSuchKeyError(
                     message=ex.message,
                     query_id=ex.query_id,
                     error_code=ex.error_code,

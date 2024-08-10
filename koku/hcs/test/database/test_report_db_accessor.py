@@ -15,7 +15,7 @@ from api.utils import DateHelper
 from hcs.database.report_db_accessor import HCSReportDBAccessor
 from hcs.test import HCSTestCase
 from koku.trino_database import retry
-from koku.trino_database import TrinoNoSuchKeyException
+from koku.trino_database import TrinoNoSuchKeyError
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 
@@ -118,7 +118,7 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
     @patch("koku.trino_database.connect")
     def test_trino_no_such_key_exception_retries(self, mock_connect):
-        """Test if retries are attempted when TrinoNoSuchKeyException is raised."""
+        """Test if retries are attempted when TrinoNoSuchKeyError is raised."""
         mock_cursor = MagicMock()
         mock_cursor.execute.side_effect = TrinoExternalError({"message": "NoSuchKey"})
         mock_conn = MagicMock()
@@ -133,8 +133,9 @@ class TestHCSReportDBAccessor(HCSTestCase):
         conn_params = {}
 
         with (
-            self.assertRaises(TrinoNoSuchKeyException),
+            self.assertRaises(TrinoNoSuchKeyError),
             self.assertLogs("koku.trino_database", "ERROR") as error_logs,
+            patch("time.sleep", return_value=None),
         ):
             accessor._execute_trino_raw_sql_query_with_description(
                 sql,
@@ -155,9 +156,9 @@ class TestHCSReportDBAccessor(HCSTestCase):
         @retry(retry_on=(Exception,), max_wait=30, retries=3)
         def function_that_fails():
             call_attempts.append(time.time())
-            raise TrinoNoSuchKeyException("NoSuchKey error occurred")
+            raise TrinoNoSuchKeyError("NoSuchKey error occurred")
 
-        with self.assertRaises(TrinoNoSuchKeyException):
+        with self.assertRaises(TrinoNoSuchKeyError):
             function_that_fails()
 
         # Check the number of delay values
@@ -181,9 +182,9 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
         @retry(retry_on=(Exception,), retries=3, max_wait=30)
         def function_that_fails():
-            raise TrinoNoSuchKeyException("NoSuchKey error occurred")
+            raise TrinoNoSuchKeyError("NoSuchKey error occurred")
 
-        with self.assertRaises(TrinoNoSuchKeyException):
+        with self.assertRaises(TrinoNoSuchKeyError):
             function_that_fails()
 
         self.assertEqual(mock_sleep.call_count, 2)
