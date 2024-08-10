@@ -862,7 +862,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)
-def update_cost_model_costs(
+def update_cost_model_costs(  # noqa: C901
     schema_name,
     provider_uuid,
     start_date=None,
@@ -887,9 +887,16 @@ def update_cost_model_costs(
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
+        timeout = settings.WORKER_CACHE_TIMEOUT
         fallback_queue = get_customer_queue(schema_name, CostModelQueue)
-        if worker_cache.single_task_is_running(task_name, cache_args):
+        rate_limited = False
+        if is_rate_limit_customer_large(schema_name):
+            rate_limited = rate_limit_tasks(task_name, schema_name)
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            if rate_limited:
+                msg = f"Schema {schema_name} is currently rate limited. Requeuing."
             LOG.debug(log_json(tracing_id, msg=msg))
             update_cost_model_costs.s(
                 schema_name,
@@ -901,7 +908,7 @@ def update_cost_model_costs(
                 tracing_id=tracing_id,
             ).apply_async(queue=queue_name or fallback_queue)
             return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
