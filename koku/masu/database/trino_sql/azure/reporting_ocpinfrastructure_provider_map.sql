@@ -1,6 +1,6 @@
 
 WITH cte_azure_instances AS (
-    SELECT DISTINCT split_part(azure.resourceid, '/', 9) as instance,
+    SELECT DISTINCT split_part(nullif(azure.resourceid, ''), '/', 9) as instance,
         azure.source
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     WHERE azure.date >= {{start_date}}
