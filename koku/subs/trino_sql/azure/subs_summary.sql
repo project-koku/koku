@@ -37,7 +37,7 @@ SELECT
   END as subs_conversion,
   COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance,
   -- if the VMName isn't present in additionalinfo, the end of the resourceid should be the VMName
-  COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(COALESCE(NULLIF(resourceid, ''), instanceid), '([^/]+$)')) as subs_vmname
+  COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(resourceid, '([^/]+$)')) as subs_vmname
 FROM
     hive.{{schema | sqlsafe}}.azure_line_items
 WHERE
