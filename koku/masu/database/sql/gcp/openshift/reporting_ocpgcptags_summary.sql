@@ -12,7 +12,7 @@ WITH cte_tag_value AS (
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
-        AND li.source_uuid = {{source_uuid}}
+        AND li.cluster_id = {{cluster_id}}
         AND value IS NOT NULL
         AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_enabledtagkeys WHERE enabled=true AND provider_type = 'GCP')
     {% if bill_ids %}

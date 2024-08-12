@@ -475,14 +475,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         return [json.loads(result[0]) for result in results]
 
-    def populate_ocp_on_gcp_tag_information(self, gcp_bill_ids, start_date, end_date, ocp_uuid):
+    def populate_ocp_on_gcp_tag_information(self, gcp_bill_ids, start_date, end_date, cluster_id):
         """Populate the line item aggregated totals data table."""
         sql_params = {
             "schema": self.schema,
             "gcp_bill_ids": gcp_bill_ids,
             "start_date": start_date,
             "end_date": end_date,
-            "source_uuid": ocp_uuid,
+            "cluster_id": cluster_id,
         }
         # Tag Summary
         sql = pkgutil.get_data("masu.database", "sql/gcp/openshift/reporting_ocpgcptags_summary.sql")
