@@ -13,6 +13,7 @@ from django.db import OperationalError
 from django.db import transaction
 from jinjasql import JinjaSql
 from trino.exceptions import TrinoExternalError
+from trino.exceptions import TrinoQueryError
 
 import koku.trino_database as trino_db
 from api.common import log_json
@@ -22,7 +23,10 @@ from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 from koku.database_exc import get_extended_exception_by_type
-
+from koku.trino_database import extract_context_from_sql_params
+from koku.trino_database import retry
+from koku.trino_database import TrinoHiveMetastoreError
+from koku.trino_database import TrinoNoSuchKeyError
 
 LOG = logging.getLogger(__name__)
 
@@ -64,20 +68,7 @@ class ReportDBAccessorBase:
 
     @staticmethod
     def extract_context_from_sql_params(sql_params: dict):
-        ctx = {}
-        if schema := sql_params.get("schema"):
-            ctx["schema"] = schema
-        if (start := sql_params.get("start")) or (start := sql_params.get("start_date")):
-            ctx["start_date"] = start
-        if (end := sql_params.get("end")) or (end := sql_params.get("end_date")):
-            ctx["end_date"] = end
-        if invoice_month := sql_params.get("invoice_month"):
-            ctx["invoice_month"] = invoice_month
-        if provider_uuid := sql_params.get("source_uuid"):
-            ctx["provider_uuid"] = provider_uuid
-        if cluster_id := sql_params.get("cluster_id"):
-            ctx["cluster_id"] = cluster_id
-        return ctx
+        return extract_context_from_sql_params(sql_params)
 
     def _prepare_and_execute_raw_sql_query(self, table, tmp_sql, tmp_sql_params=None, operation="UPDATE"):
         """Prepare the sql params and run via a cursor."""
@@ -116,15 +107,22 @@ class ReportDBAccessorBase:
         LOG.info(log_json(msg=f"finished {operation}", row_count=row_count, table=table, running_time=running_time))
         return result
 
-    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None, attempts_left=0):
+    def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None):
         """Execute a single trino query returning only the fetchall results"""
         results, _ = self._execute_trino_raw_sql_query_with_description(
-            sql, sql_params=sql_params, context=context, log_ref=log_ref, attempts_left=attempts_left
+            sql, sql_params=sql_params, context=context, log_ref=log_ref
         )
         return results
 
+    @retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
     def _execute_trino_raw_sql_query_with_description(
-        self, sql, *, sql_params=None, context=None, log_ref="Trino query", attempts_left=0, conn_params=None
+        self,
+        sql,
+        *,
+        sql_params=None,
+        context=None,
+        log_ref="Trino query",
+        conn_params=None,
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
         if sql_params is None:
@@ -133,14 +131,12 @@ class ReportDBAccessorBase:
             context = {}
         if conn_params is None:
             conn_params = {}
-
         if sql_params:
             ctx = self.extract_context_from_sql_params(sql_params)
         elif context:
             ctx = self.extract_context_from_sql_params(context)
         else:
             ctx = {}
-
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
@@ -150,10 +146,23 @@ class ReportDBAccessorBase:
             trino_cur.execute(sql, bind_params)
             results = trino_cur.fetchall()
             description = trino_cur.description
-        except Exception as ex:
-            if attempts_left == 0:
-                LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
-            raise ex
+        except TrinoQueryError as ex:
+            LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
+            if "NoSuchKey" in str(ex):
+                raise TrinoNoSuchKeyError(
+                    message=ex.message,
+                    query_id=ex.query_id,
+                    error_code=ex.error_code,
+                )
+
+            if ex.error_name == "HIVE_METASTORE_ERROR":
+                raise TrinoHiveMetastoreError(
+                    message=ex.message,
+                    query_id=ex.query_id,
+                    error_code=ex.error_code,
+                )
+
+            raise
         running_time = time.time() - t1
         LOG.info(log_json(msg="executed trino sql", log_ref=log_ref, running_time=running_time, context=ctx))
         return results, description
@@ -264,7 +273,6 @@ class ReportDBAccessorBase:
                     self._execute_trino_raw_sql_query(
                         sql,
                         log_ref=f"delete_hive_partition_by_month for {year}-{month}",
-                        attempts_left=(retries - 1) - i,
                     )
                     break
                 except TrinoExternalError as err:
