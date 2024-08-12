@@ -513,7 +513,7 @@ def update_summary_tables(  # noqa: C901
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema} is currently rate limited. Requeuing."
-            LOG.debug(log_json(tracing_id, msg=msg))
+            LOG.info(log_json(tracing_id, msg=msg))
             update_summary_tables.s(
                 schema,
                 provider_type,
@@ -723,8 +723,6 @@ def update_openshift_on_cloud(  # noqa: C901
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     # Get latest manifest id for running OCP provider
     ocp_manifest_id = get_latest_openshift_on_cloud_manifest(start_date, openshift_provider_uuid)
-    # Set OpenShift summary started time
-    set_summary_timestamp(ManifestState.START, ocp_manifest_id)
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
     if is_ocp_on_cloud_summary_disabled(schema_name):
         msg = f"OCP on Cloud summary disabled for {schema_name}."
@@ -748,7 +746,7 @@ def update_openshift_on_cloud(  # noqa: C901
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
             if rate_limited:
                 msg = f"Schema {schema_name} is currently rate limited. Requeuing."
-            LOG.debug(log_json(tracing_id, msg=msg))
+            LOG.info(log_json(tracing_id, msg=msg))
             update_openshift_on_cloud.s(
                 schema_name,
                 openshift_provider_uuid,
@@ -764,6 +762,8 @@ def update_openshift_on_cloud(  # noqa: C901
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
+    # Set OpenShift summary started time
+    set_summary_timestamp(ManifestState.START, ocp_manifest_id)
     ctx = {
         "schema": schema_name,
         "ocp_provider_uuid": openshift_provider_uuid,
