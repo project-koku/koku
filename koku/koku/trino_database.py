@@ -1,13 +1,19 @@
+import functools
 import logging
 import os
+import random
 import re
+import time
 import typing as t
 
 import sqlparse
 import trino
+from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
+from api.common import log_json
+from koku import settings
 
 LOG = logging.getLogger(__name__)
 
@@ -16,7 +22,23 @@ NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
-class TrinoStatementExecError(Exception):
+class KokuError(Exception):
+    ...
+
+
+class KokuTrinoError(KokuError):
+    """Base exception for our custom Trino errors"""
+
+    def __init__(self, message, query_id=None, error_code=None):
+        self.message = message
+        self.query_id = query_id
+        self.error_code = error_code
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.message}, Query ID: {self.query_id}, Error Code: {self.error_code}"
+
+
+class TrinoStatementExecError(KokuTrinoError):
     def __init__(
         self,
         statement: str,
@@ -78,6 +100,87 @@ class TrinoStatementExecError(Exception):
         return self._trino_error.query_id
 
 
+class TrinoNoSuchKeyError(KokuTrinoError):
+    """NoSuchKey errors raised by Trino"""
+
+
+class TrinoHiveMetastoreError(KokuTrinoError):
+    """Hive Metastore errors raised by Trino"""
+
+
+def extract_context_from_sql_params(sql_params: dict[str, t.Any]) -> dict[str, t.Any]:
+    ctx = {}
+    if sql_params is None:
+        return ctx
+    if schema := sql_params.get("schema"):
+        ctx["schema"] = schema
+    if (start := sql_params.get("start")) or (start := sql_params.get("start_date")):
+        ctx["start_date"] = start
+    if (end := sql_params.get("end")) or (end := sql_params.get("end_date")):
+        ctx["end_date"] = end
+    if invoice_month := sql_params.get("invoice_month"):
+        ctx["invoice_month"] = invoice_month
+    if provider_uuid := sql_params.get("source_uuid"):
+        ctx["provider_uuid"] = provider_uuid
+    if cluster_id := sql_params.get("cluster_id"):
+        ctx["cluster_id"] = cluster_id
+
+    return ctx
+
+
+def retry(
+    original_callable: t.Callable = None,
+    *,
+    retries: int = settings.HIVE_PARTITION_DELETE_RETRIES,
+    retry_on: type[Exception] | tuple[type[Exception], ...] = TrinoExternalError,
+    max_wait: int = 30,
+    log_message: t.Optional[str] = "Retrying...",
+):
+    """Decorator with the retry logic."""
+
+    def _retry(callable: t.Callable):
+        @functools.wraps(callable)
+        def wrapper(*args, **kwargs):
+            context = kwargs.get("context", extract_context_from_sql_params(kwargs.get("sql_params", {}))) or None
+            for attempt in range(retries + 1):
+                try:
+                    LOG.debug(f"Attempt {attempt + 1} for {callable.__name__}")
+                    return callable(*args, **kwargs)
+
+                except retry_on as ex:
+                    LOG.debug(f"Exception caught: {ex}")
+                    if attempt < retries - 1:
+                        LOG.warning(
+                            log_json(
+                                msg=f"{log_message} (attempt {attempt + 1})",
+                                context=context,
+                                exc_info=ex,
+                            )
+                        )
+                        backoff = min(2**attempt, max_wait)
+                        jitter = random.uniform(0, 1)
+                        delay = backoff + jitter
+                        LOG.debug(f"Sleeping for {delay} seconds before retrying")
+                        time.sleep(delay)
+                        continue
+
+                    LOG.error(
+                        log_json(
+                            msg=f"Failed execution after {attempt + 1} attempts",
+                            context=context,
+                            exc_info=ex,
+                        )
+                    )
+                    raise
+
+        return wrapper
+
+    if original_callable:
+        return _retry(original_callable)
+
+    return _retry
+
+
 def connect(**connect_args):
     """
     Establish a trino connection.
@@ -107,6 +210,7 @@ def connect(**connect_args):
     return trino.dbapi.connect(**trino_connect_args)
 
 
+@retry(retry_on=(TrinoNoSuchKeyError, TrinoHiveMetastoreError))
 def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
     """
     Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
@@ -143,17 +247,30 @@ def executescript(trino_conn, sqlscript, *, params=None, preprocessor=None):
                 # the endif jinja tag. After the preprocessor is run
                 # if the condition is false an empty line is returned.
                 continue
-
             try:
                 cur = trino_conn.cursor()
                 cur.execute(stmt, params=s_params)
                 results = cur.fetchall()
             except TrinoQueryError as trino_exc:
-                trino_statement_error = TrinoStatementExecError(
+                exc_to_raise = TrinoStatementExecError(
                     statement=stmt, statement_number=stmt_num, sql_params=s_params, trino_error=trino_exc
                 )
-                LOG.warning(f"{trino_statement_error!s}")
-                raise trino_statement_error from trino_exc
+                if "NoSuchKey" in str(trino_exc):
+                    exc_to_raise = TrinoNoSuchKeyError(
+                        message=trino_exc.message,
+                        query_id=trino_exc.query_id,
+                        error_code=trino_exc.error_code,
+                    )
+
+                if trino_exc.error_name == "HIVE_METASTORE_ERROR":
+                    exc_to_raise = TrinoHiveMetastoreError(
+                        message=trino_exc.message,
+                        query_id=trino_exc.query_id,
+                        error_code=trino_exc.error_code,
+                    )
+
+                LOG.warning(f"{exc_to_raise!s}")
+                raise exc_to_raise from trino_exc
             except Exception as exc:
                 LOG.warning(str(exc))
                 raise
