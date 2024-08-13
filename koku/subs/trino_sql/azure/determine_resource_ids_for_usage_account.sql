@@ -7,12 +7,12 @@ SELECT
     END
 FROM (
     SELECT
-     COALESCE(NULLIF(resourceid, ''), instanceid) as resource_id,
+     resourceid as resource_id,
      COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as sub,
      resourcegroup as rg,
      -- if the VMName isn't present in additionalinfo, the end of the resourceid should be the VMName
-     COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(COALESCE(NULLIF(resourceid, ''), instanceid), '([^/]+$)')) as vmname,
-     max(COALESCE(date, usagedatetime))as max_date
+     COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(resourceid, '([^/]+$)')) as vmname,
+     max(date) max_date
    FROM
      hive.{{schema | sqlsafe}}.azure_line_items
    WHERE
@@ -24,7 +24,7 @@ FROM (
     AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL
     AND (subscriptionid = {{usage_account}} or subscriptionguid = {{usage_account}})
     {% if excluded_ids %}
-        and coalesce(NULLIF(resourceid, ''), instanceid) NOT IN {{excluded_ids | inclause}}
+        and resourceid NOT IN {{excluded_ids | inclause}}
     {% endif %}
-   GROUP BY resourceid, instanceid, subscriptionguid, subscriptionid, resourcegroup, json_extract_scalar(lower(additionalinfo), '$.vmname')
+   GROUP BY resourceid, subscriptionguid, subscriptionid, resourcegroup, json_extract_scalar(lower(additionalinfo), '$.vmname')
 )

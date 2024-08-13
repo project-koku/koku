@@ -4,6 +4,7 @@
 #
 """Test the AzureReportDBAccessor utility object."""
 import decimal
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.conf import settings
@@ -17,6 +18,7 @@ from trino.exceptions import TrinoExternalError
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
 from api.utils import DateHelper
+from koku.trino_database import TrinoHiveMetastoreError
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -239,27 +241,31 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.schema_exists_trino")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.table_exists_trino")
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    @patch("time.sleep", return_value=None)
+    def test_delete_ocp_on_azure_hive_partition_by_day(
+        self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
+    ):
         """Test that deletions work with retries."""
         mock_schema_exists.return_value = False
         self.accessor.delete_ocp_on_azure_hive_partition_by_day(
             [1], self.azure_provider_uuid, self.ocp_provider_uuid, "2022", "01"
         )
-        mock_trino.assert_not_called()
+        mock_connect.assert_not_called()
+
+        mock_connect.reset_mock()
 
         mock_schema_exists.return_value = True
-        mock_trino.reset_mock()
-        error = {"errorName": "HIVE_METASTORE_ERROR"}
-        mock_trino.side_effect = TrinoExternalError(error)
-        with self.assertRaises(TrinoExternalError):
+        attrs = {"cursor.side_effect": TrinoExternalError({"errorName": "HIVE_METASTORE_ERROR"})}
+        mock_connect.return_value = Mock(**attrs)
+
+        with self.assertRaises(TrinoHiveMetastoreError):
             self.accessor.delete_ocp_on_azure_hive_partition_by_day(
                 [1], self.azure_provider_uuid, self.ocp_provider_uuid, "2022", "01"
             )
-        mock_trino.assert_called()
-        # Confirms that the error log would be logged on last attempt
-        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
-        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        mock_connect.assert_called()
+        self.assertEqual(mock_connect.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
@@ -289,7 +295,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_called()
             # Confirms that the error log would be logged on last attempt
-            self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
             self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
         # Test that deletions short circuit if the schema does not exist
