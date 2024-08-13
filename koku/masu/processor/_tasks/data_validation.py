@@ -27,7 +27,7 @@ LOG = logging.getLogger(__name__)
 # Filter maps
 TRINO_FILTER_MAP = {
     Provider.PROVIDER_AWS: {"date": "lineitem_usagestartdate", "metric": "lineitem_unblendedcost"},
-    Provider.PROVIDER_AZURE: {"date": "date", "metric": "coalesce(nullif(costinbillingcurrency, 0), pretaxcost)"},
+    Provider.PROVIDER_AZURE: {"date": "date", "metric": "costinbillingcurrency"},
     Provider.PROVIDER_GCP: {"date": "usage_start_time", "metric": "cost"},
     Provider.PROVIDER_OCI: {"date": "lineitem_intervalusagestart", "metric": "cost_mycost"},
     Provider.PROVIDER_OCP: {
