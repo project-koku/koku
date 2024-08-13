@@ -233,7 +233,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
         )
-        df = pd.DataFrame({"test": [1], "usagedatetime": "2023-01-01"})
+        df = pd.DataFrame({"test": [1], "date": "2023-01-01"})
         report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
