@@ -79,7 +79,6 @@ from reporting_common.states import ManifestStep
 
 LOG = logging.getLogger(__name__)
 
-
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 
 
@@ -1136,7 +1135,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
 
     table_info = {
         Provider.PROVIDER_AWS: {"table": "aws_line_items_daily", "date_columns": ["lineitem_usagestartdate"]},
-        Provider.PROVIDER_AZURE: {"table": "azure_line_items", "date_columns": ["usagedatetime", "date"]},
+        Provider.PROVIDER_AZURE: {"table": "azure_line_items", "date_columns": ["date"]},
         Provider.PROVIDER_GCP: {
             "table": "gcp_line_items_daily",
             "date_columns": ["usage_start_time", "usage_end_time"],
