@@ -446,7 +446,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             parent_key, parent_obj, parent_count = populated_keys[0]
             child_key, child_obj, child_count = populated_keys[1]
             TagMapping.objects.create(parent=parent_obj, child=child_obj)
-            self.accessor.populate_ocp_on_aws_tag_information(bill_ids, self.dh.this_month_start, self.dh.today)
+            self.accessor.populate_ocp_on_aws_tag_information(
+                bill_ids, self.dh.this_month_start, self.dh.today, self.cluster_id
+            )
             expected_parent_count = parent_count + child_count
             actual_parent_count = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                 tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
