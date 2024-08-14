@@ -250,7 +250,7 @@ generators:
       amount: 20
       rate: 0.01
       tags:
-        # resourceTags/user:storageclass: delta
+        resourceTags/user:storageclass: delta
         resourceTags/user:Mapping: d1
         resourceTags/user:Map: d2
       cost_category:
@@ -263,7 +263,7 @@ generators:
       amount: 20
       rate: 0.01
       tags:
-        # resourceTags/user:storageclass: epsilon
+        resourceTags/user:storageclass: epsilon
         resourceTags/user:Mapping: d1
         resourceTags/user:Map: d2
       cost_category:
@@ -276,7 +276,7 @@ generators:
       amount: 20
       rate: 0.01
       tags:
-        # resourceTags/user:storageclass: gamma
+        resourceTags/user:storageclass: gamma
         resourceTags/user:Mapping: d1
         resourceTags/user:Map: d2
       cost_category:
@@ -289,7 +289,7 @@ generators:
       amount: 30
       rate: 0.01
       tags:
-        # resourceTags/user:storageclass: gamma
+        resourceTags/user:storageclass: gamma
         resourceTags/user:Mapping: d1
         resourceTags/user:Map: d2
       cost_category:

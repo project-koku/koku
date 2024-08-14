@@ -347,6 +347,114 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.matched_tag
 ;
 
+
+-- Maintain tag matching logic for disk resources
+-- until unattributed storage is released
+INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
+    uuid,
+    usage_start,
+    resource_id,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    currency_code,
+    unblended_cost,
+    blended_cost,
+    savingsplan_effective_cost,
+    calculated_amortized_cost,
+    tags,
+    aws_cost_category,
+    matched_tag,
+    ocp_source,
+    year,
+    month
+)
+WITH cte_enabled_tag_keys AS (
+    SELECT
+    CASE WHEN array_agg(key) IS NOT NULL
+        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
+        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
+    END as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+    WHERE enabled = TRUE
+    AND provider_type = 'AWS'
+),
+cte_csi_volume_handles as (
+    SELECT distinct csi_volume_handle as csi_volume_handle
+            FROM hive.org1234567.openshift_storage_usage_line_items_daily as ocp
+            WHERE ocp.source = {{ocp_source_uuid}}
+                AND ocp.year = {{year}}
+                AND ocp.month = {{month}}
+)
+SELECT cast(uuid() as varchar) as uuid,
+    aws.lineitem_usagestartdate as usage_start,
+    nullif(aws.lineitem_resourceid, '') as resource_id,
+    CASE
+        WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+        ELSE nullif(aws.lineitem_productcode, '')
+    END as product_code,
+    nullif(aws.product_productfamily, '') as product_family,
+    nullif(aws.product_instancetype, '') as instance_type,
+    max(aws.lineitem_usageaccountid) as usage_account_id,
+    nullif(aws.lineitem_availabilityzone, '') as availability_zone,
+    nullif(aws.product_region, '') as region,
+    max(nullif(aws.pricing_unit, '')) as unit,
+    sum(aws.lineitem_usageamount) as usage_amount,
+    max(nullif(aws.lineitem_currencycode, '')) as currency_code,
+    sum(aws.lineitem_unblendedcost) as unblended_cost,
+    sum(aws.lineitem_blendedcost) as blended_cost,
+    sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='Tax'
+            OR   aws.lineitem_lineitemtype='Usage'
+            THEN aws.lineitem_unblendedcost
+            ELSE aws.savingsplan_savingsplaneffectivecost
+        END
+    ) as calculated_amortized_cost,
+    json_format(
+        cast(
+            map_filter(
+                cast(json_parse(aws.resourcetags) as map(varchar, varchar)),
+                (k, v) -> contains(etk.enabled_keys, k)
+            ) as json
+        )
+    ) as tags,
+    aws.costcategory as aws_cost_category,
+    aws.matched_tag,
+    {{ocp_source_uuid}} as ocp_source,
+    max(aws.year) as year,
+    max(aws.month) as month
+FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+CROSS JOIN cte_enabled_tag_keys as etk
+CROSS JOIN cte_csi_volume_handles as csi
+WHERE aws.source = {{aws_source_uuid}}
+    AND aws.year = {{year}}
+    AND aws.month = {{month}}
+    AND aws.lineitem_usagestartdate >= {{start_date}}
+    AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
+    AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
+    AND matched_tag != ''
+    AND matched_tag is not null
+    AND resource_id_matched = True
+    AND strpos(aws.lineitem_resourceid, csi.csi_volume_handle) != 0
+GROUP BY aws.lineitem_usagestartdate,
+    aws.lineitem_resourceid,
+    4, -- product_code
+    aws.product_productfamily,
+    aws.product_instancetype,
+    aws.lineitem_availabilityzone,
+    aws.product_region,
+    aws.costcategory,
+    17, -- tags
+    aws.matched_tag
+;
+
 -- Direct resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
     aws_uuid,
