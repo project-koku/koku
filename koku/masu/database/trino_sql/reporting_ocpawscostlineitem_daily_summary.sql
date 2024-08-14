@@ -386,7 +386,7 @@ WITH cte_enabled_tag_keys AS (
 ),
 cte_csi_volume_handles as (
     SELECT distinct csi_volume_handle as csi_volume_handle
-            FROM hive.org1234567.openshift_storage_usage_line_items_daily as ocp
+            FROM hive.{{schema}}.openshift_storage_usage_line_items_daily as ocp
             WHERE ocp.source = {{ocp_source_uuid}}
                 AND ocp.year = {{year}}
                 AND ocp.month = {{month}}
