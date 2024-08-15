@@ -13,7 +13,6 @@ from time import localtime
 from time import strftime
 
 import polars as pl
-from polars import DataFrame
 
 # import adbc_driver_postgresql.dbapi
 
@@ -218,34 +217,6 @@ class HiveMetastoreTransformer:
         )
 
     @staticmethod
-    def udf_skewed_values_to_str():
-        return lambda values: "".join(map(lambda v: "" if v is None else "%d%%%s" % (len(v), v), values))
-
-    @staticmethod
-    def modify_column_by_udf(df: DataFrame, udf, column_to_modify, return_dtype, new_column_name=None) -> DataFrame:
-        """
-        transform a column of the dataframe with the user-defined function, keeping all other columns unchanged.
-        :param new_column_name: new column name. If None, old column name will be used
-        :param df: dataframe
-        :param udf: user-defined function
-        :param column_to_modify: the name of the column to modify.
-        :type column_to_modify: str
-        :return: the dataframe with single column modified
-        """
-        if new_column_name is None:
-            new_column_name = column_to_modify
-        return df.select(
-            *[
-                (
-                    pl.col(column).map_elements(udf, return_dtype=return_dtype).alias(new_column_name)
-                    if column == column_to_modify
-                    else column
-                )
-                for column in df.columns
-            ]
-        )
-
-    @staticmethod
     def s3a_or_s3n_to_s3_in_location(df: pl.DataFrame, location_col_name: str) -> pl.DataFrame:
         """
         For a dataframe with a column containing location strings, for any location "s3a://..." or "s3n://...", replace
@@ -306,39 +277,22 @@ class HiveMetastoreTransformer:
         return df
 
     @staticmethod
-    def fill_none_with_empty_list(df, column):
-        """
-        Given a column of array type, fill each None value with empty list.
-        This is not doable by df.na.fill(), Spark will throw Unsupported value type java.util.ArrayList ([]).
-        :param df: dataframe with array type
-        :param column: column name string, the column must be array type
-        :return: dataframe that fills None with empty list for the given column
-        """
-        return df.with_columns(pl.col(column).fill_null(value=[]))
-
-    @staticmethod
-    def join_dbs_tbls(ms_dbs, ms_tbls):
+    def join_dbs_tbls(ms_dbs: pl.DataFrame, ms_tbls: pl.DataFrame) -> pl.DataFrame:
         return ms_dbs.select("DB_ID", "NAME").join(other=ms_tbls, on="DB_ID", how="inner")
 
     def transform_skewed_values_and_loc_map(
-        self, ms_skewed_string_list_values, ms_skewed_col_value_loc_map: pl.DataFrame
-    ):
+        self, ms_skewed_string_list_values: pl.DataFrame, ms_skewed_col_value_loc_map: pl.DataFrame
+    ) -> tuple[pl.DataFrame, pl.DataFrame]:
+        def udf(values):
+            return "".join(map(lambda v: "" if v is None else "%d%%%s" % (len(v), v), values))
+
         # columns: (STRING_LIST_ID:BigInt, skewedColumnValuesList:List[String])
         skewed_values_list = self.transform_ms_skewed_string_list_values(ms_skewed_string_list_values)
 
         # columns: (STRING_LIST_ID:BigInt, skewedColumnValuesStr:String)
         skewed_value_str = skewed_values_list.with_columns(
-            pl.col("skewedColumnValuesList")
-            .map_elements(HiveMetastoreTransformer.udf_skewed_values_to_str, return_dtype=pl.String)
-            .alias("skewedColumnValuesStr")
+            pl.col("skewedColumnValuesList").map_elements(udf, return_dtype=pl.String).alias("skewedColumnValuesStr")
         )
-        # self.modify_column_by_udf(
-        #     df=skewed_values_list,
-        #     udf=HiveMetastoreTransformer.udf_skewed_values_to_str,
-        #     return_dtype=pl.String,
-        #     column_to_modify="skewedColumnValuesList",
-        #     new_column_name="skewedColumnValuesStr",
-        # )
 
         # columns: (SD_ID: BigInt, STRING_LIST_ID_KID: BigInt, STRING_LIST_ID: BigInt,
         # LOCATION: String, skewedColumnValuesStr: String)
@@ -376,7 +330,6 @@ class HiveMetastoreTransformer:
             other=skewed_column_value_location_maps, on="SD_ID", how="outer", coalesce=True
         ).join(other=skewed_column_values, on="SD_ID", how="outer", coalesce=True)
 
-    # TODO: remove when escape special characters fix in DatacatalogWriter is pushed to production.
     def transform_param_value(self, df: pl.DataFrame):
         def udf(param_value):
             return (
@@ -446,9 +399,10 @@ class HiveMetastoreTransformer:
             }
         )
 
-        storage_descriptors_with_empty_sorted_cols = HiveMetastoreTransformer.fill_none_with_empty_list(
-            storage_descriptors_renamed, "sortColumns"
+        storage_descriptors_with_empty_sorted_cols = storage_descriptors_renamed.with_columns(
+            pl.col("sortColumns").fill_null(value=[])
         )
+
         return storage_descriptors_with_empty_sorted_cols.drop(["SERDE_ID", "CD_ID"])
 
     def transform_tables(self, db_tbl_joined, ms_table_params, storage_descriptors, ms_partition_keys):
@@ -480,14 +434,12 @@ class HiveMetastoreTransformer:
 
         tbls_dropped_cols = tbls_renamed.drop(["DB_ID", "TBL_ID", "SD_ID"])
         tbls_drop_invalid = tbls_dropped_cols.drop_nulls(subset=["name", "database"])
-        tbls_with_empty_part_cols = HiveMetastoreTransformer.fill_none_with_empty_list(
-            tbls_drop_invalid, "partitionKeys"
-        )
+        tbls_with_empty_part_cols = tbls_drop_invalid.with_columns(pl.col("partitionKeys").fill_null(value=[]))
+
         return tbls_with_empty_part_cols.select(
             "database",
             pl.struct(remove(tbls_dropped_cols.columns, "database")).alias("item"),
         ).with_columns(type=pl.lit("table"))
-        # return tbls_with_empty_part_cols
 
     def transform_partitions(
         self, db_tbl_joined, ms_partitions, storage_descriptors, ms_partition_params, ms_partition_key_vals
