@@ -43,6 +43,7 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import is_managed_ocp_cloud_processing_enabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -81,6 +82,68 @@ LOG = logging.getLogger(__name__)
 
 
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
+
+
+def deduplicate_summary_reports(reports_to_summarize, manifest_list):
+    """Take a list of reports to summarize and deduplicate them."""
+    reports_by_source = defaultdict(list)
+    schema_name = None
+    for report in reports_to_summarize:
+        if report:
+            reports_by_source[report.get("provider_uuid")].append(report)
+
+            if schema_name is None:
+                # Only set the schema name once
+                schema_name = report.get("schema_name")
+
+    reports_deduplicated = []
+    dedup_func_map = {
+        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
+        Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
+        Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
+    }
+
+    kwargs = {}
+    if schema_name:
+        kwargs["schema_name"] = schema_name
+
+    LOG.info(log_json("summarize_reports", msg="deduplicating reports", **kwargs))
+    for report_list in reports_by_source.values():
+        if report and report.get("provider_type") in dedup_func_map:
+            provider_type = report.get("provider_type")
+            manifest_list = [] if "oci" in provider_type.lower() else manifest_list
+            dedup_func = dedup_func_map.get(provider_type)
+            reports_deduplicated.extend(dedup_func(report_list))
+        else:
+            starts = []
+            ends = []
+            for report in report_list:
+                if report.get("start") and report.get("end"):
+                    starts.append(report.get("start"))
+                    ends.append(report.get("end"))
+            start = min(starts) if starts != [] else None
+            end = max(ends) if ends != [] else None
+            reports_deduplicated.append(
+                {
+                    "manifest_id": report.get("manifest_id"),
+                    "tracing_id": report.get("tracing_id"),
+                    "schema_name": report.get("schema_name"),
+                    "provider_type": report.get("provider_type"),
+                    "provider_uuid": report.get("provider_uuid"),
+                    "start": start,
+                    "end": end,
+                }
+            )
+
+    LOG.info(
+        log_json(
+            "summarize_reports",
+            msg=f"deduplicated reports, num report: {len(reports_deduplicated)}",
+            **kwargs,
+        )
+    )
+    return reports_deduplicated
 
 
 def delayed_summarize_current_month(schema_name: str, provider_uuids: list, provider_type: str):
@@ -353,64 +416,9 @@ def summarize_reports(  # noqa: C901
         None
 
     """
-    reports_by_source = defaultdict(list)
-    schema_name = None
-    for report in reports_to_summarize:
-        if report:
-            reports_by_source[report.get("provider_uuid")].append(report)
-
-            if schema_name is None:
-                # Only set the schema name once
-                schema_name = report.get("schema_name")
-
-    reports_deduplicated = []
-    dedup_func_map = {
-        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
-        Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
-    }
-
-    kwargs = {}
-    if schema_name:
-        kwargs["schema_name"] = schema_name
-
-    LOG.info(log_json("summarize_reports", msg="deduplicating reports", **kwargs))
-    for report_list in reports_by_source.values():
-        if report and report.get("provider_type") in dedup_func_map:
-            provider_type = report.get("provider_type")
-            manifest_list = [] if "oci" in provider_type.lower() else manifest_list
-            dedup_func = dedup_func_map.get(provider_type)
-            reports_deduplicated.extend(dedup_func(report_list))
-        else:
-            starts = []
-            ends = []
-            for report in report_list:
-                if report.get("start") and report.get("end"):
-                    starts.append(report.get("start"))
-                    ends.append(report.get("end"))
-            start = min(starts) if starts != [] else None
-            end = max(ends) if ends != [] else None
-            reports_deduplicated.append(
-                {
-                    "manifest_id": report.get("manifest_id"),
-                    "tracing_id": report.get("tracing_id"),
-                    "schema_name": report.get("schema_name"),
-                    "provider_type": report.get("provider_type"),
-                    "provider_uuid": report.get("provider_uuid"),
-                    "start": start,
-                    "end": end,
-                }
-            )
-
-    LOG.info(
-        log_json(
-            "summarize_reports",
-            msg=f"deduplicated reports, num report: {len(reports_deduplicated)}",
-            **kwargs,
-        )
-    )
+    reports_deduplicated = deduplicate_summary_reports(reports_to_summarize, manifest_list)
     for report in reports_deduplicated:
+        schema_name = report.get("schema_name")
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
@@ -430,7 +438,7 @@ def summarize_reports(  # noqa: C901
             months = get_months_in_date_range(report)
             for month in months:
                 update_summary_tables.s(
-                    report.get("schema_name"),
+                    schema_name,
                     report.get("provider_type"),
                     report.get("provider_uuid"),
                     start_date=month[0],
@@ -1259,3 +1267,43 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
         data_validator.check_data_integrity()
     else:
         LOG.info(log_json(msg="skipping validation, disabled for schema", context=context))
+
+
+@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=DownloadQueue.DEFAULT, bind=True)
+def process_openshift_on_cloud_trino(
+    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id
+):
+    """Process OCP on Cloud data into managed tables for summary"""
+    reports_deduplicated = deduplicate_summary_reports(reports_to_summarize)
+    for report in reports_deduplicated:
+        schema_name = report.get("schema_name")
+        ctx = {"provider_type": provider_type, "schema_name": schema_name, "provider_uuid": provider_uuid}
+        if provider_type not in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
+            LOG.info(
+                log_json(tracing_id, msg="provider type not valid for COST-5129 OCP on cloud processing", context=ctx)
+            )
+            continue
+        if not is_managed_ocp_cloud_processing_enabled(schema_name):
+            LOG.info(
+                log_json(tracing_id, msg="provider not enabled for COST-5129 OCP on cloud processing", context=ctx)
+            )
+            continue
+        with ReportManifestDBAccessor() as manifest_accesor:
+            tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
+
+            if not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
+                LOG.info(log_json(tracing_id, msg="manifest not ready for summary", context=report))
+                continue
+
+        LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
+
+        months = get_months_in_date_range(report)
+        for month in months:
+            start_date = month[0]
+            end_date = month[1]
+            # invoice_month = month[2]
+            ctx["start_date"] = start_date
+            ctx["end_date"] = end_date
+            manifest_id = report.get("manifest_id")
+            processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, ctx)
+            processor.process_ocp_cloud_trino(start_date, end_date)
