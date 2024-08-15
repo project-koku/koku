@@ -151,7 +151,8 @@ class HiveMetastoreTransformer:
         return df.sort(idx).group_by(id_col).agg(pl.col(select_col).alias(payloads_column_name))
 
     def transform_df_with_idx_struct(self, df: pl.DataFrame, id_col, idx, payloads_column_name, select_cols):
-        return df.sort(idx).group_by(id_col).agg(pl.struct(select_cols).alias(payloads_column_name))
+        df = df.rename(select_cols)
+        return df.sort(idx).group_by(id_col).agg(pl.struct(select_cols.values()).alias(payloads_column_name))
 
     def transform_ms_partition_keys(self, ms_partition_keys: pl.DataFrame):
         return self.transform_df_with_idx_struct(
@@ -159,7 +160,7 @@ class HiveMetastoreTransformer:
             id_col="TBL_ID",
             idx="INTEGER_IDX",
             payloads_column_name="partitionKeys",
-            select_cols=["PKEY_NAME", "PKEY_TYPE", "PKEY_COMMENT"],
+            select_cols={"PKEY_NAME": "name", "PKEY_TYPE": "type", "PKEY_COMMENT": "comment"},
         )
 
     def transform_ms_partition_key_vals(self, ms_partition_key_vals: pl.DataFrame):
@@ -186,7 +187,7 @@ class HiveMetastoreTransformer:
             id_col="CD_ID",
             idx="INTEGER_IDX",
             payloads_column_name="columns",
-            select_cols=["COLUMN_NAME", "TYPE_NAME", "COMMENT"],
+            select_cols={"COLUMN_NAME": "name", "TYPE_NAME": "type", "COMMENT": "comment"},
         )
 
     def transform_ms_skewed_col_names(self, ms_skewed_col_names: pl.DataFrame):
@@ -213,7 +214,7 @@ class HiveMetastoreTransformer:
             id_col="SD_ID",
             idx="INTEGER_IDX",
             payloads_column_name="sortColumns",
-            select_cols=["COLUMN_NAME", "ORDER"],
+            select_cols={"COLUMN_NAME": "column", "ORDER": "order"},
         )
 
     @staticmethod
@@ -327,8 +328,8 @@ class HiveMetastoreTransformer:
         skewed_column_names = self.transform_ms_skewed_col_names(ms_skewed_col_names)
 
         return skewed_column_names.join(
-            other=skewed_column_value_location_maps, on="SD_ID", how="outer", coalesce=True
-        ).join(other=skewed_column_values, on="SD_ID", how="outer", coalesce=True)
+            other=skewed_column_value_location_maps, on="SD_ID", how="full", coalesce=True
+        ).join(other=skewed_column_values, on="SD_ID", how="full", coalesce=True)
 
     def transform_param_value(self, df: pl.DataFrame):
         def udf(param_value):
@@ -341,12 +342,13 @@ class HiveMetastoreTransformer:
                 .replace("}", "\\}")
             )
 
-        return df.with_columns(udf(pl.col("PARAM_VALUE")))
+        return df.with_columns(pl.col("PARAM_VALUE").map_elements(udf, return_dtype=pl.String))
 
     def transform_ms_serde_info(self, ms_serdes, ms_serde_params):
         escaped_serde_params = self.transform_param_value(ms_serde_params)
         serde_with_params = self.join_with_params(df=ms_serdes, df_params=escaped_serde_params, id_col="SERDE_ID")
-        return serde_with_params.rename({"NAME": "name", "SLIB": "serializationLibrary"})
+        serde_renamed = serde_with_params.rename({"NAME": "name", "SLIB": "serializationLibrary"})
+        return serde_renamed.select("SERDE_ID", "name", "serializationLibrary", "parameters")
 
     def transform_storage_descriptors(
         self,
@@ -422,7 +424,7 @@ class HiveMetastoreTransformer:
 
         tbls_renamed = tbls_joined.rename(
             {
-                "NAME": "database",
+                "NAME": "databaseName",
                 "TBL_NAME": "name",
                 "TBL_TYPE": "tableType",
                 "OWNER": "owner",
@@ -432,13 +434,14 @@ class HiveMetastoreTransformer:
             },
         )
 
-        tbls_dropped_cols = tbls_renamed.drop(["DB_ID", "TBL_ID", "SD_ID"])
-        tbls_drop_invalid = tbls_dropped_cols.drop_nulls(subset=["name", "database"])
+        tbls_dropped_cols = tbls_renamed.drop(
+            ["DB_ID", "TBL_ID", "SD_ID", "OWNER_TYPE", "CREATE_TIME", "LAST_ACCESS_TIME", "IS_REWRITE_ENABLED"]
+        )
+        tbls_drop_invalid = tbls_dropped_cols.drop_nulls(subset=["name", "databaseName"])
         tbls_with_empty_part_cols = tbls_drop_invalid.with_columns(pl.col("partitionKeys").fill_null(value=[]))
 
         return tbls_with_empty_part_cols.select(
-            "database",
-            pl.struct(remove(tbls_dropped_cols.columns, "database")).alias("item"),
+            pl.struct(pl.all()).alias("item"),
         ).with_columns(type=pl.lit("table"))
 
     def transform_partitions(
@@ -462,14 +465,15 @@ class HiveMetastoreTransformer:
         )
         part_values = self.transform_ms_partition_key_vals(ms_partition_key_vals)
         parts_with_values = parts_with_sd.join(other=part_values, on="PART_ID", how="left")
-        parts_dropped_cols = parts_with_values.drop(["DB_ID", "TBL_ID", "PART_ID", "SD_ID", "PART_NAME"])
+        parts_dropped_cols = parts_with_values.drop(
+            ["DB_ID", "TBL_ID", "PART_ID", "SD_ID", "PART_NAME", "CREATE_TIME", "LAST_ACCESS_TIME"]
+        )
         parts_drop_invalid = parts_dropped_cols.drop_nulls(subset=["values", "namespaceName", "tableName"])
         return parts_drop_invalid.select(
             parts_drop_invalid["namespaceName"].alias("database"),
             parts_drop_invalid["tableName"].alias("table"),
             pl.struct(parts_drop_invalid.columns).alias("item"),
         ).with_columns(type=pl.lit("partition"))
-        # return parts_drop_invalid
 
     def transform_databases(self, ms_dbs, ms_database_params):
         dbs_with_params = self.join_with_params(df=ms_dbs, df_params=ms_database_params, id_col="DB_ID")
@@ -483,7 +487,7 @@ class HiveMetastoreTransformer:
             type=pl.lit("database")
         )
 
-    def transform(self, hive_metastore):
+    def transform(self, hive_metastore) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
         dbs_prefixed = HiveMetastoreTransformer.add_prefix_to_column(hive_metastore.ms_dbs, "NAME", self.db_prefix)
         tbls_prefixed = HiveMetastoreTransformer.add_prefix_to_column(
             hive_metastore.ms_tbls, "TBL_NAME", self.table_prefix
@@ -633,7 +637,7 @@ def get_output_dir(output_dir_parent):
     if not output_dir_parent:
         raise ValueError("output path cannot be empty")
     if output_dir_parent[-1] != "/":
-        output_dir_parent = output_dir_parent + "/"
+        output_dir_parent = f"{output_dir_parent}/"
     return f'{output_dir_parent}{strftime("%Y-%m-%d-%H-%M-%S", localtime())}/'
 
 
@@ -707,9 +711,9 @@ def etl_from_metastore(sc, sql_context, db_prefix, table_prefix, hive_metastore,
     # load
     output_path = get_output_dir(options["output_path"])
 
-    databases.write.format("json").mode("overwrite").save(output_path + "databases")
-    tables.write.format("json").mode("overwrite").save(output_path + "tables")
-    partitions.write.format("json").mode("overwrite").save(output_path + "partitions")
+    databases.write.format("json").mode("overwrite").save(f"{output_path}databases")
+    tables.write.format("json").mode("overwrite").save(f"{output_path}tables")
+    partitions.write.format("json").mode("overwrite").save(f"{output_path}partitions")
 
 
 def validate_options_in_mode(options, mode, required_options, not_allowed_options):
@@ -754,9 +758,7 @@ def validate_aws_regions(region):
         "us-west-1",  # Northern California
     ]
 
-    error_msg = "Invalid region: {}, the job will fail if the destination is not in a Glue supported region".format(
-        region
-    )
+    error_msg = f"Invalid region: {region}, the job will fail if the destination is not in a Glue supported region"
     if region not in aws_regions:
         logging.error(error_msg)
     elif region not in aws_glue_regions:
@@ -780,12 +782,42 @@ def main():
         etl_from_metastore(sc, sql_context, db_prefix, table_prefix, hive_metastore, options)
 
 
-if __name__ == "__main__":
-    main()
-    # uri = "postgres://postgres:postgres@localhost:15432/postgres"
-    # import adbc_driver_postgresql.dbapi
+def replace_nested_key(data, key, value):
+    if isinstance(data, dict):
+        return {k: value(v or "{}") if k == key else replace_nested_key(v, key, value) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [replace_nested_key(v, key, value) for v in data]
+    else:
+        return data
 
-    # connection = adbc_driver_postgresql.dbapi.connect(uri)
+
+def format_json(filename):
+    with open(filename) as f:
+        d = json.load(f)
+    d = replace_nested_key(d, "parameters", json.loads)
+    with open(filename, "w") as f:
+        json.dump(d, f, indent=4)
+
+
+if __name__ == "__main__":
+    # main()
+    uri = "postgres://postgres:postgres@localhost:15432/postgres"
+    import adbc_driver_postgresql.dbapi
+
+    connection = adbc_driver_postgresql.dbapi.connect(uri)
+    hm = HiveMetastore(connection, None)
+    hm.extract_metastore()
+
+    hmt = HiveMetastoreTransformer(None, None, "", "")
+    databases, tables, partitions = hmt.transform(hm)
+    databases.write_json("hm_databases.json")
+    tables.write_json("hm_tables.json")
+    partitions.write_json("hm_partitions.json")
+
+    format_json("hm_databases.json")
+    format_json("hm_tables.json")
+    format_json("hm_partitions.json")
+
     """
 from masu.management.commands.hive_metastore_migration import HiveMetastoreTransformer
 from masu.management.commands.hive_metastore_migration import HiveMetastore
