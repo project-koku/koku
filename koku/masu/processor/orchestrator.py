@@ -379,7 +379,7 @@ class Orchestrator:
                     schema_name=schema_name,
                     provider_uuid=provider_uuid,
                     tracing_id=tracing_id,
-                )
+                ).set(queue=SUMMARY_QUEUE)
                 LOG.info(
                     log_json(
                         "start_manifest_processing",
@@ -387,7 +387,7 @@ class Orchestrator:
                         schema=schema_name,
                     )
                 )
-                async_id = chord(report_tasks, group(ocp_on_cloud_trino_task, summary_task, hcs_task, subs_task))()
+                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task, ocp_on_cloud_trino_task))()
                 LOG.info(
                     log_json(
                         "start_manifest_processing",
