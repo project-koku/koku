@@ -14,7 +14,6 @@ from django.db import connection
 from django.db.models import F
 from django.db.models import Q
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -36,7 +35,6 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
-
 
 LOG = logging.getLogger(__name__)
 
@@ -182,7 +180,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpawscostlineitem_project_daily_summary"
-        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -197,30 +194,21 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                for i in range(retries):
-                    try:
-                        if table == TRINO_MANAGED_OCP_AWS_DAILY_TABLE:
-                            column_name = "source"
-                        else:
-                            column_name = "aws_source"
-                        sql = f"""
-                        DELETE FROM hive.{self.schema}.{table}
-                            WHERE {column_name} = '{aws_source}'
-                            AND ocp_source = '{ocp_source}'
-                            AND year = '{year}'
-                            AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                            AND day = '{day}'"""
-                        self._execute_trino_raw_sql_query(
-                            sql,
-                            log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day} from {table}",
-                            attempts_left=(retries - 1) - i,
-                        )
-                        break
-                    except TrinoExternalError as err:
-                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                            continue
-                        else:
-                            raise err
+                if table == TRINO_MANAGED_OCP_AWS_DAILY_TABLE:
+                    column_name = "source"
+                else:
+                    column_name = "aws_source"
+                sql = f"""
+                    DELETE FROM hive.{self.schema}.{table}
+                        WHERE {column_name} = '{aws_source}'
+                        AND ocp_source = '{ocp_source}'
+                        AND year = '{year}'
+                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                        AND day = '{day}'"""
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day} from {table}",
+                )
 
     def populate_ocp_on_aws_cost_daily_summary_trino(
         self,

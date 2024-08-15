@@ -565,7 +565,7 @@ class Orchestrator:
         async_results = []
         schemas = (
             Provider.objects.order_by()
-            .filter(type=Provider.PROVIDER_OCP)
+            .filter(type=Provider.PROVIDER_OCP, active=True, paused=False)
             .values_list("customer__schema_name", flat=True)
             .distinct()
         )

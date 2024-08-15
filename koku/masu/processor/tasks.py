@@ -80,7 +80,6 @@ from reporting_common.states import ManifestStep
 
 LOG = logging.getLogger(__name__)
 
-
 UPDATE_SUMMARY_TABLES_TASK = "masu.processor.tasks.update_summary_tables"
 
 
@@ -506,7 +505,7 @@ def update_summary_tables(  # noqa: C901
     fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue)
     delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
     update_cost_model_queue = get_customer_queue(schema, CostModelQueue)
-    mark_manifest_complete_queue = get_customer_queue(schema, PriorityQueue)
+    priority_queue = get_customer_queue(schema, PriorityQueue)
     timeout = settings.WORKER_CACHE_TIMEOUT
     if fallback_update_summary_tables_queue != SummaryQueue.DEFAULT:
         timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
@@ -661,9 +660,9 @@ def update_summary_tables(  # noqa: C901
             )
             | mark_manifest_complete.si(
                 schema, provider_type, provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
-            ).set(queue=mark_manifest_complete_queue)
+            ).set(queue=priority_queue)
             | validate_daily_data.si(schema, start_date, end_date, provider_uuid, context=context).set(
-                queue=fallback_update_summary_tables_queue
+                queue=priority_queue
             )
         )
 
@@ -676,10 +675,10 @@ def update_summary_tables(  # noqa: C901
             manifest_list=manifest_list,
             ingress_report_uuid=ingress_report_uuid,
             tracing_id=tracing_id,
-        ).set(queue=mark_manifest_complete_queue) | validate_daily_data.si(
+        ).set(queue=priority_queue) | validate_daily_data.si(
             schema, start_date, end_date, provider_uuid, context=context
         ).set(
-            queue=fallback_update_summary_tables_queue
+            queue=priority_queue
         )
 
     chain(linked_tasks).apply_async()
@@ -796,10 +795,11 @@ def update_openshift_on_cloud(  # noqa: C901
         )
         # Regardless of an attached cost model we must run an update for default distribution costs
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
-        fallback_queue = get_customer_queue(schema_name, CostModelQueue)
+        cost_model_fallback_queue = get_customer_queue(schema_name, CostModelQueue)
+        priority_queue = get_customer_queue(schema_name, PriorityQueue)
         update_cost_model_costs.s(
             schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
-        ).apply_async(queue=queue_name or fallback_queue)
+        ).apply_async(queue=queue_name or cost_model_fallback_queue)
         # Set OpenShift manifest summary end time
         set_summary_timestamp(ManifestState.END, ocp_manifest_id)
         validate_daily_data.s(
@@ -809,7 +809,7 @@ def update_openshift_on_cloud(  # noqa: C901
             openshift_provider_uuid,
             ocp_on_cloud_type=infrastructure_provider_type,
             context=ctx,
-        ).apply_async(queue=queue_name or fallback_queue)
+        ).apply_async(queue=priority_queue)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
             log_json(
@@ -870,7 +870,7 @@ def update_all_summary_tables(start_date, end_date=None):
 
 
 @celery_app.task(name="masu.processor.tasks.update_cost_model_costs", queue=CostModelQueue.DEFAULT)
-def update_cost_model_costs(
+def update_cost_model_costs(  # noqa: C901
     schema_name,
     provider_uuid,
     start_date=None,
@@ -895,9 +895,16 @@ def update_cost_model_costs(
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
+        timeout = settings.WORKER_CACHE_TIMEOUT
         fallback_queue = get_customer_queue(schema_name, CostModelQueue)
-        if worker_cache.single_task_is_running(task_name, cache_args):
+        rate_limited = False
+        if is_rate_limit_customer_large(schema_name):
+            rate_limited = rate_limit_tasks(task_name, schema_name)
+            timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
+        if rate_limited or worker_cache.single_task_is_running(task_name, cache_args):
             msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            if rate_limited:
+                msg = f"Schema {schema_name} is currently rate limited. Requeuing."
             LOG.debug(log_json(tracing_id, msg=msg))
             update_cost_model_costs.s(
                 schema_name,
@@ -909,7 +916,7 @@ def update_cost_model_costs(
                 tracing_id=tracing_id,
             ).apply_async(queue=queue_name or fallback_queue)
             return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
@@ -1137,7 +1144,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
 
     table_info = {
         Provider.PROVIDER_AWS: {"table": "aws_line_items_daily", "date_columns": ["lineitem_usagestartdate"]},
-        Provider.PROVIDER_AZURE: {"table": "azure_line_items", "date_columns": ["usagedatetime", "date"]},
+        Provider.PROVIDER_AZURE: {"table": "azure_line_items", "date_columns": ["date"]},
         Provider.PROVIDER_GCP: {
             "table": "gcp_line_items_daily",
             "date_columns": ["usage_start_time", "usage_end_time"],
@@ -1259,7 +1266,7 @@ def process_daily_openshift_on_cloud(
             processor.process(file_name, [data_frame])
 
 
-@celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=SummaryQueue.DEFAULT)
+@celery_app.task(name="masu.processor.tasks.validate_daily_data", queue=PriorityQueue.DEFAULT)
 def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_cloud_type=None, context=None):
     # collect and validate cost metrics between postgres and trino tables.
     if is_validation_enabled(schema):

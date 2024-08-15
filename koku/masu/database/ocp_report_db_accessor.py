@@ -11,13 +11,11 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.metrics import constants as metric_constants
@@ -217,7 +215,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = "reporting_ocpusagelineitem_daily_summary"
-        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -231,30 +228,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                for i in range(retries):
-                    try:
-                        sql = f"""
-                        DELETE FROM hive.{self.schema}.{table}
-                        WHERE source = '{source}'
-                        AND year = '{year}'
-                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                        AND day = '{day}'
-                        """
-                        self._execute_trino_raw_sql_query(
-                            sql,
-                            log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
-                        )
-                        break
-                    except TrinoExternalError as err:
-                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                            continue
-                        else:
-                            raise err
+                sql = f"""
+                DELETE FROM hive.{self.schema}.{table}
+                WHERE source = '{source}'
+                AND year = '{year}'
+                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                AND day = '{day}'
+                """
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
+                )
 
     def delete_hive_partitions_by_source(self, table, partition_column, provider_uuid):
         """Deletes partitions individually for each day in days list."""
-        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if not self.schema_exists_trino() or not self.table_exists_trino(table):
             return False
         ctx = {
@@ -263,28 +250,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "table": table,
         }
         LOG.info(log_json(msg="deleting Hive partitions by source", context=ctx))
-        for i in range(retries):
-            try:
-                sql = f"""
-                DELETE FROM hive.{self.schema}.{table}
-                WHERE {partition_column} = '{provider_uuid}'
-                """
-                self._execute_trino_raw_sql_query(
-                    sql,
-                    log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
-                    attempts_left=(retries - 1) - i,
-                )
-                break
-            except TrinoExternalError as err:
-                if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                    continue
-                else:
-                    raise err
-        LOG.info(log_json(msg="successfully deleted Hive partitions", context=ctx))
+        sql = f"""
+        DELETE FROM hive.{self.schema}.{table}
+        WHERE {partition_column} = '{provider_uuid}'
+        """
+        self._execute_trino_raw_sql_query(
+            sql,
+            log_ref=f"delete_hive_partitions_by_source for {provider_uuid}",
+        )
         return True
 
     def find_expired_trino_partitions(self, table, source_column, date_str):
         """Queries Trino for partitions less than the parition date."""
+        if not self.schema_exists_trino():
+            LOG.info("Schema does not exist.")
+            return False
         if not self.table_exists_trino(table):
             LOG.info("Could not find table.")
             return False

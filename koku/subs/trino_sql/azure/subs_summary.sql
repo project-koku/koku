@@ -1,11 +1,11 @@
 SELECT
   *,
-  with_timezone(COALESCE(date, usagedatetime), 'UTC') as subs_start_time,
-  with_timezone(date_add('day', 1, COALESCE(date, usagedatetime)), 'UTC') as subs_end_time,
+  with_timezone(date, 'UTC') as subs_start_time,
+  with_timezone(date_add('day', 1, date), 'UTC') as subs_end_time,
   json_extract_scalar(lower(additionalinfo), '$.vcpus') as subs_vcpu,
   COALESCE(NULLIF(subscriptionid, ''), subscriptionguid) as subs_account,
-  regexp_extract(COALESCE(NULLIF(resourceid, ''), instanceid), '([^/]+$)') as subs_resource_id,
-  CAST(ceil(coalesce(nullif(quantity, 0), usagequantity)) AS INTEGER) as subs_usage_quantity,
+  regexp_extract(resourceid, '([^/]+$)') as subs_resource_id,
+  CAST(ceil(quantity) AS INTEGER) as subs_usage_quantity,
   CASE lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_variant'))
     WHEN 'workstation' THEN 'Red Hat Enterprise Linux Workstation'
     WHEN 'hpc' THEN 'Red Hat Enterprise Linux Compute Node'
@@ -35,7 +35,9 @@ SELECT
     WHEN 'true' THEN 'true'
     ELSE 'false'
   END as subs_conversion,
-  COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance
+  COALESCE(lower(json_extract_scalar(lower(tags), '$.com_redhat_rhel_instance')), '') as subs_instance,
+  -- if the VMName isn't present in additionalinfo, the end of the resourceid should be the VMName
+  COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(resourceid, '([^/]+$)')) as subs_vmname
 FROM
     hive.{{schema | sqlsafe}}.azure_line_items
 WHERE
@@ -46,13 +48,13 @@ WHERE
     AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL
     AND json_extract_scalar(lower(lower(tags)), '$.com_redhat_rhel') IS NOT NULL
     -- ensure there is usage
-    AND ceil(coalesce(nullif(quantity, 0), usagequantity)) > 0
+    AND ceil(quantity) > 0
     AND (
         {% for item in resources %}
             (
-                coalesce(NULLIF(resourceid, ''), instanceid) = {{item.rid}} AND
-                coalesce(date, usagedatetime) >= {{item.start}} AND
-                coalesce(date, usagedatetime) <= {{item.end}}
+                resourceid = {{item.rid}} AND
+                date >= {{item.start}} AND
+                date <= {{item.end}}
             )
             {% if not loop.last %}
                 OR

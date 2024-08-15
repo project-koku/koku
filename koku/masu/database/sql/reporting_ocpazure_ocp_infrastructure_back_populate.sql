@@ -65,7 +65,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_azure.pod_labels as all_labels,
         rp.provider_id as source_uuid,
         sum(ocp_azure.pretax_cost + ocp_azure.markup_cost) AS infrastructure_raw_cost,
-        sum(ocp_azure.pod_cost + ocp_azure.project_markup_cost) AS infrastructure_project_raw_cost,
+        sum(
+            coalesce(ocp_azure.pod_cost, 0)
+            + coalesce(ocp_azure.project_markup_cost, 0)
+        ) AS infrastructure_project_raw_cost,
         CASE
             WHEN data_transfer_direction = 'IN' THEN sum(infrastructure_data_in_gigabytes)
             ELSE NULL
