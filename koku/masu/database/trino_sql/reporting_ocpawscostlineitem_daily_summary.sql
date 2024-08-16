@@ -223,7 +223,13 @@ SELECT cast(uuid() as varchar) as uuid,
             ELSE aws.lineitem_unblendedcost
         END
         ) as unblended_cost,
-    sum(aws.lineitem_blendedcost) as blended_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_blendedcost
+        END
+        ) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
     sum(
         CASE
@@ -317,6 +323,13 @@ SELECT cast(uuid() as varchar) as uuid,
             ELSE aws.lineitem_unblendedcost
         END
         ) as unblended_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_blendedcost
+        END
+        ) as blended_cost,
     sum(aws.lineitem_blendedcost) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
     sum(
