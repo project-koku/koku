@@ -18,7 +18,6 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 LOG = logging.getLogger(__name__)
 pd.options.mode.chained_assignment = None
 
-
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """
     Return the GCP bill IDs given a provider UUID.
@@ -53,10 +52,14 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
     with schema_context(schema):
         bills = GCPCostEntryBill.objects.filter(provider_id=provider.uuid)
+        kwargs = {}
         if start_date:
-            bills = bills.filter(billing_period_start__gte=start_date)
+            kwargs["billing_period_start__gte"] = start_date
+
         if end_date:
-            bills = bills.filter(billing_period_start__lte=end_date)
+            kwargs["billing_period_start__lte"] = end_date
+
+        bills = bills.filter(**kwargs)
         # postgres doesn't always return this query in the same order, ordering by ID (PK) will
         # ensure that any list iteration or indexing is always done in the same order
         bills = list(bills.order_by("id").all())

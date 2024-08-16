@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database."""
+import q
 import datetime
 import logging
 from decimal import Decimal
@@ -481,6 +482,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             )
 
         gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
+        q(start_date, end_date)
         if not gcp_bills:
             # Without bill data, we cannot populate the summary table
             LOG.info(
@@ -513,7 +515,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             )
 
             gcp_bill_ids = [bill.id for bill in gcp_bills]
-            current_gcp_bill_id = gcp_bill_ids[0]
             current_ocp_report_period_id = report_period.id
 
         with CostModelDBAccessor(self._schema, gcp_provider_uuid) as cost_model_accessor:
@@ -537,6 +538,22 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 context["start_date"] = start
                 context["end_date"] = end
+
+                # Get the bill ID that corresponds to the start and end date
+                q(start, end)
+                for bill in gcp_bills:
+                    billing_start_year_month = (bill.billing_period_start.year, bill.billing_period_start.month)
+                    billing_end_year_month = (bill.billing_period_end.year, bill.billing_period_end.month)
+                    start_year_month = (start.year, start.month)
+                    end_year_month = (end.year, end.month)
+                    if q|billing_start_year_month >= start_year_month and billing_end_year_month <= end_year_month:
+                        current_gcp_bill_id = bill.id
+                        break
+                else:
+                    q('falling back')
+                    current_gcp_bill_id = gcp_bills[-1].id
+
+                q(current_gcp_bill_id)
                 LOG.info(log_json(msg="updating OpenShift on GCP summary table", **context))
                 accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
                     start,
