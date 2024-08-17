@@ -275,14 +275,14 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    def populate_ocp_on_aws_tag_information(self, bill_ids, start_date, end_date, cluster_id):
+    def populate_ocp_on_aws_tag_information(self, bill_ids, start_date, end_date, current_ocp_report_period_id):
         """Populate the line item aggregated totals data table."""
         sql_params = {
             "schema": self.schema,
             "bill_ids": bill_ids,
             "start_date": start_date,
             "end_date": end_date,
-            "cluster_id": cluster_id,
+            "report_period_id": current_ocp_report_period_id,
         }
         # Tag Summary
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")

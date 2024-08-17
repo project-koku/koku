@@ -348,6 +348,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """
         mock_unleash.return_value = True
         populated_keys = []
+        report_period_id = 1
         with schema_context(self.schema):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE, enabled=True)
             for enabled_tag in enabled_tags:
@@ -370,7 +371,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             child_key, child_obj, child_count = populated_keys[1]
             TagMapping.objects.create(parent=parent_obj, child=child_obj)
             self.accessor.populate_ocp_on_azure_tag_information(
-                bill_ids, self.dh.this_month_start, self.dh.today, self.ocp_cluster_id
+                bill_ids, self.dh.this_month_start, self.dh.today, report_period_id
             )
             expected_parent_count = parent_count + child_count
             actual_parent_count = OCPAzureCostLineItemProjectDailySummaryP.objects.filter(

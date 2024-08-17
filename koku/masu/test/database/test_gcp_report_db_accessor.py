@@ -391,11 +391,12 @@ class GCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
     def test_populate_ocp_on_gcp_tag_information_assert_call(self, mock_trino):
         """Test that we construst our SQL and execute our query."""
+        report_period_id = 1
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
 
         mock_gcp_bills = [Mock(), Mock()]
-        self.accessor.populate_ocp_on_gcp_tag_information(mock_gcp_bills, start_date, end_date, self.ocp_cluster_id)
+        self.accessor.populate_ocp_on_gcp_tag_information(mock_gcp_bills, start_date, end_date, report_period_id)
         mock_trino.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino")
@@ -493,6 +494,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         """
         mock_unleash.return_value = True
         populated_keys = []
+        report_period_id = 1
         with schema_context(self.schema):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP, enabled=True)
             for enabled_tag in enabled_tags:
@@ -515,7 +517,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             child_key, child_obj, child_count = populated_keys[1]
             TagMapping.objects.create(parent=parent_obj, child=child_obj)
             self.accessor.populate_ocp_on_gcp_tag_information(
-                bill_ids, self.dh.this_month_start, self.dh.today, self.ocp_cluster_id
+                bill_ids, self.dh.this_month_start, self.dh.today, report_period_id
             )
             expected_parent_count = parent_count + child_count
             actual_parent_count = OCPGCPCostLineItemProjectDailySummaryP.objects.filter(
