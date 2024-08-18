@@ -177,9 +177,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
+    def delete_ocp_on_aws_hive_partition_by_day(
+        self, days, aws_source, ocp_source, year, month, table="reporting_ocpawscostlineitem_project_daily_summary"
+    ):
         """Deletes partitions individually for each day in days list."""
-        table = "reporting_ocpawscostlineitem_project_daily_summary"
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -485,10 +486,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         table = TRINO_MANAGED_OCP_AWS_DAILY_TABLE
-        self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_on_aws_hive_partition_by_day(days_tup, aws_provider_uuid, openshift_provider_uuid, year, month)
+        self.delete_ocp_on_aws_hive_partition_by_day(
+            days_tup, aws_provider_uuid, openshift_provider_uuid, year, month, table
+        )
 
         summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")
         summary_sql = summary_sql.decode("utf-8")

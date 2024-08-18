@@ -1281,7 +1281,7 @@ def process_openshift_on_cloud_trino(
     self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id
 ):
     """Process OCP on Cloud data into managed tables for summary"""
-    reports_deduplicated = deduplicate_summary_reports(reports_to_summarize)
+    reports_deduplicated = deduplicate_summary_reports(reports_to_summarize, manifest_list=[])
     for report in reports_deduplicated:
         schema_name = report.get("schema_name")
         ctx = {"provider_type": provider_type, "schema_name": schema_name, "provider_uuid": provider_uuid}

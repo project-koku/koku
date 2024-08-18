@@ -132,7 +132,7 @@ def retry(
     original_callable: t.Callable = None,
     *,
     retries: int = settings.HIVE_PARTITION_DELETE_RETRIES,
-    retry_on: type[Exception] | tuple[type[Exception], ...] = TrinoExternalError,
+    retry_on: type[Exception] = TrinoExternalError,
     max_wait: int = 30,
     log_message: t.Optional[str] = "Retrying...",
 ):
