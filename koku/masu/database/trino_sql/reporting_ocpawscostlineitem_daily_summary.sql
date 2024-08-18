@@ -330,7 +330,6 @@ SELECT cast(uuid() as varchar) as uuid,
             ELSE aws.lineitem_blendedcost
         END
         ) as blended_cost,
-    sum(aws.lineitem_blendedcost) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
     sum(
         CASE
