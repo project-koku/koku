@@ -1285,7 +1285,7 @@ def process_openshift_on_cloud_trino(
     for report in reports_deduplicated:
         schema_name = report.get("schema_name")
         ctx = {"provider_type": provider_type, "schema_name": schema_name, "provider_uuid": provider_uuid}
-        if provider_type not in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
+        if provider_type not in Provider.MANAGED_OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
             LOG.info(
                 log_json(tracing_id, msg="provider type not valid for COST-5129 OCP on cloud processing", context=ctx)
             )
