@@ -1021,7 +1021,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     "resource_ids": [node[1] for node in nodes_tuple],
                     "persistent_volumes": [pvc[0] for pvc in pvc_tuple],
                     "persistent_volume_claims": [pvc[1] for pvc in pvc_tuple],
-                    "csi_volume_handle": [pvc[2] for pvc in pvc_tuple],
+                    "csi_volume_handle": [pvc[2] for pvc in pvc_tuple if pvc[2] is not None],
                     "projects": [project for project in project_tuple],
                 }
             )
