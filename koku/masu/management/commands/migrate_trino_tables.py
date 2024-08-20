@@ -67,6 +67,7 @@ MANAGED_TABLES = {
     "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
     "reporting_ocpusagelineitem_daily_summary",
     "azure_openshift_disk_capacities_temp",
+    "aws_openshift_disk_capacities_temp",
 }
 
 manage_table_mapping = {
@@ -84,6 +85,7 @@ manage_table_mapping = {
     "reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
     "reporting_ocpusagelineitem_daily_summary": "source",
     "azure_openshift_disk_capacities_temp": "ocp_source",
+    "aws_openshift_disk_capacities_temp": "ocp_source",
 }
 
 VALID_CHARACTERS = re.compile(r"^[\w.-]+$")
