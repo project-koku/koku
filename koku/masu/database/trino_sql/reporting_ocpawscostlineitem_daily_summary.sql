@@ -386,11 +386,11 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.matched_tag
 ;
 
+{% if unattributed_storage %}
 -- Developer notes
 -- 30.44 is the average amount of days in each month between 28, 30, 31
 -- We can't use the aws_openshift_daily table to calcualte the capacity
 -- because it has already aggregated cost per each hour.
-{% if unattributed_storage %}
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp (
     resource_id,
     capacity,
