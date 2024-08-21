@@ -162,6 +162,19 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
+{% if unattributed_storage %}
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp
+(
+    resource_id varchar,
+    capacity integer,
+    usage_start timestamp,
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
+{% endif %}
+;
+
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp (
     uuid,
     usage_start,
@@ -347,6 +360,54 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.matched_tag
 ;
 
+{% if unattributed_storage %}
+-- Developer notes
+-- 30.44 is the average amount of days in each month between 28, 30, 31
+-- We can't use the aws_openshift_daily table to calcualte the capacity
+-- because it has already aggregated cost per each hour.
+INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp (
+    resource_id,
+    capacity,
+    usage_start,
+    ocp_source,
+    year,
+    month
+)
+WITH cte_ocp_filtered_resources as (
+    select
+        distinct aws.resource_id as resource_id,
+        {{ocp_source_uuid}} as ocp_source,
+        DATE(aws.usage_start) as usage_start,
+        aws.year as year,
+        aws.month as month
+    FROM aws_openshift_daily_resource_matched_temp as aws
+    JOIN reporting_ocpusagelineitem_daily_summary as ocp
+        ON aws.usage_start = ocp.usage_start
+        AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
+    WHERE
+        ocp.source_uuid = {{ocp_source_uuid}}
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND aws.ocp_source = {{ocp_source_uuid}}
+        AND aws.year = {{year}}
+        AND aws.month = {{month}}
+)
+SELECT
+    aws.lineitem_resourceid as resource_id,
+    CEIL(MAX(aws.lineitem_unblendedcost) / (MAX(aws.lineitem_unblendedrate) / (30.44 * 24))) AS capacity,
+    ocpaws.usage_start,
+    {{ocp_source_uuid}} as ocp_source,
+    {{year}} as year,
+    {{month}} as month
+FROM aws_line_items as aws
+INNER JOIN cte_ocp_filtered_resources as ocpaws
+    ON aws.lineitem_resourceid = ocpaws.resource_id
+    AND DATE(aws.lineitem_usagestartdate) = ocpaws.usage_start
+WHERE aws.year = {{year}}
+AND aws.month = {{month}}
+group by aws.lineitem_resourceid, ocpaws.usage_start
+{% endif %}
+;
 
 -- Maintain tag matching logic for disk resources
 -- until unattributed storage is released

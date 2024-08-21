@@ -22,7 +22,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
-from masu.processor import is_feature_unattributed_storage_enabled
+from masu.processor import is_feature_unattributed_storage_enabled_azure
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_TEMP_MANAGED_TABLES
@@ -298,7 +298,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
-            "unattributed_storage": is_feature_unattributed_storage_enabled(self.schema),
+            "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg="running OCP on Azure SQL", context=ctx))
