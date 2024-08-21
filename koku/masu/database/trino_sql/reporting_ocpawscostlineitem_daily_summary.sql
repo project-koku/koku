@@ -409,8 +409,11 @@ group by aws.lineitem_resourceid, ocpaws.usage_start
 {% endif %}
 ;
 
+
+{% if not unattributed_storage %}
 -- Maintain tag matching logic for disk resources
 -- until unattributed storage is released
+-- FIXME: Remove this section when the unleash flag is removed
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
     uuid,
     usage_start,
@@ -514,6 +517,292 @@ GROUP BY aws.lineitem_usagestartdate,
     aws.costcategory,
     17, -- tags
     aws.matched_tag
+{% endif %}
+;
+
+
+{% if unattributed_storage %}
+-- Storage disk resource id matching
+-- Algorhtim:
+-- (PV Capacity) / Disk Capacity * Cost of Disk
+-- PV without PVCs are unattributed storage
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
+    aws_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    currency_code,
+    unblended_cost,
+    markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
+    pod_limit_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    pod_labels,
+    volume_labels,
+    tags,
+    aws_cost_category,
+    cost_category_id,
+    resource_id_matched,
+    ocp_source,
+    year,
+    month
+)
+SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will deduplicate
+    max(ocp.cluster_id) as cluster_id,
+    max(ocp.cluster_alias) as cluster_alias,
+    'Storage' as data_source,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim) = ''
+            THEN 'Storage unattributed'
+        ELSE max(ocp.namespace)
+    END as namespace,
+    max(ocp.node) as node,
+    max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
+    max(ocp.persistentvolume) as persistentvolume,
+    max(ocp.storageclass) as storageclass,
+    max(aws.resource_id) as resource_id,
+    max(aws.usage_start) as usage_start,
+    max(aws.usage_start) as usage_end,
+    max(aws.product_code) as product_code,
+    max(aws.product_family) as product_family,
+    max(aws.instance_type) as instance_type,
+    max(aws.usage_account_id) as usage_account_id,
+    max(aws.availability_zone) as availability_zone,
+    max(aws.region) as region,
+    max(aws.unit) as unit,
+    max(aws.usage_amount) as usage_amount,
+    max(aws.currency_code) as currency_code,
+    max(ocp.persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.unblended_cost)  as unblended_cost,
+    (max(persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost,
+    max(ocp.persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.blended_cost)  as blended_cost,
+    (max(persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.blended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_blended,
+    max(ocp.persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)  as savingsplan_effective_cost,
+    (max(persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_savingsplan,
+    max(ocp.persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)  as calculated_amortized_cost,
+    (max(persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_amortized,
+    sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
+    sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+    sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
+    sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
+    sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
+    sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+    sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
+    max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
+    max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim) = ''
+            THEN cast(NULL as varchar)
+        ELSE ocp.pod_labels
+    END as pod_lables,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim) = ''
+            THEN cast(NULL as varchar)
+        ELSE ocp.volume_labels
+    END as volume_labels,
+    max(aws.tags) as tags,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim) = ''
+            THEN NULL
+        ELSE max(aws.aws_cost_category)
+    END as aws_cost_category,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim) = ''
+            THEN NULL
+        ELSE max(ocp.cost_category_id)
+    END as cost_category_id,
+    max(aws.resource_id_matched) as resource_id_matched,
+    {{ocp_source_uuid}} as ocp_source,
+    max(aws.year) as year,
+    max(aws.month) as month
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
+    ON aws.usage_start = ocp.usage_start
+    AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
+JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
+    ON aws_disk.usage_start = aws.usage_start
+    AND aws_disk.resource_id = aws.resource_id
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
+WHERE ocp.source = {{ocp_source_uuid}}
+    AND ocp.year = {{year}}
+    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.day IN {{days | inclause}}
+    AND ocp.persistentvolume is not null
+    AND aws.ocp_source = {{ocp_source_uuid}}
+    AND aws.year = {{year}}
+    AND aws.month = {{month}}
+    -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
+    AND aws.data_transfer_direction IS NULL
+    AND ocp.namespace != 'Storage Unattributed'
+GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
+{% endif %}
+;
+
+{% if unattributed_storage %}
+-- Unattributed Storage Cost:
+-- ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
+    aws_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    currency_code,
+    unblended_cost,
+    markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
+    pod_limit_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    resource_id_matched,
+    ocp_source,
+    year,
+    month
+)
+WITH cte_total_pv_capacity as (
+    SELECT
+        aws_resource_id,
+        SUM(combined_requests.capacity) as total_pv_capacity
+    FROM (
+        SELECT
+            ocp.persistentvolume,
+            max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
+            aws.resource_id as aws_resource_id
+        FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
+        ON (aws.usage_start = ocp.usage_start)
+        AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
+        WHERE ocp.year = {{year}}
+            AND lpad(ocp.month, 2, '0') = {{month}}
+            AND ocp.usage_start >= {{start_date}}
+            AND ocp.usage_start < date_add('day', 1, {{end_date}})
+        GROUP BY ocp.persistentvolume, aws.resource_id
+    ) as combined_requests group by aws_resource_id
+)
+SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will deduplicate
+    max(ocp.cluster_id) as cluster_id,
+    max(ocp.cluster_alias) as cluster_alias,
+    'Storage' as data_source,
+    'Storage unattributed' as namespace,
+    ocp.persistentvolumeclaim as persistentvolumeclaim,
+    ocp.persistentvolume as persistentvolume,
+    max(ocp.storageclass) as storageclass,
+    max(aws.resource_id) as resource_id,
+    max(aws.usage_start) as usage_start,
+    max(aws.usage_start) as usage_end,
+    max(aws.product_code) as product_code,
+    max(aws.product_family) as product_family,
+    max(aws.instance_type) as instance_type,
+    max(aws.usage_account_id) as usage_account_id,
+    max(aws.availability_zone) as availability_zone,
+    max(aws.region) as region,
+    max(aws.unit) as unit,
+    max(aws.usage_amount) as usage_amount,
+    max(aws.currency_code) as currency_code,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)  as unblended_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)  as blended_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_blended,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)  as savingsplan_effective_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_savingsplan,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)  as calculated_amortized_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_amortized,
+    sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
+    sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+    sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
+    sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
+    sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
+    sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+    sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
+    max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
+    max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+    max(aws.resource_id_matched) as resource_id_matched,
+    {{ocp_source_uuid}} as ocp_source,
+    max(aws.year) as year,
+    max(aws.month) as month
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
+    ON aws.usage_start = ocp.usage_start
+    AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
+JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
+    ON aws_disk.usage_start = aws.usage_start
+    AND aws_disk.resource_id = aws.resource_id
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
+LEFT JOIN cte_total_pv_capacity as pv_cap
+    ON pv_cap.aws_resource_id = aws.resource_id
+WHERE ocp.source = {{ocp_source_uuid}}
+    AND ocp.year = {{year}}
+    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.day IN {{days | inclause}}
+    AND ocp.persistentvolume is not null
+    AND aws.ocp_source = {{ocp_source_uuid}}
+    AND aws.year = {{year}}
+    AND aws.month = {{month}}
+    -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
+    AND aws.data_transfer_direction IS NULL
+    AND ocp.namespace != 'Storage Unattributed'
+GROUP BY aws.uuid, ocp.namespace, ocp.persistentvolume, ocp.persistentvolumeclaim
+{% endif %}
 ;
 
 -- Direct resource_id matching
@@ -625,6 +914,10 @@ SELECT aws.uuid as aws_uuid,
     JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
         ON aws.usage_start = ocp.usage_start
             AND strpos(aws.resource_id, ocp.resource_id) != 0
+    JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
+        ON aws_disk.usage_start = aws.usage_start
+        AND aws_disk.resource_id = aws.resource_id
+        AND aws_disk.ocp_source = {{ocp_source_uuid}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -635,6 +928,7 @@ SELECT aws.uuid as aws_uuid,
         AND aws.month = {{month}}
         -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
         AND aws.data_transfer_direction IS NULL
+        AND aws_disk.resource_id is NULL -- exclude any resource used in disk capacity calculations
     GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels
 ;
 
