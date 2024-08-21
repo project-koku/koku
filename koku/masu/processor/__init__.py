@@ -117,6 +117,9 @@ def is_managed_ocp_cloud_processing_enabled(account):
 def is_managed_ocp_cloud_summary_enabled(account):
     account = convert_account(account)
     context = {"schema": account}
+    if not is_managed_ocp_cloud_processing_enabled(account):
+        LOG.info(log_json(msg="managed ocp processing not enabled, returning false for summary", context=context))
+        return False
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
 
 

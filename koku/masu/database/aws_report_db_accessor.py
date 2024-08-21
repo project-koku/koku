@@ -23,6 +23,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
@@ -33,6 +34,7 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
 
@@ -247,6 +249,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
+        if is_managed_ocp_cloud_summary_enabled(self.schema):
+            ocpaws_table = TRINO_MANAGED_OCP_AWS_DAILY_TABLE
+            LOG.info("using new managed table")
+        else:
+            ocpaws_table = TRINO_OCP_ON_AWS_DAILY_TABLE
+            LOG.info("using old boring table")
         sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -263,6 +271,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
+            "ocpaws_table": ocpaws_table,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
