@@ -191,6 +191,7 @@ OCP_ON_AWS_TEMP_MANAGED_TABLES = {
     "reporting_ocpawscostlineitem_project_daily_summary_temp",
     "aws_openshift_daily_resource_matched_temp",
     "aws_openshift_daily_tag_matched_temp",
+    "aws_openshift_disk_capacities_temp",
 }
 
 OCP_ON_AZURE_TEMP_MANAGED_TABLES = {
