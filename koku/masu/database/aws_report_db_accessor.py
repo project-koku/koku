@@ -23,6 +23,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
+from masu.processor import is_feature_unattributed_storage_enabled_aws
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
@@ -247,6 +248,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
+        unattributed_storage = is_feature_unattributed_storage_enabled_aws(self.schema)
+
         sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -263,6 +266,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
+            "unattributed_storage": unattributed_storage,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))

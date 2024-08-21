@@ -18,6 +18,7 @@ generators:
                   storage_class: gp2
                   volume_request_gig: 20
                   labels: label_environment:pvc_only|label_mapping-A:A
+                  csi_volume_handle: vol-12345672
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pvc_only_data
@@ -45,15 +46,16 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
-                  storage_class: gp2
-                  volume_request_gig: 20
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-12345671
+                  volume_request_gig: 5
                   labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo|label_dashed-key-on-aws:dashed-value|label_mapping-A:A
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name1_data
                     pod_name: pod_name1a
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo|label_dashed-key-on-aws:dashed-value|label_mapping-A:A
-                    capacity_gig: 20
+                    capacity_gig: 5
             catalog:
               pods:
                 - pod:
@@ -75,7 +77,8 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
-                  storage_class: gp2
+                  csi_volume_handle: vol-12345673
+                  storage_class: gp3-csi
                   volume_request_gig: 20
                   labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta||label_Mapping-B:B
                   volume_claims:
@@ -112,15 +115,16 @@ generators:
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
-                  storage_class: gp2
-                  volume_request_gig: 20
+                  storage_class: gp3-csi
+                  volume_request_gig: 10
+                  csi_volume_handle: vol-12345674
                   labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon|label_Mapping:C
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name3_data
                     pod_name: pod_name3a
                     labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon|label_Mapping:C
-                    capacity_gig: 20
+                    capacity_gig: 10
         - node:
           node_name: aws_compute3
           node_labels: label_nodeclass:compute|label_node_role_kubernetes_io:infra|label_mapping-D:D
@@ -148,16 +152,11 @@ generators:
                   labels: label_environment:prod|label_app:analytics|label_version:gamma|label_qa:approved|label_mapping-D:D
               volumes:
                 - volume:
-                  volume_name: pvc-volume_4
-                  storage_class: gp2
+                  volume_name: pv-volume_claimless
+                  storage_class: gp3-csi
+                  csi_driver: ebs.csi.aws.com
+                  csi_volume_handle: vol-123-claimless
                   volume_request_gig: 20
-                  labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie|label_mapping-D:D
-                  volume_claims:
-                  - volume_claim:
-                    volume_claim_name: pod_name4_data
-                    pod_name: pod_name4a
-                    labels: label_environment:prod|label_app:analytics|label_version:gamma|label_storageclass:charlie|label_mapping-D:D
-                    capacity_gig: 20
         - node:
           node_name: aws_master
           node_labels: label_nodeclass:master
