@@ -1276,7 +1276,7 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
         LOG.info(log_json(msg="skipping validation, disabled for schema", context=context))
 
 
-@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=DownloadQueue.DEFAULT, bind=True)
+@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=SummaryQueue.DEFAULT, bind=True)
 def process_openshift_on_cloud_trino(
     self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id
 ):
