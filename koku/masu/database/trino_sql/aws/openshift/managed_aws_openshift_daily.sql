@@ -110,6 +110,15 @@ cte_array_agg_volumes AS (
         AND interval_start >= {{start_date}}
         AND interval_start < date_add('day', 1, {{end_date}})
 ),
+cte_csi_volume_handles AS (
+    SELECT DISTINCT csi_volume_handle
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    WHERE source = {{ocp_source_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+        AND interval_start >= {{start_date}}
+        AND interval_start < date_add('day', 1, {{end_date}})
+),
 cte_matchable_resource_names AS (
     SELECT resource_names.lineitem_resourceid
     FROM cte_aws_resource_names AS resource_names
@@ -122,6 +131,13 @@ cte_matchable_resource_names AS (
     FROM cte_aws_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON strpos(resource_names.lineitem_resourceid, volumes.persistentvolume) != 0
+
+    UNION
+
+    SELECT resource_names.lineitem_resourceid
+    FROM cte_aws_resource_names AS resource_names
+    JOIN cte_csi_volume_handles as vol_handles
+        ON strpos(resource_names.lineitem_resourceid, vol_handles.csi_volume_handle) != 0
 ),
 cte_tag_matches AS (
   SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
@@ -174,7 +190,8 @@ SELECT aws.lineitem_resourceid,
     cast(day(aws.lineitem_usagestartdate) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    ON aws.lineitem_resourceid = resource_names.lineitem_resourceid
+    -- this matches the endswith method this matching was done with in python
+    ON substr(aws.lineitem_resourceid, -length(resource_names.lineitem_resourceid)) = resource_names.lineitem_resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(resourcetags, x) != 0)
 WHERE aws.source = {{aws_source_uuid}}
