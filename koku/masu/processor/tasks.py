@@ -1295,7 +1295,7 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
 
 @celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=DownloadQueue.DEFAULT, bind=True)
 def process_openshift_on_cloud_trino(
-    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id
+    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id, report_data_trigger=False
 ):
     """Process OCP on Cloud data into managed tables for summary"""
     manifest_list = []
@@ -1317,11 +1317,10 @@ def process_openshift_on_cloud_trino(
             continue
         with ReportManifestDBAccessor() as manifest_accesor:
             tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
-
-            if not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
+            # if this flow is triggered via the report_data endpoint, the manifest_id is unknown
+            if not report_data_trigger and not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
                 LOG.info(log_json(tracing_id, msg="manifest not ready for summary", context=report))
                 continue
-
         LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
 
         months = get_months_in_date_range(report)
