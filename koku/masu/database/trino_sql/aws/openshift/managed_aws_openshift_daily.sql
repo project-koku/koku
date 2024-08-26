@@ -102,16 +102,7 @@ cte_array_agg_nodes AS (
         AND interval_start < date_add('day', 1, {{end_date}})
 ),
 cte_array_agg_volumes AS (
-    SELECT DISTINCT persistentvolume
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
-    WHERE source = {{ocp_source_uuid}}
-        AND year = {{year}}
-        AND month = {{month}}
-        AND interval_start >= {{start_date}}
-        AND interval_start < date_add('day', 1, {{end_date}})
-),
-cte_csi_volume_handles AS (
-    SELECT DISTINCT csi_volume_handle
+    SELECT DISTINCT persistentvolume, csi_volume_handle
     FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
@@ -130,14 +121,11 @@ cte_matchable_resource_names AS (
     SELECT resource_names.lineitem_resourceid
     FROM cte_aws_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
-        ON strpos(resource_names.lineitem_resourceid, volumes.persistentvolume) != 0
+        ON (
+            strpos(resource_names.lineitem_resourceid, volumes.persistentvolume) != 0
+            OR strpos(resource_names.lineitem_resourceid, volumes.csi_volume_handle)
+        )
 
-    UNION
-
-    SELECT resource_names.lineitem_resourceid
-    FROM cte_aws_resource_names AS resource_names
-    JOIN cte_csi_volume_handles as vol_handles
-        ON strpos(resource_names.lineitem_resourceid, vol_handles.csi_volume_handle) != 0
 ),
 cte_tag_matches AS (
   SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
