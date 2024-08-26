@@ -2833,11 +2833,11 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:5f36857fd2c60a40833f35464df4a65229ddb143c2e7c6174db0ce820d63c5a1",
-                "sha256:8e8c06a90a21b6d44c0b1a8ec1eb05eb9fd0b9d91764d28c41f4157ef35d14ac"
+                "sha256:15e1d86ea20c4e8bc401824fca1147ab2b188683771e23eb9c27b04c63930c56",
+                "sha256:48805e8ea18943df727361a9bbb7c859f98db0062c5520baf37fa893628fd0cc"
             ],
             "index": "pypi",
-            "version": "==4.6.5"
+            "version": "==4.6.9"
         },
         "kombu": {
             "hashes": [
