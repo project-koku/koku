@@ -380,8 +380,8 @@ WITH cte_ocp_filtered_resources as (
         DATE(aws.usage_start) as usage_start,
         aws.year as year,
         aws.month as month
-    FROM aws_openshift_daily_resource_matched_temp as aws
-    JOIN reporting_ocpusagelineitem_daily_summary as ocp
+    FROM hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
+    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.usage_start = ocp.usage_start
         AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
     WHERE
@@ -399,7 +399,7 @@ SELECT
     {{ocp_source_uuid}} as ocp_source,
     {{year}} as year,
     {{month}} as month
-FROM aws_line_items as aws
+FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
 INNER JOIN cte_ocp_filtered_resources as ocpaws
     ON aws.lineitem_resourceid = ocpaws.resource_id
     AND DATE(aws.lineitem_usagestartdate) = ocpaws.usage_start
@@ -757,6 +757,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
     AND aws.data_transfer_direction IS NULL
     AND ocp.namespace != 'Storage Unattributed'
+    AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
 GROUP BY aws.uuid, ocp.namespace, ocp.persistentvolume, ocp.persistentvolumeclaim
 {% endif %}
 ;
