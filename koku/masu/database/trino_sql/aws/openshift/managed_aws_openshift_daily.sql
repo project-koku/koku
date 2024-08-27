@@ -123,7 +123,7 @@ cte_matchable_resource_names AS (
     JOIN cte_array_agg_volumes AS volumes
         ON (
             strpos(resource_names.lineitem_resourceid, volumes.persistentvolume) != 0
-            OR strpos(resource_names.lineitem_resourceid, volumes.csi_volume_handle)
+            OR strpos(resource_names.lineitem_resourceid, volumes.csi_volume_handle) != 0
         )
 
 ),
