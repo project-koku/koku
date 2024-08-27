@@ -405,6 +405,7 @@ INNER JOIN cte_ocp_filtered_resources as ocpaws
     AND DATE(aws.lineitem_usagestartdate) = ocpaws.usage_start
 WHERE aws.year = {{year}}
 AND aws.month = {{month}}
+AND aws.source = {{aws_source_uuid}}
 group by aws.lineitem_resourceid, ocpaws.usage_start
 {% endif %}
 ;
