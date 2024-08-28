@@ -89,7 +89,6 @@ def update_openshift_on_cloud(request):
                     "end_date": month[1],
                     "table_name": table,
                     "operation": operation,
-                    "queue_name": queue_name,
                     "tracing_id": tracing_id,
                 }
                 delete_signature_list.append(delete_openshift_on_cloud_data.si(**delete_params))

@@ -91,7 +91,14 @@ FROM (
         resourcetags as tags,
         costcategory,
         nullif(pricing_unit, '') as unit,
-        sum(lineitem_usageamount) as usage_amount,
+        -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanNegation'
+                THEN 0.0
+                ELSE lineitem_usageamount
+            END
+        ) as usage_amount,
         max(lineitem_normalizationfactor) as normalization_factor,
         sum(lineitem_normalizedusageamount) as normalized_usage_amount,
         max(lineitem_currencycode) as currency_code,
@@ -108,7 +115,17 @@ FROM (
             END
         ) as unblended_cost,
         max(lineitem_blendedrate) as blended_rate,
-        sum(lineitem_blendedcost) as blended_cost,
+        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+           that offset that cost.
+           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                THEN 0.0
+                ELSE lineitem_blendedcost
+            END
+        ) as blended_cost,
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
         sum(
             CASE

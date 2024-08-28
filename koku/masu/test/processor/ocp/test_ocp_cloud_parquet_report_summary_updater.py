@@ -307,7 +307,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ui_summary.assert_called_with(
             start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
         )
-        mock_tag_summary.assert_called_with([1, 2], start_date, end_date)
+        mock_tag_summary.assert_called_with([1, 2], start_date, end_date, current_ocp_report_period_id)
 
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
@@ -379,7 +379,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
         )
 
-        mock_tag_summary.assert_called_with([1, 2], start_date, end_date)
+        mock_tag_summary.assert_called_with([1, 2], start_date, end_date, current_ocp_report_period_id)
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch(

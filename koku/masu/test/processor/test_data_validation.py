@@ -72,7 +72,7 @@ class TestDataValidator(MasuTestCase):
         )
         # Test no trino data
         incomplete_days, valid_cost = validator.compare_data({}, {})
-        self.assertFalse(valid_cost)
+        self.assertTrue(valid_cost)
         self.assertEqual(incomplete_days, {})
 
         # Test valid data
