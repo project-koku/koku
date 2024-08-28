@@ -127,7 +127,8 @@ class DataValidator:
         incomplete_days = {}
         valid_cost = True
         if trino_data == {}:
-            return incomplete_days, False
+            # If there is no data in trino then there is nothing to validate against
+            return incomplete_days, True
         for date in trino_data:
             if date in pg_data:
                 if not abs(pg_data[date] - trino_data[date]) <= tolerance:
@@ -201,6 +202,7 @@ class DataValidator:
         if self.ocp_on_cloud_type:
             provider_type = self.ocp_on_cloud_type.strip("-local")
             cluster_id = provider.authentication.credentials.get("cluster_id")
+            self.context["cluster_id"] = cluster_id
         # Postgres query to get daily values
         try:
             pg_data = self.execute_relevant_query(provider_type, cluster_id)
