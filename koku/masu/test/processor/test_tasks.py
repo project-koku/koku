@@ -1843,6 +1843,37 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
         mock_process.assert_called_with(start, end)
 
+    @patch(
+        "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",
+        return_value=True,
+    )
+    @patch(
+        "masu.processor.tasks.is_managed_ocp_cloud_summary_enabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
+    @patch("masu.processor.tasks.trigger_ocp_on_cloud_summary")
+    def test_process_openshift_on_cloud_trino_summary_trigger(
+        self, mock_trigger, mock_process, mock_unleash_summary, mock_unleash_processing
+    ):
+        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
+        start = "2024-08-01"
+        end = "2024-08-05"
+        reports = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.aws_provider.type,
+                "provider_uuid": str(self.aws_provider.uuid),
+                "tracing_id": "",
+                "start": start,
+                "end": end,
+                "manifest_id": 1,
+            }
+        ]
+        process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
+        mock_process.assert_called_with(start, end)
+        mock_trigger.assert_called_once()
+
     @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
     def test_process_openshift_on_cloud_trino_unleash_false(self, mock_process):
         """Test that the process_openshift_on_cloud_trino task performs expected functions"""
