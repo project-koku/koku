@@ -388,7 +388,6 @@ GROUP BY aws.lineitem_usagestartdate,
 
 {% if unattributed_storage %}
 -- Developer notes
--- 30.44 is the average amount of days in each month between 28, 30, 31
 -- We can't use the aws_openshift_daily table to calcualte the capacity
 -- because it has already aggregated cost per each hour.
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp (
@@ -399,7 +398,21 @@ INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp (
     year,
     month
 )
-WITH cte_ocp_filtered_resources as (
+WITH cte_hours as (
+    SELECT
+        DAY(
+            DATE_ADD(
+                'day',
+                -1,
+                DATE_ADD(
+                    'month',
+                    1,
+                    DATE_TRUNC('month', DATE_PARSE(CONCAT('{{year | sqlsafe}}-', '{{month | sqlsafe}}', '-01'), '%Y-%m-%d'))
+                )
+            )
+        ) * 24 AS in_month
+),
+cte_ocp_filtered_resources as (
     select
         distinct aws.resource_id as resource_id,
         {{ocp_source_uuid}} as ocp_source,
@@ -420,7 +433,7 @@ WITH cte_ocp_filtered_resources as (
 )
 SELECT
     aws.lineitem_resourceid as resource_id,
-    CEIL(MAX(aws.lineitem_unblendedcost) / (MAX(aws.lineitem_unblendedrate) / (30.44 * 24))) AS capacity,
+    ROUND(MAX(aws.lineitem_unblendedcost) / (MAX(aws.lineitem_unblendedrate) / MAX(hours.in_month))) AS capacity,
     ocpaws.usage_start,
     {{ocp_source_uuid}} as ocp_source,
     {{year}} as year,
@@ -429,6 +442,7 @@ FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
 INNER JOIN cte_ocp_filtered_resources as ocpaws
     ON aws.lineitem_resourceid = ocpaws.resource_id
     AND DATE(aws.lineitem_usagestartdate) = ocpaws.usage_start
+CROSS JOIN cte_hours as hours
 WHERE aws.year = {{year}}
 AND aws.month = {{month}}
 AND aws.source = {{aws_source_uuid}}
