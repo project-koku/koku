@@ -73,7 +73,9 @@ def process_openshift_on_cloud(request):
 
     months = get_months_in_date_range(start=start_date, end=end_date)
 
-    if is_managed_ocp_cloud_processing_enabled(schema_name):
+    if provider.type in Provider.MANAGED_OPENSHIFT_ON_CLOUD_PROVIDER_LIST and is_managed_ocp_cloud_processing_enabled(
+        schema_name
+    ):
         fallback_queue = get_customer_queue(schema_name, SummaryQueue)
         for month in months:
             tracing_id = str(uuid4())
