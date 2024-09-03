@@ -15,7 +15,7 @@ repos:
         args: [--py36-plus]
 
   - repo: https://github.com/ambv/black
-    rev: 22.12.0
+    rev: 24.8.0
     hooks:
       - id: black
         args: [--line-length, "119"]
