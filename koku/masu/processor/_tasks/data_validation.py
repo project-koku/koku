@@ -106,7 +106,9 @@ class DataValidator:
             if utc_start.day < 6
             else self.dh.n_days_ago(utc_start, settings.VALIDATION_RANGE)
         )
-        self.end_date = self.dh.set_datetime_utc(end_date)
+        # end_date should not cross month boundary
+        utc_end = self.dh.set_datetime_utc(end_date)
+        self.end_date = self.dh.month_end(utc_start) if utc_start.month != utc_end.month else utc_end
         self.context = context
         self.date_step = date_step
 
@@ -195,7 +197,10 @@ class DataValidator:
         cluster_id = None
         daily_difference = {}
         LOG.info(
-            log_json(msg=f"validation started for provider using start date: {self.start_date}", context=self.context)
+            log_json(
+                msg=f"validation started for provider using start date: {self.start_date}, end date: {self.end_date}",
+                context=self.context,
+            )
         )
         provider = Provider.objects.filter(uuid=self.provider_uuid).first()
         provider_type = provider.type.strip("-local")

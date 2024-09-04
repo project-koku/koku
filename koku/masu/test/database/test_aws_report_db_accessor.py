@@ -36,6 +36,7 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
+from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -288,6 +289,44 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_connect.assert_called()
         self.assertEqual(mock_connect.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.schema_exists_trino")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    @patch("time.sleep", return_value=None)
+    def test_delete_ocp_on_aws_hive_partition_by_day_managed_table(
+        self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
+    ):
+        """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+            [1],
+            self.aws_provider_uuid,
+            self.ocp_provider_uuid,
+            "2022",
+            "01",
+            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+        )
+        mock_connect.assert_not_called()
+
+        mock_connect.reset_mock()
+
+        mock_schema_exists.return_value = True
+        attrs = {"cursor.side_effect": TrinoExternalError({"errorName": "HIVE_METASTORE_ERROR"})}
+        mock_connect.return_value = Mock(**attrs)
+
+        with self.assertRaises(TrinoHiveMetastoreError):
+            self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+                [1],
+                self.aws_provider_uuid,
+                self.ocp_provider_uuid,
+                "2022",
+                "01",
+                TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            )
+
+        mock_connect.assert_called()
+        self.assertEqual(mock_connect.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
         """Test that Trino is used to find matched tags."""
@@ -477,5 +516,31 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         self.accessor.populate_ec2_compute_summary_table_trino(
             self.aws_provider_uuid, start_date, current_bill_id, markup_value
+        )
+        mock_trino.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete):
+        """
+        Test that calling ocp on cloud populate triggers the deletes and summary sql.
+        """
+        start_date = "2024-08-01"
+        end_date = "2024-08-05"
+        year = "2024"
+        month = "08"
+        matched_tags = "fake-tags"
+        expected_days = ("1", "2", "3", "4", "5")
+
+        self.accessor.populate_ocp_on_cloud_daily_trino(
+            self.aws_provider_uuid, self.ocp_provider_uuid, start_date, end_date, matched_tags
+        )
+        mock_partition_delete.assert_called_with(
+            expected_days,
+            self.aws_provider_uuid,
+            self.ocp_provider_uuid,
+            year,
+            month,
+            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
         )
         mock_trino.assert_called()

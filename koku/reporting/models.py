@@ -176,6 +176,7 @@ TRINO_MANAGED_TABLES = {
     "reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
     "gcp_openshift_daily_resource_matched_temp": "ocp_source",
     "gcp_openshift_daily_tag_matched_temp": "ocp_source",
+    "managed_aws_openshift_daily": "ocp_source",
 }
 
 # These are cleaned during expired_data flow
