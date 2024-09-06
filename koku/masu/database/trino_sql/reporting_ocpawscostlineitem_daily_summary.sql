@@ -399,18 +399,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp (
     month
 )
 WITH cte_hours as (
-    SELECT
-        DAY(
-            DATE_ADD(
-                'day',
-                -1,
-                DATE_ADD(
-                    'month',
-                    1,
-                    DATE_TRUNC('month', DATE_PARSE(CONCAT('{{year | sqlsafe}}-', '{{month | sqlsafe}}', '-01'), '%Y-%m-%d'))
-                )
-            )
-        ) * 24 AS in_month
+    SELECT DAY(last_day_of_month({{start_date}})) * 24 as in_month
 ),
 cte_ocp_filtered_resources as (
     select
