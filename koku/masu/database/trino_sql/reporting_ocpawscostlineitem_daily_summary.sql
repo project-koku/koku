@@ -697,6 +697,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
     AND aws.data_transfer_direction IS NULL
     AND ocp.namespace != 'Storage Unattributed'
+    AND aws.resource_id_matched = True
 GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
 {% endif %}
 ;
@@ -710,8 +711,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     cluster_alias,
     data_source,
     namespace,
-    persistentvolumeclaim,
-    persistentvolume,
     storageclass,
     resource_id,
     usage_start,
@@ -763,8 +762,6 @@ SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will dedup
     max(ocp.cluster_alias) as cluster_alias,
     'Storage' as data_source,
     'Storage unattributed' as namespace,
-    ocp.persistentvolumeclaim as persistentvolumeclaim,
-    ocp.persistentvolume as persistentvolume,
     max(ocp.storageclass) as storageclass,
     max(aws.resource_id) as resource_id,
     max(aws.usage_start) as usage_start,
@@ -812,7 +809,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.data_transfer_direction IS NULL
     AND ocp.namespace != 'Storage Unattributed'
     AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
-GROUP BY aws.uuid, ocp.namespace, ocp.persistentvolume, ocp.persistentvolumeclaim
+GROUP BY aws.uuid, aws.resource_id
 {% endif %}
 ;
 
