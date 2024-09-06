@@ -1860,7 +1860,7 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
             }
         ]
         process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
-        mock_process.assert_not_called()
+        mock_process.assert_called()
 
     @patch(
         "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",

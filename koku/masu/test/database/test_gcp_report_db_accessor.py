@@ -32,6 +32,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPTopology
+from reporting.provider.gcp.models import TRINO_MANAGED_OCP_GCP_DAILY_TABLE
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -453,6 +454,44 @@ class GCPReportDBAccessorTest(MasuTestCase):
             mock_trino.assert_not_called()
             mock_table_exist.assert_not_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    @patch("time.sleep", return_value=None)
+    def test_delete_ocp_on_gcp_hive_partition_by_day_managed_table(
+        self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
+    ):
+        """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_gcp_hive_partition_by_day(
+            [1],
+            self.gcp_provider_uuid,
+            self.ocp_provider_uuid,
+            "2022",
+            "01",
+            TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+        )
+        mock_connect.assert_not_called()
+
+        mock_connect.reset_mock()
+
+        mock_schema_exists.return_value = True
+        attrs = {"cursor.side_effect": TrinoExternalError({"errorName": "HIVE_METASTORE_ERROR"})}
+        mock_connect.return_value = Mock(**attrs)
+
+        with self.assertRaises(TrinoHiveMetastoreError):
+            self.accessor.delete_ocp_on_gcp_hive_partition_by_day(
+                [1],
+                self.gcp_provider_uuid,
+                self.ocp_provider_uuid,
+                "2022",
+                "01",
+                TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+            )
+
+        mock_connect.assert_called()
+        self.assertEqual(mock_connect.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
     @patch("masu.database.gcp_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
     def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
         """
@@ -528,3 +567,29 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
             ).count()
             self.assertEqual(0, actual_child_count)
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete):
+        """
+        Test that calling ocp on cloud populate triggers the deletes and summary sql.
+        """
+        start_date = "2024-08-01"
+        end_date = "2024-08-05"
+        year = "2024"
+        month = "08"
+        matched_tags = "fake-tags"
+        expected_days = ("1", "2", "3", "4", "5")
+
+        self.accessor.populate_ocp_on_cloud_daily_trino(
+            self.gcp_provider_uuid, self.ocp_provider_uuid, start_date, end_date, matched_tags
+        )
+        mock_partition_delete.assert_called_with(
+            expected_days,
+            self.gcp_provider_uuid,
+            self.ocp_provider_uuid,
+            year,
+            month,
+            TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+        )
+        mock_trino.assert_called()
