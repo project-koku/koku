@@ -412,6 +412,8 @@ cte_ocp_filtered_resources as (
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.usage_start = ocp.usage_start
         AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
+        AND ocp.csi_volume_handle is not null
+        AND ocp.csi_volume_handle != ''
     WHERE
         ocp.source_uuid = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
