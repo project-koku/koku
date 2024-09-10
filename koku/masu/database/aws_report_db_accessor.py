@@ -34,6 +34,7 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
 
@@ -476,12 +477,25 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+        """
+        Verify the managed trino table population went successfully.
+        """
+        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_cloud_tables.sql")
+        verification_sql = verification_sql.decode("utf-8")
+        LOG.info(log_json(msg="running verification for managed OCP on AWS daily SQL", **verification_params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        if False in result[0]:
+            LOG.error(log_json(msg="Verification failed", **verification_params))
+        else:
+            LOG.info(log_json(msg="Verification successful", **verification_params))
+
     def populate_ocp_on_cloud_daily_trino(
         self, aws_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
     ):
         """Populate the aws_openshift_daily trino table for OCP on AWS.
         Args:
-            aws_provider_uuid (UUID) GCP source UUID.
+            aws_provider_uuid (UUID) AWS source UUID.
             ocp_provider_uuid (UUID) OCP source UUID.
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
@@ -517,3 +531,14 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info(log_json(msg="running managed OCP on AWS daily SQL", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+
+        verification_params = {
+            "schema": self.schema,
+            "aws_source_uuid": aws_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+            "year": year,
+            "month": month,
+            "managed_table": TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            "parquet_table": TRINO_OCP_ON_AWS_DAILY_TABLE,
+        }
+        self.verify_populate_ocp_on_cloud_daily_trino(verification_params)
