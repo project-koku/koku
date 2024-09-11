@@ -119,6 +119,7 @@ function run_smoke_tests_stage() {
         --set-parameter koku/OCI_CONFIG_EPH=${OCI_CONFIG_EPH} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
+        --set-parameter koku/IMAGE=${IMAGE} \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
