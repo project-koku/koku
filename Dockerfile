@@ -1,6 +1,6 @@
 ARG TARGETARCH
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest AS base
+FROM registry.access.redhat.com/ubi9-minimal:latest AS base
 
 USER root
 
@@ -14,7 +14,7 @@ ENV PYTHON_VERSION=3.11 \
     PIPENV_VERBOSITY=-1 \
     APP_ROOT=/opt/koku \
     APP_HOME=/opt/koku/koku \
-    PLATFORM="el8"
+    PLATFORM="el9"
 
 ENV SUMMARY="Koku is the Cost Management application" \
     DESCRIPTION="Koku is the Cost Management application"
@@ -37,7 +37,6 @@ LABEL summary="$SUMMARY" \
 # libpq-devel needed for building psycopg2
 RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc-c++ shadow-utils libpq-devel" && \
     microdnf --nodocs -y upgrade && \
-    microdnf reinstall tzdata && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
