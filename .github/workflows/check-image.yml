@@ -16,7 +16,7 @@ jobs:
 
       - name: Check change
         run: |
-          skopeo inspect "docker://registry.access.redhat.com/ubi8/ubi-minimal:latest" | grep -Po '(?<="Digest": ")([^"]+)' > .baseimagedigest
+          skopeo inspect "docker://registry.access.redhat.com/ubi9-minimal:latest" | grep -Po '(?<="Digest": ")([^"]+)' > .baseimagedigest
           docker run --rm --entrypoint sh -u 0 quay.io/cloudservices/koku:latest -c \
             'yum upgrade -y --security > /dev/null; rpm -qa | sort | sha256sum' \
             >> .baseimagedigest
