@@ -197,6 +197,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 "cost_type",
                 "resource.name",
                 "resource.global_name",
+                "price.effective_price",
             ]
             self.table_name = ".".join(
                 [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
