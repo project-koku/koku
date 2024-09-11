@@ -111,10 +111,11 @@ cte_array_agg_volumes AS (
         AND interval_start < date_add('day', 1, {{end_date}})
 ),
 cte_matchable_resource_names AS (
+    -- this matches the endswith method done with resource id matching python
     SELECT resource_names.lineitem_resourceid
     FROM cte_aws_resource_names AS resource_names
     JOIN cte_array_agg_nodes AS nodes
-        ON strpos(resource_names.lineitem_resourceid, nodes.resource_id) != 0
+        ON substr(resource_names.lineitem_resourceid, -length(nodes.resource_id)) = nodes.resource_id
 
     UNION
 
@@ -122,8 +123,8 @@ cte_matchable_resource_names AS (
     FROM cte_aws_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON (
-            strpos(resource_names.lineitem_resourceid, volumes.persistentvolume) != 0
-            OR strpos(resource_names.lineitem_resourceid, volumes.csi_volume_handle) != 0
+            substr(resource_names.lineitem_resourceid, -length(volumes.persistentvolume)) = volumes.persistentvolume
+            OR substr(resource_names.lineitem_resourceid, -length(volumes.csi_volume_handle)) = volumes.csi_volume_handle
         )
 
 ),
@@ -178,8 +179,7 @@ SELECT aws.lineitem_resourceid,
     cast(day(aws.lineitem_usagestartdate) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    -- this matches the endswith method this matching was done with in python
-    ON substr(aws.lineitem_resourceid, -length(resource_names.lineitem_resourceid)) = resource_names.lineitem_resourceid
+    ON resource_names.lineitem_resourceid = aws.lineitem_resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(resourcetags, x) != 0)
 WHERE aws.source = {{aws_source_uuid}}
