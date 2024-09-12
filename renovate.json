@@ -7,6 +7,6 @@
     ],
     "ignorePaths": [
       "dev/containers/**",
-      "/.pre-commit-config.yaml"
+      ".pre-commit-config.yaml"
     ]
 }
