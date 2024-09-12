@@ -111,7 +111,7 @@ def is_validation_enabled(account):  # pragma: no cover
 def is_managed_ocp_cloud_processing_enabled(account):
     account = convert_account(account)
     context = {"schema": account}
-    return True  # UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-processing", context)
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-processing", context)
 
 
 def is_managed_ocp_cloud_summary_enabled(account):
