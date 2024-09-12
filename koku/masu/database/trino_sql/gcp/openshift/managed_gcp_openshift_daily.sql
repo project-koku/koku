@@ -62,7 +62,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily (
     day
 )
 WITH cte_gcp_resource_names AS (
-    SELECT DISTINCT resource_name
+    SELECT DISTINCT resource_name, service_description
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{gcp_source_uuid}}
         AND year = {{year}}
@@ -71,7 +71,7 @@ WITH cte_gcp_resource_names AS (
         AND usage_start_time < date_add('day', 1, {{end_date}})
 ),
 cte_array_agg_nodes AS (
-    SELECT DISTINCT resource_id
+    SELECT DISTINCT node
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
@@ -89,14 +89,14 @@ cte_array_agg_volumes AS (
         AND interval_start < date_add('day', 1, {{end_date}})
 ),
 cte_matchable_resource_names AS (
-    SELECT resource_names.resource_name
+    SELECT resource_names.resource_name, resource_names.service_description
     FROM cte_gcp_resource_names AS resource_names
     JOIN cte_array_agg_nodes AS nodes
-        ON strpos(resource_names.resource_name, nodes.resource_id) != 0
+        ON strpos(resource_names.resource_name, nodes.node) != 0
 
     UNION
 
-    SELECT resource_names.resource_name
+    SELECT resource_names.resource_name, resource_names.service_description
     FROM cte_gcp_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON (
@@ -147,8 +147,8 @@ SELECT gcp.invoice_month,
     cast(day(gcp.usage_start_time) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    -- this matches the endswith method this matching was done with in python
     ON substr(gcp.resource_name, -length(resource_names.resource_name)) = resource_names.resource_name
+    AND gcp.service_description = resource_names.service_description
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(labels, x) != 0)
 WHERE gcp.source = {{gcp_source_uuid}}

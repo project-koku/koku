@@ -172,7 +172,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily (
     day
 )
 WITH cte_azure_resource_names AS (
-    SELECT DISTINCT resourcename
+    SELECT DISTINCT resourceid, servicefamily
     FROM hive.{{schema | sqlsafe}}.azure_line_items
     WHERE source = {{azure_source_uuid}}
         AND year = {{year}}
@@ -181,7 +181,7 @@ WITH cte_azure_resource_names AS (
         AND date < date_add('day', 1, {{end_date}})
 ),
 cte_array_agg_nodes AS (
-    SELECT DISTINCT resource_id
+    SELECT DISTINCT node
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
@@ -199,19 +199,19 @@ cte_array_agg_volumes AS (
         AND interval_start < date_add('day', 1, {{end_date}})
 ),
 cte_matchable_resource_names AS (
-    SELECT resource_names.resourcename
+    SELECT resource_names.resourceid, resource_names.servicefamily
     FROM cte_azure_resource_names AS resource_names
     JOIN cte_array_agg_nodes AS nodes
-        ON strpos(resource_names.resourcename, nodes.resource_id) != 0
+        ON strpos(resource_names.resourceid, nodes.node) != 0
 
     UNION
 
-    SELECT resource_names.resourcename
+    SELECT resource_names.resourceid, resource_names.servicefamily
     FROM cte_azure_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON (
-            strpos(resource_names.resourcename, volumes.persistentvolume) != 0
-            OR strpos(resource_names.resourcename, volumes.csi_volume_handle) != 0
+            strpos(resource_names.resourceid, volumes.persistentvolume) != 0
+            OR strpos(resource_names.resourceid, volumes.csi_volume_handle) != 0
         )
 
 ),
@@ -300,7 +300,7 @@ SELECT azure.invoicesectionname,
     azure.servicetier,
     azure.paygprice,
     azure.resourcerate,
-    CASE WHEN resource_names.resourcename IS NOT NULL
+    CASE WHEN resource_names.resourceid IS NOT NULL
         THEN TRUE
         ELSE FALSE
     END as resource_id_matched,
@@ -312,8 +312,8 @@ SELECT azure.invoicesectionname,
     cast(day(azure.date) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    -- this matches the endswith method this matching was done with in python
-    ON substr(azure.resourcename, -length(resource_names.resourcename)) = resource_names.resourcename
+    ON substr(azure.resourceid, -length(resource_names.resourceid)) = resource_names.resourceid
+    AND azure.servicefamily = resource_names.servicefamily
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(tags, x) != 0)
 WHERE azure.source = {{azure_source_uuid}}
@@ -321,4 +321,4 @@ WHERE azure.source = {{azure_source_uuid}}
     AND azure.month= {{month}}
     AND azure.date >= {{start_date}}
     AND azure.date < date_add('day', 1, {{end_date}})
-    AND (resource_names.resourcename IS NOT NULL OR tag_matches.matched_tags IS NOT NULL)
+    AND (resource_names.resourceid IS NOT NULL OR tag_matches.matched_tags IS NOT NULL)
