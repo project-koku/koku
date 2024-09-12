@@ -4,6 +4,7 @@ import multiprocessing
 import traceback
 
 import environ
+from prometheus_client import multiprocess
 
 from koku.feature_flags import UNLEASH_CLIENT
 from koku.probe_server import BasicProbeServer
@@ -72,3 +73,7 @@ def worker_abort(worker):
     buffer.close()
 
     worker.log.error(f"Killing worker {worker.pid}\n{data}")
+
+
+def child_exit(server, worker):
+    multiprocess.mark_process_dead(worker.pid)
