@@ -67,6 +67,36 @@ class ReportDataTests(TestCase):
             invoice_month=None,
         )
 
+    @patch("masu.api.report_data.is_managed_ocp_cloud_summary_enabled", return_value=True)
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.process_openshift_on_cloud_trino")
+    @patch("masu.api.report_data.update_summary_tables")
+    def test_get_report_data_ocp_cloud_task(self, mock_update, mock_ocp_cloud, _, mock_unleash):
+        """Test the GET report_data endpoint."""
+        params = {
+            "schema": self.schema_name,
+            "start_date": self.start_date,
+            "provider_uuid": self.provider_uuid,
+        }
+        expected_key = "Report Data Task IDs"
+
+        response = self.client.get(reverse("report_data"), params)
+        body = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        mock_update.s.assert_called_with(
+            params["schema"],
+            self.provider_type,
+            params["provider_uuid"],
+            params["start_date"],
+            DateHelper().today.date().strftime("%Y-%m-%d"),
+            queue_name=PriorityQueue.DEFAULT,
+            ocp_on_cloud=True,
+            invoice_month=None,
+        )
+        mock_ocp_cloud.s.assert_called_once()
+
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_sent_to_OCP_queue(self, mock_update, _):

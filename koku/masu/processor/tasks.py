@@ -44,6 +44,7 @@ from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import is_managed_ocp_cloud_processing_enabled
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor import is_ocp_on_cloud_summary_disabled
 from masu.processor import is_rate_limit_customer_large
 from masu.processor import is_source_disabled
@@ -143,6 +144,70 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
         )
     )
     return reports_deduplicated
+
+
+def trigger_ocp_on_cloud_summary(
+    context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name=None, synchronous=False
+):
+    """Queue up the ocp on cloud delete and summary tasks for a provider."""
+    if is_ocp_on_cloud_summary_disabled(schema):
+        LOG.info(
+            log_json(
+                tracing_id, msg="ocp on cloud summary disabled for schema, skipping ocp cloud summary", context=context
+            )
+        )
+        return
+    updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
+    ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
+    if not ocp_on_cloud_infra_map:
+        LOG.info(log_json(tracing_id, msg="ocp on cloud infra map empty, skipping ocp cloud summary", context=context))
+        return
+    fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue)
+    delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
+    delete_signature_list = []
+    trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
+    delete_signature_list.extend(
+        delete_openshift_on_cloud_data.si(
+            schema,
+            provider_uuid,
+            start_date,
+            end_date,
+            table_name,
+            operation,
+            manifest_id=manifest_id,
+            tracing_id=tracing_id,
+        ).set(queue=delete_truncate_queue)
+        for table_name, operation in trunc_delete_map.items()
+    )
+    signature_list = []
+    for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
+        infra_provider_uuid = infrastructure_tuple[0]
+        infra_provider_type = infrastructure_tuple[1]
+        signature_list.append(
+            update_openshift_on_cloud.si(
+                schema,
+                openshift_provider_uuid,
+                infra_provider_uuid,
+                infra_provider_type,
+                str(start_date),
+                str(end_date),
+                manifest_id=manifest_id,
+                queue_name=queue_name,
+                synchronous=synchronous,
+                tracing_id=tracing_id,
+            ).set(queue=fallback_update_summary_tables_queue)
+        )
+
+    # Apply OCP on Cloud tasks
+    if signature_list:
+        LOG.info(log_json(tracing_id, msg="chaining deletes and summaries", context=context))
+        deletes = group(delete_signature_list)
+        summaries = group(signature_list)
+        c = chain(deletes, summaries)
+        if synchronous:
+            c.apply()
+        else:
+            c.apply_async()
 
 
 def delayed_summarize_current_month(schema_name: str, provider_uuids: list, provider_type: str):
@@ -489,8 +554,6 @@ def update_summary_tables(  # noqa: C901
     }
     if is_summary_processing_disabled(schema) or is_source_disabled(provider_uuid):
         return
-    if is_ocp_on_cloud_summary_disabled(schema):
-        ocp_on_cloud = False
 
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
@@ -499,11 +562,9 @@ def update_summary_tables(  # noqa: C901
     else:
         cache_arg_date = start_date.strftime("%Y-%m")
     cache_args = [schema, provider_type, provider_uuid, cache_arg_date]
-    ocp_on_cloud_infra_map = {}
     is_large_customer_rate_limited = is_rate_limit_customer_large(schema)
     # Fallback should only be used for non-ocp processing
     fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue)
-    delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
     update_cost_model_queue = get_customer_queue(schema, CostModelQueue)
     priority_queue = get_customer_queue(schema, PriorityQueue)
     timeout = settings.WORKER_CACHE_TIMEOUT
@@ -555,8 +616,6 @@ def update_summary_tables(  # noqa: C901
         start_date, end_date = updater.update_summary_tables(
             start_date, end_date, tracing_id, invoice_month=invoice_month
         )
-        if ocp_on_cloud:
-            ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
         # Mark summary failed time
@@ -599,53 +658,11 @@ def update_summary_tables(  # noqa: C901
     # Mark summary complete time
     set_summary_timestamp(ManifestState.END, manifest_id)
 
-    # Create queued tasks for each OpenShift on Cloud cluster
-    delete_signature_list = []
-    if ocp_on_cloud_infra_map:
-        trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
-        for table_name, operation in trunc_delete_map.items():
-            delete_signature_list.append(
-                delete_openshift_on_cloud_data.si(
-                    schema,
-                    provider_uuid,
-                    start_date,
-                    end_date,
-                    table_name,
-                    operation,
-                    manifest_id=manifest_id,
-                    tracing_id=tracing_id,
-                ).set(queue=delete_truncate_queue)
-            )
-
-    signature_list = []
-    for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
-        infra_provider_uuid = infrastructure_tuple[0]
-        infra_provider_type = infrastructure_tuple[1]
-        signature_list.append(
-            update_openshift_on_cloud.si(
-                schema,
-                openshift_provider_uuid,
-                infra_provider_uuid,
-                infra_provider_type,
-                str(start_date),
-                str(end_date),
-                manifest_id=manifest_id,
-                queue_name=queue_name,
-                synchronous=synchronous,
-                tracing_id=tracing_id,
-            ).set(queue=fallback_update_summary_tables_queue)
+    # if the managed ocp summary flow is enabled, ocp on cloud summary is triggered after ocp on cloud processing
+    if ocp_on_cloud and not is_managed_ocp_cloud_summary_enabled(schema):
+        trigger_ocp_on_cloud_summary(
+            context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name, synchronous
         )
-
-    # Apply OCP on Cloud tasks
-    if signature_list:
-        LOG.info(log_json(tracing_id, msg="chaining deletes and summaries", context=context))
-        deletes = group(delete_signature_list)
-        summaries = group(signature_list)
-        c = chain(deletes, summaries)
-        if synchronous:
-            c.apply()
-        else:
-            c.apply_async()
 
     if not manifest_list and manifest_id:
         manifest_list = [manifest_id]
@@ -1278,7 +1295,7 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
 
 @celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=SummaryQueue.DEFAULT, bind=True)
 def process_openshift_on_cloud_trino(
-    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id
+    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id, report_data_trigger=False
 ):
     """Process OCP on Cloud data into managed tables for summary"""
     reports_deduplicated = deduplicate_summary_reports(reports_to_summarize, manifest_list=[])
@@ -1298,7 +1315,7 @@ def process_openshift_on_cloud_trino(
         with ReportManifestDBAccessor() as manifest_accesor:
             tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
 
-            if not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
+            if not report_data_trigger and not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
                 LOG.info(log_json(tracing_id, msg="manifest not ready for summary", context=report))
                 continue
 
@@ -1314,3 +1331,7 @@ def process_openshift_on_cloud_trino(
             manifest_id = report.get("manifest_id")
             processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, ctx)
             processor.process_ocp_cloud_trino(start_date, end_date)
+            if is_managed_ocp_cloud_summary_enabled(schema_name):
+                trigger_ocp_on_cloud_summary(
+                    ctx, schema_name, provider_uuid, manifest_id, tracing_id, start_date, end_date
+                )
