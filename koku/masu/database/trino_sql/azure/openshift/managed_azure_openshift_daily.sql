@@ -316,6 +316,7 @@ LEFT JOIN cte_matchable_resource_names AS resource_names
     AND azure.servicefamily = resource_names.servicefamily
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(tags, x) != 0)
+    AND resource_names.resourceid IS NULL
 WHERE azure.source = {{azure_source_uuid}}
     AND azure.year = {{year}}
     AND azure.month= {{month}}

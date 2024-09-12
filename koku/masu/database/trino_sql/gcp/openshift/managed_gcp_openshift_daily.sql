@@ -151,6 +151,7 @@ LEFT JOIN cte_matchable_resource_names AS resource_names
     AND gcp.service_description = resource_names.service_description
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(labels, x) != 0)
+    AND resource_names.resource_name IS NULL
 WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month= {{month}}
