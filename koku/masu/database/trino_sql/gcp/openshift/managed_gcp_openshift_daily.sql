@@ -147,7 +147,7 @@ SELECT gcp.invoice_month,
     cast(day(gcp.usage_start_time) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    ON substr(gcp.resource_name, -length(resource_names.resource_name)) = resource_names.resource_name
+    ON gcp.resource_name = resource_names.resource_name
     AND gcp.service_description = resource_names.service_description
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(labels, x) != 0)
