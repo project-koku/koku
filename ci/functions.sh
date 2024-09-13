@@ -100,9 +100,6 @@ function run_smoke_tests_stage() {
     OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
     OCI_CONFIG_EPH=$(jq -r '."oci-config"' < oci-creds.json)
 
-    # This sets the image tag for the migrations Job to be the current koku image tag
-    DBM_IMAGE_TAG=${IMAGE_TAG}
-
     bonfire deploy \
         ${APP_NAME} \
         --ref-env insights-production \
@@ -117,7 +114,8 @@ function run_smoke_tests_stage() {
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
         --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
         --set-parameter koku/OCI_CONFIG_EPH=${OCI_CONFIG_EPH} \
-        --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
+        --set-parameter koku/DBM_IMAGE=${IMAGE} \
+        --set-parameter koku/DBM_IMAGE_TAG=${IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
         --no-single-replicas \
