@@ -13,6 +13,7 @@ from django.db.models import JSONField
 TRINO_LINE_ITEM_DAILY_TABLE = "gcp_line_items_daily"
 TRINO_LINE_ITEM_TABLE = "gcp_line_items"
 TRINO_OCP_ON_GCP_DAILY_TABLE = "gcp_openshift_daily"
+TRINO_MANAGED_OCP_GCP_DAILY_TABLE = "managed_gcp_openshift_daily"
 
 UI_SUMMARY_TABLES = (
     "reporting_gcp_cost_summary_p",

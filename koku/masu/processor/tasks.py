@@ -1308,7 +1308,6 @@ def process_openshift_on_cloud_trino(
         for month in months:
             start_date = month[0]
             end_date = month[1]
-            # invoice_month = month[2]
             ctx["start_date"] = start_date
             ctx["end_date"] = end_date
             manifest_id = report.get("manifest_id")
