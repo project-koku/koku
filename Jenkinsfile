@@ -98,21 +98,7 @@ pipeline {
                 script {
                     sh '''
                         source ./ci/functions.sh
-
-                        echo "$IQE_MARKER_EXPRESSION"
-                        echo "$IQE_FILTER_EXPRESSION"
-
-                        count=0
-                        max=60  # Try for up to 30 minutes
-                        until podman image search --limit 500 --list-tags ${IMAGE} | grep -q ${IMAGE_TAG}; do
-                            echo "${count}: Waiting for image ${IMAGE}:${IMAGE_TAG}..."
-                            sleep 30
-                            ((count+=1))
-                            if [[ $count -gt $max ]]; then
-                                echo "Failed to pull image"
-                                exit 1
-                            fi
-                        done
+                        wait_for_image
                     '''
                 }
             }

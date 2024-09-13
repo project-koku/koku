@@ -167,6 +167,23 @@ function run_build_image_stage() {
     build_image
 }
 
+function wait_for_image() {
+    echo "Waiting for initial image build..."
+    sleep 300
+
+    count=0
+    max=60  # Try for up to 30 minutes
+    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -q "${IMAGE_TAG}"; do
+        echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
+        sleep 30
+        ((count+=1))
+        if [[ $count -gt $max ]]; then
+            echo "Failed to pull image"
+            exit 1
+        fi
+    done
+}
+
 function configure_stages() {
 
     if ! is_pull_request; then
