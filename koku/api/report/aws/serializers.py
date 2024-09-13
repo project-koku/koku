@@ -206,7 +206,7 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("month", "month"),)
 
-    _opfields = ("resource_id", "instance_name", "account", "operating_system", "region")
+    _opfields = ("instance", "account", "operating_system", "region")
 
     _aws_category = True
 
@@ -215,8 +215,12 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     limit = None
     offset = None
 
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    # Not valid for this endpoint.
+    # instance_name and resource_id is filtered by instance field.
+    instance_name = None
+    resource_id = None
+
+    instance = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
@@ -243,12 +247,16 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
 class AWSEC2ExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
-    _opfields = ("account", "region", "resource_id", "instance_name", "operating_system")
+    _opfields = ("account", "region", "instance", "operating_system")
+
+    # Not valid for this endpoint.
+    # instance_name and resource_id is filtered by instance field.
+    instance_name = None
+    resource_id = None
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    instance = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
 
 
