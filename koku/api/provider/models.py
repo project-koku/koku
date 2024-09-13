@@ -183,6 +183,10 @@ class Provider(models.Model):
     MANAGED_OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [
         PROVIDER_AWS,
         PROVIDER_AWS_LOCAL,
+        PROVIDER_AZURE,
+        PROVIDER_AZURE_LOCAL,
+        PROVIDER_GCP,
+        PROVIDER_GCP_LOCAL,
     ]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
