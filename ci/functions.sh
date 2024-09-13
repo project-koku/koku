@@ -167,7 +167,7 @@ function run_build_image_stage() {
 
 function wait_for_image() {
     echo "Waiting for initial image build..."
-    sleep 300
+    sleep 180
 
     count=0
     max=60  # Try for up to 30 minutes
