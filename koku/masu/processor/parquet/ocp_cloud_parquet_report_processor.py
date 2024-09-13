@@ -157,6 +157,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             "provider_uuid": self.provider_uuid,
             "provider_type": self.provider_type,
         }
+        invoice_month = self.invoice_month_date if self.invoice_month_date else self.start_date
         # If the key is in the cache but the value is None, there are no matching tags
         if matched_tags or is_key_in_cache(cache_key):
             LOG.info(log_json(msg="retreived matching tags from cache", context=ctx))
@@ -174,7 +175,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     ocp_provider_uuids,
                     self.start_date,
                     self.end_date,
-                    invoice_month_date=self.invoice_month_date,
+                    invoice_month_date=invoice_month,
                 )
         set_value_in_cache(cache_key, matched_tags)
         return matched_tags

@@ -182,6 +182,7 @@ LEFT JOIN cte_matchable_resource_names AS resource_names
     ON resource_names.lineitem_resourceid = aws.lineitem_resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(resourcetags, x) != 0)
+    AND resource_names.lineitem_resourceid IS NULL
 WHERE aws.source = {{aws_source_uuid}}
     AND aws.year = {{year}}
     AND aws.month= {{month}}
