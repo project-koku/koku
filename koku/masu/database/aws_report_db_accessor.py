@@ -534,7 +534,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         verification_params = {
             "schema": self.schema,
-            "aws_source_uuid": aws_provider_uuid,
+            "cloud_source_uuid": aws_provider_uuid,
             "year": year,
             "month": month,
             "managed_table": TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
