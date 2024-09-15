@@ -33,6 +33,7 @@ from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import TRINO_MANAGED_OCP_GCP_DAILY_TABLE
+from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -593,3 +594,27 @@ class GCPReportDBAccessorTest(MasuTestCase):
             TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
         )
         mock_trino.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
+        """
+        Test validating trino tables.
+        """
+        verification_params = {
+            "schema": self.schema,
+            "cloud_source_uuid": self.gcp_provider_uuid,
+            "year": "2024",
+            "month": "08",
+            "managed_table": TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+            "parquet_table": TRINO_OCP_ON_GCP_DAILY_TABLE,
+        }
+        with self.assertLogs("masu.database.gcp_report_db_accessor", level="INFO") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any(
+                "Verification successful" in log for log in logger.output
+            ), "Verification successful not found in logs"
+
+        mock_trino.side_effect = [[[False]]]
+        with self.assertLogs("masu.database.gcp_report_db_accessor", level="ERROR") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"

@@ -35,6 +35,7 @@ from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.gcp.models import TRINO_MANAGED_OCP_GCP_DAILY_TABLE
+from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportStatus
@@ -574,6 +575,19 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+        """
+        Verify the managed trino table population went successfully.
+        """
+        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_cloud_tables.sql")
+        verification_sql = verification_sql.decode("utf-8")
+        LOG.info(log_json(msg="running verification for managed OCP on GCP daily SQL", **verification_params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        if False in result[0]:
+            LOG.error(log_json(msg="Verification failed", **verification_params))
+        else:
+            LOG.info(log_json(msg="Verification successful", **verification_params))
+
     def populate_ocp_on_cloud_daily_trino(
         self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
     ):
@@ -615,3 +629,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+
+        verification_params = {
+            "schema": self.schema,
+            "cloud_source_uuid": gcp_provider_uuid,
+            "year": year,
+            "month": month,
+            "managed_table": TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+            "parquet_table": TRINO_OCP_ON_GCP_DAILY_TABLE,
+        }
+        self.verify_populate_ocp_on_cloud_daily_trino(verification_params)
