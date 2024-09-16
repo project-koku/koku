@@ -74,8 +74,6 @@ class AWSProviderMap(ProviderMap):
                         {"field": "instance_name", "operation": "icontains", "composition_key": "instance_filter"},
                         {"field": "resource_id", "operation": "icontains", "composition_key": "instance_filter"},
                     ],
-                    "instance_name": {"field": "instance_name", "operation": "icontains"},
-                    "resource_id": {"field": "resource_id", "operation": "icontains"},
                 },
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
