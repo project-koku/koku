@@ -32,6 +32,7 @@ UI_SUMMARY_TABLES_MARKUP_SUBSET = UI_SUMMARY_TABLES
 TRINO_LINE_ITEM_TABLE = "aws_line_items"
 TRINO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
 TRINO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
+TRINO_MANAGED_OCP_AWS_DAILY_TABLE = "managed_aws_openshift_daily"
 
 TRINO_REQUIRED_COLUMNS = {
     "bill/BillingEntity": "",

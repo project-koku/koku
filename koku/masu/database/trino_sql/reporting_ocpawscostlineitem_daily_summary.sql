@@ -162,6 +162,19 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
+{% if unattributed_storage %}
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp
+(
+    resource_id varchar,
+    capacity integer,
+    usage_start timestamp,
+    ocp_source varchar,
+    year varchar,
+    month varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
+{% endif %}
+;
+
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp (
     uuid,
     usage_start,
@@ -215,8 +228,21 @@ SELECT cast(uuid() as varchar) as uuid,
             END
     END AS data_transfer_direction,
     max(nullif(aws.lineitem_currencycode, '')) as currency_code,
-    sum(aws.lineitem_unblendedcost) as unblended_cost,
-    sum(aws.lineitem_blendedcost) as blended_cost,
+    -- SavingsPlanCoveredUsage needs to be negated to show accurate cost COST-5098
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_unblendedcost
+        END
+        ) as unblended_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_blendedcost
+        END
+        ) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
     sum(
         CASE
@@ -302,8 +328,21 @@ SELECT cast(uuid() as varchar) as uuid,
     max(nullif(aws.pricing_unit, '')) as unit,
     sum(aws.lineitem_usageamount) as usage_amount,
     max(nullif(aws.lineitem_currencycode, '')) as currency_code,
-    sum(aws.lineitem_unblendedcost) as unblended_cost,
-    sum(aws.lineitem_blendedcost) as blended_cost,
+    -- SavingsPlanCoveredUsage needs to be negated to show accurate cost COST-5098
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_unblendedcost
+        END
+        ) as unblended_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_blendedcost
+        END
+        ) as blended_cost,
     sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
     sum(
         CASE
@@ -335,6 +374,175 @@ WHERE aws.source = {{aws_source_uuid}}
     AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
     AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
     AND (aws.resource_id_matched = FALSE OR aws.resource_id_matched IS NULL)
+GROUP BY aws.lineitem_usagestartdate,
+    aws.lineitem_resourceid,
+    4, -- product_code
+    aws.product_productfamily,
+    aws.product_instancetype,
+    aws.lineitem_availabilityzone,
+    aws.product_region,
+    aws.costcategory,
+    17, -- tags
+    aws.matched_tag
+;
+
+{% if unattributed_storage %}
+-- Developer notes
+-- 30.44 is the average amount of days in each month between 28, 30, 31
+-- We can't use the aws_openshift_daily table to calcualte the capacity
+-- because it has already aggregated cost per each hour.
+INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp (
+    resource_id,
+    capacity,
+    usage_start,
+    ocp_source,
+    year,
+    month
+)
+WITH cte_ocp_filtered_resources as (
+    select
+        distinct aws.resource_id as resource_id,
+        {{ocp_source_uuid}} as ocp_source,
+        DATE(aws.usage_start) as usage_start,
+        aws.year as year,
+        aws.month as month
+    FROM aws_openshift_daily_resource_matched_temp as aws
+    JOIN reporting_ocpusagelineitem_daily_summary as ocp
+        ON aws.usage_start = ocp.usage_start
+        AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
+    WHERE
+        ocp.source_uuid = {{ocp_source_uuid}}
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}}
+        AND aws.ocp_source = {{ocp_source_uuid}}
+        AND aws.year = {{year}}
+        AND aws.month = {{month}}
+)
+SELECT
+    aws.lineitem_resourceid as resource_id,
+    CEIL(MAX(aws.lineitem_unblendedcost) / (MAX(aws.lineitem_unblendedrate) / (30.44 * 24))) AS capacity,
+    ocpaws.usage_start,
+    {{ocp_source_uuid}} as ocp_source,
+    {{year}} as year,
+    {{month}} as month
+FROM aws_line_items as aws
+INNER JOIN cte_ocp_filtered_resources as ocpaws
+    ON aws.lineitem_resourceid = ocpaws.resource_id
+    AND DATE(aws.lineitem_usagestartdate) = ocpaws.usage_start
+WHERE aws.year = {{year}}
+AND aws.month = {{month}}
+group by aws.lineitem_resourceid, ocpaws.usage_start
+{% endif %}
+;
+
+-- Maintain tag matching logic for disk resources
+-- until unattributed storage is released
+INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_tag_matched_temp (
+    uuid,
+    usage_start,
+    resource_id,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    currency_code,
+    unblended_cost,
+    blended_cost,
+    savingsplan_effective_cost,
+    calculated_amortized_cost,
+    tags,
+    aws_cost_category,
+    matched_tag,
+    ocp_source,
+    year,
+    month
+)
+WITH cte_enabled_tag_keys AS (
+    SELECT
+    CASE WHEN array_agg(key) IS NOT NULL
+        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
+        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
+    END as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+    WHERE enabled = TRUE
+    AND provider_type = 'AWS'
+),
+cte_csi_volume_handles as (
+    SELECT distinct csi_volume_handle as csi_volume_handle
+            FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as ocp
+            WHERE ocp.source = {{ocp_source_uuid}}
+                AND ocp.year = {{year}}
+                AND ocp.month = {{month}}
+)
+SELECT cast(uuid() as varchar) as uuid,
+    aws.lineitem_usagestartdate as usage_start,
+    nullif(aws.lineitem_resourceid, '') as resource_id,
+    CASE
+        WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+        ELSE nullif(aws.lineitem_productcode, '')
+    END as product_code,
+    nullif(aws.product_productfamily, '') as product_family,
+    nullif(aws.product_instancetype, '') as instance_type,
+    max(aws.lineitem_usageaccountid) as usage_account_id,
+    nullif(aws.lineitem_availabilityzone, '') as availability_zone,
+    nullif(aws.product_region, '') as region,
+    max(nullif(aws.pricing_unit, '')) as unit,
+    sum(aws.lineitem_usageamount) as usage_amount,
+    max(nullif(aws.lineitem_currencycode, '')) as currency_code,
+    -- SavingsPlanCoveredUsage needs to be negated to show accurate cost COST-5098
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_unblendedcost
+        END
+        ) as unblended_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='SavingsPlanCoveredUsage'
+            THEN 0.0
+            ELSE aws.lineitem_blendedcost
+        END
+        ) as blended_cost,
+    sum(aws.savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+    sum(
+        CASE
+            WHEN aws.lineitem_lineitemtype='Tax'
+            OR   aws.lineitem_lineitemtype='Usage'
+            THEN aws.lineitem_unblendedcost
+            ELSE aws.savingsplan_savingsplaneffectivecost
+        END
+    ) as calculated_amortized_cost,
+    json_format(
+        cast(
+            map_filter(
+                cast(json_parse(aws.resourcetags) as map(varchar, varchar)),
+                (k, v) -> contains(etk.enabled_keys, k)
+            ) as json
+        )
+    ) as tags,
+    aws.costcategory as aws_cost_category,
+    aws.matched_tag,
+    {{ocp_source_uuid}} as ocp_source,
+    max(aws.year) as year,
+    max(aws.month) as month
+FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+CROSS JOIN cte_enabled_tag_keys as etk
+CROSS JOIN cte_csi_volume_handles as csi
+WHERE aws.source = {{aws_source_uuid}}
+    AND aws.year = {{year}}
+    AND aws.month = {{month}}
+    AND aws.lineitem_usagestartdate >= {{start_date}}
+    AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
+    AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
+    AND matched_tag != ''
+    AND matched_tag is not null
+    AND resource_id_matched = True
+    AND strpos(aws.lineitem_resourceid, csi.csi_volume_handle) != 0
 GROUP BY aws.lineitem_usagestartdate,
     aws.lineitem_resourceid,
     4, -- product_code

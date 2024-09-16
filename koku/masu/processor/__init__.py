@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
-def is_feature_unattributed_storage_enabled(account):
+def is_feature_unattributed_storage_enabled_azure(account):
     """Should unattributed storage feature be enabled."""
     unleash_flag = "cost-management.backend.unattributed_storage"
     account = convert_account(account)
@@ -108,6 +108,18 @@ def is_validation_enabled(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable_data_validation", context)
 
 
+def is_managed_ocp_cloud_processing_enabled(account):
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-processing", context)
+
+
+def is_managed_ocp_cloud_summary_enabled(account):
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
+
+
 def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
     """Enable the use of savings plan cost for OCP on AWS -> OCP."""
     account = convert_account(account)
@@ -155,6 +167,14 @@ def check_ingress_columns(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
+
+
+def is_feature_unattributed_storage_enabled_aws(account):
+    """Should unattributed storage feature be enabled."""
+    unleash_flag = "cost-management.backend.unattributed_storage.aws"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
 def is_feature_cost_3592_tag_mapping_enabled(account):

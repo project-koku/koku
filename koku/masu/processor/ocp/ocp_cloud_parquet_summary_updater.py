@@ -299,7 +299,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
-                accessor.populate_ocp_on_aws_tag_information(aws_bill_ids, start, end)
+                accessor.populate_ocp_on_aws_tag_information(aws_bill_ids, start, end, current_ocp_report_period_id)
                 accessor.populate_ocp_on_aws_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, aws_provider_uuid
                 )
@@ -434,7 +434,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
-                accessor.populate_ocp_on_azure_tag_information(azure_bill_ids, start, end)
+                accessor.populate_ocp_on_azure_tag_information(
+                    azure_bill_ids, start, end, current_ocp_report_period_id
+                )
                 accessor.populate_ocp_on_azure_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, azure_provider_uuid
                 )
@@ -555,7 +557,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, gcp_provider_uuid
                 )
-                accessor.populate_ocp_on_gcp_tag_information(gcp_bill_ids, start, end)
+                accessor.populate_ocp_on_gcp_tag_information(gcp_bill_ids, start, end, current_ocp_report_period_id)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"

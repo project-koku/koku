@@ -12,6 +12,7 @@ from os import path
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -33,6 +34,8 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_TABLE
+from reporting.provider.gcp.models import TRINO_MANAGED_OCP_GCP_DAILY_TABLE
+from reporting.provider.gcp.models import TRINO_OCP_ON_GCP_DAILY_TABLE
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportStatus
@@ -408,9 +411,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 }
                 self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def delete_ocp_on_gcp_hive_partition_by_day(self, days, gcp_source, ocp_source, year, month):
+    def delete_ocp_on_gcp_hive_partition_by_day(
+        self, days, gcp_source, ocp_source, year, month, table="reporting_ocpgcpcostlineitem_project_daily_summary"
+    ):
         """Deletes partitions individually for each day in days list."""
-        table = "reporting_ocpgcpcostlineitem_project_daily_summary"
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -425,16 +429,20 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
+                if table == TRINO_MANAGED_OCP_GCP_DAILY_TABLE:
+                    column_name = "source"
+                else:
+                    column_name = "gcp_source"
                 sql = f"""
                     DELETE FROM hive.{self.schema}.{table}
-                        WHERE gcp_source = '{gcp_source}'
+                        WHERE {column_name} = '{gcp_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                         AND day = '{day}'"""
                 self._execute_trino_raw_sql_query(
                     sql,
-                    log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day}",
+                    log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day} from {table}",
                 )
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
@@ -475,13 +483,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         return [json.loads(result[0]) for result in results]
 
-    def populate_ocp_on_gcp_tag_information(self, gcp_bill_ids, start_date, end_date):
+    def populate_ocp_on_gcp_tag_information(self, gcp_bill_ids, start_date, end_date, report_period_id):
         """Populate the line item aggregated totals data table."""
         sql_params = {
             "schema": self.schema,
             "gcp_bill_ids": gcp_bill_ids,
             "start_date": start_date,
             "end_date": end_date,
+            "report_period_id": report_period_id,
         }
         # Tag Summary
         sql = pkgutil.get_data("masu.database", "sql/gcp/openshift/reporting_ocpgcptags_summary.sql")
@@ -565,3 +574,68 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on GCP", schema=self.schema))
                 return False
         return True
+
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+        """
+        Verify the managed trino table population went successfully.
+        """
+        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_cloud_tables.sql")
+        verification_sql = verification_sql.decode("utf-8")
+        LOG.info(log_json(msg="running verification for managed OCP on GCP daily SQL", **verification_params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        if False in result[0]:
+            LOG.error(log_json(msg="Verification failed", **verification_params))
+        else:
+            LOG.info(log_json(msg="Verification successful", **verification_params))
+
+    def populate_ocp_on_cloud_daily_trino(
+        self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
+    ):
+        """Populate the gcp_openshift_daily trino table for OCP on Azure.
+        Args:
+            gcp_provider_uuid (UUID) GCP source UUID.
+            ocp_provider_uuid (UUID) OCP source UUID.
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            matched_tag_strs (str) matching tags.
+        Returns
+            (None)
+        """
+        if type(start_date) == str:
+            start_date = parse(start_date).astimezone(tz=settings.UTC)
+        if type(end_date) == str:
+            end_date = parse(end_date).astimezone(tz=settings.UTC)
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        table = TRINO_MANAGED_OCP_GCP_DAILY_TABLE
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_on_gcp_hive_partition_by_day(
+            days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month, table
+        )
+
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/managed_gcp_openshift_daily.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "year": year,
+            "month": month,
+            "days": days_tup,
+            "end_date": end_date,
+            "gcp_source_uuid": gcp_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+            "matched_tag_array": matched_tags,
+        }
+        LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **summary_sql_params))
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+
+        verification_params = {
+            "schema": self.schema,
+            "cloud_source_uuid": gcp_provider_uuid,
+            "year": year,
+            "month": month,
+            "managed_table": TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+            "parquet_table": TRINO_OCP_ON_GCP_DAILY_TABLE,
+        }
+        self.verify_populate_ocp_on_cloud_daily_trino(verification_params)

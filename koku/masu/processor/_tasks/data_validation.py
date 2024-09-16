@@ -106,7 +106,9 @@ class DataValidator:
             if utc_start.day < 6
             else self.dh.n_days_ago(utc_start, settings.VALIDATION_RANGE)
         )
-        self.end_date = self.dh.set_datetime_utc(end_date)
+        # end_date should not cross month boundary
+        utc_end = self.dh.set_datetime_utc(end_date)
+        self.end_date = self.dh.month_end(utc_start) if utc_start.month != utc_end.month else utc_end
         self.context = context
         self.date_step = date_step
 
@@ -127,7 +129,8 @@ class DataValidator:
         incomplete_days = {}
         valid_cost = True
         if trino_data == {}:
-            return incomplete_days, False
+            # If there is no data in trino then there is nothing to validate against
+            return incomplete_days, True
         for date in trino_data:
             if date in pg_data:
                 if not abs(pg_data[date] - trino_data[date]) <= tolerance:
@@ -194,13 +197,17 @@ class DataValidator:
         cluster_id = None
         daily_difference = {}
         LOG.info(
-            log_json(msg=f"validation started for provider using start date: {self.start_date}", context=self.context)
+            log_json(
+                msg=f"validation started for provider using start date: {self.start_date}, end date: {self.end_date}",
+                context=self.context,
+            )
         )
         provider = Provider.objects.filter(uuid=self.provider_uuid).first()
         provider_type = provider.type.strip("-local")
         if self.ocp_on_cloud_type:
             provider_type = self.ocp_on_cloud_type.strip("-local")
             cluster_id = provider.authentication.credentials.get("cluster_id")
+            self.context["cluster_id"] = cluster_id
         # Postgres query to get daily values
         try:
             pg_data = self.execute_relevant_query(provider_type, cluster_id)
