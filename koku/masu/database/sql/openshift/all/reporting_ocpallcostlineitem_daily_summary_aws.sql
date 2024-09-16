@@ -55,7 +55,7 @@ SELECT 'AWS'::text AS source_type,
        sum(aws.usage_amount),
        max(aws.unit),
        --  OCP on ALL tables should use calculated_amortized_cost
-       sum(coalesce(nullif(savingsplan_effective_cost, 0), unblended_cost)) as unblended_cost,
+       sum(coalesce(nullif(aws.savingsplan_effective_cost, 0), aws.unblended_cost)) as unblended_cost,
        sum(aws.markup_cost),
        max(aws.currency_code),
        max(cost_category_id) as cost_category_id,
