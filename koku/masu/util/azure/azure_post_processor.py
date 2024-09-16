@@ -86,7 +86,6 @@ class AzurePostProcessor:
             "costinbillingcurrency": safe_float,
             "effectiveprice": safe_float,
             "unitprice": safe_float,
-            "paygprice": safe_float,
             "tags": azure_json_converter,
             "additionalinfo": azure_json_converter,
         }

@@ -23,7 +23,6 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
             "costinbillingcurrency",
             "effectiveprice",
             "unitprice",
-            "paygprice",
         ]
         date_columns = ["date", "billingperiodstartdate", "billingperiodenddate"]
         boolean_columns = ["resource_id_matched"]
