@@ -35,8 +35,6 @@ TRINO_REQUIRED_COLUMNS = {
     "date": pd.NaT,
     "effectiveprice": 0.0,
     "frequency": "",
-    "invoicesectionid": "",
-    "invoicesectionname": "",
     "isazurecrediteligible": "",
     "metercategory": "",
     "meterid": "",
