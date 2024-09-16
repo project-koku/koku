@@ -30,6 +30,7 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.models import TRINO_MANAGED_OCP_AZURE_DAILY_TABLE
+from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -447,3 +448,27 @@ class AzureReportDBAccessorTest(MasuTestCase):
             TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
         )
         mock_trino.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
+        """
+        Test validating trino tables.
+        """
+        verification_params = {
+            "schema": self.schema,
+            "cloud_source_uuid": self.azure_provider_uuid,
+            "year": "2024",
+            "month": "08",
+            "managed_table": TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
+            "parquet_table": TRINO_OCP_ON_AZURE_DAILY_TABLE,
+        }
+        with self.assertLogs("masu.database.azure_report_db_accessor", level="INFO") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any(
+                "Verification successful" in log for log in logger.output
+            ), "Verification successful not found in logs"
+
+        mock_trino.side_effect = [[[False]]]
+        with self.assertLogs("masu.database.azure_report_db_accessor", level="ERROR") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"
