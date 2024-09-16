@@ -162,7 +162,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-{% if unattributed_storage %}
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp
 (
     resource_id varchar,
@@ -171,9 +170,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.aws_openshift_disk_capaciti
     ocp_source varchar,
     year varchar,
     month varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
-{% endif %}
-;
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month']);
 
 INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp (
     uuid,
@@ -917,7 +914,7 @@ SELECT aws.uuid as aws_uuid,
     JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
         ON aws.usage_start = ocp.usage_start
             AND strpos(aws.resource_id, ocp.resource_id) != 0
-    JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
+    LEFT JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
         ON aws_disk.usage_start = aws.usage_start
         AND aws_disk.resource_id = aws.resource_id
         AND aws_disk.ocp_source = {{ocp_source_uuid}}
