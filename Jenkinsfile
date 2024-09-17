@@ -31,7 +31,7 @@ pipeline {
         APP_NAME="hccm"  // name of app-sre "application" folder this component lives in
         COMPONENT_NAME="koku"  // name of app-sre "resourceTemplate" in deploy.yaml for this component
         IMAGE="quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku"
-        IMAGE_TAG=sh(script: "echo on-pr-\$(git rev-list --no-merges --max-count 1 HEAD)", returnStdout: true).trim()
+        IMAGE_TAG=sh(script: "echo on-pr-\$(git rev-parse HEAD)", returnStdout: true).trim()
         PRESERVE_IMAGE_TAG="True"
         DBM_IMAGE="${IMAGE}"
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
