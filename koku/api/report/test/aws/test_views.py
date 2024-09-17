@@ -661,3 +661,39 @@ class AWSReportViewTest(IamTestCase):
                 url = base_url + param
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ec2_compute_instance_filter(self):
+        """Test EC2 compute instance filter."""
+
+        # Assert that instance filter is working
+        base_url = reverse("reports-aws-ec2-compute")
+        url = base_url + "?filter[instance]=example_instance_name"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Assert that instance filter is not working with invalid filter
+        url = base_url + "?filter[instance_name]=example_instance_name"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = base_url + "?filter[resource_id]=example_instance_name"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ec2_compute_instance_exclude_filter(self):
+        """Test EC2 compute instance filter."""
+
+        # Assert that instance filter is working
+        base_url = reverse("reports-aws-ec2-compute")
+        url = base_url + "?exclude[instance]=example_instance_name"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Assert that instance filter is not working with invalid filter
+        url = base_url + "?exclude[instance_name]=example_instance_name"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        url = base_url + "?exclude[resource_id]=example_instance_name"
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
