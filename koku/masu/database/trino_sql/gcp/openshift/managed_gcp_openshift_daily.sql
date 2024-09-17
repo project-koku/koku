@@ -62,7 +62,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily (
     day
 )
 WITH cte_gcp_resource_names AS (
-    SELECT DISTINCT resource_name, service_description
+    SELECT DISTINCT resource_name
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{gcp_source_uuid}}
         AND year = {{year}}
@@ -89,14 +89,14 @@ cte_array_agg_volumes AS (
         AND interval_start < date_add('day', 1, {{end_date}})
 ),
 cte_matchable_resource_names AS (
-    SELECT resource_names.resource_name, resource_names.service_description
+    SELECT resource_names.resource_name
     FROM cte_gcp_resource_names AS resource_names
     JOIN cte_array_agg_nodes AS nodes
         ON strpos(resource_names.resource_name, nodes.node) != 0
 
     UNION
 
-    SELECT resource_names.resource_name, resource_names.service_description
+    SELECT resource_names.resource_name
     FROM cte_gcp_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON (
@@ -148,7 +148,6 @@ SELECT gcp.invoice_month,
 FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
-    AND gcp.service_description = resource_names.service_description
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(labels, x) != 0)
     AND resource_names.resource_name IS NULL
