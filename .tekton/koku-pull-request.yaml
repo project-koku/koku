@@ -426,6 +426,9 @@ spec:
             value: $(params.dockerfile)
           - name: CONTEXT
             value: $(params.path-context)
+          - name: ADDITIONAL_TAGS
+            value:
+              - pr-{{ body.pull_request.number}}-$(tasks.clone-repository.results.short-commit)
         runAfter:
           - build-container
         taskRef:
