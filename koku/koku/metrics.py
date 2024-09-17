@@ -130,7 +130,7 @@ def collect_metrics(self):
     db_status.collect()
     LOG.debug("Pushing stats to gateway: %s", settings.PROMETHEUS_PUSHGATEWAY)
     try:
-        push_to_gateway(settings.PROMETHEUS_PUSHGATEWAY, job="koku.metrics.collect_metrics")
+        push_to_gateway(gateway=settings.PROMETHEUS_PUSHGATEWAY, job="koku.metrics.collect_metrics", registry=REGISTRY)
     except OSError as exc:
         LOG.error("Problem reaching pushgateway: %s", exc)
         self.update_state(state="FAILURE", meta={"result": str(exc), "traceback": str(exc.__traceback__)})
