@@ -176,14 +176,16 @@ spec:
         runAfter:
           - init
         taskRef:
+          resolver: git
           params:
-            - name: name
-              value: git-clone
-            - name: bundle
-              value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:0bb1be8363557e8e07ec34a3c5daaaaa23c9d533f0bb12f00dc604d00de50814
-            - name: kind
-              value: task
-          resolver: bundles
+            - name: revision
+              value: git-clone-add-short-commit
+
+            - name: url
+              value: https://github.com/samdoran/konflux-ci-build-definitions.git
+
+            - name: pathInRepo
+              value: task/git-clone/0.1/git-clone.yaml
         when:
           - input: $(tasks.init.results.build)
             operator: in
