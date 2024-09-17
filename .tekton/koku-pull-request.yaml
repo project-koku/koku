@@ -137,6 +137,19 @@ spec:
         name: JAVA_COMMUNITY_DEPENDENCIES
         value: $(tasks.build-container.results.JAVA_COMMUNITY_DEPENDENCIES)
     tasks:
+      - name: debug
+        taskSpec:
+          steps:
+            - name: debug
+              image: registry.access.redhat.com/ubi9:latest
+              script: |
+                #!/usr/bin/python3
+                import json
+                import pprint
+
+                body = json.loads("""{{ body.pull_request }}""")
+                pprint.pprint(body)
+
       - name: init
         params:
           - name: image-url
