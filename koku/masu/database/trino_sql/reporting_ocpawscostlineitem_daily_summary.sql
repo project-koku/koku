@@ -670,6 +670,8 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
     ON aws.usage_start = ocp.usage_start
     AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
+    AND ocp.csi_volume_handle is not null
+    AND ocp.csi_volume_handle != ''
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
@@ -783,6 +785,8 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
     ON aws.usage_start = ocp.usage_start
     AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
+    AND ocp.csi_volume_handle is not null
+    AND ocp.csi_volume_handle != ''
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
