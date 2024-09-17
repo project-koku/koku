@@ -70,8 +70,10 @@ class AWSProviderMap(ProviderMap):
                     "org_unit_single_level": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                     "operating_system": {"field": "operating_system", "operation": "icontains"},
-                    "instance_name": {"field": "instance_name", "operation": "icontains"},
-                    "resource_id": {"field": "resource_id", "operation": "icontains"},
+                    "instance": [
+                        {"field": "instance_name", "operation": "icontains", "composition_key": "instance_filter"},
+                        {"field": "resource_id", "operation": "icontains", "composition_key": "instance_filter"},
+                    ],
                 },
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
