@@ -19,11 +19,13 @@ class AzureReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
         numeric_columns = [
             "quantity",
+            "resourcerate",
             "costinbillingcurrency",
             "effectiveprice",
             "unitprice",
+            "paygprice",
         ]
-        date_columns = ["date"]
+        date_columns = ["date", "billingperiodstartdate", "billingperiodenddate"]
         boolean_columns = ["resource_id_matched"]
         column_types = {
             "numeric_columns": numeric_columns,
