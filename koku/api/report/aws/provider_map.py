@@ -360,9 +360,9 @@ class AWSProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "account_alias": Max("account_alias__account_alias"),
+                            "account_alias": Coalesce(Max("account_alias__account_alias"), Max("usage_account_id")),
                             "account": Max("usage_account_id"),
-                            "instance_name": Max("instance_name"),
+                            "instance_name": Coalesce(Max("instance_name"), Max("resource_id")),
                             "instance_type": Max("instance_type"),
                             "operating_system": Max("operating_system"),
                             "region": Max("region"),
