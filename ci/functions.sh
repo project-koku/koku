@@ -158,6 +158,15 @@ function _install_bonfire_tools() {
     curl -s "${CICD_URL}/bootstrap.sh" > .cicd_bootstrap.sh && source "${WORKSPACE}/.cicd_bootstrap.sh"
 }
 
+function get_image_tag() {
+    local PREFIX=""
+    if is_pull_request; then
+        PREFIX="pr-${ghprbPullId}-"
+    fi
+
+    echo "${PREFIX}$(git rev-parse --short=7 HEAD)"
+}
+
 function run_build_image_stage() {
 
     _install_bonfire_tools
@@ -169,9 +178,9 @@ function wait_for_image() {
     echo "Waiting for initial image build..."
     sleep 180
 
-    count=0
-    max=60  # Try for up to 30 minutes
-    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -q "${IMAGE_TAG}"; do
+    local count=0
+    local max=60  # Try for up to 30 minutes
+    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -xq "${IMAGE_TAG}"; do
         echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
         sleep 30
         ((count+=1))
