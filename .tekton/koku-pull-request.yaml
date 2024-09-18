@@ -148,8 +148,8 @@ spec:
                 import json
                 import pprint
 
-                pprint.pprint({{body}})
-                body = json.loads("""{{ body.pull_request.labels }}""")
+                pprint.pprint("{{body}}")
+                body = json.loads("{{ body.pull_request.labels }}")
                 pprint.pprint(body)
 
       - name: init
