@@ -22,26 +22,6 @@ This guide will focus on deploying Project Koku into an existing
 The Koku application contains two components - a web service and
 database.
 
-**OpenShift**
-
-A basic deployment configuration is contained within the application's
-[OpenShift template
-file](https://github.com/project-koku/koku/blob/main/openshift/koku-template.yaml).
-This template should be acceptable for most use cases. It provides
-parameterized values for most configuration options.
-
-To deploy the Koku API application using the provided templates, you can
-use the provided `Makefile`: (the openshift CLI is required to be
-installed to run the following command)
-
-    make oc-create-all
-
-To deploy individual components, there are also `make` commands provided
-for your convenience:
-
-    make oc-create-koku  # Deploy the API web application
-    make oc-create-db    # Deploy the PostgreSQL database
-
 **Docker Compose**
 
 The Koku API can also be deployed with Docker Compose with the following
