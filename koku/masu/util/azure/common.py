@@ -25,7 +25,6 @@ INGRESS_REQUIRED_COLUMNS = {
     "billingaccountname",
     "billingperiodenddate",
     "billingperiodstartdate",
-    "chargetype",
     "consumedservice",
     "costinbillingcurrency",
     "date",
