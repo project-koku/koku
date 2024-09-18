@@ -21,7 +21,7 @@ spec:
     - name: revision
       value: '{{revision}}'
     - name: output-image
-      value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku:{{revision}}
+      value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku:{{ revision }}
     - name: dockerfile
       value: Dockerfile
     - name: path-context

@@ -137,21 +137,6 @@ spec:
         name: JAVA_COMMUNITY_DEPENDENCIES
         value: $(tasks.build-container.results.JAVA_COMMUNITY_DEPENDENCIES)
     tasks:
-      - name: debug
-        taskSpec:
-          steps:
-            - name: debug
-              image: registry.access.redhat.com/ubi9:latest
-              onError: continue
-              script: |
-                #!/usr/bin/python3
-                import json
-                import pprint
-
-                pprint.pprint("{{body}}")
-                body = json.loads("{{ body.pull_request.labels }}")
-                pprint.pprint(body)
-
       - name: init
         params:
           - name: image-url
@@ -180,11 +165,11 @@ spec:
         taskRef:
           resolver: git
           params:
-            - name: revision
-              value: git-clone-add-short-commit
-
             - name: url
               value: https://github.com/samdoran/konflux-ci-build-definitions.git
+
+            - name: revision
+              value: git-clone-add-short-commit
 
             - name: pathInRepo
               value: task/git-clone/0.1/git-clone.yaml
