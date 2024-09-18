@@ -142,12 +142,14 @@ spec:
           steps:
             - name: debug
               image: registry.access.redhat.com/ubi9:latest
+              onError: continue
               script: |
                 #!/usr/bin/python3
                 import json
                 import pprint
 
-                body = json.loads("""{{ body.pull_request }}""")
+                pprint.pprint({{body}})
+                body = json.loads("""{{ body.pull_request.labels }}""")
                 pprint.pprint(body)
 
       - name: init
