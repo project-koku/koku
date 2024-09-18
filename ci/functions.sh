@@ -180,7 +180,7 @@ function wait_for_image() {
 
     local count=0
     local max=60  # Try for up to 30 minutes
-    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -xq "${IMAGE_TAG}"; do
+    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -q "${IMAGE_TAG}"; do
         echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
         sleep 30
         ((count+=1))
