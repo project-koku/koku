@@ -82,7 +82,7 @@ FROM (
         max(date(lineitem_usagestartdate)) as usage_end,
         lineitem_usageaccountid as usage_account_id,
         lineitem_resourceid as resource_id,
-        json_extract_scalar(json_parse(lower(resourcetags)), '$.name') AS instance_name,
+        json_extract_scalar(json_parse(resourcetags), '$.Name') AS instance_name,
         nullif(product_instancetype, '') as instance_type,
         nullif(product_operatingsystem, '') as operating_system,
         nullif(product_region, '') as region,
