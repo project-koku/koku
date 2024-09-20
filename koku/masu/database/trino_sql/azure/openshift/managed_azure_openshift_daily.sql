@@ -88,7 +88,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily (
     day
 )
 WITH cte_azure_resource_names AS (
-    SELECT DISTINCT resourceid, servicefamily
+    SELECT DISTINCT resourceid
     FROM hive.{{schema | sqlsafe}}.azure_line_items
     WHERE source = {{azure_source_uuid}}
         AND year = {{year}}
@@ -115,14 +115,14 @@ cte_array_agg_volumes AS (
         AND interval_start < date_add('day', 1, {{end_date}})
 ),
 cte_matchable_resource_names AS (
-    SELECT resource_names.resourceid, resource_names.servicefamily
+    SELECT resource_names.resourceid
     FROM cte_azure_resource_names AS resource_names
     JOIN cte_array_agg_nodes AS nodes
         ON strpos(resource_names.resourceid, nodes.node) != 0
 
     UNION
 
-    SELECT resource_names.resourceid, resource_names.servicefamily
+    SELECT resource_names.resourceid
     FROM cte_azure_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON (
@@ -186,8 +186,7 @@ SELECT azure.accountname,
     cast(day(azure.date) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    ON substr(azure.resourceid, -length(resource_names.resourceid)) = resource_names.resourceid
-    AND azure.servicefamily = resource_names.servicefamily
+    ON azure.resource_id = resource_names.resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(tags, x) != 0)
     AND resource_names.resourceid IS NULL
