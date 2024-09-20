@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 
 from django.conf import settings
+from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -217,6 +218,15 @@ class DataValidator:
         # Trino query to get daily values
         try:
             trino_data = self.execute_relevant_query(provider_type, cluster_id, True)
+        except TrinoExternalError as te:
+            # https://github.com/trinodb/trino-python-client/blob/master/trino/client.py
+            # The trino external error contains a response
+            if "Partition no longer exists" in str(te._error.get("message", "")):
+                LOG.info(log_json(msg="Partition dropped during verification", context=self.context))
+                return
+            else:
+                LOG.warning(log_json(msg=f"Trino external error: {te}", context=self.context))
+                return
         except Exception as e:
             LOG.warning(log_json(msg=f"data validation trino query failed: {e}", context=self.context))
             return
