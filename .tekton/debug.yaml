@@ -1,0 +1,18 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  namespace: cost-mgmt-dev-tenant
+  name: debug
+
+spec:
+  params: []
+  results: []
+  steps:
+    - name: debug
+      image: registry.access.redhat.com/ubi9:latest
+      onError: continue
+      script: |
+        #!/usr/bin/bash
+        echo -e '{{ body }}'
+        echo -e "Pull Request:\n'{{ body.pull_request }}'"
+        echo -e "PR Number:\n'{{ body.pull_request.number }}'"
