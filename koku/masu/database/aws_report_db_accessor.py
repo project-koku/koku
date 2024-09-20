@@ -466,16 +466,16 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         sql = pkgutil.get_data("masu.database", f"trino_sql/{table_name}.sql")
         sql = sql.decode("utf-8")
-        sql_params = {
-            "schema": self.schema,
-            "source_uuid": source_uuid,
-            "year": year,
-            "month": month,
-            "markup": markup_value or 0,
-            "bill_id": bill_id,
-        }
+        # sql_params = {
+        #     "schema": self.schema,
+        #     "source_uuid": source_uuid,
+        #     "year": year,
+        #     "month": month,
+        #     "markup": markup_value or 0,
+        #     "bill_id": bill_id,
+        # }
 
-        self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
+        # self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
     def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
         """

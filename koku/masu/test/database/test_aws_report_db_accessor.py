@@ -35,9 +35,10 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
 from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
 from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
+
+# from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
