@@ -742,6 +742,8 @@ WITH cte_total_pv_capacity as (
         JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
         ON (aws.usage_start = ocp.usage_start)
         AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
+        AND ocp.csi_volume_handle is not null
+        AND ocp.csi_volume_handle != ''
         WHERE ocp.year = {{year}}
             AND lpad(ocp.month, 2, '0') = {{month}}
             AND ocp.usage_start >= {{start_date}}
