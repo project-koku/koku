@@ -17,14 +17,14 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
 
 
 class AWSEC2ComputeInstanceView(generics.ListAPIView):
     """API GET list view for AWS EC2 compute instances."""
 
     queryset = (
-        AWSCostEntryLineItemSummaryByEC2Compute.objects.annotate(
+        AWSCostEntryLineItemSummaryByEC2ComputeP.objects.annotate(
             value=F("resource_id"), ec2_instance_name=Coalesce(F("instance_name"), "resource_id")
         )
         .values("value", "ec2_instance_name")
