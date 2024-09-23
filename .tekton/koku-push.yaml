@@ -164,7 +164,7 @@ spec:
             - name: name
               value: git-clone
             - name: bundle
-              value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:0bb1be8363557e8e07ec34a3c5daaaaa23c9d533f0bb12f00dc604d00de50814
+              value: quay.io/konflux-ci/tekton-catalog/task-git-clone:0.1@sha256:2cccdf8729ad4d5adf65e8b66464f8efa1e1c87ba16d343b4a6c621a2a40f7e1
             - name: kind
               value: task
           resolver: bundles
@@ -408,6 +408,9 @@ spec:
             value: $(params.dockerfile)
           - name: CONTEXT
             value: $(params.path-context)
+          - name: ADDITIONAL_TAGS
+            value:
+              - $(tasks.clone-repository.results.short-commit)
         runAfter:
           - build-container
         taskRef:
