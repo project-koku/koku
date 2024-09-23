@@ -396,8 +396,8 @@ spec:
             value: $(tasks.build-container.results.IMAGE_URL)
           - name: ADDITIONAL_TAGS
             value:
-              - pr-{{ body.pull_request.number }}-$(tasks.clone-repository.results.short-commit)
-              - pr-{{ body.pull_request.number }}-latest
+              - pr-{{ pull_request_number }}-$(tasks.clone-repository.results.short-commit)
+              - pr-{{ pull_request_number }}-latest
         runAfter:
           - build-container
         taskRef:
