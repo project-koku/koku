@@ -137,10 +137,6 @@ spec:
         name: JAVA_COMMUNITY_DEPENDENCIES
         value: $(tasks.build-container.results.JAVA_COMMUNITY_DEPENDENCIES)
     tasks:
-      - name: debug
-        taskRef:
-          name: debug
-
       - name: init
         params:
           - name: image-url
