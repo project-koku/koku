@@ -157,7 +157,7 @@ cte_tag_matches AS (
 
     UNION
 
-    SELECT distinct format('"openshift_namespace": "%s"', namespace)
+    SELECT distinct format('"openshift_project": "%s"', namespace)
     FROM openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
     AND month = {{month}}
