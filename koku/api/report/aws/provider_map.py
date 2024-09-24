@@ -20,7 +20,7 @@ from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
 from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSCostSummaryByRegionP
 from reporting.provider.aws.models import AWSCostSummaryByServiceP
@@ -378,7 +378,7 @@ class AWSProviderMap(ProviderMap):
                         "usage_units_fallback": "Hrs",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"resource_id": "desc"},
-                        "tables": {"query": AWSCostEntryLineItemSummaryByEC2Compute},
+                        "tables": {"query": AWSCostEntryLineItemSummaryByEC2ComputeP},
                         "default_time_period": {
                             "time_scope_value": "-1",
                             "time_scope_units": "month",
@@ -562,7 +562,7 @@ class AWSProviderMap(ProviderMap):
                 ("org_unit_id",): AWSComputeSummaryByAccountP,
             },
             "ec2_compute": {
-                "default": AWSCostEntryLineItemSummaryByEC2Compute,
+                "default": AWSCostEntryLineItemSummaryByEC2ComputeP,
             },
             "storage": {
                 "default": AWSStorageSummaryP,
