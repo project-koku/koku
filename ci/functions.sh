@@ -164,7 +164,7 @@ function get_image_tag() {
         PREFIX="pr-${ghprbPullId}-"
     fi
 
-    echo "${PREFIX}$(git rev-parse --short=7 HEAD)"
+    echo "${PREFIX}${ghprbActualCommit:0:7}"
 }
 
 function run_build_image_stage() {
