@@ -221,7 +221,7 @@ class DataValidator:
         except TrinoExternalError as te:
             # https://github.com/trinodb/trino-python-client/blob/master/trino/client.py
             # The trino external error contains a response
-            if "Partition no longer exists" in str(te._error.get("message", "")):
+            if "Partition no longer exists" in te.message:
                 LOG.info(log_json(msg="Partition dropped during verification", context=self.context))
                 return
             else:
