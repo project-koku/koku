@@ -158,7 +158,7 @@ class AzureService:
         return report
 
     def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
+        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.gzip.value)
 
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
@@ -170,6 +170,8 @@ class AzureService:
         destination: str = None,
         suffix: str = AzureBlobExtension.csv.value,
         ingress_reports: list[str] = None,
+        offset: int = None,
+        length: int = None,
     ) -> str:
         """Download the file from a given storage container."""
 
@@ -184,9 +186,15 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
+            blob_client = self._cloud_storage_account.get_blob_client(container=container_name, blob=key)
             with open(file_path, "wb") as blob_download:
-                blob_download.write(blob_client.download_blob().readall())
+                if offset is not None and length is not None:
+                    download_stream = blob_client.download_blob(offset=offset, length=length)
+                else:
+                    download_stream = blob_client.download_blob()
+
+                blob_download.write(download_stream.readall())
+
         except (AdalError, AzureException, ClientException, OSError) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
 

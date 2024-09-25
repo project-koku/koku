@@ -7,9 +7,12 @@ import datetime
 import json
 import logging
 import os
+import shutil
+import struct
 import uuid
 
 import pandas as pd
+from botocore.exceptions import ClientError
 from django.conf import settings
 
 from api.common import log_json
@@ -409,6 +412,62 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Set the Azure manifest date format."""
         return "%Y%m%d"
 
+    def _check_size(self, key, check_inflate=False):
+        """Check the size of an Azure blob file.
+
+        Determine if there is enough local space to download and decompress the
+        file.
+
+        Args:
+            key (str): the key name of the blob to check
+            check_inflate (bool): if the file is compressed, evaluate the file's decompressed size.
+
+        Returns:
+            (bool): whether the file can be safely stored (and decompressed)
+        """
+        size_ok = False
+
+        try:
+            blob = self._azure_client.get_file_for_key(key, self.container_name)
+            file_size = blob.size
+        except ClientError as ex:
+            if ex.response["Error"]["Code"] == "AccessDenied":
+                msg = f"Unable to access Azure container {self.container_name}: (AccessDenied)"
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
+                raise AzureReportDownloaderNoFileError(msg)
+            msg = f"Error downloading file: Error: {str(ex)}"
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
+            raise AzureReportDownloaderError(str(ex))
+
+        if file_size < 0:
+            raise AzureReportDownloaderError(f"Invalid size for Azure blob: {key}")
+
+        total, used, free = shutil.disk_usage(self._get_exports_data_directory())
+        if file_size < free:
+            size_ok = True
+
+        LOG.debug("%s is %s bytes; Download path has %s free", key, file_size, free)
+
+        ext = os.path.splitext(key)[1]
+        if ext == ".gz" and check_inflate and size_ok and file_size > 0:
+            # isize block is the last 4 bytes of the file; see: RFC1952
+            range_start = file_size - 4
+            range_end = file_size
+
+            resp = self._azure_client.download_file(
+                key=key, container_name=self.container_name, offset=range_start, length=range_end - range_start + 1
+            )
+
+            with open(resp, "rb") as f:
+                isize = struct.unpack("<I", f.read(4))[0]
+
+            if isize > free:
+                size_ok = False
+
+            LOG.debug("%s is %s bytes uncompressed; Download path has %s free", key, isize, free)
+
+        return size_ok
+
     def _prepare_db_manifest_record(self, manifest):
         """Prepare to insert or update the manifest DB record."""
         assembly_id = manifest.get("assemblyId")
@@ -449,6 +508,12 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
+
+        if not self._check_size(key, check_inflate=True):
+            msg = f"Insufficient disk space to download file: {key}"
+            LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
+            raise AzureReportDownloaderError(msg)
+
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         self._azure_client.download_file(

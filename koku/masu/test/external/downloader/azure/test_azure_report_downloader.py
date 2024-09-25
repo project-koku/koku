@@ -551,3 +551,41 @@ class AzureReportDownloaderTest(MasuTestCase):
                     )
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_check_size_success(self, mock_azure_service, mock_shutil):
+        """Test _check_size is successful when enough space is available."""
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+
+        mock_shutil.disk_usage.return_value = (10, 10, 4096 * 1024 * 1024)  # Espaço livre: 4GB
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        fake_key = "fake_file.csv"
+        result = downloader._check_size(fake_key, check_inflate=False)
+
+        self.assertTrue(result)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_check_size_fail_nospace(self, mock_azure_service, mock_shutil):
+        """Test _check_size fails if there is no more space."""
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+
+        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        fake_key = "fake_file.csv"
+        result = downloader._check_size(fake_key, check_inflate=False)
+
+        self.assertFalse(result)
