@@ -5646,7 +5646,7 @@ parameters:
 - description: Image
   name: IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - name: S3_BUCKET_NAME
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
@@ -5675,7 +5675,7 @@ parameters:
 - description: DB Migrations Image
   name: DBM_IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - description: DB Invocation Iterator
   name: DBM_INVOCATION
   required: true
@@ -5713,7 +5713,7 @@ parameters:
 - description: Management Command Image
   name: MGMT_IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - description: Management Command Invocation Iterator
   name: MGMT_INVOCATION
   required: true
