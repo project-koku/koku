@@ -1,4 +1,4 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_summary_by_ec2_compute (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_summary_by_ec2_compute_p (
     uuid,
     usage_start,
     usage_end,

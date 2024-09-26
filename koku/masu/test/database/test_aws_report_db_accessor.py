@@ -35,7 +35,7 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
 from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
 from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 
@@ -416,7 +416,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_unleash.return_value = True
         populated_keys = []
 
-        table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2Compute]
+        table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2ComputeP]
 
         for table_class in table_classes:
             with self.subTest(table_class=table_class):
@@ -503,7 +503,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_ec2_compute_summary_table_trino(self, mock_trino):
         """
-        Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2Compute.
+        Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2ComputeP.
         """
         start_date = self.dh.this_month_start.date()
 

@@ -170,7 +170,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
-class AWSCostEntryLineItemSummaryByEC2Compute(models.Model):
+class AWSCostEntryLineItemSummaryByEC2ComputeP(models.Model):
     """Represents a monthly aggregation of EC2 compute instance usage hours and costs.
 
     This table stores monthly aggregated data for EC2 compute instances,
@@ -184,20 +184,20 @@ class AWSCostEntryLineItemSummaryByEC2Compute(models.Model):
     class Meta:
         """Meta for AWSCostEntryLineItemSummaryByEC2ComputeResource."""
 
-        db_table = "reporting_awscostentrylineitem_summary_by_ec2_compute"
+        db_table = "reporting_awscostentrylineitem_summary_by_ec2_compute_p"
 
         indexes = [
             # 'ec2c' for EC2 Compute
-            models.Index(fields=["usage_start"], name="ec2c_usage_start_idx"),
-            models.Index(fields=["usage_account_id"], name="ec2c_usage_account_id_idx"),
-            models.Index(fields=["account_alias"], name="ec2c_account_alias_idx"),
-            models.Index(fields=["resource_id"], name="ec2c_resource_id_idx"),
-            models.Index(fields=["instance_name"], name="ec2c_instance_name_idx"),
-            models.Index(fields=["instance_type"], name="ec2c_instance_type_idx"),
-            models.Index(fields=["region"], name="ec2c_region_idx"),
-            models.Index(fields=["operating_system"], name="ec2c_os_idx"),
-            GinIndex(fields=["tags"], name="ec2c_tags_idx"),
-            GinIndex(fields=["cost_category"], name="ec2c_cost_category_idx"),
+            models.Index(fields=["usage_start"], name="ec2cp_usage_start_idx"),
+            models.Index(fields=["usage_account_id"], name="ec2cp_usage_account_id_idx"),
+            models.Index(fields=["account_alias"], name="ec2cp_account_alias_idx"),
+            models.Index(fields=["resource_id"], name="ec2cp_resource_id_idx"),
+            models.Index(fields=["instance_name"], name="ec2cp_instance_name_idx"),
+            models.Index(fields=["instance_type"], name="ec2cp_instance_type_idx"),
+            models.Index(fields=["region"], name="ec2cp_region_idx"),
+            models.Index(fields=["operating_system"], name="ec2cp_os_idx"),
+            GinIndex(fields=["tags"], name="ec2cp_tags_idx"),
+            GinIndex(fields=["cost_category"], name="ec2cp_cost_category_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True)

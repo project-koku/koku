@@ -234,7 +234,7 @@ generators:
   - EBSGenerator:
       product_sku: VEAJHRNBBBBA
       resource_id: 12345671
-      amount: 20
+      disk_size: 20
       rate: 0.01
       tags:
         # resourceTags/user:storageclass: bravo
@@ -247,7 +247,7 @@ generators:
       end_date: {{end_date}}
       product_sku: VEAJHRNBBBBB
       resource_id: 12345672
-      amount: 20
+      disk_size: 20
       rate: 0.01
       tags:
         resourceTags/user:storageclass: delta
@@ -260,7 +260,7 @@ generators:
       end_date: {{end_date}}
       product_sku: VEAJHRNBBBBC
       resource_id: 12345673
-      amount: 20
+      disk_size: 20
       rate: 0.01
       tags:
         resourceTags/user:storageclass: epsilon
@@ -273,7 +273,7 @@ generators:
       end_date: {{end_date}}
       product_sku: VEAJHRNBBBBD
       resource_id: 12345674
-      amount: 20
+      disk_size: 20
       rate: 0.01
       tags:
         resourceTags/user:storageclass: gamma
@@ -286,7 +286,7 @@ generators:
       end_date: {{end_date}}
       product_sku: VEAJHRNBBBBD
       resource_id: 123-claimless
-      amount: 30
+      disk_size: 30
       rate: 0.01
       tags:
         resourceTags/user:storageclass: gamma
