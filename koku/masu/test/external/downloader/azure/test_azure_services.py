@@ -99,7 +99,7 @@ class AzureServiceTest(MasuTestCase):
         if len(cost_exports):
             cost_export = cost_exports[0]
         with patch(
-            "masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory
+                "masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory
         ) as mock_factory:
             mock_factory.return_value = Mock(  # AzureClientFactory()
                 spec=AzureClientFactory,
@@ -202,7 +202,7 @@ class AzureServiceTest(MasuTestCase):
 
     def test_get_latest_cost_export_for_path(self):
         """Test that the latest cost export is returned for a given path."""
-        report_path = "{}_{}".format(self.container_name, "blob.csv")
+        report_path = "{}_{}".format(self.container_name, "blob.csv.gz")
 
         mock_blob = Mock(last_modified=Mock(date=Mock(return_value=self.current_date_time.date())))
         name_attr = PropertyMock(return_value=report_path)
