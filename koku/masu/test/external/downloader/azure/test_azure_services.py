@@ -99,7 +99,7 @@ class AzureServiceTest(MasuTestCase):
         if len(cost_exports):
             cost_export = cost_exports[0]
         with patch(
-                "masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory
+            "masu.external.downloader.azure.azure_service.AzureClientFactory", spec=AzureClientFactory
         ) as mock_factory:
             mock_factory.return_value = Mock(  # AzureClientFactory()
                 spec=AzureClientFactory,

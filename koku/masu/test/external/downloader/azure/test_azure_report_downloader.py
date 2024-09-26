@@ -115,14 +115,14 @@ class MockAzureService:
         return mock_export
 
     def download_file(
-            self,
-            key,
-            container_name,
-            destination=None,
-            suffix=AzureBlobExtension.csv.value,
-            ingress_reports=None,
-            offset=None,
-            length=None,
+        self,
+        key,
+        container_name,
+        destination=None,
+        suffix=AzureBlobExtension.csv.value,
+        ingress_reports=None,
+        offset=None,
+        length=None,
     ):
         """Get exports."""
         file_path = destination
@@ -136,7 +136,7 @@ class MockAzureService:
                 file_path = temp_file.name
 
         if offset is not None and length is not None:
-            return file_contents[suffix][offset: offset + length]
+            return file_contents[suffix][offset : offset + length]
 
         return file_path
 
@@ -269,8 +269,8 @@ class AzureReportDownloaderTest(MasuTestCase):
 
     def test_get_manifest_bad_json(self):
         with patch(
-                "masu.external.downloader.azure.azure_report_downloader.json.load",
-                side_effect=json.JSONDecodeError("Raised intentionally", "doc", 42),
+            "masu.external.downloader.azure.azure_report_downloader.json.load",
+            side_effect=json.JSONDecodeError("Raised intentionally", "doc", 42),
         ):
             with self.assertRaisesRegex(AzureReportDownloaderError, "Raised intentionally"):
                 self.downloader._get_manifest(self.mock_data.manifest_test_date)
@@ -351,8 +351,8 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         with patch("masu.external.downloader.azure.azure_report_downloader.open"):
             with patch(
-                    "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
-                    return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+                "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
                 full_file_path, etag, _, __, ___ = downloader.download_file(file_key)
                 self.assertEqual(full_file_path, expected_full_path)
@@ -424,8 +424,8 @@ class AzureReportDownloaderTest(MasuTestCase):
         ]
         start_date = self.dh.this_month_start.replace(year=2020, month=9, tzinfo=None)
         with patch(
-                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-                return_value=start_date,
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
         ):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
@@ -452,8 +452,8 @@ class AzureReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start.replace(year=2019, month=7, tzinfo=None)
         with patch(
-                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-                return_value=start_date,
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
         ):
             create_daily_archives(
                 "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
@@ -473,8 +473,8 @@ class AzureReportDownloaderTest(MasuTestCase):
         start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
 
         with patch(
-                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-                return_value=start_date,
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
         ):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
@@ -547,8 +547,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_date = self.dh.this_month_start.replace(year=2123, month=12, day=1, tzinfo=None)
         mock_daily_start.return_value = expected_date
         with patch(
-                "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete",
-                return_Value=True
+            "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_Value=True
         ):
             process_date = get_processing_date(
                 temp_path, 1, self.azure_provider_uuid, start_date, end_date, None, "tracing_id"
@@ -570,13 +569,12 @@ class AzureReportDownloaderTest(MasuTestCase):
         end_date = self.dh.this_month_start.replace(year=2023, month=9, day=2, tzinfo=None)
         expected_date = self.dh.this_month_start.replace(year=2023, month=9, day=1, tzinfo=None)
         with patch(
-                "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete",
-                return_Value=True
+            "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_Value=True
         ):
             with patch("masu.util.aws.common.get_or_clear_daily_s3_by_date", return_value=expected_date):
                 with patch(
-                        "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
-                        return_value=expected_date,
+                    "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
+                    return_value=expected_date,
                 ):
                     process_date = get_processing_date(
                         temp_path, 1, self.azure_provider_uuid, start_date, end_date, context, "tracing_id"
