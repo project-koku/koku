@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDownloader object."""
+import io
 import json
 import os.path
 import shutil
@@ -13,6 +14,8 @@ from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import ResourceNotFoundError
 from faker import Faker
 
 from api.utils import DateHelper
@@ -619,3 +622,70 @@ class AzureReportDownloaderTest(MasuTestCase):
         result = downloader._check_size(fake_key, check_inflate=False)
 
         self.assertFalse(result)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_check_size_fail_blob_not_found(self, mock_azure_service):
+        """Test _check_size fails if blob is not found."""
+        fake_azure_client = Mock()
+        fake_azure_client.get_file_for_key.side_effect = ResourceNotFoundError("Blob not found")
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        fake_key = "nonexistent_file.csv"
+        with self.assertRaises(ResourceNotFoundError) as context:
+            downloader._check_size(fake_key, check_inflate=False)
+
+        self.assertTrue("Blob not found" in str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_check_size_fail_permission_denied(self, mock_azure_service):
+        """Test _check_size fails if there is a permission issue."""
+        fake_azure_client = Mock()
+        error = HttpResponseError(message="Permission denied")
+        error.status_code = 403
+        fake_azure_client.get_file_for_key.side_effect = error
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        fake_key = "restricted_file.csv"
+        with self.assertRaises(HttpResponseError) as context:
+            downloader._check_size(fake_key, check_inflate=False)
+
+        self.assertEqual(context.exception.status_code, 403)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_check_size_inflate_fail(self, mock_azure_service, mock_shutil):
+        """Test _check_size fails when inflation fails due to insufficient disk space."""
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_blob.content = io.BytesIO(b"\xd2\x02\x96I")  # Simulated gzipped content
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+
+        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)  # Insufficient disk space
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        fake_key = "large_file.csv.gz"
+        result = downloader._check_size(fake_key, check_inflate=True)
+
+        self.assertFalse(result)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_download_file_raise_downloader_err(self, mock_azure_service):
+        """Test download_file fails with HttpResponseError when there is an unexpected error."""
+        fake_azure_client = Mock()
+        fake_response = HttpResponseError("Unexpected error")
+        fake_azure_client.get_file_for_key.side_effect = fake_response
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        with self.assertRaises(HttpResponseError) as context:
+            downloader.download_file("problematic_file.csv")
+
+        self.assertIn("Unexpected error", str(context.exception))
