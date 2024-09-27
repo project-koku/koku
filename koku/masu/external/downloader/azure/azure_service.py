@@ -80,9 +80,9 @@ class AzureService:
         self,
         report_path: str,
         container_name: str,
-        extension: str,
+        extensions: list[str] = [AzureBlobExtension.gzip.value, AzureBlobExtension.csv.value],
     ) -> BlobProperties:
-        """Get the latest file with the specified extension from given storage account container."""
+        """Get the latest file with the specified extensions from given storage account container."""
 
         latest_report = None
         if not container_name:
@@ -117,10 +117,14 @@ class AzureService:
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
 
-        latest_report = self._get_latest_blob(report_path, blobs, extension)
+        for extension in extensions:
+            latest_report = self._get_latest_blob(report_path, blobs, extension)
+            if latest_report:
+                break
+
         if not latest_report:
             message = (
-                f"No file with extension '{extension}' found in container "
+                f"No file with any of the extensions {extensions} found in container "
                 f"'{container_name}' for path '{report_path}'."
             )
             raise AzureCostReportNotFound(message)
@@ -162,7 +166,6 @@ class AzureService:
         Get the latest cost export for a given path and container. Supports both CSV and GZIP formats.
         """
         blob = self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.gzip.value)
-
         if not blob:
             blob = self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
 
