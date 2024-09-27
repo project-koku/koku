@@ -213,7 +213,7 @@ SELECT azure.accountname,
     cast(day(azure.date) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    ON azure.resource_id = resource_names.resourceid
+    ON azure.resourceid = resource_names.resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(tags, x) != 0)
     AND resource_names.resourceid IS NULL
