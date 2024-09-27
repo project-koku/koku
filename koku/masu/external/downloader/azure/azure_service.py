@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 
 from adal.adal_error import AdalError
 from azure.common import AzureException
+from azure.core.exceptions import AzureError
 from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob._models import BlobProperties
@@ -218,7 +219,7 @@ class AzureService:
 
                 blob_download.write(download_stream.readall())
 
-        except (AdalError, AzureException, ClientException, OSError) as error:
+        except (AdalError, AzureException, ClientException, OSError, AzureError) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
 
         return file_path

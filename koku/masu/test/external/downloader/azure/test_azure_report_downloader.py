@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
+from botocore.exceptions import ClientError
 from faker import Faker
 
 from api.utils import DateHelper
@@ -23,6 +24,7 @@ from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
+from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderNoFileError
 from masu.external.downloader.azure.azure_report_downloader import create_daily_archives
 from masu.external.downloader.azure.azure_report_downloader import get_processing_date
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
@@ -594,7 +596,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         fake_blob.size = 123456
         fake_azure_client.get_file_for_key.return_value = fake_blob
 
-        mock_shutil.disk_usage.return_value = (10, 10, 4096 * 1024 * 1024)  # Espaço livre: 4GB
+        mock_shutil.disk_usage.return_value = (10, 10, 4096 * 1024 * 1024)
 
         downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
         downloader._azure_client = fake_azure_client
@@ -662,10 +664,10 @@ class AzureReportDownloaderTest(MasuTestCase):
         fake_azure_client = Mock()
         fake_blob = Mock()
         fake_blob.size = 123456
-        fake_blob.content = io.BytesIO(b"\xd2\x02\x96I")  # Simulated gzipped content
+        fake_blob.content = io.BytesIO(b"\xd2\x02\x96I")
         fake_azure_client.get_file_for_key.return_value = fake_blob
 
-        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)  # Insufficient disk space
+        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)
 
         downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
         downloader._azure_client = fake_azure_client
@@ -689,3 +691,46 @@ class AzureReportDownloaderTest(MasuTestCase):
             downloader.download_file("problematic_file.csv")
 
         self.assertIn("Unexpected error", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil.disk_usage")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_download_file_inflate_and_disk_space_check(self, mock_azure_service, mock_disk_usage):
+        mock_disk_usage.return_value = (10, 10, 50)
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_blob.content = io.BytesIO(b"\x00\x00\x00\x32")
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        result = downloader._check_size("test_file.csv.gz", check_inflate=True)
+        self.assertFalse(result)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_check_size_negative_file_size(self, mock_azure_service):
+        """Test _check_size handles negative file size appropriately."""
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = -1
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        with self.assertRaises(AzureReportDownloaderError) as context:
+            downloader._check_size("test_key", check_inflate=False)
+        self.assertIn("Invalid size for Azure blob", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_check_size_access_denied_error(self, mock_azure_service):
+        fake_azure_client = Mock()
+        fake_azure_client.get_file_for_key.side_effect = ClientError({"Error": {"Code": "AccessDenied"}}, "GetObject")
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        with self.assertRaises(AzureReportDownloaderNoFileError) as context:
+            downloader._check_size("test_key", check_inflate=False)
+        self.assertIn("Unable to access Azure container", str(context.exception))
