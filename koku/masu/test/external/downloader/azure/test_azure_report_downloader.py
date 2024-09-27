@@ -734,3 +734,41 @@ class AzureReportDownloaderTest(MasuTestCase):
         with self.assertRaises(AzureReportDownloaderNoFileError) as context:
             downloader._check_size("test_key", check_inflate=False)
         self.assertIn("Unable to access Azure container", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
+    def test_check_size_access_denied(self, mock_get_file_for_key, mock_client_factory):
+        """Test _check_size raises AzureReportDownloaderNoFileError when AccessDenied error occurs."""
+
+        mock_error_response = {"Error": {"Code": "AccessDenied"}}
+        mock_get_file_for_key.side_effect = ClientError(mock_error_response, "get_object")
+
+        mock_client_factory.return_value = Mock()
+
+        service = AzureReportDownloader(
+            customer_name="fake_customer", credentials={}, data_source={"storage_account": "fake_storage_account"}
+        )
+
+        with self.assertRaises(AzureReportDownloaderNoFileError) as context:
+            service._check_size("fake_key", check_inflate=False)
+
+        self.assertIn("Unable to access Azure container", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
+    def test_check_size_generic_error(self, mock_get_file_for_key, mock_client_factory):
+        """Test _check_size raises AzureReportDownloaderError when a generic ClientError occurs."""
+
+        mock_error_response = {"Error": {"Code": "SomeOtherError"}}
+        mock_get_file_for_key.side_effect = ClientError(mock_error_response, "get_object")
+
+        mock_client_factory.return_value = Mock()
+
+        service = AzureReportDownloader(
+            customer_name="fake_customer", credentials={}, data_source={"storage_account": "fake_storage_account"}
+        )
+
+        with self.assertRaises(AzureReportDownloaderError) as context:
+            service._check_size("fake_key", check_inflate=False)
+
+        self.assertIn("SomeOtherError", str(context.exception))
