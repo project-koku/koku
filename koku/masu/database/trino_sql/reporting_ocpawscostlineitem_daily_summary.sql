@@ -631,7 +631,11 @@ SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will dedup
     max(aws.availability_zone) as availability_zone,
     max(aws.region) as region,
     max(aws.unit) as unit,
-    max(aws.usage_amount) as usage_amount,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim) = ''
+            THEN cast(NULL as double)
+        ELSE max(aws.usage_amount)
+    END as usage_amount,
     max(aws.currency_code) as currency_code,
     max(ocp.persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.unblended_cost)  as unblended_cost,
     (max(persistentvolumeclaim_capacity_gigabyte) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost,
@@ -686,7 +690,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.month = {{month}}
     -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
     AND aws.data_transfer_direction IS NULL
-    AND ocp.namespace != 'Storage Unattributed'
+    AND ocp.namespace != 'Storage unattributed'
     AND aws.resource_id_matched = True
 GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
 {% endif %}
@@ -714,7 +718,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     availability_zone,
     region,
     unit,
-    usage_amount,
     currency_code,
     unblended_cost,
     markup_cost,
@@ -769,7 +772,6 @@ SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will dedup
     max(aws.availability_zone) as availability_zone,
     max(aws.region) as region,
     max(aws.unit) as unit,
-    max(aws.usage_amount) as usage_amount,
     max(aws.currency_code) as currency_code,
     (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)  as unblended_cost,
     ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost,
@@ -805,7 +807,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.month = {{month}}
     -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
     AND aws.data_transfer_direction IS NULL
-    AND ocp.namespace != 'Storage Unattributed'
+    AND ocp.namespace != 'Storage unattributed'
     AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
 GROUP BY aws.uuid, aws.resource_id
 {% endif %}
