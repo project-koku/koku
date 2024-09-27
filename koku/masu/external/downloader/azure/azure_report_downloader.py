@@ -450,7 +450,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         ext = os.path.splitext(key)[1]
         if ext == ".gz" and check_inflate and size_ok and file_size > 0:
-            # isize block is the last 4 bytes of the file; see: RFC1952
             range_start = file_size - 4
             range_end = file_size
 
@@ -490,7 +489,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         Returns:
             (String): The path and file name of the saved file
-
         """
         file_names = []
         date_range = {}
@@ -519,6 +517,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self._azure_client.download_file(
             key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
         )
+
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,

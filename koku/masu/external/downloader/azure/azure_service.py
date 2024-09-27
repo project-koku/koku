@@ -158,7 +158,20 @@ class AzureService:
         return report
 
     def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.gzip.value)
+        """
+        Get the latest cost export for a given path and container. Supports both CSV and GZIP formats.
+        """
+        blob = self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.gzip.value)
+
+        if not blob:
+            blob = self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
+
+        if not blob:
+            raise AzureCostReportNotFound(
+                f"No cost export found for path {report_path} in container {container_name}."
+            )
+
+        return blob
 
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
@@ -173,11 +186,18 @@ class AzureService:
         offset: int = None,
         length: int = None,
     ) -> str:
-        """Download the file from a given storage container."""
+        """
+        Download the file from a given storage container. Supports both CSV and GZIP formats.
+        """
 
         if not ingress_reports:
             cost_export = self.get_file_for_key(key, container_name)
             key = cost_export.name
+
+            if key.endswith(AzureBlobExtension.gzip.value):
+                suffix = AzureBlobExtension.gzip.value
+            else:
+                suffix = AzureBlobExtension.csv.value
 
         file_path = destination
         if not destination:
