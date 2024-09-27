@@ -7,11 +7,13 @@ import io
 import json
 import os.path
 import shutil
+import struct
 import tempfile
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
+from unittest.mock import mock_open
 from unittest.mock import patch
 
 from azure.core.exceptions import HttpResponseError
@@ -339,7 +341,7 @@ class AzureReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
     def test_download_ingress_report_file(self, mock_azure_service, mock_check_size):
         """Test the download file method for Azure ingress report."""
-        mock_check_size.return_value = True  # Simula que o check_size foi bem-sucedido
+        mock_check_size.return_value = True
         customer_name = self.customer_name
         file_key = self.ingress_reports[0].split(f"{self.mock_data.container}/", 1)[1]
 
@@ -840,3 +842,119 @@ class AzureReportDownloaderTest(MasuTestCase):
             service.download_file("fake_key")
 
         self.assertIn("Error when downloading Azure report for key", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    @patch("masu.external.downloader.azure.azure_report_downloader.os")
+    @patch("masu.external.downloader.azure.azure_report_downloader.struct.unpack")
+    @patch("masu.external.downloader.azure.azure_report_downloader.open", new_callable=mock_open)
+    def test_check_size_gz_inflate_success(
+        self, mock_open_file, mock_unpack, mock_os, mock_azure_service, mock_shutil
+    ):
+        """Test _check_size handles .gz file with enough space after decompression."""
+
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+        fake_azure_client.download_file.return_value = "/fake_path/fake_file.gz"
+        mock_azure_service.return_value = fake_azure_client
+
+        mock_os.path.splitext.return_value = ("fake_file", ".gz")
+
+        mock_shutil.disk_usage.return_value = (10, 10, 1024 * 1024 * 1024)
+
+        mock_unpack.return_value = [512 * 1024]
+
+        downloader = Mock()
+        downloader._azure_client = fake_azure_client
+        downloader.container_name = "fake_container"
+        downloader._get_exports_data_directory.return_value = "/fake_path"
+
+        result = AzureReportDownloader._check_size(downloader, "fake_file.gz", check_inflate=True)
+
+        self.assertTrue(result)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    @patch("masu.external.downloader.azure.azure_report_downloader.os")
+    @patch("masu.external.downloader.azure.azure_report_downloader.struct.unpack")
+    @patch("masu.external.downloader.azure.azure_report_downloader.open", new_callable=mock_open)
+    def test_check_size_gz_inflate_fail_due_to_space(
+        self, mock_open_file, mock_unpack, mock_os, mock_azure_service, mock_shutil
+    ):
+        """Test _check_size fails when there is not enough space for decompression."""
+
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+        fake_azure_client.download_file.return_value = "/fake_path/fake_file.gz"
+        mock_azure_service.return_value = fake_azure_client
+
+        mock_os.path.splitext.return_value = ("fake_file", ".gz")
+
+        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)
+        mock_unpack.return_value = [512 * 1024]
+
+        downloader = Mock()
+        downloader._azure_client = fake_azure_client
+        downloader.container_name = "fake_container"
+        downloader._get_exports_data_directory.return_value = "/fake_path"
+
+        result = AzureReportDownloader._check_size(downloader, "fake_file.gz", check_inflate=True)
+
+        self.assertFalse(result)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    @patch("masu.external.downloader.azure.azure_report_downloader.os")
+    def test_check_size_non_gz_file(self, mock_os, mock_azure_service, mock_shutil):
+        """Test _check_size with a non-.gz file and sufficient space."""
+
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+        mock_azure_service.return_value = fake_azure_client
+        mock_os.path.splitext.return_value = ("fake_file", ".csv")
+        mock_shutil.disk_usage.return_value = (10, 10, 1024 * 1024 * 1024)
+
+        downloader = Mock()
+        downloader._azure_client = fake_azure_client
+        downloader.container_name = "fake_container"
+        downloader._get_exports_data_directory.return_value = "/fake_path"
+
+        result = AzureReportDownloader._check_size(downloader, "fake_file.csv", check_inflate=False)
+
+        self.assertTrue(result)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    @patch("masu.external.downloader.azure.azure_report_downloader.os")
+    @patch("masu.external.downloader.azure.azure_report_downloader.struct.unpack")
+    @patch("masu.external.downloader.azure.azure_report_downloader.open", new_callable=mock_open)
+    def test_check_size_gz_inflate_read_error(
+        self, mock_open_file, mock_unpack, mock_os, mock_azure_service, mock_shutil
+    ):
+        """Test _check_size fails when there is an error reading the decompressed size."""
+
+        fake_azure_client = Mock()
+        fake_blob = Mock()
+        fake_blob.size = 123456
+        fake_azure_client.get_file_for_key.return_value = fake_blob
+        fake_azure_client.download_file.return_value = "/fake_path/fake_file.gz"
+        mock_azure_service.return_value = fake_azure_client
+
+        mock_os.path.splitext.return_value = ("fake_file", ".gz")
+        mock_shutil.disk_usage.return_value = (10, 10, 1024 * 1024 * 1024)
+        mock_unpack.side_effect = struct.error("Error reading decompressed size")
+
+        downloader = Mock()
+        downloader._azure_client = fake_azure_client
+        downloader.container_name = "fake_container"
+        downloader._get_exports_data_directory.return_value = "/fake_path"
+
+        result = AzureReportDownloader._check_size(downloader, "fake_file.gz", check_inflate=True)
+
+        self.assertFalse(result)

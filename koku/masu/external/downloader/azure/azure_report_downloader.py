@@ -450,20 +450,24 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         ext = os.path.splitext(key)[1]
         if ext == ".gz" and check_inflate and size_ok and file_size > 0:
-            range_start = file_size - 4
-            range_end = file_size
+            try:
+                range_start = file_size - 4
+                range_end = file_size
 
-            resp = self._azure_client.download_file(
-                key=key, container_name=self.container_name, offset=range_start, length=range_end - range_start + 1
-            )
+                resp = self._azure_client.download_file(
+                    key=key, container_name=self.container_name, offset=range_start, length=range_end - range_start + 1
+                )
 
-            with open(resp, "rb") as f:
-                isize = struct.unpack("<I", f.read(4))[0]
+                with open(resp, "rb") as f:
+                    isize = struct.unpack("<I", f.read(4))[0]
 
-            if isize > free:
+                if isize > free:
+                    size_ok = False
+
+                LOG.debug("%s is %s bytes uncompressed; Download path has %s free", key, isize, free)
+            except struct.error as e:
+                LOG.error("Error reading decompressed size: %s", str(e))
                 size_ok = False
-
-            LOG.debug("%s is %s bytes uncompressed; Download path has %s free", key, isize, free)
 
         return size_ok
 
