@@ -5,6 +5,8 @@
 """Test cases for VataValidator"""
 from unittest.mock import patch
 
+from trino.exceptions import TrinoExternalError
+
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.processor._tasks.data_validation import DataValidator
@@ -176,3 +178,30 @@ class TestDataValidator(MasuTestCase):
             expected = "data validation trino query failed"
             found = any(expected in log for log in logger.output)
             self.assertTrue(found)
+
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
+    def test_partition_dropped_during_verification(self, mock_trino_query, mock_pg_query):
+        """Test that 'Partition no longer exists' error is handled correctly."""
+        error_mock = {"errorType": "EXTERNAL", "message": "Partition no longer exists"}
+        mock_trino_query.side_effect = TrinoExternalError(error_mock, query_id="fake_id")
+        validator = DataValidator(
+            self.schema, self.start_date, self.end_date, self.aws_provider_uuid, None, context={"test": "testing"}
+        )
+        with self.assertLogs("masu.processor._tasks.data_validation", level="INFO") as logger:
+            validator.check_data_integrity()
+            self.assertTrue(any("Partition dropped during verification" in log for log in logger.output))
+
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
+    def test_partition_dropped_during_verification_unknown_error(self, mock_trino_query, mock_pg_query):
+        """Test that error is handled correctly."""
+        err_msg = "Unknown"
+        error_mock = {"errorType": "EXTERNAL", "message": err_msg}
+        mock_trino_query.side_effect = TrinoExternalError(error_mock, query_id="fake_query")
+        validator = DataValidator(
+            self.schema, self.start_date, self.end_date, self.aws_provider_uuid, None, context={"test": "testing"}
+        )
+        with self.assertLogs("masu.processor._tasks.data_validation", level="INFO") as logger:
+            validator.check_data_integrity()
+            self.assertTrue(any(err_msg in log for log in logger.output))
