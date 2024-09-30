@@ -35,7 +35,6 @@ from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
 from reporting.provider.azure.models import TRINO_MANAGED_OCP_AZURE_DAILY_TABLE
-from reporting.provider.azure.models import TRINO_OCP_ON_AZURE_DAILY_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
 
