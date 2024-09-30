@@ -1,3 +1,8 @@
+WITH cte_agg_tags as (
+    SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
+        SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+    ) as cte_tag_matches
+)
 SELECT
     CASE
         WHEN abs(t1.managed_total_cost - t2.parquet_total_cost) < 1 THEN true
@@ -15,9 +20,14 @@ FROM
 
 ) t1,
 (
-    SELECT sum(unblended_cost) as parquet_total_cost
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary as parquet_table
-    WHERE parquet_table.aws_source = {{cloud_source_uuid}}
+    SELECT sum(lineitem_unblendedcost) as parquet_total_cost
+    FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as parquet_table
+    LEFT JOIN cte_agg_tags AS tag_matches
+        ON any_match(tag_matches.matched_tags, x->strpos(parquet_table.resourcetags, x) != 0)
+        AND parquet_table.resource_id_matched = False
+    WHERE parquet_table.source = {{cloud_source_uuid}}
     AND parquet_table.year = {{year}}
     AND lpad(parquet_table.month, 2, '0') = {{month}}
+    AND lineitem_lineitemtype != 'SavingsPlanCoveredUsage'
+    AND (resource_id_matched = True or tag_matches.matched_tags IS NOT NULL)
 ) t2;

@@ -12,7 +12,6 @@ from os import path
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -600,10 +599,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        if type(start_date) == str:
-            start_date = parse(start_date).astimezone(tz=settings.UTC)
-        if type(end_date) == str:
-            end_date = parse(end_date).astimezone(tz=settings.UTC)
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         table = TRINO_MANAGED_OCP_GCP_DAILY_TABLE
@@ -634,5 +629,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cloud_source_uuid": gcp_provider_uuid,
             "year": year,
             "month": month,
+            "matched_tag_array": matched_tags,
         }
         self.verify_populate_ocp_on_cloud_daily_trino(verification_params)

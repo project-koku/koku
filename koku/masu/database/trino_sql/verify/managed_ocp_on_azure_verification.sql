@@ -1,3 +1,8 @@
+WITH cte_agg_tags as (
+    SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
+        SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+    ) as cte_tag_matches
+)
 SELECT
     CASE
         WHEN abs(t1.managed_total_cost - t2.parquet_total_cost) < 1 THEN true
@@ -13,9 +18,13 @@ FROM
     AND (resource_id_matched = True or matched_tag != '')
 ) t1,
 (
-    SELECT sum(pretax_cost) AS parquet_total_cost
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary as parquet_table
-    WHERE parquet_table.azure_source = {{cloud_source_uuid}}
+    SELECT sum(costinbillingcurrency) AS parquet_total_cost
+    FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as parquet_table
+    LEFT JOIN cte_agg_tags AS tag_matches
+        ON any_match(tag_matches.matched_tags, x->strpos(parquet_table.resourcetags, x) != 0)
+        AND parquet_table.resource_id_matched = False
+    WHERE parquet_table.source = {{cloud_source_uuid}}
     AND parquet_table.year = {{year}}
-    AND lpad(parquet_table.month, 2, '0') = {{month}}
+    AND parquet_table.month = {{month}}
+    AND (resource_id_matched = True or tag_matches.matched_tags IS NOT NULL)
 ) t2;
