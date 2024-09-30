@@ -7,12 +7,9 @@ import datetime
 import json
 import logging
 import os
-import shutil
-import struct
 import uuid
 
 import pandas as pd
-from botocore.exceptions import ClientError
 from django.conf import settings
 
 from api.common import log_json
@@ -45,7 +42,7 @@ class AzureReportDownloaderNoFileError(Exception):
 
 
 def get_processing_date(
-    s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports=None
+        s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports=None
 ):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
@@ -63,12 +60,12 @@ def get_processing_date(
     # Azure does not have an invoice column so we have to do some guessing here
     # Ingres reports should always clear and process everything
     if (
-        start_date.year < dh.today.year
-        and dh.today.day > 1
-        or start_date.month < dh.today.month
-        and dh.today.day > 1
-        or not check_provider_setup_complete(provider_uuid)
-        or ingress_reports
+            start_date.year < dh.today.year
+            and dh.today.day > 1
+            or start_date.month < dh.today.month
+            and dh.today.day > 1
+            or not check_provider_setup_complete(provider_uuid)
+            or ingress_reports
     ):
         process_date = start_date
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
@@ -80,15 +77,15 @@ def get_processing_date(
 
 
 def create_daily_archives(
-    tracing_id,
-    account,
-    provider_uuid,
-    local_file,
-    base_filename,
-    manifest_id,
-    start_date,
-    context,
-    ingress_reports=None,
+        tracing_id,
+        account,
+        provider_uuid,
+        local_file,
+        base_filename,
+        manifest_id,
+        start_date,
+        context,
+        ingress_reports=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -120,10 +117,10 @@ def create_daily_archives(
         return [], {}
     try:
         with pd.read_csv(
-            local_file,
-            chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
-            parse_dates=[time_interval],
-            dtype=pd.StringDtype(storage="pyarrow"),
+                local_file,
+                chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
+                parse_dates=[time_interval],
+                dtype=pd.StringDtype(storage="pyarrow"),
         ) as reader:
             for i, data_frame in enumerate(reader):
                 if data_frame.empty:
@@ -200,6 +197,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.directory = demo_info.get("report_prefix")
                 self.export_name = demo_info.get("report_name")
                 self._azure_client = self._get_azure_client(credentials, data_source)
+                self.compression = "gzip"
                 return
 
         self._provider_uuid = kwargs.get("provider_uuid")
@@ -212,6 +210,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.export_name = export_report.get("name")
             self.container_name = export_report.get("container")
             self.directory = export_report.get("directory")
+            self.compression = export_report.get("compression", "gzip")
 
         if self.ingress_reports:
             container = self.ingress_reports[0].split("/")[0]
@@ -314,7 +313,10 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # Download the manifest and extract the list of files.
                 try:
                     manifest_tmp = self._azure_client.download_file(
-                        report_name, self.container_name, suffix=utils.AzureBlobExtension.json.value
+                        report_name,
+                        self.container_name,
+                        suffix=utils.AzureBlobExtension.json.value,
+                        compression=self.compression,
                     )
                 except AzureReportDownloaderError as err:
                     msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
@@ -332,7 +334,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
             else:
                 try:
-                    blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+                    blob = self._azure_client.get_latest_cost_export_for_path(
+                        report_path, self.container_name, self.compression
+                    )
                 except AzureCostReportNotFound as ex:
                     msg = f"Unable to find manifest. Error: {ex}"
                     LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
@@ -412,65 +416,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Set the Azure manifest date format."""
         return "%Y%m%d"
 
-    def _check_size(self, key, check_inflate=False):
-        """Check the size of an Azure blob file.
-
-        Determine if there is enough local space to download and decompress the
-        file.
-
-        Args:
-            key (str): the key name of the blob to check
-            check_inflate (bool): if the file is compressed, evaluate the file's decompressed size.
-
-        Returns:
-            (bool): whether the file can be safely stored (and decompressed)
-        """
-        size_ok = False
-
-        try:
-            blob = self._azure_client.get_file_for_key(key, self.container_name)
-            file_size = blob.size
-        except ClientError as ex:
-            if ex.response["Error"]["Code"] == "AccessDenied":
-                msg = f"Unable to access Azure container {self.container_name}: (AccessDenied)"
-                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
-                raise AzureReportDownloaderNoFileError(msg)
-            msg = f"Error downloading file: Error: {str(ex)}"
-            LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
-            raise AzureReportDownloaderError(str(ex))
-
-        if file_size < 0:
-            raise AzureReportDownloaderError(f"Invalid size for Azure blob: {key}")
-
-        total, used, free = shutil.disk_usage(self._get_exports_data_directory())
-        if file_size < free:
-            size_ok = True
-
-        LOG.debug("%s is %s bytes; Download path has %s free", key, file_size, free)
-
-        ext = os.path.splitext(key)[1]
-        if ext == ".gz" and check_inflate and size_ok and file_size > 0:
-            try:
-                range_start = file_size - 4
-                range_end = file_size
-
-                resp = self._azure_client.download_file(
-                    key=key, container_name=self.container_name, offset=range_start, length=range_end - range_start + 1
-                )
-
-                with open(resp, "rb") as f:
-                    isize = struct.unpack("<I", f.read(4))[0]
-
-                if isize > free:
-                    size_ok = False
-
-                LOG.debug("%s is %s bytes uncompressed; Download path has %s free", key, isize, free)
-            except struct.error as e:
-                LOG.error("Error reading decompressed size: %s", str(e))
-                size_ok = False
-
-        return size_ok
-
     def _prepare_db_manifest_record(self, manifest):
         """Prepare to insert or update the manifest DB record."""
         assembly_id = manifest.get("assemblyId")
@@ -498,6 +443,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         date_range = {}
         file_creation_date = None
         etag = None
+
         if not self.ingress_reports:
             try:
                 blob = self._azure_client.get_file_for_key(key, self.container_name)
@@ -511,15 +457,14 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
 
-        if not self._check_size(key, check_inflate=True):
-            msg = f"Insufficient disk space to download file: {key}"
-            LOG.error(log_json(self.tracing_id, msg=msg, context=self.context))
-            raise AzureReportDownloaderError(msg)
-
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         self._azure_client.download_file(
-            key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
+            key,
+            self.container_name,
+            destination=full_file_path,
+            ingress_reports=self.ingress_reports,
+            compression=self.compression,
         )
 
         file_names, date_range = create_daily_archives(

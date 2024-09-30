@@ -37,16 +37,16 @@ class AzureService:
     """A class to handle interactions with the Azure services."""
 
     def __init__(
-        self,
-        tenant_id,
-        client_id,
-        client_secret,
-        resource_group_name,
-        storage_account_name,
-        subscription_id=None,
-        cloud="public",
-        scope=None,
-        export_name=None,
+            self,
+            tenant_id,
+            client_id,
+            client_secret,
+            resource_group_name,
+            storage_account_name,
+            subscription_id=None,
+            cloud="public",
+            scope=None,
+            export_name=None,
     ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name
@@ -64,7 +64,7 @@ class AzureService:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
     def _get_latest_blob(
-        self, report_path: str, blobs: list[BlobProperties], extension: str
+            self, report_path: str, blobs: list[BlobProperties], extension: str
     ) -> t.Optional[BlobProperties]:
         latest_blob = None
         for blob in blobs:
@@ -78,12 +78,12 @@ class AzureService:
         return latest_blob
 
     def _get_latest_blob_for_path(
-        self,
-        report_path: str,
-        container_name: str,
-        extensions: list[str] = [AzureBlobExtension.gzip.value, AzureBlobExtension.csv.value],
+            self,
+            report_path: str,
+            container_name: str,
+            extension: str,
     ) -> BlobProperties:
-        """Get the latest file with the specified extensions from given storage account container."""
+        """Get the latest file with the specified extension from given storage account container."""
 
         latest_report = None
         if not container_name:
@@ -118,14 +118,10 @@ class AzureService:
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
 
-        for extension in extensions:
-            latest_report = self._get_latest_blob(report_path, blobs, extension)
-            if latest_report:
-                break
-
+        latest_report = self._get_latest_blob(report_path, blobs, extension)
         if not latest_report:
             message = (
-                f"No file with any of the extensions {extensions} found in container "
+                f"No file with extension '{extension}' found in container "
                 f"'{container_name}' for path '{report_path}'."
             )
             raise AzureCostReportNotFound(message)
@@ -162,17 +158,33 @@ class AzureService:
 
         return report
 
-    def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
+    def get_latest_cost_export_for_path(
+            self, report_path: str, container_name: str, compression: str
+    ) -> BlobProperties:
         """
-        Get the latest cost export for a given path and container. Supports both CSV and GZIP formats.
+        Get the latest cost export for a given path and container based on the compression type.
+
+        Args:
+            report_path (str): The path where the report is stored.
+            container_name (str): The name of the container where the report is located.
+            compression (str): The compression format ('gzip' or 'csv').
+
+        Returns:
+            BlobProperties: The latest blob corresponding to the specified report path and container.
+
+        Raises:
+            ValueError: If the compression type is not 'gzip' or 'csv'.
+            AzureCostReportNotFound: If no blob is found for the given path and container.
         """
-        blob = self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.gzip.value)
-        if not blob:
-            blob = self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
+        valid_compressions = [AzureBlobExtension.gzip.value, AzureBlobExtension.csv.value]
+        if compression not in valid_compressions:
+            raise ValueError(f"Invalid compression type: {compression}. Expected one of: {valid_compressions}.")
+
+        blob = self._get_latest_blob_for_path(report_path, container_name, compression)
 
         if not blob:
             raise AzureCostReportNotFound(
-                f"No cost export found for path {report_path} in container {container_name}."
+                f"No cost export found for path '{report_path}' in container '{container_name}' with compression '{compression}'."
             )
 
         return blob
@@ -181,14 +193,15 @@ class AzureService:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
 
     def download_file(
-        self,
-        key: str,
-        container_name: str,
-        destination: str = None,
-        suffix: str = AzureBlobExtension.csv.value,
-        ingress_reports: list[str] = None,
-        offset: int = None,
-        length: int = None,
+            self,
+            key: str,
+            container_name: str,
+            destination: str = None,
+            suffix: str = AzureBlobExtension.csv.value,
+            ingress_reports: list[str] = None,
+            compression: str = None,
+            offset: int = None,
+            length: int = None,
     ) -> str:
         """
         Download the file from a given storage container. Supports both CSV and GZIP formats.
@@ -198,10 +211,12 @@ class AzureService:
             cost_export = self.get_file_for_key(key, container_name)
             key = cost_export.name
 
-            if key.endswith(AzureBlobExtension.gzip.value):
-                suffix = AzureBlobExtension.gzip.value
-            else:
-                suffix = AzureBlobExtension.csv.value
+            if compression:
+                suffix = (
+                    AzureBlobExtension.gzip.value
+                    if compression == AzureBlobExtension.gzip.value
+                    else AzureBlobExtension.csv.value
+                )
 
         file_path = destination
         if not destination:
@@ -210,15 +225,9 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            blob_client = self._cloud_storage_account.get_blob_client(container=container_name, blob=key)
+            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
-                if offset is not None and length is not None:
-                    download_stream = blob_client.download_blob(offset=offset, length=length)
-                else:
-                    download_stream = blob_client.download_blob()
-
-                blob_download.write(download_stream.readall())
-
+                blob_download.write(blob_client.download_blob().readall())
         except (AdalError, AzureException, ClientException, OSError, AzureError) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
 
@@ -236,10 +245,12 @@ class AzureService:
             try:
                 cost_management_client = self._factory.cost_management_client
                 report = cost_management_client.exports.get(scope, export_name)
+                compression_type = getattr(report.delivery_info, "compression_type", ".csv.gz")
                 report_def = {
                     "name": report.name,
                     "container": report.delivery_info.destination.container,
                     "directory": report.delivery_info.destination.root_folder_path,
+                    "compression": compression_type,
                 }
                 export_reports.append(report_def)
             except (AdalError, AzureException, ClientException) as exc:
@@ -257,10 +268,12 @@ class AzureService:
             management_reports = cost_management_client.exports.list(scope)
             for report in management_reports.value:
                 if report.delivery_info.destination.resource_id == expected_resource_id:
+                    compression_type = getattr(report.delivery_info, "compression_type", "gzip")
                     report_def = {
                         "name": report.name,
                         "container": report.delivery_info.destination.container,
                         "directory": report.delivery_info.destination.root_folder_path,
+                        "compression": compression_type,
                     }
                     export_reports.append(report_def)
         except (AdalError, AzureException, ClientException) as exc:
