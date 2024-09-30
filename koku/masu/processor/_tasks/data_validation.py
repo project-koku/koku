@@ -197,9 +197,13 @@ class DataValidator:
         trino_data = None
         cluster_id = None
         daily_difference = {}
+        self.context["provider_uuid"] = self.provider_uuid
+
         LOG.info(
             log_json(
-                msg=f"validation started for provider using start date: {self.start_date}, end date: {self.end_date}",
+                msg="validation started for provider",
+                start_date=self.start_date,
+                end_date=self.end_date,
                 context=self.context,
             )
         )
@@ -212,8 +216,8 @@ class DataValidator:
         # Postgres query to get daily values
         try:
             pg_data = self.execute_relevant_query(provider_type, cluster_id)
-        except Exception as e:
-            LOG.warning(log_json(msg=f"data validation postgres query failed: {e}", context=self.context))
+        except Exception as err:
+            LOG.warning(log_json(msg="data validation postgres query failed", context=self.context), exc_info=err)
             return
         # Trino query to get daily values
         try:
@@ -225,19 +229,21 @@ class DataValidator:
                 LOG.info(log_json(msg="Partition dropped during verification", context=self.context))
                 return
             else:
-                LOG.warning(log_json(msg=f"Trino external error: {te}", context=self.context))
+                LOG.warning(log_json(msg="Trino external error", context=self.context), exc_info=te)
                 return
-        except Exception as e:
-            LOG.warning(log_json(msg=f"data validation trino query failed: {e}", context=self.context))
+        except Exception as err:
+            LOG.warning(log_json(msg="data validation trino query failed", context=self.context), exc_info=err)
             return
         # Compare results
         LOG.debug(f"PG: {pg_data} Trino data: {trino_data}")
         daily_difference, valid_cost = self.compare_data(pg_data, trino_data)
         if valid_cost:
-            LOG.info(log_json(msg=f"all data complete for provider: {self.provider_uuid}", context=self.context))
+            LOG.info(log_json(msg="all data complete for provider", context=self.context))
         else:
             LOG.error(
                 log_json(
-                    msg=f"provider has incomplete data for specified days: {daily_difference}", context=self.context
+                    msg="provider has incomplete data for specified days",
+                    daily_difference=daily_difference,
+                    context=self.context,
                 )
             )
