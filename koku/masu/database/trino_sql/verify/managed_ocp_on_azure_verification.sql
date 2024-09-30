@@ -21,7 +21,7 @@ FROM
     SELECT sum(costinbillingcurrency) AS parquet_total_cost
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as parquet_table
     LEFT JOIN cte_agg_tags AS tag_matches
-        ON any_match(tag_matches.matched_tags, x->strpos(parquet_table.resourcetags, x) != 0)
+        ON any_match(tag_matches.matched_tags, x->strpos(parquet_table.tags, x) != 0)
         AND parquet_table.resource_id_matched = False
     WHERE parquet_table.source = {{cloud_source_uuid}}
     AND parquet_table.year = {{year}}
