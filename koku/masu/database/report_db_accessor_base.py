@@ -147,7 +147,6 @@ class ReportDBAccessorBase:
             results = trino_cur.fetchall()
             description = trino_cur.description
         except TrinoQueryError as ex:
-            LOG.error(log_json(msg="failed trino sql execution", log_ref=log_ref, context=ctx), exc_info=ex)
             if "NoSuchKey" in str(ex):
                 raise TrinoNoSuchKeyError(
                     message=ex.message,
