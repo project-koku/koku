@@ -15,6 +15,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob._models import BlobProperties
 from msrest.exceptions import ClientException
 
+from masu.external import UNCOMPRESSED
 from masu.util.azure.common import AzureBlobExtension
 from providers.azure.client import AzureClientFactory
 
@@ -37,16 +38,16 @@ class AzureService:
     """A class to handle interactions with the Azure services."""
 
     def __init__(
-            self,
-            tenant_id,
-            client_id,
-            client_secret,
-            resource_group_name,
-            storage_account_name,
-            subscription_id=None,
-            cloud="public",
-            scope=None,
-            export_name=None,
+        self,
+        tenant_id,
+        client_id,
+        client_secret,
+        resource_group_name,
+        storage_account_name,
+        subscription_id=None,
+        cloud="public",
+        scope=None,
+        export_name=None,
     ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name
@@ -64,7 +65,7 @@ class AzureService:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
     def _get_latest_blob(
-            self, report_path: str, blobs: list[BlobProperties], extension: str
+        self, report_path: str, blobs: list[BlobProperties], extension: str
     ) -> t.Optional[BlobProperties]:
         latest_blob = None
         for blob in blobs:
@@ -78,10 +79,10 @@ class AzureService:
         return latest_blob
 
     def _get_latest_blob_for_path(
-            self,
-            report_path: str,
-            container_name: str,
-            extension: str,
+        self,
+        report_path: str,
+        container_name: str,
+        extension: str,
     ) -> BlobProperties:
         """Get the latest file with the specified extension from given storage account container."""
 
@@ -159,7 +160,7 @@ class AzureService:
         return report
 
     def get_latest_cost_export_for_path(
-            self, report_path: str, container_name: str, compression: str
+        self, report_path: str, container_name: str, compression: str
     ) -> BlobProperties:
         """
         Get the latest cost export for a given path and container based on the compression type.
@@ -176,7 +177,7 @@ class AzureService:
             ValueError: If the compression type is not 'gzip' or 'csv'.
             AzureCostReportNotFound: If no blob is found for the given path and container.
         """
-        valid_compressions = [AzureBlobExtension.gzip.value, AzureBlobExtension.csv.value]
+        valid_compressions = [AzureBlobExtension.gzip.value, UNCOMPRESSED]
         if compression not in valid_compressions:
             raise ValueError(f"Invalid compression type: {compression}. Expected one of: {valid_compressions}.")
 
@@ -184,7 +185,8 @@ class AzureService:
 
         if not blob:
             raise AzureCostReportNotFound(
-                f"No cost export found for path '{report_path}' in container '{container_name}' with compression '{compression}'."
+                f"No cost export found for path '{report_path}' in container '{container_name}' "
+                f"with compression '{compression}'."
             )
 
         return blob
@@ -193,15 +195,15 @@ class AzureService:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
 
     def download_file(
-            self,
-            key: str,
-            container_name: str,
-            destination: str = None,
-            suffix: str = AzureBlobExtension.csv.value,
-            ingress_reports: list[str] = None,
-            compression: str = None,
-            offset: int = None,
-            length: int = None,
+        self,
+        key: str,
+        container_name: str,
+        destination: str = None,
+        suffix: str = AzureBlobExtension.csv.value,
+        ingress_reports: list[str] = None,
+        compression: str = None,
+        offset: int = None,
+        length: int = None,
     ) -> str:
         """
         Download the file from a given storage container. Supports both CSV and GZIP formats.

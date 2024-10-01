@@ -27,6 +27,7 @@ from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import get_or_clear_daily_s3_by_date
 from masu.util.azure import common as utils
+from masu.util.azure.common import AzureBlobExtension
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class AzureReportDownloaderNoFileError(Exception):
 
 
 def get_processing_date(
-        s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports=None
+    s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports=None
 ):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
@@ -60,12 +61,12 @@ def get_processing_date(
     # Azure does not have an invoice column so we have to do some guessing here
     # Ingres reports should always clear and process everything
     if (
-            start_date.year < dh.today.year
-            and dh.today.day > 1
-            or start_date.month < dh.today.month
-            and dh.today.day > 1
-            or not check_provider_setup_complete(provider_uuid)
-            or ingress_reports
+        start_date.year < dh.today.year
+        and dh.today.day > 1
+        or start_date.month < dh.today.month
+        and dh.today.day > 1
+        or not check_provider_setup_complete(provider_uuid)
+        or ingress_reports
     ):
         process_date = start_date
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
@@ -77,15 +78,15 @@ def get_processing_date(
 
 
 def create_daily_archives(
-        tracing_id,
-        account,
-        provider_uuid,
-        local_file,
-        base_filename,
-        manifest_id,
-        start_date,
-        context,
-        ingress_reports=None,
+    tracing_id,
+    account,
+    provider_uuid,
+    local_file,
+    base_filename,
+    manifest_id,
+    start_date,
+    context,
+    ingress_reports=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -117,10 +118,10 @@ def create_daily_archives(
         return [], {}
     try:
         with pd.read_csv(
-                local_file,
-                chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
-                parse_dates=[time_interval],
-                dtype=pd.StringDtype(storage="pyarrow"),
+            local_file,
+            chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
+            parse_dates=[time_interval],
+            dtype=pd.StringDtype(storage="pyarrow"),
         ) as reader:
             for i, data_frame in enumerate(reader):
                 if data_frame.empty:
@@ -197,7 +198,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.directory = demo_info.get("report_prefix")
                 self.export_name = demo_info.get("report_name")
                 self._azure_client = self._get_azure_client(credentials, data_source)
-                self.compression = "gzip"
+                self.compression = None
                 return
 
         self._provider_uuid = kwargs.get("provider_uuid")
@@ -210,7 +211,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.export_name = export_report.get("name")
             self.container_name = export_report.get("container")
             self.directory = export_report.get("directory")
-            self.compression = export_report.get("compression", "gzip")
+            self.compression = None
 
         if self.ingress_reports:
             container = self.ingress_reports[0].split("/")[0]
@@ -273,6 +274,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = {}
+        compression_mode = AzureBlobExtension.gzip.value  # Default value
         if self.ingress_reports:
             reports = [report.split(f"{self.container_name}/")[1] for report in self.ingress_reports]
             year = date_time.strftime("%Y")
@@ -313,29 +315,27 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # Download the manifest and extract the list of files.
                 try:
                     manifest_tmp = self._azure_client.download_file(
-                        report_name,
-                        self.container_name,
-                        suffix=utils.AzureBlobExtension.json.value,
-                        compression=self.compression,
+                        report_name, self.container_name, suffix=utils.AzureBlobExtension.json.value
                     )
                 except AzureReportDownloaderError as err:
                     msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
                     LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                     return {}, None
-                # Extract data from the JSON file
                 try:
                     with open(manifest_tmp) as f:
                         manifest_json = json.load(f)
+
+                    compression_mode = manifest_json.get("deliveryConfig", {}).get("compressionMode", UNCOMPRESSED)
+                    manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
                 except json.JSONDecodeError as err:
                     msg = f"Unable to open JSON manifest. Reason: {err}"
                     raise AzureReportDownloaderError(msg)
                 finally:
                     self._remove_manifest_file(manifest_tmp)
-                manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
             else:
                 try:
                     blob = self._azure_client.get_latest_cost_export_for_path(
-                        report_path, self.container_name, self.compression
+                        report_path, self.container_name, compression_mode
                     )
                 except AzureCostReportNotFound as ex:
                     msg = f"Unable to find manifest. Error: {ex}"
@@ -353,7 +353,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 raise AzureReportDownloaderError(message)
 
         manifest["billingPeriod"] = billing_period
-        manifest["Compression"] = UNCOMPRESSED
+        manifest["Compression"] = compression_mode
+        self.compression = compression_mode
 
         return manifest, last_modified
 
@@ -403,7 +404,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             report_dict["manifest_id"] = manifest_id
             report_dict["assembly_id"] = manifest.get("assemblyId")
-            report_dict["compression"] = manifest.get("Compression")
             files_list = [
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
             ]
