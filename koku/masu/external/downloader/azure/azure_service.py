@@ -245,12 +245,10 @@ class AzureService:
             try:
                 cost_management_client = self._factory.cost_management_client
                 report = cost_management_client.exports.get(scope, export_name)
-                compression_type = getattr(report.delivery_info, "compression_type", ".csv.gz")
                 report_def = {
                     "name": report.name,
                     "container": report.delivery_info.destination.container,
                     "directory": report.delivery_info.destination.root_folder_path,
-                    "compression": compression_type,
                 }
                 export_reports.append(report_def)
             except (AdalError, AzureException, ClientException) as exc:
@@ -268,12 +266,10 @@ class AzureService:
             management_reports = cost_management_client.exports.list(scope)
             for report in management_reports.value:
                 if report.delivery_info.destination.resource_id == expected_resource_id:
-                    compression_type = getattr(report.delivery_info, "compression_type", "gzip")
                     report_def = {
                         "name": report.name,
                         "container": report.delivery_info.destination.container,
                         "directory": report.delivery_info.destination.root_folder_path,
-                        "compression": compression_type,
                     }
                     export_reports.append(report_def)
         except (AdalError, AzureException, ClientException) as exc:
