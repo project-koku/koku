@@ -202,8 +202,6 @@ class AzureService:
         suffix: str = AzureBlobExtension.csv.value,
         ingress_reports: list[str] = None,
         compression: str = None,
-        offset: int = None,
-        length: int = None,
     ) -> str:
         """
         Download the file from a given storage container. Supports both CSV and GZIP formats.
