@@ -6,7 +6,13 @@ WHERE lids.usage_start >= {{start_date}}::date
 ;
 
 {% if populate %}
-WITH worker_cost AS (
+WITH cte_narrow_dataset as (
+    SELECT * FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+    WHERE lids.usage_start >= {{start_date}}::date
+        AND lids.usage_start <= {{end_date}}::date
+        AND lids.report_period_id = {{report_period_id}}
+),
+worker_cost AS (
     SELECT SUM(
             COALESCE(infrastructure_raw_cost, 0) +
             COALESCE(infrastructure_markup_cost, 0)+
@@ -14,15 +20,12 @@ WITH worker_cost AS (
             COALESCE(cost_model_memory_cost, 0) +
             COALESCE(cost_model_volume_cost, 0)
         ) as worker_cost,
-        lids.usage_start,
-        lids.source_uuid,
-        lids.cluster_id
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND report_period_id = {{report_period_id}}
-        AND lids.namespace = 'Worker unallocated'
-    GROUP BY lids.usage_start, lids.cluster_id, lids.source_uuid
+        cnd.usage_start,
+        cnd.source_uuid,
+        cnd.cluster_id
+    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    WHERE cnd.namespace = 'Worker unallocated'
+    GROUP BY cnd.usage_start, cnd.cluster_id, cnd.source_uuid
 ),
 user_defined_project_sum as (
     SELECT sum(pod_effective_usage_cpu_core_hours) as usage_cpu_sum,
@@ -30,28 +33,22 @@ user_defined_project_sum as (
         cluster_id,
         usage_start,
         source_uuid
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
+    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
     LEFT OUTER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON lids.cost_category_id = cat.id
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND report_period_id = {{report_period_id}}
-        AND lids.namespace != 'Worker unallocated'
-        AND lids.namespace != 'Platform unallocated'
-        AND lids.namespace != 'Storage unattributed'
-        AND lids.namespace != 'Network unattributed'
+        ON cnd.cost_category_id = cat.id
+    WHERE cnd.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY usage_start, cluster_id, source_uuid
 ),
 cte_line_items as (
     SELECT
         max(report_period_id) as report_period_id,
-        lids.cluster_id,
+        cnd.cluster_id,
         max(cluster_alias) as cluster_alias,
-        lids.usage_start,
+        cnd.usage_start,
         max(usage_end) as usage_end,
-        lids.namespace,
-        lids.node,
+        cnd.namespace,
+        cnd.node,
         max(resource_id) as resource_id,
         max(node_capacity_cpu_cores) as node_capacity_cpu_cores,
         max(node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
@@ -59,19 +56,19 @@ cte_line_items as (
         max(node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
         max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        CASE WHEN {{distribution}} = 'cpu' AND lids.namespace != 'Worker unallocated' THEN
+        CASE WHEN {{distribution}} = 'cpu' AND cnd.namespace != 'Worker unallocated' THEN
             CASE WHEN max(udps.usage_cpu_sum) <= 0 THEN
                 0
             ELSE
                 (sum(pod_effective_usage_cpu_core_hours) / max(udps.usage_cpu_sum)) * max(wc.worker_cost)::decimal
             END
-        WHEN {{distribution}} = 'memory' AND lids.namespace != 'Worker unallocated' THEN
+        WHEN {{distribution}} = 'memory' AND cnd.namespace != 'Worker unallocated' THEN
             CASE WHEN max(udps.usage_memory_sum) <= 0 THEN
                 0
             ELSE
                 (sum(pod_effective_usage_memory_gigabyte_hours) / max(udps.usage_memory_sum)) * max(wc.worker_cost)::decimal
             END
-        WHEN lids.namespace = 'Worker unallocated' THEN
+        WHEN cnd.namespace = 'Worker unallocated' THEN
             0 - SUM(
                     COALESCE(infrastructure_raw_cost, 0) +
                     COALESCE(infrastructure_markup_cost, 0) +
@@ -81,24 +78,20 @@ cte_line_items as (
                 )
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
     JOIN worker_cost as wc
-        ON wc.usage_start = lids.usage_start
-        AND wc.cluster_id = lids.cluster_id
+        ON wc.usage_start = cnd.usage_start
+        AND wc.cluster_id = cnd.cluster_id
     JOIN user_defined_project_sum as udps
-        ON udps.usage_start = lids.usage_start
-        AND udps.cluster_id = lids.cluster_id
+        ON udps.usage_start = cnd.usage_start
+        AND udps.cluster_id = cnd.cluster_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON lids.cost_category_id = cat.id
-    WHERE lids.usage_start >= {{start_date}}::date
-        AND lids.usage_start <= {{end_date}}::date
-        AND report_period_id = {{report_period_id}}
-        AND lids.namespace IS NOT NULL
-        AND lids.namespace != 'Network unattributed'
-        AND lids.namespace != 'Storage unattributed'
+        ON cnd.cost_category_id = cat.id
+    WHERE cnd.namespace IS NOT NULL
+        WHERE cnd.namespace not in ('Storage unattributed', 'Network unattributed')
         AND data_source = 'Pod'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
-    GROUP BY lids.usage_start, lids.node, lids.namespace, lids.cluster_id
+    GROUP BY cnd.usage_start, cnd.node, cnd.namespace, cnd.cluster_id
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -111,29 +104,12 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     namespace,
     node,
     resource_id,
-    pod_labels,
-    pod_usage_cpu_core_hours,
-    pod_request_cpu_core_hours,
-    pod_effective_usage_cpu_core_hours,
-    pod_limit_cpu_core_hours,
-    pod_usage_memory_gigabyte_hours,
-    pod_request_memory_gigabyte_hours,
-    pod_effective_usage_memory_gigabyte_hours,
-    pod_limit_memory_gigabyte_hours,
     node_capacity_cpu_cores,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabytes,
     node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
-    persistentvolumeclaim,
-    persistentvolume,
-    storageclass,
-    volume_labels,
-    persistentvolumeclaim_capacity_gigabyte,
-    persistentvolumeclaim_capacity_gigabyte_months,
-    volume_request_storage_gigabyte_months,
-    persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     cost_model_rate_type,
     distributed_cost,
@@ -150,29 +126,12 @@ SELECT
     ctl.namespace,
     ctl.node,
     ctl.resource_id,
-    NULL as pod_labels,
-    NULL as pod_usage_cpu_core_hours,
-    NULL as pod_request_cpu_core_hours,
-    NULL as pod_effective_usage_cpu_core_hours,
-    NULL as pod_limit_cpu_core_hours,
-    NULL as pod_usage_memory_gigabyte_hours,
-    NULL as pod_request_memory_gigabyte_hours,
-    NULL as pod_effective_usage_memory_gigabyte_hours,
-    NULL as pod_limit_memory_gigabyte_hours,
     ctl.node_capacity_cpu_cores,
     ctl.node_capacity_cpu_core_hours,
     ctl.node_capacity_memory_gigabytes,
     ctl.node_capacity_memory_gigabyte_hours,
     ctl.cluster_capacity_cpu_core_hours,
     ctl.cluster_capacity_memory_gigabyte_hours,
-    NULL as persistentvolumeclaim,
-    NULL as persistentvolume,
-    NULL as storageclass,
-    NULL as volume_labels,
-    NULL as persistentvolumeclaim_capacity_gigabyte,
-    NULL as persistentvolumeclaim_capacity_gigabyte_months,
-    NULL as volume_request_storage_gigabyte_months,
-    NULL as persistentvolumeclaim_usage_gigabyte_months,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     'worker_distributed' as cost_model_rate_type,
     ctl.distributed_cost,
