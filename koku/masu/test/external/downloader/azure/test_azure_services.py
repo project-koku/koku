@@ -657,7 +657,7 @@ class AzureServiceTest(MasuTestCase):
         mock_list_blobs.return_value = [mock_blob]
 
         mock_blob_client = Mock()
-        mock_blob_client.download_blob.return_value.readall.return_value = b"fake_gzip_data"  # Returning bytes here
+        mock_blob_client.download_blob.return_value.readall.return_value = b"fake_gzip_data"
         mock_cloud_storage_account = Mock()
         mock_cloud_storage_account.get_blob_client.return_value = mock_blob_client
         mock_client_factory.return_value.cloud_storage_account.return_value = mock_cloud_storage_account
