@@ -23,7 +23,7 @@ worker_cost AS (
         cnd.usage_start,
         cnd.source_uuid,
         cnd.cluster_id
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     WHERE cnd.namespace = 'Worker unallocated'
     GROUP BY cnd.usage_start, cnd.cluster_id, cnd.source_uuid
 ),
@@ -33,7 +33,7 @@ user_defined_project_sum as (
         cluster_id,
         usage_start,
         source_uuid
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     LEFT OUTER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
         ON cnd.cost_category_id = cat.id
     WHERE cnd.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
@@ -78,7 +78,7 @@ cte_line_items as (
                 )
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     JOIN worker_cost as wc
         ON wc.usage_start = cnd.usage_start
         AND wc.cluster_id = cnd.cluster_id
@@ -88,7 +88,7 @@ cte_line_items as (
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
         ON cnd.cost_category_id = cat.id
     WHERE cnd.namespace IS NOT NULL
-        WHERE cnd.namespace not in ('Storage unattributed', 'Network unattributed')
+        AND cnd.namespace not in ('Storage unattributed', 'Network unattributed')
         AND data_source = 'Pod'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY cnd.usage_start, cnd.node, cnd.namespace, cnd.cluster_id

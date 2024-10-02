@@ -21,7 +21,7 @@ unattributed_network_cost AS (
             COALESCE(cost_model_volume_cost, 0)
         ) as unattributed_cost,
         cnd.usage_start
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     WHERE cnd.namespace = 'Network unattributed'
     GROUP BY cnd.usage_start
 ),
@@ -31,7 +31,7 @@ user_defined_project_sum as (
         cluster_id,
         usage_start,
         source_uuid
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
         ON cnd.cost_category_id = cat.id
     WHERE cnd.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
@@ -78,7 +78,7 @@ cte_line_items as (
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id,
         max(raw_currency) as raw_currency
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     LEFT JOIN unattributed_network_cost as usc
         ON usc.usage_start = cdn.usage_start
     LEFT JOIN user_defined_project_sum as udps

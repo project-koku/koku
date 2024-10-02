@@ -23,7 +23,7 @@ platform_cost AS (
         cdn.usage_start,
         cdn.source_uuid,
         cdn.cluster_id
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
         ON cdn.cost_category_id = cat.id
     WHERE cat.name = 'Platform'
@@ -35,7 +35,7 @@ user_defined_project_sum as (
         cluster_id,
         usage_start,
         source_uuid
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
         ON cdn.cost_category_id = cat.id
     WHERE cnd.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
@@ -81,7 +81,7 @@ cte_line_items as (
                 )
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id
-    FROM {{schema | sqlsafe}}.cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as cnd
     JOIN platform_cost as pc
         ON pc.usage_start = cnd.usage_start
         AND pc.cluster_id = cnd.cluster_id
