@@ -18,7 +18,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -273,7 +272,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = {}
-        compression_mode = AzureBlobExtension.gzip.value  # Default value
+        compression_mode = AzureBlobExtension.csv.value  # Default value
         if self.ingress_reports:
             reports = [report.split(f"{self.container_name}/")[1] for report in self.ingress_reports]
             year = date_time.strftime("%Y")
@@ -324,13 +323,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     with open(manifest_tmp) as f:
                         manifest_json = json.load(f)
 
-                    compression_mode = manifest_json.get("deliveryConfig", {}).get("compressionMode", UNCOMPRESSED)
-                    manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
+                    compression_mode = manifest_json.get("deliveryConfig", {}).get("compressionMode")
                 except json.JSONDecodeError as err:
                     msg = f"Unable to open JSON manifest. Reason: {err}"
                     raise AzureReportDownloaderError(msg)
                 finally:
                     self._remove_manifest_file(manifest_tmp)
+                manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
             else:
                 try:
                     blob = self._azure_client.get_latest_cost_export_for_path(
@@ -463,7 +462,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.container_name,
             destination=full_file_path,
             ingress_reports=self.ingress_reports,
-            compression=self.compression,
+            suffix=self.compression,
         )
 
         file_names, date_range = create_daily_archives(

@@ -181,15 +181,7 @@ class AzureService:
         if compression not in valid_compressions:
             raise ValueError(f"Invalid compression type: {compression}. Expected one of: {valid_compressions}.")
 
-        blob = self._get_latest_blob_for_path(report_path, container_name, compression)
-
-        if not blob:
-            raise AzureCostReportNotFound(
-                f"No cost export found for path '{report_path}' in container '{container_name}' "
-                f"with compression '{compression}'."
-            )
-
-        return blob
+        return self._get_latest_blob_for_path(report_path, container_name, compression)
 
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
@@ -201,7 +193,6 @@ class AzureService:
         destination: str = None,
         suffix: str = AzureBlobExtension.csv.value,
         ingress_reports: list[str] = None,
-        compression: str = None,
     ) -> str:
         """
         Download the file from a given storage container. Supports both CSV and GZIP formats.
@@ -210,13 +201,6 @@ class AzureService:
         if not ingress_reports:
             cost_export = self.get_file_for_key(key, container_name)
             key = cost_export.name
-
-            if compression:
-                suffix = (
-                    AzureBlobExtension.gzip.value
-                    if compression == AzureBlobExtension.gzip.value
-                    else AzureBlobExtension.csv.value
-                )
 
         file_path = destination
         if not destination:
