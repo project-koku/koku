@@ -1,5 +1,5 @@
 WITH cte_array_agg_nodes AS (
-    SELECT DISTINCT resource_id, node
+    SELECT DISTINCT node
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
