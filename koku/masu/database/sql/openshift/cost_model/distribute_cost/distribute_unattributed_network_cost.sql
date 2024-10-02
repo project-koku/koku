@@ -41,7 +41,7 @@ WITH cte_narrow_dataset as (
         AND lids.report_period_id = {{report_period_id}}
         AND lids.namespace != 'Storage unattributed'
         AND lids.namespace != 'Worker unallocated'
-        AND (filtered.cost_category_id IS NULL OR cat.name != 'Platform')
+        AND (lids.cost_category_id IS NULL OR cat.name != 'Platform')
 ),
 unattributed_network_cost AS (
     SELECT SUM(
