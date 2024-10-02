@@ -42,9 +42,6 @@ jobs:
   smokes-labeler:
     name: Smoke Test Label
     runs-on: ubuntu-20.04
-    permissions:
-      contents: read
-      issues: write
 
     steps:
       - name: Harden Runner
