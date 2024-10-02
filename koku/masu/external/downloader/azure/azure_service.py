@@ -15,7 +15,6 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob._models import BlobProperties
 from msrest.exceptions import ClientException
 
-from masu.external import UNCOMPRESSED
 from masu.util.azure.common import AzureBlobExtension
 from providers.azure.client import AzureClientFactory
 
@@ -177,7 +176,7 @@ class AzureService:
             ValueError: If the compression type is not 'gzip' or 'csv'.
             AzureCostReportNotFound: If no blob is found for the given path and container.
         """
-        valid_compressions = [AzureBlobExtension.gzip.value, UNCOMPRESSED]
+        valid_compressions = [AzureBlobExtension.gzip.value, AzureBlobExtension.csv.value]
         if compression not in valid_compressions:
             raise ValueError(f"Invalid compression type: {compression}. Expected one of: {valid_compressions}.")
 
