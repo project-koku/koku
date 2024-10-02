@@ -623,12 +623,3 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **summary_sql_params))
         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
-
-        verification_params = {
-            "schema": self.schema,
-            "cloud_source_uuid": gcp_provider_uuid,
-            "year": year,
-            "month": month,
-            "matched_tag_array": matched_tags,
-        }
-        self.verify_populate_ocp_on_cloud_daily_trino(verification_params)

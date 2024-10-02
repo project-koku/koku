@@ -288,8 +288,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         Keys: openshift-project, openshift-node, openshift-cluster
         Ex: ("openshift-project": "project_a")
         """
-        # TODO: Clean up the debug logs in this method
-        LOG.info("cody search4")
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
@@ -308,7 +306,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             matched_tags_sql, bind_params=matached_tags_params
         )
         matched_tags_result = matched_tags_result[0][0]
-        LOG.info(f"matached_tags_result1\n\n\n {matched_tags_result}")
         return matched_tags_result
 
     def process_ocp_cloud_trino(self, start_date, end_date):
@@ -319,11 +316,14 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             start_date = parse(start_date).astimezone(tz=settings.UTC)
         if type(end_date) == str:
             end_date = parse(end_date).astimezone(tz=settings.UTC)
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
         matched_tags = self.get_matched_tags(ocp_provider_uuids)
         matched_tag_strs = []
         if matched_tags:
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
 
+        verification_tags = []
         for ocp_provider_uuid in ocp_provider_uuids:
             matched_tags_result = self.find_openshift_keys_expected_values(
                 start_date, end_date, ocp_provider_uuid, matched_tag_strs
@@ -331,3 +331,14 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             self.db_accessor.populate_ocp_on_cloud_daily_trino(
                 self.provider_uuid, ocp_provider_uuid, start_date, end_date, matched_tags_result
             )
+            verification_tags.extend(matched_tags_result)
+
+        verification_tags = list(dict.fromkeys(verification_tags))
+        verification_params = {
+            "schema": self.db_accessor.schema,
+            "cloud_source_uuid": self.provider_uuid,
+            "year": year,
+            "month": month,
+            "matched_tag_array": verification_tags,
+        }
+        self.db_accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
