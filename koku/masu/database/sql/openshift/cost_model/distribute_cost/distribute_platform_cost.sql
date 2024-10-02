@@ -20,14 +20,14 @@ platform_cost AS (
             COALESCE(cost_model_memory_cost, 0) +
             COALESCE(cost_model_volume_cost, 0)
         ) as platform_cost,
-        cdn.usage_start,
-        cdn.source_uuid,
-        cdn.cluster_id
-    FROM cte_narrow_dataset as cnd
+        filtered.usage_start,
+        filtered.source_uuid,
+        filtered.cluster_id
+    FROM cte_narrow_dataset as filtered
     JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON cdn.cost_category_id = cat.id
+        ON filtered.cost_category_id = cat.id
     WHERE cat.name = 'Platform'
-    GROUP BY cdn.usage_start, cdn.cluster_id, cdn.source_uuid
+    GROUP BY filtered.usage_start, filtered.cluster_id, filtered.source_uuid
 ),
 user_defined_project_sum as (
     SELECT sum(pod_effective_usage_cpu_core_hours) as usage_cpu_sum,
@@ -35,23 +35,23 @@ user_defined_project_sum as (
         cluster_id,
         usage_start,
         source_uuid
-    FROM cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as filtered
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON cdn.cost_category_id = cat.id
-    WHERE cnd.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
+        ON filtered.cost_category_id = cat.id
+    WHERE filtered.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY usage_start, cluster_id, source_uuid
 ),
 cte_line_items as (
     SELECT
         max(report_period_id) as report_period_id,
-        cnd.cluster_id,
+        filtered.cluster_id,
         max(cluster_alias) as cluster_alias,
-        cnd.data_source as data_source,
-        cnd.usage_start,
+        filtered.data_source as data_source,
+        filtered.usage_start,
         max(usage_end) as usage_end,
-        cnd.namespace,
-        cnd.node,
+        filtered.namespace,
+        filtered.node,
         max(resource_id) as resource_id,
         max(node_capacity_cpu_cores) as node_capacity_cpu_cores,
         max(node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
@@ -81,18 +81,18 @@ cte_line_items as (
                 )
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id
-    FROM cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as filtered
     JOIN platform_cost as pc
-        ON pc.usage_start = cnd.usage_start
-        AND pc.cluster_id = cnd.cluster_id
+        ON pc.usage_start = filtered.usage_start
+        AND pc.cluster_id = filtered.cluster_id
     JOIN user_defined_project_sum as udps
-        ON udps.usage_start = cnd.usage_start
-        AND udps.cluster_id = cnd.cluster_id
+        ON udps.usage_start = filtered.usage_start
+        AND udps.cluster_id = filtered.cluster_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON cnd.cost_category_id = cat.id
-    WHERE cnd.namespace IS NOT NULL
-        AND cnd.namespace not in ('Worker unallocated', 'Storage unattributed', 'Network unattributed')
-    GROUP BY cnd.usage_start, cnd.node, cnd.namespace, cnd.cluster_id, cost_category_id, cnd.data_source
+        ON filtered.cost_category_id = cat.id
+    WHERE filtered.namespace IS NOT NULL
+        AND filtered.namespace not in ('Worker unallocated', 'Storage unattributed', 'Network unattributed')
+    GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id, cost_category_id, filtered.data_source
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,

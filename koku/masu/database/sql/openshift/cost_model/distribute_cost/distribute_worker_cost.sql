@@ -20,12 +20,12 @@ worker_cost AS (
             COALESCE(cost_model_memory_cost, 0) +
             COALESCE(cost_model_volume_cost, 0)
         ) as worker_cost,
-        cnd.usage_start,
-        cnd.source_uuid,
-        cnd.cluster_id
-    FROM cte_narrow_dataset as cnd
-    WHERE cnd.namespace = 'Worker unallocated'
-    GROUP BY cnd.usage_start, cnd.cluster_id, cnd.source_uuid
+        filtered.usage_start,
+        filtered.source_uuid,
+        filtered.cluster_id
+    FROM cte_narrow_dataset as filtered
+    WHERE filtered.namespace = 'Worker unallocated'
+    GROUP BY filtered.usage_start, filtered.cluster_id, filtered.source_uuid
 ),
 user_defined_project_sum as (
     SELECT sum(pod_effective_usage_cpu_core_hours) as usage_cpu_sum,
@@ -33,22 +33,22 @@ user_defined_project_sum as (
         cluster_id,
         usage_start,
         source_uuid
-    FROM cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as filtered
     LEFT OUTER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON cnd.cost_category_id = cat.id
-    WHERE cnd.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
+        ON filtered.cost_category_id = cat.id
+    WHERE filtered.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY usage_start, cluster_id, source_uuid
 ),
 cte_line_items as (
     SELECT
         max(report_period_id) as report_period_id,
-        cnd.cluster_id,
+        filtered.cluster_id,
         max(cluster_alias) as cluster_alias,
-        cnd.usage_start,
+        filtered.usage_start,
         max(usage_end) as usage_end,
-        cnd.namespace,
-        cnd.node,
+        filtered.namespace,
+        filtered.node,
         max(resource_id) as resource_id,
         max(node_capacity_cpu_cores) as node_capacity_cpu_cores,
         max(node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
@@ -56,19 +56,19 @@ cte_line_items as (
         max(node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
         max(cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        CASE WHEN {{distribution}} = 'cpu' AND cnd.namespace != 'Worker unallocated' THEN
+        CASE WHEN {{distribution}} = 'cpu' AND filtered.namespace != 'Worker unallocated' THEN
             CASE WHEN max(udps.usage_cpu_sum) <= 0 THEN
                 0
             ELSE
                 (sum(pod_effective_usage_cpu_core_hours) / max(udps.usage_cpu_sum)) * max(wc.worker_cost)::decimal
             END
-        WHEN {{distribution}} = 'memory' AND cnd.namespace != 'Worker unallocated' THEN
+        WHEN {{distribution}} = 'memory' AND filtered.namespace != 'Worker unallocated' THEN
             CASE WHEN max(udps.usage_memory_sum) <= 0 THEN
                 0
             ELSE
                 (sum(pod_effective_usage_memory_gigabyte_hours) / max(udps.usage_memory_sum)) * max(wc.worker_cost)::decimal
             END
-        WHEN cnd.namespace = 'Worker unallocated' THEN
+        WHEN filtered.namespace = 'Worker unallocated' THEN
             0 - SUM(
                     COALESCE(infrastructure_raw_cost, 0) +
                     COALESCE(infrastructure_markup_cost, 0) +
@@ -78,20 +78,20 @@ cte_line_items as (
                 )
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id
-    FROM cte_narrow_dataset as cnd
+    FROM cte_narrow_dataset as filtered
     JOIN worker_cost as wc
-        ON wc.usage_start = cnd.usage_start
-        AND wc.cluster_id = cnd.cluster_id
+        ON wc.usage_start = filtered.usage_start
+        AND wc.cluster_id = filtered.cluster_id
     JOIN user_defined_project_sum as udps
-        ON udps.usage_start = cnd.usage_start
-        AND udps.cluster_id = cnd.cluster_id
+        ON udps.usage_start = filtered.usage_start
+        AND udps.cluster_id = filtered.cluster_id
     LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON cnd.cost_category_id = cat.id
-    WHERE cnd.namespace IS NOT NULL
-        AND cnd.namespace not in ('Storage unattributed', 'Network unattributed')
+        ON filtered.cost_category_id = cat.id
+    WHERE filtered.namespace IS NOT NULL
+        AND filtered.namespace not in ('Storage unattributed', 'Network unattributed')
         AND data_source = 'Pod'
         AND (cost_category_id IS NULL OR cat.name != 'Platform')
-    GROUP BY cnd.usage_start, cnd.node, cnd.namespace, cnd.cluster_id
+    GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
