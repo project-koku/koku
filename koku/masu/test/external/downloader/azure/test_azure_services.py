@@ -24,6 +24,7 @@ from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
 from masu.external.downloader.azure.azure_service import ResourceNotFoundError
 from masu.test import MasuTestCase
+from masu.util.azure.common import AzureBlobExtension
 from providers.azure.client import AzureClientFactory
 
 FAKE = Faker()
@@ -626,3 +627,54 @@ class AzureServiceTest(MasuTestCase):
             service.download_file("fake_key.csv", "fake_container")
 
         self.assertIn("Failed to download cost export", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    def test_invalid_compression_type(self, mock_factory):
+        """Test that an invalid compression type raises an exception."""
+
+        service = AzureService(
+            tenant_id="fake_tenant_id",
+            client_id="fake_client_id",
+            client_secret="fake_client_secret",
+            resource_group_name="fake_resource_group",
+            storage_account_name="fake_storage_account",
+            subscription_id="fake_subscription_id",
+        )
+
+        with self.assertRaises(ValueError) as context:
+            service.get_latest_cost_export_for_path("fake_report_path", "fake_container_name", "invalid_compression")
+
+        self.assertIn("Invalid compression type", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_service.AzureService._list_blobs")
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    @patch("masu.external.downloader.azure.azure_service.NamedTemporaryFile")
+    def test_download_file_with_compression(self, mock_tempfile, mock_client_factory, mock_list_blobs):
+        """Test that the method correctly handles a .gzip key with compression."""
+
+        mock_blob = Mock()
+        mock_blob.name = "fake_key.csv.gz"
+        mock_list_blobs.return_value = [mock_blob]
+
+        mock_blob_client = Mock()
+        mock_blob_client.download_blob.return_value.readall.return_value = b"fake_gzip_data"  # Returning bytes here
+        mock_cloud_storage_account = Mock()
+        mock_cloud_storage_account.get_blob_client.return_value = mock_blob_client
+        mock_client_factory.return_value.cloud_storage_account.return_value = mock_cloud_storage_account
+
+        mock_tempfile.return_value.name = "/tmp/fakefile.csv.gz"
+
+        service = AzureService(
+            tenant_id="fake_tenant_id",
+            client_id="fake_client_id",
+            client_secret="fake_client_secret",
+            resource_group_name="fake_resource_group",
+            storage_account_name="fake_storage_account",
+            subscription_id="fake_subscription_id",
+        )
+
+        result = service.download_file("fake_key.csv.gz", "fake_container", compression=AzureBlobExtension.gzip.value)
+
+        self.assertTrue(result.endswith(".gz"))
+        mock_cloud_storage_account.get_blob_client.assert_called_with("fake_container", "fake_key.csv.gz")
+        mock_blob_client.download_blob.assert_called_once()
