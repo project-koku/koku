@@ -7,10 +7,40 @@ WHERE lids.usage_start >= {{start_date}}::date
 
 {% if populate %}
 WITH cte_narrow_dataset as (
-    SELECT * FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+    SELECT
+        lids.usage_start,
+        lids.source_uuid,
+        lids.cost_category_id,
+        lids.pod_effective_usage_cpu_core_hours,
+        lids.pod_effective_usage_memory_gigabyte_hours,
+        lids.infrastructure_raw_cost,
+        lids.infrastructure_markup_cost,
+        lids.cost_model_cpu_cost,
+        lids.cost_model_memory_cost,
+        lids.cost_model_volume_cost,
+        lids.report_period_id,
+        lids.cluster_id,
+        lids.cluster_alias,
+        lids.data_source,
+        lids.usage_end,
+        lids.namespace,
+        lids.node,
+        lids.resource_id,
+        lids.node_capacity_cpu_cores,
+        lids.node_capacity_cpu_core_hours,
+        lids.node_capacity_memory_gigabytes,
+        lids.node_capacity_memory_gigabyte_hours,
+        lids.cluster_capacity_cpu_core_hours,
+        lids.cluster_capacity_memory_gigabyte_hours
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
+        ON lids.cost_category_id = cat.id
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
         AND lids.report_period_id = {{report_period_id}}
+        AND lids.namespace != 'Storage unattributed'
+        AND lids.namespace != 'Network unattributed'
+        AND (cost_category_id IS NULL OR cat.name != 'Platform')
 ),
 worker_cost AS (
     SELECT SUM(
@@ -34,10 +64,7 @@ user_defined_project_sum as (
         usage_start,
         source_uuid
     FROM cte_narrow_dataset as filtered
-    LEFT OUTER JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON filtered.cost_category_id = cat.id
-    WHERE filtered.namespace not in ('Worker unallocated', 'Platform unallocated', 'Storage unattributed', 'Network unattributed')
-        AND (cost_category_id IS NULL OR cat.name != 'Platform')
+    WHERE filtered.namespace != 'Worker unallocated'
     GROUP BY usage_start, cluster_id, source_uuid
 ),
 cte_line_items as (
@@ -85,12 +112,8 @@ cte_line_items as (
     JOIN user_defined_project_sum as udps
         ON udps.usage_start = filtered.usage_start
         AND udps.cluster_id = filtered.cluster_id
-    LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category AS cat
-        ON filtered.cost_category_id = cat.id
     WHERE filtered.namespace IS NOT NULL
-        AND filtered.namespace not in ('Storage unattributed', 'Network unattributed')
         AND data_source = 'Pod'
-        AND (cost_category_id IS NULL OR cat.name != 'Platform')
     GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
