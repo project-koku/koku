@@ -3,22 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDownloader object."""
-import io
 import json
 import os.path
 import shutil
-import struct
 import tempfile
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
-from unittest.mock import mock_open
 from unittest.mock import patch
 
 from azure.core.exceptions import HttpResponseError
-from azure.core.exceptions import ResourceNotFoundError
-from botocore.exceptions import ClientError
 from faker import Faker
 
 from api.utils import DateHelper
@@ -26,7 +21,6 @@ from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderError
-from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloaderNoFileError
 from masu.external.downloader.azure.azure_report_downloader import create_daily_archives
 from masu.external.downloader.azure.azure_report_downloader import get_processing_date
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
@@ -69,7 +63,7 @@ class MockAzureService:
         """Describe cost management exports."""
         return [{"name": self.export_name, "container": self.container, "directory": self.directory}]
 
-    def get_latest_cost_export_for_path(self, report_path, container_name):
+    def get_latest_cost_export_for_path(self, report_path, container_name, compression=None):
         """Get exports for path."""
 
         class BadExport:
@@ -130,6 +124,7 @@ class MockAzureService:
         ingress_reports=None,
         offset=None,
         length=None,
+        compression=None,
     ):
         """Get exports."""
         file_path = destination
@@ -231,7 +226,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         manifest, _ = self.ingress_downloader._get_manifest(self.mock_data.test_date)
 
         self.assertEqual(manifest.get("reportKeys"), [self.mock_data.ingress_report])
-        self.assertEqual(manifest.get("Compression"), "PLAIN")
+        self.assertEqual(manifest.get("Compression"), AzureBlobExtension.gzip.value)
         self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
         self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
 
@@ -254,7 +249,7 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         self.assertEqual(manifest.get("assemblyId"), self.mock_data.export_uuid)
         self.assertEqual(manifest.get("reportKeys"), [self.mock_data.export_file])
-        self.assertEqual(manifest.get("Compression"), "PLAIN")
+        self.assertEqual(manifest.get("Compression"), AzureBlobExtension.gzip.value)
         self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
         self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
 
@@ -313,11 +308,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertTrue("Could not delete manifest file" in log_mock.call_args[0][0]["message"])
 
     @patch("masu.external.downloader.azure.azure_report_downloader.create_daily_archives")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader._check_size")
     @patch("masu.external.downloader.azure.azure_report_downloader.open")
-    def test_download_file(self, mock_open, mock_check_size, mock_daily_archives):
+    def test_download_file(self, mock_open, mock_daily_archives):
         """Test that Azure report is downloaded."""
-        mock_check_size.return_value = True
         mock_daily_archives.return_value = [["file_one", "file_two"], {"start": "", "end": ""}]
 
         expected_full_path = "{}/{}/azure/{}/{}".format(
@@ -328,7 +321,6 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         self.assertEqual(full_file_path, expected_full_path)
         self.assertEqual(etag, self.mock_data.export_etag)
-        mock_check_size.assert_called()
 
     def test_download_missing_file(self):
         """Test that Azure report is not downloaded for incorrect key."""
@@ -337,11 +329,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         with self.assertRaises(AzureReportDownloaderError):
             self.downloader.download_file(key)
 
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader._check_size")
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_download_ingress_report_file(self, mock_azure_service, mock_check_size):
+    def test_download_ingress_report_file(self, mock_azure_service):
         """Test the download file method for Azure ingress report."""
-        mock_check_size.return_value = True
         customer_name = self.customer_name
         file_key = self.ingress_reports[0].split(f"{self.mock_data.container}/", 1)[1]
 
@@ -589,96 +579,6 @@ class AzureReportDownloaderTest(MasuTestCase):
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
 
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_check_size_success(self, mock_azure_service, mock_shutil):
-        """Test _check_size is successful when enough space is available."""
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-
-        mock_shutil.disk_usage.return_value = (10, 10, 4096 * 1024 * 1024)
-
-        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
-        downloader._azure_client = fake_azure_client
-
-        fake_key = "fake_file.csv"
-        result = downloader._check_size(fake_key, check_inflate=False)
-
-        self.assertTrue(result)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_check_size_fail_nospace(self, mock_azure_service, mock_shutil):
-        """Test _check_size fails if there is no more space."""
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-
-        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)
-
-        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
-        downloader._azure_client = fake_azure_client
-
-        fake_key = "fake_file.csv"
-        result = downloader._check_size(fake_key, check_inflate=False)
-
-        self.assertFalse(result)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_check_size_fail_blob_not_found(self, mock_azure_service):
-        """Test _check_size fails if blob is not found."""
-        fake_azure_client = Mock()
-        fake_azure_client.get_file_for_key.side_effect = ResourceNotFoundError("Blob not found")
-
-        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
-        downloader._azure_client = fake_azure_client
-
-        fake_key = "nonexistent_file.csv"
-        with self.assertRaises(ResourceNotFoundError) as context:
-            downloader._check_size(fake_key, check_inflate=False)
-
-        self.assertTrue("Blob not found" in str(context.exception))
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_check_size_fail_permission_denied(self, mock_azure_service):
-        """Test _check_size fails if there is a permission issue."""
-        fake_azure_client = Mock()
-        error = HttpResponseError(message="Permission denied")
-        error.status_code = 403
-        fake_azure_client.get_file_for_key.side_effect = error
-
-        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
-        downloader._azure_client = fake_azure_client
-
-        fake_key = "restricted_file.csv"
-        with self.assertRaises(HttpResponseError) as context:
-            downloader._check_size(fake_key, check_inflate=False)
-
-        self.assertEqual(context.exception.status_code, 403)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_check_size_inflate_fail(self, mock_azure_service, mock_shutil):
-        """Test _check_size fails when inflation fails due to insufficient disk space."""
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_blob.content = io.BytesIO(b"\xd2\x02\x96I")
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-
-        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)
-
-        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
-        downloader._azure_client = fake_azure_client
-
-        fake_key = "large_file.csv.gz"
-        result = downloader._check_size(fake_key, check_inflate=True)
-
-        self.assertFalse(result)
-
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
     def test_download_file_raise_downloader_err(self, mock_azure_service):
         """Test download_file fails with HttpResponseError when there is an unexpected error."""
@@ -694,100 +594,8 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         self.assertIn("Unexpected error", str(context.exception))
 
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil.disk_usage")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_download_file_inflate_and_disk_space_check(self, mock_azure_service, mock_disk_usage):
-        """Test download_file with inflate and disk space check."""
-        mock_disk_usage.return_value = (10, 10, 50)
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_blob.content = io.BytesIO(b"\x00\x00\x00\x32")
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-
-        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
-        downloader._azure_client = fake_azure_client
-
-        result = downloader._check_size("test_file.csv.gz", check_inflate=True)
-        self.assertFalse(result)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    def test_check_size_negative_file_size(self, mock_azure_service):
-        """Test _check_size handles negative file size appropriately."""
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = -1
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-
-        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
-        downloader._azure_client = fake_azure_client
-
-        with self.assertRaises(AzureReportDownloaderError) as context:
-            downloader._check_size("test_key", check_inflate=False)
-        self.assertIn("Invalid size for Azure blob", str(context.exception))
-
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
     @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
-    def test_check_size_access_denied(self, mock_get_file_for_key, mock_client_factory):
-        """Test _check_size raises AzureReportDownloaderNoFileError when AccessDenied error occurs."""
-        mock_error_response = {"Error": {"Code": "AccessDenied"}}
-        mock_get_file_for_key.side_effect = ClientError(mock_error_response, "get_object")
-
-        mock_client_factory.return_value = Mock()
-
-        service = AzureReportDownloader(
-            customer_name="fake_customer", credentials={}, data_source={"storage_account": "fake_storage_account"}
-        )
-
-        with self.assertRaises(AzureReportDownloaderNoFileError) as context:
-            service._check_size("fake_key", check_inflate=False)
-
-        self.assertIn("Unable to access Azure container", str(context.exception))
-
-    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
-    @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
-    def test_check_size_generic_error(self, mock_get_file_for_key, mock_client_factory):
-        """Test _check_size raises AzureReportDownloaderError when a generic ClientError occurs."""
-        mock_error_response = {"Error": {"Code": "SomeOtherError"}}
-        mock_get_file_for_key.side_effect = ClientError(mock_error_response, "get_object")
-
-        mock_client_factory.return_value = Mock()
-
-        service = AzureReportDownloader(
-            customer_name="fake_customer", credentials={}, data_source={"storage_account": "fake_storage_account"}
-        )
-
-        with self.assertRaises(AzureReportDownloaderError) as context:
-            service._check_size("fake_key", check_inflate=False)
-
-        self.assertIn("SomeOtherError", str(context.exception))
-
-    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
-    @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader._check_size")
-    @patch("masu.external.downloader.azure.azure_report_downloader.utils.get_local_file_name")
-    @patch("masu.external.downloader.azure.azure_service.AzureService.download_file")
-    def test_download_file_insufficient_disk_space(
-        self, mock_download_file, mock_get_local_file_name, mock_check_size, mock_get_file_for_key, mock_client_factory
-    ):
-        """Tests if an exception is raised when there is not enough disk space."""
-
-        mock_check_size.return_value = False
-        mock_get_local_file_name.return_value = "fake_local_file.csv"
-        mock_client_factory.return_value = Mock()
-
-        service = AzureReportDownloader(
-            customer_name="fake_customer", credentials={}, data_source={"storage_account": "fake_storage_account"}
-        )
-
-        with self.assertRaises(AzureReportDownloaderError) as context:
-            service.download_file("fake_key")
-
-        self.assertIn("Insufficient disk space to download file", str(context.exception))
-
-    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
-    @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader._check_size")
     @patch("masu.external.downloader.azure.azure_report_downloader.utils.get_local_file_name")
     @patch("masu.external.downloader.azure.azure_service.AzureService.download_file")
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader._get_exports_data_directory")
@@ -798,13 +606,11 @@ class AzureReportDownloaderTest(MasuTestCase):
         mock_get_exports_data_directory,
         mock_download_file,
         mock_get_local_file_name,
-        mock_check_size,
         mock_get_file_for_key,
         mock_client_factory,
     ):
         """Tests if the file download is successful when there is enough disk space."""
         mock_get_exports_data_directory.return_value = "/fake_path"
-        mock_check_size.return_value = True
         mock_get_local_file_name.return_value = "fake_local_file.csv"
         mock_get_file_for_key.return_value = Mock(etag="fake_etag", last_modified="2024-09-27")
         mock_create_daily_archives.return_value = (["fake_file.csv"], {"start": "2024-09-01", "end": "2024-09-27"})
@@ -824,6 +630,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             service.container_name,
             destination="/fake_path/fake_local_file.csv",
             ingress_reports=service.ingress_reports,
+            compression=None,
         )
 
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
@@ -842,119 +649,3 @@ class AzureReportDownloaderTest(MasuTestCase):
             service.download_file("fake_key")
 
         self.assertIn("Error when downloading Azure report for key", str(context.exception))
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    @patch("masu.external.downloader.azure.azure_report_downloader.os")
-    @patch("masu.external.downloader.azure.azure_report_downloader.struct.unpack")
-    @patch("masu.external.downloader.azure.azure_report_downloader.open", new_callable=mock_open)
-    def test_check_size_gz_inflate_success(
-        self, mock_open_file, mock_unpack, mock_os, mock_azure_service, mock_shutil
-    ):
-        """Test _check_size handles .gz file with enough space after decompression."""
-
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-        fake_azure_client.download_file.return_value = "/fake_path/fake_file.gz"
-        mock_azure_service.return_value = fake_azure_client
-
-        mock_os.path.splitext.return_value = ("fake_file", ".gz")
-
-        mock_shutil.disk_usage.return_value = (10, 10, 1024 * 1024 * 1024)
-
-        mock_unpack.return_value = [512 * 1024]
-
-        downloader = Mock()
-        downloader._azure_client = fake_azure_client
-        downloader.container_name = "fake_container"
-        downloader._get_exports_data_directory.return_value = "/fake_path"
-
-        result = AzureReportDownloader._check_size(downloader, "fake_file.gz", check_inflate=True)
-
-        self.assertTrue(result)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    @patch("masu.external.downloader.azure.azure_report_downloader.os")
-    @patch("masu.external.downloader.azure.azure_report_downloader.struct.unpack")
-    @patch("masu.external.downloader.azure.azure_report_downloader.open", new_callable=mock_open)
-    def test_check_size_gz_inflate_fail_due_to_space(
-        self, mock_open_file, mock_unpack, mock_os, mock_azure_service, mock_shutil
-    ):
-        """Test _check_size fails when there is not enough space for decompression."""
-
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-        fake_azure_client.download_file.return_value = "/fake_path/fake_file.gz"
-        mock_azure_service.return_value = fake_azure_client
-
-        mock_os.path.splitext.return_value = ("fake_file", ".gz")
-
-        mock_shutil.disk_usage.return_value = (10, 10, 100 * 1024)
-        mock_unpack.return_value = [512 * 1024]
-
-        downloader = Mock()
-        downloader._azure_client = fake_azure_client
-        downloader.container_name = "fake_container"
-        downloader._get_exports_data_directory.return_value = "/fake_path"
-
-        result = AzureReportDownloader._check_size(downloader, "fake_file.gz", check_inflate=True)
-
-        self.assertFalse(result)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    @patch("masu.external.downloader.azure.azure_report_downloader.os")
-    def test_check_size_non_gz_file(self, mock_os, mock_azure_service, mock_shutil):
-        """Test _check_size with a non-.gz file and sufficient space."""
-
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-        mock_azure_service.return_value = fake_azure_client
-        mock_os.path.splitext.return_value = ("fake_file", ".csv")
-        mock_shutil.disk_usage.return_value = (10, 10, 1024 * 1024 * 1024)
-
-        downloader = Mock()
-        downloader._azure_client = fake_azure_client
-        downloader.container_name = "fake_container"
-        downloader._get_exports_data_directory.return_value = "/fake_path"
-
-        result = AzureReportDownloader._check_size(downloader, "fake_file.csv", check_inflate=False)
-
-        self.assertTrue(result)
-
-    @patch("masu.external.downloader.azure.azure_report_downloader.shutil")
-    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
-    @patch("masu.external.downloader.azure.azure_report_downloader.os")
-    @patch("masu.external.downloader.azure.azure_report_downloader.struct.unpack")
-    @patch("masu.external.downloader.azure.azure_report_downloader.open", new_callable=mock_open)
-    def test_check_size_gz_inflate_read_error(
-        self, mock_open_file, mock_unpack, mock_os, mock_azure_service, mock_shutil
-    ):
-        """Test _check_size fails when there is an error reading the decompressed size."""
-
-        fake_azure_client = Mock()
-        fake_blob = Mock()
-        fake_blob.size = 123456
-        fake_azure_client.get_file_for_key.return_value = fake_blob
-        fake_azure_client.download_file.return_value = "/fake_path/fake_file.gz"
-        mock_azure_service.return_value = fake_azure_client
-
-        mock_os.path.splitext.return_value = ("fake_file", ".gz")
-        mock_shutil.disk_usage.return_value = (10, 10, 1024 * 1024 * 1024)
-        mock_unpack.side_effect = struct.error("Error reading decompressed size")
-
-        downloader = Mock()
-        downloader._azure_client = fake_azure_client
-        downloader.container_name = "fake_container"
-        downloader._get_exports_data_directory.return_value = "/fake_path"
-
-        result = AzureReportDownloader._check_size(downloader, "fake_file.gz", check_inflate=True)
-
-        self.assertFalse(result)

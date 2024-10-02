@@ -180,6 +180,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
+        self.compression = None
 
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap
@@ -198,7 +199,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.directory = demo_info.get("report_prefix")
                 self.export_name = demo_info.get("report_name")
                 self._azure_client = self._get_azure_client(credentials, data_source)
-                self.compression = None
                 return
 
         self._provider_uuid = kwargs.get("provider_uuid")
@@ -211,7 +211,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.export_name = export_report.get("name")
             self.container_name = export_report.get("container")
             self.directory = export_report.get("directory")
-            self.compression = None
 
         if self.ingress_reports:
             container = self.ingress_reports[0].split("/")[0]
@@ -404,11 +403,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             report_dict["manifest_id"] = manifest_id
             report_dict["assembly_id"] = manifest.get("assemblyId")
+            report_dict["compression"] = manifest.get("Compression")
             files_list = [
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
             ]
             report_dict["files"] = files_list
-
         return report_dict
 
     @property
