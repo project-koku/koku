@@ -60,6 +60,7 @@ class AzureBlobExtension(Enum):
     manifest = "_manifest.json"
     csv = ".csv"
     json = ".json"
+    gzip = ".csv.gz"
 
 
 def extract_uuids_from_string(source_string):
