@@ -24,7 +24,6 @@ from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
 from masu.external.downloader.azure.azure_service import ResourceNotFoundError
 from masu.test import MasuTestCase
-from masu.util.azure.common import AzureBlobExtension
 from providers.azure.client import AzureClientFactory
 
 FAKE = Faker()
@@ -510,8 +509,8 @@ class AzureServiceTest(MasuTestCase):
 
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
     @patch.object(AzureService, "_get_latest_blob_for_path")
-    def test_get_latest_cost_export_for_path_blob_not_found(self, mock_get_latest_blob, mock_factory):
-        """Test when no blob is found and the exception is raised."""
+    def test_get_latest_cost_export_for_path_invalid_compression(self, mock_get_latest_blob, mock_factory):
+        """Test when an invalid compression type is provided and ValueError is raised."""
         mock_get_latest_blob.return_value = None
         mock_factory.return_value.credentials = Mock()
 
@@ -524,10 +523,10 @@ class AzureServiceTest(MasuTestCase):
             subscription_id="fake_subscription_id",
         )
 
-        with self.assertRaises(AzureCostReportNotFound) as context:
-            service.get_latest_cost_export_for_path("fake_report_path", "fake_container_name", ".csv.gz")
+        with self.assertRaises(ValueError) as context:
+            service.get_latest_cost_export_for_path("fake_report_path", "fake_container_name", "invalid_compression")
 
-        self.assertIn("No cost export found for path", str(context.exception))
+        self.assertIn("Invalid compression type", str(context.exception))
 
     @patch("masu.external.downloader.azure.azure_service.AzureService._list_blobs")
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
@@ -673,7 +672,7 @@ class AzureServiceTest(MasuTestCase):
             subscription_id="fake_subscription_id",
         )
 
-        result = service.download_file("fake_key.csv.gz", "fake_container", compression=AzureBlobExtension.gzip.value)
+        result = service.download_file("fake_key.csv.gz", "fake_container")
 
         self.assertTrue(result.endswith(".gz"))
         mock_cloud_storage_account.get_blob_client.assert_called_with("fake_container", "fake_key.csv.gz")
