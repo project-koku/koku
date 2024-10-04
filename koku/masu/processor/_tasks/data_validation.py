@@ -244,7 +244,7 @@ class DataValidator:
                 LOG.error(
                     log_json(
                         msg="provider has incomplete data for specified days",
-                        daily_difference=daily_difference,
+                        daily_difference=str(daily_difference),
                         context=self.context,
                     )
                 )
