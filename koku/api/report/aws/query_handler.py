@@ -596,11 +596,20 @@ class AWSReportQueryHandler(ReportQueryHandler):
             for item in query_data:
                 for resource in item["resource_ids"]:
                     resource_values = resource["values"][0]
-                    resource_values["tags"] = [
-                        {"key": key, "values": [value]}
-                        for tag in resource_values["tags"]
-                        for key, value in tag.items()
-                    ]
+
+                    seen_tags = set()
+                    unique_tags = []
+
+                    for tag in resource_values["tags"]:
+                        for key, value in tag.items():
+                            tag_tuple = (key, tuple([value]))
+
+                            if tag_tuple not in seen_tags:
+                                seen_tags.add(tag_tuple)
+                                unique_tags.append({"key": key, "values": [value]})
+
+                    resource_values["tags"] = unique_tags
+
             return query_data
 
         else:

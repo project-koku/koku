@@ -43,7 +43,7 @@ aws_daily_summary = Recipe(
 )
 
 aws_ec2_compute_summary = Recipe(
-    "AWSCostEntryLineItemSummaryByEC2Compute",
+    "AWSCostEntryLineItemSummaryByEC2ComputeP",
     resource_id=cycle(f"i-000000{i}" for i in range(AWS_CONSTANTS.length - 1)),
     instance_type=cycle(AWS_CONSTANTS["instance_types"]),
     operating_system=cycle(AWS_CONSTANTS["operating_systems"]),

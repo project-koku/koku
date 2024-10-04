@@ -76,18 +76,26 @@ WHERE
     OR (
       lineitem_legalentity LIKE '%Amazon Web Services%'
       AND lineitem_lineitemdescription LIKE '%Red Hat%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
     OR (
       lineitem_legalentity LIKE '%Amazon Web Services%'
       AND lineitem_lineitemdescription LIKE '%RHEL%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
     OR (
       lineitem_legalentity LIKE '%AWS%'
       AND lineitem_lineitemdescription LIKE '%Red Hat%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
     OR (
       lineitem_legalentity LIKE '%AWS%'
       AND lineitem_lineitemdescription LIKE '%RHEL%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
   )
   AND lineitem_usagestartdate >= {{date}}
