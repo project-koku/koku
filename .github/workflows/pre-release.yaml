@@ -8,15 +8,12 @@ on:
         required: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   pre-release:
     name: Pre-release
     runs-on: ubuntu-20.04
-
-    permissions:
-      contents: write
 
     steps:
       - name: Harden Runner
@@ -51,7 +48,7 @@ jobs:
         run: echo "RELEASE_COMMIT=${{ github.event.inputs.commit }}" >> $GITHUB_ENV
 
       - name: Create release body file
-        run: bash .github/scripts/get_description.sh || echo "Failed to generate release body"
+        run: bash .github/scripts/get_description.sh
 
       - name: Set release body
         uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1.14.0
