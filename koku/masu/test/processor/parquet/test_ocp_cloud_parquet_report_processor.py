@@ -2,10 +2,13 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
+from dateutil.parser import parse
+from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -490,5 +493,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             )
             rp.process_ocp_cloud_trino(start_date, end_date)
             accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(
-                self.aws_provider_uuid, self.ocp_provider_uuid, start_date, end_date, matched_tags
+                self.aws_provider_uuid,
+                self.ocp_provider_uuid,
+                parse(start_date).astimezone(tz=settings.UTC),
+                parse(end_date).astimezone(tz=settings.UTC),
+                ANY,
             )

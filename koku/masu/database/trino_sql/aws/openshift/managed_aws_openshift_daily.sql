@@ -128,15 +128,10 @@ cte_matchable_resource_names AS (
         )
 
 ),
-cte_tag_matches AS (
-  SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
-
-  UNION
-
-  SELECT * FROM unnest(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']) as t(matched_tag)
-),
 cte_agg_tags AS (
-    SELECT array_agg(matched_tag) as matched_tags from cte_tag_matches
+    SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
+        SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+    ) as cte_tag_matches
 )
 SELECT aws.lineitem_resourceid,
     aws.lineitem_usagestartdate,
