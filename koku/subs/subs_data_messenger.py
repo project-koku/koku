@@ -142,7 +142,7 @@ class SUBSDataMessenger:
             "instance_id": instance_id,
             "timestamp": tstamp,
             "expiration": expiration,
-            "measurements": [{"value": cpu_count, "uom": "vCPUs"}],
+            "measurements": [{"value": cpu_count, "metric_id": "vCPUs"}],
             "cloud_provider": self.provider_type,
             "hardware_type": "Cloud",
             "product_ids": product_ids,
