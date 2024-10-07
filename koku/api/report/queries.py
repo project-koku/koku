@@ -669,11 +669,13 @@ class ReportQueryHandler(QueryHandler):
         """Create list of tag based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
+        sanitize_pattern = re.compile(r'[\s"\'`;]+')
         for tag in tag_groups:
-            tag_db_name = self._mapper.tag_column + "__" + strip_prefix(tag, TAG_PREFIX)
+            sanitized_tag = sanitize_pattern.sub("_", strip_prefix(tag, TAG_PREFIX))
+            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             tag = str.encode(tag)
-            tag = quote_from_bytes(tag, safe=URL_ENCODED_SAFE)
-            group_pos = self.parameters.url_data.index(tag)
+            sanitized_tag = quote_from_bytes(tag, safe=URL_ENCODED_SAFE)
+            group_pos = self.parameters.url_data.index(sanitized_tag)
             group_by.append((tag_db_name, group_pos))
         return group_by
 
@@ -1011,6 +1013,8 @@ class ReportQueryHandler(QueryHandler):
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data
+        sanitize_pattern = re.compile(r'[\s"\'`;]+')
+
         for field in reversed(order_fields):
             reverse = False
             field = field.replace("delta", "delta_percent")
@@ -1024,7 +1028,12 @@ class ReportQueryHandler(QueryHandler):
             elif TAG_PREFIX in field:
                 tag_index = field.index(TAG_PREFIX) + len(TAG_PREFIX)
                 tag = db_tag_prefix + field[tag_index:]
-                sorted_data = sorted(sorted_data, key=lambda entry: (entry[tag] is None, entry[tag]), reverse=reverse)
+                sanitized_tag = sanitize_pattern.sub("_", tag)
+                sorted_data = sorted(
+                    sorted_data,
+                    key=lambda entry: (entry.get(sanitized_tag) is None, entry.get(sanitized_tag)),
+                    reverse=reverse,
+                )
             else:
                 for line_data in sorted_data:
                     if not line_data.get(field):
@@ -1053,7 +1062,9 @@ class ReportQueryHandler(QueryHandler):
         """
         descending = True if self.order_direction == "desc" else False
         tag_column, tag_value = tag.split("__")
-        return OrderBy(RawSQL(f"{tag_column} -> %s", (tag_value,)), descending=descending)
+        sanitize_pattern = re.compile(r'[\s"\'`;]+')
+        sanitized_tag_value = sanitize_pattern.sub("_", tag_value)
+        return OrderBy(RawSQL(f"{tag_column} -> %s", (sanitized_tag_value,)), descending=descending)
 
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
