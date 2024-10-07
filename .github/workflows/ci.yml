@@ -8,22 +8,31 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   sanity:
     name: Sanity
     runs-on: ubuntu-20.04
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
       - name: Checkout
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install Python
-        uses: actions/setup-python@v5.1.0
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: '3.11'
 
       - name: Run pre-commit checks
-        uses: pre-commit/action@v3.0.1
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
         env:
           SETUPTOOLS_USE_DISTUTILS: stdlib
 
@@ -35,8 +44,13 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
       - name: Checkout
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -57,7 +71,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v44.5.2
+        uses: tj-actions/changed-files@d6babd6899969df1a11d14c368283ea4436bca78 # v44.5.2
         with:
           files_from_source_file: docker-files.txt
 
@@ -70,7 +84,7 @@ jobs:
 
       - name: Setting smokes-required label
         if: env.RUN_TESTS == 'true'
-        uses: actions/github-script@v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         continue-on-error: true
         with:
           script: |
@@ -89,7 +103,7 @@ jobs:
 
       - name: Remove smokes-required label
         if: env.RUN_TESTS != 'true'
-        uses: actions/github-script@v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         continue-on-error: true
         with:
           script: |
@@ -113,14 +127,19 @@ jobs:
       run_tests: ${{ steps.check-files-or-fork.outputs.run_tests }}
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
       - name: Checkout
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v44.5.2
+        uses: tj-actions/changed-files@d6babd6899969df1a11d14c368283ea4436bca78 # v44.5.2
         with:
           files: |
             db_functions/**
@@ -158,9 +177,14 @@ jobs:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
+
       - name: Checkout
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -174,7 +198,7 @@ jobs:
 
       - name: Set up Python ${{ matrix.python-version }}
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/setup-python@v5.1.0
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -185,7 +209,7 @@ jobs:
       - name: Cache dependencies
         if: needs.changed-files.outputs.run_tests == 'true'
         id: cache-dependencies
-        uses: actions/cache@v4.0.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: |
             ~/.cache/pipenv
@@ -243,7 +267,7 @@ jobs:
 
       - name: Upload test coverage file
         if: steps.unit_tests_run.outcome == 'success'
-        uses: actions/upload-artifact@v4.3.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: coverage
           path: coverage.xml
@@ -251,27 +275,36 @@ jobs:
 
   coverage:
     name: Coverage
-    needs: [changed-files,units]
+    needs: [ changed-files,units ]
     runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+      statuses: write
+
     steps:
+
+      - name: Harden Runner
+        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        with:
+          egress-policy: audit
 
       - name: Checkout
         # this checkout is required for the coverage report. If we don't do this, then
         # the uploaded report is invalid and codecov doesn't know how to process it.
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
       - name: Download coverage result from units
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: coverage
 
       - name: Upload coverage to Codecov
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: codecov/codecov-action@v4.4.1
+        uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c # v4.4.1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
