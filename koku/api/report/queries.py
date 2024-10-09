@@ -669,7 +669,10 @@ class ReportQueryHandler(QueryHandler):
         """Create list of tag based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
-        sanitize_pattern = re.compile(r'[\s"\'`;]+')
+        characters_to_sanitize = r' "\'`;'
+        table = str.maketrans(characters_to_sanitize, "_" * len(characters_to_sanitize))
+        ...
+        sanitized_tag = strip_prefix(tag, TAG_PREFIX).translate(table)
         for tag in tag_groups:
             sanitized_tag = sanitize_pattern.sub("_", strip_prefix(tag, TAG_PREFIX))
             tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
