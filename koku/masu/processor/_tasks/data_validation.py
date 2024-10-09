@@ -199,51 +199,52 @@ class DataValidator:
         daily_difference = {}
         self.context["provider_uuid"] = self.provider_uuid
 
-        LOG.info(
-            log_json(
-                msg="validation started for provider",
-                start_date=self.start_date,
-                end_date=self.end_date,
-                context=self.context,
-            )
-        )
         provider = Provider.objects.filter(uuid=self.provider_uuid).first()
-        provider_type = provider.type.strip("-local")
-        if self.ocp_on_cloud_type:
-            provider_type = self.ocp_on_cloud_type.strip("-local")
-            cluster_id = provider.authentication.credentials.get("cluster_id")
-            self.context["cluster_id"] = cluster_id
-        # Postgres query to get daily values
-        try:
-            pg_data = self.execute_relevant_query(provider_type, cluster_id)
-        except Exception as err:
-            LOG.warning(log_json(msg="data validation postgres query failed", context=self.context), exc_info=err)
-            return
-        # Trino query to get daily values
-        try:
-            trino_data = self.execute_relevant_query(provider_type, cluster_id, True)
-        except TrinoExternalError as te:
-            # https://github.com/trinodb/trino-python-client/blob/master/trino/client.py
-            # The trino external error contains a response
-            if "Partition no longer exists" in te.message:
-                LOG.info(log_json(msg="Partition dropped during verification", context=self.context))
-                return
-            else:
-                LOG.warning(log_json(msg="Trino external error", context=self.context), exc_info=te)
-                return
-        except Exception as err:
-            LOG.warning(log_json(msg="data validation trino query failed", context=self.context), exc_info=err)
-            return
-        # Compare results
-        LOG.debug(f"PG: {pg_data} Trino data: {trino_data}")
-        daily_difference, valid_cost = self.compare_data(pg_data, trino_data)
-        if valid_cost:
-            LOG.info(log_json(msg="all data complete for provider", context=self.context))
-        else:
-            LOG.error(
+        if provider:
+            LOG.info(
                 log_json(
-                    msg="provider has incomplete data for specified days",
-                    daily_difference=daily_difference,
+                    msg="validation started for provider",
+                    start_date=self.start_date,
+                    end_date=self.end_date,
                     context=self.context,
                 )
             )
+            provider_type = provider.type.strip("-local")
+            if self.ocp_on_cloud_type:
+                provider_type = self.ocp_on_cloud_type.strip("-local")
+                cluster_id = provider.authentication.credentials.get("cluster_id")
+                self.context["cluster_id"] = cluster_id
+            # Postgres query to get daily values
+            try:
+                pg_data = self.execute_relevant_query(provider_type, cluster_id)
+            except Exception as err:
+                LOG.warning(log_json(msg="data validation postgres query failed", context=self.context), exc_info=err)
+                return
+            # Trino query to get daily values
+            try:
+                trino_data = self.execute_relevant_query(provider_type, cluster_id, True)
+            except TrinoExternalError as te:
+                # https://github.com/trinodb/trino-python-client/blob/master/trino/client.py
+                # The trino external error contains a response
+                if "Partition no longer exists" in te.message:
+                    LOG.info(log_json(msg="Partition dropped during verification", context=self.context))
+                    return
+                else:
+                    LOG.warning(log_json(msg="Trino external error", context=self.context), exc_info=te)
+                    return
+            except Exception as err:
+                LOG.warning(log_json(msg="data validation trino query failed", context=self.context), exc_info=err)
+                return
+            # Compare results
+            LOG.debug(f"PG: {pg_data} Trino data: {trino_data}")
+            daily_difference, valid_cost = self.compare_data(pg_data, trino_data)
+            if valid_cost:
+                LOG.info(log_json(msg="all data complete for provider", context=self.context))
+            else:
+                LOG.error(
+                    log_json(
+                        msg="provider has incomplete data for specified days",
+                        daily_difference=str(daily_difference),
+                        context=self.context,
+                    )
+                )

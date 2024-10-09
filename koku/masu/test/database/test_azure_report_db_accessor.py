@@ -7,6 +7,7 @@ import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from dateutil.parser import parse
 from django.conf import settings
 from django.db.models import F
 from django.db.models import Max
@@ -429,8 +430,8 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
-        start_date = "2024-08-01"
-        end_date = "2024-08-05"
+        start_date = parse("2024-08-01").astimezone(tz=settings.UTC)
+        end_date = parse("2024-08-05").astimezone(tz=settings.UTC)
         year = "2024"
         month = "08"
         matched_tags = "fake-tags"
