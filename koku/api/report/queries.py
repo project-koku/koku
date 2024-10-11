@@ -99,7 +99,7 @@ def sanitize_tag(tag):
     """Sanitize a tag by removing unwanted characters and URL-encoding it."""
     characters_to_sanitize = r' "\'`;'
     table = str.maketrans(characters_to_sanitize, "_" * len(characters_to_sanitize))
-    sanitized_tag = strip_prefix(tag, TAG_PREFIX).translate(table)
+    sanitized_tag = tag.translate(table)
     encoded_tag = str.encode(tag)
     sanitized_tag = quote_from_bytes(encoded_tag, safe=URL_ENCODED_SAFE)
     return sanitized_tag
