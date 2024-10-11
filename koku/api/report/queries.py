@@ -95,6 +95,16 @@ def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
     return True
 
 
+def sanitize_tag(tag):
+    """Sanitize a tag by removing unwanted characters and URL-encoding it."""
+    characters_to_sanitize = r' "\'`;'
+    table = str.maketrans(characters_to_sanitize, "_" * len(characters_to_sanitize))
+    sanitized_tag = strip_prefix(tag, TAG_PREFIX).translate(table)
+    encoded_tag = str.encode(tag)
+    sanitized_tag = quote_from_bytes(encoded_tag, safe=URL_ENCODED_SAFE)
+    return sanitized_tag
+
+
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
@@ -665,21 +675,12 @@ class ReportQueryHandler(QueryHandler):
 
         return group_by
 
-    def sanitize_tag(self, tag):
-        """Sanitize a tag by removing unwanted characters and URL-encoding it."""
-        characters_to_sanitize = r' "\'`;'
-        table = str.maketrans(characters_to_sanitize, "_" * len(characters_to_sanitize))
-        sanitized_tag = strip_prefix(tag, TAG_PREFIX).translate(table)
-        encoded_tag = str.encode(tag)
-        sanitized_tag = quote_from_bytes(encoded_tag, safe=URL_ENCODED_SAFE)
-        return sanitized_tag
-
     def _get_tag_group_by(self):
         """Create list of tag-based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            sanitized_tag = self.sanitize_tag(tag)
+            sanitized_tag = sanitize_tag(tag)
             tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             group_pos = self.parameters.url_data.index(sanitized_tag)
             group_by.append((tag_db_name, group_pos))
@@ -1033,7 +1034,7 @@ class ReportQueryHandler(QueryHandler):
             elif TAG_PREFIX in field:
                 tag_index = field.index(TAG_PREFIX) + len(TAG_PREFIX)
                 tag = db_tag_prefix + field[tag_index:]
-                sanitized_tag = self.sanitize_tag(tag)
+                sanitized_tag = sanitize_tag(tag)
                 sorted_data = sorted(
                     sorted_data,
                     key=lambda entry: (entry.get(sanitized_tag) is None, entry.get(sanitized_tag)),
@@ -1067,7 +1068,7 @@ class ReportQueryHandler(QueryHandler):
         """
         descending = True if self.order_direction == "desc" else False
         tag_column, tag_value = tag.split("__")
-        sanitized_tag_value = self.sanitize_tag(tag_value)
+        sanitized_tag_value = sanitize_tag(tag_value)
         return OrderBy(RawSQL(f"{tag_column} -> %s", (sanitized_tag_value,)), descending=descending)
 
     def _percent_delta(self, a, b):
