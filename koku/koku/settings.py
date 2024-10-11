@@ -139,10 +139,11 @@ MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 if DEVELOPMENT:
+    ORG = ENVIRONMENT.bool("ORG", default="1234567")
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
-            "org_id": "1234567",
+            "org_id": ORG,
             "type": "User",
             "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": "True", "access": {}},
         },
