@@ -100,7 +100,7 @@ def sanitize_tag(tag):
     characters_to_sanitize = r' "\'`;'
     table = str.maketrans(characters_to_sanitize, "_" * len(characters_to_sanitize))
     sanitized_tag = tag.translate(table)
-    encoded_tag = str.encode(tag)
+    encoded_tag = str.encode(sanitized_tag)
     sanitized_tag = quote_from_bytes(encoded_tag, safe=URL_ENCODED_SAFE)
     return sanitized_tag
 
