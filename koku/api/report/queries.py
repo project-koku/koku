@@ -680,9 +680,15 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            sanitized_tag = sanitize_tag(strip_prefix(tag, TAG_PREFIX))
-            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
-            group_pos = self.parameters.url_data.index(sanitized_tag)
+            tag_prefix = strip_prefix(tag, TAG_PREFIX)
+            tag_db_name = self._mapper.tag_column + "__" + tag_prefix
+            if self.provider == Provider.PROVIDER_OCI and "free-form-tag" in tag:
+                # This is a very specific case for OCI where we handle free-form-tags
+                encoded_tag = quote_from_bytes(str.encode(tag), safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(encoded_tag)
+            else:
+                sanitized_tag = sanitize_tag(tag_prefix)
+                group_pos = self.parameters.url_data.index(sanitized_tag)
             group_by.append((tag_db_name, group_pos))
         return group_by
 
