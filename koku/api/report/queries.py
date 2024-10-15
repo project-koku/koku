@@ -685,12 +685,7 @@ class ReportQueryHandler(QueryHandler):
             tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             encoded_tag = str.encode(original_tag)
             encoded_tag_url = quote_from_bytes(encoded_tag, safe=URL_ENCODED_SAFE)
-
-            try:
-                group_pos = self.parameters.url_data.index(encoded_tag_url)
-            except ValueError:
-                raise ValueError(f"Tag '{original_tag}' not found in URL data")
-
+            group_pos = self.parameters.url_data.index(encoded_tag_url)
             group_by.append((tag_db_name, group_pos))
         return group_by
 
