@@ -680,12 +680,7 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            if self.provider == Provider.PROVIDER_OCI:
-                # Handling specific case for OCI Free Form tags
-                original_tag = strip_prefix(tag, TAG_PREFIX).lstrip("tags/").split(".")[-1]
-            else:
-                original_tag = strip_prefix(tag, TAG_PREFIX)
-
+            original_tag = strip_prefix(tag, TAG_PREFIX)
             sanitized_tag = sanitize_tag(original_tag)
             tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             encoded_tag = str.encode(original_tag)
