@@ -651,7 +651,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:04fc286
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:461-002
     user: root
     ports:
       - 8080:8080
