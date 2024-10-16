@@ -387,6 +387,13 @@ class Orchestrator:
                         schema=schema_name,
                     )
                 )
+                # Note that the summary, hcs, subs, and ocp_on_cloud_trino_task will
+                # excecutue concurrently, so the order can not be garunteed.
+
+                # Within the summary task when running the update_summary_tables
+                # we populate the populate_openshift_cluster_information_tables
+                # Therefore, the tables in that function may not have any information
+                # when executing the ocp_on_cloud_trino_task on an initial run.
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task, ocp_on_cloud_trino_task))()
                 LOG.info(
                     log_json(

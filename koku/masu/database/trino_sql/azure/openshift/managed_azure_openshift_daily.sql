@@ -131,15 +131,10 @@ cte_matchable_resource_names AS (
         )
 
 ),
-cte_tag_matches AS (
-  SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
-
-  UNION
-
-  SELECT * FROM unnest(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']) as t(matched_tag)
-),
 cte_agg_tags AS (
-    SELECT array_agg(matched_tag) as matched_tags from cte_tag_matches
+    SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
+        SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+    ) as cte_tag_matches
 )
 SELECT azure.accountname,
     azure.additionalinfo,
@@ -186,7 +181,7 @@ SELECT azure.accountname,
     cast(day(azure.date) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
 LEFT JOIN cte_matchable_resource_names AS resource_names
-    ON azure.resource_id = resource_names.resourceid
+    ON azure.resourceid = resource_names.resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(tags, x) != 0)
     AND resource_names.resourceid IS NULL
