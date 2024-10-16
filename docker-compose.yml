@@ -651,7 +651,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:04fc286
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:461-002
     user: root
     ports:
       - 8080:8080
@@ -675,7 +675,6 @@ services:
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
       - ./dev/containers/trino/etc/catalog/glue.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
-      - ./dev/containers/trino/etc/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs
     links:
