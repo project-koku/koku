@@ -16,6 +16,7 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
+from urllib.parse import quote
 from urllib.parse import quote_from_bytes
 
 import ciso8601
@@ -680,9 +681,11 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            sanitized_tag = sanitize_tag(strip_prefix(tag, TAG_PREFIX))
+            original_tag = strip_prefix(tag, TAG_PREFIX)
+            sanitized_tag = sanitize_tag(original_tag)
             tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
-            group_pos = self.parameters.url_data.index(sanitized_tag)
+            encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
+            group_pos = self.parameters.url_data.index(encoded_tag_url)
             group_by.append((tag_db_name, group_pos))
         return group_by
 
