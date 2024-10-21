@@ -426,11 +426,18 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
 
-            query_group_by = ["date"] + self._get_group_by()
+            # tag_group_bys contains a dictionary of sanitized tag keys and KeyTextTransform
+            tag_group_bys = self._get_tag_group_by()
+
+            # Add sanitized keys to the list of values to filter
+            query_group_by = ["date", *self._get_group_by(), *tag_group_bys]
             query_order_by = ["-date", self.order]
 
             annotations = self._mapper.report_type_map.get("annotations", {})
-            query_data = query.values(*query_group_by).annotate(**annotations)
+
+            # Columns from self._mapper.annotations conflict with columns from the model, making
+            # two annotations necessary. There may be a better way to handle this.
+            query_data = query.annotate(**tag_group_bys).values(*query_group_by).annotate(**annotations)
 
             if "account" in query_group_by:
                 query_data = query_data.annotate(

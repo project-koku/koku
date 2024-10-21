@@ -16,7 +16,6 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
-from urllib.parse import quote
 from urllib.parse import quote_from_bytes
 
 import ciso8601
@@ -33,6 +32,8 @@ from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
+from django.db.models.fields.json import KeyTextTransform
+from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
@@ -660,8 +661,8 @@ class ReportQueryHandler(QueryHandler):
                 if (item, group_pos) not in group_by:
                     group_by.append((item, group_pos))
 
-        tag_group_by = self._get_tag_group_by()
-        group_by.extend(tag_group_by)
+        # FIXME: This method used to return a list of tag values.
+        #        All calling code needs to be updated.
         group_by.extend(self._get_aws_category_group_by())
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
@@ -676,18 +677,35 @@ class ReportQueryHandler(QueryHandler):
 
         return group_by
 
-    def _get_tag_group_by(self):
-        """Create list of tag-based group by parameters."""
-        group_by = []
+    def _get_tag_group_by(self) -> dict[str, KeyTextTransform]:
+        """Create dictionary of sanitized keys and a KeyTextTransform.
+
+        The result can be used to create annotations.
+
+        Column aliases cannot contain whitespace characters, quotation marks, semicolons,
+        or SQL comments to prevent SQL injection. A KeyTextTransform is necessary
+        to create a valid filter when the tag key contains these characters.
+
+        Examples:
+            self._mapper.tag_column = 'tags'
+
+            # A tag key with no special characters behaves the same even though a KeyTextTransform is being used.
+            sometagkey --> {'sometagkey': KT('tags__sometag')}
+
+            # A tag key containing invalid characters uses a value with invalid characters replaced.
+            tag key with spaces --> {'tag_key_with_spaces': KT('tags__tag key with spaces')}
+
+        """
+        result = {}
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
             sanitized_tag = sanitize_tag(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
-            encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
-            group_pos = self.parameters.url_data.index(encoded_tag_url)
-            group_by.append((tag_db_name, group_pos))
-        return group_by
+            result[sanitized_tag] = {}
+            # FIXME: If the original tag contains sequences of '__', the expression will be incorrect
+            result[sanitized_tag] = KT(f"{self._mapper.tag_column}__{original_tag}")
+
+        return result
 
     def _get_aws_category_group_by(self):
         """Return list of aws_category based group by parameters."""
