@@ -15,6 +15,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import logging
 import os
+import secrets
 import sys
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
@@ -138,12 +139,14 @@ MIDDLEWARE = [
 MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
+ORG_ID_SUFFIX = ENVIRONMENT.get_value("ORG_ID_SUFFIX", default="")
 if DEVELOPMENT:
-    ORG = ENVIRONMENT.bool("ORG", default="1234567")
+    if ORG_ID_SUFFIX in ("_CHANGEME", ""):
+        ORG_ID_SUFFIX = f"_{ENVIRONMENT.get_value('USER', default='') or secrets.token_hex(4)}"
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
-            "org_id": ORG,
+            "org_id": f"1234567{ORG_ID_SUFFIX}",
             "type": "User",
             "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": "True", "access": {}},
         },

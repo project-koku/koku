@@ -340,7 +340,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             # Check for customer creation & user creation
             query_string = ""
             if request.META["QUERY_STRING"]:
-                query_string = "?{}".format(request.META["QUERY_STRING"])
+                query_string = f"?{request.META['QUERY_STRING']}"
+            if "_" not in org_id:
+                org_id = f"{org_id}{settings.ORG_ID_SUFFIX}"
             stmt = {
                 "method": request.method,
                 "path": request.path + query_string,
