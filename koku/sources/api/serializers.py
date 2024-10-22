@@ -6,6 +6,7 @@
 import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import transaction
 from rest_framework import serializers
 
@@ -110,7 +111,7 @@ class AdminSourcesSerializer(SourcesSerializer):
         data["source_id"] = self._validate_source_id(data.get("id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
-        data["org_id"] = self._validate_org_id(data.get("org_id"))
+        data["org_id"] = f'{self._validate_org_id(data.get("org_id"))}{settings.ORG_ID_SUFFIX}'
         data["source_uuid"] = uuid4()
         return data
 
