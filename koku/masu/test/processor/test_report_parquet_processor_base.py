@@ -97,7 +97,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
 
         expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
         expected_end = (
-            f"WITH(external_location = 's3a://test-bucket/{self.temp_dir}', "
+            f"WITH(external_location = 's3://test-bucket/{self.temp_dir}', "
             "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month'])"
         )
         self.assertTrue(generated_sql.startswith(expected_start))
@@ -123,7 +123,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
 
         expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
         expected_end = (
-            f"WITH(external_location = 's3a://test-bucket/{self.temp_dir}', "
+            f"WITH(external_location = 's3://test-bucket/{self.temp_dir}', "
             "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])"
         )
         self.assertTrue(generated_sql.startswith(expected_start))
