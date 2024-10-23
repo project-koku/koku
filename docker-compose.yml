@@ -23,6 +23,7 @@ services:
       - /koku/run_server.sh
     environment:
       - USER=${USER}
+      - ORG_ID_SUFFIX=${ORG_ID_SUFFIX}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -87,6 +88,7 @@ services:
       - /koku/run_server.sh
     environment:
       - USER=${USER}
+      - ORG_ID_SUFFIX=${ORG_ID_SUFFIX}
       - MASU=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
@@ -159,6 +161,7 @@ services:
       - restart_celery
     environment:
       - USER=${USER}
+      - ORG_ID_SUFFIX=${ORG_ID_SUFFIX}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -255,6 +258,7 @@ services:
     entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'listener']
     environment:
       - USER=${USER}
+      - ORG_ID_SUFFIX=${ORG_ID_SUFFIX}
       - DJANGO_READ_DOT_ENV_FILE=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - POSTGRES_SQL_SERVICE_HOST=db
@@ -307,6 +311,7 @@ services:
     entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'subs_extraction,subs_transmission']
     environment:
       - USER=${USER}
+      - ORG_ID_SUFFIX=${ORG_ID_SUFFIX}
       - DJANGO_READ_DOT_ENV_FILE=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
@@ -363,6 +368,7 @@ services:
     entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'sources']
     environment:
       - USER=${USER}
+      - ORG_ID_SUFFIX=${ORG_ID_SUFFIX}
       - DJANGO_READ_DOT_ENV_FILE=True
       - SOURCES=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -424,6 +430,7 @@ services:
     entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
     environment:
       - USER=${USER}
+      - ORG_ID_SUFFIX=${ORG_ID_SUFFIX}
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
