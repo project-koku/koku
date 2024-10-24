@@ -116,7 +116,7 @@ class SUBSDataMessenger:
                         RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AWS).inc()
                         try:
                             RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AWS).inc(
-                                amount=float(row["subs_vcpu"])
+                                amount=(float(row["subs_vcpu"]) * int(row["subs_usage"]))
                             )
                         except ValueError:
                             LOG.error(
@@ -267,7 +267,9 @@ class SUBSDataMessenger:
             msg_count += 1
             RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AZURE).inc()
             try:
-                RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AZURE).inc(amount=float(row["subs_vcpu"]))
+                RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AZURE).inc(
+                    amount=(float(row["subs_vcpu"]) * usage)
+                )
             except ValueError:
                 LOG.error(
                     log_json(
