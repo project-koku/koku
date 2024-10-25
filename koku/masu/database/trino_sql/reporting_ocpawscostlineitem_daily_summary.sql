@@ -418,23 +418,28 @@ cte_ocp_filtered_resources as (
         AND aws.ocp_source = {{ocp_source_uuid}}
         AND aws.year = {{year}}
         AND aws.month = {{month}}
+),
+calculated_capacity AS (
+    SELECT
+        aws.lineitem_resourceid as resource_id,
+        ROUND(MAX(aws.lineitem_unblendedcost) / (MAX(aws.lineitem_unblendedrate) / MAX(hours.in_month))) AS capacity,
+        ocpaws.usage_start,
+        {{ocp_source_uuid}} as ocp_source,
+        {{year}} as year,
+        {{month}} as month
+    FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
+    INNER JOIN cte_ocp_filtered_resources as ocpaws
+        ON aws.lineitem_resourceid = ocpaws.resource_id
+        AND DATE(aws.lineitem_usagestartdate) = ocpaws.usage_start
+    CROSS JOIN cte_hours as hours
+    WHERE aws.year = {{year}}
+    AND aws.month = {{month}}
+    AND aws.source = {{aws_source_uuid}}
+    GROUP BY aws.lineitem_resourceid, ocpaws.usage_start
 )
-SELECT
-    aws.lineitem_resourceid as resource_id,
-    ROUND(MAX(aws.lineitem_unblendedcost) / (MAX(aws.lineitem_unblendedrate) / MAX(hours.in_month))) AS capacity,
-    ocpaws.usage_start,
-    {{ocp_source_uuid}} as ocp_source,
-    {{year}} as year,
-    {{month}} as month
-FROM hive.{{schema | sqlsafe}}.aws_line_items as aws
-INNER JOIN cte_ocp_filtered_resources as ocpaws
-    ON aws.lineitem_resourceid = ocpaws.resource_id
-    AND DATE(aws.lineitem_usagestartdate) = ocpaws.usage_start
-CROSS JOIN cte_hours as hours
-WHERE aws.year = {{year}}
-AND aws.month = {{month}}
-AND aws.source = {{aws_source_uuid}}
-group by aws.lineitem_resourceid, ocpaws.usage_start
+SELECT *
+FROM calculated_capacity
+WHERE capacity > 0
 {% endif %}
 ;
 
