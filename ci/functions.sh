@@ -106,7 +106,7 @@ function run_smoke_tests_stage() {
         ${APP_NAME} \
         --ref-env insights-production \
         --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
-        --set-template-ref trino=839e07b1976bada9381ad677741ea6773137e88c \
+        --set-template-ref trino=cbeab5fb5e3c0448fb157d4c701485a6d76246f0 \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
@@ -121,7 +121,7 @@ function run_smoke_tests_stage() {
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
         --set-parameter trino/IMAGE=quay.io/cloudservices/ubi-trino \
-        --set-parameter trino/IMAGE_TAG=pr-153-05d87f2 \
+        --set-parameter trino/IMAGE_TAG=pr-153-cbeab5f \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
