@@ -512,7 +512,7 @@ def get_bills_from_provider(
     return bills
 
 
-def get_s3_resource(access_key, secret_key, region):  # pragma: no cover
+def get_s3_resource(access_key=None, secret_key=None, region=None, profile_name=None):  # pragma: no cover
     """
     Obtain the s3 session client
     """
@@ -535,7 +535,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
     extra_args = {}
     if metadata:
         extra_args["Metadata"] = metadata
-    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    s3_resource = get_s3_resource(profile_name="default")
     s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
     upload = s3_resource.Object(**s3_obj)
     try:
@@ -578,7 +578,7 @@ def copy_local_hcs_report_file_to_s3_bucket(
 
 
 def _get_s3_objects(s3_path):
-    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    s3_resource = get_s3_resource(profile_name="default")
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
 
 
@@ -682,7 +682,7 @@ def filter_s3_objects_less_than(
     if context is None:
         context = {}
 
-    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    s3_resource = get_s3_resource(profile_name="default")
 
     filtered = []
     for key in keys:
@@ -794,7 +794,7 @@ def delete_s3_objects_not_matching_metadata(
 def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
     keys_to_delete = [{"Key": key} for key in keys_to_delete]
     LOG.info(log_json(request_id, msg="attempting to batch delete s3 files", context=context))
-    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    s3_resource = get_s3_resource(profile_name="default")
     s3_bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
     try:
         batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.

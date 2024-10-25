@@ -156,7 +156,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
         prefix (str): The prefix for deletion
     """
     context = {"service_task": "purge_old_data"}
-    s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
+    s3_resource = get_s3_resource(profile_name="default")
     s3_bucket = s3_resource.Bucket(s3_bucket_name)
     object_keys = [s3_object.key for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
     LOG.info(f"starting objects: {len(object_keys)}")
