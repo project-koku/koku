@@ -17,6 +17,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: ORG_ID_SUFFIX
+          value: ${ORG_ID_SUFFIX}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: AWS_SHARED_CREDENTIALS_FILE

@@ -23,6 +23,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: ORG_ID_SUFFIX
+          value: ${ORG_ID_SUFFIX}
         - name: SOURCES
           value: "true"
         - name: SOURCES_PROBE_HEADER
