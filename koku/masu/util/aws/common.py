@@ -521,6 +521,7 @@ def get_s3_resource(access_key=None, secret_key=None, region=None, profile_name=
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
         region_name=region,
+        profile_name=profile_name,
     )
     return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
 
