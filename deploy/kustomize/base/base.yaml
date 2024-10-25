@@ -153,12 +153,12 @@ objects:
     name: koku-secret
   data:
     django-secret-key: "${SECRET_KEY}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-aws
-  data:
-    aws-credentials: "${AWS_CREDENTIALS_EPH}"
+# - apiVersion: v1
+#   kind: Secret # For ephemeral/local environment only
+#   metadata:
+#     name: koku-aws
+#   data:
+#     aws-credentials: "${AWS_CREDENTIALS_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
