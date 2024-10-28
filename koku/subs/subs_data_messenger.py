@@ -119,10 +119,17 @@ class SUBSDataMessenger:
                                 amount=(float(row["subs_vcpu"]) * int(row["subs_usage"]))
                             )
                         except ValueError:
-                            LOG.error(
+                            LOG.info(
                                 log_json(
                                     self.tracing_id,
                                     msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
+                                    context=self.context,
+                                )
+                            )
+                            LOG.info(
+                                log_json(
+                                    self.tracing_id,
+                                    msg=f"usage amount could not be cast to a int {row['subs_usage']}",
                                     context=self.context,
                                 )
                             )
@@ -271,7 +278,7 @@ class SUBSDataMessenger:
                     amount=(float(row["subs_vcpu"]) * usage)
                 )
             except ValueError:
-                LOG.error(
+                LOG.info(
                     log_json(
                         self.tracing_id,
                         msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
