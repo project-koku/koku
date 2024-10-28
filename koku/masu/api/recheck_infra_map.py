@@ -32,18 +32,18 @@ def recheck_infra_map(request):
     """
     params = request.query_params
     if not params:
-        errmsg = "Parameter missing. Required: cloud_provider, start_date, end_date"
+        errmsg = "Parameter missing. Required: provider_uuid, start_date, end_date"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    cloud_provider = params.get("cloud_provider")
+    provider_uuid = params.get("provider_uuid")
     start_date = params.get("start_date")
     end_date = params.get("end_date")
 
     try:
-        provider = Provider.objects.get(uuid=cloud_provider)
+        provider = Provider.objects.get(uuid=provider_uuid)
         provider_schema = provider.account.get("schema_name")
     except Provider.DoesNotExist:
-        errmsg = f"cloud_provider {cloud_provider} does not exist"
+        errmsg = f"provider_uuid {provider_uuid} does not exist"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     ocp_updater = OCPCloudUpdaterBase(provider_schema, provider, None)

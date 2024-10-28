@@ -32,7 +32,7 @@ class RecheckInfraMapViewTest(TestCase):
         """Test response when provider does not exist."""
         mock_get.side_effect = Provider.DoesNotExist
         response = self.client.get(
-            self.url, {"cloud_provider": "nonexistent-uuid", "start_date": "2023-01-01", "end_date": "2023-01-02"}
+            self.url, {"provider_uuid": "nonexistent-uuid", "start_date": "2023-01-01", "end_date": "2023-01-02"}
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("does not exist", response.data["Error"])
@@ -50,7 +50,7 @@ class RecheckInfraMapViewTest(TestCase):
         mock_generate_map.return_value = {"node1": "clusterA"}
 
         response = self.client.get(
-            self.url, {"cloud_provider": "test-uuid", "start_date": "2023-01-01", "end_date": "2023-01-02"}
+            self.url, {"provider_uuid": "test-uuid", "start_date": "2023-01-01", "end_date": "2023-01-02"}
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["Infrastructure map"], str(mock_generate_map.return_value))
