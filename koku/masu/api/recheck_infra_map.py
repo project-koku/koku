@@ -31,13 +31,13 @@ def recheck_infra_map(request):
     you know have correlation.
     """
     params = request.query_params
-    if not params:
-        errmsg = "Parameter missing. Required: provider_uuid, start_date, end_date"
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-
     provider_uuid = params.get("provider_uuid")
     start_date = params.get("start_date")
     end_date = params.get("end_date")
+
+    if not params or not (provider_uuid and start_date and end_date):
+        errmsg = "Parameter missing. Required: provider_uuid, start_date, end_date"
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         provider = Provider.objects.get(uuid=provider_uuid)
