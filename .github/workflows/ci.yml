@@ -43,6 +43,11 @@ jobs:
     name: Smoke Test Label
     runs-on: ubuntu-20.04
 
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
@@ -82,7 +87,7 @@ jobs:
             echo "RUN_TESTS=true" >> $GITHUB_ENV
           fi
 
-      - name: Setting smokes-required label
+      - name: Set smokes-required label
         if: env.RUN_TESTS == 'true'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         continue-on-error: true
@@ -94,14 +99,25 @@ jobs:
               repo: context.repo.repo,
               labels: [ 'smokes-required' ]
             })
-            github.rest.issues.removeLabel({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: 'ok-to-skip-smokes'
-            })
 
-      - name: Remove smokes-required label
+            const response = await github.rest.issues.listLabelsOnIssue({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              })
+
+            const labels = response.data.map(({name}) => name)
+
+            if (labels.includes('ok-to-skip-smokes')) {
+              github.rest.issues.removeLabel({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'ok-to-skip-smokes'
+              })
+            }
+
+      - name: Set ok-to-skip-smokes label
         if: env.RUN_TESTS != 'true'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         continue-on-error: true
@@ -113,12 +129,23 @@ jobs:
               repo: context.repo.repo,
               labels: [ 'ok-to-skip-smokes' ]
             })
-            github.rest.issues.removeLabel({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: 'smokes-required'
-            })
+
+            const response = await github.rest.issues.listLabelsOnIssue({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              })
+
+            const labels = response.data.map(({name}) => name)
+
+            if (labels.includes('smokes-required')) {
+              github.rest.issues.removeLabel({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'smokes-required'
+              })
+            }
 
   changed-files:
     name: Detect changed files
