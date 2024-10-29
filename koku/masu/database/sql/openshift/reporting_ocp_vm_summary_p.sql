@@ -59,8 +59,8 @@ SELECT
     sum(infrastructure_raw_cost) as infrastructure_raw_cost,
     max(raw_currency) as raw_currency,
     array_agg(DISTINCT resource_id) as resource_ids,
-    usage_start as usage_end,
-    usage_start as usage_start,
+    max(usage_start) as usage_start,
+    min(usage_start) as usage_end,
     max(cost_category_id) as cost_category_id,
     {{source_uuid}}::uuid as source_uuid
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
@@ -73,5 +73,5 @@ FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
         AND namespace IS DISTINCT FROM 'Platform unallocated'
         AND namespace IS DISTINCT FROM 'Network unattributed'
         AND namespace IS DISTINCT FROM 'Storage unattributed'
-    GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type, pod_labels, usage_start, usage_end
+    GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type, pod_labels
 ;
