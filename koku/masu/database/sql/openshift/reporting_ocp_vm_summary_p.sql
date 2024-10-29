@@ -4,7 +4,8 @@ WHERE usage_start >= {{start_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
+    id,
     cluster_alias,
     cluster_id,
     namespace,
@@ -16,7 +17,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
     cost_model_volume_cost,
     distributed_cost,
     pod_labels,
-    pod,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_effective_usage_cpu_core_hours,
@@ -34,15 +34,45 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
     cost_category,
     source_uuid
 )
-SELECT
+SELECT (
+    uuid_generate_v4() as id,
+    cluster_alias,
+    cluster_id,
+    namespace,
+    node,
+    pod_labels->>'vm_kubevirt_io_name' as vm_name,
+    sum(cost_model_cpu_cost) as cost_model_cpu_cost,
+    sum(cost_model_memory_cost) as cost_model_memory_cost,
+    cost_model_rate_type,
+    sum(cost_model_volume_cost) as cost_model_volume_cost,
+    sum(distributed_cost) as distributed_cost,
+    max(pod_labels) as pod_labels,
+    sum(pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
+    sum(pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+    sum(pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
+    sum(pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
+    sum(pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
+    sum(pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+    sum(pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    sum(pod_limit_memory_gigabyte_hours) as pod_limit_memory_gigabyte_hours,
+    sum(infrastructure_markup_cost) as infrastructure_markup_cost,
+    sum(infrastructure_raw_cost) as infrastructure_raw_cost,
+    max(raw_currency) as raw_currency,
+    array_agg(DISTINCT resource_id) as resource_ids,
+    usage_start as usage_end,
+    usage_start as usage_start,
+    max(cost_category_id) as cost_category_id,
+    {{source_uuid}}::uuid as source_uuid,
+)
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND data_source = 'Pod'
+        AND pod_labels ? 'vm_kubevirt_io_name'
         AND namespace IS DISTINCT FROM 'Worker unallocated'
         AND namespace IS DISTINCT FROM 'Platform unallocated'
         AND namespace IS DISTINCT FROM 'Network unattributed'
         AND namespace IS DISTINCT FROM 'Storage unattributed'
-    GROUP BY
+    GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type
 ;
