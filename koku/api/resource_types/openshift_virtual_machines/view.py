@@ -27,7 +27,7 @@ class OCPVirtualMachinesView(generics.ListAPIView):
         OCPVirtualMachineSummaryP.objects.annotate(**{"value": F("vm_name")})
         .values("value")
         .distinct()
-        .filter(namespace__isnull=False)
+        .filter(vm_name__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [OpenShiftProjectPermission | OpenShiftAccessPermission]
