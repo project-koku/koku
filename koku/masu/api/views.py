@@ -27,6 +27,7 @@ from masu.api.manifest.views import ManifestStatusViewSet
 from masu.api.notifications import notification
 from masu.api.process_openshift_on_cloud import process_openshift_on_cloud
 from masu.api.purge_trino_files import purge_trino_files
+from masu.api.recheck_infra_map import recheck_infra_map
 from masu.api.report_data import report_data
 from masu.api.running_celery_tasks import celery_queue_lengths
 from masu.api.running_celery_tasks import celery_queue_tasks
