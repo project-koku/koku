@@ -89,6 +89,7 @@ from api.views import OCPNetworkView
 from api.views import OCPNodesView
 from api.views import OCPProjectsView
 from api.views import OCPTagView
+from api.views import OCPVirtualMachinesView
 from api.views import OCPVolumeView
 from api.views import openapi
 from api.views import ResourceTypeView
@@ -446,6 +447,11 @@ urlpatterns = [
     path("resource-types/oci-services/", OCIServiceView.as_view(), name="oci-services"),
     path("resource-types/openshift-clusters/", OCPClustersView.as_view(), name="openshift-clusters"),
     path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
+    path(
+        "resource-types/openshift-virtual-machines/",
+        OCPVirtualMachinesView.as_view(),
+        name="openshift-virtual-machines",
+    ),
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
     path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
