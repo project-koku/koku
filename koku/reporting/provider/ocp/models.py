@@ -51,6 +51,7 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_p",
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
+    "reporting_ocp_vm_summary_p",
 )
 
 
