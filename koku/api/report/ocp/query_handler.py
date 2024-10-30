@@ -363,6 +363,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for item in self.query_data:
             for resource in item["vm_names"]:
                 resource_values = resource["values"][0]
-                resource_values["tags"] = [
-                    {"key": key, "values": [value]} for tag in resource_values["tags"] for key, value in tag.items()
+                resource_values["pod_labels"] = [
+                    {"key": key, "values": [value]}
+                    for tag in resource_values["pod_labels"]
+                    for key, value in tag.items()
                 ]
