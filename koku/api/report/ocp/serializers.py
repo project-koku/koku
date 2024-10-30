@@ -248,6 +248,11 @@ class OCPVirtualMachinesFilterSerializer(BaseFilterSerializer):
 
     _opfields = ("project", "cluster", "node", "vm_name")
 
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    vm_name = StringOrListField(child=serializers.CharField(), required=False)
+
     # override filtering with limit and offset params in the base `FilterSerializer` class.
     # Not valid for this endpoint.
     limit = None
@@ -281,6 +286,7 @@ class OCPVirtualMachinesExcludeSerializer(BaseExcludeSerializer):
     project = StringOrListField(child=serializers.CharField(), required=False)
     cluster = StringOrListField(child=serializers.CharField(), required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
+    vm_name = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class OCPVirtualMachinesOrderBySerializer(OCPOrderBySerializer):

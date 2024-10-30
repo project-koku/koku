@@ -821,9 +821,9 @@ class OCPProviderMap(ProviderMap):
                             "request_memory": F("pod_request_memory_gigabyte_hours"),
                             "request_cpu_units": Value("Core-Hours", output_field=CharField()),
                             "request_memory_units": Value("GiB-Hours", output_field=CharField()),
-                            "cluster": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "node": ArrayAgg("node", distinct=True),
-                            "namespace": ArrayAgg("namespace", distinct=True),
+                            "cluster": F(Coalesce("cluster_alias", "cluster_id")),
+                            "node": F("node"),
+                            "namespace": F("namespace"),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),

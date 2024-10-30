@@ -123,7 +123,7 @@ class Migration(migrations.Migration):
                     models.Index(fields=["vm_name"], name="ocp_vm_summ_vm_name"),
                     django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="ocp_vm_summ_pod_labels_idx"),
                 ],
-                "unique_together": {("cluster_id", "namespace", "node", "vm_name")},
+                "unique_together": {("usage_start", "cluster_id", "namespace", "node", "vm_name")},
             },
         ),
         migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
