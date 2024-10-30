@@ -88,6 +88,7 @@ from api.views import OCPMemoryView
 from api.views import OCPNetworkView
 from api.views import OCPNodesView
 from api.views import OCPProjectsView
+from api.views import OCPReportVirtualMachinesView
 from api.views import OCPTagView
 from api.views import OCPVirtualMachinesView
 from api.views import OCPVolumeView
@@ -277,7 +278,7 @@ urlpatterns = [
     path(
         "reports/openshift/resources/virtual-machines/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
-            OCPVirtualMachinesView.as_view()
+            OCPReportVirtualMachinesView.as_view()
         ),
         name="reports-openshift-virtual-machines",
     ),

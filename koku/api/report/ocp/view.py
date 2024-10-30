@@ -56,7 +56,7 @@ class OCPNetworkView(OCPView):
     report = "network"
 
 
-class OCPVirtualMachinesView(OCPView):
+class OCPReportVirtualMachinesView(OCPView):
     """Get OpenShift Virtual Machines data."""
 
     report = "openshift_virtual_machines"
