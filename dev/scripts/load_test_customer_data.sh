@@ -317,7 +317,7 @@ build_azure_data() {
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
   # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload http://localhost:9000 --payload-name "$_ocp_payload"
   nise_report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
-  nise_report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report-v2 --version-two
+  nise_report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report-v2 --resource-group
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
