@@ -82,6 +82,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
+        ocp_pack_definitions["request_cpu"] = {"keys": ["request_cpu"], "units": "request_cpu_units"}
+        ocp_pack_definitions["request_memory"] = {"keys": ["request_memory"], "units": "request_memory_units"}
+        ocp_pack_definitions["request"] = {
+            "keys": {
+                "request_cpu": {"key": "cpu", "group": "request"},
+                "request_memory": {"key": "memory", "group": "request"},
+            },
+            "units": "usage_units",
+        }
         # Note: The value & units will be supplied by the usage keys in the parent class.
         ocp_pack_definitions["unused_usage"] = {
             "keys": {

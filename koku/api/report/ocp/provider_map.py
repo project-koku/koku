@@ -792,9 +792,11 @@ class OCPProviderMap(ProviderMap):
                             "cost_usage": self.cost_model_cpu_cost,
                             "cost_markup": self.markup_cost,
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
-                            "usage": Sum("pod_usage_cpu_core_hours"),
-                            "request": Sum("pod_request_cpu_core_hours"),
+                            "request_cpu": Sum("pod_request_cpu_core_hours"),
+                            "request_memory": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
+                            "request_cpu_units": Max(Value("Core-Hours", output_field=CharField())),
+                            "request_memory_units": Max(Value("GiB-Hours", output_field=CharField())),
                         },
                         "capacity_aggregate": {},
                         "annotations": {
@@ -815,15 +817,17 @@ class OCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
-                            "usage": F("pod_usage_cpu_core_hours"),
-                            "request": F("pod_request_cpu_core_hours"),
+                            "request_cpu": F("pod_usage_cpu_core_hours"),
+                            "request_memory": F("pod_request_memory_gigabyte_hours"),
+                            "request_cpu_units": Value("Core-Hours", output_field=CharField()),
+                            "request_memory_units": Value("GiB-Hours", output_field=CharField()),
                             "cluster": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "node": ArrayAgg("node", distinct=True),
                             "namespace": ArrayAgg("namespace", distinct=True),
-                            "tags": ArrayAgg(F("pod_labels")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
+                            "tags": ArrayAgg(F("pod_labels")),
                         },
                         "delta_key": {
                             "usage": Sum("pod_usage_cpu_core_hours"),
