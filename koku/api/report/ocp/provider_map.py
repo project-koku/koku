@@ -839,11 +839,12 @@ class OCPProviderMap(ProviderMap):
                         "group_by": ["vm_name"],
                         "default_ordering": {"vm_name": "desc"},
                         "tables": {"query": OCPVirtualMachineSummaryP},
-                        "default_time_period": {
-                            "time_scope_value": "-1",
-                            "time_scope_units": "month",
-                            "resolution": "monthly",
-                        },
+                        # Cody - This is fake for openshift-virt & EC2
+                        # "default_time_period": {
+                        #     "time_scope_value": "-1",
+                        #     "time_scope_units": "month",
+                        #     "resolution": "monthly",
+                        # },
                         "conditionals": {
                             OCPVirtualMachineSummaryP: {
                                 "exclude": [

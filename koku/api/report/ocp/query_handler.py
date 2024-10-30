@@ -174,8 +174,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        if self._report_type == "virtual_machines":
-            self._format_vms_response()
+        # if self._report_type == "virtual_machines":
+        #     self._format_vms_response()
 
         output = self._initialize_response_output(self.parameters)
         if self._report_type == "costs_by_project":
