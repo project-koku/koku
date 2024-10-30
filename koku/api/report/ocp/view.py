@@ -59,7 +59,7 @@ class OCPNetworkView(OCPView):
 class OCPReportVirtualMachinesView(OCPView):
     """Get OpenShift Virtual Machines data."""
 
-    report = "openshift_virtual_machines"
+    report = "virtual_machines"
     serializer = OCPVirtualMachinesQueryParamSerializer
 
     def get(self, request, **kwargs):
