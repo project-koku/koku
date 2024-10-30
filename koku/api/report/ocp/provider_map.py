@@ -815,10 +815,12 @@ class OCPProviderMap(ProviderMap):
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
-                            "usage": Sum("pod_usage_cpu_core_hours"),
-                            "request": Sum("pod_request_cpu_core_hours"),
-                            "limit": Sum("pod_limit_cpu_core_hours"),
-                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "usage": F("pod_usage_cpu_core_hours"),
+                            "request": F("pod_request_cpu_core_hours"),
+                            "cluster": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "node": ArrayAgg("node", distinct=True),
+                            "namespace": ArrayAgg("namespace", distinct=True),
+                            "tags": ArrayAgg(F("pod_labels")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
@@ -836,8 +838,7 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unattributed_network_cost,
                         },
                         "filter": [],
-                        "group_by": ["vm_name"],
-                        "default_ordering": {"vm_name": "desc"},
+                        "default_ordering": {"cost_total": "desc"},
                         "tables": {"query": OCPVirtualMachineSummaryP},
                         # Cody - This is fake for openshift-virt & EC2
                         # "default_time_period": {
