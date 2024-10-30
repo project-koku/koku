@@ -796,20 +796,7 @@ class OCPProviderMap(ProviderMap):
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
                         },
-                        "capacity_aggregate": {
-                            "cluster": {
-                                "capacity": Max("cluster_capacity_cpu_core_hours"),
-                                "cluster": Coalesce("cluster_alias", "cluster_id"),
-                            },
-                            "cluster_instance_counts": {
-                                "capacity_count": Max("node_capacity_cpu_cores"),
-                                "cluster": Coalesce("cluster_alias", "cluster_id"),
-                            },
-                            "node": {
-                                "capacity": Max("node_capacity_cpu_core_hours"),
-                                "capacity_count": Max("node_capacity_cpu_cores"),
-                            },
-                        },
+                        "capacity_aggregate": {},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": self.cost_model_cpu_supplementary_cost,
@@ -831,7 +818,6 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
-                            "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -849,7 +835,7 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_unattributed_storage_cost
                             + self.distributed_unattributed_network_cost,
                         },
-                        "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
+                        "filter": [],
                         "group_by": ["vm_name"],
                         "default_ordering": {"vm_name": "desc"},
                         "tables": {"query": OCPVirtualMachineSummaryP},
