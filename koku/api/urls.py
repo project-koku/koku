@@ -275,6 +275,13 @@ urlpatterns = [
         name="reports-azure-storage",
     ),
     path(
+        "reports/openshift/resources/virtual-machines/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPVirtualMachinesView.as_view()
+        ),
+        name="reports-openshift-virtual-machines",
+    ),
+    path(
         "reports/openshift/costs/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
             OCPCostView.as_view()

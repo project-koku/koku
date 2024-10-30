@@ -30,6 +30,7 @@ from reporting.provider.ocp.models import OCPNetworkSummaryP
 from reporting.provider.ocp.models import OCPPodSummaryByNodeP
 from reporting.provider.ocp.models import OCPPodSummaryByProjectP
 from reporting.provider.ocp.models import OCPPodSummaryP
+from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
 
@@ -150,6 +151,7 @@ class OCPProviderMap(ProviderMap):
                     "storageclass": {"field": "storageclass", "operation": "icontains"},
                     "pod": {"field": "pod", "operation": "icontains"},
                     "node": {"field": "node", "operation": "icontains"},
+                    "vm_name": {"field": "vm_name", "operation": "icontains"},
                     "infrastructures": {
                         "field": "cluster_id",
                         "operation": "exact",
@@ -773,6 +775,117 @@ class OCPProviderMap(ProviderMap):
                             "infra_total",
                         ],
                     },
+                    "virtual_machines": {
+                        "tag_column": "all_labels",
+                        "aggregates": {
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": self.cost_model_cpu_supplementary_cost,
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": self.cost_model_cpu_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_cpu_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cpu_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cpu_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "usage": Sum("pod_usage_cpu_core_hours"),
+                            "request": Sum("pod_request_cpu_core_hours"),
+                            "limit": Sum("pod_limit_cpu_core_hours"),
+                        },
+                        "capacity_aggregate": {
+                            "cluster": {
+                                "capacity": Max("cluster_capacity_cpu_core_hours"),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "cluster_instance_counts": {
+                                "capacity_count": Max("node_capacity_cpu_cores"),
+                                "cluster": Coalesce("cluster_alias", "cluster_id"),
+                            },
+                            "node": {
+                                "capacity": Max("node_capacity_cpu_core_hours"),
+                                "capacity_count": Max("node_capacity_cpu_cores"),
+                            },
+                        },
+                        "annotations": {
+                            "sup_raw": Sum(Value(0, output_field=DecimalField())),
+                            "sup_usage": self.cost_model_cpu_supplementary_cost,
+                            "sup_markup": Sum(Value(0, output_field=DecimalField())),
+                            "sup_total": self.cost_model_cpu_supplementary_cost,
+                            "infra_raw": self.cloud_infrastructure_cost,
+                            "infra_usage": self.cost_model_cpu_infrastructure_cost,
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cpu_infrastructure_cost,
+                            "cost_raw": self.cloud_infrastructure_cost,
+                            "cost_usage": self.cost_model_cpu_cost,
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
+                            "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
+                            "usage_units": Value("Core-Hours", output_field=CharField()),
+                            "usage": Sum("pod_usage_cpu_core_hours"),
+                            "request": Sum("pod_request_cpu_core_hours"),
+                            "limit": Sum("pod_limit_cpu_core_hours"),
+                            "capacity": Max("cluster_capacity_cpu_core_hours"),  # overwritten in capacity aggregation
+                            "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
+                            "source_uuid": ArrayAgg(
+                                F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
+                            ),
+                        },
+                        "delta_key": {
+                            "usage": Sum("pod_usage_cpu_core_hours"),
+                            "request": Sum("pod_request_cpu_core_hours"),
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
+                            + self.markup_cost_by_project
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
+                        },
+                        "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
+                        "group_by": ["vm_name"],
+                        "default_ordering": {"vm_name": "desc"},
+                        "tables": {"query": OCPVirtualMachineSummaryP},
+                        "default_time_period": {
+                            "time_scope_value": "-1",
+                            "time_scope_units": "month",
+                            "resolution": "monthly",
+                        },
+                        "conditionals": {
+                            OCPVirtualMachineSummaryP: {
+                                "exclude": [
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Worker unallocated",
+                                    },
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Platform unallocated",
+                                    },
+                                    {
+                                        "field": "namespace",
+                                        "operation": "exact",
+                                        "parameter": "Network unattributed",
+                                    },
+                                ],
+                            },
+                        },
+                        "cost_units_key": "raw_currency",
+                        "usage_units_key": "Core-Hours",
+                        "count_units_key": "Core",
+                        "capacity_count_key": "node_capacity_cpu_cores",
+                        "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
+                        "vm_name": Max("vm_name"),
+                    },
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
@@ -822,6 +935,9 @@ class OCPProviderMap(ProviderMap):
                 ("node",): OCPNetworkSummaryByNodeP,
                 ("project",): OCPNetworkSummaryByProjectP,
                 ("cluster", "project"): OCPNetworkSummaryByProjectP,
+            },
+            "virtual_machines": {
+                "default": OCPVirtualMachineSummaryP,
             },
         }
         super().__init__(provider, report_type, schema_name)
