@@ -13,6 +13,12 @@ CURRENCIES = [
         "description": "AUD (A$) - Australian Dollar",
     },
     {
+        "code": "BRL",
+        "name": "Brazilian real",
+        "symbol": "R$",
+        "description": "BRL (R$) - Brazilian real",
+    },
+    {
         "code": "CAD",
         "name": "Canadian Dollar",
         "symbol": "CA$",
