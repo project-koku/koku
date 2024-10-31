@@ -183,8 +183,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        # if self._report_type == "virtual_machines":
-        #     self._format_vms_response()
 
         output = self._initialize_response_output(self.parameters)
         if self._report_type == "costs_by_project":
@@ -346,34 +344,3 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_delta = {"value": total_delta, "percent": total_delta_percent}
 
         return query_data
-
-    def _format_vms_response(self):
-        """
-        Format VMs response data tansforming tags to the desired UI format.
-        Example transformation:
-        Input:
-        "tags": [
-            {"Map":"c2"},
-            {"Name":"instance_name_3"},
-        ]
-        Output:
-        "tags": [
-            {
-                "key": "Map",
-                "values": ["c2"]
-            },
-            {
-                "key": "Name",
-                "values": ["instance_name_3"]
-            },
-        ]
-        """
-
-        for item in self.query_data:
-            for resource in item["vm_names"]:
-                resource_values = resource["values"][0]
-                resource_values["pod_labels"] = [
-                    {"key": key, "values": [value]}
-                    for tag in resource_values["pod_labels"]
-                    for key, value in tag.items()
-                ]

@@ -294,9 +294,9 @@ class OCPVirtualMachinesOrderBySerializer(OCPOrderBySerializer):
 
     _opfields = ("cluster", "node", "project", "vm_name")
 
-    project = StringOrListField(child=serializers.CharField(), required=False)
-    cluster = StringOrListField(child=serializers.CharField(), required=False)
-    node = StringOrListField(child=serializers.CharField(), required=False)
+    project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     vm_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
