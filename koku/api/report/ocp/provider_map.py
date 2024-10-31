@@ -815,15 +815,15 @@ class OCPProviderMap(ProviderMap):
                             "cost_markup": self.markup_cost,
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
-                            "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage_units": Value("Core-Hours", output_field=CharField()),
-                            "request_cpu": F("pod_usage_cpu_core_hours"),
-                            "request_memory": F("pod_request_memory_gigabyte_hours"),
+                            "cost_units": Max(Coalesce("currency_annotation", Value("USD", output_field=CharField()))),
+                            "usage_units": Max(Value("Core-Hours", output_field=CharField())),
+                            "request_cpu": Sum("pod_usage_cpu_core_hours"),
+                            "request_memory": Sum("pod_request_memory_gigabyte_hours"),
                             "request_cpu_units": Value("Core-Hours", output_field=CharField()),
                             "request_memory_units": Value("GiB-Hours", output_field=CharField()),
-                            "cluster": F(Coalesce("cluster_alias", "cluster_id")),
-                            "node": F("node"),
-                            "namespace": F("namespace"),
+                            "cluster": Max(Coalesce("cluster_alias", "cluster_id")),
+                            "node": Max("node"),
+                            "namespace": Max("namespace"),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
@@ -844,6 +844,7 @@ class OCPProviderMap(ProviderMap):
                         "filter": [],
                         "default_ordering": {"cost_total": "desc"},
                         "tables": {"query": OCPVirtualMachineSummaryP},
+                        "group_by": ["vm_name"],
                         # Cody - This is fake for openshift-virt & EC2
                         # "default_time_period": {
                         #     "time_scope_value": "-1",
