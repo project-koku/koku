@@ -822,7 +822,7 @@ class OCPProviderMap(ProviderMap):
                             "request_cpu_units": Value("Core-Hours", output_field=CharField()),
                             "request_memory_units": Value("GiB-Hours", output_field=CharField()),
                             "cluster": Max(Coalesce("cluster_alias", "cluster_id")),
-                            "node": Max("node"),
+                            "node": ArrayAgg(F("node"), filter=Q(source_uuid__isnull=False), distinct=True),
                             "namespace": Max("namespace"),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
