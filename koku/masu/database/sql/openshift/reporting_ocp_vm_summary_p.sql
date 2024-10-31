@@ -8,7 +8,9 @@ WITH cte_latest_resources AS (
     SELECT DISTINCT ON (vm_name)
         all_labels->>'vm_kubevirt_io_name' AS vm_name,
         pod_request_cpu_core_hours AS cpu_request_hours,
-        pod_request_memory_gigabyte_hours AS memory_request_hours
+        pod_request_memory_gigabyte_hours AS memory_request_hours,
+        node as node_name,
+        pod_labels as labels
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
@@ -51,14 +53,14 @@ SELECT
     cluster_alias,
     cluster_id,
     namespace,
-    node,
-    pod_labels->>'vm_kubevirt_io_name' as vm_name,
+    max(latest.node_name) as node,
+    latest.labels->>'vm_kubevirt_io_name' as vm_name,
     sum(cost_model_cpu_cost) as cost_model_cpu_cost,
     sum(cost_model_memory_cost) as cost_model_memory_cost,
     cost_model_rate_type,
     sum(cost_model_volume_cost) as cost_model_volume_cost,
     sum(distributed_cost) as distributed_cost,
-    pod_labels as pod_labels,
+    latest.labels as pod_labels,
     sum(pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
     max(latest.cpu_request_hours) as pod_request_cpu_core_hours,
     sum(pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
@@ -87,5 +89,5 @@ WHERE usage_start >= {{start_date}}::date
     AND namespace IS DISTINCT FROM 'Platform unallocated'
     AND namespace IS DISTINCT FROM 'Network unattributed'
     AND namespace IS DISTINCT FROM 'Storage unattributed'
-GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type, pod_labels
+GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type, latest.labels
 ;
