@@ -5,6 +5,7 @@
 """View for Openshift projects."""
 from django.conf import settings
 from django.db.models import F
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -23,12 +24,6 @@ from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 class OCPVirtualMachinesView(generics.ListAPIView):
     """API GET list view for Openshift virtual machines."""
 
-    queryset = (
-        OCPVirtualMachineSummaryP.objects.annotate(**{"value": F("vm_name")})
-        .values("value")
-        .distinct()
-        .filter(vm_name__isnull=False)
-    )
     serializer_class = ResourceTypeSerializer
     permission_classes = [OpenShiftProjectPermission | OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
@@ -40,19 +35,32 @@ class OCPVirtualMachinesView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift virtual machines, displays values related to the users access
         supported_query_params = ["search", "limit"]
+        query_filter_keys = ["cluster_id", "cluster_alias", "namespace", "node"]
+        supported_query_params.extend(query_filter_keys)
+        query_filter_map = {"vm_name__isnull": False}
         error_message = {}
         query_holder = None
-        
+
         # check for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        
+                if key in query_filter_keys:
+                    query_filter_map[f"{key}__icontains"] = self.request.query_params.get(key)
+
+        query_filters = Q(**query_filter_map)
+        self.queryset = (
+            OCPVirtualMachineSummaryP.objects.annotate(value=F("vm_name"))
+            .values("value")
+            .distinct()
+            .filter(query_filters)
+        )
+
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
-        
+
         if request.user.access:
             ocp_project_access = request.user.access.get("openshift.project", {}).get("read", [])
             ocp_cluster_access = request.user.access.get("openshift.cluster", {}).get("read", [])
