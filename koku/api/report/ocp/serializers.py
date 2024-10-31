@@ -310,7 +310,7 @@ class OCPVirtualMachinesGroupBySerializer(GroupSerializer):
 class OCPVirtualMachinesQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling VM query parameters."""
 
-    order_by_allowlist = ("cluster", "node", "project", "vm_name")
+    order_by_allowlist = ("cluster", "node", "project", "vm_name", "cost")
 
     DELTA_CHOICES = ()
     FILTER_SERIALIZER = OCPVirtualMachinesFilterSerializer
