@@ -794,7 +794,6 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             "request_cpu": Sum("pod_request_cpu_core_hours") / 24,
                             "request_memory": Sum("pod_request_memory_gigabyte_hours") / 24,
-                            "limit": Sum("pod_limit_cpu_core_hours"),
                             "request_cpu_units": Max(Value("Core", output_field=CharField())),
                             "request_memory_units": Max(Value("GiB", output_field=CharField())),
                         },
@@ -829,7 +828,6 @@ class OCPProviderMap(ProviderMap):
                             "tags": ArrayAgg(F("pod_labels"), distinct=True),
                         },
                         "delta_key": {
-                            "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost_by_project
@@ -844,37 +842,9 @@ class OCPProviderMap(ProviderMap):
                         "default_ordering": {"cost_total": "desc"},
                         "tables": {"query": OCPVirtualMachineSummaryP},
                         "group_by": ["vm_name"],
-                        # Cody - This is fake for openshift-virt & EC2
-                        # "default_time_period": {
-                        #     "time_scope_value": "-1",
-                        #     "time_scope_units": "month",
-                        #     "resolution": "monthly",
-                        # },
-                        "conditionals": {
-                            OCPVirtualMachineSummaryP: {
-                                "exclude": [
-                                    {
-                                        "field": "namespace",
-                                        "operation": "exact",
-                                        "parameter": "Worker unallocated",
-                                    },
-                                    {
-                                        "field": "namespace",
-                                        "operation": "exact",
-                                        "parameter": "Platform unallocated",
-                                    },
-                                    {
-                                        "field": "namespace",
-                                        "operation": "exact",
-                                        "parameter": "Network unattributed",
-                                    },
-                                ],
-                            },
-                        },
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
                         "count_units_key": "Core",
-                        "capacity_count_key": "node_capacity_cpu_cores",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                         "vm_name": Max("vm_name"),
                     },
