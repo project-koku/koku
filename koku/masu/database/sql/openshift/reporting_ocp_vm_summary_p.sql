@@ -89,5 +89,5 @@ WHERE usage_start >= {{start_date}}::date
     AND namespace IS DISTINCT FROM 'Platform unallocated'
     AND namespace IS DISTINCT FROM 'Network unattributed'
     AND namespace IS DISTINCT FROM 'Storage unattributed'
-GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type, latest.labels
+GROUP BY cluster_alias, cluster_id, namespace, latest.node_name, vm_name, cost_model_rate_type, latest.labels
 ;

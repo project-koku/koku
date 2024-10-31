@@ -77,7 +77,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Candlepin|label_stage:Development|label_group:Marketing|label_vm_kubevirt_io_name:test
+                  labels: label_application:Candlepin|label_stage:Development|label_group:Marketing
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
