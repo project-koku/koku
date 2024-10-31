@@ -16,6 +16,7 @@ from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 
 RBAC_PROJECT = OCP_NAMESPACES[0]
 
+
 class ResourceTypesViewTestOpenshiftVirtualMachines(IamTestCase):
     """Tests the resource types views for OpenShift virtual machines."""
 
@@ -27,7 +28,7 @@ class ResourceTypesViewTestOpenshiftVirtualMachines(IamTestCase):
     @RbacPermissions({"openshift.cluster": {"read": ["OCP-on-AWS"]}})
     def test_openshift_virtual_machines_with_cluster_access_view(self):
         """Test endpoint runs with a customer owner."""
-        
+
         with schema_context(self.schema_name):
             expected = (
                 OCPVirtualMachineSummaryP.objects.annotate(**{"value": F("vm_name")})
@@ -36,7 +37,7 @@ class ResourceTypesViewTestOpenshiftVirtualMachines(IamTestCase):
                 .filter(cluster_id__in=["OCP-on-AWS"])
                 .count()
             )
-        
+
         # check that the expected is not zero
         self.assertTrue(expected)
         url = reverse("openshift-virtual-machines")
@@ -50,7 +51,7 @@ class ResourceTypesViewTestOpenshiftVirtualMachines(IamTestCase):
     @RbacPermissions({"openshift.cluster": {"read": ["OCP-on-AWS"]}, "openshift.project": {"read": [RBAC_PROJECT]}})
     def test_openshift_project_with_cluster_and_project_access_view(self):
         """Test endpoint runs with a customer owner."""
-        
+
         with schema_context(self.schema_name):
             expected = (
                 OCPVirtualMachineSummaryP.objects.annotate(**{"value": F("namespace")})
@@ -59,10 +60,10 @@ class ResourceTypesViewTestOpenshiftVirtualMachines(IamTestCase):
                 .filter(namespace__in=[RBAC_PROJECT], cluster_id__in=["OCP-on-AWS"])
                 .count()
             )
-        
+
         # check that the expected is not zero
         self.assertTrue(expected)
-        
+
         url = reverse("openshift-virtual-machines")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -103,7 +104,7 @@ class ResourceTypesViewTestOpenshiftVirtualMachines(IamTestCase):
                 .filter(namespace__in=[RBAC_PROJECT])
                 .count()
             )
-        
+
         # check that the expected is not zero
         self.assertTrue(expected)
         url = reverse("openshift-virtual-machines")
