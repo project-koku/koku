@@ -4,6 +4,18 @@ WHERE usage_start >= {{start_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
+WITH cte_latest_resources AS (
+    SELECT DISTINCT ON (vm_name)
+        all_labels->>'vm_kubevirt_io_name' AS vm_name,
+        pod_request_cpu_core_hours AS cpu_request_hours,
+        pod_request_memory_gigabyte_hours AS memory_request_hours
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+    WHERE usage_start >= {{start_date}}::date
+        AND usage_start <= {{end_date}}::date
+        AND pod_request_cpu_core_hours IS NOT NULL
+        AND all_labels ? 'vm_kubevirt_io_name'
+    ORDER BY vm_name, usage_start DESC
+)
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     id,
     cluster_alias,
@@ -48,11 +60,11 @@ SELECT
     sum(distributed_cost) as distributed_cost,
     pod_labels as pod_labels,
     sum(pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
-    sum(pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+    max(latest.cpu_request_hours) as pod_request_cpu_core_hours,
     sum(pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
     sum(pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
     sum(pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
-    sum(pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+    max(latest.memory_request_hours) as pod_request_memory_gigabyte_hours,
     sum(pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
     sum(pod_limit_memory_gigabyte_hours) as pod_limit_memory_gigabyte_hours,
     sum(infrastructure_markup_cost) as infrastructure_markup_cost,
@@ -63,15 +75,17 @@ SELECT
     min(usage_start) as usage_end,
     max(cost_category_id) as cost_category_id,
     {{source_uuid}}::uuid as source_uuid
-FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-    WHERE usage_start >= {{start_date}}::date
-        AND usage_start <= {{end_date}}::date
-        AND source_uuid = {{source_uuid}}
-        AND data_source = 'Pod'
-        AND pod_labels ? 'vm_kubevirt_io_name'
-        AND namespace IS DISTINCT FROM 'Worker unallocated'
-        AND namespace IS DISTINCT FROM 'Platform unallocated'
-        AND namespace IS DISTINCT FROM 'Network unattributed'
-        AND namespace IS DISTINCT FROM 'Storage unattributed'
-    GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type, pod_labels
+FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+INNER JOIN cte_latest_resources as latest
+    ON latest.vm_name = ocp.pod_labels->>'vm_kubevirt_io_name'
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND source_uuid = {{source_uuid}}
+    AND data_source = 'Pod'
+    AND pod_labels ? 'vm_kubevirt_io_name'
+    AND namespace IS DISTINCT FROM 'Worker unallocated'
+    AND namespace IS DISTINCT FROM 'Platform unallocated'
+    AND namespace IS DISTINCT FROM 'Network unattributed'
+    AND namespace IS DISTINCT FROM 'Storage unattributed'
+GROUP BY cluster_alias, cluster_id, namespace, node, vm_name, cost_model_rate_type, pod_labels
 ;
