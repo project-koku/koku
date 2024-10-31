@@ -411,7 +411,7 @@ class OCPVirtualMachineSummaryP(models.Model):
             models.Index(fields=["vm_name"], name="ocp_vm_summ_vm_name"),
             GinIndex(fields=["pod_labels"], name="ocp_vm_summ_pod_labels_idx"),
         ]
-        # unique_together = ("usage_start", "cluster_id", "namespace", "node", "vm_name")
+        unique_together = ("usage_start", "cluster_id", "namespace", "node", "vm_name", "cost_model_rate_type")
 
     id = models.UUIDField(primary_key=True)
 
@@ -429,14 +429,8 @@ class OCPVirtualMachineSummaryP(models.Model):
     distributed_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_labels = JSONField(null=True)
-    pod_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)

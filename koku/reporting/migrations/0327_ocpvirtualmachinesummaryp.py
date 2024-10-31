@@ -45,35 +45,11 @@ class Migration(migrations.Migration):
                 ),
                 ("pod_labels", models.JSONField(null=True)),
                 (
-                    "pod_usage_cpu_core_hours",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
-                (
                     "pod_request_cpu_core_hours",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 (
-                    "pod_effective_usage_cpu_core_hours",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
-                (
-                    "pod_limit_cpu_core_hours",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
-                (
-                    "pod_usage_memory_gigabyte_hours",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
-                (
                     "pod_request_memory_gigabyte_hours",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
-                (
-                    "pod_effective_usage_memory_gigabyte_hours",
-                    models.DecimalField(decimal_places=15, max_digits=33, null=True),
-                ),
-                (
-                    "pod_limit_memory_gigabyte_hours",
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 (
@@ -123,7 +99,9 @@ class Migration(migrations.Migration):
                     models.Index(fields=["vm_name"], name="ocp_vm_summ_vm_name"),
                     django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="ocp_vm_summ_pod_labels_idx"),
                 ],
-                # "unique_together": {("usage_start", "cluster_id", "namespace", "node", "vm_name")},
+                "unique_together": {
+                    ("usage_start", "cluster_id", "namespace", "node", "vm_name", "cost_model_rate_type")
+                },
             },
         ),
         migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
