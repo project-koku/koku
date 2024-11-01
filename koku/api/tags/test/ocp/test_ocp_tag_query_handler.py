@@ -149,8 +149,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .distinct()
                 .all()
             )
-            tag_keys = list(set(usage_tag_keys + storage_tag_keys + [vm_tag_key]))
+            tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
+        # The tag handler only returns enabled keys
+        # this vm key bypasses the enabled model so
+        # it should be removed from this test
+        tag_keys.remove(vm_tag_key)
         result = handler.get_tag_keys(filters=True)
         self.assertEqual(sorted(result), sorted(tag_keys))
         self.assertNotIn("disabled", result)
@@ -188,9 +192,14 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .distinct()
                 .all()
             )
-            tag_keys = list(set(usage_tag_keys + storage_tag_keys + [vm_tag_key]))
+            tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=False)
+        # The tag handler only returns enabled keys
+        # this vm key bypasses the enabled model so
+        # it should be removed from this test
+        tag_keys.remove(vm_tag_key)
+
         self.assertEqual(sorted(result), sorted(tag_keys))
         self.assertNotIn("disabled", result)
         self.assertNotIn("disabled", tag_keys)
@@ -212,7 +221,11 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .distinct()
                 .all()
             )
-        tag_keys = list(set(usage_tag_keys + [vm_tag_key]))
+        tag_keys = list(set(usage_tag_keys))
+        # The tag handler only returns enabled keys
+        # this vm key bypasses the enabled model so
+        # it should be removed from this test
+        tag_keys.remove(vm_tag_key)
 
         result = handler.get_tag_keys(filters=False)
         self.assertEqual(sorted(result), sorted(tag_keys))
