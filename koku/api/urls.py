@@ -37,7 +37,6 @@ from api.views import CostGroupsAddView
 from api.views import CostGroupsRemoveView
 from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
-from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostForecastView
 from api.views import GCPCostView
@@ -121,7 +120,6 @@ from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
 
 ROUTER = DefaultRouter()
-ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
