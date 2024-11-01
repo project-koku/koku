@@ -61,6 +61,12 @@ CURRENCIES = [
         "description": "HKD (HK$) - Hong Kong Dollar",
     },
     {
+        "code": "INR",
+        "name": "Indian rupee",
+        "symbol": "\u20b9",
+        "description": "INR (\u20b9) - Indian rupee",
+    },
+    {
         "code": "JPY",
         "name": "Japanese Yen",
         "symbol": "\u00a5",
