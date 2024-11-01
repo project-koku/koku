@@ -37,12 +37,12 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     infrastructure_raw_cost,
     raw_currency,
     resource_ids,
-    usage_end,
     usage_start,
+    usage_end,
     cost_category_id,
     source_uuid
 )
-SELECT
+SELECT DISTINCT ON (vm_name)
     uuid_generate_v4() as id,
     cluster_alias,
     cluster_id,
@@ -61,8 +61,8 @@ SELECT
     sum(infrastructure_raw_cost) as infrastructure_raw_cost,
     max(raw_currency) as raw_currency,
     array_agg(DISTINCT resource_id) as resource_ids,
-    max(usage_start) as usage_start,
-    min(usage_start) as usage_end,
+    min(usage_start) as usage_start,
+    max(usage_start) as usage_end,
     max(cost_category_id) as cost_category_id,
     {{source_uuid}}::uuid as source_uuid
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
