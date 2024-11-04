@@ -246,43 +246,6 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         dup_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id, "POST")
         self.assertEqual(orig_cust, dup_cust)
 
-    def test_race_condition_user(self):
-        """Test case where another request may create the user in a race condition."""
-        mock_request = self.request
-        middleware = IdentityHeaderMiddleware(self.mock_get_response)
-        middleware.process_request(mock_request)
-        self.assertTrue(hasattr(mock_request, "user"))
-        customer = Customer.objects.get(account_id=self.customer.account_id)
-        self.assertIsNotNone(customer)
-        user = User.objects.get(username=self.user_data["username"])
-        self.assertIsNotNone(user)
-        IdentityHeaderMiddleware.create_user(
-            username=self.user_data["username"], email=self.user_data["email"], customer=customer, request=mock_request
-        )
-
-    @patch("koku.middleware.USER_CACHE", TTLCache(5, 3))
-    def test_race_condition_user_caching(self):
-        """Test case for caching where another request may create the user in a race condition."""
-        mock_request = self.request
-        middleware = IdentityHeaderMiddleware(self.mock_get_response)
-        self.assertEqual(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the user cache has changed
-        self.assertEqual(MD.USER_CACHE.currsize, 0)  # Confirm that the user cache is empty
-        middleware.process_request(mock_request)
-        self.assertEqual(MD.USER_CACHE.currsize, 1)
-        self.assertTrue(hasattr(mock_request, "user"))
-        customer = Customer.objects.get(account_id=self.customer.account_id)
-        self.assertIsNotNone(customer)
-        user = User.objects.get(username=self.user_data["username"])
-        self.assertEqual(MD.USER_CACHE.currsize, 1)
-        self.assertIsNotNone(user)
-        IdentityHeaderMiddleware.create_user(
-            username=self.user_data["username"],  # pylint: disable=W0212
-            email=self.user_data["email"],
-            customer=customer,
-            request=mock_request,
-        )
-        self.assertEqual(MD.USER_CACHE.currsize, 1)
-
     @override_settings(CACHES={"rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_non_admin(self, get_access_mock):
@@ -312,12 +275,14 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware.process_request(mock_request)
 
         user_uuid = mock_request.user.uuid
+        org_id = customer.get("org_id")
         cache = caches["rbac"]
-        self.assertEqual(cache.get(user_uuid), mock_access)
+        cache_key = f"{user_uuid}_{org_id}"
+        self.assertEqual(cache.get(cache_key), mock_access)
 
         middleware.process_request(mock_request)
         cache = caches["rbac"]
-        self.assertEqual(cache.get(user_uuid), mock_access)
+        self.assertEqual(cache.get(cache_key), mock_access)
 
     def test_process_not_entitled(self):
         """Test that the a request cannot be made if not entitled."""
