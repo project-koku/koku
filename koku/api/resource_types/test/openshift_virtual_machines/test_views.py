@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2024 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views for OpenShift Virtual Machines."""
@@ -114,3 +114,42 @@ class ResourceTypesViewTestOpenshiftVirtualMachines(IamTestCase):
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(len(json_result.get("data")), expected)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["*"]}})
+    def test_openshift_virtual_machines_query_filter_keys(self):
+        """Test that endpoint filters results correctly based on query parameters."""
+
+        query_filter_keys = {"cluster_id", "cluster_alias", "namespace", "node"}
+
+        for key in query_filter_keys:
+            with self.subTest(param=key):
+                with schema_context(self.schema_name):
+                    values = OCPVirtualMachineSummaryP.objects.values_list(key, flat=True).distinct()
+                    self.assertTrue(values.exists())
+                    test_value = values.first()
+
+                    expected = (
+                        OCPVirtualMachineSummaryP.objects.annotate(value=F("vm_name"))
+                        .values("value")
+                        .distinct()
+                        .filter(**{f"{key}__icontains": test_value})
+                        .count()
+                    )
+
+                self.assertTrue(expected)
+
+                url = reverse("openshift-virtual-machines")
+                params = {key: test_value}
+                response = self.client.get(url, params, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+                json_result = response.json()
+                self.assertEqual(len(json_result.get("data")), expected)
+
+    def test_openshift_virtual_machines_with_unsupported_query_param(self):
+        """Test view returns error for unsupported query parameter."""
+
+        url = reverse("openshift-virtual-machines")
+        params = {"unsupported_param": "unsupported-param"}
+        response = self.client.get(url, params, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
