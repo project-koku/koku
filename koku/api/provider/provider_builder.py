@@ -102,10 +102,7 @@ class ProviderBuilder:
                 customer = Customer.objects.filter(org_id=self.org_id).get()
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware.create_customer(self.account_number, self.org_id, "POST")
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
-                user = IdentityHeaderMiddleware.create_user(username, email, customer, None)
+            user = User(username=username, email=email, customer=customer)
 
         context = {"user": user, "customer": customer}
         return context, customer, user
