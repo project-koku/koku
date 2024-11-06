@@ -365,7 +365,6 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         provider = Provider.objects.create(**validated_data)
         provider.customer = customer
-        provider.created_by = user
         provider.authentication = auth
         provider.billing_source = bill
         provider.active = True

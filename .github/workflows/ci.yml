@@ -246,7 +246,7 @@ jobs:
       - name: Install dependencies
         if: needs.changed-files.outputs.run_tests == 'true' && steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
-          pipenv install --dev --ignore-pipfile --python ${{ matrix.python-version }}
+          pipenv install --dev --deploy --python ${{ matrix.python-version }}
 
       - name: Check migrations
         if: |

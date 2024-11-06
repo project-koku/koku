@@ -116,10 +116,10 @@ class SUBSDataMessenger:
                         RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AWS).inc()
                         try:
                             RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AWS).inc(
-                                amount=(float(row["subs_vcpu"]) * int(row["subs_usage"]))
+                                amount=float(row["subs_vcpu"])
                             )
                         except ValueError:
-                            LOG.error(
+                            LOG.info(
                                 log_json(
                                     self.tracing_id,
                                     msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
@@ -271,7 +271,7 @@ class SUBSDataMessenger:
                     amount=(float(row["subs_vcpu"]) * usage)
                 )
             except ValueError:
-                LOG.error(
+                LOG.info(
                     log_json(
                         self.tracing_id,
                         msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
