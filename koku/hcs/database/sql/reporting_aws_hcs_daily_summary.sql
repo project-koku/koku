@@ -23,14 +23,19 @@ SELECT
   CASE
     WHEN
       (
-        try_cast(product_vcpu AS INT) <= 4
+        try_cast(product_vcpu AS INT) <= 8
         AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
-      ) THEN 0.06 * lineitem_usageamount
+      ) THEN 0.0144 * lineitem_usageamount * CAST(product_vcpu AS INT)
     WHEN
       (
-        try_cast(product_vcpu AS INT) > 4
+        try_cast(product_vcpu AS INT) <= 127
         AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
-      ) THEN 0.13 * lineitem_usageamount
+      ) THEN 0.0108 * lineitem_usageamount * CAST(product_vcpu AS INT)
+    WHEN
+      (
+        try_cast(product_vcpu AS INT) > 127
+        AND (lineitem_lineitemdescription LIKE '%Red Hat%' OR lineitem_lineitemdescription LIKE '%RHEL%')
+      ) THEN 0.0096 * lineitem_usageamount * CAST(product_vcpu AS INT)
     ELSE lineitem_unblendedcost
   END AS lineitem_unblendedcost,
   lineitem_blendedrate,
@@ -71,18 +76,26 @@ WHERE
     OR (
       lineitem_legalentity LIKE '%Amazon Web Services%'
       AND lineitem_lineitemdescription LIKE '%Red Hat%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
     OR (
       lineitem_legalentity LIKE '%Amazon Web Services%'
       AND lineitem_lineitemdescription LIKE '%RHEL%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
     OR (
       lineitem_legalentity LIKE '%AWS%'
       AND lineitem_lineitemdescription LIKE '%Red Hat%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
     OR (
       lineitem_legalentity LIKE '%AWS%'
       AND lineitem_lineitemdescription LIKE '%RHEL%'
+      -- do not include Reserved Instance Fee
+      AND lineitem_lineitemtype <> 'RIFee'
     )
   )
   AND lineitem_usagestartdate >= {{date}}

@@ -5,7 +5,7 @@ import ciso8601
 import pandas as pd
 
 from api.models import Provider
-from masu.util.azure.common import INGRESS_ALT_COLUMNS
+from masu.util.azure.common import INGRESS_REQUIRED_ALT_COLUMNS
 from masu.util.azure.common import INGRESS_REQUIRED_COLUMNS
 from masu.util.common import populate_enabled_tag_rows_with_limit
 from masu.util.common import safe_float
@@ -63,10 +63,14 @@ class AzurePostProcessor:
         """
         Checks the required columns for ingress.
         """
-        if not set(col_names).issuperset(INGRESS_REQUIRED_COLUMNS):
-            if not set(col_names).issuperset(INGRESS_ALT_COLUMNS):
-                missing_columns = [x for x in INGRESS_REQUIRED_COLUMNS if x not in col_names]
-                return missing_columns
+        lower_columns = [x.lower() for x in col_names]
+        missing_columns = [x for x in INGRESS_REQUIRED_COLUMNS if x not in lower_columns]
+        for alternative_set in INGRESS_REQUIRED_ALT_COLUMNS:
+            if not any(x in lower_columns for x in alternative_set):
+                missing_columns.append(alternative_set[0])
+
+        if missing_columns != []:
+            return missing_columns
         return None
 
     def get_column_converters(self, col_names, panda_kwargs):
@@ -74,14 +78,11 @@ class AzurePostProcessor:
         Return source specific parquet column converters.
         """
         converters = {
-            "usagedatetime": azure_date_converter,
             "date": azure_date_converter,
             "billingperiodstartdate": azure_date_converter,
             "billingperiodenddate": azure_date_converter,
-            "usagequantity": safe_float,
             "quantity": safe_float,
             "resourcerate": safe_float,
-            "pretaxcost": safe_float,
             "costinbillingcurrency": safe_float,
             "effectiveprice": safe_float,
             "unitprice": safe_float,

@@ -399,7 +399,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             with schema_context(self._schema):
                 report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
                 if not report_period:
-                    LOG.warning(
+                    LOG.info(
                         log_json(
                             msg="no report period for provider",
                             provider_uuid=self._provider.uuid,

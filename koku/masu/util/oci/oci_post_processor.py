@@ -11,7 +11,7 @@ from reporting.provider.oci.models import TRINO_REQUIRED_COLUMNS
 
 
 def scrub_resource_col_name(res_col_name):
-    return res_col_name.split(".")[-1]
+    return res_col_name.lstrip("tags/").split(".")[-1]
 
 
 class OCIPostProcessor:

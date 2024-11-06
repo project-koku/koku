@@ -1,4 +1,3 @@
-version: '3'
 name: koku
 
 services:
@@ -209,6 +208,7 @@ services:
       - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
       - DATE_OVERRIDE
       - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
+      - VALIDATION_RANGE=${VALIDATION_RANGE-5}
       - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-4}
       - NOTIFICATION_CHECK_TIME=${NOTIFICATION_CHECK_TIME-24}
@@ -628,7 +628,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/samdoran/ubi-hive:3.1.3-metastore-036
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-hive:2f89bfb
     ports:
       - 9083:8000
     environment:
@@ -651,7 +651,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/samdoran/ubi-trino:443-002
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:461-002
     user: root
     ports:
       - 8080:8080
@@ -675,7 +675,6 @@ services:
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
       - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
-      - ./dev/containers/trino/etc/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs
     links:

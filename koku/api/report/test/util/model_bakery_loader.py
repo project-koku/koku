@@ -528,7 +528,8 @@ class ModelBakeryDataLoader(DataLoader):
         with dbaccessor(self.schema) as accessor:
             # update tags
             cls_method = getattr(accessor, tags_update_method)
-            cls_method([bill.id for bill in bills], self.first_start_date, self.last_end_date)
+            for report_period in report_periods:
+                cls_method([bill.id for bill in bills], self.first_start_date, self.last_end_date, report_period.id)
 
             # update ui tables
             sql_params = {

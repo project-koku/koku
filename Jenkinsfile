@@ -30,8 +30,9 @@ pipeline {
     environment {
         APP_NAME="hccm"  // name of app-sre "application" folder this component lives in
         COMPONENT_NAME="koku"  // name of app-sre "resourceTemplate" in deploy.yaml for this component
-        IMAGE="quay.io/cloudservices/koku"
-        IMAGE_TAG=sh(script: "git rev-parse --short=7 HEAD", returnStdout: true).trim()
+        IMAGE="quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku"
+        IMAGE_TAG=sh(script: "source ./ci/functions.sh; get_image_tag", returnStdout: true).trim()
+        PRESERVE_IMAGE_TAG="True"
         DBM_IMAGE="${IMAGE}"
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
         COMPONENTS="hive-metastore koku trino"  // specific components to deploy (optional, default: all)
@@ -87,7 +88,7 @@ pipeline {
             }
         }
 
-        stage('Build test image') {
+        stage('Wait for test image') {
             when {
                 expression {
                     return (! env.SKIP_PR_CHECK)
@@ -95,17 +96,10 @@ pipeline {
             }
             steps {
                 script {
-                    withVault([configuration: configuration, vaultSecrets: secrets]) {
-                        sh '''
-                            source ./ci/functions.sh
-
-                            echo "$IQE_MARKER_EXPRESSION"
-                            echo "$IQE_FILTER_EXPRESSION"
-
-                            echo "Install bonfire repo/initialize, creating PR image"
-                            run_build_image_stage
-                        '''
-                    }
+                    sh '''
+                        source ./ci/functions.sh
+                        wait_for_image
+                    '''
                 }
             }
         }

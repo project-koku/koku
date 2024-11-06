@@ -1,4 +1,4 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_summary_by_ec2_compute (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_summary_by_ec2_compute_p (
     uuid,
     usage_start,
     usage_end,
@@ -91,14 +91,41 @@ FROM (
         resourcetags as tags,
         costcategory,
         nullif(pricing_unit, '') as unit,
-        sum(lineitem_usageamount) as usage_amount,
+        -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanNegation'
+                THEN 0.0
+                ELSE lineitem_usageamount
+            END
+        ) as usage_amount,
         max(lineitem_normalizationfactor) as normalization_factor,
         sum(lineitem_normalizedusageamount) as normalized_usage_amount,
         max(lineitem_currencycode) as currency_code,
         max(lineitem_unblendedrate) as unblended_rate,
-        sum(lineitem_unblendedcost) as unblended_cost,
+        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+           that offset that cost.
+           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                THEN 0.0
+                ELSE lineitem_unblendedcost
+            END
+        ) as unblended_cost,
         max(lineitem_blendedrate) as blended_rate,
-        sum(lineitem_blendedcost) as blended_cost,
+        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+           that offset that cost.
+           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                THEN 0.0
+                ELSE lineitem_blendedcost
+            END
+        ) as blended_cost,
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
         sum(
             CASE
@@ -118,11 +145,6 @@ FROM (
         AND lineitem_productcode = 'AmazonEC2'
         AND product_productfamily LIKE '%Compute Instance%'
         AND lineitem_resourceid != ''
-        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
-           that offset that cost and usage.
-           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
-        */
-        AND lineitem_lineitemtype != 'SavingsPlanCoveredUsage'
     GROUP BY lineitem_resourceid,
         lineitem_usageaccountid,
         product_instancetype,

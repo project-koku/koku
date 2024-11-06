@@ -488,6 +488,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -824,6 +826,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1319,6 +1323,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1499,6 +1505,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1685,6 +1693,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -1871,6 +1881,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2059,6 +2071,8 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2249,6 +2263,8 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2439,6 +2455,8 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2627,6 +2645,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -2815,6 +2835,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3003,6 +3025,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3193,6 +3217,8 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3387,6 +3413,8 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3581,6 +3609,8 @@ objects:
           value: ${PANDAS_COLUMN_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3773,6 +3803,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -3959,6 +3991,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -4145,6 +4179,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -4331,6 +4367,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -4521,6 +4559,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -4711,6 +4751,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -4903,6 +4945,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -5089,6 +5133,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -5263,6 +5309,8 @@ objects:
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
           value: ${TRINO_DATE_STEP}
+        - name: VALIDATION_RANGE
+          value: ${VALIDATION_RANGE}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -5598,7 +5646,7 @@ parameters:
 - description: Image
   name: IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - name: S3_BUCKET_NAME
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
@@ -5627,7 +5675,7 @@ parameters:
 - description: DB Migrations Image
   name: DBM_IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - description: DB Invocation Iterator
   name: DBM_INVOCATION
   required: true
@@ -5665,7 +5713,7 @@ parameters:
 - description: Management Command Image
   name: MGMT_IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - description: Management Command Invocation Iterator
   name: MGMT_INVOCATION
   required: true
@@ -5765,6 +5813,11 @@ parameters:
 - description: Number of days at a time we process Trino SQL
   displayName: Trino date step
   name: TRINO_DATE_STEP
+  required: true
+  value: "5"
+- description: Number of days to expand the data validation
+  displayName: Data validation
+  name: VALIDATION_RANGE
   required: true
   value: "5"
 - description: Flag to use account enhanced prometheus metricsworker

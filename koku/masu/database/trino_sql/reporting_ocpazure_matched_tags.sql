@@ -8,8 +8,8 @@ WITH cte_unnested_azure_tags AS (
     WHERE source = {{azure_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
-        AND coalesce(usagedatetime, date) >= {{start_date}}
-        AND coalesce(usagedatetime, date) < date_add('day', 1, {{end_date}})
+        AND date >= {{start_date}}
+        AND date < date_add('day', 1, {{end_date}})
 ),
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT pod_key,

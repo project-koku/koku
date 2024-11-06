@@ -44,7 +44,6 @@ from reporting.ingress.models import IngressReports
 from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
 
-
 LOG = logging.getLogger(__name__)
 CSV_GZIP_EXT = ".csv.gz"
 CSV_EXT = ".csv"
@@ -442,7 +441,6 @@ class ParquetReportProcessor:
             )
             return "", pd.DataFrame()
 
-        failed_conversion = []
         daily_data_frames = []
         file_list = self.file_list
 
@@ -500,7 +498,7 @@ class ParquetReportProcessor:
                         self.tracing_id,
                         msg=msg,
                         context=self.error_context,
-                        file_list=failed_conversion,
+                        failed_file=csv_filename,
                     )
                 )
                 raise ParquetReportProcessorError(msg)

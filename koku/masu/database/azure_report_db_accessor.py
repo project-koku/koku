@@ -9,12 +9,10 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
 from django_tenants.utils import schema_context
-from trino.exceptions import TrinoExternalError
 
 from api.common import log_json
 from api.models import Provider
@@ -24,9 +22,10 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_cost_3592_tag_mapping_enabled
-from masu.processor import is_feature_unattributed_storage_enabled
+from masu.processor import is_feature_unattributed_storage_enabled_azure
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
+from reporting.models import OCP_ON_AZURE_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
@@ -34,9 +33,9 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import TRINO_MANAGED_OCP_AZURE_DAILY_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
-
 
 LOG = logging.getLogger(__name__)
 
@@ -154,9 +153,15 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the cost entry bill objects with billing period before provided date."""
         return AzureCostEntryBill.objects.filter(billing_period_start__lte=date)
 
-    def populate_ocp_on_azure_tag_information(self, bill_ids, start_date, end_date):
+    def populate_ocp_on_azure_tag_information(self, bill_ids, start_date, end_date, report_period_id):
         """Populate the line item aggregated totals data table."""
-        sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        sql_params = {
+            "schema": self.schema,
+            "bill_ids": bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+        }
         # Tag summary
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazuretags_summary.sql")
         sql = sql.decode("utf-8")
@@ -219,10 +224,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def delete_ocp_on_azure_hive_partition_by_day(self, days, az_source, ocp_source, year, month):
+    def delete_ocp_on_azure_hive_partition_by_day(
+        self, days, az_source, ocp_source, year, month, table="reporting_ocpazurecostlineitem_project_daily_summary"
+    ):
         """Deletes partitions individually for each day in days list."""
-        table = "reporting_ocpazurecostlineitem_project_daily_summary"
-        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.schema_exists_trino() and self.table_exists_trino(table):
             LOG.info(
                 log_json(
@@ -237,26 +242,21 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                for i in range(retries):
-                    try:
-                        sql = f"""
-                            DELETE FROM hive.{self.schema}.{table}
-                                WHERE azure_source = '{az_source}'
-                                AND ocp_source = '{ocp_source}'
-                                AND year = '{year}'
-                                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                                AND day = '{day}'"""
-                        self._execute_trino_raw_sql_query(
-                            sql,
-                            log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts_left=(retries - 1) - i,
-                        )
-                        break
-                    except TrinoExternalError as err:
-                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
-                            continue
-                        else:
-                            raise err
+                if table == TRINO_MANAGED_OCP_AZURE_DAILY_TABLE:
+                    column_name = "source"
+                else:
+                    column_name = "azure_source"
+                sql = f"""
+                    DELETE FROM hive.{self.schema}.{table}
+                        WHERE {column_name} = '{az_source}'
+                        AND ocp_source = '{ocp_source}'
+                        AND year = '{year}'
+                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                        AND day = '{day}'"""
+                self._execute_trino_raw_sql_query(
+                    sql,
+                    log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day} from {table}",
+                )
 
     def populate_ocp_on_azure_cost_daily_summary_trino(
         self,
@@ -272,13 +272,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
-        tables = [
-            "reporting_ocpazurecostlineitem_project_daily_summary_temp",
-            "azure_openshift_daily_resource_matched_temp",
-            "azure_openshift_daily_tag_matched_temp",
-            "azure_openshift_disk_capacities_temp",
-        ]
-        for table in tables:
+        for table in OCP_ON_AZURE_TEMP_MANAGED_TABLES:
             self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
@@ -310,7 +304,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "markup": markup_value or 0,
             "pod_column": pod_column,
             "node_column": node_column,
-            "unattributed_storage": is_feature_unattributed_storage_enabled(self.schema),
+            "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg="running OCP on Azure SQL", context=ctx))
@@ -436,3 +430,54 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on Azure", schema=self.schema))
                 return False
         return True
+
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+        """
+        Verify the managed trino table population went successfully.
+        """
+        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_azure_verification.sql")
+        verification_sql = verification_sql.decode("utf-8")
+        LOG.info(log_json(msg="running verification for managed OCP on Azure daily SQL", **verification_params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        if False in result[0]:
+            LOG.error(log_json(msg="Verification failed", **verification_params))
+        else:
+            LOG.info(log_json(msg="Verification successful", **verification_params))
+
+    def populate_ocp_on_cloud_daily_trino(
+        self, azure_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
+    ):
+        """Populate the azure_openshift_daily trino table for OCP on Azure.
+        Args:
+            azure_provider_uuid (UUID) GCP source UUID.
+            ocp_provider_uuid (UUID) OCP source UUID.
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            matched_tag_strs (str) matching tags.
+        Returns
+            (None)
+        """
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        table = TRINO_MANAGED_OCP_AZURE_DAILY_TABLE
+        days = self.date_helper.list_days(start_date, end_date)
+        days_tup = tuple(str(day.day) for day in days)
+        self.delete_ocp_on_azure_hive_partition_by_day(
+            days_tup, azure_provider_uuid, openshift_provider_uuid, year, month, table
+        )
+
+        summary_sql = pkgutil.get_data("masu.database", "trino_sql/azure/openshift/managed_azure_openshift_daily.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "year": year,
+            "month": month,
+            "days": days_tup,
+            "end_date": end_date,
+            "azure_source_uuid": azure_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+            "matched_tag_array": matched_tags,
+        }
+        LOG.info(log_json(msg="running managed OCP on AZURE daily SQL", **summary_sql_params))
+        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)

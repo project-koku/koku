@@ -11,6 +11,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import relativedelta
+from dateutil.parser import parse
 from django.conf import settings
 from django.db.models import F
 from django.db.models import Max
@@ -23,6 +24,7 @@ from trino.exceptions import TrinoExternalError
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from koku.database import get_model
+from koku.trino_database import TrinoHiveMetastoreError
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -34,7 +36,9 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
+from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -261,27 +265,69 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.schema_exists_trino")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
-    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist, mock_schema_exists):
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    @patch("time.sleep", return_value=None)
+    def test_delete_ocp_on_aws_hive_partition_by_day(
+        self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
+    ):
         """Test that deletions work with retries."""
         mock_schema_exists.return_value = False
         self.accessor.delete_ocp_on_aws_hive_partition_by_day(
             [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
         )
-        mock_trino.assert_not_called()
+        mock_connect.assert_not_called()
+
+        mock_connect.reset_mock()
 
         mock_schema_exists.return_value = True
-        mock_trino.reset_mock()
-        error = {"errorName": "HIVE_METASTORE_ERROR"}
-        mock_trino.side_effect = TrinoExternalError(error)
-        with self.assertRaises(TrinoExternalError):
+        attrs = {"cursor.side_effect": TrinoExternalError({"errorName": "HIVE_METASTORE_ERROR"})}
+        mock_connect.return_value = Mock(**attrs)
+
+        with self.assertRaises(TrinoHiveMetastoreError):
             self.accessor.delete_ocp_on_aws_hive_partition_by_day(
                 [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
             )
-        mock_trino.assert_called()
-        # Confirms that the error log would be logged on last attempt
-        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
-        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+        mock_connect.assert_called()
+        self.assertEqual(mock_connect.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.schema_exists_trino")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
+    @patch("masu.database.report_db_accessor_base.trino_db.connect")
+    @patch("time.sleep", return_value=None)
+    def test_delete_ocp_on_aws_hive_partition_by_day_managed_table(
+        self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
+    ):
+        """Test that deletions work with retries."""
+        mock_schema_exists.return_value = False
+        self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+            [1],
+            self.aws_provider_uuid,
+            self.ocp_provider_uuid,
+            "2022",
+            "01",
+            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+        )
+        mock_connect.assert_not_called()
+
+        mock_connect.reset_mock()
+
+        mock_schema_exists.return_value = True
+        attrs = {"cursor.side_effect": TrinoExternalError({"errorName": "HIVE_METASTORE_ERROR"})}
+        mock_connect.return_value = Mock(**attrs)
+
+        with self.assertRaises(TrinoHiveMetastoreError):
+            self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+                [1],
+                self.aws_provider_uuid,
+                self.ocp_provider_uuid,
+                "2022",
+                "01",
+                TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            )
+
+        mock_connect.assert_called()
+        self.assertEqual(mock_connect.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_check_for_matching_enabled_keys_no_matches(self, mock_trino):
@@ -350,7 +396,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_called()
             # Confirms that the error log would be logged on last attempt
-            self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
             self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
         # Test that deletions short circuit if the schema does not exist
@@ -372,7 +417,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_unleash.return_value = True
         populated_keys = []
 
-        table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2Compute]
+        table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2ComputeP]
 
         for table_class in table_classes:
             with self.subTest(table_class=table_class):
@@ -421,6 +466,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """
         mock_unleash.return_value = True
         populated_keys = []
+        report_period_id = 1
         with schema_context(self.schema):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
             for enabled_tag in enabled_tags:
@@ -442,7 +488,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             parent_key, parent_obj, parent_count = populated_keys[0]
             child_key, child_obj, child_count = populated_keys[1]
             TagMapping.objects.create(parent=parent_obj, child=child_obj)
-            self.accessor.populate_ocp_on_aws_tag_information(bill_ids, self.dh.this_month_start, self.dh.today)
+            self.accessor.populate_ocp_on_aws_tag_information(
+                bill_ids, self.dh.this_month_start, self.dh.today, report_period_id
+            )
             expected_parent_count = parent_count + child_count
             actual_parent_count = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                 tags__has_key=parent_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
@@ -456,7 +504,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_ec2_compute_summary_table_trino(self, mock_trino):
         """
-        Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2Compute.
+        Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2ComputeP.
         """
         start_date = self.dh.this_month_start.date()
 
@@ -472,3 +520,53 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider_uuid, start_date, current_bill_id, markup_value
         )
         mock_trino.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete):
+        """
+        Test that calling ocp on cloud populate triggers the deletes and summary sql.
+        """
+        start_date = parse("2024-08-01").astimezone(tz=settings.UTC)
+        end_date = parse("2024-08-05").astimezone(tz=settings.UTC)
+        year = "2024"
+        month = "08"
+        matched_tags = "fake-tags"
+        expected_days = ("1", "2", "3", "4", "5")
+
+        self.accessor.populate_ocp_on_cloud_daily_trino(
+            self.aws_provider_uuid, self.ocp_provider_uuid, start_date, end_date, matched_tags
+        )
+        mock_partition_delete.assert_called_with(
+            expected_days,
+            self.aws_provider_uuid,
+            self.ocp_provider_uuid,
+            year,
+            month,
+            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+        )
+        mock_trino.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
+        """
+        Test validating trino tables.
+        """
+        verification_params = {
+            "schema": self.schema,
+            "cloud_source_uuid": self.aws_provider_uuid,
+            "year": "2024",
+            "month": "08",
+            "managed_table": TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            "parquet_table": TRINO_OCP_ON_AWS_DAILY_TABLE,
+        }
+        with self.assertLogs("masu.database.aws_report_db_accessor", level="INFO") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any(
+                "Verification successful" in log for log in logger.output
+            ), "Verification successful not found in logs"
+
+        mock_trino.side_effect = [[[False]]]
+        with self.assertLogs("masu.database.aws_report_db_accessor", level="ERROR") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"

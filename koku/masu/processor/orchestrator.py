@@ -30,9 +30,11 @@ from masu.processor import is_cloud_source_processing_disabled
 from masu.processor import is_customer_large
 from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import process_openshift_on_cloud_trino
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import remove_expired_trino_partitions
 from masu.processor.tasks import summarize_reports
 from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import update_account_aliases
@@ -372,7 +374,27 @@ class Orchestrator:
                     queue=SUBS_EXTRACTION_QUEUE
                 )
                 LOG.info(log_json("start_manifest_processing", msg="created subs_task signature", schema=schema_name))
-                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
+                ocp_on_cloud_trino_task = process_openshift_on_cloud_trino.s(
+                    provider_type=provider_type,
+                    schema_name=schema_name,
+                    provider_uuid=provider_uuid,
+                    tracing_id=tracing_id,
+                ).set(queue=SUMMARY_QUEUE)
+                LOG.info(
+                    log_json(
+                        "start_manifest_processing",
+                        msg="created ocp_on_cloud_trino_task signature",
+                        schema=schema_name,
+                    )
+                )
+                # Note that the summary, hcs, subs, and ocp_on_cloud_trino_task will
+                # excecutue concurrently, so the order can not be garunteed.
+
+                # Within the summary task when running the update_summary_tables
+                # we populate the populate_openshift_cluster_information_tables
+                # Therefore, the tables in that function may not have any information
+                # when executing the ocp_on_cloud_trino_task on an initial run.
+                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task, ocp_on_cloud_trino_task))()
                 LOG.info(
                     log_json(
                         "start_manifest_processing",
@@ -541,4 +563,32 @@ class Orchestrator:
                 str(async_result),
             )
             async_results.append({"customer": account.get("customer_name"), "async_id": str(async_result)})
+        return async_results
+
+    def remove_expired_trino_partitions(self, simulate=False):
+        """
+        Removes expired trino partitions for each account.
+        """
+        async_results = []
+        schemas = (
+            Provider.objects.order_by()
+            .filter(type=Provider.PROVIDER_OCP, active=True, paused=False)
+            .values_list("customer__schema_name", flat=True)
+            .distinct()
+        )
+        for schema in schemas:
+            LOG.info("Calling remove_expired_trino_partitions with account: %s", schema)
+            async_result = remove_expired_trino_partitions.delay(
+                schema_name=schema,
+                provider_type=Provider.PROVIDER_OCP,
+                simulate=simulate,
+            )
+
+            LOG.info(
+                "Expired partition removal queued - schema_name: %s, Task ID: %s",
+                schema,
+                str(async_result),
+            )
+            async_results.append(async_result)
+
         return async_results

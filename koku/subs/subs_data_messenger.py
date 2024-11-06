@@ -11,7 +11,6 @@ from collections import defaultdict
 from datetime import timedelta
 from tempfile import mkdtemp
 
-from azure.core.exceptions import ResourceNotFoundError
 from dateutil import parser
 from django.conf import settings
 
@@ -22,8 +21,9 @@ from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from kafka_utils.utils import SUBS_TOPIC
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.prometheus_stats import RHEL_ELS_SYSTEMS_PROCESSED
+from masu.prometheus_stats import RHEL_ELS_VCPU_HOURS
 from masu.util.aws.common import get_s3_resource
-from providers.azure.client import AzureClientFactory
 
 
 LOG = logging.getLogger(__name__)
@@ -60,37 +60,19 @@ class SUBSDataMessenger:
         self.instance_map = {}
         self.date_map = defaultdict(dict)
 
-    def determine_azure_instance_and_tenant_id(self, row):
-        """For Azure we have to query the instance id if its not provided by a tag and the tenant_id."""
-        instance_id = None
-        if row["subs_resource_id"] in self.instance_map:
-            return self.instance_map.get(row["subs_resource_id"])
+    def determine_azure_instance_and_tenant_id(self, row, instance_key):
+        """Build the instance id string and get the tenant for Azure."""
+
+        if instance_key in self.instance_map:
+            return self.instance_map.get(instance_key)
         prov = Provider.objects.get(uuid=row["source"])
         credentials = prov.account.get("credentials")
         tenant_id = credentials.get("tenant_id")
         if row["subs_instance"] != "":
             instance_id = row["subs_instance"]
-            return instance_id, tenant_id
-        # attempt to query azure for instance id
-        # if its a local Azure provider, don't query Azure
-        if self.local_prov:
-            return "", tenant_id
-        subscription_id = credentials.get("subscription_id")
-        client_id = credentials.get("client_id")
-        client_secret = credentials.get("client_secret")
-        _factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-        compute_client = _factory.compute_client
-        resource_group = row["resourcegroup"] if row.get("resourcegroup") else row["resourcegroupname"]
-        try:
-            response = compute_client.virtual_machines.get(
-                resource_group_name=resource_group,
-                vm_name=row["subs_resource_id"],
-            )
-            instance_id = response.vm_id
-        except ResourceNotFoundError as rnfe:
-            logging.error(msg="Failed to obtain resource id for VM.", exc_info=rnfe)
-        if instance_id:
-            self.instance_map[row["subs_resource_id"]] = (instance_id, tenant_id)
+        else:
+            instance_id = instance_key
+        self.instance_map[instance_key] = (instance_id, tenant_id)
         return instance_id, tenant_id
 
     def process_and_send_subs_message(self, upload_keys):
@@ -131,6 +113,19 @@ class SUBSDataMessenger:
                         msg = bytes(json.dumps(subs_dict), "utf-8")
                         self.send_kafka_message(msg)
                         msg_count += 1
+                        RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AWS).inc()
+                        try:
+                            RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AWS).inc(
+                                amount=float(row["subs_vcpu"])
+                            )
+                        except ValueError:
+                            LOG.info(
+                                log_json(
+                                    self.tracing_id,
+                                    msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
+                                    context=self.context,
+                                )
+                            )
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -162,7 +157,7 @@ class SUBSDataMessenger:
             "instance_id": instance_id,
             "timestamp": tstamp,
             "expiration": expiration,
-            "measurements": [{"value": cpu_count, "uom": "vCPUs"}],
+            "measurements": [{"value": cpu_count, "metric_id": "vCPUs"}],
             "cloud_provider": self.provider_type,
             "hardware_type": "Cloud",
             "product_ids": product_ids,
@@ -214,6 +209,7 @@ class SUBSDataMessenger:
         conversion,
         addon,
         tenant_id,
+        vm_name,
     ):
         """Adds Azure specific fields to the base subs dict."""
         subs_dict = self.build_base_subs_dict(
@@ -221,6 +217,7 @@ class SUBSDataMessenger:
         )
         subs_dict["azure_subscription_id"] = billing_account_id
         subs_dict["azure_tenant_id"] = tenant_id
+        subs_dict["display_name"] = vm_name
         return subs_dict
 
     def process_azure_row(self, row):
@@ -230,13 +227,16 @@ class SUBSDataMessenger:
         # these two values should sum to the total usage so we need to track what was already
         # sent for a specific instance so we get the full usage amount
         range_start = 0
-        resource_id = row["subs_resource_id"]
         start_time = row["subs_start_time"]
         usage = int(row["subs_usage_quantity"])
-        if self.date_map.get(start_time) and resource_id in self.date_map.get(start_time):
-            range_start = self.date_map.get(start_time).get(resource_id)
-        self.date_map[start_time] = {resource_id: usage + range_start}
-        instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row)
+        sub_id = row["subs_account"]
+        rg = row["resourcegroup"]
+        vm = row["subs_vmname"]
+        instance_key = f"{sub_id}:{rg}:{vm}"
+        if self.date_map.get(start_time):
+            range_start = self.date_map.get(start_time).get(instance_key) or 0
+        self.date_map[start_time] = {instance_key: usage + range_start}
+        instance_id, tenant_id = self.determine_azure_instance_and_tenant_id(row, instance_key)
         if not instance_id:
             return msg_count
         # Azure is daily records but subs need hourly records
@@ -258,12 +258,26 @@ class SUBSDataMessenger:
                 row["subs_conversion"],
                 row["subs_addon_id"],
                 tenant_id,
+                row["subs_vmname"],
             )
             msg = bytes(json.dumps(subs_dict), "utf-8")
             # move to the next hour in the range
             start = end
             self.send_kafka_message(msg)
             msg_count += 1
+            RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AZURE).inc()
+            try:
+                RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AZURE).inc(
+                    amount=(float(row["subs_vcpu"]) * usage)
+                )
+            except ValueError:
+                LOG.info(
+                    log_json(
+                        self.tracing_id,
+                        msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
+                        context=self.context,
+                    )
+                )
         return msg_count
 
     def determine_product_ids(self, rhel_version, addon, role):

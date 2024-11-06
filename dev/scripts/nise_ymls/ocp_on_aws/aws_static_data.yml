@@ -234,10 +234,10 @@ generators:
   - EBSGenerator:
       product_sku: VEAJHRNBBBBA
       resource_id: 12345671
-      amount: 10
+      disk_size: 20
       rate: 0.01
       tags:
-        resourceTags/user:storageclass: bravo
+        # resourceTags/user:storageclass: bravo
         resourceTags/user:Mapping: d1
         resourceTags/user:Map: d2
       cost_category:
@@ -247,7 +247,7 @@ generators:
       end_date: {{end_date}}
       product_sku: VEAJHRNBBBBB
       resource_id: 12345672
-      amount: 10
+      disk_size: 20
       rate: 0.01
       tags:
         resourceTags/user:storageclass: delta
@@ -260,7 +260,7 @@ generators:
       end_date: {{end_date}}
       product_sku: VEAJHRNBBBBC
       resource_id: 12345673
-      amount: 10
+      disk_size: 20
       rate: 0.01
       tags:
         resourceTags/user:storageclass: epsilon
@@ -273,7 +273,20 @@ generators:
       end_date: {{end_date}}
       product_sku: VEAJHRNBBBBD
       resource_id: 12345674
-      amount: 10
+      disk_size: 20
+      rate: 0.01
+      tags:
+        resourceTags/user:storageclass: gamma
+        resourceTags/user:Mapping: d1
+        resourceTags/user:Map: d2
+      cost_category:
+        costCategory/env: ephemeral
+  - EBSGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      product_sku: VEAJHRNBBBBD
+      resource_id: 123-claimless
+      disk_size: 30
       rate: 0.01
       tags:
         resourceTags/user:storageclass: gamma

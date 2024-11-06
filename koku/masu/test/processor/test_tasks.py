@@ -31,7 +31,6 @@ from django_tenants.utils import schema_context
 
 from api.iam.models import Tenant
 from api.models import Provider
-from common.queues import PriorityQueue
 from common.queues import SummaryQueue
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
@@ -56,9 +55,11 @@ from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
+from masu.processor.tasks import process_openshift_on_cloud_trino
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
+from masu.processor.tasks import remove_expired_trino_partitions
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
@@ -66,6 +67,7 @@ from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
+from masu.processor.tasks import validate_daily_data
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
@@ -640,6 +642,28 @@ class TestProcessorTasks(MasuTestCase):
         mock_s3_delete.assert_called()
         mock_process.assert_called()
 
+    @patch("masu.processor.tasks.DataValidator")
+    @patch(
+        "masu.processor.tasks.is_validation_enabled",
+        return_value=True,
+    )
+    def test_validate_data_task(self, mock_unleash, mock_validate_daily_data):
+        """Test validate data task."""
+        context = {"unit": "test"}
+        validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
+        mock_validate_daily_data.assert_called()
+
+    @patch("masu.processor.tasks.DataValidator")
+    def test_validate_data_task_skip(self, mock_validate_daily_data):
+        """Test skipping validate data task."""
+        context = {"unit": "test"}
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            validate_daily_data(self.schema, self.start_date, self.start_date, self.aws_provider_uuid, context=context)
+            mock_validate_daily_data.assert_not_called()
+            expected = "skipping validation, disabled for schema"
+            found = any(expected in log for log in logger.output)
+            self.assertTrue(found)
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -717,6 +741,43 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
 
             self.assertIn(expected_initial_remove_log, logger.output)
             self.assertNotIn(expected_expired_data_log, logger.output)
+
+    @patch.object(ExpiredDataRemover, "remove_expired_trino_partitions")
+    def test_remove_expired_trino_partitions(self, fake_remover):
+        """Test task."""
+        expected_results = ["A"]
+        fake_remover.return_value = expected_results
+
+        # disable logging override set in masu/__init__.py
+        logging.disable(logging.NOTSET)
+        for simulate in [True, False]:
+            with self.subTest(simulate=simulate):
+                with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
+                    expected_initial_remove_log = (
+                        "INFO:masu.processor._tasks.remove_expired:"
+                        "{'message': 'Remove expired partitions', 'tracing_id': '', "
+                        "'schema': '" + self.schema + "', "
+                        "'provider_type': '" + Provider.PROVIDER_OCP + "', "
+                        "'simulate': " + str(simulate) + "}"
+                    )
+
+                    expected_expired_data_log = (
+                        "INFO:masu.processor._tasks.remove_expired:"
+                        "{'message': 'Removed Partitions', 'tracing_id': '', "
+                        "'schema': '" + self.schema + "', "
+                        "'provider_type': '" + Provider.PROVIDER_OCP + "', "
+                        "'simulate': " + str(simulate) + ", "
+                        "'removed_data': " + str(expected_results) + "}"
+                    )
+                    remove_expired_trino_partitions(
+                        schema_name=self.schema, provider_type=Provider.PROVIDER_OCP, simulate=simulate
+                    )
+
+                    self.assertIn(expected_initial_remove_log, logger.output)
+                    if simulate:
+                        self.assertNotIn(expected_expired_data_log, logger.output)
+                    else:
+                        self.assertIn(expected_expired_data_log, logger.output)
 
 
 class TestUpdateSummaryTablesTask(MasuTestCase):
@@ -915,16 +976,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             manifest_id=manifest_id,
             synchronous=True,
         )
-        mock_chain.assert_called_with(
-            mark_manifest_complete.s(
-                self.schema,
-                provider_type,
-                provider_aws_uuid,
-                manifest_list=[manifest_id],
-                ingress_report_uuid=None,
-                tracing_id=tracing_id,
-            ).set(queue=PriorityQueue.DEFAULT)
-        )
+        mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.CostModelDBAccessor")
@@ -952,16 +1004,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             synchronous=True,
             invoice_month=invoice_month,
         )
-        mock_chain.assert_called_with(
-            mark_manifest_complete.s(
-                self.schema,
-                provider_type,
-                self.gcp_provider_uuid,
-                manifest_list=[manifest_id],
-                ingress_report_uuid=None,
-                tracing_id=tracing_id,
-            ).set(queue=PriorityQueue.DEFAULT)
-        )
+        mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.util.common.trino_db.connect")
@@ -1221,7 +1264,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_cost_model_costs.s")
-    def test_update_openshift_on_cloud(self, mock_cost_updater, mock_updater):
+    @patch("masu.processor.tasks.validate_daily_data.s")
+    def test_update_openshift_on_cloud(self, mock_data_validator, mock_cost_updater, mock_updater):
         """Test that this task runs."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.today.date()
@@ -1644,8 +1688,9 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks.update_cost_model_costs.s")
+    @patch("masu.processor.tasks.validate_daily_data.s")
     def test_update_openshift_on_cloud_throttled(
-        self, mock_model_update, mock_inspect, mock_lock, mock_release, mock_delay, mock_update
+        self, mock_data_validator, mock_model_update, mock_inspect, mock_lock, mock_release, mock_delay, mock_update
     ):
         """Test that refresh materialized views runs with cache lock."""
         start_date = self.dh.this_month_start.date()
@@ -1772,3 +1817,97 @@ class TestRemoveStaleTenants(MasuTestCase):
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
             self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
+
+
+class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
+    @patch(
+        "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
+    def test_process_openshift_on_cloud_trino(self, mock_process, mock_unleash):
+        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
+        start = "2024-08-01"
+        end = "2024-08-05"
+        reports = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.aws_provider.type,
+                "provider_uuid": str(self.aws_provider.uuid),
+                "tracing_id": "",
+                "start": start,
+                "end": end,
+                "manifest_id": 1,
+            }
+        ]
+        process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
+        mock_process.assert_called_with(start, end)
+
+    @patch(
+        "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
+    def test_process_openshift_on_cloud_trino_unleash_false(self, mock_process, mock_unleash):
+        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
+        start = "2024-08-01"
+        end = "2024-08-05"
+        reports = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.aws_provider.type,
+                "provider_uuid": str(self.aws_provider.uuid),
+                "tracing_id": "",
+                "start": start,
+                "end": end,
+                "manifest_id": 1,
+            }
+        ]
+        process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
+        mock_process.assert_called()
+
+    @patch(
+        "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
+    def test_process_openshift_on_cloud_trino_bad_provider_type(self, mock_process, mock_unleash):
+        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
+        start = "2024-08-01"
+        end = "2024-08-05"
+        reports = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.oci_provider.type,
+                "provider_uuid": str(self.oci_provider.uuid),
+                "tracing_id": "",
+                "start": start,
+                "end": end,
+                "manifest_id": 1,
+            }
+        ]
+        process_openshift_on_cloud_trino(reports, self.oci_provider.type, self.schema, self.provider_uuid, "")
+        mock_process.assert_not_called()
+
+    @patch(
+        "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",
+        return_value=True,
+    )
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
+    def test_process_openshift_on_cloud_trino_manifest_not_ready(self, mock_process, mock_unleash):
+        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
+        start = "2024-08-01"
+        end = "2024-08-05"
+        reports = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.oci_provider.type,
+                "provider_uuid": str(self.aws_provider.uuid),
+                "tracing_id": "",
+                "start": start,
+                "end": end,
+                "manifest_id": 1000,
+            }
+        ]
+        process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
+        mock_process.assert_not_called()

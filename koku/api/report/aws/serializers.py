@@ -206,7 +206,7 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("month", "month"),)
 
-    _opfields = ("resource_id", "instance_name", "account", "operating_system", "region")
+    _opfields = ("instance", "account", "operating_system", "region")
 
     _aws_category = True
 
@@ -215,8 +215,7 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     limit = None
     offset = None
 
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    instance = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
@@ -240,10 +239,15 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     )
 
 
-class AWSEC2ExcludeSerializer(AWSExcludeSerializer):
+class AWSEC2ExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
-    _opfields = ("account", "region")
+    _opfields = ("account", "region", "instance", "operating_system")
+
+    account = StringOrListField(child=serializers.CharField(), required=False)
+    region = StringOrListField(child=serializers.CharField(), required=False)
+    instance = StringOrListField(child=serializers.CharField(), required=False)
+    operating_system = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
@@ -251,19 +255,13 @@ class AWSEC2ComputeOrderBySerializer(AWSOrderBySerializer):
 
     _opfields = (
         "resource_id",
-        "account",
-        "usage_amount",
         "instance_type",
-        "region",
         "operating_system",
         "instance_name",
     )
 
     resource_id = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    usage_amount = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     operating_system = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     instance_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
@@ -280,12 +278,12 @@ class AWSEC2ComputeQueryParamSerializer(AWSQueryParamSerializer):
 
     order_by_allowlist = (
         "resource_id",
-        "account",
-        "usage_amount",
-        "instance_type",
-        "region",
-        "operating_system",
         "instance_name",
+        "instance_type",
+        "operating_system",
+        "account_alias",
+        "account",
+        "region",
         "cost",
         "usage",
     )

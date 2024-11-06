@@ -10,6 +10,7 @@ WITH cte_tag_value AS (
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
+        AND li.report_period_id = {{report_period_id}}
         AND li.tags ?| (SELECT array_agg(DISTINCT key) FROM {{schema | sqlsafe}}.reporting_enabledtagkeys WHERE enabled=true AND provider_type='Azure')
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN {{ bill_ids | inclause }}

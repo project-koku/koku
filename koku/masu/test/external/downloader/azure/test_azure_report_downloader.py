@@ -13,6 +13,7 @@ from tempfile import NamedTemporaryFile
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from azure.core.exceptions import HttpResponseError
 from faker import Faker
 
 from api.utils import DateHelper
@@ -43,10 +44,10 @@ class MockAzureService:
         self.month_range = utils.month_date_range(self.test_date)
         self.report_path = f"{self.directory}/{self.export_name}/{self.month_range}"
         self.export_uuid = "9c308505-61d3-487c-a1bb-017956c9170a"
-        self.export_file = f"{self.export_name}_{self.export_uuid}.csv"
+        self.export_file = f"{self.export_name}_{self.export_uuid}.csv.gz"
         self.manifest_file = f"{self.export_name}_{self.export_uuid}.json"
         self.export_etag = "absdfwef"
-        self.ingress_report = f"custom_ingress_report_{self.export_uuid}.csv"
+        self.ingress_report = f"custom_ingress_report_{self.export_uuid}.csv.gz"
         self.last_modified = DateHelper().now
         self.export_key = f"{self.report_path}/{self.export_file}"
 
@@ -62,7 +63,7 @@ class MockAzureService:
         """Describe cost management exports."""
         return [{"name": self.export_name, "container": self.container, "directory": self.directory}]
 
-    def get_latest_cost_export_for_path(self, report_path, container_name):
+    def get_latest_cost_export_for_path(self, report_path, container_name, compression=None):
         """Get exports for path."""
 
         class BadExport:
@@ -98,10 +99,12 @@ class MockAzureService:
         class ExportProperties:
             etag = self.export_etag
             last_modified = self.last_modified
+            size = 123456
 
         class Export:
             name = self.ingress_report
             last_modified = self.last_modified
+            size = 123456
 
         if key == self.ingress_report:
             mock_export = Export()
@@ -113,7 +116,15 @@ class MockAzureService:
         return mock_export
 
     def download_file(
-        self, key, container_name, destination=None, suffix=AzureBlobExtension.csv.value, ingress_reports=None
+        self,
+        key,
+        container_name,
+        destination=None,
+        suffix=AzureBlobExtension.csv.value,
+        ingress_reports=None,
+        offset=None,
+        length=None,
+        compression=None,
     ):
         """Get exports."""
         file_path = destination
@@ -125,6 +136,9 @@ class MockAzureService:
             with NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
                 temp_file.write(file_contents[suffix])
                 file_path = temp_file.name
+
+        if offset is not None and length is not None:
+            return file_contents[suffix][offset : offset + length]
 
         return file_path
 
@@ -212,7 +226,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         manifest, _ = self.ingress_downloader._get_manifest(self.mock_data.test_date)
 
         self.assertEqual(manifest.get("reportKeys"), [self.mock_data.ingress_report])
-        self.assertEqual(manifest.get("Compression"), "PLAIN")
+        self.assertEqual(manifest.get("Compression"), AzureBlobExtension.csv.value)
         self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
         self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
 
@@ -235,7 +249,7 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         self.assertEqual(manifest.get("assemblyId"), self.mock_data.export_uuid)
         self.assertEqual(manifest.get("reportKeys"), [self.mock_data.export_file])
-        self.assertEqual(manifest.get("Compression"), "PLAIN")
+        self.assertEqual(manifest.get("Compression"), AzureBlobExtension.csv.value)
         self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
         self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
 
@@ -293,19 +307,20 @@ class AzureReportDownloaderTest(MasuTestCase):
         unlink_mock.assert_called_once_with("/not/a/file")
         self.assertTrue("Could not delete manifest file" in log_mock.call_args[0][0]["message"])
 
-    def test_download_file(self):
+    @patch("masu.external.downloader.azure.azure_report_downloader.create_daily_archives")
+    @patch("masu.external.downloader.azure.azure_report_downloader.open")
+    def test_download_file(self, mock_open, mock_daily_archives):
         """Test that Azure report is downloaded."""
+        mock_daily_archives.return_value = [["file_one", "file_two"], {"start": "", "end": ""}]
+
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
-        with patch("masu.external.downloader.azure.azure_report_downloader.open"):
-            with patch(
-                "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
-                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
-            ):
-                full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
-                self.assertEqual(full_file_path, expected_full_path)
-                self.assertEqual(etag, self.mock_data.export_etag)
+
+        full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
+
+        self.assertEqual(full_file_path, expected_full_path)
+        self.assertEqual(etag, self.mock_data.export_etag)
 
     def test_download_missing_file(self):
         """Test that Azure report is not downloaded for incorrect key."""
@@ -314,17 +329,29 @@ class AzureReportDownloaderTest(MasuTestCase):
         with self.assertRaises(AzureReportDownloaderError):
             self.downloader.download_file(key)
 
-    def test_download_ingress_report_file(self):
-        """Test that Azure ingress report is downloaded."""
-        expected_full_path = "{}/{}/azure/{}".format(
-            Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.ingress_reports[0]
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_download_ingress_report_file(self, mock_azure_service):
+        """Test the download file method for Azure ingress report."""
+        customer_name = self.customer_name
+        file_key = self.ingress_reports[0].split(f"{self.mock_data.container}/", 1)[1]
+
+        expected_full_path = "{}/{}/azure/{}/{}".format(
+            Config.TMP_DIR, customer_name.replace(" ", "_"), self.mock_data.container, file_key
         )
+
+        downloader = AzureReportDownloader(
+            customer_name,
+            self.azure_credentials,
+            self.storage_only_data_source,
+            ingress_reports=self.ingress_reports,
+        )
+
         with patch("masu.external.downloader.azure.azure_report_downloader.open"):
             with patch(
                 "masu.external.downloader.azure.azure_report_downloader.create_daily_archives",
                 return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
             ):
-                full_file_path, etag, _, __, ___ = self.ingress_downloader.download_file(self.ingress_reports[0])
+                full_file_path, etag, _, __, ___ = downloader.download_file(file_key)
                 self.assertEqual(full_file_path, expected_full_path)
 
     @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader")
@@ -420,27 +447,15 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        expected_daily_files = [
-            f"{temp_dir}/2019-07-28_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
-            f"{temp_dir}/2019-07-29_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
-        ]
         start_date = self.dh.this_month_start.replace(year=2019, month=7, tzinfo=None)
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
             return_value=start_date,
         ):
-            daily_file_names, date_range = create_daily_archives(
+            create_daily_archives(
                 "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
             )
-            expected_date_range = {"start": "2019-07-28", "end": "2019-07-29", "invoice_month": None}
-            mock_copy.assert_called()
-            self.assertEqual(date_range, expected_date_range)
-            self.assertIsInstance(daily_file_names, list)
-            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
-            for daily_file in expected_daily_files:
-                self.assertTrue(os.path.exists(daily_file))
-                os.remove(daily_file)
-            os.remove(temp_path)
+            mock_copy.assert_not_called()
 
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_check_leading_zeros(self, mock_copy):
@@ -563,3 +578,74 @@ class AzureReportDownloaderTest(MasuTestCase):
                     )
                     self.assertEqual(process_date, expected_date)
                     os.remove(temp_path)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService")
+    def test_download_file_raise_downloader_err(self, mock_azure_service):
+        """Test download_file fails with HttpResponseError when there is an unexpected error."""
+        fake_azure_client = Mock()
+        fake_response = HttpResponseError("Unexpected error")
+        fake_azure_client.get_file_for_key.side_effect = fake_response
+
+        downloader = AzureReportDownloader("fake_customer", {}, {"storage_account": "fake_account"})
+        downloader._azure_client = fake_azure_client
+
+        with self.assertRaises(HttpResponseError) as context:
+            downloader.download_file("problematic_file.csv")
+
+        self.assertIn("Unexpected error", str(context.exception))
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
+    @patch("masu.external.downloader.azure.azure_report_downloader.utils.get_local_file_name")
+    @patch("masu.external.downloader.azure.azure_service.AzureService.download_file")
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader._get_exports_data_directory")
+    @patch("masu.external.downloader.azure.azure_report_downloader.create_daily_archives")
+    def test_download_file_success(
+        self,
+        mock_create_daily_archives,
+        mock_get_exports_data_directory,
+        mock_download_file,
+        mock_get_local_file_name,
+        mock_get_file_for_key,
+        mock_client_factory,
+    ):
+        """Tests if the file download is successful when there is enough disk space."""
+        mock_get_exports_data_directory.return_value = "/fake_path"
+        mock_get_local_file_name.return_value = "fake_local_file.csv"
+        mock_get_file_for_key.return_value = Mock(etag="fake_etag", last_modified="2024-09-27")
+        mock_create_daily_archives.return_value = (["fake_file.csv"], {"start": "2024-09-01", "end": "2024-09-27"})
+
+        service = AzureReportDownloader(
+            customer_name="fake_customer", credentials={}, data_source={"storage_account": "fake_storage_account"}
+        )
+
+        full_file_path, etag, file_creation_date, file_names, date_range = service.download_file("fake_key")
+
+        self.assertEqual(full_file_path, "/fake_path/fake_local_file.csv")
+        self.assertEqual(etag, "fake_etag")
+        self.assertEqual(file_creation_date, "2024-09-27")
+
+        mock_download_file.assert_called_once_with(
+            "fake_key",
+            service.container_name,
+            destination="/fake_path/fake_local_file.csv",
+            ingress_reports=service.ingress_reports,
+            suffix=None,
+        )
+
+    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
+    @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
+    def test_download_file_blob_not_found(self, mock_get_file_for_key, mock_client_factory):
+        """Tests if an exception is raised when the blob is not found."""
+        mock_get_file_for_key.side_effect = AzureCostReportNotFound("Blob not found")
+
+        mock_client_factory.return_value = Mock()
+
+        service = AzureReportDownloader(
+            customer_name="fake_customer", credentials={}, data_source={"storage_account": "fake_storage_account"}
+        )
+
+        with self.assertRaises(AzureReportDownloaderError) as context:
+            service.download_file("fake_key")
+
+        self.assertIn("Error when downloading Azure report for key", str(context.exception))

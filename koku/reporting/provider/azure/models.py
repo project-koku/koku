@@ -10,16 +10,12 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import JSONField
 
-
 TRINO_LINE_ITEM_TABLE = "azure_line_items"
 TRINO_LINE_ITEM_DAILY_TABLE = TRINO_LINE_ITEM_TABLE
 TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
+TRINO_MANAGED_OCP_AZURE_DAILY_TABLE = "managed_azure_openshift_daily"
 
 TRINO_REQUIRED_COLUMNS = {
-    "billingperiodstartdate": pd.NaT,
-    "billingperiodenddate": pd.NaT,
-    "usagedatetime": pd.NaT,
-    "date": pd.NaT,
     "accountname": "",
     "accountownerid": "",
     "additionalinfo": "",
@@ -30,14 +26,15 @@ TRINO_REQUIRED_COLUMNS = {
     "billingcurrency": "",
     "billingprofileid": "",
     "billingprofilename": "",
+    "billingperiodstartdate": pd.NaT,
+    "billingperiodenddate": pd.NaT,
     "chargetype": "",
     "consumedservice": "",
     "costcenter": "",
     "costinbillingcurrency": 0.0,
-    "currency": "",
+    "date": pd.NaT,
     "effectiveprice": 0.0,
     "frequency": "",
-    "instanceid": "",
     "invoicesectionid": "",
     "invoicesectionname": "",
     "isazurecrediteligible": "",
@@ -50,7 +47,6 @@ TRINO_REQUIRED_COLUMNS = {
     "partnumber": "",
     "paygprice": 0.0,
     "planname": "",
-    "pretaxcost": 0.0,
     "pricingmodel": "",
     "productname": "",
     "productorderid": "",
@@ -78,7 +74,6 @@ TRINO_REQUIRED_COLUMNS = {
     "term": "",
     "unitofmeasure": "",
     "unitprice": 0.0,
-    "usagequantity": 0.0,
 }
 
 UI_SUMMARY_TABLES = (

@@ -138,6 +138,8 @@ class TestAzurePostProcessor(MasuTestCase):
     def test_ingress_required_columns(self):
         """Test the ingress required columns."""
         ingress_required_columns = list(copy.deepcopy(INGRESS_REQUIRED_COLUMNS))
+        ingress_required_columns.append("billingcurrencycode")
+        ingress_required_columns.append("resourcegroup")
         self.assertIsNone(self.post_processor.check_ingress_required_columns(ingress_required_columns))
         expected_missing_column = ingress_required_columns[-1]
         missing_column = self.post_processor.check_ingress_required_columns(set(ingress_required_columns[:-1]))

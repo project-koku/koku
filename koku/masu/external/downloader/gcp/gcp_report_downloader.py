@@ -95,6 +95,9 @@ def create_daily_archives(
             days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
             date_range = {"start": min(days), "end": max(days)}
             for invoice_month in data_frame["invoice.month"].unique():
+                # This handles bad ingress reports that have null invoice months
+                if pd.isna(invoice_month):
+                    continue
                 invoice_filter = data_frame["invoice.month"] == invoice_month
                 invoice_month_data = data_frame[invoice_filter]
                 # We may be able to completely remove invoice month in the future

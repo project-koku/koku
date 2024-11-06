@@ -9,7 +9,6 @@ import re
 
 import requests
 from botocore.exceptions import ClientError
-from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django_tenants.utils import schema_context
 from requests.adapters import HTTPAdapter
@@ -21,9 +20,6 @@ from api.common import log_json
 from api.currency.currencies import VALID_CURRENCIES
 from api.currency.models import ExchangeRates
 from api.currency.utils import exchange_dictionary
-from api.dataexport.models import DataExportRequest
-from api.dataexport.syncer import AwsS3Syncer
-from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.iam.models import Tenant
 from api.models import Provider
 from api.provider.models import Sources
@@ -75,6 +71,7 @@ def remove_expired_data(simulate=False):
     LOG.info("removing expired data")
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
+    orchestrator.remove_expired_trino_partitions(simulate)
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
@@ -245,61 +242,6 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
         accessor = OCPReportDBAccessor(schema_name)
         for table, partition_column in TRINO_MANAGED_TABLES.items():
             accessor.delete_hive_partitions_by_source(table, partition_column, provider_uuid)
-
-
-@celery_app.task(
-    name="masu.celery.tasks.sync_data_to_customer",
-    queue=DEFAULT,
-    retry_kwargs={"max_retries": 5, "countdown": settings.COLD_STORAGE_RETRIVAL_WAIT_TIME},
-)
-def sync_data_to_customer(dump_request_uuid):
-    """
-    Scheduled task to sync normalized data to our customers S3 bucket.
-
-    If the sync request raises SyncedFileInColdStorageError, this task
-    will automatically retry in a set amount of time. This time is to give
-    the storage solution time to retrieve a file from cold storage.
-    This task will retry 5 times, and then fail.
-
-    """
-    dump_request = DataExportRequest.objects.get(uuid=dump_request_uuid)
-    dump_request.status = DataExportRequest.PROCESSING
-    dump_request.save()
-
-    try:
-        syncer = AwsS3Syncer(settings.S3_BUCKET_NAME)
-        syncer.sync_bucket(
-            dump_request.created_by.customer.schema_name,
-            dump_request.bucket_name,
-            (dump_request.start_date, dump_request.end_date),
-        )
-    except ClientError:
-        LOG.exception(
-            f"Encountered an error while processing DataExportRequest "
-            f"{dump_request.uuid}, for {dump_request.created_by}."
-        )
-        dump_request.status = DataExportRequest.ERROR
-        dump_request.save()
-        return
-    except SyncedFileInColdStorageError:
-        LOG.info(
-            f"One of the requested files is currently in cold storage for "
-            f"DataExportRequest {dump_request.uuid}. This task will automatically retry."
-        )
-        dump_request.status = DataExportRequest.WAITING
-        dump_request.save()
-        try:
-            raise sync_data_to_customer.retry(countdown=10, max_retries=5)
-        except MaxRetriesExceededError:
-            LOG.exception(
-                f"Max retires exceeded for restoring a file in cold storage for "
-                f"DataExportRequest {dump_request.uuid}, for {dump_request.created_by}."
-            )
-            dump_request.status = DataExportRequest.ERROR
-            dump_request.save()
-            return
-    dump_request.status = DataExportRequest.COMPLETE
-    dump_request.save()
 
 
 # This task will process the autovacuum tuning as a background process

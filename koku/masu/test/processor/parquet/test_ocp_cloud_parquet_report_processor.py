@@ -2,10 +2,13 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
+from dateutil.parser import parse
+from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -233,7 +236,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             manifest_id=self.manifest_id,
             context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
         )
-        df = pd.DataFrame({"test": [1], "usagedatetime": "2023-01-01"})
+        df = pd.DataFrame({"test": [1], "date": "2023-01-01"})
         report_processor.create_partitioned_ocp_on_cloud_parquet(df, base_file_name)
         mock_create_table.assert_called_once()
         args, kwargs = mock_create_table.call_args
@@ -461,3 +464,38 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         """Assert that report_status exists and is not None."""
         self.assertIsNotNone(self.report_processor.report_status)
         self.assertIsInstance(self.report_processor.report_status, CostUsageReportStatus)
+
+    def test_process_ocp_cloud_trino(self):
+        """Test that processing ocp on cloud via trino calls the expected functions."""
+        start_date = "2024-08-01"
+        end_date = "2024-08-05"
+        ocp_uuids = (self.ocp_provider_uuid,)
+        matched_tags = []
+        with patch(
+            (
+                "masu.processor.parquet.ocp_cloud_parquet_report_processor"
+                ".OCPCloudParquetReportProcessor.get_ocp_provider_uuids_tuple"
+            ),
+            return_value=ocp_uuids,
+        ), patch(
+            "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.get_matched_tags",
+            return_value=matched_tags,
+        ), patch(
+            "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.db_accessor"
+        ) as accessor:
+            rp = OCPCloudParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=self.aws_provider_uuid,
+                provider_type=Provider.PROVIDER_AWS_LOCAL,
+                manifest_id=self.manifest_id,
+                context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
+            )
+            rp.process_ocp_cloud_trino(start_date, end_date)
+            accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(
+                self.aws_provider_uuid,
+                self.ocp_provider_uuid,
+                parse(start_date).astimezone(tz=settings.UTC),
+                parse(end_date).astimezone(tz=settings.UTC),
+                ANY,
+            )

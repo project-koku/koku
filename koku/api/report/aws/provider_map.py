@@ -20,7 +20,7 @@ from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
 from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSCostSummaryByRegionP
 from reporting.provider.aws.models import AWSCostSummaryByServiceP
@@ -70,8 +70,10 @@ class AWSProviderMap(ProviderMap):
                     "org_unit_single_level": {"field": "organizational_unit__org_unit_id", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                     "operating_system": {"field": "operating_system", "operation": "icontains"},
-                    "instance_name": {"field": "instance_name", "operation": "icontains"},
-                    "resource_id": {"field": "resource_id", "operation": "icontains"},
+                    "instance": [
+                        {"field": "instance_name", "operation": "icontains", "composition_key": "instance_filter"},
+                        {"field": "resource_id", "operation": "icontains", "composition_key": "instance_filter"},
+                    ],
                 },
                 "group_by_options": ["service", "account", "region", "az", "product_family", "org_unit_id"],
                 "tag_column": "tags",
@@ -358,9 +360,9 @@ class AWSProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
-                            "account_alias": Max("account_alias"),
+                            "account_alias": Coalesce(Max("account_alias__account_alias"), Max("usage_account_id")),
                             "account": Max("usage_account_id"),
-                            "instance_name": Max("instance_name"),
+                            "instance_name": Coalesce(Max("instance_name"), Max("resource_id")),
                             "instance_type": Max("instance_type"),
                             "operating_system": Max("operating_system"),
                             "region": Max("region"),
@@ -376,7 +378,7 @@ class AWSProviderMap(ProviderMap):
                         "usage_units_fallback": "Hrs",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"resource_id": "desc"},
-                        "tables": {"query": AWSCostEntryLineItemSummaryByEC2Compute},
+                        "tables": {"query": AWSCostEntryLineItemSummaryByEC2ComputeP},
                         "default_time_period": {
                             "time_scope_value": "-1",
                             "time_scope_units": "month",
@@ -560,7 +562,7 @@ class AWSProviderMap(ProviderMap):
                 ("org_unit_id",): AWSComputeSummaryByAccountP,
             },
             "ec2_compute": {
-                "default": AWSCostEntryLineItemSummaryByEC2Compute,
+                "default": AWSCostEntryLineItemSummaryByEC2ComputeP,
             },
             "storage": {
                 "default": AWSStorageSummaryP,

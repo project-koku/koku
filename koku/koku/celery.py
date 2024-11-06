@@ -186,9 +186,6 @@ app.conf.beat_schedule["source_status_beat"] = {
     "schedule": source_status_schedule,
 }
 
-# Collect prometheus metrics.
-app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
-
 
 # Beat used to crawl the account hierarchy
 app.conf.beat_schedule["crawl_account_hierarchy"] = {

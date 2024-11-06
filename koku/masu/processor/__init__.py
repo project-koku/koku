@@ -20,7 +20,7 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
-def is_feature_unattributed_storage_enabled(account):
+def is_feature_unattributed_storage_enabled_azure(account):
     """Should unattributed storage feature be enabled."""
     unleash_flag = "cost-management.backend.unattributed_storage"
     account = convert_account(account)
@@ -101,6 +101,25 @@ def is_rate_limit_customer_large(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
 
 
+def is_validation_enabled(account):  # pragma: no cover
+    """Flag if customer is enabled to run validation."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable_data_validation", context)
+
+
+def is_managed_ocp_cloud_processing_enabled(account):
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-processing", context)
+
+
+def is_managed_ocp_cloud_summary_enabled(account):
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
+
+
 def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
     """Enable the use of savings plan cost for OCP on AWS -> OCP."""
     account = convert_account(account)
@@ -150,17 +169,17 @@ def check_ingress_columns(account):  # pragma: no cover
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
 
 
-def is_feature_cost_3592_tag_mapping_enabled(account):
-    """Should tag mapping be enabled."""
-    unleash_flag = "cost-management.backend.feature-cost-3592-tag-mapping"
+def is_feature_unattributed_storage_enabled_aws(account):
+    """Should unattributed storage feature be enabled."""
+    unleash_flag = "cost-management.backend.unattributed_storage.aws"
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_feature_cost_3083_all_labels_enabled(account):
-    """Should all labels column be enabled."""
-    unleash_flag = "cost-management.backend.feature-cost-3083-all-labels"
+def is_feature_cost_3592_tag_mapping_enabled(account):
+    """Should tag mapping be enabled."""
+    unleash_flag = "cost-management.backend.feature-cost-3592-tag-mapping"
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
@@ -172,3 +191,10 @@ def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
+
+
+def is_customer_cost_model_large(account):  # pragma: no cover
+    """Flag the customer as having a large amount of data for cost model updates."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer-cost-model", context)

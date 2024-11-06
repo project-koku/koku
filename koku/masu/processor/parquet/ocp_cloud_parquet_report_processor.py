@@ -4,10 +4,14 @@
 #
 #
 """Processor to filter cost data for OpenShift and store as parquet."""
+import json
 import logging
+import pkgutil
 from functools import cached_property
 
 import pandas as pd
+from dateutil.parser import parse
+from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -156,6 +160,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             "provider_uuid": self.provider_uuid,
             "provider_type": self.provider_type,
         }
+        invoice_month = self.invoice_month_date if self.invoice_month_date else self.start_date
         # If the key is in the cache but the value is None, there are no matching tags
         if matched_tags or is_key_in_cache(cache_key):
             LOG.info(log_json(msg="retreived matching tags from cache", context=ctx))
@@ -173,7 +178,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     ocp_provider_uuids,
                     self.start_date,
                     self.end_date,
-                    invoice_month_date=self.invoice_month_date,
+                    invoice_month_date=invoice_month,
                 )
         set_value_in_cache(cache_key, matched_tags)
         return matched_tags
@@ -186,10 +191,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             Provider.PROVIDER_GCP: "usage_start_time",
         }
         date_field = date_fields[self.provider_type]
-        if self.provider_type == Provider.PROVIDER_AZURE and (
-            date_field not in data_frame.columns or not data_frame[date_field].any()
-        ):
-            date_field = "usagedatetime"
+
         unique_usage_days = data_frame[date_field].unique()
         for usage_day in unique_usage_days:
             usage_date = pd.to_datetime(usage_day).date()
@@ -279,3 +281,64 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 self.create_partitioned_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename)
             else:
                 self.create_ocp_on_cloud_parquet(openshift_filtered_data_frame, parquet_base_filename)
+
+    def find_openshift_keys_expected_values(self, start_date, end_date, ocp_provider_uuid, matched_tag_strs):
+        """
+        We need to find the expected values for the openshift specific keys.
+        Keys: openshift-project, openshift-node, openshift-cluster
+        Ex: ("openshift-project": "project_a")
+        """
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
+        matched_tags_sql = matched_tags_sql.decode("utf-8")
+        matached_tags_params = {
+            "schema": self.schema_name,
+            "start_date": start_date,
+            "year": year,
+            "month": month,
+            "end_date": end_date,
+            "ocp_source_uuid": ocp_provider_uuid,
+            "matched_tag_array": matched_tag_strs,
+        }
+        LOG.info(log_json(msg="Finding expected values for openshift special tags", **matached_tags_params))
+        matched_tags_result = self.db_accessor._execute_trino_multipart_sql_query(
+            matched_tags_sql, bind_params=matached_tags_params
+        )
+        matched_tags_result = matched_tags_result[0][0]
+        return matched_tags_result
+
+    def process_ocp_cloud_trino(self, start_date, end_date):
+        """Populate cloud_openshift_daily trino table via SQL."""
+        if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
+            return
+        if type(start_date) == str:
+            start_date = parse(start_date).astimezone(tz=settings.UTC)
+        if type(end_date) == str:
+            end_date = parse(end_date).astimezone(tz=settings.UTC)
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        matched_tags = self.get_matched_tags(ocp_provider_uuids)
+        matched_tag_strs = []
+        if matched_tags:
+            matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+
+        verification_tags = []
+        for ocp_provider_uuid in ocp_provider_uuids:
+            matched_tags_result = self.find_openshift_keys_expected_values(
+                start_date, end_date, ocp_provider_uuid, matched_tag_strs
+            )
+            self.db_accessor.populate_ocp_on_cloud_daily_trino(
+                self.provider_uuid, ocp_provider_uuid, start_date, end_date, matched_tags_result
+            )
+            verification_tags.extend(matched_tags_result)
+
+        verification_tags = list(dict.fromkeys(verification_tags))
+        verification_params = {
+            "schema": self.db_accessor.schema,
+            "cloud_source_uuid": self.provider_uuid,
+            "year": year,
+            "month": month,
+            "matched_tag_array": verification_tags,
+        }
+        self.db_accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)

@@ -21,6 +21,7 @@ from masu.api.views import dbsettings
 from masu.api.views import download_report
 from masu.api.views import EnabledTagView
 from masu.api.views import expired_data
+from masu.api.views import expired_trino_partitions
 from masu.api.views import explain_query
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
@@ -33,6 +34,7 @@ from masu.api.views import notification
 from masu.api.views import pg_engine_version
 from masu.api.views import process_openshift_on_cloud
 from masu.api.views import purge_trino_files
+from masu.api.views import recheck_infra_map
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import schema_sizes
@@ -43,6 +45,7 @@ from masu.api.views import update_azure_storage_capacity
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
 from masu.api.views import update_openshift_on_cloud
+from masu.api.views import validate_cost_data
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
@@ -56,6 +59,7 @@ urlpatterns = [
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("update_azure_storage_capacity/", update_azure_storage_capacity, name="update_azure_storage_capacity"),
     path("enabled_tags/", EnabledTagView.as_view(), name="enabled_tags"),
+    path("expired_trino_partitions/", expired_trino_partitions, name="expired_trino_partitions"),
     path("expired_data/", expired_data, name="expired_data"),
     path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
     path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
@@ -64,6 +68,7 @@ urlpatterns = [
     path("trino/query/", trino_query, name="trino_query"),
     path("trino/api/", trino_ui, name="trino_ui"),
     path("notification/", notification, name="notification"),
+    path("recheck_infra_map/", recheck_infra_map, name="recheck_infra_map"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
     path("report/process/openshift_on_cloud/", process_openshift_on_cloud, name="process_openshift_on_cloud"),
     path("report/summarize/openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),
@@ -75,6 +80,7 @@ urlpatterns = [
     path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
     path("bigquery_cost/<uuid:source_uuid>/", bigquery_cost, name="bigquery_cost"),
     path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
+    path("validate_cost_data/", validate_cost_data, name="validate_cost_data"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
     path("db-performance/db-settings/", dbsettings, name="db_settings"),
