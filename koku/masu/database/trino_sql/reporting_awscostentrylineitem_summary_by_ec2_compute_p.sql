@@ -44,8 +44,8 @@ cte_latest_values as (
         lineitem_resourceid as resource_id,
         nullif(product_instancetype, '') as instance_type,
         max(json_extract_scalar(json_parse(resourcetags), '$.Name')) AS instance_name,
-        ARRAY_AGG(resourcetags) as tags,
-        ARRAY_AGG(costcategory) as cost_category
+        resourcetags as tags,
+        costcategory as cost_category
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily as alid
     WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
@@ -58,27 +58,29 @@ cte_latest_values as (
     )
     GROUP BY
         lineitem_resourceid,
-        product_instancetype
+        product_instancetype,
+        resourcetags,
+        costcategory
 )
 
 SELECT uuid() as uuid,
     usage_start,
     usage_end,
     cast(usage_account_id AS varchar(50)),
-    resource_id,
-    instance_name,
-    instance_type,
+    cte_l.resource_id,
+    cte_l.instance_name,
+    cte_l.instance_type,
     operating_system,
     region,
     vcpu,
     memory,
     cast(
         map_filter(
-            cast(json_parse(tags[1]) as map(varchar, varchar)),
+            cast(json_parse(cte_l.tags) as map(varchar, varchar)),
             (k,v) -> contains(pek.keys, k)
         ) as json
     ) as tags,
-    cast(json_parse(cost_category[1]) as json) as cost_category,
+    cast(json_parse(cte_l.cost_category) as json) as cost_category,
     unit,
     cast(usage_amount as decimal(24,9)) as usage_amount,
     normalization_factor,
@@ -105,13 +107,10 @@ FROM (
        max(lineitem_usageaccountid) as usage_account_id,
        lineitem_resourceid as resource_id,
        max(json_extract_scalar(json_parse(resourcetags), '$.Name')) AS instance_name,
-       max(cte_l.instance_type) as instance_type,
        max(nullif(product_operatingsystem, '')) as operating_system,
        max(nullif(product_region, '')) as region,
        max(cast(nullif(product_vcpu, '') AS INTEGER)) as vcpu,
        max(nullif(product_memory, '')) as memory,
-       max(cte_l.tags) as tags,
-       max(cte_l.cost_category) as cost_category,
        max(nullif(pricing_unit, '')) as unit,
        -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
        sum(
@@ -160,8 +159,6 @@ FROM (
        sum(pricing_publicondemandcost) as public_on_demand_cost,
        max(pricing_publicondemandrate) as public_on_demand_rate
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily as lid
-        JOIN cte_latest_values AS cte_l
-        ON lid.lineitem_resourceid = cte_l.resource_id
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
@@ -171,5 +168,6 @@ FROM (
     GROUP BY lineitem_resourceid
 ) AS ds
 CROSS JOIN cte_pg_enabled_keys AS pek
+JOIN cte_latest_values AS cte_l ON ds.resource_id = cte_l.resource_id
 LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
     ON ds.usage_account_id = aa.account_id
