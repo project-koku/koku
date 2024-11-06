@@ -176,6 +176,20 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
         }
 
+    def format_tags(self, tags_iterable):
+        """
+        Formats the tags into our standard format.
+        """
+        if not tags_iterable:
+            return
+        transformed_tags = defaultdict(lambda: {"values": set()})
+
+        for tag in tags_iterable:
+            for key, value in tag.items():
+                transformed_tags[key]["values"].add(value)
+
+        return [{"key": key, "values": list(data["values"])} for key, data in transformed_tags.items()]
+
     def _format_query_response(self):
         """Format the query response with data.
 
@@ -253,6 +267,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
 
             query_data = self.order_by(query_data, query_order_by)
+            for row in query_data:
+                if tag_iterable := row.get("tags"):
+                    row["tags"] = self.format_tags(tag_iterable)
 
             if self.is_csv_output:
                 data = list(query_data)
