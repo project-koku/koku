@@ -16,7 +16,7 @@ CURRENCIES = [
         "code": "BRL",
         "name": "Brazilian Real",
         "symbol": "R$",
-        "description": "BRL (R$) - Brazilian real",
+        "description": "BRL (R$) - Brazilian Real",
     },
     {
         "code": "CAD",
@@ -64,7 +64,7 @@ CURRENCIES = [
         "code": "INR",
         "name": "Indian Rupee",
         "symbol": "\u20b9",
-        "description": "INR (\u20b9) - Indian rupee",
+        "description": "INR (\u20b9) - Indian Rupee",
     },
     {
         "code": "JPY",
