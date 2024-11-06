@@ -10,7 +10,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.response import Response
 
-from .pagination import AWSEC2ComputePagination
+from .pagination import MonthlyPagination
 from .pagination import PATH_INFO
 from .pagination import ReportPagination
 from .pagination import ReportRankedPagination
@@ -181,7 +181,7 @@ class AWSEC2ComputePaginationTest(TestCase):
 
     def setUp(self):
         """Set up each test case."""
-        self.paginator = AWSEC2ComputePagination()
+        self.paginator = MonthlyPagination("resource_ids")
         self.paginator.request = Mock
         self.paginator.request.META = {}
         self.paginator.request.query_params = {}

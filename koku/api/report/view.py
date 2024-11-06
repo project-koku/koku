@@ -13,7 +13,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.pagination import AWSEC2ComputePagination
+from api.common.pagination import MonthlyPagination
 from api.common.pagination import OrgUnitPagination
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
@@ -23,7 +23,7 @@ from api.query_params import QueryParameters
 LOG = logging.getLogger(__name__)
 
 
-def get_paginator(filter_query_params, count, group_by_params=False, report_type=None):
+def get_paginator(filter_query_params, count, group_by_params=False, monthly_pagination_key=None):
     """Determine which paginator to use based on query params."""
 
     if group_by_params and (
@@ -34,8 +34,8 @@ def get_paginator(filter_query_params, count, group_by_params=False, report_type
         if "offset" in filter_query_params:
             paginator = ReportRankedPagination()
             paginator.count = count
-        elif report_type and report_type == "ec2_compute":
-            paginator = AWSEC2ComputePagination()
+        elif monthly_pagination_key:
+            paginator = MonthlyPagination(monthly_pagination_key)
         else:
             paginator = ReportPagination()
     paginator.others = count
@@ -80,10 +80,16 @@ class ReportView(APIView):
 
         max_rank = handler.max_rank
 
-        get_report_type = getattr(handler, "_report_type", None)
+        if hasattr(self, "monthly_pagination_key"):
+            monthly_pagination_key = getattr(self, "monthly_pagination_key")
+        else:
+            monthly_pagination_key = None
 
         paginator = get_paginator(
-            params.parameters.get("filter", {}), max_rank, request.query_params, report_type=get_report_type
+            params.parameters.get("filter", {}),
+            max_rank,
+            request.query_params,
+            monthly_pagination_key=monthly_pagination_key,
         )
         paginated_result = paginator.paginate_queryset(output, request)
 

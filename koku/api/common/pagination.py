@@ -298,31 +298,33 @@ class EmptyResultsSetPagination(StandardResultsSetPagination):
         )
 
 
-class AWSEC2ComputePagination(ReportPagination):
-    """Paginator for AWS EC2 compute instances report data."""
+class MonthlyPagination(ReportPagination):
+    """Paginator for monthly grouped report data."""
+
+    def __init__(self, pagination_key):
+        self.pagination_key = pagination_key
 
     def get_count(self, queryset):
-        """Count EC2 compute resource IDs."""
-        return len(queryset.get("data", [{}])[0].get("resource_ids", []))
+        """Count resources for the pagination key"""
+        return len(queryset.get("data", [{}])[0].get(self.pagination_key, []))
 
     def get_paginated_data(self, queryset):
         """
-        Paginate EC2 resource IDs based on the request type.
+        Paginate monthly views based on the request type.
 
         Args:
-        queryset (dict): The data containing resource IDs to be paginated.
+        queryset (dict): The data containing pagination key to be paginated.
 
         Returns:
-        paginated_data (list): If the request expects CSV data, returns a slice of resource IDs.
-                                Otherwise, list containing a single dictionary with paginated resource IDs.
+        paginated_data (list): If the request expects CSV data, returns a slice of pagination key.
+                                Otherwise, list containing a single dictionary with paginated key.
         """
-
         paginated_data = []
 
         data = (
             queryset_data[0] if (queryset_data := queryset.get("data", [])) else {}
         )  # only single month data expected
-        resource_ids = data.get("resource_ids", [])
+        resource_ids = data.get(self.pagination_key, [])
         resource_count = len(resource_ids)
 
         if self.offset < resource_count:
@@ -334,7 +336,7 @@ class AWSEC2ComputePagination(ReportPagination):
                 paginated_data = paginated_ids
             else:
                 paginated_item = data.copy()
-                paginated_item["resource_ids"] = paginated_ids
+                paginated_item[self.pagination_key] = paginated_ids
                 paginated_data.append(paginated_item)
 
         return paginated_data
