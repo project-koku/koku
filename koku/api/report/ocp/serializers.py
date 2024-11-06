@@ -292,12 +292,13 @@ class OCPVirtualMachinesExcludeSerializer(BaseExcludeSerializer):
 class OCPVirtualMachinesOrderBySerializer(OCPOrderBySerializer):
     """Serializer for handling VM specific query parameter order_by."""
 
-    _opfields = ("cluster", "node", "project", "vm_name")
+    _opfields = ("cluster", "node", "project", "vm_name", "request_memory", "request_cpu")
 
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    vm_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    request_cpu = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    request_memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class OCPVirtualMachinesGroupBySerializer(GroupSerializer):
@@ -310,7 +311,7 @@ class OCPVirtualMachinesGroupBySerializer(GroupSerializer):
 class OCPVirtualMachinesQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling VM query parameters."""
 
-    order_by_allowlist = ("cluster", "node", "project", "vm_name", "cost")
+    order_by_allowlist = ("cluster", "node", "project", "vm_name", "cost", "request_cpu", "request_memory")
 
     DELTA_CHOICES = ()
     FILTER_SERIALIZER = OCPVirtualMachinesFilterSerializer
