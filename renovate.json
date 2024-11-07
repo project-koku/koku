@@ -6,7 +6,7 @@
         "on Tuesday after 3am and before 10am"
     ],
     "ignorePaths": [
-      "dev/containers/**",
-      ".pre-commit-config.yaml"
+        "dev/containers/**",
+        ".pre-commit-config.yaml"
     ]
 }

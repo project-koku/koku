@@ -73,7 +73,7 @@
             "check_cycle": 1440
         },
         "storage": {
-            "volume_type": "\u0026PersistentVolumeClaimVolumeSource{ClaimName:koku-metrics-operator-data,ReadOnly:false,}",
+            "volume_type": "&PersistentVolumeClaimVolumeSource{ClaimName:koku-metrics-operator-data,ReadOnly:false,}",
             "volume_mounted": true
         },
         "persistent_volume_claim": {
