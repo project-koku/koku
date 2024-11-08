@@ -97,6 +97,7 @@ ENV \
 
 # copy the src files into the workdir
 COPY . .
+RUN mv licenses/ /
 
 # create the koku user
 RUN \
