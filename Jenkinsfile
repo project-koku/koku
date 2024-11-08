@@ -42,7 +42,7 @@ pipeline {
         ARTIFACTS_DIR="${WORKSPACE}/artifacts"
 
         IQE_PLUGINS="cost_management"
-        IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=test_number"
+        IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=3931_abc"
 
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
         CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
