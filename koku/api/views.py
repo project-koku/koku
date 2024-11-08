@@ -50,6 +50,7 @@ from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
 from api.report.ocp.view import OCPNetworkView
+from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
 from api.resource_types.aws_accounts.view import AWSAccountView
 from api.resource_types.aws_category.view import AWSCategoryView
@@ -72,6 +73,7 @@ from api.resource_types.oci_tenant_id.view import OCITenantidView
 from api.resource_types.openshift_clusters.view import OCPClustersView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
+from api.resource_types.openshift_virtual_machines.view import OCPVirtualMachinesView
 from api.resource_types.view import ResourceTypeView
 from api.settings.aws_category_keys.view import SettingsAWSCategoryKeyView
 from api.settings.aws_category_keys.view import SettingsDisableAWSCategoryKeyView

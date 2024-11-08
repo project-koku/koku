@@ -82,6 +82,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
+        ocp_pack_definitions["request_cpu"] = {"keys": ["request_cpu"], "units": "request_cpu_units"}
+        ocp_pack_definitions["request_memory"] = {"keys": ["request_memory"], "units": "request_memory_units"}
+        ocp_pack_definitions["request"] = {
+            "keys": {
+                "request_cpu": {"key": "cpu", "group": "request"},
+                "request_memory": {"key": "memory", "group": "request"},
+            },
+            "units": "usage_units",
+        }
         # Note: The value & units will be supplied by the usage keys in the parent class.
         ocp_pack_definitions["unused_usage"] = {
             "keys": {
@@ -167,6 +176,20 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
         }
 
+    def format_tags(self, tags_iterable):
+        """
+        Formats the tags into our standard format.
+        """
+        if not tags_iterable:
+            return
+        transformed_tags = defaultdict(lambda: {"values": set()})
+
+        for tag in tags_iterable:
+            for key, value in tag.items():
+                transformed_tags[key]["values"].add(value)
+
+        return [{"key": key, "values": list(data["values"])} for key, data in transformed_tags.items()]
+
     def _format_query_response(self):
         """Format the query response with data.
 
@@ -174,6 +197,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
+
         output = self._initialize_response_output(self.parameters)
         if self._report_type == "costs_by_project":
             # Add a boolean flag for the overhead dropdown in the UI
@@ -243,6 +267,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
 
             query_data = self.order_by(query_data, query_order_by)
+            for row in query_data:
+                if tag_iterable := row.get("tags"):
+                    row["tags"] = self.format_tags(tag_iterable)
 
             if self.is_csv_output:
                 data = list(query_data)

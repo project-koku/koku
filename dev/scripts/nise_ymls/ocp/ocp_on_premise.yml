@@ -41,7 +41,15 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering
+                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering|label_vm_kubevirt_io_name:test
+                - pod:
+                  pod_name: pod_name2a
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering|label_vm_kubevirt_io_name:fedora
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
@@ -141,7 +149,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Phoenix|label_stage:QA|label_group:Engineering
+                  labels: label_application:Phoenix|label_stage:QA|label_group:Engineering|label_vm_kubevirt_io_name:Fedora
               volumes:
                 - volume:
                   volume_name: pvc-volume_6
@@ -169,7 +177,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:CMSapp|label_stage:Production|label_group:Marketing
+                  labels: label_application:CMSapp|label_stage:Production|label_group:Marketing|label_vm_kubevirt_io_name:fedora
               volumes:
                 - volume:
                   volume_name: pvc-volume_7

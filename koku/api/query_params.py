@@ -452,7 +452,17 @@ class QueryParameters:
             if not resolution:
                 self.set_filter(resolution=RESOLUTION_DAILY)
 
+        if hasattr(self.caller, "default_scope"):
+            self.set_filter(
+                time_scope_value=(
+                    time_scope_value if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else TIME_SCOPE_VALUES_MONTHLY[0]
+                ),
+                time_scope_units=TIME_SCOPE_UNITS_MONTHLY,
+                resolution=RESOLUTION_MONTHLY,
+            )
+
         if self.report_type == "ec2_compute":
+            # TODO: Fix ec2 view to have a default_scope as well
             self.set_filter(
                 time_scope_value=(
                     time_scope_value if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else TIME_SCOPE_VALUES_MONTHLY[0]

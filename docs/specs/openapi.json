@@ -2278,6 +2278,72 @@
                 ]
             }
         },
+        "/reports/openshift/resources/virtual-machines/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain Virtual Machines running in OpenShift",
+                "operationId": "getOpenShiftVirtualMachinesReport",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryExclude"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftVirtualMachine"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftVirtualMachine"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "basic_auth": []
+                    }
+                ]
+            }
+        },
         "/reports/openshift/infrastructures/all/costs/": {
             "get": {
                 "tags": [
@@ -4034,6 +4100,41 @@
                 ],
                 "summary": "List OpenShift Projects For RBAC",
                 "operationId": "listResourcesOpenShiftProjects",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/openshift-virtual-machines/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List OpenShift Virtual Machines For RBAC",
+                "operationId": "listResourcesOpenShiftVirtualMachines",
                 "parameters": [
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -6687,11 +6788,25 @@
                     "example": "2023-01-01"
                 }
             },
+            "QueryExclude": {
+                "name": "exclude",
+                "required": false,
+                "in": "query",
+                "description": "The excludes to apply to the report as a URL encoded dictionary. The syntax is exclude[parameter]=value except for tags, which use exclude[tag:key]=value.",
+                "style": "deepObject",
+                "explode": true,
+                "schema": {
+                    "type": "object"
+                },
+                "example": {
+                    "project": "*"
+                }
+            },
             "QueryFilter": {
                 "name": "filter",
                 "required": false,
                 "in": "query",
-                "description": "The filter to apply to the report as a URL encoded dictionary.",
+                "description": "The filter to apply to the report as a URL encoded dictionary. The syntax is filter[parameter]=value except for tags, which use filter[tag:key]=value.",
                 "style": "deepObject",
                 "explode": true,
                 "schema": {
@@ -11421,6 +11536,27 @@
                     }
                 ]
             },
+            "ReportOpenShiftVirtualMachine": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Report"
+                    },
+                    {
+                        "type": "object",
+                        "required": [
+                            "data"
+                        ],
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
             "SettingIn": {
                 "required": [
                     "api"
@@ -11733,11 +11869,6 @@
                         "$ref": "#/components/schemas/ReportTimeScopeUnits"
                     }
                 }
-            },
-            "cluster": {
-                "type": "string",
-                "example": "my-ocp-cluster",
-                "description": "The cluster_id or cluster_alias to filter on"
             },
             "Tags": {
                 "properties": {
