@@ -779,19 +779,19 @@ class OCPProviderMap(ProviderMap):
                         "tag_column": "pod_labels",
                         "aggregates": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.cost_model_cpu_supplementary_cost,
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.cost_model_cpu_supplementary_cost,
+                            "sup_total": self.cost_model_supplementary_cost,
                             "infra_raw": self.cloud_infrastructure_cost,
-                            "infra_usage": self.cost_model_cpu_infrastructure_cost,
+                            "infra_usage": self.cost_model_cost,
                             "infra_markup": self.markup_cost,
                             "infra_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_cpu_infrastructure_cost,
                             "cost_raw": self.cloud_infrastructure_cost,
-                            "cost_usage": self.cost_model_cpu_cost,
+                            "cost_usage": self.cost_model_cost,
                             "cost_markup": self.markup_cost,
-                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             "request_cpu": Sum("pod_request_cpu_core_hours") / 24,
                             "request_memory": Sum("pod_request_memory_gigabyte_hours") / 24,
                             "request_cpu_units": Max(Value("Core", output_field=CharField())),
@@ -800,19 +800,19 @@ class OCPProviderMap(ProviderMap):
                         "capacity_aggregate": {},
                         "annotations": {
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
-                            "sup_usage": self.cost_model_cpu_supplementary_cost,
+                            "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
-                            "sup_total": self.cost_model_cpu_supplementary_cost,
+                            "sup_total": self.cost_model_supplementary_cost,
                             "infra_raw": self.cloud_infrastructure_cost,
-                            "infra_usage": self.cost_model_cpu_infrastructure_cost,
+                            "infra_usage": self.cost_model_cost,
                             "infra_markup": self.markup_cost,
                             "infra_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_cpu_infrastructure_cost,
                             "cost_raw": self.cloud_infrastructure_cost,
-                            "cost_usage": self.cost_model_cpu_cost,
+                            "cost_usage": self.cost_model_cost,
                             "cost_markup": self.markup_cost,
-                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Max(Coalesce("currency_annotation", Value("USD", output_field=CharField()))),
                             "request_cpu": Max("pod_request_cpu_core_hours") / 24,
@@ -829,7 +829,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "delta_key": {
                             "request": Sum("pod_request_cpu_core_hours"),
-                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost_by_project
                             + self.markup_cost_by_project
                             + self.cost_model_cost
