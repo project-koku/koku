@@ -54,7 +54,10 @@ cte_latest_values as (
     AND product_productfamily LIKE '%Compute Instance%'
     AND lineitem_resourceid != ''
     AND lineitem_usagestartdate = (
-        SELECT max(date(lv.lineitem_usagestartdate)) as usage_start from hive.{{schema | sqlsafe}}.aws_line_items_daily as lv
+      SELECT max(date(lv.lineitem_usagestartdate)) AS usage_start
+      FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS lv
+      WHERE year = '{{year | sqlsafe}}'
+      AND month = '{{month | sqlsafe}}'
     )
     GROUP BY
         lineitem_resourceid,
