@@ -382,7 +382,7 @@ spec:
               value: task
           resolver: bundles
         when:
-          - input: "false"
+          - input: "true"
             operator: in
             values:
               - "false"
