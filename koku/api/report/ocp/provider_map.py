@@ -821,7 +821,7 @@ class OCPProviderMap(ProviderMap):
                             "request_memory_units": Value("GiB", output_field=CharField()),
                             "cluster": Max(Coalesce("cluster_alias", "cluster_id")),
                             "node": Max(F("node")),
-                            "namespace": Max("namespace"),
+                            "project": Max("namespace"),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
