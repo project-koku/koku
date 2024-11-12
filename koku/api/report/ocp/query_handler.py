@@ -291,6 +291,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ordered_total.update(query_sum)
 
+        if self.is_csv_output:
+            if self._report_type in ("virtual_machines"):
+                # Handle formating OCP VM response
+                data = self.format_vm_csv_response(query_data)
+
         self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
@@ -361,3 +366,19 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_delta = {"value": total_delta, "percent": total_delta_percent}
 
         return query_data
+
+    def format_vm_csv_response(self, query_data):
+        """
+        Format OCP VM CSV response data.
+
+        If CSV output, nests query data under a date key.
+
+        Returns:
+        list: The formatted query data based on the output format.
+        """
+
+        date_string = self.date_to_string(self.time_interval[0])
+        for item in query_data:
+            # exclude tags when exporting to csv
+            item.pop("tags")
+        return [{"date": date_string, "vm_names": query_data}]
