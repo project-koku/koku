@@ -294,6 +294,7 @@ class OCPVirtualMachinesOrderBySerializer(OCPOrderBySerializer):
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    vm_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     request_cpu = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     request_memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
