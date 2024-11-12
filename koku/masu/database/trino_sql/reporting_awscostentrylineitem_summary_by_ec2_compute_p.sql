@@ -58,6 +58,7 @@ cte_latest_values as (
       FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS lv
       WHERE year = '{{year | sqlsafe}}'
       AND month = '{{month | sqlsafe}}'
+      AND source = '{{source_uuid | sqlsafe}}'
     )
     GROUP BY
         lineitem_resourceid,
