@@ -120,6 +120,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             excluded_ids = list(
                 SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid).values_list("resource_id", flat=True)
             )
+        # the resource-id must be selected first in the determine_resource_ids_for_usage_account.sql SELECT statement
         sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
         sql = pkgutil.get_data("subs", sql_file)
         sql = sql.decode("utf-8")
@@ -128,7 +129,6 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             "source_uuid": self.provider_uuid,
             "year": year,
             "month": month,
-            # "excluded_ids": excluded_ids,
             "usage_account": usage_account,
         }
         LOG.info(
