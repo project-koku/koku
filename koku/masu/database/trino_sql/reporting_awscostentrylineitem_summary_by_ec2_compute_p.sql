@@ -45,7 +45,9 @@ cte_latest_values as (
         nullif(product_instancetype, '') as instance_type,
         max(json_extract_scalar(json_parse(resourcetags), '$.Name')) AS instance_name,
         resourcetags as tags,
-        costcategory as cost_category
+        costcategory as cost_category,
+        nullif(product_memory, '') as memory,
+        cast(nullif(product_vcpu, '') AS INTEGER) as vcpu
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily as alid
     WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
@@ -65,7 +67,9 @@ cte_latest_values as (
         lineitem_resourceid,
         product_instancetype,
         resourcetags,
-        costcategory
+        costcategory,
+        product_memory,
+        product_vcpu
 )
 
 SELECT uuid() as uuid,
@@ -77,8 +81,8 @@ SELECT uuid() as uuid,
     cte_l.instance_type,
     operating_system,
     region,
-    vcpu,
-    memory,
+    cte_l.vcpu,
+    cte_l.memory,
     cast(
         map_filter(
             cast(json_parse(cte_l.tags) as map(varchar, varchar)),
