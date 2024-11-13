@@ -119,6 +119,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             # get a set of IDs to exclude from this source processing
             excluded_ids = set(
                 SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid)
+                .filter(year=year, month=month)
                 .values_list("resource_id", flat=True)
                 .distinct()
             )
