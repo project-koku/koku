@@ -1522,3 +1522,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         result = handler.format_vm_csv_response(query_data)
         self.assertEqual(result, expected_output)
+
+    def test_execute_vm_csv_query(self):
+        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+        handler.is_csv_output = True
+        handler.time_interval = [self.dh.this_month_start]
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
