@@ -26,7 +26,7 @@ FROM (
     AND resourceid NOT IN (
         SELECT
             DISTINCT resource_id
-        FROM postgres.{{schema | sqlsage}}.reporting_subs_last_processed_time
+        FROM postgres.{{schema | sqlsafe}}.reporting_subs_last_processed_time
         WHERE source_uuid != cast({{source_uuid}} as uuid)
             AND year={{year}}
             AND month={{month}}
