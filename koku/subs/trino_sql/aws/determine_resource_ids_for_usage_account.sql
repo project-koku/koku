@@ -6,4 +6,7 @@ AND month={{month}}
 AND lineitem_productcode = 'AmazonEC2'
 AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
 AND lineitem_usageaccountid = {{usage_account}}
+    {% if excluded_ids %}
+        AND lineitem_resourceid NOT IN {{excluded_ids | inclause}}
+    {% endif %}
 GROUP BY lineitem_resourceid

@@ -116,9 +116,11 @@ class SUBSDataExtractor(ReportDBAccessorBase):
     def get_resource_ids_for_usage_account(self, usage_account, year, month):
         """Determine the relevant resource ids and end time to process to for each resource id."""
         with schema_context(self.schema):
-            # get a list of IDs to exclude from this source processing
-            excluded_ids = list(
-                SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid).values_list("resource_id", flat=True)
+            # get a set of IDs to exclude from this source processing
+            excluded_ids = set(
+                SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid)
+                .values_list("resource_id", flat=True)
+                .distinct()
             )
         # the resource-id must be selected first in the determine_resource_ids_for_usage_account.sql SELECT statement
         sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
@@ -129,6 +131,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             "source_uuid": self.provider_uuid,
             "year": year,
             "month": month,
+            "excluded_ids": {},
             "usage_account": usage_account,
         }
         LOG.info(
