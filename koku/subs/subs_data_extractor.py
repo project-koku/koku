@@ -118,7 +118,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         with schema_context(self.schema):
             # get a list of IDs to exclude from this source processing
             excluded_ids = list(
-                SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid).values_list("resource_id", flat=True)
+                SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid)
+                .filter(month=month, year=year)
+                .values_list("resource_id", flat=True)
             )
             sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
             sql = pkgutil.get_data("subs", sql_file)
