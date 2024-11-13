@@ -120,32 +120,33 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             excluded_ids = list(
                 SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid).values_list("resource_id", flat=True)
             )
-            sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
-            sql = pkgutil.get_data("subs", sql_file)
-            sql = sql.decode("utf-8")
-            sql_params = {
-                "schema": self.schema,
-                "source_uuid": self.provider_uuid,
-                "year": year,
-                "month": month,
-                "excluded_ids": excluded_ids,
-                "usage_account": usage_account,
-            }
-            LOG.info(
-                log_json(
-                    self.tracing_id,
-                    msg="get_resource_ids_for_usage_account: number of exclude_ids and text length",
-                    context=self.context
-                    | {
-                        "excluded_ids_length": len(excluded_ids),
-                        "excluded_ids_text_length": sum(len(x) for x in excluded_ids),
-                    },
-                )
+        sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
+        sql = pkgutil.get_data("subs", sql_file)
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "source_uuid": self.provider_uuid,
+            "year": year,
+            "month": month,
+            # "excluded_ids": excluded_ids,
+            "usage_account": usage_account,
+        }
+        LOG.info(
+            log_json(
+                self.tracing_id,
+                msg="get_resource_ids_for_usage_account: number of exclude_ids and text length",
+                context=self.context
+                | {
+                    "excluded_ids_length": len(excluded_ids),
+                    "excluded_ids_text_length": sum(len(x) for x in excluded_ids),
+                },
             )
-            ids = self._execute_trino_raw_sql_query(
-                sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
-            )
-        return ids
+        )
+        raw_ids = self._execute_trino_raw_sql_query(
+            sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
+        )
+
+        return [x for x in raw_ids if x[0] not in excluded_ids]
 
     def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
         """Gather the data and upload it to S3 for a batch of resource ids"""
