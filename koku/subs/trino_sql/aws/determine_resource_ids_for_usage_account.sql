@@ -7,6 +7,7 @@ WHERE source={{source_uuid}}
     AND month={{month}}
     AND lineitem_productcode = 'AmazonEC2'
     AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
+    AND lineitem_usageaccountid = {{usage_account}}
     AND lineitem_resourceid NOT IN (
         SELECT
             DISTINCT resource_id
