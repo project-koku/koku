@@ -272,10 +272,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     row["tags"] = self.format_tags(tag_iterable)
 
             if self.is_csv_output:
-                data = list(query_data)
                 if self._report_type == "virtual_machines":
                     # Handle formating OCP VM response
                     data = self.format_vm_csv_response(query_data)
+                else:
+                    data = list(query_data)
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix
