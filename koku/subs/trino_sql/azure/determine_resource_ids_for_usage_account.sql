@@ -23,8 +23,13 @@ FROM (
     AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL
     AND json_extract_scalar(lower(tags), '$.com_redhat_rhel') IS NOT NULL
     AND (subscriptionid = {{usage_account}} or subscriptionguid = {{usage_account}})
-    {% if excluded_ids %}
-        and resourceid NOT IN {{excluded_ids | inclause}}
-    {% endif %}
+    AND resourceid NOT IN (
+        SELECT
+            DISTINCT resource_id
+        FROM postgres.{{schema | sqlsafe}}.reporting_subs_last_processed_time
+        WHERE source_uuid != cast({{source_uuid}} as uuid)
+            AND year={{year}}
+            AND month={{month}}
+    )
    GROUP BY resourceid, subscriptionguid, subscriptionid, resourcegroup, json_extract_scalar(lower(additionalinfo), '$.vmname')
 )
