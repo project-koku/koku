@@ -115,11 +115,8 @@ FROM (
        max(date(lineitem_usagestartdate)) as usage_end,
        max(lineitem_usageaccountid) as usage_account_id,
        lineitem_resourceid as resource_id,
-       max(json_extract_scalar(json_parse(resourcetags), '$.Name')) AS instance_name,
        max(nullif(product_operatingsystem, '')) as operating_system,
        max(nullif(product_region, '')) as region,
-       max(cast(nullif(product_vcpu, '') AS INTEGER)) as vcpu,
-       max(nullif(product_memory, '')) as memory,
        max(nullif(pricing_unit, '')) as unit,
        -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
        sum(
