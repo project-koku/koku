@@ -272,7 +272,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     row["tags"] = self.format_tags(tag_iterable)
 
             if self.is_csv_output:
-                data = list(query_data)
+                if self._report_type == "virtual_machines":
+                    # Handle formating OCP VM response
+                    data = self.format_vm_csv_response(query_data)
+                else:
+                    data = list(query_data)
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix
@@ -361,3 +365,19 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_delta = {"value": total_delta, "percent": total_delta_percent}
 
         return query_data
+
+    def format_vm_csv_response(self, query_data):
+        """
+        Format OCP VM CSV response data.
+
+        If CSV output, nests query data under a date key.
+
+        Returns:
+        list: The formatted query data based on the output format.
+        """
+
+        date_string = self.date_to_string(self.time_interval[0])
+        for item in query_data:
+            # exclude tags when exporting to csv
+            item.pop("tags")
+        return [{"date": date_string, "vm_names": query_data}]
