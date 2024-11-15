@@ -5,7 +5,6 @@ IMAGE="quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku"
 APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
 COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 COMPONENTS="hive-metastore koku trino"  # specific components to deploy (optional, default: all)
-COMPONENTS_W_RESOURCES="hive-metastore koku trino"  # components which should preserve resource settings (optional, default: none)
 IQE_PLUGINS="cost_management"
 IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
