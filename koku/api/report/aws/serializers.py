@@ -222,19 +222,16 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     resolution = serializers.ChoiceField(
         choices=RESOLUTION_CHOICES,
         required=False,
-        default=TIME_SCOPE_UNITS_MONTHLY,
         error_messages={"invalid_choice": f"valid choice is '{RESOLUTION_MONTHLY}'"},
     )
     time_scope_value = serializers.ChoiceField(
         choices=TIME_CHOICES,
         required=False,
-        default=TIME_SCOPE_VALUES_MONTHLY[0],
         error_messages={"invalid_choice": f"valid choices are '{TIME_SCOPE_VALUES_MONTHLY}'"},
     )
     time_scope_units = serializers.ChoiceField(
         choices=TIME_UNIT_CHOICES,
         required=False,
-        default=RESOLUTION_MONTHLY,
         error_messages={"invalid_choice": f"valid choice is '{TIME_SCOPE_UNITS_MONTHLY}'"},
     )
 

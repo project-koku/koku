@@ -421,55 +421,43 @@ class QueryParameters:
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
+        end_date = self.get_end_date()
+        start_date = self.get_start_date()
+        if start_date or end_date:
+            if not self.get_filter("resolution"):
+                self.set_filter(resolution=RESOLUTION_DAILY)
+            # default time scopes are not needed for start_end & end_date params
+            return
+        if getattr(self.caller, "only_monthly_resolution", None):
+            monthly_scope_value = str(self.get_filter("time_scope_value", TIME_SCOPE_VALUES_MONTHLY[0]))
+            self.set_filter(
+                time_scope_value=monthly_scope_value,
+                time_scope_units=TIME_SCOPE_UNITS_MONTHLY,
+                resolution=RESOLUTION_MONTHLY,
+            )
+            return
+
         time_scope_units = self.get_filter("time_scope_units")
         time_scope_value = self.get_filter("time_scope_value")
-        start_date = self.get_start_date()
-        end_date = self.get_end_date()
         resolution = self.get_filter("resolution")
-
-        if not (start_date or end_date):
-            if not time_scope_value:
-                time_scope_value = (
-                    TIME_SCOPE_VALUES_MONTHLY[0]
-                    if time_scope_units == TIME_SCOPE_UNITS_MONTHLY
-                    else TIME_SCOPE_VALUES_DAILY[0]
-                )
-            if not time_scope_units:
-                time_scope_units = (
-                    TIME_SCOPE_UNITS_MONTHLY
-                    if time_scope_value in TIME_SCOPE_VALUES_MONTHLY
-                    else TIME_SCOPE_UNITS_DAILY
-                )
-            if not resolution:
-                resolution = RESOLUTION_MONTHLY if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else RESOLUTION_DAILY
-
-            self.set_filter(
-                time_scope_value=str(time_scope_value),
-                time_scope_units=str(time_scope_units),
-                resolution=str(resolution),
+        if not time_scope_value:
+            time_scope_value = (
+                TIME_SCOPE_VALUES_MONTHLY[0]
+                if time_scope_units == TIME_SCOPE_UNITS_MONTHLY
+                else TIME_SCOPE_VALUES_DAILY[0]
             )
-        else:
-            if not resolution:
-                self.set_filter(resolution=RESOLUTION_DAILY)
-
-        if hasattr(self.caller, "default_scope"):
-            self.set_filter(
-                time_scope_value=(
-                    time_scope_value if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else TIME_SCOPE_VALUES_MONTHLY[0]
-                ),
-                time_scope_units=TIME_SCOPE_UNITS_MONTHLY,
-                resolution=RESOLUTION_MONTHLY,
+        if not time_scope_units:
+            time_scope_units = (
+                TIME_SCOPE_UNITS_MONTHLY if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else TIME_SCOPE_UNITS_DAILY
             )
+        if not resolution:
+            resolution = RESOLUTION_MONTHLY if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else RESOLUTION_DAILY
 
-        if self.report_type == "ec2_compute":
-            # TODO: Fix ec2 view to have a default_scope as well
-            self.set_filter(
-                time_scope_value=(
-                    time_scope_value if time_scope_value in TIME_SCOPE_VALUES_MONTHLY else TIME_SCOPE_VALUES_MONTHLY[0]
-                ),
-                time_scope_units=TIME_SCOPE_UNITS_MONTHLY,
-                resolution=RESOLUTION_MONTHLY,
-            )
+        self.set_filter(
+            time_scope_value=str(time_scope_value),
+            time_scope_units=str(time_scope_units),
+            resolution=str(resolution),
+        )
 
     def _validate(self, query_params):
         """Validate query parameters.
