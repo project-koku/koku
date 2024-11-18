@@ -7,7 +7,6 @@ from rest_framework.exceptions import NotFound
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
-from api.report.constants import RESOLUTION_MONTHLY
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
 from api.report.ocp.serializers import OCPInventoryQueryParamSerializer
@@ -62,7 +61,7 @@ class OCPReportVirtualMachinesView(OCPView):
 
     report = "virtual_machines"
     serializer = OCPVirtualMachinesQueryParamSerializer
-    default_scope = RESOLUTION_MONTHLY
+    only_monthly_resolution = True
     monthly_pagination_key = "vm_names"
 
     def get(self, request, **kwargs):

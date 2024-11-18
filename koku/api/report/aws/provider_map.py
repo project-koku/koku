@@ -379,11 +379,6 @@ class AWSProviderMap(ProviderMap):
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"resource_id": "desc"},
                         "tables": {"query": AWSCostEntryLineItemSummaryByEC2ComputeP},
-                        "default_time_period": {
-                            "time_scope_value": "-1",
-                            "time_scope_units": "month",
-                            "resolution": "monthly",
-                        },
                     },
                     "storage": {
                         "aggregates": {
