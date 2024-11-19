@@ -89,7 +89,7 @@ class OCPTagQueryHandler(TagQueryHandler):
                 for _, value in item.items():
                     distinct_values.add(value)
 
-            parameters.set_filter(**{"value__in": list(distinct_values)})
+            parameters.set_filter(**{"values": list(distinct_values)})
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
 

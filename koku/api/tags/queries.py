@@ -55,10 +55,11 @@ class TagQueryHandler(QueryHandler):
 
     provider = "TAGS"
     data_sources = []
-    SUPPORTED_FILTERS = ["key", "value"]
+    SUPPORTED_FILTERS = ["key", "value", "values"]
     FILTER_MAP = {
         "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
         "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
+        "values": {"field": "values", "operation": "overlap"},
     }
 
     def __init__(self, parameters):
@@ -215,9 +216,13 @@ class TagQueryHandler(QueryHandler):
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
                 else:
-                    for item in filter_value:
-                        q_filter = QueryFilter(parameter=item, **filter_obj)
+                    if filter_obj.get("operation") == "overlap":
+                        q_filter = QueryFilter(parameter=filter_value, **filter_obj)
                         filters.add(q_filter)
+                    else:
+                        for item in filter_value:
+                            q_filter = QueryFilter(parameter=item, **filter_obj)
+                            filters.add(q_filter)
 
             access = self.parameters.get_access(filter_key)
             filt = self.filter_map.get(filter_key)

@@ -11,7 +11,7 @@ from api.tags.serializers import FilterSerializer
 from api.tags.serializers import TagsQueryParamSerializer
 
 
-OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster", "category", "virtualization"]
+OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster", "category"]
 
 
 class OCPFilterSerializer(FilterSerializer):
