@@ -11,10 +11,12 @@ from django.db.models import OuterRef
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
+from api.utils import DateHelper
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
+from reporting.provider.ocp.models import OCPVirtualMachineSummaryP
 
 
 class OCPTagQueryHandler(TagQueryHandler):
@@ -60,7 +62,7 @@ class OCPTagQueryHandler(TagQueryHandler):
     )
 
     def __init__(self, parameters):
-        """Establish AWS report query handler.
+        """Establish OCP report query handler.
 
         Args:
             parameters    (QueryParameters): parameter object for query
@@ -74,6 +76,20 @@ class OCPTagQueryHandler(TagQueryHandler):
 
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
+
+        if parameters.get_filter("virtualization"):
+            virtualization = (
+                OCPVirtualMachineSummaryP.objects.filter(pod_labels__isnull=False)
+                .filter(usage_start__gte=DateHelper().this_month_start)
+                .values_list("pod_labels", flat=True)
+                .distinct()
+            )
+            distinct_values = set()
+            for item in virtualization:
+                for _, value in item.items():
+                    distinct_values.add(value)
+
+            parameters.set_filter(**{"value__in": list(distinct_values)})
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
 
