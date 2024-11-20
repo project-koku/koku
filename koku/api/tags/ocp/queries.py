@@ -78,11 +78,16 @@ class OCPTagQueryHandler(TagQueryHandler):
             parameters.set_filter(**{"enabled": True})
 
         if parameters.get_filter("virtualization"):
+            filters = {
+                "pod_labels__isnull": False,
+                "usage_start__gte": DateHelper().this_month_start,
+            }
+            vm_name = parameters.get_filter("vm_name")
+            if vm_name:
+                filters["vm_name__icontains"] = vm_name[0]
+
             virtualization = (
-                OCPVirtualMachineSummaryP.objects.filter(pod_labels__isnull=False)
-                .filter(usage_start__gte=DateHelper().this_month_start)
-                .values_list("pod_labels", flat=True)
-                .distinct()
+                OCPVirtualMachineSummaryP.objects.filter(**filters).values_list("pod_labels", flat=True).distinct()
             )
             distinct_values = set()
             for item in virtualization:

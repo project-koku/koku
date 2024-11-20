@@ -2,6 +2,7 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from django.utils.translation import gettext
 from rest_framework import serializers
 
 from api.report.serializers import add_operator_specified_fields
@@ -25,11 +26,19 @@ class OCPFilterSerializer(FilterSerializer):
     category = StringOrListField(child=serializers.CharField(), required=False)
     virtualization = serializers.BooleanField(default=False, required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
+    vm_name = StringOrListField(child=serializers.CharField(), required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCPFilterSerializer."""
         super().__init__(*args, **kwargs)
         add_operator_specified_fields(self.fields, OCP_FILTER_OP_FIELDS)
+
+    def validate(self, data):
+        if data.get("vm_name") and not data.get("virtualization"):
+            err_msg = "filter vm_name must be used with virtualization filter"
+            error = {"missing_requirement": gettext(err_msg)}
+            raise serializers.ValidationError(error)
+        return super().validate(data)
 
 
 class OCPExcludeSerializer(ExcludeSerializer):
