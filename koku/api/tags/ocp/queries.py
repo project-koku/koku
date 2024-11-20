@@ -84,7 +84,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             }
             vm_name = parameters.get_filter("vm_name")
             if vm_name:
-                filters["vm_name__icontains"] = vm_name[0]
+                filters["vm_name__icontains"] = vm_name
 
             virtualization = (
                 OCPVirtualMachineSummaryP.objects.filter(**filters).values_list("pod_labels", flat=True).distinct()

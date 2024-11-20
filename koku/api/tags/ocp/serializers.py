@@ -26,7 +26,7 @@ class OCPFilterSerializer(FilterSerializer):
     category = StringOrListField(child=serializers.CharField(), required=False)
     virtualization = serializers.BooleanField(default=False, required=False)
     node = StringOrListField(child=serializers.CharField(), required=False)
-    vm_name = StringOrListField(child=serializers.CharField(), required=False)
+    vm_name = serializers.CharField(required=False, allow_blank=True)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCPFilterSerializer."""
