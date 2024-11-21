@@ -42,7 +42,7 @@ class AzureReportDownloaderNoFileError(Exception):
 
 
 def get_processing_date(
-    s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports=None
+        s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports=None
 ):
     """
     Fetch initial dataframe from CSV plus start_delta and time_inteval.
@@ -60,12 +60,12 @@ def get_processing_date(
     # Azure does not have an invoice column so we have to do some guessing here
     # Ingres reports should always clear and process everything
     if (
-        start_date.year < dh.today.year
-        and dh.today.day > 1
-        or start_date.month < dh.today.month
-        and dh.today.day > 1
-        or not check_provider_setup_complete(provider_uuid)
-        or ingress_reports
+            start_date.year < dh.today.year
+            and dh.today.day > 1
+            or start_date.month < dh.today.month
+            and dh.today.day > 1
+            or not check_provider_setup_complete(provider_uuid)
+            or ingress_reports
     ):
         process_date = start_date
         process_date = ReportManifestDBAccessor().set_manifest_daily_start_date(manifest_id, process_date)
@@ -77,15 +77,15 @@ def get_processing_date(
 
 
 def create_daily_archives(
-    tracing_id,
-    account,
-    provider_uuid,
-    local_file,
-    base_filename,
-    manifest_id,
-    start_date,
-    context,
-    ingress_reports=None,
+        tracing_id,
+        account,
+        provider_uuid,
+        local_file,
+        base_filename,
+        manifest_id,
+        start_date,
+        context,
+        ingress_reports=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -117,10 +117,10 @@ def create_daily_archives(
         return [], {}
     try:
         with pd.read_csv(
-            local_file,
-            chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
-            parse_dates=[time_interval],
-            dtype=pd.StringDtype(storage="pyarrow"),
+                local_file,
+                chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE,
+                parse_dates=[time_interval],
+                dtype=pd.StringDtype(storage="pyarrow"),
         ) as reader:
             for i, data_frame in enumerate(reader):
                 if data_frame.empty:
@@ -333,7 +333,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             else:
                 try:
                     blob = self._azure_client.get_latest_cost_export_for_path(
-                        report_path, self.container_name, compression_mode
+                        report_path, self.container_name
                     )
                 except AzureCostReportNotFound as ex:
                     msg = f"Unable to find manifest. Error: {ex}"
