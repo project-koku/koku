@@ -64,17 +64,21 @@ class AzureService:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
     def _get_latest_blob(
-        self, report_path: str, blobs: list[BlobProperties], extension: str
+        self, report_path: str, blobs: list[BlobProperties], extension: t.Optional[str] = None
     ) -> t.Optional[BlobProperties]:
+        default_extensions = [AzureBlobExtension.csv.value, AzureBlobExtension.gzip.value]
         latest_blob = None
         for blob in blobs:
-            if not blob.name.endswith(extension):
-                continue
+            if extension:
+                if not blob.name.endswith(extension):
+                    continue
+            else:
+                if not any(blob.name.endswith(ext) for ext in default_extensions):
+                    continue
 
-            if report_path in blob.name and not latest_blob:
-                latest_blob = blob
-            elif report_path in blob.name and blob.last_modified > latest_blob.last_modified:
-                latest_blob = blob
+            if report_path in blob.name:
+                if not latest_blob or blob.last_modified > latest_blob.last_modified:
+                    latest_blob = blob
         return latest_blob
 
     def _get_latest_blob_for_path(
@@ -120,10 +124,7 @@ class AzureService:
 
         latest_report = self._get_latest_blob(report_path, blobs, extension)
         if not latest_report:
-            message = (
-                f"No file with extension '{extension}' found in container "
-                f"'{container_name}' for path '{report_path}'."
-            )
+            message = f"No file found in container " f"'{container_name}' for path '{report_path}'."
             raise AzureCostReportNotFound(message)
 
         return latest_report

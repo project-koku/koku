@@ -332,9 +332,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
             else:
                 try:
-                    blob = self._azure_client.get_latest_cost_export_for_path(
-                        report_path, self.container_name, compression_mode
-                    )
+                    blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
                 except AzureCostReportNotFound as ex:
                     msg = f"Unable to find manifest. Error: {ex}"
                     LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
