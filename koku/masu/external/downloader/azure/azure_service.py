@@ -71,17 +71,13 @@ class AzureService:
             AzureBlobExtension.gzip.value,
             AzureBlobExtension.manifest.value,
         ]
-        if extension and extension not in valid_extensions:
-            raise ValueError(f"Invalid compression type: {extension}")
-
         latest_blob = None
         for blob in blobs:
             if extension:
                 if not blob.name.endswith(extension):
                     continue
-            else:
-                if not any(blob.name.endswith(ext) for ext in valid_extensions):
-                    continue
+            elif not any(blob.name.endswith(ext) for ext in valid_extensions):
+                continue
 
             if report_path in blob.name:
                 if not latest_blob or blob.last_modified > latest_blob.last_modified:
@@ -166,9 +162,7 @@ class AzureService:
 
         return report
 
-    def get_latest_cost_export_for_path(
-        self, report_path: str, container_name: str, compression: t.Optional[str] = None
-    ) -> BlobProperties:
+    def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
         """
         Get the latest cost export for a given path and container based on the compression type.
 
@@ -184,7 +178,7 @@ class AzureService:
             ValueError: If the compression type is not 'gzip' or 'csv'.
             AzureCostReportNotFound: If no blob is found for the given path and container.
         """
-        return self._get_latest_blob_for_path(report_path, container_name, compression)
+        return self._get_latest_blob_for_path(report_path, container_name)
 
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
         return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
