@@ -57,7 +57,7 @@ SELECT 'AWS' as source_type,
        sum(usage_amount) as usage_amount,
        max(unit) as unit,
       --  OCP on ALL tables should use calculated_amortized_cost
-       sum(calculated_amortized_cost + markup_cost_amortized) as unblended_cost,
+       sum(calculated_amortized_cost) as unblended_cost,
        sum(project_markup_cost) as project_markup_cost,
        sum(pod_cost) as pod_cost,
        max(currency_code) as currency_code,
