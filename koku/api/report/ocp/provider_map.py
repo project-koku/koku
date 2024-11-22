@@ -783,11 +783,11 @@ class OCPProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": self.cost_model_supplementary_cost,
                             "infra_raw": self.cloud_infrastructure_cost,
-                            "infra_usage": self.cost_model_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
                             "infra_markup": self.markup_cost,
                             "infra_total": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cpu_infrastructure_cost,
+                            + self.cost_model_infrastructure_cost,
                             "cost_raw": self.cloud_infrastructure_cost,
                             "cost_usage": self.cost_model_cost,
                             "cost_markup": self.markup_cost,
@@ -804,11 +804,11 @@ class OCPProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": self.cost_model_supplementary_cost,
                             "infra_raw": self.cloud_infrastructure_cost,
-                            "infra_usage": self.cost_model_cost,
+                            "infra_usage": self.cost_model_infrastructure_cost,
                             "infra_markup": self.markup_cost,
                             "infra_total": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cpu_infrastructure_cost,
+                            + self.cost_model_infrastructure_cost,
                             "cost_raw": self.cloud_infrastructure_cost,
                             "cost_usage": self.cost_model_cost,
                             "cost_markup": self.markup_cost,
