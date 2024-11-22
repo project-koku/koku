@@ -56,7 +56,7 @@ SELECT 'GCP' as source_type,
        NULL as availability_zone,
        sum(usage_amount),
        max(unit) as unit,
-       sum(unblended_cost + credit_amount) as unblended_cost,
+       sum(unblended_cost + credit_amount + markup_cost) as unblended_cost,
        sum(project_markup_cost) as project_markup_cost,
        sum(
            coalesce(pod_cost, 0)
