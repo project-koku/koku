@@ -51,8 +51,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     cost_category_id,
     source_uuid
 )
-SELECT DISTINCT ON (vm_name)
-    uuid_generate_v4() as id,
+SELECT uuid_generate_v4() as id,
     cluster_alias,
     cluster_id,
     namespace,
