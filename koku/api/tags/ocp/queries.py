@@ -11,7 +11,6 @@ from django.db.models import OuterRef
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
-from api.utils import DateHelper
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.all.models import EnabledTagKeys
@@ -73,16 +72,17 @@ class OCPTagQueryHandler(TagQueryHandler):
             self._mapper = OCPProviderMap(
                 provider=self.provider, report_type=parameters.report_type, schema_name=parameters.tenant.schema_name
             )
+        super().__init__(parameters)
 
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
 
-        if parameters.get_filter("virtualization"):
+        if self.parameters.get_filter("virtualization"):
             filters = {
                 "pod_labels__isnull": False,
-                "usage_start__gte": DateHelper().this_month_start,
+                "usage_start__gte": self.start_datetime,
             }
-            vm_name = parameters.get_filter("vm_name")
+            vm_name = self.parameters.get_filter("vm_name")
             if vm_name:
                 filters["vm_name__icontains"] = vm_name
 
@@ -94,9 +94,7 @@ class OCPTagQueryHandler(TagQueryHandler):
                 for _, value in item.items():
                     distinct_values.add(value)
 
-            parameters.set_filter(**{"values": list(distinct_values)})
-        # super() needs to be called after _mapper is set
-        super().__init__(parameters)
+            self.parameters.set_filter(**{"values": list(distinct_values)})
 
     @property
     def filter_map(self):
