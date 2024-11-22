@@ -4,6 +4,7 @@
 #
 """Test the Report Queries."""
 from django_tenants.utils import tenant_context
+from rest_framework.serializers import ValidationError
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
@@ -17,6 +18,7 @@ from api.utils import DateHelper
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
+from reporting.models import OCPVirtualMachineSummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 
@@ -437,3 +439,67 @@ class OCPTagQueryHandlerTest(IamTestCase):
                         self.assertNotEqual(result_value, categories[category])
                     else:
                         self.assertEqual(result_value, categories[category])
+
+    def test_vm_name_requires_virtualization(self):
+        """
+        Test the vm name requires virtualization.
+        """
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params("?filter[vm_name]=test", OCPTagView)
+
+    def test_virtualization_filter(self):
+        """
+        Test that the virtualization filter limits keys & values to vms
+        """
+        with tenant_context(self.tenant):
+            # Min & Max logic is setting the start date
+            # to last month interfering with the test.
+            OCPVirtualMachineSummaryP.objects.update(usage_start=DateHelper().this_month_start)
+            virt_labels = (
+                OCPVirtualMachineSummaryP.objects.filter(pod_labels__isnull=False)
+                .filter(usage_start__gte=DateHelper().this_month_start)
+                .values_list("pod_labels", flat=True)
+                .distinct()
+            )
+            expected_values = set()
+            for item in virt_labels:
+                for _, value in item.items():
+                    expected_values.add(value)
+            self.assertTrue(expected_values)
+            query_params = self.mocked_query_params("?filter[virtualization]=True", OCPTagView)
+            handler = OCPTagQueryHandler(query_params)
+            result = handler.execute_query().get("data")
+            result_values = result[0].get("values")
+            self.assertTrue(result_values)
+            for value in result_values:
+                self.assertIn(value, expected_values)
+
+    def test_vm_filter(self):
+        """
+        Test that the virtualization filter limits keys & values to vms
+        """
+        with tenant_context(self.tenant):
+            # Min & Max logic is setting the start date
+            # to last month interfering with the test.
+            _vm_name = "test_vm_name"
+            OCPVirtualMachineSummaryP.objects.update(usage_start=DateHelper().this_month_start)
+            virt_labels = (
+                OCPVirtualMachineSummaryP.objects.filter(pod_labels__isnull=False)
+                .filter(usage_start__gte=DateHelper().this_month_start)
+                .filter(vm_name=_vm_name)
+                .values_list("pod_labels", flat=True)
+                .distinct()
+            )
+            expected_values = set()
+            for item in virt_labels:
+                for _, value in item.items():
+                    expected_values.add(value)
+            self.assertTrue(expected_values)
+            url = f"?filter[virtualization]=True&filter[vm_name]={_vm_name}"
+            query_params = self.mocked_query_params(url, OCPTagView)
+            handler = OCPTagQueryHandler(query_params)
+            result = handler.execute_query().get("data")
+            result_values = result[0].get("values")
+            self.assertTrue(result_values)
+            for value in result_values:
+                self.assertIn(value, expected_values)
