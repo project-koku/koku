@@ -491,7 +491,10 @@ class ReportQueryHandler(QueryHandler):
                 if not _exclusion_composed:
                     _exclusion_composed = _filt_composed
                 else:
-                    _exclusion_composed = _exclusion_composed & _filt_composed
+                    if self._report_type == "virtual_machines":
+                        _exclusion_composed = _exclusion_composed | _filt_composed
+                    else:
+                        _exclusion_composed = _exclusion_composed & _filt_composed
             if _exclusion_composed:
                 _exclusion_composed = (
                     _exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
