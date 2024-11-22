@@ -675,3 +675,18 @@ class AzureServiceTest(MasuTestCase):
         self.assertTrue(result.endswith(".gz"))
         mock_cloud_storage_account.get_blob_client.assert_called_with("fake_container", "fake_key.csv.gz")
         mock_blob_client.download_blob.assert_called_once()
+
+    def test_get_latest_blob_no_extension_invalid_files(self):
+        """Test that blobs with invalid extensions are ignored when no extension is specified."""
+        report_path = "/container/report/path"
+        blobs = (
+            FakeBlob(f"{report_path}/file01.csv", datetime(2022, 12, 16)),
+            FakeBlob(f"{report_path}/file02.txt", datetime(2022, 12, 17)),  # Invalid extension
+            FakeBlob(f"{report_path}/file03.log", datetime(2022, 12, 18)),  # Invalid extension
+            FakeBlob(f"{report_path}/file04.csv.gz", datetime(2022, 12, 19)),  # Valid extension
+        )
+        azure_service = self.get_mock_client()
+        latest_blob = azure_service._get_latest_blob(f"{report_path}", blobs, None)
+
+        # The latest valid blob is file04.csv.gz
+        self.assertEqual(latest_blob.name, f"{report_path}/file04.csv.gz")
