@@ -508,10 +508,8 @@ class AzureServiceTest(MasuTestCase):
         self.assertIn("Azure Service credentials are not configured.", str(context.exception))
 
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
-    @patch.object(AzureService, "_get_latest_blob_for_path")
-    def test_get_latest_cost_export_for_path_invalid_compression(self, mock_get_latest_blob, mock_factory):
+    def test_get_latest_cost_export_for_path_invalid_compression(self, mock_factory):
         """Test when an invalid compression type is provided and ValueError is raised."""
-        mock_get_latest_blob.return_value = None
         mock_factory.return_value.credentials = Mock()
 
         service = AzureService(
