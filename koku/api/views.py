@@ -58,6 +58,7 @@ from api.resource_types.aws_ec2_compute_instances.view import AWSEC2ComputeInsta
 from api.resource_types.aws_ec2_compute_os.view import AWSEC2ComputeOperatingSystemView
 from api.resource_types.aws_org_unit.view import AWSOrganizationalUnitView
 from api.resource_types.aws_regions.view import AWSAccountRegionView
+from api.resource_types.aws_regions.view import AWSAllRegionView
 from api.resource_types.aws_services.view import AWSServiceView
 from api.resource_types.azure_regions.view import AzureRegionView
 from api.resource_types.azure_services.view import AzureServiceView
