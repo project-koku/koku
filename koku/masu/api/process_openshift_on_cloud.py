@@ -71,7 +71,12 @@ def process_openshift_on_cloud(request):
         errmsg = f"You must provide a cloud provider UUID from {Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST}."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    months = get_months_in_date_range(start=start_date, end=end_date)
+    if provider.type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+        invoice_month = DateHelper().invoice_month_from_bill_date(start_date)
+        LOG.info(f"invoice_month: {invoice_month}")
+        months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
+    else:
+        months = get_months_in_date_range(start=start_date, end=end_date)
 
     if provider.type in Provider.MANAGED_OPENSHIFT_ON_CLOUD_PROVIDER_LIST and is_managed_ocp_cloud_processing_enabled(
         schema_name

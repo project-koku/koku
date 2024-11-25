@@ -491,7 +491,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ocp_on_cloud_daily_trino(
         self, aws_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
     ):
-        """Populate the aws_openshift_daily trino table for OCP on AWS.
+        """Populate the managed_aws_openshift_daily trino table for OCP on AWS.
         Args:
             aws_provider_uuid (UUID) AWS source UUID.
             ocp_provider_uuid (UUID) OCP source UUID.
