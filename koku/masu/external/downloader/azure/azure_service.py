@@ -181,7 +181,7 @@ class AzureService:
         return self._get_latest_blob_for_path(report_path, container_name)
 
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
+        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.json.value)
 
     def download_file(
         self,
