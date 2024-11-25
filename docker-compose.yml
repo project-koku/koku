@@ -1,4 +1,3 @@
-version: '3'
 name: koku
 
 services:
@@ -629,7 +628,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/samdoran/ubi-hive:3.1.3-metastore-050
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-hive:2f89bfb
     ports:
       - 9083:8000
     environment:
@@ -652,7 +651,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/samdoran/ubi-trino:453-001
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:461-002
     user: root
     ports:
       - 8080:8080
@@ -676,7 +675,6 @@ services:
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
       - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
-      - ./dev/containers/trino/etc/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs
     links:

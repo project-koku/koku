@@ -11,6 +11,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import relativedelta
+from dateutil.parser import parse
 from django.conf import settings
 from django.db.models import F
 from django.db.models import Max
@@ -35,8 +36,9 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2Compute
+from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
 from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -415,7 +417,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_unleash.return_value = True
         populated_keys = []
 
-        table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2Compute]
+        table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2ComputeP]
 
         for table_class in table_classes:
             with self.subTest(table_class=table_class):
@@ -502,7 +504,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_ec2_compute_summary_table_trino(self, mock_trino):
         """
-        Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2Compute.
+        Test that we construst our SQL and query using Trino to populate AWSCostEntryLineItemSummaryByEC2ComputeP.
         """
         start_date = self.dh.this_month_start.date()
 
@@ -525,8 +527,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
-        start_date = "2024-08-01"
-        end_date = "2024-08-05"
+        start_date = parse("2024-08-01").astimezone(tz=settings.UTC)
+        end_date = parse("2024-08-05").astimezone(tz=settings.UTC)
         year = "2024"
         month = "08"
         matched_tags = "fake-tags"
@@ -544,3 +546,27 @@ class AWSReportDBAccessorTest(MasuTestCase):
             TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
         )
         mock_trino.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
+        """
+        Test validating trino tables.
+        """
+        verification_params = {
+            "schema": self.schema,
+            "cloud_source_uuid": self.aws_provider_uuid,
+            "year": "2024",
+            "month": "08",
+            "managed_table": TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            "parquet_table": TRINO_OCP_ON_AWS_DAILY_TABLE,
+        }
+        with self.assertLogs("masu.database.aws_report_db_accessor", level="INFO") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any(
+                "Verification successful" in log for log in logger.output
+            ), "Verification successful not found in logs"
+
+        mock_trino.side_effect = [[[False]]]
+        with self.assertLogs("masu.database.aws_report_db_accessor", level="ERROR") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"

@@ -29,6 +29,7 @@ from api.report.ocp.serializers import OCPExcludeSerializer
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
+from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.ocp.view import OCPVolumeView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
@@ -1498,3 +1499,35 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertIsNotNone(storage_value[group_by_key])
                     tested = True
         self.assertTrue(tested)
+
+    def test_format_vm_response_csv(self):
+
+        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+        handler.is_csv_output = True
+        handler.time_interval = [self.dh.this_month_start]
+
+        # Input data
+        query_data = [
+            {
+                "vm_name": "basic_vm",
+                "tags": [
+                    {"tag_key": "test"},
+                ],
+            }
+        ]
+        # Expected output
+        expected_date_str = self.dh.this_month_start.strftime("%Y-%m")
+        expected_output = [{"date": expected_date_str, "vm_names": [{"vm_name": "basic_vm"}]}]
+
+        result = handler.format_vm_csv_response(query_data)
+        self.assertEqual(result, expected_output)
+
+    def test_execute_vm_csv_query(self):
+        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+        handler.is_csv_output = True
+        handler.time_interval = [self.dh.this_month_start]
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)

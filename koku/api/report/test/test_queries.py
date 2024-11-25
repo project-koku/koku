@@ -9,6 +9,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.test import TestCase
+from django_tenants.utils import tenant_context
 from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -24,10 +25,13 @@ from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
 from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.gcp.view import GCPCostView
 from api.report.ocp.query_handler import OCPReportQueryHandler
+from api.report.ocp.view import OCPCostView
+from api.report.ocp.view import OCPReportVirtualMachinesView
 from api.report.provider_map import ProviderMap
 from api.report.queries import ReportQueryHandler
 from api.report.view import ReportView
 from api.utils import DateHelper
+from reporting.provider.all.models import EnabledTagKeys
 
 FAKE = Faker()
 
@@ -586,28 +590,84 @@ class ReportQueryHandlerTest(IamTestCase):
         out_data = handler._apply_group_null_label(data, groups)
         self.assertEqual(expected, out_data)
 
-    # FIXME: need test for _apply_group_by
-    # FIXME: need test for _apply_group_null_label
-    # FIXME: need test for _build_custom_filter_list  }
-    # FIXME: need test for _create_previous_totals
-    # FIXME: need test for _get_filter
-    # FIXME: need test for _get_group_by
-    # FIXME: need test for _get_previous_totals_filter
-    # FIXME: need test for _get_tag_group_by
-    # FIXME: need test for _group_data_by_list
-    # FIXME: need test for _pack_data_object
-    # FIXME: need test for _percent_delta
-    # FIXME: need test for _perform_rank_summation
-    # FIXME: need test for _ranked_list
-    # FIXME: need test for _set_or_filters
-    # FIXME: need test for _set_tag_filters
-    # FIXME: need test for _transform_data
-    # FIXME: need test for add_deltas
-    # FIXME: need test for annotations
-    # FIXME: need test for date_group_data
-    # FIXME: need test for get_tag_filter_keys
-    # FIXME: need test for get_tag_group_by_keys
-    # FIXME: need test for get_tag_order_by
-    # FIXME: need test for initialize_totals
-    # FIXME: need test for order_by
-    # FIXME: need test for unpack_date_grouped_data
+    def test_ocp_prefix_based_virtual_machines_exclusions(self):
+        """Test multiple tag exclusions for virtual machines endpoint."""
+        keys_mapping = {"exclude": ["nilla", "cinnamon"], "excluded": ["sushi", "fries"]}
+        column_name = "pod_labels"
+        prefix = "tag:"
+        url = "?"
+        expected_null_collections = QueryFilterCollection()
+        expected_exclusion_composed = None
+        for key, values in keys_mapping.items():
+            value_str = ", ".join(values)
+            url += f"exclude[tag:{key}]={value_str}&"
+            with tenant_context(self.tenant):
+                EnabledTagKeys.objects.create(key=key, provider_type=OCPReportQueryHandler.provider, enabled=True)
+            expected_null_collections.add(
+                QueryFilter(**{"field": f"{column_name}__{key}", "operation": "isnull", "parameter": True})
+            )
+            expected_filter = QueryFilterCollection(
+                [
+                    QueryFilter(
+                        **{"field": f"{column_name}__{key}", "operation": "noticontainslist", "parameter": values}
+                    )
+                ]
+            ).compose()
+            if not expected_exclusion_composed:
+                expected_exclusion_composed = expected_filter
+            else:
+                expected_exclusion_composed = expected_exclusion_composed | expected_filter
+
+        expected_exclusion_composed = (
+            expected_exclusion_composed
+            | QueryFilterCollection(
+                [QueryFilter(**{"field": column_name, "operation": "exact", "parameter": "{}"})]
+            ).compose()
+        )
+        expected_exclusion_composed = expected_exclusion_composed | expected_null_collections.compose()
+        query_params = self.mocked_query_params(url, OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+        excluded_filters = [f"{prefix}excluded", f"{prefix}exclude"]
+        result_exclusions = handler._set_prefix_based_exclusions(column_name, excluded_filters, prefix)
+        assertSameQ(result_exclusions, expected_exclusion_composed)
+
+    def test_ocp_prefix_based_exclusions(self):
+        "Test multiple tag exlusions for other endpoints."
+        keys_mapping = {"exclude": ["nilla", "cinnamon"], "excluded": ["sushi", "fries"]}
+        column_name = "pod_labels"
+        prefix = "tag:"
+        url = "?"
+        expected_null_collections = QueryFilterCollection()
+        expected_exclusion_composed = None
+        for key, values in keys_mapping.items():
+            value_str = ", ".join(values)
+            url += f"exclude[tag:{key}]={value_str}&"
+            with tenant_context(self.tenant):
+                EnabledTagKeys.objects.create(key=key, provider_type=OCPReportQueryHandler.provider, enabled=True)
+            expected_null_collections.add(
+                QueryFilter(**{"field": f"{column_name}__{key}", "operation": "isnull", "parameter": True})
+            )
+            expected_filter = QueryFilterCollection(
+                [
+                    QueryFilter(
+                        **{"field": f"{column_name}__{key}", "operation": "noticontainslist", "parameter": values}
+                    )
+                ]
+            ).compose()
+            if not expected_exclusion_composed:
+                expected_exclusion_composed = expected_filter
+            else:
+                expected_exclusion_composed = expected_exclusion_composed & expected_filter
+
+        expected_exclusion_composed = (
+            expected_exclusion_composed
+            | QueryFilterCollection(
+                [QueryFilter(**{"field": column_name, "operation": "exact", "parameter": "{}"})]
+            ).compose()
+        )
+        expected_exclusion_composed = expected_exclusion_composed | expected_null_collections.compose()
+        query_params = self.mocked_query_params(url, OCPCostView)
+        handler = OCPReportQueryHandler(query_params)
+        excluded_filters = [f"{prefix}excluded", f"{prefix}exclude"]
+        result_exclusions = handler._set_prefix_based_exclusions(column_name, excluded_filters, prefix)
+        assertSameQ(result_exclusions, expected_exclusion_composed)

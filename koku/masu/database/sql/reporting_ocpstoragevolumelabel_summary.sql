@@ -187,7 +187,8 @@ ON CONFLICT DO NOTHING
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
 WHERE uuid IN (
     SELECT uuid FROM {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary AS ls
-    WHERE EXISTS (
+    WHERE ls.report_period_id IN {{ report_period_ids | inclause }}
+    AND EXISTS (
         SELECT 1
         FROM {{schema | sqlsafe}}.reporting_enabledtagkeys AS etk
         WHERE etk.enabled = false

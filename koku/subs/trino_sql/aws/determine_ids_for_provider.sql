@@ -1,10 +1,14 @@
-SELECT DISTINCT lineitem_usageaccountid
+SELECT
+  DISTINCT lineitem_usageaccountid
 FROM hive.{{schema | sqlsafe}}.aws_line_items
 WHERE source={{source_uuid}}
   AND year={{year}}
   AND month={{month}}
   AND lineitem_productcode = 'AmazonEC2'
   AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
-  {% if excluded_ids %}
-    AND lineitem_usageaccountid NOT IN {{excluded_ids | inclause}}
-  {% endif %}
+  AND lineitem_usageaccountid NOT IN (
+    SELECT
+      DISTINCT usage_id
+    FROM postgres.{{schema | sqlsafe}}.reporting_subs_id_map
+    WHERE source_uuid!=cast({{source_uuid}} as uuid)
+  )

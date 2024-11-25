@@ -970,29 +970,6 @@ def mark_manifest_complete(
             report.mark_completed()
 
 
-@celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
-def vacuum_schema(schema_name):
-    """Vacuum the reporting tables in the specified schema."""
-    table_sql = """
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = %s
-            AND table_name like 'reporting_%%'
-            AND table_type != 'VIEW'
-    """
-
-    with schema_context(schema_name):
-        with connection.cursor() as cursor:
-            cursor.execute(table_sql, [schema_name])
-            tables = cursor.fetchall()
-            tables = [table[0] for table in tables]
-            for table in tables:
-                sql = f"VACUUM ANALYZE {schema_name}.{table}"
-                cursor.execute(sql)
-                LOG.info(sql)
-                LOG.info(cursor.statusmessage)
-
-
 def normalize_table_options(table_options):
     """Normalize autovaccume_tune_schema table_options to dict type."""
     if not table_options:
@@ -1308,7 +1285,6 @@ def process_openshift_on_cloud_trino(
         for month in months:
             start_date = month[0]
             end_date = month[1]
-            # invoice_month = month[2]
             ctx["start_date"] = start_date
             ctx["end_date"] = end_date
             manifest_id = report.get("manifest_id")

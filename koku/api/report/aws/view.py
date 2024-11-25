@@ -48,6 +48,8 @@ class AWSEC2ComputeView(AWSView):
 
     report = "ec2_compute"
     serializer = AWSEC2ComputeQueryParamSerializer
+    monthly_pagination_key = "resource_ids"
+    only_monthly_resolution = True
 
     def get(self, request, **kwargs):
         if not is_feature_cost_4403_ec2_compute_cost_enabled(request.user.customer.schema_name):

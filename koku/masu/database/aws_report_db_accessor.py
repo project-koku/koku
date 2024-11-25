@@ -9,7 +9,6 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -476,12 +475,25 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+        """
+        Verify the managed trino table population went successfully.
+        """
+        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_aws_verification.sql")
+        verification_sql = verification_sql.decode("utf-8")
+        LOG.info(log_json(msg="running verification for managed OCP on AWS daily SQL", **verification_params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        if False in result[0]:
+            LOG.error(log_json(msg="Verification failed", **verification_params))
+        else:
+            LOG.info(log_json(msg="Verification successful", **verification_params))
+
     def populate_ocp_on_cloud_daily_trino(
         self, aws_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
     ):
         """Populate the aws_openshift_daily trino table for OCP on AWS.
         Args:
-            aws_provider_uuid (UUID) GCP source UUID.
+            aws_provider_uuid (UUID) AWS source UUID.
             ocp_provider_uuid (UUID) OCP source UUID.
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
@@ -489,10 +501,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        if type(start_date) == str:
-            start_date = parse(start_date).astimezone(tz=settings.UTC)
-        if type(end_date) == str:
-            end_date = parse(end_date).astimezone(tz=settings.UTC)
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         table = TRINO_MANAGED_OCP_AWS_DAILY_TABLE

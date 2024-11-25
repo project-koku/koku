@@ -206,7 +206,7 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("month", "month"),)
 
-    _opfields = ("resource_id", "instance_name", "account", "operating_system", "region")
+    _opfields = ("instance", "account", "operating_system", "region")
 
     _aws_category = True
 
@@ -215,27 +215,23 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
     limit = None
     offset = None
 
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    instance = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
     resolution = serializers.ChoiceField(
         choices=RESOLUTION_CHOICES,
         required=False,
-        default=TIME_SCOPE_UNITS_MONTHLY,
         error_messages={"invalid_choice": f"valid choice is '{RESOLUTION_MONTHLY}'"},
     )
     time_scope_value = serializers.ChoiceField(
         choices=TIME_CHOICES,
         required=False,
-        default=TIME_SCOPE_VALUES_MONTHLY[0],
         error_messages={"invalid_choice": f"valid choices are '{TIME_SCOPE_VALUES_MONTHLY}'"},
     )
     time_scope_units = serializers.ChoiceField(
         choices=TIME_UNIT_CHOICES,
         required=False,
-        default=RESOLUTION_MONTHLY,
         error_messages={"invalid_choice": f"valid choice is '{TIME_SCOPE_UNITS_MONTHLY}'"},
     )
 
@@ -243,12 +239,11 @@ class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):
 class AWSEC2ExcludeSerializer(BaseExcludeSerializer):
     """Serializer for handling query parameter exclude."""
 
-    _opfields = ("account", "region", "resource_id", "instance_name", "operating_system")
+    _opfields = ("account", "region", "instance", "operating_system")
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
-    resource_id = StringOrListField(child=serializers.CharField(), required=False)
-    instance_name = StringOrListField(child=serializers.CharField(), required=False)
+    instance = StringOrListField(child=serializers.CharField(), required=False)
     operating_system = StringOrListField(child=serializers.CharField(), required=False)
 
 
