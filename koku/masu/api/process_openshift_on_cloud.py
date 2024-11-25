@@ -73,7 +73,6 @@ def process_openshift_on_cloud(request):
 
     if provider.type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
         invoice_month = DateHelper().invoice_month_from_bill_date(start_date)
-        LOG.info(f"invoice_month: {invoice_month}")
         months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
     else:
         months = get_months_in_date_range(start=start_date, end=end_date)
