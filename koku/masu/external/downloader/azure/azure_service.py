@@ -69,7 +69,7 @@ class AzureService:
         valid_extensions = [
             AzureBlobExtension.csv.value,
             AzureBlobExtension.gzip.value,
-            AzureBlobExtension.manifest.value,
+            AzureBlobExtension.json.value,
         ]
         latest_blob = None
         for blob in blobs:
