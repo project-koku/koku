@@ -65,8 +65,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         END as volume_labels,
         ocp_aws.pod_labels as all_labels,
         rp.provider_id as source_uuid,
-        sum(coalesce(nullif(ocp_aws.savingsplan_effective_cost, 0), ocp_aws.unblended_cost) + coalesce(nullif(ocp_aws.markup_cost_savingsplan, 0), ocp_aws.markup_cost)) AS infrastructure_raw_cost,
-        sum(coalesce(nullif(ocp_aws.savingsplan_effective_cost, 0), ocp_aws.unblended_cost) + coalesce(nullif(ocp_aws.markup_cost_savingsplan, 0), ocp_aws.markup_cost)) AS infrastructure_project_raw_cost,
+        sum(calculated_amortized_cost + markup_cost_amortized) AS infrastructure_raw_cost,
+        sum(calculated_amortized_cost + markup_cost_amortized) AS infrastructure_project_raw_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
         CASE
