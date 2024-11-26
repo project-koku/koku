@@ -284,4 +284,8 @@ class TestGCPUtils(MasuTestCase):
         with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
             result = utils.check_resource_level(uuid4())
             self.assertFalse(result)
-            self.assertIn(expected_log, logger.output[1])
+            log_seen = False
+            for log_message in logger.output:
+                if expected_log in log_message:
+                    log_seen = True
+            self.assertTrue(log_seen)
