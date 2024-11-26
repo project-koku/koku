@@ -78,6 +78,7 @@ class ResourceTypesViewTest(IamTestCase):
     ENDPOINTS_AWS = [
         "aws-accounts",
         "aws-regions",
+        "aws-all-regions",
         "aws-services",
         "aws-organizational-units",
         "aws-categories",
@@ -249,6 +250,8 @@ class ResourceTypesViewTest(IamTestCase):
         """Test that Aws endpoints accept valid Aws permissions."""
         for endpoint in self.ENDPOINTS_AWS:
             with self.subTest(endpoint=endpoint):
+                if endpoint == "aws-all-regions":
+                    continue
                 url = reverse(endpoint)
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
