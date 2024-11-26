@@ -91,6 +91,6 @@ WHERE usage_start >= {{start_date}}::date
         + COALESCE(cost_model_volume_cost, 0)
         + COALESCE(distributed_cost, 0)
         + COALESCE(infrastructure_raw_cost, 0)
-        + COALESCE(infrastructure_markup_cost, 0)) <> 0
+        + COALESCE(infrastructure_markup_cost, 0)) != 0
 GROUP BY cluster_alias, cluster_id, namespace, latest.node_name, vm_name, cost_model_rate_type, latest.labels
 ;
