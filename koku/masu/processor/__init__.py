@@ -162,13 +162,6 @@ def get_customer_group_by_limit(account: str) -> int:  # pragma: no cover
     return limit
 
 
-def check_ingress_columns(account):  # pragma: no cover
-    """Should check ingress columns."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
-
-
 def is_feature_unattributed_storage_enabled_aws(account):
     """Should unattributed storage feature be enabled."""
     unleash_flag = "cost-management.backend.unattributed_storage.aws"
