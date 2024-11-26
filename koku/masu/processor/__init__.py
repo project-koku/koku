@@ -120,13 +120,6 @@ def is_managed_ocp_cloud_summary_enabled(account):
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
 
 
-def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
-    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
-
-
 def is_source_disabled(source_uuid):  # pragma: no cover
     """
     Disable source processing
