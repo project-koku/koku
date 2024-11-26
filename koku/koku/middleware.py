@@ -68,7 +68,7 @@ def is_no_auth(request):
 
 def is_no_entitled(request):
     """Check condition for needing to entitled user."""
-    no_entitled_list = ["source-status", "/aws-all-regions"]
+    no_entitled_list = ["source-status"]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_entitled_list)
     return no_auth
 
