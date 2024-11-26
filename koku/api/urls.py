@@ -12,7 +12,6 @@ from api.common.deprecate_view import SunsetView
 from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
-from api.views import AWSAllRegionView
 from api.views import AWSCategoryView
 from api.views import AWSCostForecastView
 from api.views import AWSCostView
@@ -444,7 +443,6 @@ urlpatterns = [
     path("resource-types/azure-services/", AzureServiceView.as_view(), name="azure-services"),
     path("resource-types/aws-services/", AWSServiceView.as_view(), name="aws-services"),
     path("resource-types/aws-regions/", AWSAccountRegionView.as_view(), name="aws-regions"),
-    path("resource-types/aws-all-regions/", AWSAllRegionView.as_view(), name="aws-all-regions"),
     path(
         "resource-types/azure-subscription-guids/",
         AzureSubscriptionGuidView.as_view(),
