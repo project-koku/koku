@@ -69,17 +69,6 @@ def is_ocp_on_cloud_summary_disabled(account):  # pragma: no cover
     return res
 
 
-def is_gcp_resource_matching_disabled(account):  # pragma: no cover
-    """Disable GCP resource matching for OCP on GCP."""
-    account = convert_account(account)
-    context = {"schema": account}
-    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context)
-    if res:
-        LOG.info(log_json(msg="GCP resource matching is disabled", context=context))
-
-    return res
-
-
 def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large."""
     account = convert_account(account)
