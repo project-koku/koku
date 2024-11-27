@@ -408,13 +408,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
             mock_trino.assert_not_called()
             mock_table_exist.assert_not_called()
 
-    @patch("masu.database.aws_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
-    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+    def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
         Test that mapped tags are updated in aws line item summary tables.
         After the update, the child tag's key-value data is cleared and the parent tag's data is updated accordingly.
         """
-        mock_unleash.return_value = True
         populated_keys = []
 
         table_classes = [AWSCostEntryLineItemDailySummary, AWSCostEntryLineItemSummaryByEC2ComputeP]
@@ -459,12 +457,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
                     # Clear TagMapping objects
                     TagMapping.objects.filter(parent=parent_obj, child=child_obj).delete()
 
-    @patch("masu.database.aws_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
-    def test_populate_ocp_on_aws_tag_information(self, mock_unleash):
+    def test_populate_ocp_on_aws_tag_information(self):
         """
         This tests the tag mapping feature.
         """
-        mock_unleash.return_value = True
         populated_keys = []
         report_period_id = 1
         with schema_context(self.schema):
