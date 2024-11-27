@@ -170,13 +170,6 @@ def check_group_by_limit(account, group_by_length):
     raise ValidationError({"group_by": (f"Cost Management supports a max of {limit} group_by options.")})
 
 
-def check_ingress_columns(account):  # pragma: no cover
-    """Should check ingress columns."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
-
-
 def is_feature_unattributed_storage_enabled_aws(account):
     """Should unattributed storage feature be enabled."""
     unleash_flag = "cost-management.backend.unattributed_storage.aws"
