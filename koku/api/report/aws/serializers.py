@@ -18,7 +18,7 @@ from api.report.serializers import ReportQueryParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import get_cost_type
-from masu.processor import get_customer_group_by_limit
+from masu.processor import check_group_by_limit
 
 
 class AWSGroupBySerializer(GroupSerializer):
@@ -150,10 +150,7 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
             (ValidationError): if group_by field inputs are invalid
 
         """
-        max_value = get_customer_group_by_limit(self.schema)
-        if len(value) > max_value:
-            error = {"group_by": (f"Cost Management supports a max of {max_value} group_by options.")}
-            raise serializers.ValidationError(error)
+        check_group_by_limit(self.schema, len(value))
         validate_field(
             self,
             "group_by",

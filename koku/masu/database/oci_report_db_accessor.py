@@ -15,7 +15,6 @@ from api.models import Provider
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from reporting.provider.all.models import TagMapping
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
@@ -133,8 +132,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns:
             (None)
         """
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_OCI).exists():
