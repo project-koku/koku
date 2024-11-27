@@ -1013,12 +1013,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_sql_execute.assert_called()
             self.assertEqual(len(mock_sql_execute.call_args_list), 4)
 
-    @patch("masu.database.ocp_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
-    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+    def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
         This tests the tag mapping feature.
         """
-        mock_unleash.return_value = True
         populated_keys = []
         with schema_context(self.schema):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP, enabled=True)
