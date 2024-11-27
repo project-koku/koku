@@ -304,7 +304,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except AzureCostReportNotFound as ex:
                 json_manifest = None
                 msg = f"No JSON manifest exists. {ex}"
-                LOG.debug(msg)
+                LOG.info(msg)
             if json_manifest:
                 report_name = json_manifest.name
                 last_modified = json_manifest.last_modified
