@@ -24,7 +24,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.models import OCP_ON_GCP_TEMP_MANAGED_TABLES
@@ -495,8 +494,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_gcp_tags_summary"], sql, sql_params)
         # Tag Mapping
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(
@@ -519,8 +516,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns:
             (None)
         """
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_GCP).exists():
@@ -589,7 +584,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ocp_on_cloud_daily_trino(
         self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
     ):
-        """Populate the gcp_openshift_daily trino table for OCP on Azure.
+        """Populate the managed_gcp_openshift_daily trino table for OCP on GCP.
         Args:
             gcp_provider_uuid (UUID) GCP source UUID.
             ocp_provider_uuid (UUID) OCP source UUID.

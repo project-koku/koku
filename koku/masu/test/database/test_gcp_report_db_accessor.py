@@ -494,12 +494,10 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_connect.assert_called()
         self.assertEqual(mock_connect.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
 
-    @patch("masu.database.gcp_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
-    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+    def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
         This tests the tag mapping feature.
         """
-        mock_unleash.return_value = True
         populated_keys = []
         with schema_context(self.schema):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP, enabled=True)
@@ -528,12 +526,10 @@ class GCPReportDBAccessorTest(MasuTestCase):
             ).count()
             self.assertEqual(0, actual_child_count)
 
-    @patch("masu.database.gcp_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
-    def test_populate_ocp_on_gcp_tag_information(self, mock_unleash):
+    def test_populate_ocp_on_gcp_tag_information(self):
         """
         This tests the tag mapping feature.
         """
-        mock_unleash.return_value = True
         populated_keys = []
         report_period_id = 1
         with schema_context(self.schema):

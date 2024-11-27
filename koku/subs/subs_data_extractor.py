@@ -79,24 +79,20 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def determine_ids_for_provider(self, year, month):
         """Determine the relevant IDs to process data for this provider."""
+        sql_file = f"trino_sql/{self.provider_type.lower()}/determine_ids_for_provider.sql"
+        sql = pkgutil.get_data("subs", sql_file)
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "source_uuid": self.provider_uuid,
+            "year": year,
+            "month": month,
+        }
+        ids = self._execute_trino_raw_sql_query(
+            sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_ids_for_provider"
+        )
+
         with schema_context(self.schema):
-            # get a list of IDs to exclude from this source processing
-            excluded_ids = list(
-                SubsIDMap.objects.exclude(source_uuid=self.provider_uuid).values_list("usage_id", flat=True)
-            )
-            sql_file = f"trino_sql/{self.provider_type.lower()}/determine_ids_for_provider.sql"
-            sql = pkgutil.get_data("subs", sql_file)
-            sql = sql.decode("utf-8")
-            sql_params = {
-                "schema": self.schema,
-                "source_uuid": self.provider_uuid,
-                "year": year,
-                "month": month,
-                "excluded_ids": excluded_ids,
-            }
-            ids = self._execute_trino_raw_sql_query(
-                sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_ids_for_provider"
-            )
             id_list = []
             bulk_maps = []
             for id in ids:
@@ -115,26 +111,19 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def get_resource_ids_for_usage_account(self, usage_account, year, month):
         """Determine the relevant resource ids and end time to process to for each resource id."""
-        with schema_context(self.schema):
-            # get a list of IDs to exclude from this source processing
-            excluded_ids = list(
-                SubsLastProcessed.objects.exclude(source_uuid=self.provider_uuid).values_list("resource_id", flat=True)
-            )
-            sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
-            sql = pkgutil.get_data("subs", sql_file)
-            sql = sql.decode("utf-8")
-            sql_params = {
-                "schema": self.schema,
-                "source_uuid": self.provider_uuid,
-                "year": year,
-                "month": month,
-                "excluded_ids": excluded_ids,
-                "usage_account": usage_account,
-            }
-            ids = self._execute_trino_raw_sql_query(
-                sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
-            )
-        return ids
+        sql_file = f"trino_sql/{self.provider_type.lower()}/determine_resource_ids_for_usage_account.sql"
+        sql = pkgutil.get_data("subs", sql_file)
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "source_uuid": self.provider_uuid,
+            "year": year,
+            "month": month,
+            "usage_account": usage_account,
+        }
+        return self._execute_trino_raw_sql_query(
+            sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
+        )
 
     def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
         """Gather the data and upload it to S3 for a batch of resource ids"""

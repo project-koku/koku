@@ -5,7 +5,6 @@
 """API models for import organization."""
 # flake8: noqa
 from api.currency.models import ExchangeRates
-from api.dataexport.models import DataExportRequest
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
