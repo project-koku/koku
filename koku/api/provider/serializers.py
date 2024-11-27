@@ -358,7 +358,8 @@ class ProviderSerializer(serializers.ModelSerializer):
         if dup_queryset.count() != 0:
             message = (
                 "Cost management does not allow duplicate accounts. "
-                "An integration already exists with these details. Edit integration settings to configure a new integration."
+                "An integration already exists with these details. "
+                "Edit integration settings to configure a new integration."
             )
             LOG.warning(message)
             raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
@@ -419,7 +420,8 @@ class ProviderSerializer(serializers.ModelSerializer):
                 if dup_queryset.count() != 0:
                     message = (
                         "Cost management does not allow duplicate accounts. "
-                        "An integration already exists with these details. Edit integration settings to configure a new integration."
+                        "An integration already exists with these details. "
+                        "Edit integration settings to configure a new integration."
                     )
                     LOG.warning(message)
                     raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
