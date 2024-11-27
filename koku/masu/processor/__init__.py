@@ -177,14 +177,6 @@ def is_feature_unattributed_storage_enabled_aws(account):
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_feature_cost_3592_tag_mapping_enabled(account):
-    """Should tag mapping be enabled."""
-    unleash_flag = "cost-management.backend.feature-cost-3592-tag-mapping"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
-
-
 def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
     """Should EC2 individual VM compute cost be enabled."""
     unleash_flag = "cost-management.backend.feature-4403-enable-ec2-compute-processing"
