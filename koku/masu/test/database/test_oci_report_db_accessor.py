@@ -163,12 +163,10 @@ class OCIReportDBAccessorTest(MasuTestCase):
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, OCI_CUR_TABLE_MAP)
 
-    @patch("masu.database.oci_report_db_accessor.is_feature_cost_3592_tag_mapping_enabled")
-    def test_update_line_item_daily_summary_with_tag_mapping(self, mock_unleash):
+    def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
         This tests the tag mapping feature.
         """
-        mock_unleash.return_value = True
         populated_keys = []
         with schema_context(self.schema):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI, enabled=True)
