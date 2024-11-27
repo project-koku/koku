@@ -6773,9 +6773,10 @@
                 "name": "delta",
                 "required": false,
                 "in": "query",
-                "description": "Toggle to include delta values in report.",
+                "description": "Option to include delta values in the report. This shows the increase/decrease of cost or usage metrics between current and last month",
                 "schema": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "cost"
                 }
             },
             "QueryEndDate": {

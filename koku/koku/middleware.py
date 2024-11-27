@@ -73,6 +73,13 @@ def is_no_entitled(request):
     return no_auth
 
 
+def is_no_access(request):
+    """Check condition for user access."""
+    no_access_list = ["aws-s3-regions"]
+    no_auth = any(no_auth_path in request.path for no_auth_path in no_access_list)
+    return no_auth
+
+
 class HttpResponseUnauthorizedRequest(HttpResponse):
     """A subclass of HttpResponse to return a 401.
     Used if identity header is not sent.
@@ -190,6 +197,8 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             PermissionDenied: If the user does not have permissions for Cost Management.
 
         """
+        if is_no_access(request):
+            return
         if not request.user.admin and not request.user.access:
             msg = f"User {request.user.username} does not have permissions for Cost Management."
             LOG.warning(msg)
