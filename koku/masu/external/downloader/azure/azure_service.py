@@ -68,6 +68,8 @@ class AzureService:
     ) -> t.Optional[BlobProperties]:
         latest_blob = None
         for blob in blobs:
+            if extension and not blob.name.endswith(extension):
+                continue
             if report_path in blob.name:
                 if not latest_blob or blob.last_modified > latest_blob.last_modified:
                     latest_blob = blob
