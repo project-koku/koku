@@ -92,7 +92,7 @@ class AzureService:
     ) -> BlobProperties:
         """Get the latest file with the specified extension from given storage account container."""
 
-        latest_report = None
+        latest_file = None
         if not container_name:
             message = "Unable to gather latest file as container name is not provided."
             LOG.warning(message)
@@ -125,12 +125,12 @@ class AzureService:
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
 
-        latest_report = self._get_latest_blob(report_path, blobs, extension)
-        if not latest_report:
+        latest_file = self._get_latest_blob(report_path, blobs, extension)
+        if not latest_file:
             message = f"No file found in container " f"'{container_name}' for path '{report_path}'."
             raise AzureCostReportNotFound(message)
 
-        return latest_report
+        return latest_file
 
     def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
         try:
