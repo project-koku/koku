@@ -66,19 +66,8 @@ class AzureService:
     def _get_latest_blob(
         self, report_path: str, blobs: list[BlobProperties], extension: t.Optional[str] = None
     ) -> t.Optional[BlobProperties]:
-        valid_extensions = [
-            AzureBlobExtension.csv.value,
-            AzureBlobExtension.gzip.value,
-            AzureBlobExtension.json.value,
-        ]
         latest_blob = None
         for blob in blobs:
-            if extension:
-                if not blob.name.endswith(extension):
-                    continue
-            elif not any(blob.name.endswith(ext) for ext in valid_extensions):
-                continue
-
             if report_path in blob.name:
                 if not latest_blob or blob.last_modified > latest_blob.last_modified:
                     latest_blob = blob
