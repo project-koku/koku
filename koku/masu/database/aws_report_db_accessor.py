@@ -341,7 +341,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         markup_cost_blended=(F("blended_cost") * markup),
                         markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                         markup_cost_amortized=(F("calculated_amortized_cost") * markup),
-                        project_markup_cost=(F("calculated_amortized_cost") * markup),
                     )
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
