@@ -56,7 +56,7 @@ SELECT 'AWS'::text AS source_type,
        max(aws.unit),
        --  OCP on ALL tables should use calculated_amortized_cost
        sum(calculated_amortized_cost) as unblended_cost,
-       sum(aws.markup_cost),
+       sum(aws.markup_cost_amortized),
        max(aws.currency_code),
        max(cost_category_id) as cost_category_id,
        cast(1 as decimal) as shared_projects,
