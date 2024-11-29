@@ -17,7 +17,6 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor.tasks import update_cost_model_costs
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -34,8 +33,11 @@ class CostModelManager:
         self._cost_model_uuid = None
 
         if cost_model_uuid:
-            self._model = CostModel.objects.get(uuid=cost_model_uuid)
-            self._cost_model_uuid = cost_model_uuid
+            try:
+                self._model = CostModel.objects.get(uuid=cost_model_uuid)
+                self._cost_model_uuid = cost_model_uuid
+            except CostModel.DoesNotExist:
+                LOG.warning(f"CostModel with UUID {cost_model_uuid} does not exist.")
 
     @property
     def instance(self):
