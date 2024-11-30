@@ -87,7 +87,7 @@ class CostModelManager:
             else:
                 if provider.active:
                     schema_name = provider.customer.schema_name
-                    fallback_queue = get_customer_queue(schema_name, PriorityQueue)
+                    fallback_queue = get_customer_queue(schema_name, PriorityQueue, provider_uuid)
                     # Because this is triggered from the UI, we use the priority queue
                     LOG.info(
                         f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "

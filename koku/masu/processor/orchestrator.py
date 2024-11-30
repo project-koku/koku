@@ -233,8 +233,8 @@ class Orchestrator:
             REPORT_QUEUE = self.queue_name
             HCS_Q = self.queue_name
         else:
-            SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue)
-            REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue)
+            SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue, provider_uuid)
+            REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue, provider_uuid)
             HCS_Q = HCS_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(

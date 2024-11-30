@@ -65,7 +65,7 @@ def validate_cost_data(request):  # noqa: C901
                 errmsg = f"ocp on cloud type must match: {supported_types}"
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        fallback_queue = get_customer_queue(provider_schema, PriorityQueue)
+        fallback_queue = get_customer_queue(provider_schema, PriorityQueue, provider_uuid)
         queue_name = params.get("queue") or fallback_queue
 
         if queue_name not in QUEUE_LIST:

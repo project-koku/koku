@@ -73,7 +73,7 @@ def cleanup_aws_bills(delete: bool) -> int:
                     payer_account_id=None,
                     billing_period_start=start_date,
                 ):
-                    queue_name = get_customer_queue(schema, PriorityQueue)
+                    queue_name = get_customer_queue(schema, PriorityQueue, provider_uuid)
                     total_cleaned_bills += len(bills)
                     if delete:
                         formatted_start = start_date.strftime(DATE_FORMAT)

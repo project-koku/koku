@@ -45,7 +45,7 @@ def process_openshift_on_cloud(request):
     schema_name = params.get("schema")
     start_date = params.get("start_date")
     end_date = params.get("end_date")
-    fallback_queue = get_customer_queue(schema_name, DownloadQueue)
+    fallback_queue = get_customer_queue(schema_name, DownloadQueue, cloud_provider_uuid)
     queue_name = params.get("queue") or fallback_queue
 
     if cloud_provider_uuid is None:
@@ -80,7 +80,7 @@ def process_openshift_on_cloud(request):
     if provider.type in Provider.MANAGED_OPENSHIFT_ON_CLOUD_PROVIDER_LIST and is_managed_ocp_cloud_processing_enabled(
         schema_name
     ):
-        fallback_queue = get_customer_queue(schema_name, SummaryQueue)
+        fallback_queue = get_customer_queue(schema_name, SummaryQueue, cloud_provider_uuid)
         for month in months:
             tracing_id = str(uuid4())
             report = {

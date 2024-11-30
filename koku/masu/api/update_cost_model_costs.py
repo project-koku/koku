@@ -40,7 +40,7 @@ def update_cost_model_costs(request):
     default_end_date = DateHelper().today.strftime("%Y-%m-%d")
     start_date = params.get("start_date", default=default_start_date)
     end_date = params.get("end_date", default=default_end_date)
-    fallback_queue = get_customer_queue(schema_name, PriorityQueue)
+    fallback_queue = get_customer_queue(schema_name, PriorityQueue, provider_uuid)
     queue_name = params.get("queue") or fallback_queue
 
     if provider_uuid is None or schema_name is None:

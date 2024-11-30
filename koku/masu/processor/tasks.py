@@ -147,9 +147,9 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
 
 def delayed_summarize_current_month(schema_name: str, provider_uuids: list, provider_type: str):
     """Delay Resummarize provider data for the current month."""
-    queue = get_customer_queue(schema_name, SummaryQueue)
 
     for provider_uuid in provider_uuids:
+        queue = get_customer_queue(schema_name, SummaryQueue, provider_uuid)
         id = DelayedCeleryTasks.create_or_reset_timeout(
             task_name=UPDATE_SUMMARY_TABLES_TASK,
             task_args=[schema_name],
@@ -425,7 +425,7 @@ def summarize_reports(  # noqa: C901
         # Updater classes for when full-month summarization is
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
-            fallback_queue = get_customer_queue(schema_name, SummaryQueue)
+            fallback_queue = get_customer_queue(schema_name, SummaryQueue, report.get("provider_uuid"))
             tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
 
             if not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
@@ -502,10 +502,10 @@ def update_summary_tables(  # noqa: C901
     ocp_on_cloud_infra_map = {}
     is_large_customer_rate_limited = is_rate_limit_customer_large(schema)
     # Fallback should only be used for non-ocp processing
-    fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue)
-    delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
-    update_cost_model_queue = get_customer_queue(schema, CostModelQueue)
-    priority_queue = get_customer_queue(schema, PriorityQueue)
+    fallback_update_summary_tables_queue = get_customer_queue(schema, SummaryQueue, provider_uuid)
+    delete_truncate_queue = get_customer_queue(schema, RefreshQueue, provider_uuid)
+    update_cost_model_queue = get_customer_queue(schema, CostModelQueue, provider_uuid)
+    priority_queue = get_customer_queue(schema, PriorityQueue, provider_uuid)
     timeout = settings.WORKER_CACHE_TIMEOUT
     if fallback_update_summary_tables_queue != SummaryQueue.DEFAULT:
         timeout = settings.WORKER_CACHE_LARGE_CUSTOMER_TIMEOUT
@@ -744,7 +744,7 @@ def update_openshift_on_cloud(  # noqa: C901
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
         rate_limited = False
-        fallback_queue = get_customer_queue(schema_name, SummaryQueue)
+        fallback_queue = get_customer_queue(schema_name, SummaryQueue, infrastructure_provider_uuid)
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
         if fallback_queue != SummaryQueue.DEFAULT:
@@ -795,8 +795,8 @@ def update_openshift_on_cloud(  # noqa: C901
         )
         # Regardless of an attached cost model we must run an update for default distribution costs
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
-        cost_model_fallback_queue = get_customer_queue(schema_name, CostModelQueue)
-        priority_queue = get_customer_queue(schema_name, PriorityQueue)
+        cost_model_fallback_queue = get_customer_queue(schema_name, CostModelQueue, infrastructure_provider_uuid)
+        priority_queue = get_customer_queue(schema_name, PriorityQueue, infrastructure_provider_uuid)
         update_cost_model_costs.s(
             schema_name, openshift_provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).apply_async(queue=queue_name or cost_model_fallback_queue)
@@ -861,8 +861,8 @@ def update_all_summary_tables(start_date, end_date=None):
         schema_name = account.get("schema_name")
         provider_type = account.get("provider_type")
         provider_uuid = account.get("provider_uuid")
-        fallback_queue = get_customer_queue(schema_name, SummaryQueue)
-        ocp_process_queue = get_customer_queue(schema_name, OCPQueue)
+        fallback_queue = get_customer_queue(schema_name, SummaryQueue, provider_uuid)
+        ocp_process_queue = get_customer_queue(schema_name, OCPQueue, provider_uuid)
         queue_name = ocp_process_queue if provider_type and provider_type.lower() == "ocp" else None
         update_summary_tables.s(
             schema_name, provider_type, provider_uuid, str(start_date), end_date, queue_name=queue_name
@@ -896,7 +896,7 @@ def update_cost_model_costs(  # noqa: C901
     if not synchronous:
         worker_cache = WorkerCache()
         timeout = settings.WORKER_CACHE_TIMEOUT
-        fallback_queue = get_customer_queue(schema_name, CostModelQueue)
+        fallback_queue = get_customer_queue(schema_name, CostModelQueue, provider_uuid)
         rate_limited = False
         if is_rate_limit_customer_large(schema_name):
             rate_limited = rate_limit_tasks(task_name, schema_name)
