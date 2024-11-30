@@ -496,7 +496,7 @@ parameters:
   value: "0 * * * *"
 - description: Report download xl schedule
   displayName: Report download xl schedule
-  name: REPORT_DOWNLOAD_SCHEDULE
+  name: XL_REPORT_DOWNLOAD_SCHEDULE
   value: "0 */3 * * *"
 - description: Remove expired data on day
   displayName: Remove expired data on day
@@ -536,7 +536,7 @@ parameters:
   name: POLLING_BATCH_SIZE
   value: "100"
 - displayName: XL Provider count for batch polling
-  name: POLLING_BATCH_SIZE_XL
+  name: XL_POLLING_BATCH_SIZE
   value: "10"
 - description: Minimum number of reports before provider classed as XL
   displayName: Min report count for large providers

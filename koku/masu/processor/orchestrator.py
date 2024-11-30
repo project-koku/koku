@@ -127,7 +127,7 @@ class Orchestrator:
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._summarize_reports = kwargs.get("summarize_reports", True)
         self._large_customers = kwargs.get("large_customers", False)
-        self._polling_batch = settings.POLLING_BATCH_SIZE_XL if self._large_customers else settings.POLLING_BATCH_SIZE
+        self._polling_batch = settings.XL_POLLING_BATCH_SIZE if self._large_customers else settings.POLLING_BATCH_SIZE
 
     def get_polling_batch(self):
         if self.provider_uuid:

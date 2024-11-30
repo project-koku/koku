@@ -128,13 +128,13 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
 
     # The schedule to scan for XL reports
-    download_xl_fallback = validate_cron_expression("0 */3 * * *")
-    download_xl_expression = ENVIRONMENT.get_value("REPORT_DOWNLOAD_XL_SCHEDULE", default=download_xl_fallback)
-    REPORT_DOWNLOAD_XL_SCHEDULE = validate_cron_expression(download_xl_expression, download_xl_fallback)
-    report_xl_schedule = crontab(*REPORT_DOWNLOAD_XL_SCHEDULE.split(" ", 5))
+    xl_download_fallback = validate_cron_expression("0 */3 * * *")
+    xl_download_expression = ENVIRONMENT.get_value("XL_REPORT_DOWNLOAD_SCHEDULE", default=xl_download_fallback)
+    XL_REPORT_DOWNLOAD_SCHEDULE = validate_cron_expression(xl_download_expression, xl_download_fallback)
+    xl_report_schedule = crontab(*XL_REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
     CHECK_REPORT_UPDATES_XL = {
         "task": download_task,
-        "schedule": report_xl_schedule,
+        "schedule": xl_report_schedule,
         "kwargs": {"large_customers": "True"},
     }
     app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_XL

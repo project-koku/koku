@@ -846,8 +846,8 @@ objects:
           value: ${SCHEDULER_WORKER_QUEUE}
         - name: REPORT_DOWNLOAD_SCHEDULE
           value: ${REPORT_DOWNLOAD_SCHEDULE}
-        - name: REPORT_DOWNLOAD_XL_SCHEDULE
-          value: ${REPORT_DOWNLOAD_XL_SCHEDULE}
+        - name: XL_REPORT_DOWNLOAD_SCHEDULE
+          value: ${XL_REPORT_DOWNLOAD_SCHEDULE}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_SCHEDULE
@@ -5906,7 +5906,7 @@ parameters:
   value: 0 * * * *
 - description: Report download xl schedule
   displayName: Report download xl schedule
-  name: REPORT_DOWNLOAD_SCHEDULE
+  name: XL_REPORT_DOWNLOAD_SCHEDULE
   value: 0 */3 * * *
 - description: Remove expired data on day
   displayName: Remove expired data on day
