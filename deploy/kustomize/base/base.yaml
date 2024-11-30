@@ -494,6 +494,10 @@ parameters:
   displayName: Report download schedule
   name: REPORT_DOWNLOAD_SCHEDULE
   value: "0 * * * *"
+- description: Report download xl schedule
+  displayName: Report download xl schedule
+  name: REPORT_DOWNLOAD_SCHEDULE
+  value: "0 */3 * * *"
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -531,6 +535,13 @@ parameters:
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
   value: "100"
+- displayName: XL Provider count for batch polling
+  name: POLLING_BATCH_SIZE_XL
+  value: "10"
+- description: Minimum number of reports before provider classed as XL
+  displayName: Min report count for large providers
+  name: XL_REPORT_COUNT
+  value: "75"
 - displayName: Timer to prevent triggering tasks while still processing in days
   name: PROCESSING_WAIT_TIMER
   value: "3"

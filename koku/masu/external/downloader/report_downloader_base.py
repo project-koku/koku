@@ -6,6 +6,7 @@
 import logging
 from tempfile import mkdtemp
 
+from django.conf import settings
 from django.db.utils import IntegrityError
 
 from api.common import log_json
@@ -118,4 +119,13 @@ class ReportDownloaderBase:
         with ReportManifestDBAccessor() as manifest_accessor:
             if num_of_files != manifest_entry.num_total_files:
                 manifest_accessor.update_number_of_files_for_manifest(manifest_entry)
+
+        # Set whether a provider should be classed as large based on report file count
+        # TODO do something similar for OCP, maybe based on cluster count (not necessarily here)
+        if num_of_files > settings.XL_REPORT_COUNT:
+            if provider := Provider.objects.filter(uuid=self._provider_uuid).first():
+                provider.set_provider_as_large()
+                msg = "Provider set as large for XL processing."
+                LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
+
         return manifest_entry.id

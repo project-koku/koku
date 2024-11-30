@@ -199,6 +199,8 @@ class Provider(models.Model):
     setup_complete = models.BooleanField(default=False)
 
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    # large used to indicate whether a provider should use large customer queues
+    large = models.BooleanField(blank=True, null=True, default=False)
     polling_timestamp = models.DateTimeField(blank=True, null=True, default=None)
 
     # We update the record on the provider when we update data.
@@ -295,6 +297,11 @@ class Provider(models.Model):
         """Set setup_complete to True."""
         self.setup_complete = True
         self.save(update_fields=["setup_complete"])
+
+    def set_provider_as_large(self):
+        """Set flag to True to indicate provider is large."""
+        self.large = True
+        self.save(update_fields=["large"])
 
     def delete(self, *args, **kwargs):
         if self.customer:

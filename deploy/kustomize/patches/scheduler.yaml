@@ -79,6 +79,8 @@
           value: ${SCHEDULER_WORKER_QUEUE}
         - name: REPORT_DOWNLOAD_SCHEDULE
           value: ${REPORT_DOWNLOAD_SCHEDULE}
+        - name: REPORT_DOWNLOAD_XL_SCHEDULE
+          value: ${REPORT_DOWNLOAD_XL_SCHEDULE}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_SCHEDULE
@@ -103,6 +105,10 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_BATCH_SIZE_XL
+          value: ${POLLING_BATCH_SIZE_XL}
+        - name: XL_REPORT_COUNT
+          value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
           value: ${PROCESSING_WAIT_TIMER}
         - name: LARGE_PROCESSING_WAIT_TIMER

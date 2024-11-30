@@ -127,6 +127,18 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     }
     app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_DEF
 
+    # The schedule to scan for XL reports
+    download_xl_fallback = validate_cron_expression("0 */3 * * *")
+    download_xl_expression = ENVIRONMENT.get_value("REPORT_DOWNLOAD_XL_SCHEDULE", default=download_xl_fallback)
+    REPORT_DOWNLOAD_XL_SCHEDULE = validate_cron_expression(download_xl_expression, download_xl_fallback)
+    report_xl_schedule = crontab(*REPORT_DOWNLOAD_XL_SCHEDULE.split(" ", 5))
+    CHECK_REPORT_UPDATES_XL = {
+        "task": download_task,
+        "schedule": report_xl_schedule,
+        "kwargs": {"large_customers": "True"},
+    }
+    app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_XL
+
 # Specify the day of the month for removal of expired report data.
 REMOVE_EXPIRED_REPORT_DATA_ON_DAY = ENVIRONMENT.int("REMOVE_EXPIRED_REPORT_DATA_ON_DAY", default=1)
 

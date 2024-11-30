@@ -114,7 +114,6 @@ class Orchestrator:
     def __init__(
         self,
         provider_uuid=None,
-        provider_type=None,
         bill_date=None,
         queue_name=None,
         **kwargs,
@@ -123,20 +122,19 @@ class Orchestrator:
         self.worker_cache = WorkerCache()
         self.bill_date = bill_date
         self.provider_uuid = provider_uuid
-        self.provider_type = provider_type
         self.queue_name = queue_name
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._summarize_reports = kwargs.get("summarize_reports", True)
+        self._large_customers = kwargs.get("large_customers", False)
+        self._polling_batch = settings.POLLING_BATCH_SIZE_XL if self._large_customers else settings.POLLING_BATCH_SIZE
 
     def get_polling_batch(self):
         if self.provider_uuid:
             providers = Provider.objects.filter(uuid=self.provider_uuid)
         else:
-            filters = {}
-            if self.provider_type:
-                filters["type"] = self.provider_type
-            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE, filters=filters)
+            filters = {"large": self._large_customers}
+            providers = Provider.polling_objects.get_polling_batch(self._polling_batch, filters=filters)
 
         batch = []
         for provider in providers:

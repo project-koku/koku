@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common place for queues"""
+from api.provider.models import Provider
 from common.enum import StrEnum
 from masu.processor import is_customer_large
 from masu.processor import is_customer_penalty
@@ -67,8 +68,12 @@ QUEUE_LIST = [
 ]
 
 
-def get_customer_queue(schema, queue_class=DownloadQueue):
+def get_customer_queue(schema, queue_class=DownloadQueue, provider_uuid=None):
     queue = queue_class.DEFAULT
+    if provider_uuid:
+        provider = Provider.objects.get(uuid=provider_uuid)
+        if provider.large:
+            queue = queue_class.XL
     if is_customer_large(schema):
         queue = queue_class.XL
     if is_customer_penalty(schema):
