@@ -7,6 +7,7 @@ from api.provider.models import Provider
 from common.enum import StrEnum
 from masu.processor import is_customer_large
 from masu.processor import is_customer_penalty
+from masu.util.common import is_valid_uuid
 
 DEFAULT = "celery"
 
@@ -70,10 +71,8 @@ QUEUE_LIST = [
 
 def get_customer_queue(schema, queue_class=DownloadQueue, provider_uuid=None):
     queue = queue_class.DEFAULT
-    if provider_uuid:
-        provider = Provider.objects.get(uuid=provider_uuid)
-        if provider.large:
-            queue = queue_class.XL
+    if is_valid_uuid(str(provider_uuid)) and Provider.objects.filter(uuid=provider_uuid, large=True).first():
+        queue = queue_class.XL
     if is_customer_large(schema):
         queue = queue_class.XL
     if is_customer_penalty(schema):

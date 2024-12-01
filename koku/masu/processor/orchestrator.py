@@ -73,12 +73,12 @@ def get_billing_months(number_of_months):
     return months
 
 
-def check_currently_processing(schema, provider):
+def check_currently_processing(schema, provider, large_providers=False):
     result = False
     if provider.polling_timestamp:
         # Set processing delta wait time
         process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.PROCESSING_WAIT_TIMER)
-        if is_customer_large(schema):
+        if is_customer_large(schema) or large_providers:
             process_wait_delta = datetime.now(tz=settings.UTC) - timedelta(days=settings.LARGE_PROCESSING_WAIT_TIMER)
         # Check processing, if polling timestamp more recent than updated timestamp skip polling
         if provider.data_updated_timestamp:
@@ -126,21 +126,21 @@ class Orchestrator:
         self.ingress_reports = kwargs.get("ingress_reports")
         self.ingress_report_uuid = kwargs.get("ingress_report_uuid")
         self._summarize_reports = kwargs.get("summarize_reports", True)
-        self._large_customers = kwargs.get("large_customers", False)
-        self._polling_batch = settings.XL_POLLING_BATCH_SIZE if self._large_customers else settings.POLLING_BATCH_SIZE
+        self._large_providers = kwargs.get("large_providers", False)
+        self._polling_batch = settings.XL_POLLING_BATCH_SIZE if self._large_providers else settings.POLLING_BATCH_SIZE
 
     def get_polling_batch(self):
         if self.provider_uuid:
             providers = Provider.objects.filter(uuid=self.provider_uuid)
         else:
-            filters = {"large": self._large_customers}
+            filters = {"large": self._large_providers}
             providers = Provider.polling_objects.get_polling_batch(self._polling_batch, filters=filters)
 
         batch = []
         for provider in providers:
             schema_name = provider.account.get("schema_name")
             # Check processing delta wait and skip polling if provider not completed processing
-            if check_currently_processing(schema_name, provider):
+            if check_currently_processing(schema_name, provider, self._large_providers):
                 # We still need to update the timestamp between runs
                 LOG.info(
                     log_json(

@@ -479,20 +479,21 @@ class OrchestratorTest(MasuTestCase):
         p = o.get_polling_batch()
         self.assertEqual(len(p), 1)
 
-        # provider provider-type does NOT override polling timestamp
+        # provider large does NOT override polling timestamp
         # so this query will provide zero pollable providers
-        o = Orchestrator(provider_type="AWS-local")
+        o = Orchestrator(large_providers="True")
         p = o.get_polling_batch()
         self.assertEqual(len(p), 0)
 
-        # here we demonstrate the filtering only returns AWS-local
+        # here we demonstrate the filtering only returns large providers
         # and returns based on the polling timestamp
-        expected_providers = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL)
+        expected_providers = Provider.objects.filter(uuid=self.aws_provider_uuid)
         p = expected_providers[0]
         p.polling_timestamp = None
+        p.large = True
         p.save()
 
-        o = Orchestrator(provider_type="AWS-local")
+        o = Orchestrator(large_providers="True")
         p = o.get_polling_batch()
         self.assertGreater(len(p), 0)
         self.assertEqual(len(p), expected_providers.count())

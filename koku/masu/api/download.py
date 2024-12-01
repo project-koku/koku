@@ -26,14 +26,14 @@ def download_report(request):
     """Return download file async task ID."""
     params = request.query_params
     provider_uuid = params.get("provider_uuid")
-    large_customers = params.get("large_customers", "False").lower()
-    large_customers = True if large_customers == "true" else False
+    large_providers = params.get("large_providers", "False").lower()
+    large_providers = True if large_providers == "true" else False
     bill_date = params.get("bill_date")
     summarize_reports = params.get("summarize_reports", "true").lower()
     summarize_reports = True if summarize_reports == "true" else False
     async_download_result = check_report_updates.delay(
         provider_uuid=provider_uuid,
-        large_customers=large_customers,
+        large_providers=large_providers,
         bill_date=bill_date,
         summarize_reports=summarize_reports,
     )

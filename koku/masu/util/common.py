@@ -9,6 +9,7 @@ import gzip
 import json
 import logging
 import re
+import uuid
 from datetime import timedelta
 from itertools import groupby
 from os import remove
@@ -501,3 +502,12 @@ def get_latest_openshift_on_cloud_manifest(start_date, provider_uuid):
         except CostUsageReportManifest.DoesNotExist:
             pass
     return manifest_id
+
+
+def is_valid_uuid(value: str) -> bool:
+    """Validate whether uuid is valid"""
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, TypeError):
+        return False

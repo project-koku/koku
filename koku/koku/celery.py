@@ -135,7 +135,7 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     CHECK_REPORT_UPDATES_XL = {
         "task": download_task,
         "schedule": xl_report_schedule,
-        "kwargs": {"large_customers": "True"},
+        "kwargs": {"large_providers": "True"},
     }
     app.conf.beat_schedule["check-report-updates-batched"] = CHECK_REPORT_UPDATES_XL
 
