@@ -9,6 +9,7 @@ from unittest.mock import patch
 from django.db.utils import IntegrityError
 from faker import Faker
 
+from api.models import Provider
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
@@ -119,7 +120,7 @@ DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present
             downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, self.today)
 
     def test_process_manifest_db_record_file_num_changed(self):
-        """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
+        """Test that the _process_manifest_db_record returns the correct num files for manifest entry."""
         CostUsageReportStatus.objects.create(
             report_name="fake_report.csv",
             completed_datetime=self.billing_start,
@@ -133,3 +134,27 @@ DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present
             result_manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         expected_count = CostUsageReportStatus.objects.filter(manifest_id=self.manifest_id).count()
         self.assertEqual(result_manifest.num_total_files, expected_count)
+
+    def test_process_manifest_db_record_large_provider(self):
+        """Test that the _process_manifest_db_record updates the provider as large when over 75 reports re found."""
+        with self.assertLogs("masu.external.downloader.report_downloader_base", level="INFO") as logger:
+            CostUsageReportStatus.objects.create(
+                report_name="fake_report.csv",
+                completed_datetime=self.billing_start,
+                started_datetime=self.billing_start,
+                etag="etag",
+                manifest=self.manifest,
+            )
+            manifest_id = self.downloader._process_manifest_db_record(
+                self.assembly_id, self.billing_start, 100, self.today
+            )
+        self.assertEqual(manifest_id, self.manifest.id)
+        with ReportManifestDBAccessor() as manifest_accessor:
+            result_manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        expected_count = CostUsageReportStatus.objects.filter(manifest_id=self.manifest_id).count()
+        self.assertEqual(result_manifest.num_total_files, expected_count)
+        query_result = Provider.objects.filter(uuid=self.aws_provider_uuid).first()
+        self.assertEqual(query_result.large, True)
+        assert any(
+            "Provider set as large for XL processing." in log for log in logger.output
+        ), "Provider set to large not found in logs"
