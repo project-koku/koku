@@ -794,10 +794,8 @@ class TestParquetReportProcessor(MasuTestCase):
         result = report_processor.get_metadata_kv(filename.stem)
         self.assertTupleEqual(result, expected_result)
 
-    @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    def test_check_required_columns_for_ingress_reports_validation_error(self, mock_stats, mock_check_cols):
-        mock_check_cols.return_value = False
+    def test_check_required_columns_for_ingress_reports_validation_error(self, mock_stats):
         filename = Path("pod_usage.count.csv")
         with schema_context(self.schema):
             ingress_report = IngressReports(
@@ -828,10 +826,8 @@ class TestParquetReportProcessor(MasuTestCase):
             ingress_report.refresh_from_db()
             self.assertIn("missing required columns", ingress_report.status)
 
-    @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    def test_check_required_columns_for_ingress_reports(self, mock_stats, mock_check_cols):
-        mock_check_cols.return_value = False
+    def test_check_required_columns_for_ingress_reports(self, mock_stats):
         filename = Path("pod_usage.count.csv")
         with schema_context(self.schema):
             ingress_report = IngressReports(
@@ -858,23 +854,3 @@ class TestParquetReportProcessor(MasuTestCase):
             )
             result = report_processor.check_required_columns_for_ingress_reports(RECOMMENDED_COLUMNS)
             self.assertIsNone(result)
-
-    @patch("masu.processor.parquet.parquet_report_processor.check_ingress_columns")
-    @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
-    def test_check_required_columns_for_ingress_reports_disabled_check(self, mock_stats, mock_check_cols):
-        mock_check_cols.return_value = True
-        filename = Path("pod_usage.count.csv")
-        report_processor = ParquetReportProcessor(
-            schema_name=self.schema,
-            report_path=filename,
-            provider_uuid=self.aws_provider_uuid,
-            provider_type=Provider.PROVIDER_AWS,
-            manifest_id=self.manifest_id,
-            context={
-                "tracing_id": self.tracing_id,
-                "start_date": self.today,
-            },
-            ingress_reports_uuid=None,
-        )
-        result = report_processor.check_required_columns_for_ingress_reports(RECOMMENDED_COLUMNS)
-        self.assertIsNone(result)

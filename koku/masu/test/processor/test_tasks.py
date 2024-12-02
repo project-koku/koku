@@ -1816,8 +1816,8 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
     @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
     def test_process_openshift_on_cloud_trino(self, mock_process, mock_unleash):
         """Test that the process_openshift_on_cloud_trino task performs expected functions"""
-        start = "2024-08-01"
-        end = "2024-08-05"
+        end = self.dh.today.strftime("%Y-%m-%d")
+        start = self.dh.month_start(end).strftime("%Y-%m-%d")
         reports = [
             {
                 "schema_name": self.schema,
