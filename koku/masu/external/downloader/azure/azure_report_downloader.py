@@ -26,7 +26,6 @@ from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import get_or_clear_daily_s3_by_date
 from masu.util.azure import common as utils
-from masu.util.azure.common import AzureBlobExtension
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -272,7 +271,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = {}
-        compression_mode = AzureBlobExtension.csv.value  # Default value
+        compression_mode = None
         if self.ingress_reports:
             reports = [report.split(f"{self.container_name}/")[1] for report in self.ingress_reports]
             year = date_time.strftime("%Y")
@@ -305,7 +304,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except AzureCostReportNotFound as ex:
                 json_manifest = None
                 msg = f"No JSON manifest exists. {ex}"
-                LOG.debug(msg)
+                LOG.info(msg)
             if json_manifest:
                 report_name = json_manifest.name
                 last_modified = json_manifest.last_modified
@@ -332,9 +331,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 manifest["reportKeys"] = [blob["blobName"] for blob in manifest_json["blobs"]]
             else:
                 try:
-                    blob = self._azure_client.get_latest_cost_export_for_path(
-                        report_path, self.container_name, compression_mode
-                    )
+                    blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
                 except AzureCostReportNotFound as ex:
                     msg = f"Unable to find manifest. Error: {ex}"
                     LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
