@@ -226,7 +226,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         manifest, _ = self.ingress_downloader._get_manifest(self.mock_data.test_date)
 
         self.assertEqual(manifest.get("reportKeys"), [self.mock_data.ingress_report])
-        self.assertEqual(manifest.get("Compression"), AzureBlobExtension.csv.value)
+        self.assertEqual(manifest.get("Compression"), None)
         self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
         self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
 
@@ -249,7 +249,7 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         self.assertEqual(manifest.get("assemblyId"), self.mock_data.export_uuid)
         self.assertEqual(manifest.get("reportKeys"), [self.mock_data.export_file])
-        self.assertEqual(manifest.get("Compression"), AzureBlobExtension.csv.value)
+        self.assertEqual(manifest.get("Compression"), None)
         self.assertEqual(manifest.get("billingPeriod").get("start"), expected_start)
         self.assertEqual(manifest.get("billingPeriod").get("end"), expected_end)
 
