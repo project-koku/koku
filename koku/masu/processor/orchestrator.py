@@ -274,7 +274,7 @@ class Orchestrator:
             last_report_index = len(report_files) - 1
             # Override the queue if we determine a provider is large based on report count
             report_context = manifest.copy()
-            if len(report_files) > 0:  # settings.XL_REPORT_COUNT:
+            if len(report_files) > settings.XL_REPORT_COUNT:
                 LOG.info(
                     log_json(
                         tracing_id,
