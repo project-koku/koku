@@ -272,6 +272,21 @@ class Orchestrator:
             LOG.info(log_json(tracing_id, msg="found manifests", context=manifest, schema=schema_name))
 
             last_report_index = len(report_files) - 1
+            # Override the queue if we determine a provider is large based on report count
+            report_context = manifest.copy()
+            if len(report_files) > 0:  # settings.XL_REPORT_COUNT:
+                LOG.info(
+                    log_json(
+                        tracing_id,
+                        msg="marking provider large as report files exceed threshold.",
+                        file_count=len(report_files),
+                        Threshold={settings.XL_REPORT_COUNT},
+                        schema=schema_name,
+                    )
+                )
+                report_context["large_provider"] = True
+                SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue, report_context["large_provider"])
+                REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue, report_context["large_provider"])
             for i, report_file_dict in enumerate(report_files):
                 local_file = report_file_dict.get("local_file")
                 report_file = report_file_dict.get("key")
@@ -292,7 +307,6 @@ class Orchestrator:
                     )
                     continue
 
-                report_context = manifest.copy()
                 report_context["current_file"] = report_file
                 report_context["local_file"] = local_file
                 report_context["key"] = report_file

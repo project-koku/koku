@@ -67,9 +67,9 @@ QUEUE_LIST = [
 ]
 
 
-def get_customer_queue(schema, queue_class=DownloadQueue):
+def get_customer_queue(schema, queue_class=DownloadQueue, xl_provider=False):
     queue = queue_class.DEFAULT
-    if is_customer_large(schema):
+    if is_customer_large(schema) or xl_provider:
         queue = queue_class.XL
     if is_customer_penalty(schema):
         queue = queue_class.PENALTY_BOX

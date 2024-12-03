@@ -308,6 +308,7 @@ def get_report_files(  # noqa: C901
             "invoice_month": report_dict.get("invoice_month"),
             "metadata_start_date": report_dict.get("metadata_start_date"),
             "metadata_end_date": report_dict.get("metadata_end_date"),
+            "large_provider": report_dict.get("large_provider"),
         }
 
         try:
