@@ -14,6 +14,9 @@ from koku.database import execute_delete_sql
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from reporting.models import EXPIRE_MANAGED_TABLES
 from reporting.models import PartitionedTable
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -108,6 +111,11 @@ class OCPReportDBCleaner:
             ]
             table_names.extend(UI_SUMMARY_TABLES)
 
+            model_names = [
+                OCPUsageLineItemDailySummary,
+                OCPUsagePodLabelSummary,
+            ]
+
         with schema_context(self._schema):
             # Iterate over the remainder as they could involve much larger amounts of data
             for usage_period in all_usage_periods:
@@ -118,17 +126,47 @@ class OCPReportDBCleaner:
                 all_cluster_ids.add(usage_period.cluster_id)
                 all_period_starts.add(str(usage_period.report_period_start))
 
-            LOG.info(
-                log_json(
-                    msg="removing all data related to cluster_ids",
-                    report_periods=all_report_periods,
-                    cluster_ids=all_cluster_ids,
-                    period_starts=all_period_starts,
-                    schema=self._schema,
-                )
-            )
-
             if not simulate:
+                LOG.info(
+                    log_json(
+                        msg="removing all data related to cluster_ids",
+                        report_periods=all_report_periods,
+                        cluster_ids=all_cluster_ids,
+                        period_starts=all_period_starts,
+                        schema=self._schema,
+                    )
+                )
+
+                # Remove all data related to the report periods
+                for model in model_names:
+                    del_count = execute_delete_sql(
+                        model.objects.filter(
+                            schema_name=self._schema,
+                            report_period_id__in=all_report_periods,
+                        )
+                    )
+                    LOG.info(
+                        log_json(
+                            msg=f"Deleted records from table {model._meta.db_table} using report_period_id",
+                            count=del_count,
+                            schema=self._schema,
+                        )
+                    )
+
+                del_count = execute_delete_sql(
+                    OCPUsageReportPeriod.objects.filter(
+                        schema_name=self._schema,
+                        id__in=all_report_periods,
+                    )
+                )
+                LOG.info(
+                    log_json(
+                        msg=f"Deleted records from table {OCPUsageReportPeriod._meta.db_table} using id",
+                        count=del_count,
+                        schema=self._schema,
+                    )
+                )
+
                 # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
                     log_json(
