@@ -280,13 +280,12 @@ class Orchestrator:
                         tracing_id,
                         msg="marking provider large as report files exceed threshold.",
                         file_count=len(report_files),
-                        Threshold={settings.XL_REPORT_COUNT},
+                        Threshold=settings.XL_REPORT_COUNT,
                         schema=schema_name,
                     )
                 )
-                report_context["large_provider"] = True
-                SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue, report_context["large_provider"])
-                REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue, report_context["large_provider"])
+                SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue, True)
+                REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue, True)
             for i, report_file_dict in enumerate(report_files):
                 local_file = report_file_dict.get("local_file")
                 report_file = report_file_dict.get("key")
