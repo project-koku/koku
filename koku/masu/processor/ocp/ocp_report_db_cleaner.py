@@ -14,6 +14,7 @@ from koku.database import execute_delete_sql
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from reporting.models import EXPIRE_MANAGED_TABLES
 from reporting.models import PartitionedTable
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummaryP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -54,7 +55,7 @@ class OCPReportDBCleaner:
 
         with OCPReportDBAccessor(self._schema) as accessor:
             if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
-                expired_date is None and provider_uuid is None
+                    expired_date is None and provider_uuid is None
             ):
                 err = "This method must be called with expired_date or provider_uuid"
                 raise OCPReportDBCleanerError(err)
@@ -114,6 +115,7 @@ class OCPReportDBCleaner:
             model_names = [
                 OCPUsageLineItemDailySummary,
                 OCPUsagePodLabelSummary,
+                OCPAWSCostLineItemDailySummaryP,
             ]
 
         with schema_context(self._schema):
@@ -141,7 +143,7 @@ class OCPReportDBCleaner:
                 for model in model_names:
                     del_count = execute_delete_sql(
                         model.objects.filter(
-                            schema_name=self._schema,
+                            # schema_name=self._schema,
                             report_period_id__in=all_report_periods,
                         )
                     )
@@ -155,7 +157,7 @@ class OCPReportDBCleaner:
 
                 del_count = execute_delete_sql(
                     OCPUsageReportPeriod.objects.filter(
-                        schema_name=self._schema,
+                        # schema_name=self._schema,
                         id__in=all_report_periods,
                     )
                 )
