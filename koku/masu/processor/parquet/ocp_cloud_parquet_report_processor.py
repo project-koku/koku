@@ -288,6 +288,9 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         Keys: openshift-project, openshift-node, openshift-cluster
         Ex: ("openshift-project": "project_a")
         """
+        include_kube_prefix = False
+        if self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            include_kube_prefix = True
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
@@ -300,6 +303,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             "end_date": end_date,
             "ocp_source_uuid": ocp_provider_uuid,
             "matched_tag_array": matched_tag_strs,
+            "include_kube_prefix": include_kube_prefix,
         }
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matached_tags_params))
         matched_tags_result = self.db_accessor._execute_trino_multipart_sql_query(
