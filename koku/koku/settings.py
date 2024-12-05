@@ -540,6 +540,10 @@ PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default
 AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
 POLLING_BATCH_SIZE = ENVIRONMENT.int("POLLING_BATCH_SIZE", default=100)
 POLLING_TIMER = ENVIRONMENT.int("POLLING_TIMER", default=86400)
+
+# Used for setting threshold for XL customers based on manifest report count.
+XL_REPORT_COUNT = ENVIRONMENT.int("XL_REPORT_COUNT", default=100)
+
 # PROCESSING_WAIT_TIMER, used to prevent queuing new tasks until previous ones are complete
 PROCESSING_WAIT_TIMER = ENVIRONMENT.int("PROCESSING_WAIT_TIMER", default=3)
 LARGE_PROCESSING_WAIT_TIMER = ENVIRONMENT.int("LARGE_PROCESSING_WAIT_TIMER", default=7)
