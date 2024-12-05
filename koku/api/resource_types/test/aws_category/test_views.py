@@ -41,7 +41,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         if expected_length != 0:
             self.assertIsInstance(data[0], data_return)
             for element in data:
-                if data_return == dict:
+                if isinstance(data_return, dict):
                     self.assertIn(element.get("key"), self.enabled_keys)
                 else:
                     self.assertIn(element, self.enabled_keys)

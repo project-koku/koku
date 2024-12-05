@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" download cost-usage report from s3 """
+"""download cost-usage report from s3"""
 import json
 import logging
 import os

@@ -97,7 +97,6 @@ ENV \
 
 # copy the src files into the workdir
 COPY . .
-RUN mv licenses/ /
 
 # create the koku user
 RUN \
@@ -119,6 +118,8 @@ EXPOSE 8000
 # Set this at the end to leverage build caching
 ARG GIT_COMMIT=undefined
 ENV GIT_COMMIT=${GIT_COMMIT}
+
+RUN mv LICENSE /licenses/Apache-2.0
 
 # Set the default CMD.
 CMD ["./scripts/entrypoint.sh"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" script to download aws pricing lists """
+"""script to download aws pricing lists"""
 import json
 import logging
 import os

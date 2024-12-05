@@ -2123,18 +2123,6 @@ class AWSReportQueryTest(IamTestCase):
                 "sup_raw": 1,
                 "sup_total": 1,
                 "sup_usage": 1,
-                "cost_markup": 1,
-                "cost_raw": 1,
-                "cost_total": 1,
-                "cost_usage": 1,
-                "infra_markup": 1,
-                "infra_raw": 1,
-                "infra_total": 1,
-                "infra_usage": 1,
-                "sup_markup": 1,
-                "sup_raw": 1,
-                "sup_total": 1,
-                "sup_usage": 1,
                 "usage": 1,
                 "cost_units": "USD",
                 "usage_units": "instances",
@@ -3386,7 +3374,6 @@ class AWSQueryHandlerTest(IamTestCase):
         self.assertEqual(result, expected_output)
 
     def test_format_ec2_response_csv(self):
-
         query_params = self.mocked_query_params("", AWSEC2ComputeView)
         handler = AWSReportQueryHandler(query_params)
         handler.is_csv_output = True

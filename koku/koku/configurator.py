@@ -458,7 +458,7 @@ class ClowderConfigurator(Configurator):
     def get_object_store_tls():
         """Obtain object store secret key."""
         value = LoadedConfig.objectStore.tls
-        if type(value) == bool:
+        if isinstance(value, bool):
             return value
         if value and value.lower() in ["true", "false"]:
             return value.lower() == "true"

@@ -36,7 +36,9 @@ def _remove_default_projects(projects: list[dict[str, str]]) -> list[dict[str, s
         )
 
     exact_matches = {
-        project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")  # type: ignore[attr-defined]  # noqa: E501
+        project
+        for project in _remove_default_projects.system_default_namespaces
+        if not project.endswith("%")  # type: ignore[attr-defined]  # noqa: E501
     }
     prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)  # type: ignore[attr-defined]  # noqa: E501
 

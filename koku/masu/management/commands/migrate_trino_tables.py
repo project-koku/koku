@@ -240,7 +240,6 @@ class DropColumnAction(Action):
 
 
 class Command(BaseCommand):
-
     help = ""
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:

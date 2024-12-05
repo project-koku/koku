@@ -141,7 +141,6 @@ class ClusterCapacityDataclassTest(IamTestCase):
                     )
 
                     for cluster, expected_capacity in cluster_capacity.count_by_cluster.items():
-
                         total_cluster_capacity = 0
                         node_counts = {}
                         for node_info in (
@@ -188,7 +187,6 @@ class ClusterCapacityDataclassTest(IamTestCase):
 
                     for date, clusters in cluster_capacity.count_by_date_cluster.items():
                         for cluster, total_cluster_capacity in clusters.items():
-
                             expected_total_cluster_capacity = 0
                             node_counts = {}
                             for node_info in cluster_capacity_vals.filter(cluster=cluster, usage_start=date).values(

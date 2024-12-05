@@ -19,7 +19,6 @@ from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS
 
 
 class TestAzurePostProcessor(MasuTestCase):
-
     """Test Azure Post Processor."""
 
     def setUp(self):

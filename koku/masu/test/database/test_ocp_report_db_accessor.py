@@ -312,7 +312,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # outside the start and end date are not updated
                     for value, rate in rate_costs.get(cost).get("app").items():
                         for day, vals in initial_results_dict.get(value).items():
-
                             with self.subTest(
                                 msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, id: {day}"
                             ):

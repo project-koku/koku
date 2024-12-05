@@ -1501,7 +1501,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertTrue(tested)
 
     def test_format_vm_response_csv(self):
-
         query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
         handler = OCPReportQueryHandler(query_params)
         handler.is_csv_output = True

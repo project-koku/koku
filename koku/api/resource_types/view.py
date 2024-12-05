@@ -30,10 +30,8 @@ class ResourceTypeView(APIView):
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
-
         tenant = get_tenant(request.user)
         with tenant_context(tenant):
-
             aws_account_count = AWSCostSummaryByAccountP.objects.values("usage_account_id").distinct().count()
             gcp_account_count = GCPCostSummaryByAccountP.objects.values("account_id").distinct().count()
             gcp_project_count = GCPCostSummaryByProjectP.objects.values("project_id").distinct().count()

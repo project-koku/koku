@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" Create s3 bucket """
+"""Create s3 bucket"""
 import json
 import os
 

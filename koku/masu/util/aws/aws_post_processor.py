@@ -64,7 +64,6 @@ def create_enabled_categories(schema, enabled_keys):
 
 
 class AWSPostProcessor:
-
     ALL_RESOURCE_TAG_PREFIX = "resourceTags/"
     RESOURCE_TAG_USER_PREFIX = "resourceTags/user:"
     COST_CATEGORY_PREFIX = "costCategory/"

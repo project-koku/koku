@@ -58,7 +58,6 @@ def process_gcp_credits(credit_string: str) -> str:
 
 
 class GCPPostProcessor:
-
     INGRESS_REQUIRED_COLUMNS = {
         "billing_account_id",
         "service.id",

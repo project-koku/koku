@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Constants file."""
+
 TAG_PREFIX = "tag:"
 AND_TAG_PREFIX = "and:tag:"
 OR_TAG_PREFIX = "or:tag:"

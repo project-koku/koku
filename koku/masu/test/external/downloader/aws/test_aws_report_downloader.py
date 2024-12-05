@@ -687,11 +687,9 @@ class AWSReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2023-06-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
         start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
-        with (
-            patch(
-                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-                return_value=start_date,
-            )
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
         ):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None

@@ -312,9 +312,9 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Populate cloud_openshift_daily trino table via SQL."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
-        if type(start_date) == str:
+        if isinstance(start_date, str):
             start_date = parse(start_date).astimezone(tz=settings.UTC)
-        if type(end_date) == str:
+        if isinstance(end_date, str):
             end_date = parse(end_date).astimezone(tz=settings.UTC)
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")

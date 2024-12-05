@@ -174,7 +174,6 @@ class ReportDBAccessorBase:
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
     ):
-
         if table is None:
             table = self.line_item_daily_summary_table
         if not isinstance(table, str):

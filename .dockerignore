@@ -2,12 +2,12 @@
 **
 
 # ... except for dependencies and source
+!LICENSE
 !Pipfile
 !Pipfile.lock
 !koku/
 !docs/specs/
 !db_functions/
-!licenses/
 !scripts/
 
 # keep the test files out of the final image

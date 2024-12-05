@@ -35,17 +35,19 @@ class QueryParametersTests(TestCase):
         for test in test_table:
             method, files, query_params, expected_status, expected_response, test_id = test
             with self.subTest(test=test_id):
-
                 mock_response = MagicMock()
                 mock_response.status_code = (
                     HTTPStatus.OK if expected_response.get("upload") != "failed" else HTTPStatus.INTERNAL_SERVER_ERROR
                 )
                 mock_response.reason = "Some reason"
 
-                with patch("masu.api.ingest_ocp_payload.get_s3_signature") as mock_get_s3_signature, patch(
-                    "masu.api.ingest_ocp_payload.upload_file_to_s3", return_value=mock_response
-                ) as mock_upload_file_to_s3, patch("masu.api.ingest_ocp_payload.send_payload") as mock_send_payload:
-
+                with (
+                    patch("masu.api.ingest_ocp_payload.get_s3_signature") as mock_get_s3_signature,
+                    patch(
+                        "masu.api.ingest_ocp_payload.upload_file_to_s3", return_value=mock_response
+                    ) as mock_upload_file_to_s3,
+                    patch("masu.api.ingest_ocp_payload.send_payload") as mock_send_payload,
+                ):
                     request = (
                         APIRequestFactory().get(f"/{query_params}")
                         if method == "GET"

@@ -1,0 +1,143 @@
+[project]
+name = "koku"
+version = "0.0.0"
+description = "An open source solution for cost management of cloud and hybrid cloud environments."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.11.0,<3.12"
+dependencies = [
+    "adal",
+    "app-common-python>=0.2.3",
+    "azure-identity",
+    "azure-mgmt-costmanagement>=3.0.0",
+    "azure-mgmt-compute",
+    "azure-mgmt-resource>=8.0",
+    "azure-mgmt-storage>=20.1.0",
+    "azure-storage-blob>=12.1",
+    "boto3>=1.34",
+    "bs4>=0.0.1",
+    "cachetools>=4.1.0",
+    "celery>=5.2.2",
+    "ciso8601>=2.1",
+    "confluent-kafka>=2.1.0",
+    "croniter",
+    "Django~=4.2.0",
+    "django-cors-headers>=3.1",
+    "django-environ>=0.4",
+    "django-extensions>=2.2",
+    "django-filter>=2.2",
+    "django-prometheus>=1.1",
+    "django-redis>=4.10",
+    "django-tenants>=3.4",
+    "djangorestframework>=3.14.0",
+    "djangorestframework-csv>=2.1",
+    "google-api-python-client>=1.12.4",
+    "google-auth>=1.22.1",
+    "google-cloud-bigquery>=2.2.0",
+    "google-cloud-storage",
+    "gunicorn",
+    "ibm-cloud-sdk-core>=3.5.2",
+    "ibm-platform-services>=0.17.8",
+    "jinjasql2",
+    "kafka-python>=2.0.1",
+    "kombu<5.3",
+    "msrestazure",
+    "numpy",
+    "oci",
+    "pandas<2.3",
+    "prometheus-client>=0.7",
+    "psutil>=5.6",
+    "psycopg2>=2.9",
+    "pyarrow>=0.17.1",
+    "python-dateutil>=2.8",
+    "querystring-parser>=1.2",
+    "redis>=5.0.1",
+    "requests>=2.32.0",
+    "sentry-sdk>=0.13",
+    "statsmodels>=0.12",
+    "trino",
+    "unleashclient<5",
+    "watchtower==1.0.6",
+    "whitenoise>=5.0",
+    "pydantic>=2",
+    "sqlparse",
+    "polars>=1.16.0",
+]
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.python.org/simple"
+
+[dependency-groups]
+dev = [
+    "argh>=0.26.2",
+    "astroid>=2.3",
+    "flower",
+    "coverage>=5.0",
+    "crc-bonfire",
+    "debugpy>=1.3.0",
+    "django-cprofile-middleware",
+    "faker>=0.8",
+    "flake8>=3.7",
+    "koku-nise",
+    "matplotlib>=3.3",
+    "model-bakery>=1.1",
+    "pre-commit>=2.0",
+    "pydocstyle>=4.0",
+    "PyYaml>=5.3",
+    "requests-mock>=1.7",
+    "responses>=0.10",
+    "snakeviz",
+    "tblib>=1.6",
+    "tox>=3.0",
+    "watchdog>=2.1.1",
+]
+
+[tool.ruff]
+
+extend-exclude = [
+    "**/migrations/*.py",
+    "**/manage.py",
+    "**/settings.py",
+    "**/.unleash/",
+]
+
+# Same as Black.
+line-length = 120
+indent-width = 4
+
+# Assume Python 3.11
+target-version = "py311"
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+# select = ["E4", "E7", "E9", "F"]
+# ignore = ["E203", "W503"]
+
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint.per-file-ignores]
+"models.py" = ["F401"]
