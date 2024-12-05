@@ -283,8 +283,8 @@ class Orchestrator:
                         schema=schema_name,
                     )
                 )
-                SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue, True)
-                REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue, True)
+                SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue, xl_provider=True)
+                REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue, xl_provider=True)
             for i, report_file_dict in enumerate(report_files):
                 local_file = report_file_dict.get("local_file")
                 report_file = report_file_dict.get("key")
