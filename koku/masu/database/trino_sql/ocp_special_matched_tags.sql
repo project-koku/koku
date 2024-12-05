@@ -9,6 +9,8 @@ WITH cte_array_agg_nodes AS (
 ),
 cte_cluster_info as (
     select
+        format('"kubernetes-io-cluster-": "%s"', json_extract_scalar(auth.credentials, '$.cluster_id')) AS kube_prefix_cluster_id,
+        format('"kubernetes-io-cluster-": "%s"', provider.name) as kube_prefix_cluster_alias,
         format('"openshift_cluster": "%s"', json_extract_scalar(auth.credentials, '$.cluster_id')) AS cluster_id,
         format('"openshift_cluster": "%s"', provider.name) as cluster_alias
     from postgres.public.api_provider as provider
@@ -26,7 +28,15 @@ cte_tag_matches AS (
     UNION
 
     SELECT cluster_id from cte_cluster_info
+    {% if include_kube_prefix %}
+    UNION
 
+    SELECT kube_prefix_cluster_id from cte_cluster_info
+
+    UNION
+
+    SELECT kube_prefix_cluster_alias from cte_cluster_info
+    {% endif %}
     UNION
 
     SELECT format('"openshift_node": "%s"', node) AS matched_tag  from cte_array_agg_nodes
