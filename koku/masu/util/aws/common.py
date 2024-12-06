@@ -214,7 +214,7 @@ class AwsArn:
             match = self.arn_regex.match(self.arn)
 
         if not match:
-            raise SyntaxError(f"Invalid ARN: {self.arn}")
+            LOG.warning(f"Invalid ARN: {self.arn}")
 
         for key, val in match.groupdict().items():
             setattr(self, key, val)
