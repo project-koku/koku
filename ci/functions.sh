@@ -26,13 +26,16 @@ function set_label_flags() {
         return 1
     fi
 
-    if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes' <<< "$PR_LABELS"; then
+    if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes|run-konflux-tests' <<< "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         EXIT_CODE=1
         echo "PR check skipped"
     elif grep -E 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         echo "smokes not required"
+    elif grep -E 'run-konflux-tests' <<< "$PR_LABELS"; then
+        SKIP_PR_CHECK='true'
+        echo "Skipping test run since PR is labled to run tests in Konflux."
     elif ! grep -E '.*smoke-tests' <<< "$PR_LABELS"; then
         echo "WARNING! No smoke-tests labels found!, PR smoke tests will be skipped"
         SKIP_SMOKE_TESTS='true'

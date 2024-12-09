@@ -13,11 +13,6 @@ from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 
 
-day_list = ["-10", "-30", "-90"]
-month_list = [-1, -2, -3]
-month_list_string = [str(m) for m in month_list]
-
-
 class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling tag query parameter filter."""
 

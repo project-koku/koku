@@ -34,6 +34,7 @@ from masu.api.views import notification
 from masu.api.views import pg_engine_version
 from masu.api.views import process_openshift_on_cloud
 from masu.api.views import purge_trino_files
+from masu.api.views import recheck_infra_map
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import schema_sizes
@@ -67,6 +68,7 @@ urlpatterns = [
     path("trino/query/", trino_query, name="trino_query"),
     path("trino/api/", trino_ui, name="trino_ui"),
     path("notification/", notification, name="notification"),
+    path("recheck_infra_map/", recheck_infra_map, name="recheck_infra_map"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
     path("report/process/openshift_on_cloud/", process_openshift_on_cloud, name="process_openshift_on_cloud"),
     path("report/summarize/openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),

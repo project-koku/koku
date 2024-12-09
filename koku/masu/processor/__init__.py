@@ -7,6 +7,7 @@ import logging
 from uuid import UUID
 
 from django.conf import settings
+from rest_framework.serializers import ValidationError
 
 from api.common import log_json
 from koku.feature_flags import fallback_development_true
@@ -69,17 +70,6 @@ def is_ocp_on_cloud_summary_disabled(account):  # pragma: no cover
     return res
 
 
-def is_gcp_resource_matching_disabled(account):  # pragma: no cover
-    """Disable GCP resource matching for OCP on GCP."""
-    account = convert_account(account)
-    context = {"schema": account}
-    res = UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context)
-    if res:
-        LOG.info(log_json(msg="GCP resource matching is disabled", context=context))
-
-    return res
-
-
 def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large."""
     account = convert_account(account)
@@ -120,13 +110,6 @@ def is_managed_ocp_cloud_summary_enabled(account):
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
 
 
-def is_ocp_amortized_monthly_cost_enabled(account):  # pragma: no cover
-    """Enable the use of savings plan cost for OCP on AWS -> OCP."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-ocp-amortized-monthly-cost", context)
-
-
 def is_source_disabled(source_uuid):  # pragma: no cover
     """
     Disable source processing
@@ -151,22 +134,22 @@ def is_ingress_rate_limiting_disabled():  # pragma: no cover
     return res
 
 
-def get_customer_group_by_limit(account: str) -> int:  # pragma: no cover
-    """Get the group_by limit for an account."""
-    limit = 2
+def check_group_by_limit(account, group_by_length):
+    """
+    Checks to see if the customer has exceeded the group by limit.
+
+    Raises a ValidationError if they have exceeded or returns false
+    """
+    limit = 2  # default
+    if group_by_length <= limit:
+        return
     account = convert_account(account)
     context = {"schema": account}
     if UNLEASH_CLIENT.is_enabled("cost-management.backend.override_customer_group_by_limit", context):
         limit = settings.MAX_GROUP_BY
-
-    return limit
-
-
-def check_ingress_columns(account):  # pragma: no cover
-    """Should check ingress columns."""
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.check-ingress-columns", context)
+        if group_by_length <= limit:
+            return
+    raise ValidationError({"group_by": (f"Cost Management supports a max of {limit} group_by options.")})
 
 
 def is_feature_unattributed_storage_enabled_aws(account):
@@ -177,17 +160,17 @@ def is_feature_unattributed_storage_enabled_aws(account):
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_feature_cost_3592_tag_mapping_enabled(account):
-    """Should tag mapping be enabled."""
-    unleash_flag = "cost-management.backend.feature-cost-3592-tag-mapping"
+def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
+    """Should EC2 individual VM compute cost be enabled."""
+    unleash_flag = "cost-management.backend.feature-4403-enable-ec2-compute-processing"
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
-def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
-    """Should EC2 individual VM compute cost be enabled."""
-    unleash_flag = "cost-management.backend.feature-4403-enable-ec2-compute-processing"
+def is_feature_cost_20_openshift_vms_enabled(account):  # pragma: no cover
+    """Should Openshift vms cost be enabled."""
+    unleash_flag = "cost-management.backend.feature_cost_20_openshift_vms"
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)

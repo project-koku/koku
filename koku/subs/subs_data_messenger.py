@@ -21,6 +21,8 @@ from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from kafka_utils.utils import SUBS_TOPIC
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
+from masu.prometheus_stats import RHEL_ELS_SYSTEMS_PROCESSED
+from masu.prometheus_stats import RHEL_ELS_VCPU_HOURS
 from masu.util.aws.common import get_s3_resource
 
 
@@ -111,6 +113,19 @@ class SUBSDataMessenger:
                         msg = bytes(json.dumps(subs_dict), "utf-8")
                         self.send_kafka_message(msg)
                         msg_count += 1
+                        RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AWS).inc()
+                        try:
+                            RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AWS).inc(
+                                amount=float(row["subs_vcpu"])
+                            )
+                        except ValueError:
+                            LOG.info(
+                                log_json(
+                                    self.tracing_id,
+                                    msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
+                                    context=self.context,
+                                )
+                            )
             LOG.info(
                 log_json(
                     self.tracing_id,
@@ -250,6 +265,19 @@ class SUBSDataMessenger:
             start = end
             self.send_kafka_message(msg)
             msg_count += 1
+            RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AZURE).inc()
+            try:
+                RHEL_ELS_VCPU_HOURS.labels(provider_type=Provider.PROVIDER_AZURE).inc(
+                    amount=(float(row["subs_vcpu"]) * usage)
+                )
+            except ValueError:
+                LOG.info(
+                    log_json(
+                        self.tracing_id,
+                        msg=f"vCPU amount could not be cast to a float {row['subs_vcpu']}",
+                        context=self.context,
+                    )
+                )
         return msg_count
 
     def determine_product_ids(self, rhel_version, addon, role):

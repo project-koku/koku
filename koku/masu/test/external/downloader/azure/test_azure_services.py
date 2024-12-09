@@ -210,7 +210,7 @@ class AzureServiceTest(MasuTestCase):
         type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
         svc = self.get_mock_client(blob_list=[mock_blob])
-        cost_export = svc.get_latest_cost_export_for_path(report_path, self.container_name, ".csv.gz")
+        cost_export = svc.get_latest_cost_export_for_path(report_path, self.container_name)
         self.assertEqual(cost_export.last_modified.date(), self.current_date_time.date())
 
     def test_get_latest_cost_export_for_path_missing(self):
@@ -218,7 +218,7 @@ class AzureServiceTest(MasuTestCase):
         report_path = FAKE.word()
         svc = self.get_mock_client()
         with self.assertRaises(AzureCostReportNotFound):
-            svc.get_latest_cost_export_for_path(report_path, self.container_name, ".csv.gz")
+            svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
     def test_describe_cost_management_exports(self):
         """Test that cost management exports are returned for the account."""
@@ -259,7 +259,7 @@ class AzureServiceTest(MasuTestCase):
         svc = self.get_mock_client(blob_list=[mock_blob])
         svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error
         with self.assertRaises(AzureCostReportNotFound):
-            svc.get_latest_cost_export_for_path(report_path, self.container_name, ".csv.gz")
+            svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
     def test_get_latest_cost_export_http_error_403(self):
         """Test that the latest cost export catches the error for Azure HttpError 403."""
@@ -272,7 +272,7 @@ class AzureServiceTest(MasuTestCase):
         svc = self.get_mock_client(blob_list=[mock_blob])
         svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error_403
         with self.assertRaises(AzureCostReportNotFound):
-            svc.get_latest_cost_export_for_path(report_path, self.container_name, ".csv.gz")
+            svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
     def test_get_latest_cost_export_no_container(self):
         """Test that the latest cost export catches the error for no container."""
@@ -285,7 +285,7 @@ class AzureServiceTest(MasuTestCase):
 
         svc = self.get_mock_client(blob_list=[mock_blob])
         with self.assertRaises(AzureCostReportNotFound):
-            svc.get_latest_cost_export_for_path(report_path, container_name, ".csv.gz")
+            svc.get_latest_cost_export_for_path(report_path, container_name)
 
     def test_get_latest_manifest_for_path(self):
         """Given a list of blobs with multiple manifests, ensure the latest one is returned"""
@@ -422,9 +422,7 @@ class AzureServiceTest(MasuTestCase):
             service = AzureService(
                 self.tenant_id, self.client_id, self.client_secret, self.resource_group_name, self.storage_account_name
             )
-            service.get_latest_cost_export_for_path(
-                report_path=FAKE.word(), container_name=FAKE.word(), compression=".csv.gz"
-            )
+            service.get_latest_cost_export_for_path(report_path=FAKE.word(), container_name=FAKE.word())
 
     def test_describe_cost_management_exports_with_scope_and_name(self):
         """Test that cost management exports using scope and name are returned for the account."""
@@ -465,7 +463,6 @@ class AzureServiceTest(MasuTestCase):
         """
         report_path = "/container/report/path"
         blobs = (
-            FakeBlob(f"{report_path}/_manifest.json", datetime(2022, 12, 18)),
             FakeBlob(f"{report_path}/file01.csv", datetime(2022, 12, 16)),
             FakeBlob(f"{report_path}/file02.csv", datetime(2022, 12, 15)),
             FakeBlob("some/other/path/file01.csv", datetime(2022, 12, 1)),
@@ -487,7 +484,7 @@ class AzureServiceTest(MasuTestCase):
         svc = self.get_mock_client(blob_list=[mock_blob])
         svc._cloud_storage_account.get_container_client.side_effect = ResourceNotFoundError("Oops!")
         with self.assertRaises(AzureCostReportNotFound):
-            svc.get_latest_cost_export_for_path(report_path, self.container_name, ".csv.gz")
+            svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
     def test_azure_service_missing_credentials(self, mock_factory):
@@ -506,27 +503,6 @@ class AzureServiceTest(MasuTestCase):
             )
 
         self.assertIn("Azure Service credentials are not configured.", str(context.exception))
-
-    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
-    @patch.object(AzureService, "_get_latest_blob_for_path")
-    def test_get_latest_cost_export_for_path_invalid_compression(self, mock_get_latest_blob, mock_factory):
-        """Test when an invalid compression type is provided and ValueError is raised."""
-        mock_get_latest_blob.return_value = None
-        mock_factory.return_value.credentials = Mock()
-
-        service = AzureService(
-            tenant_id="fake_tenant_id",
-            client_id="fake_client_id",
-            client_secret="fake_client_secret",
-            resource_group_name="fake_resource_group",
-            storage_account_name="fake_storage_account",
-            subscription_id="fake_subscription_id",
-        )
-
-        with self.assertRaises(ValueError) as context:
-            service.get_latest_cost_export_for_path("fake_report_path", "fake_container_name", "invalid_compression")
-
-        self.assertIn("Invalid compression type", str(context.exception))
 
     @patch("masu.external.downloader.azure.azure_service.AzureService._list_blobs")
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
@@ -626,24 +602,6 @@ class AzureServiceTest(MasuTestCase):
             service.download_file("fake_key.csv", "fake_container")
 
         self.assertIn("Failed to download cost export", str(context.exception))
-
-    @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
-    def test_invalid_compression_type(self, mock_factory):
-        """Test that an invalid compression type raises an exception."""
-
-        service = AzureService(
-            tenant_id="fake_tenant_id",
-            client_id="fake_client_id",
-            client_secret="fake_client_secret",
-            resource_group_name="fake_resource_group",
-            storage_account_name="fake_storage_account",
-            subscription_id="fake_subscription_id",
-        )
-
-        with self.assertRaises(ValueError) as context:
-            service.get_latest_cost_export_for_path("fake_report_path", "fake_container_name", "invalid_compression")
-
-        self.assertIn("Invalid compression type", str(context.exception))
 
     @patch("masu.external.downloader.azure.azure_service.AzureService._list_blobs")
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")

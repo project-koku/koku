@@ -66,7 +66,6 @@ from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
-from masu.processor.tasks import vacuum_schema
 from masu.processor.tasks import validate_daily_data
 from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
@@ -1055,16 +1054,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             mock_update.s.return_value.apply_async.assert_called_with(queue=SummaryQueue.XL)
 
     @patch("masu.processor.tasks.connection")
-    def test_vacuum_schema(self, mock_conn):
-        """Test that the vacuum schema task runs."""
-        logging.disable(logging.NOTSET)
-        mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table",)]
-        expected = "INFO:masu.processor.tasks:VACUUM ANALYZE org1234567.table"
-        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            vacuum_schema(self.schema)
-            self.assertIn(expected, logger.output)
-
-    @patch("masu.processor.tasks.connection")
     def test_autovacuum_tune_schema_default_table(self, mock_conn):
         """Test that the autovacuum tuning runs."""
         logging.disable(logging.NOTSET)
@@ -1827,8 +1816,8 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
     @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
     def test_process_openshift_on_cloud_trino(self, mock_process, mock_unleash):
         """Test that the process_openshift_on_cloud_trino task performs expected functions"""
-        start = "2024-08-01"
-        end = "2024-08-05"
+        end = self.dh.today.strftime("%Y-%m-%d")
+        start = self.dh.month_start(end).strftime("%Y-%m-%d")
         reports = [
             {
                 "schema_name": self.schema,

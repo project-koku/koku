@@ -21,7 +21,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.processor import is_feature_unattributed_storage_enabled_aws
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
@@ -299,8 +298,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_tags_summary"], sql, sql_params)
         # Tag Mapping
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(
@@ -332,11 +329,18 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                     cost_entry_bill_id=bill_id, **date_filters
                 ).update(
-                    markup_cost=(F("unblended_cost") * markup), project_markup_cost=(F("unblended_cost") * markup)
+                    markup_cost=(F("unblended_cost") * markup),
+                    markup_cost_blended=(F("blended_cost") * markup),
+                    markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                    markup_cost_amortized=(F("calculated_amortized_cost") * markup),
+                    project_markup_cost=(F("calculated_amortized_cost") * markup),
                 )
                 for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:
                     ocpaws_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
+                        markup_cost=(F("unblended_cost") * markup),
+                        markup_cost_blended=(F("blended_cost") * markup),
+                        markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                        markup_cost_amortized=(F("calculated_amortized_cost") * markup),
                     )
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
@@ -359,8 +363,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns:
             (None)
         """
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_AWS).exists():
@@ -491,7 +493,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ocp_on_cloud_daily_trino(
         self, aws_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
     ):
-        """Populate the aws_openshift_daily trino table for OCP on AWS.
+        """Populate the managed_aws_openshift_daily trino table for OCP on AWS.
         Args:
             aws_provider_uuid (UUID) AWS source UUID.
             ocp_provider_uuid (UUID) OCP source UUID.

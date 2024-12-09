@@ -118,7 +118,8 @@ cte_matchable_resource_names AS (
     SELECT resource_names.resourceid
     FROM cte_azure_resource_names AS resource_names
     JOIN cte_array_agg_nodes AS nodes
-        ON strpos(resource_names.resourceid, nodes.node) != 0
+        ON nodes.node != ''
+        AND strpos(resource_names.resourceid, nodes.node) != 0
 
     UNION
 
@@ -126,8 +127,8 @@ cte_matchable_resource_names AS (
     FROM cte_azure_resource_names AS resource_names
     JOIN cte_array_agg_volumes AS volumes
         ON (
-            strpos(resource_names.resourceid, volumes.persistentvolume) != 0
-            OR strpos(resource_names.resourceid, volumes.csi_volume_handle) != 0
+            (volumes.persistentvolume != '' and strpos(resource_names.resourceid, volumes.persistentvolume) != 0)
+            OR (volumes.csi_volume_handle != '' and strpos(resource_names.resourceid, volumes.csi_volume_handle) != 0)
         )
 
 ),

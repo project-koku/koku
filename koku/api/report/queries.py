@@ -491,7 +491,10 @@ class ReportQueryHandler(QueryHandler):
                 if not _exclusion_composed:
                     _exclusion_composed = _filt_composed
                 else:
-                    _exclusion_composed = _exclusion_composed & _filt_composed
+                    if self._report_type == "virtual_machines":
+                        _exclusion_composed = _exclusion_composed | _filt_composed
+                    else:
+                        _exclusion_composed = _exclusion_composed & _filt_composed
             if _exclusion_composed:
                 _exclusion_composed = (
                     _exclusion_composed | QueryFilterCollection([QueryFilter(**empty_json_filter)]).compose()
@@ -1020,6 +1023,8 @@ class ReportQueryHandler(QueryHandler):
             "cost_total",
             "cost_total_distributed",
             "storage_class",
+            "request_cpu",
+            "request_memory",
         ]
         db_tag_prefix = self._mapper.tag_column + "__"
         sorted_data = data

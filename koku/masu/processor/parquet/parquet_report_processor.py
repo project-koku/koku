@@ -20,7 +20,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor import check_ingress_columns
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
@@ -521,13 +520,12 @@ class ParquetReportProcessor:
 
     def check_required_columns_for_ingress_reports(self, col_names):
         LOG.info(log_json(msg="checking required columns for ingress reports", context=self._context))
-        if not check_ingress_columns(self.schema_name):
-            if missing_cols := self.post_processor.check_ingress_required_columns(col_names):
-                message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
-                with schema_context(self.schema_name):
-                    report = IngressReports.objects.get(uuid=self.ingress_reports_uuid)
-                    report.set_status(message)
-                raise ValidationError(message, code="Missing_columns")
+        if missing_cols := self.post_processor.check_ingress_required_columns(col_names):
+            message = f"Unable to process file(s) due to missing required columns: {missing_cols}."
+            with schema_context(self.schema_name):
+                report = IngressReports.objects.get(uuid=self.ingress_reports_uuid)
+                report.set_status(message)
+            raise ValidationError(message, code="Missing_columns")
 
     def convert_csv_to_parquet(self, csv_filename: os.PathLike):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""

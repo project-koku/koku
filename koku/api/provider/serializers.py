@@ -358,14 +358,14 @@ class ProviderSerializer(serializers.ModelSerializer):
         if dup_queryset.count() != 0:
             message = (
                 "Cost management does not allow duplicate accounts. "
-                "A source already exists with these details. Edit source settings to configure a new source."
+                "An integration already exists with these details. "
+                "Edit integration settings to configure a new integration."
             )
             LOG.warning(message)
             raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
 
         provider = Provider.objects.create(**validated_data)
         provider.customer = customer
-        provider.created_by = user
         provider.authentication = auth
         provider.billing_source = bill
         provider.active = True
@@ -420,7 +420,8 @@ class ProviderSerializer(serializers.ModelSerializer):
                 if dup_queryset.count() != 0:
                     message = (
                         "Cost management does not allow duplicate accounts. "
-                        "A source already exists with these details. Edit source settings to configure a new source."
+                        "An integration already exists with these details. "
+                        "Edit integration settings to configure a new integration."
                     )
                     LOG.warning(message)
                     raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))

@@ -7,6 +7,9 @@ from django.utils.translation import gettext
 from rest_framework import serializers
 
 from api.models import Provider
+from api.report.constants import RESOLUTION_MONTHLY
+from api.report.constants import TIME_SCOPE_UNITS_MONTHLY
+from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
@@ -234,3 +237,87 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+
+
+class OCPVirtualMachinesFilterSerializer(BaseFilterSerializer):
+    """Serializer for handling OpenShift Virtual Machines specific query parameter filter."""
+
+    RESOLUTION_CHOICES = (("monthly", "monthly"),)
+    TIME_CHOICES = (("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
+    TIME_UNIT_CHOICES = (("month", "month"),)
+
+    _opfields = ("project", "cluster", "node", "vm_name")
+
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    vm_name = StringOrListField(child=serializers.CharField(), required=False)
+
+    # override filtering with limit and offset params in the base `FilterSerializer` class.
+    # Not valid for this endpoint.
+    limit = None
+    offset = None
+
+    resolution = serializers.ChoiceField(
+        choices=RESOLUTION_CHOICES,
+        required=False,
+        error_messages={"invalid_choice": f"valid choice is '{RESOLUTION_MONTHLY}'"},
+    )
+    time_scope_value = serializers.ChoiceField(
+        choices=TIME_CHOICES,
+        required=False,
+        error_messages={"invalid_choice": f"valid choices are '{TIME_SCOPE_VALUES_MONTHLY}'"},
+    )
+    time_scope_units = serializers.ChoiceField(
+        choices=TIME_UNIT_CHOICES,
+        required=False,
+        error_messages={"invalid_choice": f"valid choice is '{TIME_SCOPE_UNITS_MONTHLY}'"},
+    )
+
+
+class OCPVirtualMachinesExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
+    _opfields = ("cluster", "node", "project")
+
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    vm_name = StringOrListField(child=serializers.CharField(), required=False)
+
+
+class OCPVirtualMachinesOrderBySerializer(OCPOrderBySerializer):
+    """Serializer for handling VM specific query parameter order_by."""
+
+    _opfields = ("cluster", "node", "project", "vm_name", "request_memory", "request_cpu")
+
+    project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    vm_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    request_cpu = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    request_memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+
+
+class OCPVirtualMachinesGroupBySerializer(GroupSerializer):
+    """Serializer for handling VM query parameter group_by."""
+
+    def validate(self, data):
+        raise serializers.ValidationError("Group by queries are not allowed.")
+
+
+class OCPVirtualMachinesQueryParamSerializer(OCPQueryParamSerializer):
+    """Serializer for handling VM query parameters."""
+
+    order_by_allowlist = ("cluster", "node", "project", "vm_name", "cost", "request_cpu", "request_memory")
+
+    DELTA_CHOICES = ()
+    FILTER_SERIALIZER = OCPVirtualMachinesFilterSerializer
+    ORDER_BY_SERIALIZER = OCPVirtualMachinesOrderBySerializer
+    EXCLUDE_SERIALIZER = OCPVirtualMachinesExcludeSerializer
+    GROUP_BY_SERIALIZER = OCPVirtualMachinesGroupBySerializer
+
+    # override start_date and end_date params in the base `ParamSerializer` class.
+    # Not valid for this endpoint.
+    start_date = None
+    end_date = None

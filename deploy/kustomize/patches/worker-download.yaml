@@ -97,6 +97,8 @@
           value: ${POLLING_TIMER}
         - name: POLLING_BATCH_SIZE
           value: ${POLLING_BATCH_SIZE}
+        - name: XL_REPORT_COUNT
+          value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
           value: ${PROCESSING_WAIT_TIMER}
         - name: LARGE_PROCESSING_WAIT_TIMER
