@@ -73,6 +73,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: ORG_ID_SUFFIX
+          value: ${ORG_ID_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -109,6 +111,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: ORG_ID_SUFFIX
+          value: ${ORG_ID_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -153,12 +157,12 @@ objects:
     name: koku-secret
   data:
     django-secret-key: "${SECRET_KEY}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-aws
-  data:
-    aws-credentials: "${AWS_CREDENTIALS_EPH}"
+# - apiVersion: v1
+#   kind: Secret # For ephemeral/local environment only
+#   metadata:
+#     name: koku-aws
+#   data:
+#     aws-credentials: "${AWS_CREDENTIALS_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
@@ -275,8 +279,11 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: ORG_ID_SUFFIX
+  description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
+  value: ""
 - name: S3_BUCKET_NAME
-  value: koku-eph-s3
+  value: mskarbek-glue
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
