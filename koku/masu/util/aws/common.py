@@ -213,11 +213,11 @@ class AwsArn:
         if self.arn:
             match = self.arn_regex.match(self.arn)
 
-        if not match:
-            raise SyntaxError(f"Invalid ARN: {self.arn}")
+        if match:
+            for key, val in match.groupdict().items():
+                setattr(self, key, val)
 
-        for key, val in match.groupdict().items():
-            setattr(self, key, val)
+        LOG.warning(f"Invalid ARN: {self.arn}")
 
     def __repr__(self):
         """Return the ARN itself."""
