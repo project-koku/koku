@@ -572,14 +572,16 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         Verify the managed trino table population went successfully.
         """
-        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_gcp_verification.sql")
-        verification_sql = verification_sql.decode("utf-8")
-        LOG.info(log_json(msg="running verification for managed OCP on GCP daily SQL", **verification_params))
-        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
-        if False in result[0]:
-            LOG.error(log_json(msg="Verification failed", **verification_params))
-        else:
-            LOG.info(log_json(msg="Verification successful", **verification_params))
+        for file in ["managed_ocp_on_gcp_verification.sql", "managed_resources.sql"]:
+            verify_path = f"trino_sql/verify/gcp/{file}"
+            LOG.info(log_json(msg="running verification for managed OCP on GCP daily SQL", file=file))
+            verification_sql = pkgutil.get_data("masu.database", f"{verify_path}")
+            verification_sql = verification_sql.decode("utf-8")
+            result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+            if result[0]:
+                LOG.info(log_json(msg="Verification successful", **verification_params))
+                return
+        LOG.error(log_json(msg="Verification failed", **verification_params))
 
     def populate_ocp_on_cloud_daily_trino(
         self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
