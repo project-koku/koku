@@ -26,13 +26,16 @@ function set_label_flags() {
         return 1
     fi
 
-    if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes' <<< "$PR_LABELS"; then
+    if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes|run-konflux-tests' <<< "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         EXIT_CODE=1
         echo "PR check skipped"
     elif grep -E 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
         SKIP_PR_CHECK='true'
         echo "smokes not required"
+    elif grep -E 'run-konflux-tests' <<< "$PR_LABELS"; then
+        SKIP_PR_CHECK='true'
+        echo "Skipping test run since PR is labled to run tests in Konflux."
     elif ! grep -E '.*smoke-tests' <<< "$PR_LABELS"; then
         echo "WARNING! No smoke-tests labels found!, PR smoke tests will be skipped"
         SKIP_SMOKE_TESTS='true'
@@ -100,9 +103,6 @@ function run_smoke_tests_stage() {
     OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
     OCI_CONFIG_EPH=$(jq -r '."oci-config"' < oci-creds.json)
 
-    # This sets the image tag for the migrations Job to be the current koku image tag
-    DBM_IMAGE_TAG=${IMAGE_TAG}
-
     bonfire deploy \
         ${APP_NAME} \
         --ref-env insights-production \
@@ -117,8 +117,10 @@ function run_smoke_tests_stage() {
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
         --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
         --set-parameter koku/OCI_CONFIG_EPH=${OCI_CONFIG_EPH} \
-        --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
+        --set-parameter koku/DBM_IMAGE=${IMAGE} \
+        --set-parameter koku/DBM_IMAGE_TAG=${IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
+        --set-parameter koku/IMAGE=${IMAGE} \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
@@ -159,11 +161,37 @@ function _install_bonfire_tools() {
     curl -s "${CICD_URL}/bootstrap.sh" > .cicd_bootstrap.sh && source "${WORKSPACE}/.cicd_bootstrap.sh"
 }
 
+function get_image_tag() {
+    local PREFIX=""
+    if is_pull_request; then
+        PREFIX="pr-${ghprbPullId}-"
+    fi
+
+    echo "${PREFIX}${ghprbActualCommit:0:7}"
+}
+
 function run_build_image_stage() {
 
     _install_bonfire_tools
     echo "creating PR image"
     build_image
+}
+
+function wait_for_image() {
+    echo "Waiting for initial image build..."
+    sleep 180
+
+    local count=0
+    local max=60  # Try for up to 30 minutes
+    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -q "${IMAGE_TAG}"; do
+        echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
+        sleep 30
+        ((count+=1))
+        if [[ $count -gt $max ]]; then
+            echo "Failed to pull image"
+            exit 1
+        fi
+    done
 }
 
 function configure_stages() {

@@ -125,6 +125,8 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
+        # OCP vm tag key (enabled by default)
+        vm_tag_key = "vm_kubevirt_io_name"
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-2"
             "&filter[resolution]=monthly&filter[enabled]=True"
@@ -149,6 +151,10 @@ class OCPTagQueryHandlerTest(IamTestCase):
             )
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
+        # The tag handler only returns enabled keys
+        # this vm key bypasses the enabled model so
+        # it should be removed from this test
+        tag_keys.remove(vm_tag_key)
         result = handler.get_tag_keys(filters=True)
         self.assertEqual(sorted(result), sorted(tag_keys))
         self.assertNotIn("disabled", result)
@@ -167,6 +173,8 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_keys_filter_false(self):
         """Test that all tag keys are returned with no filter."""
+        # OCP vm tag key (enabled by default)
+        vm_tag_key = "vm_kubevirt_io_name"
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -187,6 +195,11 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=False)
+        # The tag handler only returns enabled keys
+        # this vm key bypasses the enabled model so
+        # it should be removed from this test
+        tag_keys.remove(vm_tag_key)
+
         self.assertEqual(sorted(result), sorted(tag_keys))
         self.assertNotIn("disabled", result)
         self.assertNotIn("disabled", tag_keys)
@@ -195,17 +208,24 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_type_filter_pod(self):
         """Test that all usage tags are returned with pod type filter."""
+        # OCP vm tag key (enabled by default)
+        vm_tag_key = "vm_kubevirt_io_name"
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&filter[type]=pod"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            tag_keys = list(
+            usage_tag_keys = list(
                 OCPUsageLineItemDailySummary.objects.annotate(tag_keys=JSONBObjectKeys("pod_labels"))
                 .values_list("tag_keys", flat=True)
                 .distinct()
                 .all()
             )
+        tag_keys = list(set(usage_tag_keys))
+        # The tag handler only returns enabled keys
+        # this vm key bypasses the enabled model so
+        # it should be removed from this test
+        tag_keys.remove(vm_tag_key)
 
         result = handler.get_tag_keys(filters=False)
         self.assertEqual(sorted(result), sorted(tag_keys))

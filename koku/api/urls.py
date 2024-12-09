@@ -37,7 +37,6 @@ from api.views import CostGroupsAddView
 from api.views import CostGroupsRemoveView
 from api.views import CostGroupsView
 from api.views import CostModelResourceTypesView
-from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
 from api.views import GCPCostForecastView
 from api.views import GCPCostView
@@ -88,7 +87,9 @@ from api.views import OCPMemoryView
 from api.views import OCPNetworkView
 from api.views import OCPNodesView
 from api.views import OCPProjectsView
+from api.views import OCPReportVirtualMachinesView
 from api.views import OCPTagView
+from api.views import OCPVirtualMachinesView
 from api.views import OCPVolumeView
 from api.views import openapi
 from api.views import ResourceTypeView
@@ -119,7 +120,6 @@ from koku.cache import OPENSHIFT_GCP_CACHE_PREFIX
 from sources.api.views import SourcesViewSet
 
 ROUTER = DefaultRouter()
-ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="dataexportrequests")
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
@@ -272,6 +272,13 @@ urlpatterns = [
             AzureStorageView.as_view()
         ),
         name="reports-azure-storage",
+    ),
+    path(
+        "reports/openshift/resources/virtual-machines/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPReportVirtualMachinesView.as_view()
+        ),
+        name="reports-openshift-virtual-machines",
     ),
     path(
         "reports/openshift/costs/",
@@ -446,6 +453,11 @@ urlpatterns = [
     path("resource-types/oci-services/", OCIServiceView.as_view(), name="oci-services"),
     path("resource-types/openshift-clusters/", OCPClustersView.as_view(), name="openshift-clusters"),
     path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
+    path(
+        "resource-types/openshift-virtual-machines/",
+        OCPVirtualMachinesView.as_view(),
+        name="openshift-virtual-machines",
+    ),
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
     path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),

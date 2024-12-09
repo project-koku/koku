@@ -9,7 +9,6 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -22,7 +21,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.processor import is_feature_unattributed_storage_enabled_aws
 from masu.processor import is_managed_ocp_cloud_summary_enabled
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -307,8 +305,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_tags_summary"], sql, sql_params)
         # Tag Mapping
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(
@@ -340,11 +336,18 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                     cost_entry_bill_id=bill_id, **date_filters
                 ).update(
-                    markup_cost=(F("unblended_cost") * markup), project_markup_cost=(F("unblended_cost") * markup)
+                    markup_cost=(F("unblended_cost") * markup),
+                    markup_cost_blended=(F("blended_cost") * markup),
+                    markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                    markup_cost_amortized=(F("calculated_amortized_cost") * markup),
+                    project_markup_cost=(F("calculated_amortized_cost") * markup),
                 )
                 for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:
                     ocpaws_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
+                        markup_cost=(F("unblended_cost") * markup),
+                        markup_cost_blended=(F("blended_cost") * markup),
+                        markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                        markup_cost_amortized=(F("calculated_amortized_cost") * markup),
                     )
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
@@ -367,8 +370,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns:
             (None)
         """
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_AWS).exists():
@@ -483,12 +484,25 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+        """
+        Verify the managed trino table population went successfully.
+        """
+        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_aws_verification.sql")
+        verification_sql = verification_sql.decode("utf-8")
+        LOG.info(log_json(msg="running verification for managed OCP on AWS daily SQL", **verification_params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        if False in result[0]:
+            LOG.error(log_json(msg="Verification failed", **verification_params))
+        else:
+            LOG.info(log_json(msg="Verification successful", **verification_params))
+
     def populate_ocp_on_cloud_daily_trino(
         self, aws_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
     ):
-        """Populate the aws_openshift_daily trino table for OCP on AWS.
+        """Populate the managed_aws_openshift_daily trino table for OCP on AWS.
         Args:
-            aws_provider_uuid (UUID) GCP source UUID.
+            aws_provider_uuid (UUID) AWS source UUID.
             ocp_provider_uuid (UUID) OCP source UUID.
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
@@ -496,10 +510,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        if type(start_date) == str:
-            start_date = parse(start_date).astimezone(tz=settings.UTC)
-        if type(end_date) == str:
-            end_date = parse(end_date).astimezone(tz=settings.UTC)
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         table = TRINO_MANAGED_OCP_AWS_DAILY_TABLE

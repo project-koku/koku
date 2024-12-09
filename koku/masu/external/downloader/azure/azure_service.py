@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 
 from adal.adal_error import AdalError
 from azure.common import AzureException
+from azure.core.exceptions import AzureError
 from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob._models import BlobProperties
@@ -63,28 +64,26 @@ class AzureService:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
     def _get_latest_blob(
-        self, report_path: str, blobs: list[BlobProperties], extension: str
+        self, report_path: str, blobs: list[BlobProperties], extension: t.Optional[str] = None
     ) -> t.Optional[BlobProperties]:
         latest_blob = None
         for blob in blobs:
-            if not blob.name.endswith(extension):
+            if extension and not blob.name.endswith(extension):
                 continue
-
-            if report_path in blob.name and not latest_blob:
-                latest_blob = blob
-            elif report_path in blob.name and blob.last_modified > latest_blob.last_modified:
-                latest_blob = blob
+            if report_path in blob.name:
+                if not latest_blob or blob.last_modified > latest_blob.last_modified:
+                    latest_blob = blob
         return latest_blob
 
     def _get_latest_blob_for_path(
         self,
         report_path: str,
         container_name: str,
-        extension: str,
+        extension: t.Optional[str] = None,
     ) -> BlobProperties:
         """Get the latest file with the specified extension from given storage account container."""
 
-        latest_report = None
+        latest_file = None
         if not container_name:
             message = "Unable to gather latest file as container name is not provided."
             LOG.warning(message)
@@ -117,15 +116,12 @@ class AzureService:
             LOG.warning(error_msg)
             raise AzureCostReportNotFound(message)
 
-        latest_report = self._get_latest_blob(report_path, blobs, extension)
-        if not latest_report:
-            message = (
-                f"No file with extension '{extension}' found in container "
-                f"'{container_name}' for path '{report_path}'."
-            )
+        latest_file = self._get_latest_blob(report_path, blobs, extension)
+        if not latest_file:
+            message = f"No file found in container " f"'{container_name}' for path '{report_path}'."
             raise AzureCostReportNotFound(message)
 
-        return latest_report
+        return latest_file
 
     def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
         try:
@@ -158,10 +154,25 @@ class AzureService:
         return report
 
     def get_latest_cost_export_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.csv.value)
+        """
+        Get the latest cost export for a given path and container based on the compression type.
+
+        Args:
+            report_path (str): The path where the report is stored.
+            container_name (str): The name of the container where the report is located.
+            compression (str): The compression format ('gzip' or 'csv').
+
+        Returns:
+            BlobProperties: The latest blob corresponding to the specified report path and container.
+
+        Raises:
+            ValueError: If the compression type is not 'gzip' or 'csv'.
+            AzureCostReportNotFound: If no blob is found for the given path and container.
+        """
+        return self._get_latest_blob_for_path(report_path, container_name)
 
     def get_latest_manifest_for_path(self, report_path: str, container_name: str) -> BlobProperties:
-        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.manifest.value)
+        return self._get_latest_blob_for_path(report_path, container_name, AzureBlobExtension.json.value)
 
     def download_file(
         self,
@@ -171,7 +182,9 @@ class AzureService:
         suffix: str = AzureBlobExtension.csv.value,
         ingress_reports: list[str] = None,
     ) -> str:
-        """Download the file from a given storage container."""
+        """
+        Download the file from a given storage container. Supports both CSV and GZIP formats.
+        """
 
         if not ingress_reports:
             cost_export = self.get_file_for_key(key, container_name)
@@ -187,7 +200,7 @@ class AzureService:
             blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
-        except (AdalError, AzureException, ClientException, OSError) as error:
+        except (AdalError, AzureException, ClientException, OSError, AzureError) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
 
         return file_path

@@ -26,7 +26,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_cost_3592_tag_mapping_enabled
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
@@ -106,8 +105,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        if not is_feature_cost_3592_tag_mapping_enabled(self.schema):
-            return
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(child__provider_type=Provider.PROVIDER_OCP).exists():

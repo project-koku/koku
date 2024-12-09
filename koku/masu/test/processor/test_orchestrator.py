@@ -278,6 +278,39 @@ class OrchestratorTest(MasuTestCase):
         mock_chord.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.record_report_status", return_value=False)
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing_with_large_provider(self, mock_download, mock_chord, mock_task, mock_inspect):
+        """Test setting provider as large based on report file count."""
+        fake_files = []
+        for _ in range(101):
+            fake_files.append({"local_file": f"{faker.Faker().word()}.csv"})
+        mock_manifests = [
+            {
+                "manifest_id": "1",
+                "files": fake_files,
+                "assembly_id": "1234",
+            }
+        ]
+        mock_download.return_value = mock_manifests
+        orchestrator = Orchestrator()
+        account = self.mock_accounts[0]
+        expected = "marking provider large as report files exceed threshold."
+        with self.assertLogs("masu.processor.orchestrator", level="INFO") as logger:
+            orchestrator.start_manifest_processing(
+                account.get("customer_name"),
+                account.get("credentials"),
+                account.get("data_source"),
+                "AWS-local",
+                account.get("schema_name"),
+                account.get("provider_uuid"),
+                get_billing_months(1)[0],
+            )
+            mock_chord.assert_called()
+            self.assertTrue(any(expected in log for log in logger.output))
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.WorkerCache.task_is_running", return_value=True)
     @patch("masu.processor.orchestrator.chord")
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")

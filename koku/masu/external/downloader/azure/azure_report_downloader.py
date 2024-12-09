@@ -18,7 +18,6 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external import UNCOMPRESSED
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -179,6 +178,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
+        self.compression = None
 
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap
@@ -271,6 +271,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = {}
+        compression_mode = None
         if self.ingress_reports:
             reports = [report.split(f"{self.container_name}/")[1] for report in self.ingress_reports]
             year = date_time.strftime("%Y")
@@ -303,7 +304,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             except AzureCostReportNotFound as ex:
                 json_manifest = None
                 msg = f"No JSON manifest exists. {ex}"
-                LOG.debug(msg)
+                LOG.info(msg)
             if json_manifest:
                 report_name = json_manifest.name
                 last_modified = json_manifest.last_modified
@@ -317,10 +318,11 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     msg = f"Unable to get report manifest for {self._provider_uuid}. Reason: {str(err)}"
                     LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
                     return {}, None
-                # Extract data from the JSON file
                 try:
                     with open(manifest_tmp) as f:
                         manifest_json = json.load(f)
+
+                    compression_mode = manifest_json.get("deliveryConfig", {}).get("compressionMode")
                 except json.JSONDecodeError as err:
                     msg = f"Unable to open JSON manifest. Reason: {err}"
                     raise AzureReportDownloaderError(msg)
@@ -346,7 +348,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 raise AzureReportDownloaderError(message)
 
         manifest["billingPeriod"] = billing_period
-        manifest["Compression"] = UNCOMPRESSED
+        manifest["Compression"] = compression_mode
+        self.compression = compression_mode
 
         return manifest, last_modified
 
@@ -401,7 +404,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("reportKeys")
             ]
             report_dict["files"] = files_list
-
         return report_dict
 
     @property
@@ -431,12 +433,12 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         Returns:
             (String): The path and file name of the saved file
-
         """
         file_names = []
         date_range = {}
         file_creation_date = None
         etag = None
+
         if not self.ingress_reports:
             try:
                 blob = self._azure_client.get_file_for_key(key, self.container_name)
@@ -449,11 +451,17 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         local_filename = utils.get_local_file_name(key)
         full_file_path = f"{self._get_exports_data_directory()}/{local_filename}"
+
         msg = f"Downloading {key} to {full_file_path}"
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         self._azure_client.download_file(
-            key, self.container_name, destination=full_file_path, ingress_reports=self.ingress_reports
+            key,
+            self.container_name,
+            destination=full_file_path,
+            ingress_reports=self.ingress_reports,
+            suffix=self.compression,
         )
+
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,

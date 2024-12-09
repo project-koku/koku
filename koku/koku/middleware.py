@@ -28,7 +28,6 @@ from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
 from django_tenants.middleware import TenantMainMiddleware
 from prometheus_client import Counter
-from rest_framework.exceptions import ValidationError
 
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
@@ -37,7 +36,6 @@ from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
-from api.iam.serializers import UserSerializer
 from api.utils import DateHelper
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
@@ -72,6 +70,13 @@ def is_no_entitled(request):
     """Check condition for needing to entitled user."""
     no_entitled_list = ["source-status"]
     no_auth = any(no_auth_path in request.path for no_auth_path in no_entitled_list)
+    return no_auth
+
+
+def is_no_access(request):
+    """Check condition for user access."""
+    no_access_list = ["aws-s3-regions"]
+    no_auth = any(no_auth_path in request.path for no_auth_path in no_access_list)
     return no_auth
 
 
@@ -160,11 +165,13 @@ class KokuTenantMiddleware(TenantMainMiddleware):
         connection.set_schema_to_public()
 
         if not is_no_auth(request):
-            if hasattr(request, "user") and hasattr(request.user, "username"):
+            if hasattr(request, "user") and hasattr(request.user, "username") and hasattr(request.user, "customer"):
                 username = request.user.username
-                if username not in USER_CACHE:
-                    USER_CACHE[username] = request.user
-                    LOG.debug(f"User added to cache: {username}")
+                org_id = request.user.customer.org_id
+                user_key = f"{org_id}_{username}"
+                if user_key not in USER_CACHE:
+                    USER_CACHE[user_key] = request.user
+                    LOG.debug(f"User added to cache: {user_key}")
                 self._check_user_has_access(request)
 
             else:
@@ -190,6 +197,8 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             PermissionDenied: If the user does not have permissions for Cost Management.
 
         """
+        if is_no_access(request):
+            return
         if not request.user.admin and not request.user.access:
             msg = f"User {request.user.username} does not have permissions for Cost Management."
             LOG.warning(msg)
@@ -255,35 +264,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             customer = Customer.objects.filter(org_id=org_id).get()
 
         return customer
-
-    @staticmethod
-    def create_user(username, email, customer, request):
-        """Create a user for a customer.
-        Args:
-            username (str): The username
-            email (str): The email for the user
-            customer (Customer): The customer the user is associated with
-            request (object): The incoming request
-        Returns:
-            (User) The created user
-        """
-        new_user = None
-        try:
-            with transaction.atomic():
-                user_data = {"username": username, "email": email}
-                context = {"request": request, "customer": customer}
-                serializer = UserSerializer(data=user_data, context=context)
-                if serializer.is_valid(raise_exception=True):
-                    if request and request.method in ["GET", "HEAD"]:
-                        new_user = User(username=username, email=email, customer=customer)
-                    else:
-                        new_user = serializer.save()
-
-                UNIQUE_USER_COUNTER.labels(account=customer.account_id, user=username).inc()
-                LOG.info("Created new user %s for customer(org_id %s).", username, customer.org_id)
-        except (IntegrityError, ValidationError):
-            new_user = User.objects.get(username=username)
-        return new_user
 
     def _get_access(self, user):
         """Obtain access for given user from RBAC service."""
@@ -371,22 +351,20 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 DB_CONNECTION_ERRORS_COUNTER.inc()
                 return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
-            try:
-                if username not in USER_CACHE:
-                    user = User.objects.get(username=username)
-                    USER_CACHE[username] = user
-                    LOG.debug(f"User added to cache: {username}")
-                else:
-                    user = USER_CACHE[username]
-            except User.DoesNotExist:
-                user = IdentityHeaderMiddleware.create_user(username, email, customer, request)
+            user_key = f"{org_id}_{username}"
+            if user_key not in USER_CACHE:
+                user = User(username=username, email=email, customer=customer)
+                USER_CACHE[user_key] = user
+                LOG.debug(f"User added to cache: {user_key}")
+            else:
+                user = USER_CACHE[user_key]
 
             user.identity_header = {"encoded": rh_auth_header, "decoded": json_rh_auth}
             user.admin = is_admin
             user.req_id = req_id
 
             cache = caches["rbac"]
-            user_access = cache.get(user.uuid)
+            user_access = cache.get(f"{user.uuid}_{org_id}")
 
             if not user_access:
                 if settings.DEVELOPMENT and request.user.req_id == "DEVELOPMENT":
@@ -398,7 +376,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                         user_access = self._get_access(user)
                     except RbacConnectionError as err:
                         return HttpResponseFailedDependency({"source": "Rbac", "exception": err})
-                cache.set(user.uuid, user_access, self.rbac.cache_ttl)
+                cache.set(f"{user.uuid}_{org_id}", user_access, self.rbac.cache_ttl)
             user.access = user_access
 
             user.beta = False

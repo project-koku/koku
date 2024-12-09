@@ -987,29 +987,6 @@ def mark_manifest_complete(
             report.mark_completed()
 
 
-@celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
-def vacuum_schema(schema_name):
-    """Vacuum the reporting tables in the specified schema."""
-    table_sql = """
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = %s
-            AND table_name like 'reporting_%%'
-            AND table_type != 'VIEW'
-    """
-
-    with schema_context(schema_name):
-        with connection.cursor() as cursor:
-            cursor.execute(table_sql, [schema_name])
-            tables = cursor.fetchall()
-            tables = [table[0] for table in tables]
-            for table in tables:
-                sql = f"VACUUM ANALYZE {schema_name}.{table}"
-                cursor.execute(sql)
-                LOG.info(sql)
-                LOG.info(cursor.statusmessage)
-
-
 def normalize_table_options(table_options):
     """Normalize autovaccume_tune_schema table_options to dict type."""
     if not table_options:
@@ -1295,7 +1272,7 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
 
 @celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=SummaryQueue.DEFAULT, bind=True)
 def process_openshift_on_cloud_trino(
-    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id, report_data_trigger=False
+    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id, masu_api_trigger=False
 ):
     """Process OCP on Cloud data into managed tables for summary"""
     reports_deduplicated = deduplicate_summary_reports(reports_to_summarize, manifest_list=[])
@@ -1315,7 +1292,7 @@ def process_openshift_on_cloud_trino(
         with ReportManifestDBAccessor() as manifest_accesor:
             tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
 
-            if not report_data_trigger and not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
+            if not masu_api_trigger and not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
                 LOG.info(log_json(tracing_id, msg="manifest not ready for summary", context=report))
                 continue
 
@@ -1325,7 +1302,6 @@ def process_openshift_on_cloud_trino(
         for month in months:
             start_date = month[0]
             end_date = month[1]
-            # invoice_month = month[2]
             ctx["start_date"] = start_date
             ctx["end_date"] = end_date
             manifest_id = report.get("manifest_id")

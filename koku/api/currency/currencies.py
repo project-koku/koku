@@ -13,6 +13,12 @@ CURRENCIES = [
         "description": "AUD (A$) - Australian Dollar",
     },
     {
+        "code": "BRL",
+        "name": "Brazilian Real",
+        "symbol": "R$",
+        "description": "BRL (R$) - Brazilian Real",
+    },
+    {
         "code": "CAD",
         "name": "Canadian Dollar",
         "symbol": "CA$",
@@ -53,6 +59,12 @@ CURRENCIES = [
         "name": "Hong Kong Dollar",
         "symbol": "HK$",
         "description": "HKD (HK$) - Hong Kong Dollar",
+    },
+    {
+        "code": "INR",
+        "name": "Indian Rupee",
+        "symbol": "\u20b9",
+        "description": "INR (\u20b9) - Indian Rupee",
     },
     {
         "code": "JPY",

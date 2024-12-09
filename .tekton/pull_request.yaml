@@ -1,0 +1,50 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/project-koku/koku?rev={{ revision }}
+    build.appstudio.redhat.com/commit_sha: '{{ revision }}'
+    build.appstudio.redhat.com/pull_request_number: '{{ pull_request_number }}'
+    build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
+  creationTimestamp: null
+
+  labels:
+    appstudio.openshift.io/application: koku
+    appstudio.openshift.io/component: koku
+    pipelines.appstudio.openshift.io/type: build
+
+  namespace: cost-mgmt-dev-tenant
+  name: koku-pr
+
+spec:
+  params:
+    - name: git-url
+      value: '{{ source_url }}'
+
+    - name: revision
+      value: '{{ revision }}'
+
+    - name: output-image
+      value: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/koku:pr-{{ pull_request_number }}-latest
+
+    - name: image-expires-after
+      value: 5d
+
+    - name: dockerfile
+      value: Dockerfile
+
+    - name: path-context
+      value: .
+
+    - name: tag-prefix
+      value: pr-{{ pull_request_number }}-
+
+  pipelineRef:
+    name: pipeline-build
+
+  workspaces:
+    - name: git-auth
+      secret:
+        secretName: '{{ git_auth_secret }}'

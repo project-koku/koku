@@ -13,11 +13,9 @@ from django.db.models import JSONField
 TRINO_LINE_ITEM_TABLE = "azure_line_items"
 TRINO_LINE_ITEM_DAILY_TABLE = TRINO_LINE_ITEM_TABLE
 TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
+TRINO_MANAGED_OCP_AZURE_DAILY_TABLE = "managed_azure_openshift_daily"
 
 TRINO_REQUIRED_COLUMNS = {
-    "billingperiodstartdate": pd.NaT,
-    "billingperiodenddate": pd.NaT,
-    "date": pd.NaT,
     "accountname": "",
     "accountownerid": "",
     "additionalinfo": "",
@@ -28,10 +26,13 @@ TRINO_REQUIRED_COLUMNS = {
     "billingcurrency": "",
     "billingprofileid": "",
     "billingprofilename": "",
+    "billingperiodstartdate": pd.NaT,
+    "billingperiodenddate": pd.NaT,
     "chargetype": "",
     "consumedservice": "",
     "costcenter": "",
     "costinbillingcurrency": 0.0,
+    "date": pd.NaT,
     "effectiveprice": 0.0,
     "frequency": "",
     "invoicesectionid": "",

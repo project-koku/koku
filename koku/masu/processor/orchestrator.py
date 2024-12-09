@@ -272,6 +272,19 @@ class Orchestrator:
             LOG.info(log_json(tracing_id, msg="found manifests", context=manifest, schema=schema_name))
 
             last_report_index = len(report_files) - 1
+            # Override the queue if we determine a provider is large based on report count
+            if len(report_files) > settings.XL_REPORT_COUNT:
+                LOG.info(
+                    log_json(
+                        tracing_id,
+                        msg="marking provider large as report files exceed threshold.",
+                        file_count=len(report_files),
+                        Threshold=settings.XL_REPORT_COUNT,
+                        schema=schema_name,
+                    )
+                )
+                SUMMARY_QUEUE = get_customer_queue(schema_name, SummaryQueue, xl_provider=True)
+                REPORT_QUEUE = get_customer_queue(schema_name, DownloadQueue, xl_provider=True)
             for i, report_file_dict in enumerate(report_files):
                 local_file = report_file_dict.get("local_file")
                 report_file = report_file_dict.get("key")
@@ -387,6 +400,13 @@ class Orchestrator:
                         schema=schema_name,
                     )
                 )
+                # Note that the summary, hcs, subs, and ocp_on_cloud_trino_task will
+                # excecutue concurrently, so the order can not be garunteed.
+
+                # Within the summary task when running the update_summary_tables
+                # we populate the populate_openshift_cluster_information_tables
+                # Therefore, the tables in that function may not have any information
+                # when executing the ocp_on_cloud_trino_task on an initial run.
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task, ocp_on_cloud_trino_task))()
                 LOG.info(
                     log_json(

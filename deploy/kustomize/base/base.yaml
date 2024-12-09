@@ -274,7 +274,7 @@ parameters:
 - description: Image
   name: IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - name: S3_BUCKET_NAME
   value: koku-eph-s3
 - name: S3_ROS_BUCKET_NAME
@@ -304,7 +304,7 @@ parameters:
 - description: DB Migrations Image
   name: DBM_IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - description: DB Invocation Iterator
   name: DBM_INVOCATION
   required: true
@@ -343,7 +343,7 @@ parameters:
 - description: Management Command Image
   name: MGMT_IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - description: Management Command Invocation Iterator
   name: MGMT_INVOCATION
   required: true
@@ -530,6 +530,10 @@ parameters:
   value: "86400"
 - displayName: Provider count for batch polling
   name: POLLING_BATCH_SIZE
+  value: "100"
+- description: Minimum number of reports before provider classed as XL
+  displayName: Min report count for large providers
+  name: XL_REPORT_COUNT
   value: "100"
 - displayName: Timer to prevent triggering tasks while still processing in days
   name: PROCESSING_WAIT_TIMER

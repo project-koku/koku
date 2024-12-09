@@ -207,7 +207,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "usage": Sum(F("usage_amount")),
+                            "usage": Sum(Coalesce(F("usage_amount"), Value(0, output_field=DecimalField()))),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
                         "annotations": {
@@ -249,7 +249,7 @@ class OCPAWSProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum("usage_amount"),
+                            "usage": Sum(Coalesce(F("usage_amount"), Value(0, output_field=DecimalField()))),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
@@ -303,7 +303,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "usage": Sum(F("usage_amount")),
+                            "usage": Sum(Coalesce(F("usage_amount"), Value(0, output_field=DecimalField()))),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
                         "aggregate_key": "usage_amount",
@@ -346,7 +346,7 @@ class OCPAWSProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "usage": Sum("usage_amount"),
+                            "usage": Sum(Coalesce(F("usage_amount"), Value(0, output_field=DecimalField()))),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
