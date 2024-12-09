@@ -930,8 +930,9 @@ class AwsArnTest(TestCase):
         """Assert error in account ID parsing from a badly-formed ARN."""
         mock_arn = self.fake.text()
         credentials = {"role_arn": mock_arn}
-        with self.assertRaises(SyntaxError):
+        with self.assertLogs("masu.util.aws", level="WARNING") as logger:
             utils.AwsArn(credentials)
+            self.assertTrue(any(f"Invalid ARN: {mock_arn}" in log for log in logger.output))
 
     def test_arn_and_external_id(self):
         """Assert that the AwsArn processes an ExternalId."""
