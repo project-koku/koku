@@ -2,24 +2,21 @@ default_language_version:
   python: python3
 
 repos:
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.9.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.8.2
     hooks:
-      - id: reorder-python-imports
-        args: [--py3-plus, --application-directories, "koku"]
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format
 
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
-        args: [--py36-plus]
-
-  - repo: https://github.com/ambv/black
-    rev: 22.12.0
-    hooks:
-      - id: black
-        args: [--line-length, "119"]
-        require_serial: true
+  # - repo: https://github.com/asottile/pyupgrade
+  #   rev: v3.3.1
+  #   hooks:
+  #     - id: pyupgrade
+  #       args: [--py36-plus]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
@@ -34,10 +31,10 @@ repos:
           - "--indent=4"
           - "--no-sort-keys"
 
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
+  # - repo: https://github.com/PyCQA/flake8
+  #   rev: 6.0.0
+  #   hooks:
+  #     - id: flake8
 
   - repo: https://github.com/haizaar/check-pipfile-lock
     rev: v0.0.5
