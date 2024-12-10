@@ -586,7 +586,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             resource_result = self._execute_trino_multipart_sql_query(resource_sql, bind_params=verification_params)
             if resource_result:
                 # Limit the resources added to the log
-                verification_params["resources_failed"] = resource_result[0:20]
+                verification_params["resources_failed"] = resource_result
                 LOG.error(log_json(msg="Verification failed", **verification_params))
                 return
         LOG.info(log_json(msg="Verification successful", **verification_params))

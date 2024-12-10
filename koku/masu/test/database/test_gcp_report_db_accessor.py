@@ -611,7 +611,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 "Verification successful" in log for log in logger.output
             ), "Verification successful not found in logs"
 
-        mock_trino.side_effect = [[[False]]]
+        mock_trino.side_effect = [[[False]], [["fail"]]]
         with self.assertLogs("masu.database.gcp_report_db_accessor", level="ERROR") as logger:
             self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
             assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"

@@ -59,4 +59,4 @@ cte_initial_cost_check AS (
     AND gcp.year = {{year}} AND gcp.month = {{month}}
     GROUP BY gcp.resource_name, gcp.usage_start_time
 )
-SELECT * FROM cte_initial_cost_check where parquet_issue != True;
+SELECT * FROM cte_initial_cost_check where parquet_issue != True LIMIT 40;
