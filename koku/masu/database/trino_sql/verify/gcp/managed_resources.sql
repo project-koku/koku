@@ -59,8 +59,4 @@ cte_initial_cost_check AS (
     AND gcp.year = {{year}} AND gcp.month = {{month}}
     GROUP BY gcp.resource_name, gcp.usage_start_time
 )
-SELECT NOT EXISTS (
-    SELECT 1
-    FROM cte_initial_cost_check
-    WHERE parquet_issue = FALSE
-) AS counts_match;
+SELECT * FROM cte_initial_cost_check where parquet_issue != True;

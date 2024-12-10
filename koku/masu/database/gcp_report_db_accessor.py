@@ -572,16 +572,24 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         Verify the managed trino table population went successfully.
         """
-        for file in ["managed_ocp_on_gcp_verification.sql", "managed_resources.sql"]:
-            verify_path = f"trino_sql/verify/gcp/{file}"
-            LOG.info(log_json(msg="running verification for managed OCP on GCP daily SQL", file=file))
-            verification_sql = pkgutil.get_data("masu.database", f"{verify_path}")
-            verification_sql = verification_sql.decode("utf-8")
-            result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
-            if result[0]:
-                LOG.info(log_json(msg="Verification successful", **verification_params))
+        verify_path = "trino_sql/verify/gcp/"
+        cost_total_file = verify_path + "managed_ocp_on_gcp_verification.sql"
+        cost_total_sql = pkgutil.get_data("masu.database", cost_total_file)
+        cost_total_sql = cost_total_sql.decode("utf-8")
+        cost_total_result = self._execute_trino_multipart_sql_query(cost_total_sql, bind_params=verification_params)
+        cost_total_inspect = cost_total_result[0]
+        if False in cost_total_inspect:
+            LOG.info(log_json(msg="Cost total validation failed", result=cost_total_inspect))
+            resource_file = verify_path + "managed_resources.sql"
+            resource_sql = pkgutil.get_data("masu.database", resource_file)
+            resource_sql = resource_sql.decode("utf-8")
+            resource_result = self._execute_trino_multipart_sql_query(resource_sql, bind_params=verification_params)
+            if resource_result:
+                # Limit the resources added to the log
+                verification_params["resources_failed"] = resource_result[0:20]
+                LOG.error(log_json(msg="Verification failed", **verification_params))
                 return
-        LOG.error(log_json(msg="Verification failed", **verification_params))
+        LOG.info(log_json(msg="Verification successful", **verification_params))
 
     def populate_ocp_on_cloud_daily_trino(
         self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
