@@ -96,8 +96,6 @@ class OCPReportDBCleaner:
         partition_from = str(date(expired_date.year, expired_date.month, 1))
         removed_items = []
         all_report_periods = []
-        all_cluster_ids = set()
-        all_period_starts = set()
 
         with OCPReportDBAccessor(self._schema) as accessor:
             all_usage_periods = accessor.get_report_periods_before_date(expired_date)
@@ -116,16 +114,12 @@ class OCPReportDBCleaner:
                     {"usage_period_id": usage_period.id, "interval_start": str(usage_period.report_period_start)}
                 )
                 all_report_periods.append(usage_period.id)
-                all_cluster_ids.add(usage_period.cluster_id)
-                all_period_starts.add(str(usage_period.report_period_start))
 
             if not simulate:
                 LOG.info(
                     log_json(
                         msg="removing all data related to cluster_ids",
                         report_periods=all_report_periods,
-                        cluster_ids=all_cluster_ids,
-                        period_starts=all_period_starts,
                         schema=self._schema,
                     )
                 )
