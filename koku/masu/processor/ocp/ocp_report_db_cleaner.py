@@ -116,13 +116,6 @@ class OCPReportDBCleaner:
                 all_report_periods.append(usage_period.id)
 
             if not simulate:
-                LOG.info(
-                    log_json(
-                        msg="removing all data related to cluster_ids",
-                        report_periods=all_report_periods,
-                        schema=self._schema,
-                    )
-                )
                 # Will call trigger to detach, truncate, and drop partitions
                 LOG.info(
                     log_json(
@@ -145,7 +138,7 @@ class OCPReportDBCleaner:
                 del_count, _ = OCPUsageReportPeriod.objects.filter(id__in=all_report_periods).delete()
                 LOG.info(
                     log_json(
-                        msg=f"deleted ocp-usage-report-periods",
+                        msg="deleted ocp-usage-report-periods",
                         count=del_count,
                         report_periods=all_report_periods,
                         schema=self._schema,
