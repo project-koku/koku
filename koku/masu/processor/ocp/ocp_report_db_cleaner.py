@@ -145,8 +145,9 @@ class OCPReportDBCleaner:
                 del_count, _ = OCPUsageReportPeriod.objects.filter(id__in=all_report_periods).delete()
                 LOG.info(
                     log_json(
-                        msg=f"Deleted records from table {OCPUsageReportPeriod._meta.db_table} using id",
+                        msg=f"deleted ocp-usage-report-periods",
                         count=del_count,
+                        report_periods=all_report_periods,
                         schema=self._schema,
                     )
                 )
