@@ -255,7 +255,7 @@ SELECT cast(uuid() as varchar) as uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(aws.year) as year,
     max(aws.month) as month
-FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+FROM hive.{{schema | sqlsafe}}.{{ocpaws_table | sqlsafe}} as aws
 WHERE aws.source = {{aws_source_uuid}}
     AND aws.year = {{year}}
     AND aws.month = {{month}}
@@ -362,7 +362,7 @@ SELECT cast(uuid() as varchar) as uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(aws.year) as year,
     max(aws.month) as month
-FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+FROM hive.{{schema | sqlsafe}}.{{ocpaws_table | sqlsafe}} as aws
 CROSS JOIN cte_enabled_tag_keys as etk
 WHERE aws.source = {{aws_source_uuid}}
     AND aws.year = {{year}}
@@ -541,7 +541,7 @@ SELECT cast(uuid() as varchar) as uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(aws.year) as year,
     max(aws.month) as month
-FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+FROM hive.{{schema | sqlsafe}}.{{ocpaws_table | sqlsafe}} as aws
 CROSS JOIN cte_enabled_tag_keys as etk
 CROSS JOIN cte_csi_volume_handles as csi
 WHERE aws.source = {{aws_source_uuid}}
