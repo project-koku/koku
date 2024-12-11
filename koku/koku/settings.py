@@ -27,10 +27,8 @@ from oci import config
 from oci.exceptions import ConfigFileNotFound
 
 from . import database
-from . import sentry
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
-
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
@@ -493,20 +491,23 @@ REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-repor
 REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value("REQUESTED_ROS_BUCKET", default="ros-report")
 REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value("REQUESTED_SUBS_BUCKET", default="subs-report")
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
-S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
+S3_DEFAULT_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="https://s3.amazonaws.com")
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
 S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
 S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
 S3_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_BUCKET)
+S3_HCS_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_ROS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_ROS_BUCKET)
 S3_ROS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_ROS_BUCKET)
 S3_ROS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_ROS_BUCKET)
 S3_ROS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_ROS_BUCKET)
+S3_ROS_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_SUBS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_SUBS_BUCKET)
 S3_SUBS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_SUBS_BUCKET)
 S3_SUBS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_SUBS_BUCKET)
 S3_SUBS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_SUBS_BUCKET)
+S3_SUBS_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 SKIP_MINIO_DATA_DELETION = ENVIRONMENT.bool("SKIP_MINIO_DATA_DELETION", default=False)
 
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)

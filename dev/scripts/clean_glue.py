@@ -15,24 +15,25 @@ def clear_glue_data():
         "aws_access_key_id": os.environ.get("TRINO_AWS_ACCESS_KEY_ID"),
         "aws_secret_access_key": os.environ.get("TRINO_AWS_SECRET_ACCESS_KEY"),
     }
-
     path_prefixes = {
         "s3_csv_path": f"data/csv/{schema}",
         "s3_parquet_path": f"data/parquet/{schema}",
         "s3_daily_parquet": f"data/parquet/daily/{schema}",
     }
-    for _, file_prefix in path_prefixes.items():
-        s3_resource = boto3.resource("s3", **credentials)
-        s3_bucket = s3_resource.Bucket(bucket_name)
-        object_keys = [s3_object.key for s3_object in s3_bucket.objects.filter(Prefix=file_prefix)]
-        for key in object_keys:
-            s3_resource.Object(bucket_name, key).delete()
-        print(f"Removing s3 files for prefix: {file_prefix}")
 
-    client = boto3.client("glue", **credentials)
+    for _, file_prefix in path_prefixes.items():
+        s3_client = boto3.client("s3", **credentials)
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for obj_list in paginator.paginate(Bucket=bucket_name, Prefix=file_prefix):
+            if "Contents" in obj_list:
+                keys = [{"Key": x["Key"]} for x in obj_list["Contents"]]
+                s3_client.delete_objects(Bucket=bucket_name, Delete={"Objects": keys})
+        print(f"Removed s3 files for prefix: {file_prefix}")
+
+    glue_client = boto3.client("glue", **credentials)
     try:
-        client.delete_database(Name=schema)
-        print(f"Deleteing database: {schema}")
+        glue_client.delete_database(Name=schema)
+        print(f"Deleting database: {schema}")
     except Exception:
         print(f"Failed to delete db: {schema}, its possible it was already deleted")
 

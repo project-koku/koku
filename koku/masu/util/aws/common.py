@@ -9,7 +9,6 @@ import logging
 import math
 import re
 import time
-import typing as t
 import uuid
 from itertools import chain
 
@@ -464,8 +463,8 @@ def update_account_aliases(provider: Provider):
 def get_bills_from_provider(
     provider_uuid: str,
     schema: str,
-    start_date: t.Union[datetime.datetime, str] = None,
-    end_date: t.Union[datetime.datetime, str] = None,
+    start_date: datetime.datetime | str = None,
+    end_date: datetime.datetime | str = None,
 ) -> list[AWSCostEntryBill]:
     """
     Return the AWS bill IDs given a provider UUID.
@@ -512,7 +511,9 @@ def get_bills_from_provider(
     return bills
 
 
-def get_s3_resource(access_key=None, secret_key=None, region=None, profile_name=None):  # pragma: no cover
+def get_s3_resource(
+    *, access_key=None, secret_key=None, region=None, profile_name=None, endpoint_url=settings.S3_DEFAULT_ENDPOINT
+):  # pragma: no cover
     """
     Obtain the s3 session client
     """
@@ -523,10 +524,10 @@ def get_s3_resource(access_key=None, secret_key=None, region=None, profile_name=
         region_name=region,
         profile_name=profile_name,
     )
-    return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
+    return aws_session.resource("s3", endpoint_url=endpoint_url, config=config)
 
 
-def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, context=None):
+def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, context=None, s3_resource=None):
     """
     Copies data to s3 bucket file
     """
@@ -536,7 +537,8 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
     extra_args = {}
     if metadata:
         extra_args["Metadata"] = metadata
-    s3_resource = get_s3_resource(profile_name="default")
+    if s3_resource is None:
+        s3_resource = get_s3_resource(profile_name="default")
     s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
     upload = s3_resource.Object(**s3_obj)
     try:
@@ -564,18 +566,32 @@ def copy_local_report_file_to_s3_bucket(
 
 
 def copy_local_hcs_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, finalize=False, finalize_date=None, context={}
+    request_id,
+    s3_path,
+    full_file_path,
+    local_filename,
+    finalize=False,
+    finalize_date=None,
+    context=None,
 ):
     """
     Copies local report file to s3 bucket
     """
+    if context is None:
+        context = {}
     if s3_path and settings.ENABLE_S3_ARCHIVING:
         LOG.info(f"copy_local_HCS_report_file_to_s3_bucket: {s3_path} {full_file_path}")
+        s3_resource = get_s3_resource(
+            access_key=settings.S3_ACCESS_KEY,
+            secret_key=settings.S3_SECRET,
+            region=settings.S3_REGION,
+            endpoint_url=settings.S3_HCS_ENDPOINT,
+        )
         with open(full_file_path, "rb") as fin:
             metadata = {"finalized": str(finalize)}
             if finalize and finalize_date:
                 metadata["finalized-date"] = finalize_date
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
+            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context, s3_resource)
 
 
 def _get_s3_objects(s3_path):
@@ -656,11 +672,11 @@ def safe_str_int_conversion(value):
 
 def filter_s3_objects_less_than(
     request_id: str,
-    keys: t.List[str],
+    keys: list[str],
     metadata_key: str,
     metadata_value_check: str,
-    context: t.Optional[t.Dict] = None,
-) -> t.List[str]:
+    context: dict | None = None,
+) -> list[str]:
     """Filter S3 object keys based on a metadata key integer value comparison.
 
     Parameters:
