@@ -4,10 +4,8 @@ WITH cte_agg_tags as (
     ) as cte_tag_matches
 )
 SELECT
-    CASE
-        WHEN abs(t1.managed_total_cost - t2.parquet_total_cost) < 1 THEN true
-        ELSE false
-    END AS counts_match
+    abs(t1.managed_total_cost - t2.parquet_total_cost) < 1 as result,
+    abs(t1.managed_total_cost - t2.parquet_total_cost) as difference
 FROM
 (
     SELECT sum(cost) AS managed_total_cost
