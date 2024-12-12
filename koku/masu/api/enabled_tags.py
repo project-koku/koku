@@ -5,6 +5,7 @@
 """View for enable_tags masu admin endpoint."""
 import logging
 
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django_tenants.utils import schema_context
@@ -15,7 +16,6 @@ from rest_framework.views import APIView
 
 from api.provider.models import Provider
 from reporting.models import EnabledTagKeys
-
 
 LOG = logging.getLogger(__name__)
 RESPONSE_KEY = "tag_keys"
@@ -52,6 +52,8 @@ class EnabledTagView(APIView):
             errmsg = "schema is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+        schema_name = f"{schema_name}{settings.ORG_ID_SUFFIX}"
+
         if provider_type is None or provider_type not in PROVIDER_TYPE_OPTIONS:
             errmsg = f"provider_type must be supplied. Select one of {PROVIDER_TYPE_OPTIONS}"
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
@@ -77,6 +79,8 @@ class EnabledTagView(APIView):
         if schema_name is None:
             errmsg = "schema is required."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+        schema_name = f"{schema_name}{settings.ORG_ID_SUFFIX}"
 
         if provider_type is None or provider_type not in PROVIDER_TYPE_OPTIONS:
             errmsg = f"provider_type must be supplied. Select one of {PROVIDER_TYPE_OPTIONS}"
