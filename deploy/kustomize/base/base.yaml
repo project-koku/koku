@@ -73,6 +73,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: ORG_ID_SUFFIX
+          value: ${ORG_ID_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -109,6 +111,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: ORG_ID_SUFFIX
+          value: ${ORG_ID_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -154,11 +158,14 @@ objects:
   data:
     django-secret-key: "${SECRET_KEY}"
 - apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
+  kind: Secret
   metadata:
     name: koku-aws
   data:
-    aws-credentials: "${AWS_CREDENTIALS_EPH}"
+    aws-credentials: ${AWS_CREDENTIALS_EPH}
+  stringData:
+    aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
+    aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
@@ -275,8 +282,11 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: ORG_ID_SUFFIX
+  description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
+  value: ""
 - name: S3_BUCKET_NAME
-  value: koku-eph-s3
+  value: mskarbek-glue
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
@@ -605,6 +615,12 @@ parameters:
   name: AWS_CREDENTIALS_EPH
   required: true
   value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
+- name: AWS_ACCESS_KEY_ID_EPH
+  required: false
+  value: AWS_ACCESS_KEY_ID
+- name: AWS_SECRET_ACCESS_KEY_EPH
+  required: false
+  value: AWS_SECRET_ACCESS_KEY
 - name: GCP_CREDENTIALS_EPH
   displayName: GCP Credentials (Ephemeral)
   required: true
