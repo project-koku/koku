@@ -107,7 +107,6 @@ cte_array_agg_volumes AS (
     FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND persistentvolume != ''
-        AND csi_volume_handle != ''
         AND year = {{year}}
         AND month = {{month}}
         AND interval_start >= {{start_date}}
