@@ -245,7 +245,9 @@ urlpatterns = [
     ),
     path(
         "reports/aws/resources/ec2-compute/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(AWSEC2ComputeView.as_view()),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(
+            AWSEC2ComputeView.as_view()
+        ),
         name="reports-aws-ec2-compute",
     ),
     path(
@@ -281,7 +283,9 @@ urlpatterns = [
     ),
     path(
         "reports/openshift/costs/",
-        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(OCPCostView.as_view()),
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_CACHE_PREFIX)(
+            OCPCostView.as_view()
+        ),
         name="reports-openshift-costs",
     ),
     path(

@@ -482,7 +482,9 @@ class CostModelViewTests(IamTestCase):
             client = APIClient()
 
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
-                response = client.post(url, data=self.fake_data, format="json", **admin_request_context["request"].META)
+                response = client.post(
+                    url, data=self.fake_data, format="json", **admin_request_context["request"].META
+                )
             cost_model_uuid = response.data.get("uuid")
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 

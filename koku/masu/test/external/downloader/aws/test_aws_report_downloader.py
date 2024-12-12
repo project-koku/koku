@@ -607,7 +607,9 @@ class AWSReportDownloaderTest(MasuTestCase):
         mock_download_file.return_value = (mock_file_name, None, mock_datetime, [], {})
         fake_manifest_dict = {"foo": "bar"}
         with patch("masu.external.downloader.aws.aws_report_downloader.open"):
-            with patch("masu.external.downloader.aws.aws_report_downloader.json.load", return_value=fake_manifest_dict):
+            with patch(
+                "masu.external.downloader.aws.aws_report_downloader.json.load", return_value=fake_manifest_dict
+            ):
                 manifest_file, manifest_json, manifest_modified_timestamp = self.aws_report_downloader._get_manifest(
                     mock_datetime
                 )

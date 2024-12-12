@@ -42,7 +42,6 @@ from masu.util.aws.common import update_account_aliases
 from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -383,7 +382,8 @@ class Orchestrator:
                         hcs_task=str(hcs_task),
                     )
                 )
-                # data source contains fields from applications.extra and metered is the key that gates subs processing.
+                # data source contains fields from applications.extra and
+                # metered is the key that gates subs processing.
                 subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
                     queue=SUBS_EXTRACTION_QUEUE
                 )
@@ -472,7 +472,9 @@ class Orchestrator:
             account["report_month"] = month
             try:
                 LOG.info(
-                    log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid)
+                    log_json(
+                        tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid
+                    )
                 )
                 _, reports_tasks_queued = self.start_manifest_processing(**account)
                 LOG.info(

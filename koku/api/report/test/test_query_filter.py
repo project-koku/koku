@@ -236,7 +236,9 @@ class QueryFilterCollectionTest(TestCase):
         qf_coll = QueryFilterCollection()
         operation = self.fake.word()
         filts = [
-            QueryFilter(table=self.fake.word(), field=self.fake.word(), operation=operation, parameter=self.fake.word())
+            QueryFilter(
+                table=self.fake.word(), field=self.fake.word(), operation=operation, parameter=self.fake.word()
+            )
             for _ in range(2)
         ]
 

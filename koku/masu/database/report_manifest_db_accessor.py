@@ -169,7 +169,7 @@ class ReportManifestDBAccessor:
         count = manifests_to_delete.count()
         cascade_delete(manifests_to_delete.query.model, manifests_to_delete)
         LOG.info(
-            "Removed %s CostUsageReportManifest(s) for provider type %s that had a billing period start date before %s",
+            "Removed %s CostUsageReportManifest(s) for provider type %s that had a billing period start date before %s",  # noqa: E501
             count,
             provider_type,
             expired_date,
@@ -189,7 +189,7 @@ class ReportManifestDBAccessor:
         count = manifests_to_delete.count()
         cascade_delete(manifests_to_delete.query.model, manifests_to_delete)
         LOG.info(
-            "Removed %s CostUsageReportManifest(s) for provider_uuid %s that had a billing period start date before %s",
+            "Removed %s CostUsageReportManifest(s) for provider_uuid %s that had a billing period start date before %s",  # noqa: E501
             count,
             provider_uuid,
             expired_date,
@@ -320,7 +320,9 @@ class ReportManifestDBAccessor:
            manifest_count: {len(manifest_id_list)}
         """
         LOG.info(msg)
-        manifests_to_delete = CostUsageReportManifest.objects.filter(provider_id=provider_uuid, id__in=manifest_id_list)
+        manifests_to_delete = CostUsageReportManifest.objects.filter(
+            provider_id=provider_uuid, id__in=manifest_id_list
+        )
         count = manifests_to_delete.count()
         cascade_delete(manifests_to_delete.query.model, manifests_to_delete)
         LOG.info(

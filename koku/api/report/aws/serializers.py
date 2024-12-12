@@ -190,7 +190,9 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                     if len(group_by_params.get(key_used)) > 1:
                         # group_by[org_unit_id]=x&group_by[org_unit_id]=OU_001 is invalid
                         # because no child nodes would ever intersect due to the tree structure.
-                        error = {"or_unit_id": gettext("Multiple org_unit_id must be represented with the or: prefix.")}
+                        error = {
+                            "or_unit_id": gettext("Multiple org_unit_id must be represented with the or: prefix.")
+                        }
                         raise serializers.ValidationError(error)
         return value
 

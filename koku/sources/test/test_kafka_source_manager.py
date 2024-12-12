@@ -291,7 +291,9 @@ class ProviderBuilderTest(IamTestCase):
 
         for test in test_matrix:
             with self.subTest(test=test):
-                response = client.get_billing_source_for_provider(test.get("provider_type"), test.get("billing_source"))
+                response = client.get_billing_source_for_provider(
+                    test.get("provider_type"), test.get("billing_source")
+                )
                 self.assertEqual(response, test.get("expected_response"))
 
     def test_get_billing_source_for_provider_error(self):

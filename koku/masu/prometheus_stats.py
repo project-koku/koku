@@ -13,7 +13,9 @@ from prometheus_client import multiprocess
 WORKER_REGISTRY = CollectorRegistry()
 multiprocess.MultiProcessCollector(WORKER_REGISTRY)
 
-GET_REPORT_ATTEMPTS_COUNTER = Counter("get_report_files_attempts_count", "Number of ingest attempts", ["provider_type"])
+GET_REPORT_ATTEMPTS_COUNTER = Counter(
+    "get_report_files_attempts_count", "Number of ingest attempts", ["provider_type"]
+)
 REPORT_FILE_DOWNLOAD_ERROR_COUNTER = Counter(
     "report_file_download_error_count",
     "Number of report file download errors",
@@ -182,4 +184,6 @@ SOURCES_PROVIDER_OP_RETRY_LOOP_COUNTER = Counter(
 SOURCES_HTTP_CLIENT_ERROR_COUNTER = Counter("sources_http_client_errors", "Number of sources http client errors")
 
 RHEL_ELS_VCPU_HOURS = Counter("rhel_els_vcpu_hours", "Number of RHEL ELS VCPU Hours", ["provider_type"])
-RHEL_ELS_SYSTEMS_PROCESSED = Counter("rhel_els_system_count", "Number of RHEL ELS systems processed", ["provider_type"])
+RHEL_ELS_SYSTEMS_PROCESSED = Counter(
+    "rhel_els_system_count", "Number of RHEL ELS systems processed", ["provider_type"]
+)

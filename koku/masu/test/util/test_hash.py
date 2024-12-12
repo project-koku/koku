@@ -23,7 +23,9 @@ class HasherUtilTests(MasuTestCase):
         self.encoding = "utf-8"
         self.hash_function = random.choice(list(hashlib.algorithms_guaranteed))
         if "shake" in self.hash_function:
-            self.hasher = Hasher(hash_function=self.hash_function, length=random.randint(8, 64), encoding=self.encoding)
+            self.hasher = Hasher(
+                hash_function=self.hash_function, length=random.randint(8, 64), encoding=self.encoding
+            )
         else:
             self.hasher = Hasher(hash_function=self.hash_function, encoding=self.encoding)
         self.string_to_hash = "".join([random.choice(string.ascii_letters) for _ in range(16)])

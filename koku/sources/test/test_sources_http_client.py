@@ -402,7 +402,9 @@ class SourcesHTTPClientTest(TestCase):
                     f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}"
                 ),
                 "status": 200,
-                "json": {"data": [{"id": resource_id, "username": "", "extra": {"external_id": expected_external_id}}]},
+                "json": {
+                    "data": [{"id": resource_id, "username": "", "extra": {"external_id": expected_external_id}}]
+                },
             },
             {
                 "url": (

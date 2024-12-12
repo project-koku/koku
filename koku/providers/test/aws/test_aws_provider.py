@@ -293,7 +293,9 @@ class AWSProviderTestCase(TestCase):
 
     @patch(
         "providers.aws.provider._get_sts_access",
-        return_value=dict(aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()),
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=True)
     @patch("providers.aws.provider._check_cost_report_access", return_value=True)
@@ -311,7 +313,9 @@ class AWSProviderTestCase(TestCase):
 
     @patch(
         "providers.aws.provider._get_sts_access",
-        return_value=dict(aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()),
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=True)
     @patch("providers.aws.provider._check_cost_report_access")
@@ -329,7 +333,9 @@ class AWSProviderTestCase(TestCase):
 
     @patch(
         "providers.aws.provider._get_sts_access",
-        return_value=dict(aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()),
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=True)
     @patch("providers.aws.provider._check_cost_report_access")
@@ -379,7 +385,9 @@ class AWSProviderTestCase(TestCase):
 
     @patch(
         "providers.aws.provider._get_sts_access",
-        return_value=dict(aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()),
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
     )
     def test_cost_usage_source_is_reachable_no_bucket(self, mock_get_sts_access):
         """Verify that the cost usage source is authenticated and created."""
@@ -391,7 +399,9 @@ class AWSProviderTestCase(TestCase):
 
     @patch(
         "providers.aws.provider._get_sts_access",
-        return_value=dict(aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()),
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=False)
     def test_cost_usage_source_is_reachable_no_bucket_exists(self, mock_check_s3_access, mock_get_sts_access):
@@ -404,7 +414,9 @@ class AWSProviderTestCase(TestCase):
 
     @patch(
         "providers.aws.provider._get_sts_access",
-        return_value=dict(aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()),
+        return_value=dict(
+            aws_access_key_id=FAKE.md5(), aws_secret_access_key=FAKE.md5(), aws_session_token=FAKE.md5()
+        ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=True)
     @patch("providers.aws.provider._check_cost_report_access", return_value=True)

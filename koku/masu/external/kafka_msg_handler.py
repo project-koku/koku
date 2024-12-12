@@ -90,7 +90,8 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})
     daily_data_frames = [
-        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day} for cur_day in days
+        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
+        for cur_day in days
     ]
 
     daily_files = []

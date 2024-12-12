@@ -187,7 +187,9 @@ class GCPTagQueryHandlerTest(IamTestCase):
         query_params.kwargs = {"key": key}
         handler = GCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = GCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
+            tags = (
+                GCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
+            )
             tag_values = [tag.get("value") for tag in tags]
             self.assertTrue(tag_values)
         expected = {"key": key, "values": tag_values}

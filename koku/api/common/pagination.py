@@ -110,7 +110,7 @@ class ListPaginator(StandardResultsSetPagination):
         """Paginate the list."""
         self.limit = min(self.limit, len(self.data_set))
         try:
-            data = self.data_set[self.offset : self.offset + self.limit]  # noqa E203
+            data = self.data_set[self.offset : self.offset + self.limit]
         except IndexError:
             data = []
         return data

@@ -164,7 +164,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         Test that the usage costs are updated when tag values are passed in.
         This test runs for both Infrastructure and Supplementary cost types
         as well as all 6 metrics that apply to this update
-        and uses subtests that will identify the metric, the tag value, the line item id, and the cost type if it fails.
+        and uses subtests that will identify the metric, the tag value,
+        the line item id, and the cost type if it fails.
         """
         # set up the key value pairs to test and the map for cost type and the fields it needs
         key_value_pairs = {"app": ["banking", "mobile", "weather"]}
@@ -545,7 +546,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with self.accessor as acc:
             cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
-            OCPPVC.objects.get_or_create(persistent_volume_claim=pvcs[0], persistent_volume=volumes[0], cluster=cluster)
+            OCPPVC.objects.get_or_create(
+                persistent_volume_claim=pvcs[0], persistent_volume=volumes[0], cluster=cluster
+            )
             acc.populate_openshift_cluster_information_tables(
                 self.aws_provider, cluster_id, cluster_alias, start_date, end_date
             )
@@ -645,7 +648,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = self.dh.this_month_end.date()
 
         with self.accessor as acc:
-            cluster = OCPCluster(cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid)
+            cluster = OCPCluster(
+                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid
+            )
             cluster.save()
             topology = acc.get_filtered_openshift_topology_for_multiple_providers(
                 [self.gcp_provider_uuid], start_date, end_date

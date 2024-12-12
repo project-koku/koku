@@ -248,7 +248,9 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "create_partitioned_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
-    def test_process(self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags):
+    def test_process(
+        self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
+    ):
         """Test that ocp on cloud data is fully processed."""
         # this is a yes or no check so true is fine
         mock_cluster_info.return_value = True

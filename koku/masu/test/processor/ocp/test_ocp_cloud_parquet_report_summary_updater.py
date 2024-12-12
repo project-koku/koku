@@ -305,7 +305,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
-        mock_ui_summary.assert_called_with(start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid)
+        mock_ui_summary.assert_called_with(
+            start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
+        )
         mock_tag_summary.assert_called_with([1, 2], start_date, end_date, current_ocp_report_period_id)
 
     @patch(
@@ -374,7 +376,9 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             decimal.Decimal(0),
             DEFAULT_DISTRIBUTION_TYPE,
         )
-        mock_ui_summary.assert_called_with(start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid)
+        mock_ui_summary.assert_called_with(
+            start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
+        )
 
         mock_tag_summary.assert_called_with([1, 2], start_date, end_date, current_ocp_report_period_id)
 

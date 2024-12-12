@@ -120,7 +120,9 @@ class OrchestratorTest(MasuTestCase):
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
 
-        expected = "INFO:masu.processor.orchestrator:Expired data removal queued - schema_name: org1234567, Task ID: {}"
+        expected = (
+            "INFO:masu.processor.orchestrator:Expired data removal queued - schema_name: org1234567, Task ID: {}"
+        )
         # unset disabling all logging below CRITICAL from masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as logger:
@@ -433,7 +435,9 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.orchestrator.group")
     @patch("masu.processor.orchestrator.chord")
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
-    def test_start_manifest_processing_no_resummary(self, mock_download_manifest, mock_chord, mock_group, mock_inspect):
+    def test_start_manifest_processing_no_resummary(
+        self, mock_download_manifest, mock_chord, mock_group, mock_inspect
+    ):
         """Test start_manifest_processing."""
         test_matrix = [
             {"mock_downloader_manifest_list": [], "expect_chord_called": False, "expected_chain_called": False},

@@ -86,7 +86,9 @@ class AzureClientFactory:
 
     def cloud_storage_account(self, resource_group_name, storage_account_name):
         """Get a BlobServiceClient."""
-        storage_account_keys = self.storage_client.storage_accounts.list_keys(resource_group_name, storage_account_name)
+        storage_account_keys = self.storage_client.storage_accounts.list_keys(
+            resource_group_name, storage_account_name
+        )
         # Add check for keys and a get value
         key = storage_account_keys.keys[0]
 

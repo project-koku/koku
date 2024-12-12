@@ -627,9 +627,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
-        )
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -651,9 +649,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         Query for storage, validating that cost totals are present.
 
         """
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
-        )
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPStorageView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1246,9 +1242,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_cluster(self):
         """Test execute_query for current month on monthly breakdown by group_by cluster."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
-        )
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1273,9 +1267,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
-        )
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1299,9 +1291,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
-        )
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()

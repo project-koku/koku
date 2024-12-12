@@ -94,7 +94,9 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         self.assertEqual(etag, self.etag)
 
         # Download a second time, verify etag is returned
-        full_file_path, second_run_etag, _, __, ___ = self.oci_local_report_downloader.download_file(self.csv_file_name)
+        full_file_path, second_run_etag, _, __, ___ = self.oci_local_report_downloader.download_file(
+            self.csv_file_name
+        )
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, self.testing_dir)
 
@@ -143,7 +145,9 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         test_file_list = []
         mock_prepare_monthly_files.return_value = {self.dh.this_month_start: []}
         mock_extract_names.return_value = []
-        report_manifests_list = self.oci_local_report_downloader.get_manifest_context_for_date(self.dh.last_month_start)
+        report_manifests_list = self.oci_local_report_downloader.get_manifest_context_for_date(
+            self.dh.last_month_start
+        )
         mock_prepare_monthly_files.assert_called_once()
         mock_extract_names.assert_called_once()
         self.assertIsInstance(report_manifests_list, list)

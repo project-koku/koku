@@ -149,7 +149,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
         query_params.kwargs = {"key": key}
         handler = AWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = AWSTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
+            tags = (
+                AWSTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
+            )
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()

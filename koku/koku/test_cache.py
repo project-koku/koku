@@ -90,7 +90,9 @@ class KokuCacheTest(IamTestCase):
             invalidate_view_cache_for_tenant_and_cache_key(self.schema_name, self.cache_key_prefix)
 
     @override_settings(
-        CACHES={"default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "worker_cache_table"}}
+        CACHES={
+            "default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "worker_cache_table"}
+        }
     )
     def test_invalidate_view_cache_for_tenant_and_cache_key_unsupported_backend(self):
         """Test that an unsupported cache backend raises an error."""
