@@ -164,8 +164,8 @@ objects:
   data:
     aws-credentials: ${AWS_CREDENTIALS_EPH}
   stringData:
-    aws-access-key-id: ${AWS_ACCESS_KEY_ID_EPH}
-    aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY_EPH}
+    aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
+    aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:

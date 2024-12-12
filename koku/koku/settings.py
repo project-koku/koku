@@ -15,6 +15,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import logging
 import os
+import re
 import secrets
 import sys
 from json import JSONDecodeError
@@ -137,7 +138,7 @@ MIDDLEWARE = [
 MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
-ORG_ID_SUFFIX = ENVIRONMENT.get_value("ORG_ID_SUFFIX", default="")
+ORG_ID_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("ORG_ID_SUFFIX", default=""))
 print(f"ORG ID SUFFIX: {ORG_ID_SUFFIX}")
 if DEVELOPMENT:
     if ORG_ID_SUFFIX in ("_CHANGEME", ""):
