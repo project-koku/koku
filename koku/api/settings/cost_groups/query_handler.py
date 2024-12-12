@@ -26,19 +26,17 @@ LOG = logging.getLogger(__name__)
 
 def _remove_default_projects(projects: list[dict[str, str]]) -> list[dict[str, str]]:
     try:
-        _remove_default_projects.system_default_namespaces  # type: ignore[attr-defined]
+        _remove_default_projects.system_default_namespaces
     except AttributeError:
         # Cache the system default namespcases
-        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(  # type: ignore[attr-defined]  # noqa: E501
+        _remove_default_projects.system_default_namespaces = OpenshiftCostCategoryNamespace.objects.filter(
             system_default=True
         ).values_list("namespace", flat=True)
 
     exact_matches = {
-        project
-        for project in _remove_default_projects.system_default_namespaces
-        if not project.endswith("%")  # type: ignore[attr-defined]  # noqa: E501
+        project for project in _remove_default_projects.system_default_namespaces if not project.endswith("%")
     }
-    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)  # type: ignore[attr-defined]  # noqa: E501
+    prefix_matches = set(_remove_default_projects.system_default_namespaces).difference(exact_matches)
 
     scrubbed_projects = []
     for request in projects:
