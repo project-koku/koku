@@ -126,7 +126,7 @@ cte_matchable_resource_names AS (
     JOIN cte_array_agg_volumes AS volumes
         ON (
             substr(resource_names.lineitem_resourceid, -length(volumes.persistentvolume)) = volumes.persistentvolume
-            OR substr(resource_names.lineitem_resourceid, -length(volumes.csi_volume_handle)) = volumes.csi_volume_handle
+            OR (volumes.csi_volume_handle != '' AND substr(resource_names.lineitem_resourceid, -length(volumes.csi_volume_handle)) = volumes.csi_volume_handle)
         )
 
 ),
