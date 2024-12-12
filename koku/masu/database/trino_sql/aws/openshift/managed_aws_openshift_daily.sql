@@ -96,6 +96,7 @@ cte_array_agg_nodes AS (
     SELECT DISTINCT resource_id
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
+        AND resource_id != ''
         AND year = {{year}}
         AND month = {{month}}
         AND interval_start >= {{start_date}}
@@ -105,6 +106,8 @@ cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
     FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
+        AND persistentvolume != ''
+        AND csi_volume_handle != ''
         AND year = {{year}}
         AND month = {{month}}
         AND interval_start >= {{start_date}}
