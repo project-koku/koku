@@ -4,7 +4,6 @@
 #
 """View for report_data endpoint."""
 
-# flake8: noqa
 import logging
 
 from django.conf import settings
@@ -34,7 +33,7 @@ REPORT_DATA_KEY = "Report Data Task IDs"
 @api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def report_data(request):
+def report_data(request):  # noqa: C901
     """Update report summary tables in the database."""
     if request.method == "GET":
         async_results = []

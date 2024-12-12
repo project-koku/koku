@@ -4,7 +4,6 @@
 #
 """API views for import organization"""
 
-# flake8: noqa
 from masu.api.additional_context import additional_context
 from masu.api.bigquery_cost import bigquery_cost
 from masu.api.crawl_account_hierarchy import crawl_account_hierarchy

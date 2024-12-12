@@ -14,6 +14,11 @@ extend-exclude=["**/migrations/*.py"]
 select = ["F", "E", "W", "C90", "UP"]
 # extend-select = ["UP"]
 
+[lint.per-file-ignores]
+# Ignore `F401` (unused import) in all `models.py` and `views.py` files.
+"**/models.py" = ["F401"]
+"**/views.py" = ["F401"]
+
 [lint.isort]
 case-sensitive = false
 force-single-line = true

@@ -4,7 +4,6 @@
 #
 """View for ingress_data endpoint."""
 
-# flake8: noqa
 import logging
 
 from django.views.decorators.cache import never_cache

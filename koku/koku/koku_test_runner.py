@@ -2,26 +2,23 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-# flake8: noqa
 """Koku Test Runner."""
 
 import logging
 import os
 import sys
 
-from dev.scripts.insert_org_tree import UploadAwsTree
 from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
-from django_tenants.utils import tenant_context
 
 from api.models import Customer
 from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
+from dev.scripts.insert_org_tree import UploadAwsTree
 from koku.env import ENVIRONMENT
-
 
 OCP_ON_AWS_CLUSTER_ID = "OCP-on-AWS"
 OCP_ON_AZURE_CLUSTER_ID = "OCP-on-Azure"
@@ -49,7 +46,7 @@ class KokuTestRunner(DiscoverRunner):
         return setup_databases(self.verbosity, self.interactive, self.keepdb, self.debug_sql, self.parallel, **kwargs)
 
 
-def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
+def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):  # noqa: C901
     """Create the test databases.
 
     This function is a copy of the Django setup_databases with one addition.
@@ -68,7 +65,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
             # Actually create the database for the first connection
             if first_alias is None:
                 first_alias = alias
-                test_db_name = connection.creation.create_test_db(
+                connection.creation.create_test_db(
                     verbosity=verbosity,
                     autoclobber=not interactive,
                     keepdb=keepdb,

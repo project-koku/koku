@@ -4,7 +4,6 @@
 #
 """View for trino query endpoint."""
 
-# flake8: noqa
 import logging
 
 import requests

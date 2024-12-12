@@ -4,7 +4,6 @@
 #
 """View for report_data endpoint."""
 
-# flake8: noqa
 import logging
 from uuid import uuid4
 

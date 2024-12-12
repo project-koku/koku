@@ -4,7 +4,6 @@
 #
 """View for report_data endpoint."""
 
-# flake8: noqa
 import logging
 from uuid import uuid4
 
@@ -38,7 +37,7 @@ REPORT_DATA_KEY = "process_openshift_on_cloud Task IDs"
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def process_openshift_on_cloud(request):
+def process_openshift_on_cloud(request):  # noqa: C901
     """Update OCP on Cloud report summary tables in the database."""
     async_results = []
     params = request.query_params
