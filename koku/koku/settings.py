@@ -27,6 +27,7 @@ from oci import config
 from oci.exceptions import ConfigFileNotFound
 
 from . import database
+from . import sentry  # noqa: F401 # initializes sentry-sdk
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
 
