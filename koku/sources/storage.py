@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessors for Sources database table."""
+
 import logging
 
 from django.db import InterfaceError
@@ -417,9 +418,7 @@ def add_provider_sources_details(details, source_id):
 def add_provider_koku_uuid(source_id, koku_uuid):
     """Add Koku provider UUID to Sources database object."""
     LOG.info(f"[add_provider_koku_uuid] start attaching koku_uuid: {koku_uuid} to source_id: {source_id}")
-    source = get_source(
-        source_id, f"[add_provider_koku_uuid] error: source_id: {source_id} does not exist.", LOG.error
-    )
+    source = get_source(source_id, f"[add_provider_koku_uuid] error: source_id: {source_id} does not exist.", LOG.error)
     if source and source.koku_uuid != koku_uuid:
         LOG.info(f"[add_provider_koku_uuid] attached koku_uuid: {koku_uuid} to source_id: {source_id}")
         source_query = Sources.objects.filter(source_id=source.source_id)

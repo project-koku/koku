@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the project middleware."""
+
 import base64
 import copy
 import json

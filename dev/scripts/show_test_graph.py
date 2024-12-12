@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """draw a graph from cost & forecast data."""
+
 import datetime
 import json
 import sys
@@ -23,12 +24,12 @@ def _get_data(url):
     try:
         response.raise_for_status()
     except HTTPError as err:
-        print("Error: %s" % err)
+        print(f"Error: {err}")
 
     try:
         resp = json.loads(response.content)
     except json.decoder.JSONDecodeError as exc:
-        print("Error decoding API response: %s" % exc)
+        print(f"Error decoding API response: {exc}")
 
         from bs4 import BeautifulSoup
 
@@ -75,8 +76,8 @@ fig, ax = plt.subplots()
 cost_data = _get_data(COST_URL)
 x, y = _get_values("cost", cost_data)
 
-print("Cost X: %s" % x)
-print("Cost Y: %s" % y)
+print(f"Cost X: {x}")
+print(f"Cost Y: {y}")
 
 ax.scatter(x, y, label="aws cost")
 
@@ -86,13 +87,13 @@ try:
     x, y, upper, lower = _get_values("cost", forecast_data, fields=["total", "upper_conf_y", "lower_conf_y"])
 except ValueError:
     print("Error: unexpected API response")
-    print("Response: %s" % pformat(forecast_data))
+    print(f"Response: {pformat(forecast_data)}")
     sys.exit(-1)
 
-print("Forecast X: %s" % x)
-print("Forecast Y: %s" % y)
-print("Upper Conf.: %s" % upper)
-print("Lower Conf.: %s" % lower)
+print(f"Forecast X: {x}")
+print(f"Forecast Y: {y}")
+print(f"Upper Conf.: {upper}")
+print(f"Lower Conf.: {lower}")
 
 ax.plot(x, y, label="forecast", color="red")
 ax.plot(x, lower, label="lower conf.", color="green", linestyle="dashed")

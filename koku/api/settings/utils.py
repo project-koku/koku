@@ -2,7 +2,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import typing as t
 from copy import deepcopy
 
 from django.core.exceptions import FieldError
@@ -45,9 +44,7 @@ class NonValidatedMultipleChoiceFilter(MultipleChoiceFilter):
 
 
 class SettingsFilter(FilterSet):
-    def _get_order_by(
-        self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None] = None
-    ) -> list[str, ...]:
+    def _get_order_by(self, order_by_params: str | list[str, ...] | dict[str, str] | None = None) -> list[str, ...]:
         if order_by_params is None:
             # Default ordering
             return self.Meta.default_ordering
@@ -93,8 +90,8 @@ class SettingsFilter(FilterSet):
         return prefix, translated_field
 
     def _translate_fields(
-        self, order_by_params: t.Union[str, list[str, ...], dict[str, str], None]
-    ) -> t.Union[str, list[str, ...], dict[str, str]]:
+        self, order_by_params: str | list[str, ...] | dict[str, str] | None
+    ) -> str | list[str, ...] | dict[str, str]:
         """Get the correct field names for the given parameters.
 
         If the filter has a `to_field` attribute, use that for filtering instead

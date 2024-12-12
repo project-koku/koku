@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Cache functions."""
+
 import logging
 
 from django.conf import settings

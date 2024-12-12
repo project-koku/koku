@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportParquetSummaryUpdater."""
+
 from datetime import datetime
 from unittest.mock import patch
 

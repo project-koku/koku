@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Obtain project environment."""
+
 import environ
 
 ROOT_DIR = environ.Path(__file__) - 3

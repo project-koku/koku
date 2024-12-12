@@ -20,7 +20,6 @@ from django_tenants.utils import schema_context
 
 from koku.database import get_model
 
-
 random.seed(time.time())
 PartitionedTable = get_model("PartitionedTable")
 
@@ -1186,7 +1185,7 @@ VALUES (
                 self.partitioned_table_name,
                 self.partition_type.lower(),
                 self.partition_key,
-                '{{"default": false, "from": "{0}", "to": "{1}"}}'.format(*params),
+                '{{"default": false, "from": "{}", "to": "{}"}}'.format(*params),
             )
             LOG.info(f"Recording partition {self.target_schema}.{partition_name}")
             conn_execute(part_rec_sql, params)
@@ -1876,7 +1875,7 @@ def get_or_create_partition(part_rec, _default_partition=None):
 
 
 class PartitionHandlerMixin:
-    def _handle_partitions(self, schema_name, table_names, start_date, end_date):  # noqas: C901
+    def _handle_partitions(self, schema_name, table_names, start_date, end_date):  # noqa: C901
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
         elif isinstance(start_date, str):

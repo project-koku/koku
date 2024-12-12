@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Kafka message handler."""
+
 import itertools
 import json
 import logging
@@ -89,8 +90,7 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})
     daily_data_frames = [
-        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
-        for cur_day in days
+        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day} for cur_day in days
     ]
 
     daily_files = []
@@ -192,7 +192,8 @@ def process_cr(report_meta):
         "cluster_id": report_meta.get("cluster_id"),
         "operator_certified": report_meta.get("certified"),
         "operator_version": utils.OPERATOR_VERSIONS.get(
-            version, version  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
+            version,
+            version,  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
         ),
         "cluster_channel": None,
         "operator_airgapped": None,

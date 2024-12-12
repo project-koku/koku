@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Report Serializers."""
+
 from django.utils.translation import gettext
 from rest_framework import serializers
 

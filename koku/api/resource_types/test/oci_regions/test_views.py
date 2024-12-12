@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
+
 from django.db.models import F
 from django.urls import reverse
 from django_tenants.utils import schema_context
@@ -65,6 +66,6 @@ class ResourceTypesViewTestOCIRegions(IamTestCase):
             )
         # check that the expected is not zero
         self.assertTrue(expected)
-        url = "%s?invalid=parameter" % reverse("oci-regions")
+        url = f'{reverse("oci-regions")}?invalid=parameter'
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

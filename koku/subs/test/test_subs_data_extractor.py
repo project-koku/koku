@@ -55,7 +55,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
             year = "2023"
             month = "06"
             rid = "12345"
-            base_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+            base_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.UTC)
             SubsLastProcessed.objects.create(
                 source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid),
                 resource_id=rid,
@@ -190,8 +190,8 @@ class TestSUBSDataExtractor(SUBSTestCase):
         year = "2023"
         month = "04"
         rid_2 = "23456"
-        start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.timezone.utc)
-        end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.timezone.utc)
+        start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.UTC)
+        end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.UTC)
         batch = [
             {"rid": rid, "start": start_time, "end": end_time},
             {"rid": rid_2, "start": start_time, "end": end_time},
@@ -218,8 +218,8 @@ class TestSUBSDataExtractor(SUBSTestCase):
         year = "2023"
         month = "04"
         rid_2 = "23456"
-        start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.timezone.utc)
-        end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.timezone.utc)
+        start_time = datetime.datetime(2023, 4, 3, tzinfo=datetime.UTC)
+        end_time = datetime.datetime(2023, 4, 5, tzinfo=datetime.UTC)
         batch = [
             {"rid": rid, "start": start_time, "end": end_time},
             {"rid": rid_2, "start": start_time, "end": end_time},
@@ -272,7 +272,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         month = "04"
         rid1 = "1234"
         rid2 = "3456"
-        expected_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+        expected_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.UTC)
         resources = [(rid1, expected_time), (rid2, expected_time)]
         with schema_context(self.schema):
             SubsLastProcessed.objects.create(
@@ -300,7 +300,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         rid2 = "98765"
         instance_key_one = "my:fake:key"
         instance_key_two = "my:second:key"
-        expected_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+        expected_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.UTC)
         resources = [(rid1, instance_key_one, expected_time), (rid2, instance_key_two, expected_time)]
         with schema_context(self.schema):
             SubsLastProcessed.objects.create(
@@ -336,7 +336,7 @@ class TestSUBSDataExtractor(SUBSTestCase):
         year = "2023"
         month = "06"
         rid = "fake_rid"
-        base_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
+        base_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.UTC)
         with schema_context(self.schema):
             SubsLastProcessed.objects.create(
                 source_uuid_id=self.aws_provider.uuid,

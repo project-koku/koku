@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Minimal Serializer."""
+
 from unittest.mock import patch
 
 from django_tenants.utils import tenant_context

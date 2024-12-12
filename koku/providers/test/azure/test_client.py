@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Azure Client Class."""
+
 import random
 from unittest.mock import patch
 

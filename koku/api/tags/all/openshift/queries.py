@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP-on-All Tag Query Handling."""
+
 from copy import deepcopy
 
 from django.db.models import DecimalField

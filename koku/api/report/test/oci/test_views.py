@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCI Report views."""
+
 from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase

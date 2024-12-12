@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCIReportDownloader class."""
+
 import os
 import shutil
 import tempfile
@@ -70,9 +71,12 @@ class OCIReportDownloaderTest(MasuTestCase):
         report_file = MagicMock()
         report_file.get_objects = report
         billing_source = {"bucket": bucket, "bucket_namespace": namespace, "bucket_region": region}
-        with patch("masu.external.downloader.oci.oci_report_downloader.OCIProvider"), patch(
-            "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._get_oci_client",
-            return_value=report_file,
+        with (
+            patch("masu.external.downloader.oci.oci_report_downloader.OCIProvider"),
+            patch(
+                "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._get_oci_client",
+                return_value=report_file,
+            ),
         ):
             downloader = OCIReportDownloader(
                 customer_name=customer_name,

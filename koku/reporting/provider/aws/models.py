@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for AWS cost entry tables."""
+
 from uuid import uuid4
 
 import pandas as pd
@@ -10,7 +11,6 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
-
 
 UI_SUMMARY_TABLES = (
     "reporting_aws_compute_summary_p",
@@ -294,24 +294,14 @@ class AWSOrganizationalUnit(models.Model):
     def __str__(self):
         """Convert to string."""
         return (
-            "{ id : %s, "
-            "org_unit_name : %s, "
-            "org_unit_id : %s, "
-            "org_unit_path : %s, "
-            "level : %s, "
-            "account_alias : %s, "
-            "created_timestamp : %s, "
-            "deleted_timestamp : %s }"
-            % (
-                self.id,
-                self.org_unit_name,
-                self.org_unit_id,
-                self.org_unit_path,
-                self.level,
-                self.account_alias,
-                self.created_timestamp,
-                self.deleted_timestamp,
-            )
+            f"{{ id : {self.id}, "
+            f"org_unit_name : {self.org_unit_name}, "
+            f"org_unit_id : {self.org_unit_id}, "
+            f"org_unit_path : {self.org_unit_path}, "
+            f"level : {self.level}, "
+            f"account_alias : {self.account_alias}, "
+            f"created_timestamp : {self.created_timestamp}, "
+            f"deleted_timestamp : {self.deleted_timestamp} }}"
         )
 
 

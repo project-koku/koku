@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on All query handler."""
+
 from unittest import skip
 
 from django_tenants.utils import tenant_context

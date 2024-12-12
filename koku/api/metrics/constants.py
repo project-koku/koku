@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Constants file."""
+
 from api.models import Provider
 
 """Model for our cost model metric map."""

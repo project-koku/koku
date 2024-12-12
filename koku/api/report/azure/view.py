@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure views."""
+
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.models import Provider
 from api.report.azure.query_handler import AzureReportQueryHandler

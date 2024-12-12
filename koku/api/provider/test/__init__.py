@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Utility for provider testing."""
+
 from unittest.mock import patch
 
 from api.provider.models import Provider

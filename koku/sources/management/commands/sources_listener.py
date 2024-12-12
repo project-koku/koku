@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Sources listener entry point."""
+
 import logging
 import time
 

@@ -1,4 +1,5 @@
 """Shared Class for subs tests."""
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 

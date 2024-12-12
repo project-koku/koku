@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the Masu API `manifest` Views."""
+
 from unittest.mock import patch
 
 from django.test.utils import override_settings

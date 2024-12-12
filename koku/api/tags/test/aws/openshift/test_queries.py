@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP-on-AWS tag query handler."""
+
 from django_tenants.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -173,10 +174,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         handler = OCPAWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
             tags = (
-                OCPAWSTagsValues.objects.filter(key__exact=key, value__icontains=value)
-                .values("value")
-                .distinct()
-                .all()
+                OCPAWSTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             )
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}

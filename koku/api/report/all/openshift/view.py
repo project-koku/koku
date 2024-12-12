@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OpenShift on All infrastructure Usage Reports."""
+
 from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 from api.models import Provider
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler

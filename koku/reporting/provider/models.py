@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for provider management."""
+
 from uuid import uuid4
 
 from django.db import models

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Initializer for external module."""
+
 # Compression formats
 UNCOMPRESSED = "PLAIN"
 GZIP_COMPRESSED = "GZIP"

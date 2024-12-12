@@ -64,7 +64,6 @@ def create_enabled_categories(schema, enabled_keys):
 
 
 class AWSPostProcessor:
-
     ALL_RESOURCE_TAG_PREFIX = "resourceTags/"
     RESOURCE_TAG_USER_PREFIX = "resourceTags/user:"
     COST_CATEGORY_PREFIX = "costCategory/"
@@ -186,7 +185,9 @@ class AWSPostProcessor:
         csv_converters.update({col: str for col in col_names if col not in csv_converters})
         csv_columns = RECOMMENDED_COLUMNS.union(RECOMMENDED_ALT_COLUMNS).union(OPTIONAL_COLS).union(OPTIONAL_ALT_COLS)
         panda_kwargs["usecols"] = [
-            col for col in col_names if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
+            col
+            for col in col_names
+            if col in csv_columns or col.startswith(self.CSV_COLUMN_PREFIX)  # AWS specific
         ]
         return csv_converters, panda_kwargs
 

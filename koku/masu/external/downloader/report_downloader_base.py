@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Report Downloader."""
+
 import logging
 from tempfile import mkdtemp
 
@@ -95,7 +96,6 @@ class ReportDownloaderBase:
             try:
                 manifest_entry, _ = CostUsageReportManifest.objects.get_or_create(**manifest_dict)
             except IntegrityError as error:
-
                 if fk_violation := FKViolation(error):
                     LOG.warning(fk_violation)
                     raise ReportDownloaderError(f"Method: _process_manifest_db_record :: {fk_violation}") from error

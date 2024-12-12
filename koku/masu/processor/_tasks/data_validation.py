@@ -181,9 +181,7 @@ class DataValidator:
                         AND {query_filters.get("date")} <= '{end}'
                         GROUP BY {query_filters.get("date")}
                         ORDER BY {query_filters.get("date")}"""
-                result = report_db_accessor._prepare_and_execute_raw_sql_query(
-                    table, sql, operation="VALIDATION_QUERY"
-                )
+                result = report_db_accessor._prepare_and_execute_raw_sql_query(table, sql, operation="VALIDATION_QUERY")
             if result != []:
                 for day in result:
                     key = day[1].date() if isinstance(day[1], datetime) else day[1]

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWS S3 utility functions."""
+
 import copy
 import io
 import logging
@@ -606,9 +607,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         mock_download_file.return_value = (mock_file_name, None, mock_datetime, [], {})
         fake_manifest_dict = {"foo": "bar"}
         with patch("masu.external.downloader.aws.aws_report_downloader.open"):
-            with patch(
-                "masu.external.downloader.aws.aws_report_downloader.json.load", return_value=fake_manifest_dict
-            ):
+            with patch("masu.external.downloader.aws.aws_report_downloader.json.load", return_value=fake_manifest_dict):
                 manifest_file, manifest_json, manifest_modified_timestamp = self.aws_report_downloader._get_manifest(
                     mock_datetime
                 )
@@ -687,11 +686,9 @@ class AWSReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2023-06-01_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
         start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
-        with (
-            patch(
-                "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
-                return_value=start_date,
-            )
+        with patch(
+            "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
+            return_value=start_date,
         ):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None

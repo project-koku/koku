@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDBCleaner object."""
+
 import datetime
 import uuid
 from unittest.mock import patch

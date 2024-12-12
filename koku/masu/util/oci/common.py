@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common util functions."""
+
 import datetime
 import logging
 
@@ -11,7 +12,6 @@ from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
-
 
 LOG = logging.getLogger(__name__)
 
@@ -32,11 +32,11 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         (list): OCI cost entry bill objects.
 
     """
-    if isinstance(start_date, (datetime.datetime, datetime.date)):
+    if isinstance(start_date, datetime.datetime | datetime.date):
         start_date = start_date.replace(day=1)
         start_date = start_date.strftime("%Y-%m-%d")
 
-    if isinstance(end_date, (datetime.datetime, datetime.date)):
+    if isinstance(end_date, datetime.datetime | datetime.date):
         end_date = end_date.strftime("%Y-%m-%d")
 
     provider = Provider.objects.filter(uuid=provider_uuid).first()

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for all APIs."""
+
 import datetime
 import logging
 from functools import cached_property
@@ -416,10 +417,7 @@ class QueryHandler:
                 elif hasattr(self, "data_sources"):
                     # Tags APIs
                     check_field_type = (
-                        self.data_sources[0]
-                        .get("db_table")
-                        ._meta.get_field(_filt.get("field", ""))
-                        .get_internal_type()
+                        self.data_sources[0].get("db_table")._meta.get_field(_filt.get("field", "")).get_internal_type()
                     )
             except FieldDoesNotExist:
                 pass

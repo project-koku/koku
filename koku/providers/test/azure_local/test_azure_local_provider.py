@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the AzureLocalProvider implementation for the Koku interface."""
+
 from django.test import TestCase
 from faker import Faker
 from rest_framework.exceptions import ValidationError

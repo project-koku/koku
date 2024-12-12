@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Service helpers."""
+
 import logging
-import typing as t
 from tempfile import NamedTemporaryFile
 
 from adal.adal_error import AdalError
@@ -64,8 +64,8 @@ class AzureService:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
     def _get_latest_blob(
-        self, report_path: str, blobs: list[BlobProperties], extension: t.Optional[str] = None
-    ) -> t.Optional[BlobProperties]:
+        self, report_path: str, blobs: list[BlobProperties], extension: str | None = None
+    ) -> BlobProperties | None:
         latest_blob = None
         for blob in blobs:
             if extension and not blob.name.endswith(extension):
@@ -79,7 +79,7 @@ class AzureService:
         self,
         report_path: str,
         container_name: str,
-        extension: t.Optional[str] = None,
+        extension: str | None = None,
     ) -> BlobProperties:
         """Get the latest file with the specified extension from given storage account container."""
 

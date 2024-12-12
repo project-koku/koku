@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Remove expired data asynchronous tasks."""
+
 import logging
 
 from api.common import log_json

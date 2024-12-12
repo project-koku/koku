@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWS Report Queries."""
+
 import datetime
 
 from django_tenants.utils import tenant_context

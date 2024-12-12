@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the update_openshift_on_cloud endpoint view."""
+
 from unittest.mock import patch
 from uuid import uuid4
 

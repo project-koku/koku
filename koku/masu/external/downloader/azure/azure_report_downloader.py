@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Report Downloader."""
+
 import datetime
 import json
 import logging

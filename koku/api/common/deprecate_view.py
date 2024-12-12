@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Logic to deprecate a view."""
+
 import logging
 from dataclasses import dataclass
 from dataclasses import field

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportParquetProcessorBase."""
+
 import shutil
 import tempfile
 import uuid
@@ -140,9 +141,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test the Trino/Hive create table method."""
         expected_logs = []
         for log in ["attempting to create parquet table", "trino parquet table created"]:
-            expected_log = self.log_output_info + str(
-                log_json(msg=log, table=self.table_name, schema=self.schema_name)
-            )
+            expected_log = self.log_output_info + str(log_json(msg=log, table=self.table_name, schema=self.schema_name))
             expected_logs.append(expected_log)
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_table()
@@ -212,9 +211,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_create_schema(self, mock_execute):
         """Test that hive partitions are synced."""
-        expected_log = self.log_output_info + str(
-            log_json(msg="create trino/hive schema sql", schema=self.schema_name)
-        )
+        expected_log = self.log_output_info + str(log_json(msg="create trino/hive schema sql", schema=self.schema_name))
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_schema()
             self.assertIn(expected_log, logger.output)

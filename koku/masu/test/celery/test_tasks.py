@@ -1,4 +1,5 @@
 """Tests for celery tasks."""
+
 from collections import namedtuple
 from datetime import datetime
 from unittest.mock import call

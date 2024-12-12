@@ -4,6 +4,7 @@
 #
 # flake8: noqa
 """Koku Test Runner."""
+
 import logging
 import os
 import sys

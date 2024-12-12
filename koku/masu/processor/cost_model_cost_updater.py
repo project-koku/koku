@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Update Cost Model Cost info for report summary tables."""
+
 import datetime
 
 import ciso8601

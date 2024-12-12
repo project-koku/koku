@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Management capabilities for Provider functionality."""
+
 import logging
 from datetime import timedelta
 
@@ -235,9 +236,7 @@ class ProviderManager:
         query = None
         with tenant_context(tenant):
             if provider.type == Provider.PROVIDER_OCP:
-                query = OCPUsageReportPeriod.objects.filter(
-                    provider=provider, report_period_start=period_start
-                ).first()
+                query = OCPUsageReportPeriod.objects.filter(provider=provider, report_period_start=period_start).first()
             elif provider.type == Provider.PROVIDER_AWS or provider.type == Provider.PROVIDER_AWS_LOCAL:
                 query = AWSCostEntryBill.objects.filter(provider=provider, billing_period_start=period_start).first()
             elif provider.type == Provider.PROVIDER_AZURE or provider.type == Provider.PROVIDER_AZURE_LOCAL:

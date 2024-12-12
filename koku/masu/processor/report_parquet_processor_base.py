@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for Parquet files."""
+
 import logging
 
 import pyarrow.parquet as pq

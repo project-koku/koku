@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureService object."""
+
 from datetime import datetime
 from tempfile import NamedTemporaryFile
 from unittest.mock import Mock

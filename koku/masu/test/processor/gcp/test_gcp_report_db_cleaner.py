@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportDBCleaner utility object."""
+
 import datetime
 import uuid
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Django database settings."""
+
 import json
 import logging
 import os

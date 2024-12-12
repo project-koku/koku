@@ -1,4 +1,5 @@
 """Shared Class for masu tests."""
+
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer
 from api.provider.models import Provider

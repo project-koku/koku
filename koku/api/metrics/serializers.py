@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """CostModelMetricMap Serializer."""
+
 from rest_framework import serializers
 
 

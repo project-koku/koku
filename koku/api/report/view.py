@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Reports."""
+
 import logging
 
 from django.utils.decorators import method_decorator

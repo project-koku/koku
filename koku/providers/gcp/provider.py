@@ -1,4 +1,5 @@
 """GCP provider implementation to be used by Koku."""
+
 import logging
 
 import google.auth
@@ -190,9 +191,7 @@ class GCPProvider(ProviderInterface):
                     raise serializers.ValidationError(error_obj(key, internal_message))
             except GoogleCloudError as err:
                 err_msg = (
-                    "Could connect to GCP storage client."
-                    f"\n  Provider: {source.uuid}"
-                    f"\n  Response: {err.message}"
+                    "Could connect to GCP storage client." f"\n  Provider: {source.uuid}" f"\n  Response: {err.message}"
                 )
                 LOG.warning(err_msg)
                 raise GCPReportExistsError(err_msg)

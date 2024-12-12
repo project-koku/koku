@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializer for aws category resource types."""
+
 from rest_framework import serializers
 
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Removes report data from database."""
+
 import logging
 from datetime import date
 
@@ -64,7 +65,6 @@ class AWSReportDBCleaner:
             if (expired_date is None and provider_uuid is None) or (  # noqa: W504
                 expired_date is not None and provider_uuid is not None
             ):
-
                 error_msg = log_json(
                     msg="purge_expired_report_data must be called with either expired_date or provider_uuid",
                     provider_type="AWS",

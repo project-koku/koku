@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query parameter parsing for query handler."""
+
 import copy
 import logging
 import operator
@@ -39,7 +40,6 @@ from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
-
 
 LOG = logging.getLogger(__name__)
 
@@ -379,7 +379,7 @@ class QueryParameters:
         param_tag_keys = set()
         # Reduce the set of tag keys based on those being queried.
         for key, value in query_params.items():
-            if not isinstance(value, (dict, list)):
+            if not isinstance(value, dict | list):
                 value = [value]
             for inner_key in value:
                 stripped_key = self._strip_prefix(inner_key, "tag", prefix_list)
@@ -412,7 +412,7 @@ class QueryParameters:
             if stripped_key in enabled_category_keys:
                 self.aws_category_keys.add(stripped_key)
             # Check Values
-            if not isinstance(value, (dict, list)):
+            if not isinstance(value, dict | list):
                 value = [value]
             for inner_value in value:
                 stripped_value = self._strip_prefix(inner_value, AWS_CATEGORY_PREFIX, prefix_list)

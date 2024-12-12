@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test get queue function."""
+
 from unittest.mock import patch
 
 from api.models import Provider

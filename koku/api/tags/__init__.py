@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tags module."""
+
 from .all.openshift.queries import OCPAllTagQueryHandler  # noqa: F401
 from .aws.openshift.queries import OCPAWSTagQueryHandler  # noqa: F401
 from .aws.queries import AWSTagQueryHandler  # noqa: F401

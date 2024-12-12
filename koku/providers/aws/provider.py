@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Amazon Web services provider implementation to be used by Koku."""
+
 import logging
 
 import boto3
@@ -99,9 +100,7 @@ def _check_cost_report_access(credential_name, credentials, bucket=None):
 
         if not bucket_matched:
             key = ProviderErrors.AWS_REPORT_CONFIG
-            msg = (
-                f"Cost management requires that an AWS Cost and Usage Report is configured for bucket: {str(bucket)}."
-            )
+            msg = f"Cost management requires that an AWS Cost and Usage Report is configured for bucket: {str(bucket)}."
             raise serializers.ValidationError(error_obj(key, msg))
 
         for report in bucket_matched:

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test GCP Report Views."""
+
 from unittest.mock import patch
 
 from django.http import HttpRequest

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+
 from django_tenants.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -278,9 +279,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            storage_tags = (
-                OCPStorageVolumeLabelSummary.objects.filter(key__exact=key).values("values").distinct().all()
-            )
+            storage_tags = OCPStorageVolumeLabelSummary.objects.filter(key__exact=key).values("values").distinct().all()
             storage_values = [value for tag in storage_tags for value in tag.get("values")]
             usage_tags = OCPUsagePodLabelSummary.objects.filter(key__exact=key).values("values").distinct().all()
             usage_values = [value for tag in usage_tags for value in tag.get("values")]
@@ -345,9 +344,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
         query_params.kwargs = {"key": key}
         handler = OCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = (
-                OCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
-            )
+            tags = OCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             tag_values = [tag.get("value") for tag in tags]
 
         expected = {"key": key, "values": tag_values}
@@ -366,9 +363,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
         query_params.kwargs = {"key": key}
         handler = OCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = (
-                OCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
-            )
+            tags = OCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             tag_values = [tag.get("value") for tag in tags]
 
         expected = {"key": key, "values": tag_values}

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the crawl_account_hierarchy endpoint view."""
+
 from datetime import datetime
 from unittest.mock import patch
 from urllib.parse import urlencode

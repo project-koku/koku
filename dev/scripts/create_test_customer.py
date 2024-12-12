@@ -31,6 +31,7 @@ koku:
   password: Koku Admin Password
 
 """
+
 import argparse
 import os
 import sys
@@ -145,7 +146,7 @@ class KokuCustomerOnboarder:
             source_type = source.get("source_type", "unknown")
             credentials = source.get("authentication", {}).get("credentials", {})
             data_source = source.get("billing_source", {}).get("data_source", {})
-            source_name = source.get("source_name", "%s_source" % source_type.lower())
+            source_name = source.get("source_name", f"{source_type.lower()}_source")
 
             billing_sql = """
 SELECT id FROM api_providerbillingsource
@@ -204,7 +205,7 @@ VALUES(%s, %s, %s, %s, %s, 1, 1, False, True)
                 if source_type not in SUPPORTED_SOURCES:
                     print(f"{source_type} is not a valid source type. Skipping.")
                     continue
-                print("Creating %s source..." % source_type)
+                print(f"Creating {source_type} source...")
                 wallclock(self.create_provider_source, source)
 
     def onboard(self):
@@ -254,9 +255,7 @@ if __name__ == "__main__":
         "--bypass-api", dest="bypass_api", action="store_true", help="Create Sources in DB, bypassing Koku API"
     )
     PARSER.add_argument("--no-sources", dest="no_sources", action="store_true", help="Don't create sources at all")
-    PARSER.add_argument(
-        "--api-prefix", dest="api_prefix", help="API path prefix", default=os.getenv("API_PATH_PREFIX")
-    )
+    PARSER.add_argument("--api-prefix", dest="api_prefix", help="API path prefix", default=os.getenv("API_PATH_PREFIX"))
     ARGS = vars(PARSER.parse_args())
 
     if ARGS["no_sources"] and not ARGS["bypass_api"]:

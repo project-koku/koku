@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common Test utilities."""
+
 from django_tenants.utils import schema_context
 
 from api.report.test.util.constants import OCP_PLATFORM_NAMESPACE

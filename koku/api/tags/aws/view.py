@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for AWS tags."""
+
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.provider.models import Provider
 from api.tags.aws.queries import AWSTagQueryHandler

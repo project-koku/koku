@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for Masu sources API."""
+
 from rest_framework import serializers
 
 from api.iam.models import Customer

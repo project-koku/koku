@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """HCS daily report builder"""
+
 import logging
 
 from api.common import log_json

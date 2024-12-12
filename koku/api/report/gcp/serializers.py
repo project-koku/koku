@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Report Serializers."""
+
 from rest_framework import serializers
 
 from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer

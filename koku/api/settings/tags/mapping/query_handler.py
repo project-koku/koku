@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query handler for Tag Mappings."""
+
 import dataclasses
 import uuid
 from collections import OrderedDict
-from typing import Union
 
 
 @dataclasses.dataclass(frozen=True)
@@ -22,9 +22,7 @@ class Relationship:
     children: list[TagKey] = dataclasses.field(default_factory=list)
 
     @classmethod
-    def create_list_of_relationships(
-        cls, data: list[dict[str : dict[str, Union[uuid.UUID, str]]]]
-    ) -> list["Relationship"]:
+    def create_list_of_relationships(cls, data: list[dict[str : dict[str, uuid.UUID | str]]]) -> list["Relationship"]:
         result = OrderedDict()
 
         for item in data:

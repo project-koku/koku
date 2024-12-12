@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Openshift nodes."""
+
 from django.conf import settings
 from django.db.models import F
 from django.utils.decorators import method_decorator

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model views."""
+
 import copy
 import random
 from decimal import Decimal
@@ -175,21 +176,21 @@ class CostModelViewTests(IamTestCase):
     def test_filter_cost_model(self):
         """Test that we can filter a cost model."""
         client = APIClient()
-        url = "%s?name=Cost,TTTest" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?name=Cost,TTTest'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?name=Cost,Test&source_type=AWS" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?name=Cost,Test&source_type=AWS'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?name=test_view" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?name=test_view'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -197,7 +198,7 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["name"], self.cost_model_name)
 
-        url = "%s?description=eSt" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?description=eSt'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -206,14 +207,14 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(results[0]["name"], self.cost_model_name)
         self.assertEqual(results[0]["description"], "Test")
 
-        url = "%s?description=Fo" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?description=Fo'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?currency=USD" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?currency=USD'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -221,14 +222,14 @@ class CostModelViewTests(IamTestCase):
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]["currency"], "USD")
 
-        url = "%s?currency=JPY" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?currency=JPY'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?currency=FAKE" % reverse("cost-models-list")
+        url = f'{reverse("cost-models-list")}?currency=FAKE'
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -481,9 +482,7 @@ class CostModelViewTests(IamTestCase):
             client = APIClient()
 
             with patch("cost_models.cost_model_manager.update_cost_model_costs"):
-                response = client.post(
-                    url, data=self.fake_data, format="json", **admin_request_context["request"].META
-                )
+                response = client.post(url, data=self.fake_data, format="json", **admin_request_context["request"].META)
             cost_model_uuid = response.data.get("uuid")
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 

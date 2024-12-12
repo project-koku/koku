@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportParquetProcessor."""
+
 import datetime
 
 from django_tenants.utils import schema_context

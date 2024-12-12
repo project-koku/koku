@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
+
 import logging
 import pkgutil
 

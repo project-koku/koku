@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Report processor external interface."""
+
 import logging
 from pathlib import Path
 

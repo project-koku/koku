@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Provider views."""
+
 import json
 from datetime import date
 from unittest.mock import Mock

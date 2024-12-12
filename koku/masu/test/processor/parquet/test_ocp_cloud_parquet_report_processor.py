@@ -80,11 +80,10 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(self.aws_provider_uuid, infra_tuple[0])
 
-        with patch.object(
-            OCPCloudUpdaterBase, "get_openshift_and_infra_providers_lists"
-        ) as mock_get_infra, patch.object(
-            OCPCloudUpdaterBase, "_generate_ocp_infra_map_from_sql_trino"
-        ) as mock_trino_get:
+        with (
+            patch.object(OCPCloudUpdaterBase, "get_openshift_and_infra_providers_lists") as mock_get_infra,
+            patch.object(OCPCloudUpdaterBase, "_generate_ocp_infra_map_from_sql_trino") as mock_trino_get,
+        ):
             mock_get_infra.return_value = ([], [])
             report_processor = OCPCloudParquetReportProcessor(
                 schema_name=self.schema,
@@ -249,9 +248,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "create_partitioned_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
-    def test_process(
-        self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
-    ):
+    def test_process(self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags):
         """Test that ocp on cloud data is fully processed."""
         # this is a yes or no check so true is fine
         mock_cluster_info.return_value = True
@@ -471,18 +468,22 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         end_date = "2024-08-05"
         ocp_uuids = (self.ocp_provider_uuid,)
         matched_tags = []
-        with patch(
-            (
-                "masu.processor.parquet.ocp_cloud_parquet_report_processor"
-                ".OCPCloudParquetReportProcessor.get_ocp_provider_uuids_tuple"
+        with (
+            patch(
+                (
+                    "masu.processor.parquet.ocp_cloud_parquet_report_processor"
+                    ".OCPCloudParquetReportProcessor.get_ocp_provider_uuids_tuple"
+                ),
+                return_value=ocp_uuids,
             ),
-            return_value=ocp_uuids,
-        ), patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.get_matched_tags",
-            return_value=matched_tags,
-        ), patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.db_accessor"
-        ) as accessor:
+            patch(
+                "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.get_matched_tags",
+                return_value=matched_tags,
+            ),
+            patch(
+                "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.db_accessor"
+            ) as accessor,
+        ):
             rp = OCPCloudParquetReportProcessor(
                 schema_name=self.schema,
                 report_path=self.report_path,

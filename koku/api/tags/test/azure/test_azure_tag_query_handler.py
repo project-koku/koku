@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+
 from django_tenants.utils import tenant_context
 
 from api.functions import JSONBObjectKeys

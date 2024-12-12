@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Account Hierarchy Abstract class."""
+
 import logging
 from abc import ABC
 from abc import abstractmethod

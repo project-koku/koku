@@ -1,4 +1,5 @@
 """Masu Azure post processor module tests."""
+
 #
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
@@ -19,7 +20,6 @@ from reporting.provider.azure.models import TRINO_REQUIRED_COLUMNS
 
 
 class TestAzurePostProcessor(MasuTestCase):
-
     """Test Azure Post Processor."""
 
     def setUp(self):

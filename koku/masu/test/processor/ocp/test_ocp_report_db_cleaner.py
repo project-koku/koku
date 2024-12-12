@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBCleaner utility object."""
+
 import datetime
 import uuid
 from unittest.mock import patch

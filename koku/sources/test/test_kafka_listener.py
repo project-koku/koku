@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources Kafka Listener handler."""
+
 import queue
 from random import choice
 from unittest.mock import patch
@@ -955,8 +956,9 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         local_source = Sources(**self.aws_local_source, koku_uuid=uuid, pending_update=True)
         local_source.save()
 
-        with patch("sources.kafka_listener.execute_process_queue"), patch(
-            "sources.storage.screen_and_build_provider_sync_create_event", return_value=False
+        with (
+            patch("sources.kafka_listener.execute_process_queue"),
+            patch("sources.storage.screen_and_build_provider_sync_create_event", return_value=False),
         ):
             storage_callback("", local_source)
             _, msg = PROCESS_QUEUE.get_nowait()
@@ -968,8 +970,9 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         local_source = Sources(**self.aws_local_source, koku_uuid=uuid, pending_update=True, pending_delete=True)
         local_source.save()
 
-        with patch("sources.kafka_listener.execute_process_queue"), patch(
-            "sources.storage.screen_and_build_provider_sync_create_event", return_value=False
+        with (
+            patch("sources.kafka_listener.execute_process_queue"),
+            patch("sources.storage.screen_and_build_provider_sync_create_event", return_value=False),
         ):
             storage_callback("", local_source)
             _, msg = PROCESS_QUEUE.get_nowait()

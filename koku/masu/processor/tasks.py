@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
+
 import json
 import logging
 import os
@@ -677,9 +678,7 @@ def update_summary_tables(  # noqa: C901
             tracing_id=tracing_id,
         ).set(queue=priority_queue) | validate_daily_data.si(
             schema, start_date, end_date, provider_uuid, context=context
-        ).set(
-            queue=priority_queue
-        )
+        ).set(queue=priority_queue)
 
     chain(linked_tasks).apply_async()
 

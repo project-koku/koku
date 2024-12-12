@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the enabled_tags endpoint view."""
+
 from unittest.mock import patch
 
 from django.test.utils import override_settings

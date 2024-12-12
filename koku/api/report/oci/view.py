@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCI views."""
+
 from api.common.permissions.oci_access import OCIAccessPermission
 from api.models import Provider
 from api.report.oci.query_handler import OCIReportQueryHandler

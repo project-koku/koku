@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Dataclass used to calculate node capacity."""
+
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass

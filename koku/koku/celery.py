@@ -1,4 +1,5 @@
 """Celery configuration for the Koku project."""
+
 import logging
 import os
 import time

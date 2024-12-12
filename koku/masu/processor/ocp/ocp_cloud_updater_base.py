@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Updater base for OpenShift on Cloud Infrastructures."""
+
 import logging
 
 from django.db import IntegrityError

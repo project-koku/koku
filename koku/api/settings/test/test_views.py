@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Metrics views."""
+
 from django.urls import reverse
 from django_tenants.utils import schema_context
 from rest_framework import status
@@ -54,7 +55,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting(self):
         """Test grabbing a specified user setting"""
-        url = "%scurrency/" % reverse("account-settings")
+        url = f'{reverse("account-settings")}currency/'
         client = APIClient()
         expected = {"currency": "USD"}
         with schema_context(self.schema_name):
@@ -66,7 +67,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_currency_put(self):
         """Test grabbing a specified user setting"""
-        url = "%scurrency/" % reverse("account-settings")
+        url = f'{reverse("account-settings")}currency/'
         client = APIClient()
         data = {"currency": "EUR"}
         with schema_context(self.schema_name):
@@ -75,7 +76,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_cost_type_put(self):
         """Test grabbing a specified user setting"""
-        url = "%scost-type/" % reverse("account-settings")
+        url = f'{reverse("account-settings")}cost-type/'
         client = APIClient()
         data = {"cost_type": "calculated_amortized_cost"}
         with schema_context(self.schema_name):
@@ -84,7 +85,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_put_unknown_setting(self):
         """Test grabbing a specified user setting"""
-        url = "%sunknown/" % reverse("account-settings")
+        url = f'{reverse("account-settings")}unknown/'
         client = APIClient()
         data = {"cost_type": "calculated_amortized_cost"}
         with schema_context(self.schema_name):
@@ -93,7 +94,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_put_unknown_cost_type(self):
         """Test grabbing a specified user setting"""
-        url = "%scost-type/" % reverse("account-settings")
+        url = f'{reverse("account-settings")}cost-type/'
         client = APIClient()
         data = {"cost_type": "unknown"}
         with schema_context(self.schema_name):
@@ -102,7 +103,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_put_unknown_currency(self):
         """Test grabbing a specified user setting"""
-        url = "%scurrency/" % reverse("account-settings")
+        url = f'{reverse("account-settings")}currency/'
         client = APIClient()
         data = {"currency": "unknown"}
         with schema_context(self.schema_name):
@@ -111,7 +112,7 @@ class AccountSettingsViewTest(IamTestCase):
 
     def test_account_setting_invalid(self):
         """Test grabbing a specified user setting invalid setting"""
-        url = "%sinvalid/" % reverse("account-settings")
+        url = f'{reverse("account-settings")}invalid/'
         client = APIClient()
         with schema_context(self.schema_name):
             response = client.get(url, **self.headers)
@@ -156,7 +157,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     def test_no_access_to_get_request(self):
         for acct_setting in self.account_settings:
             with self.subTest(acct_setting):
-                url = self.base_url + f"{acct_setting}/"
+                url = f"{self.base_url}{acct_setting}/"
                 client = APIClient()
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -165,7 +166,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     def test_read_accesss_to_get_request(self):
         for acct_setting in self.account_settings:
             with self.subTest(acct_setting=acct_setting):
-                url = self.base_url + f"{acct_setting}/"
+                url = f"{self.base_url}{acct_setting}/"
                 client = APIClient()
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -174,7 +175,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     def test_read_access_to_put_request(self):
         for acct_setting, value in self.account_settings.items():
             with self.subTest(acct_setting=acct_setting, value=value):
-                url = self.base_url + f"{acct_setting}/"
+                url = f"{self.base_url}{acct_setting}/"
                 client = APIClient()
                 data = {acct_setting.replace("-", "_"): value}
                 response = client.put(url, data, format="json", **self.headers)
@@ -184,7 +185,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     def test_write_on_put_request(self):
         for acct_setting, value in self.account_settings.items():
             with self.subTest(acct_setting=acct_setting, value=value):
-                url = self.base_url + f"{acct_setting}/"
+                url = f"{self.base_url}{acct_setting}/"
                 client = APIClient()
                 data = {acct_setting.replace("-", "_"): value}
                 response = client.put(url, data, format="json", **self.headers)
@@ -194,7 +195,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     def test_write_on_get_request(self):
         for acct_setting in self.account_settings:
             with self.subTest(acct_setting=acct_setting):
-                url = self.base_url + f"{acct_setting}/"
+                url = f"{self.base_url}{acct_setting}/"
                 client = APIClient()
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -203,7 +204,7 @@ class AccountSettingsViewTestRBACTest(IamTestCase):
     def test_read_and_write_on_get_request(self):
         for acct_setting in self.account_settings:
             with self.subTest(acct_setting=acct_setting):
-                url = self.base_url + f"{acct_setting}/"
+                url = f"{self.base_url}{acct_setting}/"
                 client = APIClient()
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)

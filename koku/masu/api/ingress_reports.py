@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for ingress_data endpoint."""
+
 # flake8: noqa
 import logging
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the sources view."""
+
 import json
 from random import randint
 from unittest.mock import Mock

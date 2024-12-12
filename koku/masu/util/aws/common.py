@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS utility functions."""
+
 import contextlib
 import datetime
 import logging
 import math
 import re
 import time
-import typing as t
 import uuid
 from itertools import chain
 
@@ -464,8 +464,8 @@ def update_account_aliases(provider: Provider):
 def get_bills_from_provider(
     provider_uuid: str,
     schema: str,
-    start_date: t.Union[datetime.datetime, str] = None,
-    end_date: t.Union[datetime.datetime, str] = None,
+    start_date: datetime.datetime | str = None,
+    end_date: datetime.datetime | str = None,
 ) -> list[AWSCostEntryBill]:
     """
     Return the AWS bill IDs given a provider UUID.
@@ -480,11 +480,11 @@ def get_bills_from_provider(
         (list): AWS cost entry bill objects.
 
     """
-    if isinstance(start_date, (datetime.datetime, datetime.date)):
+    if isinstance(start_date, datetime.datetime | datetime.date):
         start_date = start_date.replace(day=1)
         start_date = start_date.strftime(DATE_FMT)
 
-    if isinstance(end_date, (datetime.datetime, datetime.date)):
+    if isinstance(end_date, datetime.datetime | datetime.date):
         end_date = end_date.strftime(DATE_FMT)
 
     provider = Provider.objects.filter(uuid=provider_uuid).first()
@@ -547,9 +547,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
     return upload
 
 
-def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, context=None
-):
+def copy_local_report_file_to_s3_bucket(request_id, s3_path, full_file_path, local_filename, manifest_id, context=None):
     """
     Copies local report file to s3 bucket
     """
@@ -655,11 +653,11 @@ def safe_str_int_conversion(value):
 
 def filter_s3_objects_less_than(
     request_id: str,
-    keys: t.List[str],
+    keys: list[str],
     metadata_key: str,
     metadata_value_check: str,
-    context: t.Optional[t.Dict] = None,
-) -> t.List[str]:
+    context: dict | None = None,
+) -> list[str]:
     """Filter S3 object keys based on a metadata key integer value comparison.
 
     Parameters:

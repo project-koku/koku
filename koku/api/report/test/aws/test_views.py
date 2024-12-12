@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWS Report views."""
+
 import copy
 from unittest.mock import patch
 

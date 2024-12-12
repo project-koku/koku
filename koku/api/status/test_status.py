@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the status API."""
+
 import logging
 from collections import namedtuple
 from unittest.mock import ANY

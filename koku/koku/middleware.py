@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Custom Koku Middleware."""
+
 import binascii
 import logging
 import threading

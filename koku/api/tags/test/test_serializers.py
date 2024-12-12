@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the tag serializer."""
+
 from unittest import TestCase
 from unittest.mock import patch
 

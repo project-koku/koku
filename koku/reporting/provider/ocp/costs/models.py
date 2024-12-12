@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for OCP cost view tables."""
+
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP views."""
+
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.models import Provider
 from api.report.gcp.query_handler import GCPReportQueryHandler

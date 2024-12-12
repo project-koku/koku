@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the API pagination module."""
+
 import random
 from unittest.mock import Mock
 from unittest.mock import patch

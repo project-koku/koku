@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """PostgreSQL DB functions for use by Django ORM."""
+
 from django.db.models.aggregates import Func
 
 

@@ -5,14 +5,18 @@
 """
 Handler module for gathering configuration data.
 """
+
 import pathlib
 
 from .env import ENVIRONMENT
 
-
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
-    from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, KafkaServers, DependencyEndpoints
+    from app_common_python import DependencyEndpoints
+    from app_common_python import KafkaServers
+    from app_common_python import KafkaTopics
+    from app_common_python import LoadedConfig
+    from app_common_python import ObjectBuckets
 
 
 class Configurator:
@@ -253,9 +257,9 @@ class EnvConfigurator(Configurator):
     @staticmethod
     def get_object_store_endpoint():
         """Obtain object store endpoint."""
-        S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="s3.us-east-1.amazonaws.com")
+        S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="https://s3.amazonaws.com")
         if not (S3_ENDPOINT.startswith("https://") or S3_ENDPOINT.startswith("http://")):
-            S3_ENDPOINT = "https://" + S3_ENDPOINT
+            S3_ENDPOINT = f"https://{S3_ENDPOINT}"
         return S3_ENDPOINT
 
     @staticmethod
@@ -458,7 +462,7 @@ class ClowderConfigurator(Configurator):
     def get_object_store_tls():
         """Obtain object store secret key."""
         value = LoadedConfig.objectStore.tls
-        if type(value) == bool:
+        if isinstance(value, bool):
             return value
         if value and value.lower() in ["true", "false"]:
             return value.lower() == "true"

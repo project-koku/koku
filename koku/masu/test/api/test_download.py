@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the download endpoint view."""
+
 from unittest.mock import patch
 
 from celery.result import AsyncResult

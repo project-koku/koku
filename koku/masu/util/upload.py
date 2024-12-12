@@ -1,4 +1,5 @@
 """Upload utility functions."""
+
 from django.conf import settings
 
 _DB_FETCH_BATCH_SIZE = 2000
@@ -27,14 +28,6 @@ def get_upload_path(schema_name, provider_type, provider_uuid, date, table_name,
         # are relevant to the month but not to a specific day in that month.
         date_part = f"{date.year}/{date.month:02d}/00"
     upload_path = (
-        "{bucket_path}/{account_name}/{provider_type}/{provider_uuid}/"
-        "{date_part}/{table_name}.csv.gz".format(
-            bucket_path=settings.S3_BUCKET_PATH,
-            account_name=schema_name,
-            provider_type=provider_type,
-            provider_uuid=provider_uuid,
-            date_part=date_part,
-            table_name=table_name,
-        )
+        f"{settings.S3_BUCKET_PATH}/{schema_name}/{provider_type}/{provider_uuid}/" f"{date_part}/{table_name}.csv.gz"
     )
     return upload_path

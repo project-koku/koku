@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Helper class for database test classes."""
+
 import uuid
 
 from django.utils import timezone

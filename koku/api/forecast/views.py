@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Forecast Views."""
+
 import logging
 
 from django.utils.decorators import method_decorator

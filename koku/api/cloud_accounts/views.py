@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Cloud Account."""
+
 import copy
 
 from rest_framework import permissions

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the Masu API `manifest` Serializers."""
+
 import datetime
 from uuid import uuid4
 

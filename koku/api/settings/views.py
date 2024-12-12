@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Settings."""
+
 import typing as t
 from dataclasses import dataclass
 from dataclasses import field

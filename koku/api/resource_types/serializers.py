@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializer for Resource Types."""
+
 from rest_framework import serializers
 
 

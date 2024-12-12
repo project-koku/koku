@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Custom Koku Dev Middleware."""
+
 import json
 import logging
 from base64 import b64decode

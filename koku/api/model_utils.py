@@ -15,9 +15,7 @@ class RunTextFieldValidators:
         """
         For all fields, run any default and specified validators before calling save
         """
-        for f in (
-            c for c in self._meta.get_fields() if hasattr(self, c.name) and c.get_internal_type() == "TextField"
-        ):
+        for f in (c for c in self._meta.get_fields() if hasattr(self, c.name) and c.get_internal_type() == "TextField"):
             val = getattr(self, f.name)
             if val is not None:
                 val = str(val)

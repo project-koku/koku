@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Organizations serializers."""
+
 from rest_framework import serializers
 
 from api.report.serializers import add_operator_specified_fields

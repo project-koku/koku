@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test GCP Serializer."""
+
 from unittest import TestCase
 
 from faker import Faker

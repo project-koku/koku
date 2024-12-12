@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Interactions with the rbac service."""
+
 import logging
 from collections import OrderedDict
 from json.decoder import JSONDecodeError
@@ -236,9 +237,7 @@ class RbacService:
 
     def get_access_for_user(self, user):
         """Obtain access information for user."""
-        url = "{}://{}:{}{}?application=cost-management&limit=100".format(
-            self.protocol, self.host, self.port, self.path
-        )
+        url = f"{self.protocol}://{self.host}:{self.port}{self.path}?application=cost-management&limit=100"
         headers = {"x-rh-identity": user.identity_header.get("encoded")}
         acls = self._request_user_access(url, headers)
         if isinstance(acls, list) and len(acls) == 0:

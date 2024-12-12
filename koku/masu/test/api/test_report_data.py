@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the report_data endpoint view."""
+
 import datetime
 from unittest.mock import call
 from unittest.mock import patch

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test AWS Category Serializer."""
+
 from rest_framework.serializers import ValidationError
 
 from api.settings.aws_category_keys.serializers import SettingsAWSCategoryKeyIDSerializer

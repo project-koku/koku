@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportDBAccessorBase utility object."""
+
 from unittest.mock import patch
 
 from koku.cache import build_trino_schema_exists_key

@@ -1,4 +1,5 @@
 """AWS downloader tests."""
+
 import random
 import string
 
@@ -30,5 +31,5 @@ def fake_arn(account_id="", service="fakeservice", region="", resource_separator
         account_id = fake_aws_account_id()
     resource = faker.Faker().name()
     resource_type = faker.Faker().name().replace(" ", "_")
-    arn = ("arn:aws:{}:{}:{}:{}{}{}").format(service, region, account_id, resource_type, resource_separator, resource)
+    arn = f"arn:aws:{service}:{region}:{account_id}:{resource_type}{resource_separator}{resource}"
     return arn

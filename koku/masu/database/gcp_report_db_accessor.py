@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for GCP report data."""
+
 import datetime
 import json
 import logging

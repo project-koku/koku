@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the QueryParameters."""
+
 import random
 from collections import OrderedDict
 from unittest.mock import Mock

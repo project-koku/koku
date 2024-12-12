@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tasks for Subscriptions Watch"""
+
 import logging
 import uuid
 

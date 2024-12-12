@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the NOTIFICATION Service interaction."""
+
 from unittest.mock import patch
 
 from django.test import TestCase

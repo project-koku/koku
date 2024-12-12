@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the running_celery_tasks endpoint view."""
+
 import base64
 import json
 import os

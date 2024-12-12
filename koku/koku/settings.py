@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/2.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.0/ref/settings/
 """
+
 import logging
 import os
 import sys
@@ -26,10 +27,8 @@ from oci import config
 from oci.exceptions import ConfigFileNotFound
 
 from . import database
-from . import sentry
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
-
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
@@ -152,7 +151,7 @@ if DEVELOPMENT:
     FORCE_HEADER_OVERRIDE = ENVIRONMENT.bool("FORCE_HEADER_OVERRIDE", default=False)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
     try:
-        from django_cprofile_middleware.middleware import ProfilerMiddleware
+        from django_cprofile_middleware.middleware import ProfilerMiddleware  # noqa: F401
 
         MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
     except ImportError:

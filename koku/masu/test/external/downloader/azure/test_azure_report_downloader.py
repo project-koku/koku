@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDownloader object."""
+
 import json
 import os.path
 import shutil

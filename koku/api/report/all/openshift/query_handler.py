@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Query Handling for Reports."""
+
 from api.models import Provider
 from api.report.all.openshift.provider_map import OCPAllProviderMap
 from api.report.aws.openshift.query_handler import OCPInfrastructureReportQueryHandlerBase

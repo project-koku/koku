@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Forecast serializers unit tests."""
+
 from rest_framework import serializers
 
 from api.forecast.serializers import AWSCostForecastParamSerializer

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test that django tables are partitioned correctly."""
+
 from django.apps import apps
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS

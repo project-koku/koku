@@ -281,36 +281,51 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertEqual(file_name, "")
             self.assertTrue(data_frame.empty)
 
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch(
-            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", return_value=None
-        ), patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"):
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""),
+            patch(
+                "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", return_value=None
+            ),
+            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"),
+        ):
             with self.assertRaises(ParquetReportProcessorError):
                 self.report_processor_ocp.convert_to_parquet()
 
         expected = "no split files to convert to parquet"
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
-            ParquetReportProcessor,
-            "convert_csv_to_parquet",
-            return_value=("", pd.DataFrame(), False),
-        ), patch.object(ParquetReportProcessor, "create_daily_parquet"), self.assertLogs(
-            "masu.processor.parquet.parquet_report_processor", level="INFO"
-        ) as logger:
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""),
+            patch.object(
+                ParquetReportProcessor,
+                "convert_csv_to_parquet",
+                return_value=("", pd.DataFrame(), False),
+            ),
+            patch.object(ParquetReportProcessor, "create_daily_parquet"),
+            self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger,
+        ):
             self.report_processor.convert_to_parquet()
             self.assertIn(expected, " ".join(logger.output))
 
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
-            ParquetReportProcessor,
-            "convert_csv_to_parquet",
-            return_value=("", pd.DataFrame(), False),
-        ), patch.object(ParquetReportProcessor, "create_daily_parquet"):
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""),
+            patch.object(
+                ParquetReportProcessor,
+                "convert_csv_to_parquet",
+                return_value=("", pd.DataFrame(), False),
+            ),
+            patch.object(ParquetReportProcessor, "create_daily_parquet"),
+        ):
             self.report_processor.convert_to_parquet()
 
         # Daily data exists
-        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
-            ParquetReportProcessor,
-            "convert_csv_to_parquet",
-            return_value=("", pd.DataFrame([{"key": "value"}]), True),
-        ), patch.object(ParquetReportProcessor, "create_daily_parquet") as mock_create_daily:
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""),
+            patch.object(
+                ParquetReportProcessor,
+                "convert_csv_to_parquet",
+                return_value=("", pd.DataFrame([{"key": "value"}]), True),
+            ),
+            patch.object(ParquetReportProcessor, "create_daily_parquet") as mock_create_daily,
+        ):
             file_name, data_frame = self.report_processor_gcp.convert_to_parquet()
             call_args = mock_create_daily.call_args
             self.assertTrue(call_args.equals(data_frame[0]))
@@ -327,38 +342,42 @@ class TestParquetReportProcessor(MasuTestCase):
             _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
-        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
-            "masu.processor.parquet.parquet_report_processor.pd"
-        ) as mock_pd, patch("masu.processor.parquet.parquet_report_processor.open") as mock_open:
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.Path"),
+            patch("masu.processor.parquet.parquet_report_processor.pd") as mock_pd,
+            patch("masu.processor.parquet.parquet_report_processor.open") as mock_open,
+        ):
             mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
             mock_open.side_effect = ValueError()
             _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
-        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
-            "masu.processor.parquet.parquet_report_processor.pd"
-        ) as mock_pd, patch("masu.processor.parquet.parquet_report_processor.open", side_effect=Exception), patch(
-            "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
-        ), patch(
-            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "create_parquet_table"
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.Path"),
+            patch("masu.processor.parquet.parquet_report_processor.pd") as mock_pd,
+            patch("masu.processor.parquet.parquet_report_processor.open", side_effect=Exception),
+            patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"),
+            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "create_parquet_table"),
         ):
             mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
             _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertFalse(result)
 
-        with patch("masu.processor.parquet.parquet_report_processor.Path"), patch(
-            "masu.processor.parquet.parquet_report_processor.pd"
-        ), patch("masu.processor.parquet.parquet_report_processor.open"), patch(
-            "masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"
-        ), patch.object(
-            ParquetReportProcessor, "create_parquet_table"
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.Path"),
+            patch("masu.processor.parquet.parquet_report_processor.pd"),
+            patch("masu.processor.parquet.parquet_report_processor.open"),
+            patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"),
+            patch.object(ParquetReportProcessor, "create_parquet_table"),
         ):
             _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))
             self.assertTrue(result)
 
-        with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"), patch.object(
-            ParquetReportProcessor, "create_parquet_table"
-        ), patch("masu.processor.parquet.parquet_report_processor.os") as mock_os:
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"),
+            patch.object(ParquetReportProcessor, "create_parquet_table"),
+            patch("masu.processor.parquet.parquet_report_processor.os") as mock_os,
+        ):
             mock_os.path.split.return_value = ("path", "file.csv")
             test_report_test_path = "./koku/masu/test/data/test_cur.csv.gz"
             local_path = f"{Config.TMP_DIR}/{self.schema}/{self.aws_provider_uuid}"
@@ -385,15 +404,17 @@ class TestParquetReportProcessor(MasuTestCase):
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     def test_convert_csv_to_parquet_report_type_already_processed(self, mock_stats):
         """Test that we don't re-create a table when we already have created this run."""
-        with patch("masu.processor.parquet.parquet_report_processor.pd"), patch(
-            "masu.processor.parquet.parquet_report_processor.open"
-        ), patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"), patch.object(
-            ParquetReportProcessor,
-            "post_processor",
-            return_value=OCPPostProcessor(self.schema, "pod_usage"),
-        ), patch.object(
-            ParquetReportProcessor, "create_parquet_table"
-        ) as mock_create_table:
+        with (
+            patch("masu.processor.parquet.parquet_report_processor.pd"),
+            patch("masu.processor.parquet.parquet_report_processor.open"),
+            patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"),
+            patch.object(
+                ParquetReportProcessor,
+                "post_processor",
+                return_value=OCPPostProcessor(self.schema, "pod_usage"),
+            ),
+            patch.object(ParquetReportProcessor, "create_parquet_table") as mock_create_table,
+        ):
             report_processor = ParquetReportProcessor(
                 schema_name=self.schema,
                 report_path="pod_usage.csv",

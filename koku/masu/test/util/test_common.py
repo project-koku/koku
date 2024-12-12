@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the common util functions."""
+
 import gzip
 import json
 import types
@@ -375,7 +376,6 @@ class CommonUtilTests(MasuTestCase):
             _ = list(common_utils.batch(vals, start="eek"))
 
     def test_tag_enabled_population_no_new_keys(self):
-
         with schema_context(self.schema):
             EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS).delete()
             for key in ("masu", "database", "processor", "common"):
@@ -588,7 +588,6 @@ class NamedTemporaryGZipTests(TestCase):
         """Test the the written gzip file is readable."""
         test_data = "Test Read Gzip"
         with common_utils.NamedTemporaryGZip() as temp_gzip:
-
             temp_gzip.write(test_data)
             temp_gzip.close()
 

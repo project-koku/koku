@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common pagination class."""
+
 import logging
 
 from django.http import JsonResponse

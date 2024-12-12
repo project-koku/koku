@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSReportParquetProcessor."""
+
 from unittest.mock import patch
 
 from django_tenants.utils import schema_context

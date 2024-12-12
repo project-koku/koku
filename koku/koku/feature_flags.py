@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Create Unleash Client."""
+
 import logging
 
 from django.conf import settings

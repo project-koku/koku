@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """API models for import organization."""
+
 # flake8: noqa
 from api.currency.models import ExchangeRates
 from api.iam.models import Customer

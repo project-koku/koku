@@ -1,4 +1,5 @@
 """Custom log-related classes."""
+
 from celery._state import get_current_task
 from celery.app.log import Logging
 from celery.utils.log import ColorFormatter

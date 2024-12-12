@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Query Handling for Reports."""
+
 import copy
 import logging
 import operator
@@ -500,9 +501,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         and the query needs that for rankings to work.
         """
         if "account" in self._get_group_by():
-            query = query.annotate(
-                special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
-            )
+            query = query.annotate(special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id"))
         return super()._group_by_ranks(query, data)
 
     def _get_sub_org_units(self, org_unit_list):

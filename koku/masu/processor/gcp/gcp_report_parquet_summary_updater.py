@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Summary Updater for GCP Parquet files."""
+
 import logging
 
 import ciso8601

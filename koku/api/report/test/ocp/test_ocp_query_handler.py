@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
@@ -225,7 +226,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self):
         """Test that cluster capacity returns capacity by cluster."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -357,9 +360,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                 capacity = element.get("capacity", {}).get("value")
                                 monthly_vals = [
                                     element.get("capacity") or Decimal(0.0)
-                                    for element in query_results.filter(
-                                        usage_start__gte=date, node=element.get("node")
-                                    )
+                                    for element in query_results.filter(usage_start__gte=date, node=element.get("node"))
                                 ]
                                 self.assertAlmostEqual(capacity, sum(monthly_vals))
 
@@ -395,9 +396,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                 capacity = element.get("capacity", {}).get("value")
                                 monthly_vals = [
                                     element.get("capacity") or Decimal(0.0)
-                                    for element in query_results.filter(
-                                        usage_start__gte=date, node=element.get("node")
-                                    )
+                                    for element in query_results.filter(usage_start__gte=date, node=element.get("node"))
                                 ]
                                 self.assertAlmostEqual(capacity, sum(monthly_vals))
 
@@ -660,9 +659,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_daily_resolution_group_by_clusters(self):
         """Test that cluster capacity returns daily capacity by cluster."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*"
-        )
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -1004,10 +1001,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
             ("node", "cluster"),
             ("node", "project"),
         ]
-        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        base_url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        )
         tolerance = 1
         for group_by in group_by_list:
-            sub_url = "&group_by[%s]=*&group_by[%s]=*" % group_by
+            sub_url = "&group_by[{}]=*&group_by[{}]=*".format(*group_by)
             url = base_url + sub_url
             query_params = self.mocked_query_params(url, OCPCpuView)
             handler = OCPReportQueryHandler(query_params)
@@ -1501,7 +1500,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertTrue(tested)
 
     def test_format_vm_response_csv(self):
-
         query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
         handler = OCPReportQueryHandler(query_params)
         handler.is_csv_output = True

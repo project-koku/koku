@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Rate serializer."""
+
 import copy
 import logging
 from collections import defaultdict
@@ -228,13 +229,11 @@ class RateSerializer(serializers.Serializer):
             usage_start = tier.get("usage", {}).get("usage_start")
             usage_end = tier.get("usage", {}).get("usage_end")
 
-            if (
-                next_tier is not None and usage_start is not None and Decimal(usage_start) > Decimal(next_tier)
-            ):  # noqa:W503
+            if next_tier is not None and usage_start is not None and Decimal(usage_start) > Decimal(next_tier):  # noqa:W503
                 error_msg = (
                     "tiered_rate must not have gaps between tiers."
-                    "usage_start of {} should be less than or equal to the"
-                    " usage_end {} of the previous tier.".format(usage_start, next_tier)
+                    f"usage_start of {usage_start} should be less than or equal to the"
+                    f" usage_end {next_tier} of the previous tier."
                 )
                 raise serializers.ValidationError(error_msg)
             next_tier = usage_end
@@ -250,8 +249,8 @@ class RateSerializer(serializers.Serializer):
             if usage_end != next_bucket_usage_start:
                 error_msg = (
                     "tiered_rate must not have overlapping tiers."
-                    " usage_start value {} should equal to the"
-                    " usage_end value of the next tier, not {}.".format(usage_end, next_bucket_usage_start)
+                    f" usage_start value {usage_end} should equal to the"
+                    f" usage_end value of the next tier, not {next_bucket_usage_start}."
                 )
                 raise serializers.ValidationError(error_msg)
 

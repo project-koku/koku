@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OCP-on-All tags."""
+
 from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 from api.provider.models import Provider
 from api.tags.all.openshift.queries import OCPAllTagQueryHandler

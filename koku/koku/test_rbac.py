@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the RBAC Service interaction."""
+
 import logging
 import os
 from json.decoder import JSONDecodeError

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS views."""
+
 from rest_framework.exceptions import NotFound
 
 from api.common.permissions.aws_access import AwsAccessPermission

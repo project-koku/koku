@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for shared reporting tables."""
+
 import logging
 from uuid import uuid4
 

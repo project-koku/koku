@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the update_cost_model_costs endpoint view."""
+
 import datetime
 from unittest.mock import patch
 from uuid import uuid4

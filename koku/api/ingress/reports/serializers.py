@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Post Report Serializers."""
+
 from rest_framework import serializers
 
 from api.common import error_obj

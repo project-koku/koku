@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for running_celery_tasks endpoint."""
+
 import logging
 
 import redis

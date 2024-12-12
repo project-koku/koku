@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for OCI Parquet files."""
+
 import ciso8601
 from django.conf import settings
 from django_tenants.utils import schema_context

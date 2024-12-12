@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common util functions."""
+
 import calendar
 import datetime
 import gzip

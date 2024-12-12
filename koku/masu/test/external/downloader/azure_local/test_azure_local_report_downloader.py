@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AZURE-Local Report Downloader."""
+
 import datetime
 import os.path
 import shutil
@@ -52,9 +53,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             "storage_account": {"local_dir": self.local_storage, "container": self.container_name},
         }
         test_report = "./koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv"
-        local_dir = "{}/{}/{}/{}/{}".format(
-            self.local_storage, self.container_name, self.directory, self.export_name, self.date_range
-        )
+        local_dir = f"{self.local_storage}/{self.container_name}/{self.directory}/{self.export_name}/{self.date_range}"
         os.makedirs(local_dir)
         self.csv_file_name = test_report.split("/")[-1]
         self.csv_key = f"{local_dir}/{self.csv_file_name}"

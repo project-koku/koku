@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Hashing utility."""
+
 import hashlib
 
 from masu.exceptions import HasherError

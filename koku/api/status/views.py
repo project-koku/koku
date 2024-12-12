@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for server status."""
+
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import permissions

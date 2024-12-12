@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Script to render valid SQL from a Jinja template."""
+
 import argparse
 import datetime
 

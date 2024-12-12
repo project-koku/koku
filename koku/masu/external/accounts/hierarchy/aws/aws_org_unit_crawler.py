@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS org unit crawler."""
+
 import logging
 
 from botocore.exceptions import ClientError

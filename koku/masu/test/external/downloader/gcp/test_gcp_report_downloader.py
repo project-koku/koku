@@ -1,4 +1,5 @@
 """Test the GCPReportDownloader class."""
+
 import datetime
 import os
 import shutil
@@ -87,7 +88,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.downloader
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open") as mock_open:
             err_msg = "bad open"
-            mock_open.side_effect = IOError(err_msg)
+            mock_open.side_effect = OSError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
                 downloader.download_file(key)
                 mock_bigquery.assert_called()
@@ -250,7 +251,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         """
         with patch("masu.external.downloader.gcp.gcp_report_downloader.pd.read_csv") as mock_open:
             err_msg = "unable to create daily archives from: fake"
-            mock_open.side_effect = IOError(err_msg)
+            mock_open.side_effect = OSError(err_msg)
             with self.assertRaisesRegex(CreateDailyArchivesError, err_msg):
                 create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
 

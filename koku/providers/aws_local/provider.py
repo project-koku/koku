@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS-local service provider implementation to be used by Koku."""
+
 from rest_framework import serializers
 
 from ..aws.provider import AWSProvider

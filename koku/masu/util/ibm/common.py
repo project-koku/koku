@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """IBM utility functions and vars."""
+
 import hashlib
 
 

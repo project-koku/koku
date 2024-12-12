@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the AWSLocalProvider implementation for the Koku interface."""
+
 import os
 import tempfile
 

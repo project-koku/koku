@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the Masu API `manifest` Views."""
+
 from datetime import date
 from datetime import timedelta
 from unittest.mock import patch

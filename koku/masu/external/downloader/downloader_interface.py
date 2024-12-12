@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Downloader interface to be used by Masu."""
+
 from abc import ABC
 from abc import abstractmethod
 

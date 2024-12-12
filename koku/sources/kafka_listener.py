@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Sources Integration Service."""
+
 import itertools
 import logging
 import queue

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the aws category settings views."""
+
 from django.urls import reverse
 from faker import Faker
 from rest_framework import status

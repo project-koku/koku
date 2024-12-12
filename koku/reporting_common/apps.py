@@ -1,4 +1,5 @@
 """App declaration for reporting_common."""
+
 from django.apps import AppConfig
 
 

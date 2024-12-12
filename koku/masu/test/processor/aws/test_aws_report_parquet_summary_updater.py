@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSReportParquetSummaryUpdater."""
+
 from datetime import timedelta
 from unittest.mock import call
 from unittest.mock import patch
@@ -148,7 +149,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         mock_delete_summary_date_range,
         mock_category_update,
         mock_insert_ec2_compute_summary,
-        *args
+        *args,
     ):
         """Test that summarization is skipped if schema is not enabled for ec2 compute summary."""
 

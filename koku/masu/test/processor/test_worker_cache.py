@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Cache of worker tasks currently running."""
+
 from unittest.mock import patch
 
 from django.core.cache import cache

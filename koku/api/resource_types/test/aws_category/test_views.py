@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
+
 from django.urls import reverse
 from django_tenants.utils import schema_context
 from rest_framework import status
@@ -41,7 +42,7 @@ class ResourceTypesViewTestAWSCategory(MasuTestCase):
         if expected_length != 0:
             self.assertIsInstance(data[0], data_return)
             for element in data:
-                if data_return == dict:
+                if isinstance(data_return, dict):
                     self.assertIn(element.get("key"), self.enabled_keys)
                 else:
                     self.assertIn(element, self.enabled_keys)

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for Azure report data."""
+
 import json
 import logging
 import pkgutil

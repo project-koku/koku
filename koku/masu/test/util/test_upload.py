@@ -1,4 +1,5 @@
 """Upload utils tests."""
+
 import uuid
 from datetime import date
 

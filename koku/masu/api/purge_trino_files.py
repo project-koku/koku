@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for removing parquet & csv files for a particular provider."""
+
 import logging
 
 from django.views.decorators.cache import never_cache

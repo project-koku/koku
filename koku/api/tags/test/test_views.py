@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report views."""
+
 from uuid import uuid4
 
 from django.urls import reverse
