@@ -6077,6 +6077,12 @@ parameters:
   name: AWS_CREDENTIALS_EPH
   required: true
   value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
+- name: AWS_ACCESS_KEY_ID_EPH
+  required: false
+  value: AWS_ACCESS_KEY_ID
+- name: AWS_SECRET_ACCESS_KEY_EPH
+  required: false
+  value: AWS_SECRET_ACCESS_KEY
 - displayName: GCP Credentials (Ephemeral)
   name: GCP_CREDENTIALS_EPH
   required: true
