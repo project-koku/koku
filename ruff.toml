@@ -1,0 +1,23 @@
+line-length = 120
+target-version = "py311"
+
+extend-exclude=["**/migrations/*.py"]
+
+[format]
+
+
+[lint]
+# F https://docs.astral.sh/ruff/rules/#pyflakes-f
+# E, W https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
+# C90 https://docs.astral.sh/ruff/rules/#mccabe-c90
+# UP https://docs.astral.sh/ruff/rules/#pyupgrade-up
+select = ["F", "E", "W", "C90", "UP"]
+# extend-select = ["UP"]
+
+[lint.isort]
+case-sensitive = false
+force-single-line = true
+known-first-party = ["koku", "api", "common", "cost_models", "forecast", "hcs", "kafka_utils", "key_metrics", "masu", "providers", "reporting", "reporting_common", "sources", "subs"]
+lines-after-imports = 1
+no-lines-before = ["future", "standard-library"]
+order-by-type = false
