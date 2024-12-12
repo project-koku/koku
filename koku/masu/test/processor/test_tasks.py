@@ -39,7 +39,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
@@ -471,7 +470,7 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks._process_report_file")
     def test_get_report_files_exception(self, mock_process_files, mock_inspect, mock_cache_remove):
         """Test raising download exception is handled."""
-        exceptions = [MasuProcessingError, MasuProviderError, ReportDownloaderError]
+        exceptions = [MasuProviderError, ReportDownloaderError]
         for exception in exceptions:
             with self.subTest(exception=exception):
                 with patch(

@@ -5,17 +5,5 @@
 """Masu Processor Exceptions."""
 
 
-class MasuProcessingError(Exception):
-    """Masu Processing Error."""
-
-
 class MasuProviderError(Exception):
     """Masu Provider Error."""
-
-
-class MasuConfigurationError(Exception):
-    """Masu Configuration Error."""
-
-
-class HasherError(Exception):
-    """Hasher Utility class error."""
