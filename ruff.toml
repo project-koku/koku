@@ -15,7 +15,8 @@ select = ["F", "E", "W", "C90", "UP"]
 # extend-select = ["UP"]
 
 [lint.per-file-ignores]
-# Ignore `F401` (unused import) in all `models.py` and `views.py` files.
+# Ignore `F401` (unused import) in all `__init__.py`, `models.py`, and `views.py` files.
+"**/__init__.py" = ["F401"]
 "**/models.py" = ["F401"]
 "**/views.py" = ["F401"]
 

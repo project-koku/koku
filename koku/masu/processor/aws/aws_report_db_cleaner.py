@@ -16,7 +16,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from reporting.models import PartitionedTable
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -62,7 +61,7 @@ class AWSReportDBCleaner:
         all_period_starts = set()
 
         with AWSReportDBAccessor(self._schema) as accessor:
-            if (expired_date is None and provider_uuid is None) or (  # noqa: W504
+            if (expired_date is None and provider_uuid is None) or (
                 expired_date is not None and provider_uuid is not None
             ):
                 error_msg = log_json(

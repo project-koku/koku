@@ -51,7 +51,7 @@ class OCPReportDBCleaner:
         LOG.info(log_json(msg="calling purge_expired_report_data for OCP"))
 
         with OCPReportDBAccessor(self._schema) as accessor:
-            if (expired_date is not None and provider_uuid is not None) or (  # noqa: W504
+            if (expired_date is not None and provider_uuid is not None) or (
                 expired_date is None and provider_uuid is None
             ):
                 err = "This method must be called with expired_date or provider_uuid"

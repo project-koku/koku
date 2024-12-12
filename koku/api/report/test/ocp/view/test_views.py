@@ -854,7 +854,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data:
             values = entry.get("values")[0]
             delta_percent = (
-                (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)  # noqa: W504
+                (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)
                 if values.get(delta_two, {}).get("value")
                 else 0
             )
@@ -877,7 +877,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data:
             values = entry.get("values")[0]
             delta_percent = (
-                (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)  # noqa: W504
+                (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)
                 if values.get(delta_two, {}).get("value")
                 else 0
             )
@@ -900,7 +900,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data:
             values = entry.get("values")[0]
             delta_percent = (
-                (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)  # noqa: W504
+                (values.get(delta_one, {}).get("value") / values.get(delta_two, {}).get("value") * 100)
                 if values.get(delta_two)
                 else 0
             )

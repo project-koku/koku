@@ -918,7 +918,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
                 coalesce(max(ocp.node_role), CASE
                     WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
-                    WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
+                    WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like
+                         '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
                     ELSE 'worker'
                 END) as node_role
             FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
@@ -936,7 +937,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 AND nl.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
             GROUP BY ocp.node,
                 ocp.resource_id
-        """  # noqa: E501
+        """
         context = {"schema": self.schema, "start": start_date, "end": end_date, "provider_uuid": source_uuid}
         return self._execute_trino_raw_sql_query(sql, context=context, log_ref="get_nodes_trino")
 

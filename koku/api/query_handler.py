@@ -204,7 +204,7 @@ class QueryHandler:
             (Boolean): True if they keys given appear in given query parameters.
 
         """
-        return self.parameters and key in self.parameters and in_key in self.parameters.get(key)  # noqa: W504
+        return self.parameters and key in self.parameters and in_key in self.parameters.get(key)
 
     def get_time_scope_units(self):
         """Extract time scope units or provide default.

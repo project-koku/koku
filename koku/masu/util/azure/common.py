@@ -195,7 +195,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         if any_tag_matched:
             tag_df = pd.concat([tags, tag_matched], axis=1)
             tag_df.columns = ("tags", "tag_matched")
-            tag_subset = tag_df[tag_df.tag_matched == True].tags  # noqa: E712
+            tag_subset = tag_df[tag_df.tag_matched is True].tags
 
             LOG.info("Matching OpenShift on Azure tags.")
 
@@ -210,9 +210,9 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         data_frame["matched_tag"] = ""
 
     openshift_matched_data_frame = data_frame[
-        (data_frame["resource_id_matched"] == True)  # noqa: E712
-        | (data_frame["special_case_tag_matched"] == True)  # noqa: E712
-        | (data_frame["matched_tag"] != "")  # noqa: E712
+        (data_frame["resource_id_matched"] is True)
+        | (data_frame["special_case_tag_matched"] is True)
+        | (data_frame["matched_tag"] != "")
     ]
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
