@@ -213,6 +213,32 @@ trigger_ocp_ingest() {
       fi
     done
 
+    check_has_data() {
+          local source_name=$1
+          response=$(curl -s "${KOKU_URL_PREFIX}/v1/sources/")
+          has_data=$(echo "$response" | jq -r --arg source_name "$source_name" '.data[] | select(.name == $source_name) | .has_data')
+      }
+
+    local max_retries=100
+    local retries=0
+
+    while [ "$retries" -lt "$max_retries" ]; do
+      check_has_data "$1"
+
+      if [ "$has_data" == "true" ]; then
+        log-info "has_data is true for source_name $1, proceeding."
+        break
+      else
+        retries=$((retries + 1))
+        local wait_time=$((RANDOM % 10 + 1))
+        log-info "has_data is false for source_name $1, retrying in $wait_time seconds... (Attempt $retries/$max_retries)"
+        sleep "$wait_time"
+      fi
+    done
+    if [ "$has_data" != "true" ]; then
+        log-err "Failed to find has_data=true for source_name $1 after $max_retries retries."
+    fi
+
   else
       log-info "SKIPPED - ocp ingest, source_name: $1"
   fi
@@ -272,14 +298,15 @@ build_aws_data() {
   local _download_types=("Test AWS Source")
   local _ocp_ingest_name="Test OCP on AWS"
   local _ocp_payload
-  _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
+  log-info "Building OpenShift on ${_source_name} report data..."
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
-  log-info "Building OpenShift on ${_source_name} report data..."
+  local _ocp_payload
+  _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
-  # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload http://localhost:9000 --payload-name "$_ocp_payload"
+  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
   nise_report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
@@ -291,7 +318,6 @@ build_aws_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
-  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
 }
 
 # Azure customer data
@@ -307,14 +333,15 @@ build_azure_data() {
 
   local _download_types=("Test Azure Source" "Test Azure v2 Source")
   local _ocp_ingest_name="Test OCP on Azure"
-  local _ocp_payload
-  _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
+  local _ocp_payload
+  _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
+  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
   # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload http://localhost:9000 --payload-name "$_ocp_payload"
   nise_report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
   nise_report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report-v2 --resource-group
@@ -327,7 +354,6 @@ build_azure_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
-  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
 }
 
 # GCP customer data
