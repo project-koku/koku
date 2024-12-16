@@ -332,26 +332,41 @@ build_azure_data() {
 
 # GCP customer data
 build_gcp_data() {
+  log-info "Building OpenShift on ${_source_name} report data..."
   local _source_name="GCP"
   local _yaml_files=("gcp/gcp_static_data.yml"
                      "ocp_on_gcp/ocp_static_data.yml"
+                     "ocp_on_gcp/ocp_static_replicate_pvc.yml"
                      "ocp_on_gcp/gcp_static_data.yml")
 
   local _rendered_yaml_files=("$YAML_PATH/gcp/rendered_gcp_static_data.yml"
                               "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml"
+                              "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_replicate_pvc.yml"
                               "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml")
 
   local _download_types=("Test GCP Source" "Test OCPGCP Source")
-  local _ocp_ingest_name="Test OCP on GCP"
+  local _ocp_ingest_names=("Test OCP on GCP duplicate" "Test OCP on GCP")
   local _ocp_payload
-  _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
-  log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
-  # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --minio-upload http://localhost:9000 --payload-name "$_ocp_payload"
+  for i in "${!_ocp_ingest_names[@]}"; do
+      _ocp_ingest_name="${_ocp_ingest_names[$i]}"
+
+      # Generate a new unique payload for each source
+      _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
+      log-info "Triggering OCP ingest for $_ocp_ingest_name with new payload $_ocp_payload"
+
+      if [[ "$i" -eq 0 ]]; then
+          nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_replicate_pvc.yml" --ocp-cluster-id test-ocp-gcp-cluster-duplicate --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
+      elif [[ "$i" -eq 1 ]]; then
+          nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
+      fi
+      trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
+  done
+
+
   nise_report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local"
   nise_report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0" -r
 
@@ -363,7 +378,7 @@ build_gcp_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
-  trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
+
 }
 
 # ONPREM customer data

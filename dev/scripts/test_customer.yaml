@@ -92,6 +92,12 @@ customer:
       authentication:
         credentials:
           cluster_id: test-ocp-gcp-cluster
+    - ocp_on_gcp_source_replicate_pvc:
+      source_name: Test OCP on GCP duplicate
+      source_type: 'OCP'
+      authentication:
+        credentials:
+          cluster_id: test-ocp-gcp-cluster-duplicate
     - gcp_source:
       source_name: Test OCPGCP Source
       source_type: 'GCP-local'
