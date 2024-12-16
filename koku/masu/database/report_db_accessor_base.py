@@ -5,7 +5,9 @@
 """Database accessor for report data."""
 import logging
 import os
+import pkgutil
 import time
+from typing import Any
 
 from django.conf import settings
 from django.db import connection
@@ -27,6 +29,7 @@ from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
+from masu.processor.parquet.managed_flow_params import ManagedFlowSQLParams
 
 LOG = logging.getLogger(__name__)
 
@@ -279,3 +282,20 @@ class ReportDBAccessorBase:
                         continue
                     else:
                         raise err
+
+    def find_openshift_keys_expected_values(self, ocp_provider_uuid: str, managed_params: ManagedFlowSQLParams) -> Any:
+        """
+        We need to find the expected values for the openshift specific keys.
+        Keys: openshift-project, openshift-node, openshift-cluster
+        Ex: ("openshift-project": "project_a")
+        """
+        matched_tag_params = managed_params.build_params(
+            ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs"]
+        )
+        matched_tag_params["ocp_source_uuid"] = ocp_provider_uuid
+        LOG.info(matched_tag_params)
+        matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
+        matched_tags_sql = matched_tags_sql.decode("utf-8")
+        LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
+        matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)
+        return matched_tags_result[0][0]
