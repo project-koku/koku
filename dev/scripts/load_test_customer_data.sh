@@ -219,7 +219,7 @@ trigger_ocp_ingest() {
           has_data=$(echo "$response" | jq -r --arg source_name "$source_name" '.data[] | select(.name == $source_name) | .has_data')
       }
 
-    local max_retries=100
+    local max_retries=50
     local retries=0
 
     while [ "$retries" -lt "$max_retries" ]; do

@@ -29,7 +29,7 @@ from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
-from masu.processor.parquet.managed_flow_params import ManagedFlowSQLParams
+from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 
 LOG = logging.getLogger(__name__)
 
@@ -283,13 +283,13 @@ class ReportDBAccessorBase:
                     else:
                         raise err
 
-    def find_openshift_keys_expected_values(self, ocp_provider_uuid: str, managed_params: ManagedFlowSQLParams) -> Any:
+    def find_openshift_keys_expected_values(self, ocp_provider_uuid: str, sql_metadata: ManagedSqlMetadata) -> Any:
         """
         We need to find the expected values for the openshift specific keys.
         Keys: openshift-project, openshift-node, openshift-cluster
         Ex: ("openshift-project": "project_a")
         """
-        matched_tag_params = managed_params.build_params(
+        matched_tag_params = sql_metadata.build_params(
             ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs"]
         )
         matched_tag_params["ocp_source_uuid"] = ocp_provider_uuid

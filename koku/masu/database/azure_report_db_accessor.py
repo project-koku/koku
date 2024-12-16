@@ -7,6 +7,8 @@ import json
 import logging
 import pkgutil
 import uuid
+from typing import Any
+from typing import List
 
 from dateutil.parser import parse
 from django.db import connection
@@ -22,6 +24,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_azure
+from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_TEMP_MANAGED_TABLES
@@ -426,41 +429,41 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, managed_params, verification_tags):
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: ManagedSqlMetadata):
         """
         Verify the managed trino table population went successfully.
         """
-        verification_params = managed_params.build_params(["schema", "cloud_source_uuid", "year", "month"])
-        verification_params["matched_tag_array"] = verification_tags
+        params = sql_metadata.build_params(["schema", "cloud_source_uuid", "year", "month"])
+        params["matched_tag_array"] = verification_tags
         verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_azure_verification.sql")
         verification_sql = verification_sql.decode("utf-8")
-        LOG.info(log_json(msg="running verification for managed OCP on Azure daily SQL", **verification_params))
-        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        LOG.info(log_json(msg="running verification for managed OCP on Azure daily SQL", **params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=params)
         if False in result[0]:
-            LOG.error(log_json(msg="Verification failed", **verification_params))
+            LOG.error(log_json(msg="Verification failed", **params))
         else:
-            LOG.info(log_json(msg="Verification successful", **verification_params))
+            LOG.info(log_json(msg="Verification successful", **params))
 
-    def populate_ocp_on_cloud_daily_trino(self, managed_params):
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
         """Populate the managed_aws_openshift_daily trino table for OCP on Azure.
         Args:
-            managed_params: object of ManagedFlowSQLParams class
+            sql_metadata: object of ManagedSqlMetadata class
         Returns
             (None)
         """
         verification_tags = []
-        for ocp_provider_uuid in managed_params.ocp_source_uuids:
-            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, managed_params)
+        for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
+            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
             verification_tags.extend(matched_tags_result)
             self.delete_ocp_on_azure_hive_partition_by_day(
-                managed_params.days_tup,
-                managed_params.cloud_provider_uuid,
+                sql_metadata.days_tup,
+                sql_metadata.cloud_provider_uuid,
                 ocp_provider_uuid,
-                managed_params.year,
-                managed_params.month,
+                sql_metadata.year,
+                sql_metadata.month,
                 TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
             )
-            summary_sql_params = managed_params.build_params(
+            summary_sql_params = sql_metadata.build_params(
                 ["schema", "start_date", "year", "month", "days", "end_date", "cloud_provider_uuid"]
             )
             summary_sql_params["ocp_source_uuid"] = ocp_provider_uuid
@@ -472,4 +475,4 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql = summary_sql.decode("utf-8")
             self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
         verification_tags = list(dict.fromkeys(verification_tags))
-        self.verify_populate_ocp_on_cloud_daily_trino(managed_params, verification_tags)
+        self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

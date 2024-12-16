@@ -9,7 +9,7 @@ from api.utils import DateHelper
 
 
 @dataclass
-class ManagedFlowSQLParams:
+class ManagedSqlMetadata:
     schema: str
     ocp_source_uuids: List[str]
     cloud_provider_uuid: str
