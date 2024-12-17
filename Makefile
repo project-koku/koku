@@ -188,7 +188,7 @@ delete-test-sources:
 delete-cost-models:
 	$(PYTHON) $(SCRIPTDIR)/delete_cost_models.py
 
-delete-test-customer-data: delete-test-sources delete-cost-models
+delete-test-customer-data: delete-test-sources delete-cost-models delete-testing
 
 test_source=all
 load-test-customer-data:

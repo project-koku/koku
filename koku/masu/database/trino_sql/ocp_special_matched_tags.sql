@@ -17,7 +17,7 @@ cte_cluster_info as (
     and provider.uuid = CAST({{ocp_source_uuid}} as UUID)
 ),
 cte_tag_matches AS (
-    SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+    SELECT * FROM unnest(ARRAY{{matched_tag_strs | sqlsafe}}) as t(matched_tag)
 
     UNION
 

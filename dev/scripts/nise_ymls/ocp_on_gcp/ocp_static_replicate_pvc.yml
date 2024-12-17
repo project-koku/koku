@@ -1,0 +1,37 @@
+---
+generators:
+  - OCPGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      nodes:
+        - node:
+          node_name: sushi_compute1
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            fall:
+              pods:
+                - pod:
+                  pod_name: nilla
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                - pod:
+                  pod_name: pod_name1b
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_1
+                  storage_class: pd-standard
+                  volume_request_gig: 20
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: nilla_data
+                    pod_name: nilla
+                    capacity_gig: 20
