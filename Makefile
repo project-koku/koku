@@ -342,7 +342,10 @@ docker-up-no-build: docker-up-db
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
-docker-up-min-no-build: docker-host-dir-setup docker-up-db
+# docker-up-min-no-build: docker-host-dir-setup docker-up-db
+# 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
+
+docker-up-min-no-build: docker-host-dir-setup
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets

@@ -39,7 +39,6 @@ from rest_framework.settings import api_settings
 from koku.env import ENVIRONMENT
 from masu.external.kafka_msg_handler import process_messages
 
-
 OCP_INGRESS_BUCKET = ENVIRONMENT.get_value("S3_BUCKET_NAME_OCP_INGRESS", default="ocp-ingress")
 
 
@@ -48,7 +47,7 @@ class MockMessage:
 
     def __init__(self, request_id, filename):
         """Initialize MockMessage."""
-        s3_signature = get_s3_signature(settings.S3_ENDPOINT, filename)
+        s3_signature = get_s3_signature("http://koku-minio:9000", filename)
         value_dict = {"url": s3_signature, "b64_identity": "", "request_id": request_id}
 
         self._value = json.dumps(value_dict).encode("utf-8")
@@ -100,7 +99,7 @@ def ingest_ocp_payload(request):
         for _, file in request.FILES.items():
             payload_name = file.name
             response_data["payload-name"].append(payload_name)
-            s3_signature = get_s3_signature(settings.S3_ENDPOINT, payload_name, method="put_object")
+            s3_signature = get_s3_signature("http://koku-minio:9000", payload_name, method="put_object")
             res = upload_file_to_s3(s3_signature, data=file.file)
             if res.status_code == HTTPStatus.OK:
                 response_data["upload"] = "success"
