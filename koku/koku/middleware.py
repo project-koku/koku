@@ -261,7 +261,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     UNIQUE_ACCOUNT_COUNTER.inc()
                     LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
         except IntegrityError:
-            customer = Customer.objects.filter(org_id=org_id).get()
+            try:
+                customer = Customer.objects.filter(org_id=org_id).get()
+            except Customer.DoesNotExist:
+                LOG.warning(f"Customer with org_id {org_id} does not exist. Returning None.")
+                return None
 
         return customer
 
