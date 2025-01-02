@@ -5,6 +5,7 @@
 """Report Processing Orchestrator."""
 import copy
 import logging
+from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 
@@ -40,7 +41,6 @@ from masu.processor.worker_cache import WorkerCache
 from masu.util.aws.common import update_account_aliases
 from subs.tasks import extract_subs_data_from_reports
 from subs.tasks import SUBS_EXTRACTION_QUEUE
-
 
 LOG = logging.getLogger(__name__)
 
@@ -565,17 +565,31 @@ class Orchestrator:
 
         """
         async_results = []
+        schemas = defaultdict(set)
         for account in Provider.objects.get_accounts():
-            LOG.info("Calling remove_expired_data with account: %s", account)
-            async_result = remove_expired_data.delay(
-                schema_name=account.get("schema_name"), provider=account.get("provider_type"), simulate=simulate
-            )
-            LOG.info(
-                "Expired data removal queued - schema_name: %s, Task ID: %s",
-                account.get("schema_name"),
-                str(async_result),
-            )
-            async_results.append({"customer": account.get("customer_name"), "async_id": str(async_result)})
+            # create a dict of {schema: set(provider_types)}
+            schemas[account.get("schema_name")].add(account.get("provider_type"))
+        for schema, provider_types in schemas.items():
+            for provider_type in provider_types:
+                LOG.info(
+                    log_json(
+                        "remove_expired_report_data",
+                        msg="calling remove_expired_data",
+                        schema=schema,
+                        provider_type=provider_type,
+                    )
+                )
+                async_result = remove_expired_data.delay(schema_name=schema, provider=provider_type, simulate=simulate)
+                LOG.info(
+                    log_json(
+                        "remove_expired_report_data",
+                        msg="expired data removal queued",
+                        schema=schema,
+                        provider_type=provider_type,
+                        task_id=str(async_result),
+                    )
+                )
+                async_results.append({"schema": schema, "provider_type": provider_type, "async_id": str(async_result)})
         return async_results
 
     def remove_expired_trino_partitions(self, simulate=False):
