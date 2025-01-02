@@ -135,7 +135,7 @@ class OCPReportDBCleaner:
                 LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
 
                 # Remove all data related to the report period
-                del_count, _ = OCPUsageReportPeriod.objects.filter(id__in=all_report_periods).delete()
+                del_count = execute_delete_sql(OCPUsageReportPeriod.objects.filter(id__in=all_report_periods))
                 LOG.info(
                     log_json(
                         msg="deleted ocp-usage-report-periods",
