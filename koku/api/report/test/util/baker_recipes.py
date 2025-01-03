@@ -14,7 +14,10 @@ from api.report.test.util.constants import AZURE_CONSTANTS
 from api.report.test.util.constants import GCP_CONSTANTS
 from api.report.test.util.constants import OCI_CONSTANTS
 from api.report.test.util.constants import OCP_CONSTANTS
-
+from koku.database import get_model
+from reporting.provider.aws.models import UI_SUMMARY_TABLES as AWS_UI_SUMMARY_TABLES
+from reporting.provider.gcp.models import UI_SUMMARY_TABLES as GCP_UI_SUMMARY_TABLES
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES as OCP_UI_SUMMARY_TABLES
 
 fake = Faker()
 
@@ -375,3 +378,21 @@ oci_daily_summary = Recipe(
     _fill_optional=True,
     _quantity=OCI_CONSTANTS.length,
 )
+
+P_TABLES = [
+    get_model("AWSCostEntryLineItemDailySummary"),
+    get_model("AWSCostEntryLineItemSummaryByEC2ComputeP"),
+    get_model("AzureCostEntryLineItemDailySummary"),
+    get_model("GCPCostEntryLineItemDailySummary"),
+    get_model("OCPUsageLineItemDailySummary"),
+    get_model("OCPAWSCostLineItemDailySummaryP"),
+    get_model("OCPAWSCostLineItemProjectDailySummaryP"),
+    get_model("OCPAzureCostLineItemDailySummaryP"),
+    get_model("OCPAzureCostLineItemProjectDailySummaryP"),
+    get_model("OCPGCPCostLineItemDailySummaryP"),
+    get_model("OCPGCPCostLineItemProjectDailySummaryP"),
+    get_model("OCICostEntryLineItemDailySummary"),
+    *AWS_UI_SUMMARY_TABLES,
+    *GCP_UI_SUMMARY_TABLES,
+    *OCP_UI_SUMMARY_TABLES,
+]
