@@ -11,7 +11,6 @@ import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
-from masu.processor import is_gcp_resource_matching_disabled
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
 
@@ -200,22 +199,14 @@ def deduplicate_reports_for_gcp(report_list):
 
 
 def check_resource_level(gcp_provider_uuid):
-    LOG.info("Fetching account for checking unleash resource level")
-    if provider := Provider.objects.filter(uuid=gcp_provider_uuid).first():
-        account = provider.account
-        if is_gcp_resource_matching_disabled(account.get("schema_name")):
-            LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
-            return False
-    else:
+    provider = Provider.objects.filter(uuid=gcp_provider_uuid).first()
+    if not provider:
         LOG.info("Account not returned, source likely has processing suspended.")
         return False
     if source := provider.account.get("data_source"):
-        if not source.get("storage_only"):
-            if "resource" in source.get("table_id"):
-                LOG.info("OCP GCP matching set to resource level")
-                return True
-        else:
-            LOG.info("Storage only source defaults to resource level only")
+        if source.get("storage_only") or "resource" in source.get("table_id"):
+            # storage only sources default to resource level only
+            LOG.info("OCP GCP matching set to resource level")
             return True
     LOG.info("Defaulting to GCP tag matching")
     return False
