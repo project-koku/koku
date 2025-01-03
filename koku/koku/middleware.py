@@ -29,6 +29,7 @@ from django_prometheus.middleware import PrometheusBeforeMiddleware
 from django_tenants.middleware import TenantMainMiddleware
 from prometheus_client import Counter
 
+from api.common import log_json
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
@@ -247,10 +248,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     def create_customer(account, org_id, request_method):
         """Create a customer.
         Args:
-            account (str): The account identifier
-            org_id (str): The org_id identifier
+            account (str): The account identifier.
+            org_id (str): The org_id identifier.
+            request_method (str): The HTTP request method.
         Returns:
-            (Customer) The created customer
+            Customer | None: The created  or retrieved customer, or None if not saved or found.
         """
         try:
             with transaction.atomic():
@@ -260,14 +262,38 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     customer.save()
                     UNIQUE_ACCOUNT_COUNTER.inc()
                     LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
+                    return customer
+                else:
+                    LOG.warning(
+                        log_json(
+                            msg="Customer object not saved",
+                            request_method=request_method,
+                            account_id=account,
+                            org_id=org_id,
+                        )
+                    )
+                    return None
+
         except IntegrityError:
+            LOG.warning(
+                log_json(
+                    msg="IntegrityError when creating customer. Attempting to fetch existing record.",
+                    account_id=account,
+                    org_id=org_id,
+                )
+            )
             try:
                 customer = Customer.objects.filter(org_id=org_id).get()
+                return customer
             except Customer.DoesNotExist:
-                LOG.warning(f"Customer with org_id {org_id} does not exist. Returning None.")
+                LOG.warning(
+                    log_json(
+                        msg="Customer does not exist. Returning None.",
+                        account_id=account,
+                        org_id=org_id,
+                    )
+                )
                 return None
-
-        return customer
 
     def _get_access(self, user):
         """Obtain access for given user from RBAC service."""
@@ -430,7 +456,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 class RequestTimingMiddleware(MiddlewareMixin):
     """A class to add total time taken to a request/response."""
 
-    def process_request(self, request):  # noqa: C901
+    def process_request(self, request):
         """Process request to add start time.
         Args:
             request (object): The request object
