@@ -4,7 +4,6 @@
 #
 # flake8: noqa
 """Koku Test Runner."""
-
 import logging
 import os
 import sys
@@ -14,15 +13,12 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
-from django_tenants.utils import schema_context
 
 from api.models import Customer
 from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
-from api.report.test.util.baker_recipes import P_TABLES
 from koku.env import ENVIRONMENT
-from koku.pg_partition import PartitionHandlerMixin
 
 
 OCP_ON_AWS_CLUSTER_ID = "OCP-on-AWS"
@@ -137,14 +133,6 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
 
                         # OCI
                         bakery_data_loader.load_oci_data()
-
-                        with schema_context(KokuTestRunner.schema):
-                            PartitionHandlerMixin()._handle_partitions(
-                                KokuTestRunner.schema,
-                                P_TABLES,
-                                bakery_data_loader.first_start_date,
-                                bakery_data_loader.last_end_date,
-                            )
 
                         for account in [("10002", "org2222222", "2222222"), ("12345", "org3333333", "3333333")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
