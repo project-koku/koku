@@ -570,6 +570,12 @@ class Orchestrator:
             # create a dict of {schema: set(provider_types)}
             schemas[account.get("schema_name")].add(account.get("provider_type"))
         for schema, provider_types in schemas.items():
+            provider_types = list(provider_types)
+            if Provider.PROVIDER_OCP in provider_types:
+                # move OCP to the end of the list because its ForeignKeys are complicated and these should be cleaned
+                # up after the cloud providers
+                provider_types.remove(Provider.PROVIDER_OCP)
+                provider_types.append(Provider.PROVIDER_OCP)
             for provider_type in provider_types:
                 LOG.info(
                     log_json(
