@@ -7,61 +7,61 @@ license = {file = "LICENSE"}
 requires-python = ">=3.11.0,<3.12"
 dependencies = [
     "adal",
-    "app-common-python>=0.2.3",
+    "app-common-python",
     "azure-identity",
-    "azure-mgmt-costmanagement>=3.0.0",
+    "azure-mgmt-costmanagement",
     "azure-mgmt-compute",
-    "azure-mgmt-resource>=8.0",
-    "azure-mgmt-storage>=20.1.0",
-    "azure-storage-blob>=12.1",
-    "boto3>=1.34",
-    "bs4>=0.0.1",
-    "cachetools>=4.1.0",
-    "celery>=5.2.2",
-    "ciso8601>=2.1",
-    "confluent-kafka>=2.1.0",
+    "azure-mgmt-resource",
+    "azure-mgmt-storage",
+    "azure-storage-blob",
+    "boto3",
+    "bs4",
+    "cachetools",
+    "celery",
+    "ciso8601",
+    "confluent-kafka",
     "croniter",
     "Django~=4.2.0",
-    "django-cors-headers>=3.1",
-    "django-environ>=0.4",
-    "django-extensions>=2.2",
-    "django-filter>=2.2",
-    "django-prometheus>=1.1",
-    "django-redis>=4.10",
-    "django-tenants>=3.4",
-    "djangorestframework>=3.14.0",
-    "djangorestframework-csv>=2.1",
-    "google-api-python-client>=1.12.4",
-    "google-auth>=1.22.1",
-    "google-cloud-bigquery>=2.2.0",
+    "django-cors-headers",
+    "django-environ",
+    "django-extensions",
+    "django-filter",
+    "django-prometheus",
+    "django-redis",
+    "django-tenants",
+    "djangorestframework",
+    "djangorestframework-csv",
+    "google-api-python-client",
+    "google-auth",
+    "google-cloud-bigquery",
     "google-cloud-storage",
     "gunicorn",
-    "ibm-cloud-sdk-core>=3.5.2",
-    "ibm-platform-services>=0.17.8",
+    "ibm-cloud-sdk-core",
+    "ibm-platform-services",
     "jinjasql2",
-    "kafka-python>=2.0.1",
+    "kafka-python",
     "kombu<5.3",
     "msrestazure",
     "numpy",
     "oci",
     "pandas<2.3",
-    "prometheus-client>=0.7",
-    "psutil>=5.6",
-    "psycopg2>=2.9",
-    "pyarrow>=0.17.1",
-    "python-dateutil>=2.8",
-    "querystring-parser>=1.2",
-    "redis>=5.0.1",
-    "requests>=2.32.0",
-    "sentry-sdk>=0.13",
-    "statsmodels>=0.12",
+    "prometheus-client",
+    "psutil",
+    "psycopg2",
+    "pyarrow",
+    "python-dateutil",
+    "querystring-parser",
+    "redis",
+    "requests",
+    "sentry-sdk",
+    "statsmodels",
     "trino",
     "unleashclient<5",
     "watchtower==1.0.6",
-    "whitenoise>=5.0",
-    "pydantic>=2",
+    "whitenoise",
+    "pydantic",
     "sqlparse",
-    "polars>=1.16.0",
+    "polars",
 ]
 
 [[tool.uv.index]]
@@ -70,54 +70,54 @@ url = "https://pypi.python.org/simple"
 
 [dependency-groups]
 dev = [
-    "argh>=0.26.2",
-    "astroid>=2.3",
+    "argh",
+    "astroid",
     "flower",
-    "coverage>=5.0",
+    "coverage",
     "crc-bonfire",
-    "debugpy>=1.3.0",
+    "debugpy",
     "django-cprofile-middleware",
-    "faker>=0.8",
-    "flake8>=3.7",
+    "faker",
+    "flake8",
     "koku-nise",
-    "matplotlib>=3.3",
-    "model-bakery>=1.1",
-    "pre-commit>=2.0",
-    "pydocstyle>=4.0",
-    "PyYaml>=5.3",
-    "requests-mock>=1.7",
-    "responses>=0.10",
+    "matplotlib",
+    "model-bakery",
+    "pre-commit",
+    "pydocstyle",
+    "PyYaml",
+    "requests-mock",
+    "responses",
     "snakeviz",
-    "tblib>=1.6",
-    "tox>=3.0",
-    "watchdog>=2.1.1",
+    "tblib",
+    "tox",
+    "watchdog",
 ]
 
 [tool.ruff]
 
-extend-exclude = [
-    "**/migrations/*.py",
-    "**/manage.py",
-    "**/settings.py",
-    "**/.unleash/",
-]
-
-# Same as Black.
-line-length = 120
-indent-width = 4
-
-# Assume Python 3.11
+line-length = 119
 target-version = "py311"
 
-[tool.ruff.lint]
-# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
-# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
-# McCabe complexity (`C901`) by default.
-# select = ["E4", "E7", "E9", "F"]
-# ignore = ["E203", "W503"]
+extend-exclude=["**/migrations/*.py"]
 
-fixable = ["ALL"]
-unfixable = []
+[tool.ruff.lint]
+# F https://docs.astral.sh/ruff/rules/#pyflakes-f
+# E, W https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
+# C90 https://docs.astral.sh/ruff/rules/#mccabe-c90
+# UP https://docs.astral.sh/ruff/rules/#pyupgrade-up
+select = ["F", "E", "W", "C90", "UP"]
+# extend-select = ["UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore `F401` (unused import) in all `__init__.py`, `models.py`, and `views.py` files.
+"**/__init__.py" = ["F401"]
+"**/models.py" = ["F401"]
+"**/views.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+known-first-party = ["koku", "api", "common", "cost_models", "forecast", "hcs", "kafka_utils", "key_metrics", "masu", "providers", "reporting", "reporting_common", "sources", "subs"]
+order-by-type = false
 
 [tool.ruff.format]
 quote-style = "double"
@@ -138,6 +138,3 @@ docstring-code-format = false
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
-
-[tool.ruff.lint.per-file-ignores]
-"models.py" = ["F401"]
