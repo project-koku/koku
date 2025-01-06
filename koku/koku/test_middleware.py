@@ -484,8 +484,8 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware.process_request(mock_request)
 
     @patch("api.iam.models.Customer.save")
-    def test_create_customer_valid_request_method(self, mock_save):
-        """Test creating a customer with a valid request method."""
+    def test_create_customer(self, mock_save):
+        """Test creating a customer."""
 
         mock_save.return_value = None
         customer = IdentityHeaderMiddleware.create_customer("test_account", "test_org", "POST")
@@ -493,13 +493,6 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertIsNotNone(customer)
         self.assertEqual(customer.account_id, "test_account")
         mock_save.assert_called_once()
-
-    def test_create_customer_invalid_request_method(self):
-        """Test that no customer is created for a GET request method."""
-
-        customer = IdentityHeaderMiddleware.create_customer("test_account", "test_org", "GET")
-
-        self.assertIsNone(customer)
 
     @patch("api.iam.models.Customer.objects.filter")
     @patch("api.iam.models.Customer.save", side_effect=IntegrityError)
