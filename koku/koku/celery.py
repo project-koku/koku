@@ -1,4 +1,5 @@
 """Celery configuration for the Koku project."""
+
 import logging
 import os
 import time
@@ -9,20 +10,20 @@ from pprint import pprint
 from celery import Celery
 from celery import Task
 from celery.schedules import crontab
+from celery.schedules import ParseException
 from celery.signals import celeryd_after_setup
 from celery.signals import worker_process_init
 from celery.signals import worker_process_shutdown
-from croniter import croniter
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
-from .database import FKViolation
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
 
+from .database import FKViolation
 
 LOG = logging.getLogger(__name__)
 
@@ -85,11 +86,16 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
         self._write_response(ProbeResponse(status, msg))
 
 
-def validate_cron_expression(expresssion, default="0 * * * *"):
-    if not croniter.is_valid(expresssion):
-        print(f"Invalid report-download-schedule {expresssion}. Falling back to default {default}")
-        expresssion = default
-    return expresssion
+def validate_cron_expression(expression, default="0 * * * *"):
+    if len(expression.split(" ", 5)) != 5:
+        print(f"Invalid cron expression: {expression}. Falling back to default {default}")
+        expression = default
+    try:
+        crontab(*expression.split(" ", 5))
+    except (ValueError, ParseException) as e:
+        print(f"Invalid cron expression: {expression}. Falling back to default {default}, Error: {e}")
+        expression = default
+    return expression
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
@@ -235,8 +241,9 @@ if "scheduler" in hostname:
 @celeryd_after_setup.connect
 def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     """Wait for migrations to complete before completing worker startup."""
-    from .database import check_migrations
     from masu.celery.tasks import collect_queue_metrics
+
+    from .database import check_migrations
 
     httpd = start_probe_server(WorkerProbeServer)
 
