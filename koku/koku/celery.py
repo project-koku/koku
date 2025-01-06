@@ -1,5 +1,4 @@
 """Celery configuration for the Koku project."""
-
 import logging
 import os
 import time
@@ -17,13 +16,12 @@ from celery.signals import worker_process_shutdown
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
+from .database import FKViolation
 from koku import sentry  # noqa: F401
 from koku.env import ENVIRONMENT
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
-
-from .database import FKViolation
 
 LOG = logging.getLogger(__name__)
 
