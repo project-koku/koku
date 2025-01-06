@@ -251,7 +251,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             org_id (str): The org_id identifier.
             request_method (str): The HTTP request method.
         Returns:
-            Customer | None: The created  or retrieved customer, or None if not found.
+            Customer : The created  or retrieved customer, or empty customer object if not found.
         """
         try:
             with transaction.atomic():
@@ -270,8 +270,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             try:
                 customer = Customer.objects.filter(org_id=org_id).get()
             except Customer.DoesNotExist:
-                LOG.warning(f"Customer for org_id {org_id} does not exist. Returning None.")
-                return None
+                LOG.warning(f"Customer for org_id {org_id} does not exist. Returning empty object.")
+                customer = Customer(account_id="", org_id="", schema_name="")
 
         return customer
 

@@ -521,7 +521,8 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
 
         customer = IdentityHeaderMiddleware.create_customer("test_account", "test_org", "POST")
 
-        self.assertIsNone(customer)
+        self.assertIsNotNone(customer)
+        self.assertEqual(customer.org_id, "")
         mock_save.assert_called_once()
         mock_filter.assert_called_once_with(org_id="test_org")
         mock_query_set.get.assert_called_once()
