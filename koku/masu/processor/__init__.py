@@ -70,11 +70,11 @@ def is_ocp_on_cloud_summary_disabled(account):  # pragma: no cover
     return res
 
 
-def is_customer_large(account):  # pragma: no cover
-    """Flag the customer as large."""
+def is_tag_processing_disabled(account):  # pragma: no cover
+    """Flag the customer as tag processing disabled."""
     account = convert_account(account)
     context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer", context)
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_tag_processing_disabled", context)
 
 
 def is_customer_penalty(account):  # pragma: no cover
@@ -85,6 +85,13 @@ def is_customer_penalty(account):  # pragma: no cover
 
 
 def is_rate_limit_customer_large(account):  # pragma: no cover
+    """Flag the customer as large and to be rate limited."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer.rate-limit", context)
+
+
+def is_customer_large(account):  # pragma: no cover
     """Flag the customer as large and to be rate limited."""
     account = convert_account(account)
     context = {"schema": account}
