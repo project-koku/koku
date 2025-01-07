@@ -153,6 +153,9 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def get_matched_tags(self, ocp_provider_uuids):
         """Get tags that match between OCP and the cloud source."""
         # Get matching tags
+        # TODO We should consider if this can be locked per worker
+        # Right now multiple workers can run the same query adding DB load
+        # Instead 1 worker should query and the rest wait for the cache result.
         cache_key = build_matching_tags_key(self.schema_name, self.provider_type)
         matched_tags = get_value_from_cache(cache_key)
         ctx = {
@@ -170,7 +173,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             if enabled_tags:
                 LOG.info(log_json(msg="getting matching tags from Postgres", context=ctx))
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
-            if not matched_tags and enabled_tags:
+            # We really only need to run this on initial ingest
+            # After that tags SHOULD be availbe in postgres, unless there is NOTHING to match on
+            provider = Provider.objects.get(uuid=self.provider_uuid)
+            if not matched_tags and enabled_tags and not provider.setup_complete:
                 LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
                 LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
