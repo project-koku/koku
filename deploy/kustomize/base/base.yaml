@@ -166,19 +166,19 @@ objects:
 #   stringData:
 #     aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
 #     aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-gcp
-  data:
-    gcp-credentials: "${GCP_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-oci
-  data:
-    oci-credentials: "${OCI_CREDENTIALS_EPH}"
-    oci-config: "${OCI_CONFIG_EPH}"
+# - apiVersion: v1
+#   kind: Secret # For ephemeral/local environment only
+#   metadata:
+#     name: koku-gcp
+#   data:
+#     gcp-credentials: "${GCP_CREDENTIALS_EPH}"
+# - apiVersion: v1
+#   kind: Secret # For ephemeral/local environment only
+#   metadata:
+#     name: koku-oci
+#   data:
+#     oci-credentials: "${OCI_CREDENTIALS_EPH}"
+#     oci-config: "${OCI_CONFIG_EPH}"
 
 - apiVersion: v1
   kind: ConfigMap
@@ -286,7 +286,7 @@ parameters:
   description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
   value: ""
 - name: S3_BUCKET_NAME
-  value: mskarbek-glue
+  value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME

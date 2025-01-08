@@ -5641,19 +5641,6 @@ objects:
     name: koku-secret
 - apiVersion: v1
   data:
-    gcp-credentials: ${GCP_CREDENTIALS_EPH}
-  kind: Secret
-  metadata:
-    name: koku-gcp
-- apiVersion: v1
-  data:
-    oci-config: ${OCI_CONFIG_EPH}
-    oci-credentials: ${OCI_CREDENTIALS_EPH}
-  kind: Secret
-  metadata:
-    name: koku-oci
-- apiVersion: v1
-  data:
     nginx.conf: |-
       worker_processes  1;
       error_log  /dev/stderr warn;
@@ -5754,7 +5741,7 @@ parameters:
   name: ORG_ID_SUFFIX
   value: ""
 - name: S3_BUCKET_NAME
-  value: mskarbek-glue
+  value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME
   value: ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
