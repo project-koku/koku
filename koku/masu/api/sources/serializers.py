@@ -69,6 +69,7 @@ class ProviderSerializer(serializers.Serializer):
     setup_complete = serializers.BooleanField()
     created_timestamp = serializers.DateTimeField()
     data_updated_timestamp = serializers.DateTimeField()
+    polling_timestamp = serializers.DateTimeField()
     active = serializers.BooleanField()
     paused = serializers.BooleanField()
     customer = CustomerSerializer()
