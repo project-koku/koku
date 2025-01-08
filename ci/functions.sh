@@ -124,8 +124,8 @@ function run_smoke_tests_stage() {
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
         --set-parameter koku/ORG_ID_SUFFIX=_${IMAGE_TAG} \
-        --set-parameter trino/IMAGE=quay.io/cloudservices/ubi-trino \
-        --set-parameter trino/IMAGE_TAG=pr-153-3d2c5d5 \
+        --set-parameter trino/IMAGE=quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/ubi-trino \
+        --set-parameter trino/IMAGE_TAG=pr-153-bd002af \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
