@@ -270,7 +270,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             try:
                 customer = Customer.objects.filter(org_id=org_id).get()
             except Customer.DoesNotExist:
-                LOG.warning(f"Customer for org_id {org_id} does not exist. Returning empty object.")
+                LOG.info(f"Customer for org_id {org_id} does not exist. Returning empty object.")
                 customer = Customer(account_id="", org_id="", schema_name="")
 
         return customer
