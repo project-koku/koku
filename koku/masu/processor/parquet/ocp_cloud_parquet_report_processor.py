@@ -26,6 +26,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import is_tag_processing_disabled
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
@@ -172,6 +173,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
             if not matched_tags and enabled_tags:
                 LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+                # This flag is specifically for disabling trino tag matching for specific customers.
+                if is_tag_processing_disabled(self.schema_name):
+                    LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
+                    return []
                 LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid,
