@@ -582,9 +582,9 @@ def copy_local_hcs_report_file_to_s3_bucket(
     if s3_path and settings.ENABLE_S3_ARCHIVING:
         LOG.info(f"copy_local_HCS_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         s3_resource = get_s3_resource(
-            access_key=settings.S3_ACCESS_KEY,
-            secret_key=settings.S3_SECRET,
-            region=settings.S3_REGION,
+            access_key=settings.S3_HCS_ACCESS_KEY,
+            secret_key=settings.S3_HCS_SECRET,
+            region=settings.S3_HCS_REGION,
             endpoint_url=settings.S3_HCS_ENDPOINT,
         )
         with open(full_file_path, "rb") as fin:
