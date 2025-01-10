@@ -26,10 +26,9 @@ from oci import config
 from oci.exceptions import ConfigFileNotFound
 
 from . import database
-from . import sentry
+from . import sentry  # noqa: F401
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
-
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
@@ -370,7 +369,9 @@ VERBOSE_FORMATTING = (
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
+SIMPLE_FORMATTING = (
+    "[%(asctime)s] %(levelname)s %(task_root_id)s %(task_parent_id)s %(task_id)s %(process)d %(message)s"
+)
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
