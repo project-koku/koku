@@ -5,6 +5,9 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+from dateutil.parser import parse
+from django.conf import settings
+
 from api.utils import DateHelper
 
 
@@ -22,6 +25,7 @@ class ManagedSqlMetadata:
     tmp_id: str = field(init=False)
 
     def __post_init__(self):
+        self._check_date_parameters_format()
         if not self.ocp_source_uuids:
             raise ValueError("ocp_source_uuids must not be empty.")
         if len(self.cloud_provider_uuid) == 0:
@@ -29,6 +33,13 @@ class ManagedSqlMetadata:
         if self.start_date > self.end_date:
             raise ValueError("start_date cannot be after end_date.")
         self._generate_sql_params()
+
+    def _check_date_parameters_format(self):
+        """Checks to make sure the date parameters are in the correct format"""
+        if type(self.start_date) == str:
+            self.start_date = parse(self.start_date).astimezone(tz=settings.UTC)
+        if type(self.end_date) == str:
+            self.end_date = parse(self.end_date).astimezone(tz=settings.UTC)
 
     def _generate_sql_params(self):
         """Populates additional SQL parameters options"""

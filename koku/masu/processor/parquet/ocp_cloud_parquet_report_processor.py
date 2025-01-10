@@ -10,8 +10,6 @@ import pkgutil
 from functools import cached_property
 
 import pandas as pd
-from dateutil.parser import parse
-from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -313,10 +311,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Populate cloud_openshift_daily trino table via SQL."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
-        if type(start_date) == str:
-            start_date = parse(start_date).astimezone(tz=settings.UTC)
-        if type(end_date) == str:
-            end_date = parse(end_date).astimezone(tz=settings.UTC)
         matched_tags = self.get_matched_tags(ocp_provider_uuids)
         matched_tag_strs = []
         if matched_tags:
