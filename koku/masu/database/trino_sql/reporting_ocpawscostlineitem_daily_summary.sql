@@ -753,7 +753,8 @@ WITH cte_total_pv_capacity as (
         AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
         AND ocp.csi_volume_handle is not null
         AND ocp.csi_volume_handle != ''
-        WHERE ocp.year = {{year}}
+        WHERE ocp.source = {{ocp_source_uuid}}
+            AND ocp.year = {{year}}
             AND lpad(ocp.month, 2, '0') = {{month}}
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
