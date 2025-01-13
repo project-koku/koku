@@ -47,9 +47,6 @@ def report_data(request):
         end_date = params.get("end_date")
         invoice_month = params.get("invoice_month")
         provider = None
-        if schema_name is not None:
-            schema_name = f"{schema_name}{settings.SCHEMA_SUFFIX}"
-
         fallback_queue = get_customer_queue(schema_name, PriorityQueue)
 
         ocp_on_cloud = params.get("ocp_on_cloud", "true").lower()
