@@ -684,7 +684,6 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
-    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -699,6 +698,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.resource_id_matched = True
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
 {% endif %}
 ;
@@ -803,7 +803,6 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
-    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 LEFT JOIN cte_total_pv_capacity as pv_cap
     ON pv_cap.aws_resource_id = aws.resource_id
 WHERE ocp.source = {{ocp_source_uuid}}
@@ -820,6 +819,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, aws.resource_id
 {% endif %}
 ;
@@ -936,7 +936,6 @@ SELECT aws.uuid as aws_uuid,
     LEFT JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
         ON aws_disk.usage_start = aws.usage_start
         AND aws_disk.resource_id = aws.resource_id
-        AND aws_disk.ocp_source = {{ocp_source_uuid}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -950,6 +949,7 @@ SELECT aws.uuid as aws_uuid,
         AND aws_disk.resource_id is NULL -- exclude any resource used in disk capacity calculations
         AND aws_disk.year = {{year}}
         AND aws_disk.month = {{month}}
+        AND aws_disk.ocp_source = {{ocp_source_uuid}}
     GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels
 ;
 
