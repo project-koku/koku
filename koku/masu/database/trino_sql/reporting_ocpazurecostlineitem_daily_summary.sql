@@ -515,6 +515,8 @@ WITH cte_total_pv_capacity as (
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
             AND azure.ocp_source = {{ocp_source_uuid}}
+            AND azure.year = {{year}}
+            AND azure.month = {{month}}
         GROUP BY ocp.persistentvolume, azure.resource_id
     ) as combined_requests group by azure_resource_id
 )

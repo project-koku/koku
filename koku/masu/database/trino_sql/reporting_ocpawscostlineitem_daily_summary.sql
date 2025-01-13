@@ -760,6 +760,8 @@ WITH cte_total_pv_capacity as (
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
             AND aws.ocp_source = {{ocp_source_uuid}}
+            AND aws.year = {{year}}
+            AND aws.month = {{month}}
         GROUP BY ocp.persistentvolume, aws.resource_id
     ) as combined_requests group by aws_resource_id
 )
