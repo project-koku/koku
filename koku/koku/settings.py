@@ -148,7 +148,7 @@ if DEVELOPMENT:
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
-            "org_id": f"1234567{SCHEMA_SUFFIX}",
+            "org_id": "1234567",
             "type": "User",
             "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": "True", "access": {}},
         },
