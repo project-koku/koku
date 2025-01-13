@@ -104,13 +104,16 @@ class AdminSourcesSerializer(SourcesSerializer):
         return get_param_from_header(self.context.get("request"), "account_number")
 
     def _validate_org_id(self, account_id):
-        return get_param_from_header(self.context.get("request"), "org_id")
+        org_id = get_param_from_header(self.context.get("request"), "org_id")
+        if not org_id.endswith(settings.SCHEMA_SUFFIX):
+            org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
+        return org_id
 
     def validate(self, data):
         data["source_id"] = self._validate_source_id(data.get("id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
-        data["org_id"] = f'{self._validate_org_id(data.get("org_id"))}{settings.SCHEMA_SUFFIX}'
+        data["org_id"] = self._validate_org_id(data.get("org_id"))
         data["source_uuid"] = uuid4()
         return data
 
