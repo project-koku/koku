@@ -446,6 +446,8 @@ SELECT cast(uuid() as varchar) as azure_uuid,
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = {{ocp_source_uuid}}
+        AND az_disk.year = {{year}}
+        AND az_disk.month = {{month}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -552,6 +554,8 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = {{ocp_source_uuid}}
+        AND az_disk.year = {{year}}
+        AND az_disk.month = {{month}}
     LEFT JOIN cte_total_pv_capacity as pv_cap
         ON pv_cap.azure_resource_id = azure.resource_id
     WHERE ocp.source = {{ocp_source_uuid}}

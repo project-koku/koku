@@ -685,6 +685,8 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
     AND aws_disk.ocp_source = {{ocp_source_uuid}}
+    AND aws_disk.year = {{year}}
+    AND aws_disk.month = {{month}}
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -803,6 +805,8 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
     AND aws_disk.ocp_source = {{ocp_source_uuid}}
+    AND aws_disk.year = {{year}}
+    AND aws_disk.month = {{month}}
 LEFT JOIN cte_total_pv_capacity as pv_cap
     ON pv_cap.aws_resource_id = aws.resource_id
 WHERE ocp.source = {{ocp_source_uuid}}
@@ -934,6 +938,8 @@ SELECT aws.uuid as aws_uuid,
         ON aws_disk.usage_start = aws.usage_start
         AND aws_disk.resource_id = aws.resource_id
         AND aws_disk.ocp_source = {{ocp_source_uuid}}
+        AND aws_disk.year = {{year}}
+        AND aws_disk.month = {{month}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
