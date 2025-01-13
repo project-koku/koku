@@ -16,7 +16,6 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import logging
 import os
 import re
-import secrets
 import sys
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
@@ -138,17 +137,18 @@ MIDDLEWARE = [
 MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
-ORG_ID_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("ORG_ID_SUFFIX", default=""))
-print(f"ORG ID SUFFIX: {ORG_ID_SUFFIX}")
+SCHEMA_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("SCHEMA_SUFFIX", default=""))
+print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
 if DEVELOPMENT:
-    if ORG_ID_SUFFIX in ("_CHANGEME", ""):
-        ORG_ID_SUFFIX = f"_{ENVIRONMENT.get_value('USER', default='') or secrets.token_hex(4)}"
-    if not ORG_ID_SUFFIX.startswith("_"):
-        ORG_ID_SUFFIX = f"_{ORG_ID_SUFFIX}"
+    if SCHEMA_SUFFIX == "":
+        SCHEMA_SUFFIX = f"_{ENVIRONMENT.get_value('USER', default='')}"
+    if not SCHEMA_SUFFIX.startswith("_"):
+        SCHEMA_SUFFIX = f"_{SCHEMA_SUFFIX}"
+    print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
-            "org_id": f"1234567{ORG_ID_SUFFIX}",
+            "org_id": f"1234567{SCHEMA_SUFFIX}",
             "type": "User",
             "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": "True", "access": {}},
         },

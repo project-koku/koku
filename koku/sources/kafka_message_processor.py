@@ -102,7 +102,7 @@ class KafkaMessageProcessor:
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         if "_" not in self.org_id:
-            self.org_id = f"{self.org_id}{settings.ORG_ID_SUFFIX}"
+            self.org_id = f"{self.org_id}{settings.SCHEMA_SUFFIX}"
         self.source_id = None
         self.application_type_id = None
 

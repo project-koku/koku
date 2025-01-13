@@ -22,8 +22,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -213,8 +213,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -395,8 +395,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -454,8 +454,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -604,8 +604,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: MASU
           value: "true"
         - name: DJANGO_SECRET_KEY
@@ -806,8 +806,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -970,8 +970,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: SOURCES
           value: "true"
         - name: SOURCES_PROBE_HEADER
@@ -1139,8 +1139,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: SOURCES
           value: "true"
         - name: SOURCES_PROBE_HEADER
@@ -1305,8 +1305,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1491,8 +1491,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1683,8 +1683,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1875,8 +1875,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2067,8 +2067,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2263,8 +2263,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2459,8 +2459,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2655,8 +2655,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2849,8 +2849,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3043,8 +3043,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3237,8 +3237,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3437,8 +3437,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3637,8 +3637,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3837,8 +3837,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4029,8 +4029,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4221,8 +4221,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4413,8 +4413,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4609,8 +4609,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4805,8 +4805,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5001,8 +5001,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5191,8 +5191,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5369,8 +5369,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5548,8 +5548,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -5583,8 +5583,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -5738,7 +5738,7 @@ parameters:
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral
     testing
-  name: ORG_ID_SUFFIX
+  name: SCHEMA_SUFFIX
   value: ""
 - name: S3_BUCKET_NAME
   value: koku-eph-s3

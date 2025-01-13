@@ -19,8 +19,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS

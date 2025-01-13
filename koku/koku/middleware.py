@@ -41,7 +41,6 @@ from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
-
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
@@ -322,7 +321,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             if request.META["QUERY_STRING"]:
                 query_string = f"?{request.META['QUERY_STRING']}"
             if "_" not in org_id:
-                org_id = f"{org_id}{settings.ORG_ID_SUFFIX}"
+                org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
             stmt = {
                 "method": request.method,
                 "path": request.path + query_string,

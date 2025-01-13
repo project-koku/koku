@@ -8,12 +8,13 @@ import os
 import boto3
 
 
-def clear_glue_data():
+def delete_glue_data():
     bucket_name = os.environ.get("S3_BUCKET_NAME")
     schema = f"org{os.environ.get('ORG')}"
     credentials = {
-        "aws_access_key_id": os.environ.get("TRINO_AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": os.environ.get("TRINO_AWS_SECRET_ACCESS_KEY"),
+        "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        "region_name": os.environ.get("S3_REGION"),
     }
     path_prefixes = {
         "s3_csv_path": f"data/csv/{schema}",
@@ -34,9 +35,9 @@ def clear_glue_data():
     try:
         glue_client.delete_database(Name=schema)
         print(f"Deleting database: {schema}")
-    except Exception:
-        print(f"Failed to delete db: {schema}, its possible it was already deleted")
+    except Exception as e:
+        print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
 
 
 if __name__ == "__main__":
-    clear_glue_data()
+    delete_glue_data()

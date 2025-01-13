@@ -73,8 +73,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -111,8 +111,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: ORG_ID_SUFFIX
-          value: ${ORG_ID_SUFFIX}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -282,7 +282,7 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
-- name: ORG_ID_SUFFIX
+- name: SCHEMA_SUFFIX
   description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
   value: ""
 - name: S3_BUCKET_NAME

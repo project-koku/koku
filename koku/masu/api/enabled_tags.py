@@ -52,7 +52,7 @@ class EnabledTagView(APIView):
             errmsg = "schema is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        schema_name = f"{schema_name}{settings.ORG_ID_SUFFIX}"
+        schema_name = f"{schema_name}{settings.SCHEMA_SUFFIX}"
 
         if provider_type is None or provider_type not in PROVIDER_TYPE_OPTIONS:
             errmsg = f"provider_type must be supplied. Select one of {PROVIDER_TYPE_OPTIONS}"
@@ -80,7 +80,7 @@ class EnabledTagView(APIView):
             errmsg = "schema is required."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        schema_name = f"{schema_name}{settings.ORG_ID_SUFFIX}"
+        schema_name = f"{schema_name}{settings.SCHEMA_SUFFIX}"
 
         if provider_type is None or provider_type not in PROVIDER_TYPE_OPTIONS:
             errmsg = f"provider_type must be supplied. Select one of {PROVIDER_TYPE_OPTIONS}"
