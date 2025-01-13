@@ -320,7 +320,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             query_string = ""
             if request.META["QUERY_STRING"]:
                 query_string = f"?{request.META['QUERY_STRING']}"
-            if "_" not in org_id:
+            if not org_id.endswith(settings.SCHEMA_SUFFIX):
                 org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
             stmt = {
                 "method": request.method,

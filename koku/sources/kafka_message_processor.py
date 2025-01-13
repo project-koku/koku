@@ -101,7 +101,7 @@ class KafkaMessageProcessor:
             msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or  org_id: {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
-        if "_" not in self.org_id:
+        if isinstance(self.org_id, str) and not self.org_id.endswith(settings.SCHEMA_SUFFIX):
             self.org_id = f"{self.org_id}{settings.SCHEMA_SUFFIX}"
         self.source_id = None
         self.application_type_id = None
