@@ -751,14 +751,15 @@ WITH cte_total_pv_capacity as (
             aws.resource_id as aws_resource_id
         FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
-        ON (aws.usage_start = ocp.usage_start)
-        AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
-        AND ocp.csi_volume_handle is not null
-        AND ocp.csi_volume_handle != ''
+            ON (aws.usage_start = ocp.usage_start)
+            AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
+            AND ocp.csi_volume_handle is not null
+            AND ocp.csi_volume_handle != ''
         WHERE ocp.year = {{year}}
             AND lpad(ocp.month, 2, '0') = {{month}}
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
+            AND aws.ocp_source = {{ocp_source_uuid}}
         GROUP BY ocp.persistentvolume, aws.resource_id
     ) as combined_requests group by aws_resource_id
 )
