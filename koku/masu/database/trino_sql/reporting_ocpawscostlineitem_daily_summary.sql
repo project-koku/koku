@@ -685,8 +685,6 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
     AND aws_disk.ocp_source = {{ocp_source_uuid}}
-    AND aws_disk.year = {{year}}
-    AND aws_disk.month = {{month}}
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -699,6 +697,8 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.data_transfer_direction IS NULL
     AND ocp.namespace != 'Storage unattributed'
     AND aws.resource_id_matched = True
+    AND aws_disk.year = {{year}}
+    AND aws_disk.month = {{month}}
 GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
 {% endif %}
 ;
@@ -805,8 +805,6 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
     AND aws_disk.ocp_source = {{ocp_source_uuid}}
-    AND aws_disk.year = {{year}}
-    AND aws_disk.month = {{month}}
 LEFT JOIN cte_total_pv_capacity as pv_cap
     ON pv_cap.aws_resource_id = aws.resource_id
 WHERE ocp.source = {{ocp_source_uuid}}
@@ -821,6 +819,8 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.data_transfer_direction IS NULL
     AND ocp.namespace != 'Storage unattributed'
     AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
+    AND aws_disk.year = {{year}}
+    AND aws_disk.month = {{month}}
 GROUP BY aws.uuid, aws.resource_id
 {% endif %}
 ;
@@ -938,8 +938,6 @@ SELECT aws.uuid as aws_uuid,
         ON aws_disk.usage_start = aws.usage_start
         AND aws_disk.resource_id = aws.resource_id
         AND aws_disk.ocp_source = {{ocp_source_uuid}}
-        AND aws_disk.year = {{year}}
-        AND aws_disk.month = {{month}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -951,6 +949,8 @@ SELECT aws.uuid as aws_uuid,
         -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
         AND aws.data_transfer_direction IS NULL
         AND aws_disk.resource_id is NULL -- exclude any resource used in disk capacity calculations
+        AND aws_disk.year = {{year}}
+        AND aws_disk.month = {{month}}
     GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels
 ;
 

@@ -446,8 +446,6 @@ SELECT cast(uuid() as varchar) as azure_uuid,
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = {{ocp_source_uuid}}
-        AND az_disk.year = {{year}}
-        AND az_disk.month = {{month}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -460,6 +458,8 @@ SELECT cast(uuid() as varchar) as azure_uuid,
         AND azure.year = {{year}}
         AND azure.month = {{month}}
         AND ocp.namespace != 'Storage unattributed'
+        AND az_disk.year = {{year}}
+        AND az_disk.month = {{month}}
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 -- The endif needs to come before the ; when using sqlparse
 {% endif %}
@@ -554,8 +554,6 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = {{ocp_source_uuid}}
-        AND az_disk.year = {{year}}
-        AND az_disk.month = {{month}}
     LEFT JOIN cte_total_pv_capacity as pv_cap
         ON pv_cap.azure_resource_id = azure.resource_id
     WHERE ocp.source = {{ocp_source_uuid}}
@@ -567,6 +565,8 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
         AND azure.year = {{year}}
         AND azure.month = {{month}}
         AND ocp.namespace != 'Storage unattributed'
+        AND az_disk.year = {{year}}
+        AND az_disk.month = {{month}}
     GROUP BY azure.uuid, ocp.data_source, azure.resource_id
 {% endif %}
 ;
