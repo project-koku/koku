@@ -678,24 +678,33 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._execute_trino_multipart_sql_query(update_managed_sql, bind_params=params)
 
     def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
-        """Populate the managed_aws_openshift_daily trino table for OCP on GCP"""
-        self._clean_up_managed_temp_tables(sql_metadata)
-        self._create_tables_and_generate_unique_id(sql_metadata)
-        verification_tags = []
-        for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
-            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
-            verification_tags.extend(matched_tags_result)
-            self._populate_gcp_filtered_by_ocp_tmp_table(ocp_provider_uuid, matched_tags_result, sql_metadata)
-            self.delete_ocp_on_gcp_hive_partition_by_day(
-                sql_metadata.days_tup,
-                sql_metadata.cloud_provider_uuid,
-                ocp_provider_uuid,
-                sql_metadata.year,
-                sql_metadata.month,
-                TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
-            )
+        """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
+        try:
+            self._clean_up_managed_temp_tables(sql_metadata)
+            self._create_tables_and_generate_unique_id(sql_metadata)
+            verification_tags = []
+            for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
+                matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
+                verification_tags.extend(matched_tags_result)
+                self._populate_gcp_filtered_by_ocp_tmp_table(ocp_provider_uuid, matched_tags_result, sql_metadata)
+                self.delete_ocp_on_gcp_hive_partition_by_day(
+                    sql_metadata.days_tup,
+                    sql_metadata.cloud_provider_uuid,
+                    ocp_provider_uuid,
+                    sql_metadata.year,
+                    sql_metadata.month,
+                    TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+                )
 
-        self._populate_final_managed_table(sql_metadata)
-        self._clean_up_managed_temp_tables(sql_metadata)
-        verification_tags = list(dict.fromkeys(verification_tags))
-        self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
+            self._populate_final_managed_table(sql_metadata)
+            self._clean_up_managed_temp_tables(sql_metadata)
+            verification_tags = list(dict.fromkeys(verification_tags))
+            self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
+        except Exception as error:
+            message = "Unexpected error during ocp on gcp managed table population"
+            log_context = sql_metadata.build_params(
+                ["schema", "start_date", "end_date", "ocp_source_uuid", "cloud_source_uuid"]
+            )
+            LOG.error(log_json(msg=message, context=log_context), exc_info=error)
+        finally:
+            self._clean_up_managed_temp_tables(sql_metadata)
