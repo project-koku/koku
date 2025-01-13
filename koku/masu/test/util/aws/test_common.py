@@ -262,8 +262,9 @@ class TestAWSUtils(MasuTestCase):
 
             mock_account_id = self.account_id
 
-            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
-                "masu.util.aws.common.get_account_names_by_organization"
+            with (
+                patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get,
+                patch("masu.util.aws.common.get_account_names_by_organization"),
             ):
                 mock_get.return_value = (mock_account_id, mock_account_id)
                 utils.update_account_aliases(self.aws_provider)
@@ -279,8 +280,9 @@ class TestAWSUtils(MasuTestCase):
             mock_account_id = self.account_id
             mock_alias = "mock_alias"
 
-            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
-                "masu.util.aws.common.get_account_names_by_organization"
+            with (
+                patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get,
+                patch("masu.util.aws.common.get_account_names_by_organization"),
             ):
                 mock_get.return_value = (mock_account_id, mock_alias)
                 utils.update_account_aliases(self.aws_provider)
@@ -298,9 +300,10 @@ class TestAWSUtils(MasuTestCase):
             mock_alias = "mock_alias"
             mock_alias2 = "mock_alias2"
 
-            with patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get, patch(
-                "masu.util.aws.common.get_account_names_by_organization"
-            ) as mock_get_orgs:
+            with (
+                patch("masu.util.aws.common.get_account_alias_from_role_arn") as mock_get,
+                patch("masu.util.aws.common.get_account_names_by_organization") as mock_get_orgs,
+            ):
                 mock_get.return_value = (mock_account_id, mock_alias)
                 mock_get_orgs.return_value = [{"id": mock_account_id2, "name": mock_alias2}]
                 utils.update_account_aliases(self.aws_provider)
@@ -497,10 +500,12 @@ class TestAWSUtils(MasuTestCase):
         """Test remove_s3_objects_not_matching_metadata."""
         metadata_key = "manifestid"
         metadata_value = "manifest_id"
-        removed = utils.delete_s3_objects_not_matching_metadata(
-            "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
-        )
-        self.assertEqual(removed, [])
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = []
+            removed = utils.delete_s3_objects_not_matching_metadata(
+                "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertEqual(removed, [])
 
         start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(
@@ -536,9 +541,10 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertListEqual(removed, [])
 
-        with patch("masu.util.aws.common.get_s3_objects_not_matching_metadata") as mock_get_objects, patch(
-            "masu.util.aws.common.get_s3_resource"
-        ) as mock_s3:
+        with (
+            patch("masu.util.aws.common.get_s3_objects_not_matching_metadata") as mock_get_objects,
+            patch("masu.util.aws.common.get_s3_resource") as mock_s3,
+        ):
             mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
             mock_get_objects.return_value = []
             removed = utils.delete_s3_objects_not_matching_metadata(
@@ -604,10 +610,12 @@ class TestAWSUtils(MasuTestCase):
         """Test remove_s3_objects_matching_metadata."""
         metadata_key = "manifestid"
         metadata_value = "manifest_id"
-        removed = utils.delete_s3_objects_matching_metadata(
-            "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
-        )
-        self.assertEqual(removed, [])
+        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+            mock_s3.return_value.Bucket.return_value.objects.filter.return_value = []
+            removed = utils.delete_s3_objects_matching_metadata(
+                "request_id", None, metadata_key=metadata_key, metadata_value_check=metadata_value
+            )
+            self.assertEqual(removed, [])
 
         start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(
@@ -644,9 +652,10 @@ class TestAWSUtils(MasuTestCase):
             )
             self.assertListEqual(removed, [])
 
-        with patch("masu.util.aws.common.get_s3_objects_matching_metadata") as mock_get_objects, patch(
-            "masu.util.aws.common.get_s3_resource"
-        ) as mock_s3:
+        with (
+            patch("masu.util.aws.common.get_s3_objects_matching_metadata") as mock_get_objects,
+            patch("masu.util.aws.common.get_s3_resource") as mock_s3,
+        ):
             mock_s3.return_value.Object.return_value.delete.side_effect = ClientError({}, "Error")
             mock_get_objects.return_value = []
             removed = utils.delete_s3_objects_matching_metadata(
@@ -665,8 +674,9 @@ class TestAWSUtils(MasuTestCase):
             with self.assertRaises(utils.UploadError):
                 utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
 
+    @patch("masu.util.aws.common.get_s3_resource", return_value="fake resource")
     @patch("masu.util.aws.common.copy_data_to_s3_bucket")
-    def test_copy_local_hcs_report_file_to_s3_bucket_with_finalize(self, mock_copy):
+    def test_copy_local_hcs_report_file_to_s3_bucket_with_finalize(self, mock_copy, mock_resource):
         """Test that the proper metadata is used when a finalized date is passed in with the finalize option"""
         fake_request_id = "fake_id"
         fake_s3_path = "fake_path"
@@ -679,7 +689,13 @@ class TestAWSUtils(MasuTestCase):
                 fake_request_id, fake_s3_path, fake_filename, fake_filename, True, "2023-08-15", expected_context
             )
         mock_copy.assert_called_once_with(
-            fake_request_id, fake_s3_path, fake_filename, mock_op(), expected_metadata, expected_context
+            fake_request_id,
+            fake_s3_path,
+            fake_filename,
+            mock_op(),
+            expected_metadata,
+            expected_context,
+            "fake resource",
         )
 
     def test_match_openshift_resources_and_labels(self):

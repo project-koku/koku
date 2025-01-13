@@ -681,7 +681,6 @@ services:
       - S3_ENDPOINT=${S3_ENDPOINT-http://koku-minio:9000}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_REGION=${S3_REGION-us-east-1}
-      - WAREHOUSE_PATH=${WAREHOUSE_PATH}
       - DATABASE_NAME=${DATABASE_NAME-postgres}
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
