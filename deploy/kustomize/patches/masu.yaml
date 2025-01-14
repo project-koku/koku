@@ -79,8 +79,6 @@
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: POD_CPU_LIMIT # required to spin up appropriate number of gunicorn workers
           valueFrom:
             resourceFieldRef:

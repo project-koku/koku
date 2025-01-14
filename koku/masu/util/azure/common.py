@@ -171,9 +171,9 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     data_frame["special_case_tag_matched"] = False
     tags = data_frame["tags"]
     if not tags.eq("").all():
-        tags = tags.str.lower()
+        tags_lower = tags.str.lower()
         LOG.info("Matching OpenShift on Azure by tags.")
-        special_case_tag_matched = tags.str.contains(
+        special_case_tag_matched = tags_lower.str.contains(
             "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
         )
         data_frame["special_case_tag_matched"] = special_case_tag_matched

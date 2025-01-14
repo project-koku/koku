@@ -447,6 +447,17 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             self.report_processor.get_matched_tags([])
             mock_get_tags.assert_not_called()
 
+    @patch.object(AWSReportDBAccessor, "check_for_matching_enabled_keys", return_value=True)
+    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels", return_value=True)
+    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags", return_value=None)
+    @patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.is_tag_processing_disabled", return_value=True)
+    def test_get_matched_tags_trino_disabled(
+        self, mock_unleash, mock_pg_tags, mock_has_enabled, mock_matching_enabled
+    ):
+        """Test that we skip trino matched tag queries if disabled in unleash."""
+        result = self.report_processor.get_matched_tags([])
+        self.assertEqual(result, [])
+
     def test_instantiating_processor_without_manifest_id(self):
         """Assert that report_status exists and is None."""
         report_processor = OCPCloudParquetReportProcessor(

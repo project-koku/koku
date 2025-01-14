@@ -65,8 +65,6 @@
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT

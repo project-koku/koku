@@ -276,11 +276,11 @@ parameters:
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - name: S3_BUCKET_NAME
-  value: koku-eph-s3
+  value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME
-  value: ros-eph-s3
+  value: hccm-ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
-  value: subs-eph-s3
+  value: hccm-subs-eph-s3
 - name: AWS_SHARED_CREDENTIALS_FILE
   value: "/etc/aws/aws-credentials"
 - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -423,10 +423,6 @@ parameters:
   name: KOKU_ENABLE_SENTRY
   value: "False"
 
-- description: Enable S3 Archiving
-  displayName: Enable S3 Archiving
-  name: ENABLE_S3_ARCHIVING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
