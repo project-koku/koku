@@ -29,6 +29,7 @@ from django_prometheus.middleware import PrometheusBeforeMiddleware
 from django_tenants.middleware import TenantMainMiddleware
 from prometheus_client import Counter
 
+from api.common import log_json
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
@@ -251,7 +252,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             org_id (str): The org_id identifier.
             request_method (str): The HTTP request method.
         Returns:
-            Customer : The created  or retrieved customer, or empty customer object if not found.
+            Customer : The created  or retrieved customer.
         """
         try:
             with transaction.atomic():
@@ -262,16 +263,16 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     UNIQUE_ACCOUNT_COUNTER.inc()
                     LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
 
-        except IntegrityError:
+        except IntegrityError as err:
             LOG.warning(
-                f"IntegrityError when creating customer from account_id {account} and org_id {org_id}. "
-                "Attempting to fetch existing record."
+                log_json(
+                    msg="IntegrityError when creating customer. Attempting to fetch existing record",
+                    account=account,
+                    org_id=org_id,
+                    exc_info=err,
+                )
             )
-            try:
-                customer = Customer.objects.filter(org_id=org_id).get()
-            except Customer.DoesNotExist:
-                LOG.info(f"Customer for org_id {org_id} does not exist. Returning empty object.")
-                customer = Customer(account_id="", org_id="", schema_name="")
+            customer = Customer.objects.filter(org_id=org_id).get()
 
         return customer
 

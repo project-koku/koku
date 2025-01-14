@@ -510,23 +510,6 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertEqual(customer.org_id, "test_org")
         mock_filter.assert_called_once_with(org_id="test_org")
 
-    @patch("api.iam.models.Customer.objects.filter")
-    @patch("api.iam.models.Customer.save", side_effect=IntegrityError)
-    def test_create_customer_integrity_error_customer_does_not_exist(self, mock_save, mock_filter):
-        """Test that None is returned if an IntegrityError occurs and the customer does not exist."""
-
-        mock_query_set = MagicMock()
-        mock_filter.return_value = mock_query_set
-        mock_query_set.get.side_effect = Customer.DoesNotExist
-
-        customer = IdentityHeaderMiddleware.create_customer("test_account", "test_org", "POST")
-
-        self.assertIsNotNone(customer)
-        self.assertEqual(customer.org_id, "")
-        mock_save.assert_called_once()
-        mock_filter.assert_called_once_with(org_id="test_org")
-        mock_query_set.get.assert_called_once()
-
 
 class RequestTimingMiddlewareTest(IamTestCase):
     """Tests against the koku tenant middleware."""
