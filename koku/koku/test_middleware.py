@@ -15,6 +15,7 @@ from unittest.mock import patch
 from cachetools import TTLCache
 from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
+from django.db.utils import IntegrityError
 from django.db.utils import OperationalError
 from django.http import JsonResponse
 from django.test.utils import modify_settings
@@ -481,6 +482,33 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.META[RH_IDENTITY_HEADER] = base64.b64encode(json.dumps(identity).encode("utf-8"))
         middleware = IdentityHeaderMiddleware(self.mock_get_response)
         middleware.process_request(mock_request)
+
+    @patch("api.iam.models.Customer.save")
+    def test_create_customer(self, mock_save):
+        """Test creating a customer."""
+
+        mock_save.return_value = None
+        customer = IdentityHeaderMiddleware.create_customer("test_account", "test_org", "POST")
+
+        self.assertIsNotNone(customer)
+        self.assertEqual(customer.account_id, "test_account")
+        mock_save.assert_called_once()
+
+    @patch("api.iam.models.Customer.objects.filter")
+    @patch("api.iam.models.Customer.save", side_effect=IntegrityError)
+    def test_create_customer_integrity_error_existing_customer(self, mock_save, mock_filter):
+        """Test fetching an  existing customer when an IntegrityError occurs."""
+
+        mock_query_set = MagicMock()
+        mock_filter.return_value = mock_query_set
+        mock_query_set.get.return_value = MagicMock(account_id="test_account", org_id="test_org")
+
+        customer = IdentityHeaderMiddleware.create_customer("test_account", "test_org", "POST")
+
+        self.assertIsNotNone(customer)
+        mock_save.assert_called_once()
+        self.assertEqual(customer.org_id, "test_org")
+        mock_filter.assert_called_once_with(org_id="test_org")
 
 
 class RequestTimingMiddlewareTest(IamTestCase):
