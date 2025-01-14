@@ -566,20 +566,12 @@ def copy_local_report_file_to_s3_bucket(
 
 
 def copy_local_hcs_report_file_to_s3_bucket(
-    request_id,
-    s3_path,
-    full_file_path,
-    local_filename,
-    finalize=False,
-    finalize_date=None,
-    context=None,
+    request_id, s3_path, full_file_path, local_filename, finalize=False, finalize_date=None, context={}
 ):
     """
     Copies local report file to s3 bucket
     """
-    if context is None:
-        context = {}
-    if s3_path and settings.ENABLE_S3_ARCHIVING:
+    if s3_path:
         LOG.info(f"copy_local_HCS_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         s3_resource = get_s3_resource(
             access_key=settings.S3_HCS_ACCESS_KEY,

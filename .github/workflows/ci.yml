@@ -281,7 +281,6 @@ jobs:
           TRINO_DATE_STEP: 31
           MIDDLEWARE_TIME_TO_LIVE: 0
           ENHANCED_ORG_ADMIN: True
-          ENABLE_S3_ARCHIVING: True
 
       - name: Show test status
         if: needs.changed-files.outputs.run_tests == 'true'

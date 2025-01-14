@@ -61,8 +61,6 @@
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP

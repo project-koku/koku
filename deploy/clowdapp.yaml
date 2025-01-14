@@ -76,8 +76,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -267,8 +265,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: KOKU_ENABLE_SENTRY
           value: ${KOKU_ENABLE_SENTRY}
         - name: KOKU_SENTRY_ENVIRONMENT
@@ -490,8 +486,6 @@ objects:
           value: ${ROS_URL_EXPIRATION}
         - name: ENABLE_ROS_DEBUG
           value: ${ENABLE_ROS_DEBUG}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -666,8 +660,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
@@ -834,8 +826,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -1339,8 +1329,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -1525,8 +1513,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -1717,8 +1703,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -1909,8 +1893,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -2101,8 +2083,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: PANDAS_COLUMN_BATCH_SIZE
@@ -2297,8 +2277,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: PANDAS_COLUMN_BATCH_SIZE
@@ -2493,8 +2471,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: PANDAS_COLUMN_BATCH_SIZE
@@ -2689,8 +2665,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -2883,8 +2857,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -3077,8 +3049,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -3271,8 +3241,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: PANDAS_COLUMN_BATCH_SIZE
@@ -3471,8 +3439,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: PANDAS_COLUMN_BATCH_SIZE
@@ -3671,8 +3637,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: PANDAS_COLUMN_BATCH_SIZE
@@ -3871,8 +3835,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -4063,8 +4025,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -4255,8 +4215,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -4447,8 +4405,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -4643,8 +4599,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -4839,8 +4793,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -5037,8 +4989,6 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -5229,8 +5179,6 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: REQUESTED_SUBS_BUCKET
           value: ${S3_SUBS_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -5407,8 +5355,6 @@ objects:
           value: ${S3_BUCKET_NAME}
         - name: REQUESTED_SUBS_BUCKET
           value: ${S3_SUBS_BUCKET_NAME}
-        - name: ENABLE_S3_ARCHIVING
-          value: ${ENABLE_S3_ARCHIVING}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -5884,10 +5830,6 @@ parameters:
   displayName: Enable Sentry
   name: KOKU_ENABLE_SENTRY
   value: "False"
-- description: Enable S3 Archiving
-  displayName: Enable S3 Archiving
-  name: ENABLE_S3_ARCHIVING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE

@@ -377,7 +377,9 @@ VERBOSE_FORMATTING = (
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
+SIMPLE_FORMATTING = (
+    "[%(asctime)s] %(levelname)s %(task_root_id)s %(task_parent_id)s %(task_id)s %(process)d %(message)s"
+)
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
@@ -495,7 +497,6 @@ REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value("REQUESTED_SUBS_BUCKET", default="
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
 S3_DEFAULT_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="https://s3.amazonaws.com")
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
-S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
 S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
 S3_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_BUCKET)
@@ -519,7 +520,6 @@ S3_SUBS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_SUBS_BUCKET)
 S3_SUBS_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 SKIP_MINIO_DATA_DELETION = ENVIRONMENT.bool("SKIP_MINIO_DATA_DELETION", default=False)
 
-ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
 PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
