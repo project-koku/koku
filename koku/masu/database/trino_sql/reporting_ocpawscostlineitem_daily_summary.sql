@@ -808,9 +808,6 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     AND aws_disk.resource_id = aws.resource_id
 LEFT JOIN cte_total_pv_capacity as pv_cap
     ON pv_cap.aws_resource_id = aws.resource_id
-    AND pv_cap.year = aws.year
-    AND pv_cap.month = aws.month
-    AND pv_cap.ocp_source = aws.ocp_source
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
