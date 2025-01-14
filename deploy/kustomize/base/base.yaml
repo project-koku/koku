@@ -423,10 +423,6 @@ parameters:
   name: KOKU_ENABLE_SENTRY
   value: "False"
 
-- description: Enable S3 Archiving
-  displayName: Enable S3 Archiving
-  name: ENABLE_S3_ARCHIVING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
