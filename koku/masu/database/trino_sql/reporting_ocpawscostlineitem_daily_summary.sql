@@ -939,6 +939,9 @@ SELECT aws.uuid as aws_uuid,
     LEFT JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
         ON aws_disk.usage_start = aws.usage_start
         AND aws_disk.resource_id = aws.resource_id
+        AND aws_disk.year = aws.year
+        AND aws_disk.month = aws.month
+        AND aws_disk.ocp_source = aws.ocp_source
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -950,9 +953,6 @@ SELECT aws.uuid as aws_uuid,
         -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
         AND aws.data_transfer_direction IS NULL
         AND aws_disk.resource_id is NULL -- exclude any resource used in disk capacity calculations
-        AND aws_disk.year = {{year}}
-        AND aws_disk.month = {{month}}
-        AND aws_disk.ocp_source = {{ocp_source_uuid}}
     GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels
 ;
 

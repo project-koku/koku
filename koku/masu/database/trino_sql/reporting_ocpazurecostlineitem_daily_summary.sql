@@ -671,6 +671,9 @@ SELECT azure.uuid as azure_uuid,
             )
     LEFT JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp as disk_cap
         ON azure.resource_id = disk_cap.resource_id
+        AND disk_cap.year = azure.year
+        AND disk_cap.month = azure.month
+        AND disk_cap.ocp_source = azure.ocp_source
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -683,9 +686,6 @@ SELECT azure.uuid as azure_uuid,
         AND azure.year = {{year}}
         AND azure.month = {{month}}
         AND disk_cap.resource_id is NULL -- exclude any resource used in disk capacity calculations
-        AND disk_cap.year = {{year}}
-        AND disk_cap.month = {{month}}
-        AND disk_cap.ocp_source = {{ocp_source_uuid}}
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 ;
 
