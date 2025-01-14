@@ -3,18 +3,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Clear out our glue testing data."""
+import argparse
 import os
 
 import boto3
 
 
-def delete_glue_data():
+def delete_glue_data(schema):
     bucket_name = os.environ.get("S3_BUCKET_NAME")
-    schema = f"org{os.environ.get('ORG')}"
     credentials = {
         "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY_ID"),
         "aws_secret_access_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        "region_name": os.environ.get("S3_REGION"),
+        "region_name": os.environ.get("S3_REGION") or "us-east-1",
     }
     path_prefixes = {
         "s3_csv_path": f"data/csv/{schema}",
@@ -39,5 +39,13 @@ def delete_glue_data():
         print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("schema")
+    args = parser.parse_args()
+
+    delete_glue_data(args.schema)
+
+
 if __name__ == "__main__":
-    delete_glue_data()
+    main()

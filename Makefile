@@ -218,7 +218,7 @@ delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/postgresql/data/
 
 delete-glue-data:
-	@$(PYTHON) $(SCRIPTDIR)/clean_glue.py
+	@$(PYTHON) $(SCRIPTDIR)/clean_glue.py $(schema)
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
