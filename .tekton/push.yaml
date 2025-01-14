@@ -7,6 +7,7 @@ metadata:
     build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
+    pipelinesascode.tekton.dev/pipeline: "https://raw.githubusercontent.com/project-koku/koku-ci/main/pipelines/pipeline-build.yaml"
   creationTimestamp: null
 
   labels:
@@ -35,15 +36,8 @@ spec:
       value: .
 
   pipelineRef:
-    params:
-      - name: url
-        value: https://github.com/project-koku/koku-ci/
-      - name: revision
-        value: main
-      - name: pathInRepo
-        value: pipelines/pipeline-build.yaml
-    resolver: git
-
+    name: pipeline-build
+  
   workspaces:
     - name: git-auth
       secret:
