@@ -35,7 +35,14 @@ spec:
       value: .
 
   pipelineRef:
-    name: pipeline-build
+    params:
+      - name: url
+        value: https://github.com/project-koku/koku-ci/
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: pipelines/pipeline-build.yaml
+    resolver: git
 
   workspaces:
     - name: git-auth
