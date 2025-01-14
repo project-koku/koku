@@ -37,7 +37,7 @@ spec:
 
   pipelineRef:
     name: pipeline-build
-  
+
   workspaces:
     - name: git-auth
       secret:
