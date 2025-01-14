@@ -16,7 +16,7 @@ metadata:
     pipelines.appstudio.openshift.io/type: build
 
   namespace: cost-mgmt-dev-tenant
-  name: koku-push
+  name: koku-on-push
 
 spec:
   params:
