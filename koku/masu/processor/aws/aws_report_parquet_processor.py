@@ -83,7 +83,7 @@ class AWSReportParquetProcessor(ReportParquetProcessorBase):
                 AND month = '{bill_date.strftime("%m")}'
         """
 
-        rows = self._execute_sql(sql, self._schema_name)
+        rows = self._execute_trino_sql(sql, self._schema_name)
         payer_account_id = None
         if rows:
             payer_account_id = rows[0][0]

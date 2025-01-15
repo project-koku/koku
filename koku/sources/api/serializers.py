@@ -6,6 +6,7 @@
 import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import transaction
 from rest_framework import serializers
 
@@ -17,7 +18,6 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from providers.provider_errors import SkipStatusPush
 from sources.api import get_auth_header
 from sources.api import get_param_from_header
-
 
 LOG = logging.getLogger(__name__)
 
@@ -104,7 +104,10 @@ class AdminSourcesSerializer(SourcesSerializer):
         return get_param_from_header(self.context.get("request"), "account_number")
 
     def _validate_org_id(self, account_id):
-        return get_param_from_header(self.context.get("request"), "org_id")
+        org_id = get_param_from_header(self.context.get("request"), "org_id")
+        if not org_id.endswith(settings.SCHEMA_SUFFIX):
+            org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
+        return org_id
 
     def validate(self, data):
         data["source_id"] = self._validate_source_id(data.get("id"))
