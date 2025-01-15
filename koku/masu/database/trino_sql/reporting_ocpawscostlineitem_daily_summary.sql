@@ -698,7 +698,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.resource_id_matched = True
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
-    -- AND aws_disk.ocp_source = {{ocp_source_uuid}}
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
 {% endif %}
 ;
@@ -822,6 +822,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, aws.resource_id
 {% endif %}
 ;
