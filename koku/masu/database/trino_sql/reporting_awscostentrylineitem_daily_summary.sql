@@ -111,12 +111,12 @@ FROM (
         sum(lineitem_blendedcost) as blended_cost,
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
         sum(
-           CASE
-               WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
-               THEN savingsplan_savingsplaneffectivecost
-               ELSE lineitem_unblendedcost
-           END
-       ) as calculated_amortized_cost,
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                THEN savingsplan_savingsplaneffectivecost
+                ELSE lineitem_unblendedcost
+            END
+        ) as calculated_amortized_cost,
         sum(pricing_publicondemandcost) as public_on_demand_cost,
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids,
