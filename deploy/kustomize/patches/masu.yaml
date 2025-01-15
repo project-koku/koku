@@ -21,6 +21,8 @@
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
+        - name: TRINO_SCHEMA_PREFIX
+          value: ${TRINO_SCHEMA_PREFIX}
         - name: MASU
           value: "true"
         - name: DJANGO_SECRET_KEY

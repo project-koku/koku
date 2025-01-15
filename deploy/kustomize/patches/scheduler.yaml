@@ -31,6 +31,8 @@
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
+        - name: TRINO_SCHEMA_PREFIX
+          value: ${TRINO_SCHEMA_PREFIX}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS

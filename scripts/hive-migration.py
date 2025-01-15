@@ -37,7 +37,7 @@ from pyspark.sql.types import StructField
 from pyspark.sql.types import StructType
 
 PYTHON_VERSION = sys.version_info[0]
-MYSQL_DRIVER_CLASS = "org.postgresql.Driver"
+DRIVER_CLASS = "org.postgresql.Driver"
 
 # flags for migration direction
 FROM_METASTORE = "from-metastore"
@@ -872,8 +872,11 @@ class HiveMetastoreTransformer:
 
     def transform_databases(self, ms_dbs, ms_database_params):
         dbs_with_params = self.join_with_params(df=ms_dbs, df_params=ms_database_params, id_col="DB_ID")
+        dbs_with_params_s3_location_fixed = HiveMetastoreTransformer.s3a_or_s3n_to_s3_in_location(
+            dbs_with_params, "DB_LOCATION_URI"
+        )
         dbs_renamed = rename_columns(
-            df=dbs_with_params,
+            df=dbs_with_params_s3_location_fixed,
             rename_tuples=[("NAME", "name"), ("DESC", "description"), ("DB_LOCATION_URI", "locationUri")],
         )
         dbs_dropped_cols = dbs_renamed.drop_columns(["DB_ID", "OWNER_NAME", "OWNER_TYPE"])
@@ -1142,7 +1145,6 @@ class DataCatalogTransformer:
         return ms_partitions
 
     def extract_sds(self, ms_tbls, ms_partitions):
-
         ms_tbls = ms_tbls.withColumn("ID", concat(ms_tbls.TBL_NAME, ms_tbls.DB_NAME))
         ms_partitions = ms_partitions.withColumn("ID", ms_partitions.PART_ID.cast(StringType()))
         ms_tbls_sds = ms_tbls.select("ID", "storageDescriptor.*").withColumn("type", lit("table"))
@@ -1213,7 +1215,6 @@ class DataCatalogTransformer:
         hms.ms_tbls = ms_tbls.drop_columns(["partitionKeys", "storageDescriptor", "parameters", "DB_NAME"])
 
     def extract_from_partitions(self, hms, ms_partitions):
-
         # split into table PARTITION_PARAMS
         ms_partition_params = DataCatalogTransformer.params_to_df(ms_partitions, "PART_ID")
 
@@ -1282,7 +1283,6 @@ class DataCatalogTransformer:
         return (ms_serdes, ms_serde_params)
 
     def extract_from_sds_skewed_info(self, hms, ms_sds):
-
         skewed_info = ms_sds.select("SD_ID", "skewedInfo.*")
 
         ms_skewed_col_names = skewed_info.select("SD_ID", explode("skewedColumnNames").alias("SKEWED_COL_NAME"))
@@ -1317,7 +1317,6 @@ class DataCatalogTransformer:
         hms.ms_skewed_string_list = ms_skewed_string_list
 
     def extract_from_sds_sort_cols(self, ms_sds):
-
         return (
             DataCatalogTransformer.generate_idx_for_df(
                 ms_sds,
@@ -1355,7 +1354,6 @@ class DataCatalogTransformer:
             self.start_id_map[id_name] = max_id
 
     def transform(self, hms, databases, tables, partitions):
-
         # for metastore tables that require unique ids, find max id (start id)
         # for rows already in each table
         self.get_start_id_for_id_name(hms)
@@ -1393,14 +1391,17 @@ class HiveMetastore:
         """
         Load a JDBC table into Spark Dataframe
         """
+        logging.info(
+            "hive_metastore_migration:read_table. URL: " + connection["fullUrl"] + ", table_name: " + table_name
+        )
         return (
             self.sql_context.read.format("jdbc")
             .options(
-                url=connection["url"],
-                dbtable=f"{db_name}.{table_name}",
+                url=connection["fullUrl"],
+                dbtable=f'"{table_name}"',
                 user=connection["user"],
                 password=connection["password"],
-                driver=MYSQL_DRIVER_CLASS,
+                driver=DRIVER_CLASS,
             )
             .load()
         )
@@ -1418,7 +1419,7 @@ class HiveMetastore:
             properties={
                 "user": connection["user"],
                 "password": connection["password"],
-                "driver": MYSQL_DRIVER_CLASS,
+                "driver": DRIVER_CLASS,
             },
         )
 
@@ -1653,9 +1654,7 @@ def validate_aws_regions(region):
         "us-west-1",  # Northern California
     ]
 
-    error_msg = "Invalid region: {}, the job will fail if the destination is not in a Glue supported region".format(
-        region
-    )
+    error_msg = f"Invalid region: {region}, the job will fail if the destination is not in a Glue supported region"
     if region not in aws_regions:
         logging.error(error_msg)
     elif region not in aws_glue_regions:
@@ -1677,7 +1676,6 @@ def transform_df_to_catalog_import_schema(sql_context, glue_context, df_database
 
 
 def import_datacatalog(sql_context, glue_context, datacatalog_name, databases, tables, partitions, region):
-
     (dyf_databases, dyf_tables, dyf_partitions) = transform_df_to_catalog_import_schema(
         sql_context, glue_context, databases, tables, partitions
     )
@@ -1719,7 +1717,6 @@ def metastore_full_migration(
 def metastore_import_from_s3(
     sql_context, glue_context, db_input_dir, tbl_input_dir, parts_input_dir, datacatalog_name, region
 ):
-
     # extract
     databases = sql_context.read.json(path=db_input_dir, schema=METASTORE_DATABASE_SCHEMA)
     tables = sql_context.read.json(path=tbl_input_dir, schema=METASTORE_TABLE_SCHEMA)
