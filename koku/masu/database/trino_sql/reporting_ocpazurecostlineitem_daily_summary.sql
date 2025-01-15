@@ -540,7 +540,7 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
         max(nullif(azure.resource_location, '')) as resource_location,
         'GB-Mo' as unit_of_measure, -- Has to have this unit to show up on storage endpoint
         max(azure.currency) as currency,
-        (max(az_disk.capacity) - max(pv_cap.total_pv_capacity) / pv_cap.clust) / max(az_disk.capacity) * max(azure.pretax_cost) / max(pv_cap.cluster_count)  as pretax_cost,
+        (max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost) / max(pv_cap.cluster_count)  as pretax_cost,
         ((max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost, -- pretax_cost x markup = markup_cost
         max(azure.resource_id_matched) as resource_id_matched,
         {{ocp_source_uuid}} as ocp_source,
