@@ -743,12 +743,14 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
 WITH cte_total_pv_capacity as (
     SELECT
         aws_resource_id,
-        SUM(combined_requests.capacity) as total_pv_capacity
+        SUM(combined_requests.capacity) as total_pv_capacity,
+        count(distinct cluster_id) as cluster_count
     FROM (
         SELECT
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
-            aws.resource_id as aws_resource_id
+            aws.resource_id as aws_resource_id,
+            ocp.cluster_id
         FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
             ON (aws.usage_start = ocp.usage_start)
@@ -762,7 +764,7 @@ WITH cte_total_pv_capacity as (
             AND aws.ocp_source = {{ocp_source_uuid}}
             AND aws.year = {{year}}
             AND aws.month = {{month}}
-        GROUP BY ocp.persistentvolume, aws.resource_id
+        GROUP BY ocp.persistentvolume, aws.resource_id, ocp.cluster_id
     ) as combined_requests group by aws_resource_id
 )
 SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will deduplicate
@@ -785,14 +787,14 @@ SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will dedup
     max(aws.unit) as unit,
     cast(NULL as double) as usage_amount,
     max(aws.currency_code) as currency_code,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)  as unblended_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)  as blended_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_blended,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)  as savingsplan_effective_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_savingsplan,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)  as calculated_amortized_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_amortized,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost) / max(pv_cap.cluster_count)  as unblended_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost) / max(pv_cap.cluster_count)  as blended_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_blended,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost) / max(pv_cap.cluster_count)  as savingsplan_effective_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_savingsplan,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost) / max(pv_cap.cluster_count)  as calculated_amortized_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_amortized,
     max(aws.resource_id_matched) as resource_id_matched,
     {{ocp_source_uuid}} as ocp_source,
     max(aws.year) as year,
