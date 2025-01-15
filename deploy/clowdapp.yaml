@@ -26,6 +26,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -217,6 +219,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -399,6 +403,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -460,6 +466,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -610,6 +618,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: MASU
           value: "true"
         - name: DJANGO_SECRET_KEY
@@ -812,6 +822,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -976,6 +988,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: SOURCES
           value: "true"
         - name: SOURCES_PROBE_HEADER
@@ -1147,6 +1161,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: SOURCES
           value: "true"
         - name: SOURCES_PROBE_HEADER
@@ -1315,6 +1331,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1501,6 +1519,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1693,6 +1713,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1885,6 +1907,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2077,6 +2101,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2273,6 +2299,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2469,6 +2497,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2665,6 +2695,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2859,6 +2891,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3053,6 +3087,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3247,6 +3283,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3447,6 +3485,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3647,6 +3687,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3847,6 +3889,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4039,6 +4083,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4231,6 +4277,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4423,6 +4471,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4619,6 +4669,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4815,6 +4867,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5011,6 +5065,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5201,6 +5257,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5379,6 +5437,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5558,6 +5618,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -5595,6 +5657,8 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE

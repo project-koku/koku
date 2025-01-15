@@ -538,6 +538,9 @@ except ConfigFileNotFound:
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
+TRINO_SCHEMA_PREFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("TRINO_SCHEMA_PREFIX", default=""))
+TRINO_S3A_OR_S3 = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a")
+TRINO_SCHEMA_PREFIX_KEY = "trino_schema_prefix"
 
 # IBM Settings
 IBM_SERVICE_URL = ENVIRONMENT.get_value("IBM_SERVICE_URL", default="https://enterprise.cloud.ibm.com")

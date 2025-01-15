@@ -21,6 +21,8 @@
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_SCHEMA_PREFIX
           value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: AWS_SHARED_CREDENTIALS_FILE

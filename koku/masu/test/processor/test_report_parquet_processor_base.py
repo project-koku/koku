@@ -9,6 +9,7 @@ import uuid
 from unittest.mock import patch
 
 import pandas as pd
+from django.conf import settings
 from django.test.utils import override_settings
 
 from api.common import log_json
@@ -97,7 +98,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
 
         expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
         expected_end = (
-            f"WITH(external_location = 's3://test-bucket/{self.temp_dir}', "
+            f"WITH(external_location = '{settings.TRINO_S3A_OR_S3}://test-bucket/{self.temp_dir}', "
             "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month'])"
         )
         self.assertTrue(generated_sql.startswith(expected_start))
@@ -123,7 +124,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
 
         expected_start = f"CREATE TABLE IF NOT EXISTS {self.schema}.{self.table_name}"
         expected_end = (
-            f"WITH(external_location = 's3://test-bucket/{self.temp_dir}', "
+            f"WITH(external_location = '{settings.TRINO_S3A_OR_S3}://test-bucket/{self.temp_dir}', "
             "format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])"
         )
         self.assertTrue(generated_sql.startswith(expected_start))

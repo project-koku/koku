@@ -211,7 +211,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(gcp.year) as year,
     max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
-JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
         AND (strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0 -- THIS IS THE SPECIFIC TO OCP ON GCP TAG MATCH
             OR strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
@@ -329,7 +329,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(gcp.year) as year,
     max(gcp.month) as month
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
-JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON date(gcp.usage_start_time) = ocp.usage_start
         AND (
                 json_query(gcp.labels, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace

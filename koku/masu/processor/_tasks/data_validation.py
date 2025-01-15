@@ -162,7 +162,7 @@ class DataValidator:
                 source = "source" if not self.ocp_on_cloud_type else "cluster_id"
                 sql = f"""
                     SELECT sum({query_filters.get("metric")}) as metric, {query_filters.get("date")} as date
-                    FROM hive.{self.schema}.{table}
+                    FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
                         WHERE {source} = '{provider_filter}'
                         AND {query_filters.get("date")} >= date('{start}')
                         AND {query_filters.get("date")} <= date('{end}')
