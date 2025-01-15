@@ -7,6 +7,7 @@ metadata:
     build.appstudio.redhat.com/target_branch: '{{ target_branch }}'
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
+    pipelinesascode.tekton.dev/pipeline: "https://raw.githubusercontent.com/project-koku/koku-ci/main/pipelines/pipeline-build.yaml"
   creationTimestamp: null
 
   labels:
@@ -15,7 +16,7 @@ metadata:
     pipelines.appstudio.openshift.io/type: build
 
   namespace: cost-mgmt-dev-tenant
-  name: koku-push
+  name: koku-on-push
 
 spec:
   params:
