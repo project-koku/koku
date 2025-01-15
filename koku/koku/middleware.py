@@ -269,8 +269,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     msg="IntegrityError when creating customer. Attempting to fetch existing record",
                     account=account,
                     org_id=org_id,
-                    exc_info=err,
-                )
+                ),
+                exc_info=err,
             )
             customer = Customer.objects.filter(org_id=org_id).get()
 
