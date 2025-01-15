@@ -114,6 +114,8 @@ FROM (
             CASE
                 WHEN lineitem_lineitemtype='Tax'
                 OR   lineitem_lineitemtype='Usage'
+                OR   lineitem_lineitemtype='EdpDiscount'
+                OR   lineitem_lineitemtype='PrivateRateDiscount'
                 THEN lineitem_unblendedcost
                 ELSE savingsplan_savingsplaneffectivecost
             END

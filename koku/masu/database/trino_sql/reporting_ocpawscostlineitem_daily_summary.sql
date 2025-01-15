@@ -698,7 +698,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.resource_id_matched = True
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
-    AND aws_disk.ocp_source = {{ocp_source_uuid}}
+    -- AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
 {% endif %}
 ;
@@ -822,7 +822,7 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
-    AND aws_disk.ocp_source = {{ocp_source_uuid}}
+    -- AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, aws.resource_id
 {% endif %}
 ;
@@ -953,6 +953,12 @@ SELECT aws.uuid as aws_uuid,
         -- Filter out Node Network Costs since they cannot be attributed to a namespace and are accounted for later
         AND aws.data_transfer_direction IS NULL
         AND aws_disk.resource_id is NULL -- exclude any resource used in disk capacity calculations
+<<<<<<< Updated upstream
+=======
+        AND aws_disk.year = {{year}}
+        AND aws_disk.month = {{month}}
+        -- AND aws_disk.ocp_source = {{ocp_source_uuid}}
+>>>>>>> Stashed changes
     GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels
 ;
 
