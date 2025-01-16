@@ -141,11 +141,11 @@ DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 SCHEMA_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("SCHEMA_SUFFIX", default=""))
 print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
 if DEVELOPMENT:
-    if SCHEMA_SUFFIX == "":
-        SCHEMA_SUFFIX = f"_{ENVIRONMENT.get_value('USER', default='')}"
-    if not SCHEMA_SUFFIX.startswith("_"):
-        SCHEMA_SUFFIX = f"_{SCHEMA_SUFFIX}"
-    print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
+    # if SCHEMA_SUFFIX == "":
+    #     SCHEMA_SUFFIX = f"_{ENVIRONMENT.get_value('USER', default='')}"
+    # if not SCHEMA_SUFFIX.startswith("_"):
+    #     SCHEMA_SUFFIX = f"_{SCHEMA_SUFFIX}"
+    # print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
@@ -495,7 +495,7 @@ REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-repor
 REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value("REQUESTED_ROS_BUCKET", default="ros-report")
 REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value("REQUESTED_SUBS_BUCKET", default="subs-report")
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
-S3_ENDPOINT = ENVIRONMENT.get_value("S3_ENDPOINT", default="https://s3.amazonaws.com")
+S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
 S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
 S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
