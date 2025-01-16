@@ -116,8 +116,6 @@ function run_smoke_tests_stage() {
         --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG} \
         --set-parameter trino/IMAGE=quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/ubi-trino \
         --set-parameter trino/IMAGE_TAG=pr-153-9d20acd \
-        # --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
-        # --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
@@ -176,13 +174,11 @@ function run_build_image_stage() {
 
 function wait_for_image() {
     echo "Waiting for initial image build..."
-    sleep 0
-
-    local len=$(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?filter_tag_name=like:${IMAGE_TAG}" -Ls | jq '.tags | length')
+    sleep 180
 
     local count=0
     local max=60  # Try for up to 30 minutes
-    until [[ $len -gt 0  ]]; do
+    until [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?filter_tag_name=like:${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; do
         echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
         sleep 30
         ((count+=1))
@@ -190,7 +186,6 @@ function wait_for_image() {
             echo "Failed to pull image"
             exit 1
         fi
-        len=$(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?filter_tag_name=like:${IMAGE_TAG}" -Ls | jq '.tags | length')
     done
 }
 
