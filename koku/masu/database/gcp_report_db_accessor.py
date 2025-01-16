@@ -580,7 +580,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Args:
             verification_tags: List of all cluster's matchable kv pairs
         """
-        params = sql_metadata.build_params(["schema", "cloud_source_uuid", "year", "month"])
+        params = sql_metadata.build_params(["schema", "cloud_provider_uuid", "year", "month"])
         params["matched_tag_array"] = verification_tags
         verify_path = "trino_sql/verify/gcp/"
         cost_total_file = verify_path + "managed_ocp_on_gcp_verification.sql"
@@ -601,21 +601,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return
         LOG.info(log_json(msg="Verification successful", **params))
 
-    def _clean_up_managed_temp_tables(self, sql_metadata: ManagedSqlMetadata) -> Any:
-        """
-        Trino doesn't allow large deletes on non-transactioanl tables.
-        We usually work around this by deleting the data a day at a time.
-        However, that many deletes can be slow, since this data is
-        temporary, we can just drop the table to speed up the delete.
-        """
-        temp_tables = [
-            f"hive.{sql_metadata.schema}.managed_gcp_uuid_temp_{sql_metadata.tmp_id}",
-            f"hive.{sql_metadata.schema}.managed_gcp_openshift_daily_temp_{sql_metadata.tmp_id}",
-        ]
-        for temp_table in temp_tables:
-            sql = f"""DROP TABLE IF EXISTS {temp_table}"""
-            self._execute_trino_raw_sql_query(sql, log_ref=f"drop temporary table {temp_table}")
-
     def _create_tables_and_generate_unique_id(self, sql_metadata: ManagedSqlMetadata) -> Any:
         """
         The parquet generated for the gcp line item table does not
@@ -623,7 +608,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         temporary tables to prevent cost duplication.
         """
         params = sql_metadata.build_params(
-            ["tmp_id", "schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
+            ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
         )
         populate_uuid_sql = pkgutil.get_data(
             "masu.database", "trino_sql/gcp/openshift/managed_flow/0_populate_uuid_tmp_table.sql"
@@ -643,7 +628,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
         """
         params = sql_metadata.build_params(
-            ["tmp_id", "schema", "cloud_provider_uuid", "start_date", "end_date", "days_tup", "year", "month"]
+            ["schema", "cloud_provider_uuid", "start_date", "end_date", "days_tup", "year", "month"]
         )
         params["ocp_source_uuid"] = ocp_provider_uuid
         params["matched_tag_array"] = matched_tags_result
@@ -659,7 +644,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populates the managed openshift on gcp table"""
         params = sql_metadata.build_params(
             [
-                "tmp_id",
                 "schema",
                 "start_date",
                 "year",
@@ -679,32 +663,20 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
         """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
-        try:
-            self._clean_up_managed_temp_tables(sql_metadata)
-            self._create_tables_and_generate_unique_id(sql_metadata)
-            verification_tags = []
-            for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
-                matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
-                verification_tags.extend(matched_tags_result)
-                self._populate_gcp_filtered_by_ocp_tmp_table(ocp_provider_uuid, matched_tags_result, sql_metadata)
-                self.delete_ocp_on_gcp_hive_partition_by_day(
-                    sql_metadata.days_tup,
-                    sql_metadata.cloud_provider_uuid,
-                    ocp_provider_uuid,
-                    sql_metadata.year,
-                    sql_metadata.month,
-                    TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
-                )
-
-            self._populate_final_managed_table(sql_metadata)
-            self._clean_up_managed_temp_tables(sql_metadata)
-            verification_tags = list(dict.fromkeys(verification_tags))
-            self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
-        except Exception as error:
-            message = "Unexpected error during ocp on gcp managed table population"
-            log_context = sql_metadata.build_params(
-                ["schema", "start_date", "end_date", "ocp_source_uuid", "cloud_source_uuid"]
+        self._create_tables_and_generate_unique_id(sql_metadata)
+        verification_tags = []
+        for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
+            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
+            verification_tags.extend(matched_tags_result)
+            self._populate_gcp_filtered_by_ocp_tmp_table(ocp_provider_uuid, matched_tags_result, sql_metadata)
+            self.delete_ocp_on_gcp_hive_partition_by_day(
+                sql_metadata.days_tup,
+                sql_metadata.cloud_provider_uuid,
+                ocp_provider_uuid,
+                sql_metadata.year,
+                sql_metadata.month,
+                TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
             )
-            LOG.error(log_json(msg=message, context=log_context), exc_info=error)
-        finally:
-            self._clean_up_managed_temp_tables(sql_metadata)
+        self._populate_final_managed_table(sql_metadata)
+        verification_tags = list(dict.fromkeys(verification_tags))
+        self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

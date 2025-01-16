@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
 ;
 
 -- Note: We can remove the need for this table if we add in uuid during parquet creation
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp_{{tmp_id | sqlsafe}}
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
 (
     row_uuid varchar,
     invoice_month varchar,
@@ -54,9 +54,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp_{{tmp
     cost double,
     daily_credits double,
     resource_global_name varchar,
-    resource_id_matched boolean,
-    matched_tag varchar,
-    ocp_source varchar,
     source varchar,
     year varchar,
     month varchar,
@@ -66,7 +63,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp_{{tmp
     partitioned_by=ARRAY['source', 'year', 'month', 'day']
 );
 
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp_{{tmp_id | sqlsafe}}
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
 (
     row_uuid varchar,
     invoice_month varchar,
@@ -98,11 +95,17 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
     day varchar
 ) WITH(
     format = 'PARQUET',
-    partitioned_by=ARRAY['source', 'year', 'month', 'day']
+    partitioned_by=ARRAY['ocp_source', 'source', 'year', 'month', 'day']
 );
+
+DELETE FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
+WHERE source = {{cloud_provider_uuid}}
+        AND year = {{year}}
+        AND month = {{month}}
+;
 
 -- Populate the possible rows of GCP data assigning a uuid to each row
-INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp_{{tmp_id | sqlsafe}} (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp (
     row_uuid,
     invoice_month,
     billing_account_id,
@@ -124,10 +127,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp_{{tmp_id | sqlsafe}}
     cost,
     daily_credits,
     resource_global_name,
-    resource_id_matched,
-    matched_tag,
     source,
-    ocp_source,
     year,
     month,
     day
@@ -153,10 +153,7 @@ SELECT cast(uuid() as varchar) as row_uuid,
     gcp.cost,
     gcp.daily_credits,
     gcp.resource_global_name,
-    NULL as resource_id_matched,
-    NULL as matched_tag,
     gcp.source as source,
-    NULL as ocp_source,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day

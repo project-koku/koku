@@ -58,7 +58,7 @@ FROM (
     SELECT
         *,
         ROW_NUMBER() OVER (PARTITION BY row_uuid ORDER BY usage_amount_in_pricing_units) AS row_number
-    FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp_{{tmp_id | sqlsafe}} AS gcp
+    FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp AS gcp
     WHERE gcp.source = {{cloud_provider_uuid}}
         AND gcp.year = {{year}}
         AND gcp.month = {{month}}

@@ -1,5 +1,11 @@
+DELETE FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
+WHERE ocp_source = {{ocp_source_uuid}}
+AND source = {{cloud_provider_uuid}}
+AND year = {{year}}
+AND month = {{month}};
+
 -- Direct resource matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp_{{tmp_id | sqlsafe}} (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
     row_uuid,
     invoice_month,
     billing_account_id,
@@ -31,7 +37,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp_{{tmp_id 
 )
 WITH cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
-    FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp_{{tmp_id | sqlsafe}}
+    FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -109,7 +115,7 @@ SELECT gcp.row_uuid,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp_{{tmp_id | sqlsafe}} AS gcp
+FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp AS gcp
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
 LEFT JOIN cte_agg_tags AS tag_matches

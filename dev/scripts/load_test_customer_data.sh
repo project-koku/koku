@@ -215,7 +215,7 @@ trigger_ocp_ingest() {
 
     check_has_data() {
           local source_name=$1
-          response=$(curl -s "${KOKU_URL_PREFIX}/v1/sources/")
+          response=$(curl -s "${KOKU_URL_PREFIX}/v1/sources/?type=OCP")
           has_data=$(echo "$response" | jq -r --arg source_name "$source_name" '.data[] | select(.name == $source_name) | .has_data')
       }
 

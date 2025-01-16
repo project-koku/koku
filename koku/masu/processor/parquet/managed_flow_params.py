@@ -22,7 +22,6 @@ class ManagedSqlMetadata:
     days_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
-    tmp_id: str = field(init=False)
 
     def __post_init__(self):
         self._check_date_parameters_format()
@@ -47,7 +46,6 @@ class ManagedSqlMetadata:
         self.days_tup = tuple(str(day.day) for day in days)
         self.year = self.start_date.strftime("%Y")
         self.month = self.start_date.strftime("%m")
-        self.tmp_id = self.cloud_provider_uuid.replace("-", "_") + f"{self.year}_{self.month}"
 
     def build_params(self, requested_keys: List[str]) -> Dict[str, Any]:
         """
@@ -69,8 +67,6 @@ class ManagedSqlMetadata:
             "ocp_source_uuids": self.ocp_source_uuids,
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
-            "tmp_id": self.tmp_id,
             "days": self.days_tup,
-            "cloud_source_uuid": self.cloud_provider_uuid,  # FIXME
         }
         return {key: base_params[key] for key in requested_keys}

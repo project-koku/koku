@@ -484,7 +484,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         Verify the managed trino table population went successfully.
         """
-        params = sql_metadata.build_params(["schema", "cloud_source_uuid", "year", "month"])
+        params = sql_metadata.build_params(["schema", "cloud_provider_uuid", "year", "month"])
         params["matched_tag_array"] = verification_tags
         verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_aws_verification.sql")
         verification_sql = verification_sql.decode("utf-8")
