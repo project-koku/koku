@@ -65,7 +65,7 @@ class ReportParquetProcessorBase:
                 cur = conn.cursor()
                 cur.execute(sql)
                 rows = cur.fetchall()
-                LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
+                LOG.debug(f"_execute_trino_sql rows: {str(rows)}. Type: {type(rows)}")
         except TrinoUserError as err:
             LOG.warning(err)
         except TrinoExternalError as err:

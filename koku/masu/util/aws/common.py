@@ -511,7 +511,7 @@ def get_bills_from_provider(
     return bills
 
 
-def get_s3_resource(access_key, secret_key, region):  # pragma: no cover
+def get_s3_resource(access_key, secret_key, region, endpoint_url=settings.S3_ENDPOINT):  # pragma: no cover
     """
     Obtain the s3 session client
     """
@@ -521,7 +521,7 @@ def get_s3_resource(access_key, secret_key, region):  # pragma: no cover
         aws_secret_access_key=secret_key,
         region_name=region,
     )
-    return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
+    return aws_session.resource("s3", endpoint_url=endpoint_url, config=config)
 
 
 def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, context=None):
