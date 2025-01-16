@@ -112,10 +112,10 @@ FROM (
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
         sum(
             CASE
-                WHEN lineitem_lineitemtype='Tax'
-                OR   lineitem_lineitemtype='Usage'
-                THEN lineitem_unblendedcost
-                ELSE savingsplan_savingsplaneffectivecost
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                OR lineitem_lineitemtype='SavingsPlanNegation'
+                THEN savingsplan_savingsplaneffectivecost
+                ELSE lineitem_unblendedcost
             END
         ) as calculated_amortized_cost,
         sum(pricing_publicondemandcost) as public_on_demand_cost,
