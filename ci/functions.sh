@@ -131,6 +131,7 @@ function run_smoke_tests_stage() {
         --source=appsre \
         --timeout 600
 
+
     echo "Running E2E tests with IQE:"
     echo "IQE_MARKER_EXPRESSION: '$IQE_MARKER_EXPRESSION'"
     echo "IQE_FILTER_EXPRESSION: '$IQE_FILTER_EXPRESSION'"
@@ -189,7 +190,7 @@ function wait_for_image() {
 
     local count=0
     local max=60  # Try for up to 30 minutes
-    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -q "${IMAGE_TAG}"; do
+    until [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?specificTag=${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; do
         echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
         sleep 30
         ((count+=1))
