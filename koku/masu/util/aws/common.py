@@ -561,21 +561,6 @@ def copy_local_report_file_to_s3_bucket(
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
 
 
-def copy_local_hcs_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, finalize=False, finalize_date=None, context={}
-):
-    """
-    Copies local report file to s3 bucket
-    """
-    if s3_path:
-        LOG.info(f"copy_local_HCS_report_file_to_s3_bucket: {s3_path} {full_file_path}")
-        with open(full_file_path, "rb") as fin:
-            metadata = {"finalized": str(finalize)}
-            if finalize and finalize_date:
-                metadata["finalized-date"] = finalize_date
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
-
-
 def _get_s3_objects(s3_path):
     s3_resource = get_s3_resource(settings.S3_ACCESS_KEY, settings.S3_SECRET, settings.S3_REGION)
     return s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
