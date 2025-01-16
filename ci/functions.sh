@@ -94,14 +94,9 @@ function run_smoke_tests_stage() {
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration ${RESERVATION_TIMEOUT})
 
-    oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
-    oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
-    oc get secret/koku-oci -o json -n ephemeral-base | jq -r '.data' > oci-creds.json
-
-    AWS_CREDENTIALS_EPH=$(jq -r '."aws-credentials"' < aws-creds.json)
-    GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
-    OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
-    OCI_CONFIG_EPH=$(jq -r '."oci-config"' < oci-creds.json)
+    oc get secret koku-aws -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
+    oc get secret koku-gcp -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
+    oc get secret koku-oci -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
 
     bonfire deploy \
         ${APP_NAME} \
@@ -113,10 +108,6 @@ function run_smoke_tests_stage() {
         ${COMPONENTS_RESOURCES_ARG} \
         --optional-deps-method hybrid \
         --set-parameter rbac/MIN_REPLICAS=1 \
-        --set-parameter koku/AWS_CREDENTIALS_EPH=${AWS_CREDENTIALS_EPH} \
-        --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
-        --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
-        --set-parameter koku/OCI_CONFIG_EPH=${OCI_CONFIG_EPH} \
         --set-parameter koku/DBM_IMAGE=${IMAGE} \
         --set-parameter koku/DBM_IMAGE_TAG=${IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
