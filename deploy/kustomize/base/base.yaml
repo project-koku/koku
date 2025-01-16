@@ -153,25 +153,25 @@ objects:
     name: koku-secret
   data:
     django-secret-key: "${SECRET_KEY}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-aws
-  data:
-    aws-credentials: "${AWS_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-gcp
-  data:
-    gcp-credentials: "${GCP_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-oci
-  data:
-    oci-credentials: "${OCI_CREDENTIALS_EPH}"
-    oci-config: "${OCI_CONFIG_EPH}"
+# - apiVersion: v1
+#   kind: Secret # For ephemeral/local environment only
+#   metadata:
+#     name: koku-aws
+#   data:
+#     aws-credentials: "${AWS_CREDENTIALS_EPH}"
+# - apiVersion: v1
+#   kind: Secret # For ephemeral/local environment only
+#   metadata:
+#     name: koku-gcp
+#   data:
+#     gcp-credentials: "${GCP_CREDENTIALS_EPH}"
+# - apiVersion: v1
+#   kind: Secret # For ephemeral/local environment only
+#   metadata:
+#     name: koku-oci
+#   data:
+#     oci-credentials: "${OCI_CREDENTIALS_EPH}"
+#     oci-config: "${OCI_CONFIG_EPH}"
 
 - apiVersion: v1
   kind: ConfigMap
@@ -597,22 +597,22 @@ parameters:
   required: true
   from: "[a-f0-9]{20}"
   generate: expression
-- displayName: AWS credentials file
-  name: AWS_CREDENTIALS_EPH
-  required: true
-  value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
-- name: GCP_CREDENTIALS_EPH
-  displayName: GCP Credentials (Ephemeral)
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CREDENTIALS_EPH
-  displayName: OCI Credentials (Ephemeral)
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CONFIG_EPH
-  displayName: OCI Config (Ephemeral)
-  required: true
-  value: W0RFRkFVTFRdCnVzZXI9b2NpZDEudXNlci5pZApmaW5nZXJwcmludD0wMDAwMDAwMDAwMDAwMDAwMAp0ZW5hbmN5PW9jaWQxLnRlbmFuY3kuaWQK
+# - displayName: AWS credentials file
+#   name: AWS_CREDENTIALS_EPH
+#   required: true
+#   value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
+# - name: GCP_CREDENTIALS_EPH
+#   displayName: GCP Credentials (Ephemeral)
+#   required: true
+#   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+# - name: OCI_CREDENTIALS_EPH
+#   displayName: OCI Credentials (Ephemeral)
+#   required: true
+#   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+# - name: OCI_CONFIG_EPH
+#   displayName: OCI Config (Ephemeral)
+#   required: true
+#   value: W0RFRkFVTFRdCnVzZXI9b2NpZDEudXNlci5pZApmaW5nZXJwcmludD0wMDAwMDAwMDAwMDAwMDAwMAp0ZW5hbmN5PW9jaWQxLnRlbmFuY3kuaWQK
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
