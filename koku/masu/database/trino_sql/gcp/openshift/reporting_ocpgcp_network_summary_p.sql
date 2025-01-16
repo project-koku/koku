@@ -33,7 +33,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_network_summary_p (
         cast({{gcp_source_uuid}} as uuid) as source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
     -- Get data for this month or last month
     WHERE gcp_source = {{gcp_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}

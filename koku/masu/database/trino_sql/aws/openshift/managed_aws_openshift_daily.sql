@@ -1,5 +1,5 @@
 -- Now create our proper table if it does not exist
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_aws_openshift_daily
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_aws_openshift_daily
 (
     lineitem_resourceid varchar,
     lineitem_usagestartdate timestamp(3),
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_aws_openshift_daily
 ;
 
 -- Direct resource matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_daily (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_aws_openshift_daily (
     lineitem_resourceid,
     lineitem_usagestartdate,
     bill_payeraccountid,
@@ -85,7 +85,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_daily (
 )
 WITH cte_aws_resource_names AS (
     SELECT DISTINCT lineitem_resourceid
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily
     WHERE source = {{aws_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -94,7 +94,7 @@ WITH cte_aws_resource_names AS (
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT resource_id
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND resource_id != ''
         AND year = {{year}}
@@ -104,7 +104,7 @@ cte_array_agg_nodes AS (
 ),
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND persistentvolume != ''
         AND year = {{year}}
@@ -174,7 +174,7 @@ SELECT aws.lineitem_resourceid,
     aws.year,
     aws.month,
     cast(day(aws.lineitem_usagestartdate) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily AS aws
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON resource_names.lineitem_resourceid = aws.lineitem_resourceid
 LEFT JOIN cte_agg_tags AS tag_matches

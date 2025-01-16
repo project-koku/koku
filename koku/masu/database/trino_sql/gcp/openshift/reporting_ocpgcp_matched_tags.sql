@@ -1,7 +1,7 @@
 WITH cte_unnested_gcp_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     CROSS JOIN UNNEST(cast(json_parse(labels) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = {{gcp_source_uuid}}
         AND year = {{year}}
@@ -14,7 +14,7 @@ cte_unnested_ocp_tags AS (
         pod_value,
         volume_key,
         volume_value
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
     CROSS JOIN UNNEST(
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))

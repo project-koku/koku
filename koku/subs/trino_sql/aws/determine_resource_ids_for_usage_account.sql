@@ -1,7 +1,7 @@
 SELECT
     lineitem_resourceid,
     max(lineitem_usagestartdate)
-FROM hive.{{schema | sqlsafe}}.aws_line_items
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items
 WHERE source={{source_uuid}}
     AND year={{year}}
     AND month={{month}}
