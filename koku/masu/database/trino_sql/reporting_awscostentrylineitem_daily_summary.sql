@@ -113,6 +113,7 @@ FROM (
         sum(
             CASE
                 WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                OR lineitem_lineitemtype='SavingsPlanNegation'
                 THEN savingsplan_savingsplaneffectivecost
                 ELSE lineitem_unblendedcost
             END
