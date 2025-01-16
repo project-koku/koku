@@ -283,7 +283,13 @@ class QueryHandler:
     def _get_date_delta(self):
         """Return a time delta."""
         if self.time_scope_value in [-1, -2, -3]:
-            date_delta = relativedelta.relativedelta(months=abs(self.time_scope_value))
+            # todo remove comments
+            # date_delta = relativedelta.relativedelta(months=abs(self.time_scope_value))
+
+            # prospective fix - I have no idea if it is used outside of deltas and thus could break other stuff
+            # in case of delta query handlers, the base month is already -1 or -2 or -3 so to get
+            # previous month data for that base month, we always need to go back by 1 month and not -2 or -3 months
+            date_delta = relativedelta.relativedelta(months=1)
         elif self.time_scope_value in (-90, -30, -10):
             date_delta = datetime.timedelta(days=abs(self.time_scope_value))
         else:
