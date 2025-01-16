@@ -116,8 +116,8 @@ function run_smoke_tests_stage() {
         --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG} \
         --set-parameter trino/IMAGE=quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/ubi-trino \
         --set-parameter trino/IMAGE_TAG=pr-153-9d20acd \
-        --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
-        --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
+        # --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
+        # --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
