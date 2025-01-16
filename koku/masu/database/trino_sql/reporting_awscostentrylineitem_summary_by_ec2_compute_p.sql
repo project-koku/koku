@@ -143,8 +143,8 @@ FROM (
         ) as unblended_cost,
         max(lineitem_blendedrate) as blended_rate,
             /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
-            that offset that cost.
-            https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+                that offset that cost.
+                https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
             */
         sum(
             CASE
