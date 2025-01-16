@@ -503,7 +503,7 @@ WITH cte_total_pv_capacity as (
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
             azure.resource_id as azure_resource_id,
-            ocp.cluster_id,
+            ocp.cluster_id
         FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
         ON (azure.usage_start = ocp.usage_start)
