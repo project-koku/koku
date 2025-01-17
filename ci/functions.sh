@@ -178,7 +178,7 @@ function wait_for_image() {
 
     local count=0
     local max=60  # Try for up to 30 minutes
-    until [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?filter_tag_name=like:${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; do
+    until [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?specificTag=${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; do
         echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
         sleep 30
         ((count+=1))
