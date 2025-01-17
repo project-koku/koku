@@ -5523,25 +5523,6 @@ objects:
     name: koku-secret
 - apiVersion: v1
   data:
-    aws-credentials: ${AWS_CREDENTIALS_EPH}
-  kind: Secret
-  metadata:
-    name: koku-aws
-- apiVersion: v1
-  data:
-    gcp-credentials: ${GCP_CREDENTIALS_EPH}
-  kind: Secret
-  metadata:
-    name: koku-gcp
-- apiVersion: v1
-  data:
-    oci-config: ${OCI_CONFIG_EPH}
-    oci-credentials: ${OCI_CREDENTIALS_EPH}
-  kind: Secret
-  metadata:
-    name: koku-oci
-- apiVersion: v1
-  data:
     nginx.conf: |-
       worker_processes  1;
       error_log  /dev/stderr warn;
@@ -5944,22 +5925,6 @@ parameters:
   generate: expression
   name: SECRET_KEY
   required: true
-- displayName: AWS credentials file
-  name: AWS_CREDENTIALS_EPH
-  required: true
-  value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
-- displayName: GCP Credentials (Ephemeral)
-  name: GCP_CREDENTIALS_EPH
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- displayName: OCI Credentials (Ephemeral)
-  name: OCI_CREDENTIALS_EPH
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- displayName: OCI Config (Ephemeral)
-  name: OCI_CONFIG_EPH
-  required: true
-  value: W0RFRkFVTFRdCnVzZXI9b2NpZDEudXNlci5pZApmaW5nZXJwcmludD0wMDAwMDAwMDAwMDAwMDAwMAp0ZW5hbmN5PW9jaWQxLnRlbmFuY3kuaWQK
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
