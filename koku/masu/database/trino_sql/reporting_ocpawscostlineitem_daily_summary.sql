@@ -1135,6 +1135,7 @@ WITH cte_rankings AS (
     SELECT pds.aws_uuid,
         count(*) as aws_uuid_count
     FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+    WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
     GROUP BY aws_uuid
 )
 SELECT pds.aws_uuid,
