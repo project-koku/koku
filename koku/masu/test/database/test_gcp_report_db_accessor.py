@@ -566,10 +566,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
             ).count()
             self.assertEqual(0, actual_child_count)
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._clean_up_managed_temp_tables")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete, _):
+    def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete):
         """
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
