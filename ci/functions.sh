@@ -98,15 +98,6 @@ function run_smoke_tests_stage() {
     oc get secret koku-gcp -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
     oc get secret koku-oci -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
 
-    # oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
-    # oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
-    # oc get secret/koku-oci -o json -n ephemeral-base | jq -r '.data' > oci-creds.json
-
-    # AWS_CREDENTIALS_EPH=$(jq -r '."aws-credentials"' < aws-creds.json)
-    # GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
-    # OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
-    # OCI_CONFIG_EPH=$(jq -r '."oci-config"' < oci-creds.json)
-
     bonfire deploy \
         ${APP_NAME} \
         --ref-env insights-production \
