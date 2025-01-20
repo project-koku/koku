@@ -85,7 +85,7 @@ class KafkaMessageProcessor:
         except (AttributeError, ValueError, TypeError) as error:
             msg = f"[KafkaMessageProcessor] unable to load message: {msg.value}. Error: {error}"
             LOG.error(msg)
-            raise SourcesMessageError(msg)
+            raise SourcesMessageError(msg) from error
         self.event_type = event_type
         self.cost_mgmt_id = cost_mgmt_id
         self.offset = msg.offset()
