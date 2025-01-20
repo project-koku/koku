@@ -502,7 +502,7 @@ WITH cte_total_pv_capacity as (
         SELECT
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
-            azure.resource_id as azure_resource_id
+            azure.resource_id as azure_resource_id,
             ocp.cluster_id
         FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
