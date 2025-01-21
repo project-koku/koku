@@ -801,7 +801,7 @@ def delete_s3_objects(request_id, keys_to_delete, context) -> list[str]:
             batch_start = batch_size * batch_number
             batch_end = batch_start + batch_size
             object_keys_batch = keys_to_delete[batch_start:batch_end]
-            s3_bucket.delete_objects(Delete={"Objects": object_keys_batch})
+            s3_bucket.delete_objects(Delete={"Objects": object_keys_batch}, ChecksumAlgorithm="SHA256")
             LOG.info(
                 log_json(
                     request_id,
