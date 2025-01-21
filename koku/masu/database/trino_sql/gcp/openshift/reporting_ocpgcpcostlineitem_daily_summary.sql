@@ -414,6 +414,7 @@ WITH cte_rankings AS (
     SELECT pds.gcp_uuid,
         count(*) as gcp_uuid_count
     FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
+    WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
     GROUP BY gcp_uuid
 )
 SELECT pds.gcp_uuid,
