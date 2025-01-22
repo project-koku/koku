@@ -70,6 +70,8 @@ jobs:
           echo Dockerfile >> docker-files.txt;
           echo pr_check.sh >> docker-files.txt;
           echo deploy/clowdapp.yaml >> docker-files.txt;
+          echo Jenkinsfile >> docker-files.txt;
+          echo ci/functions.sh >> docker-files.txt;
 
       - name: Show Dockerfiles
         run: cat docker-files.txt
