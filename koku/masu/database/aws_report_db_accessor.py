@@ -519,7 +519,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
             summary_sql_params["ocp_source_uuid"] = ocp_provider_uuid
             summary_sql_params["matched_tag_array"] = matched_tags_result
-            LOG.info(log_json(msg="running managed OCP on AZURE daily SQL", **summary_sql_params))
+            LOG.info(log_json(msg="running managed OCP on AWS daily SQL", **summary_sql_params))
             summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")
             summary_sql = summary_sql.decode("utf-8")
             self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)

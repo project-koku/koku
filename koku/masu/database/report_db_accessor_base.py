@@ -293,7 +293,6 @@ class ReportDBAccessorBase:
             ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs"]
         )
         matched_tag_params["ocp_source_uuid"] = ocp_provider_uuid
-        LOG.info(matched_tag_params)
         matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
