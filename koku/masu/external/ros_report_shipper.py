@@ -22,7 +22,6 @@ from masu.config import Config as masu_config
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -34,7 +33,7 @@ def get_ros_s3_client():  # pragma: no cover
         aws_secret_access_key=settings.S3_ROS_SECRET,
         region_name=settings.S3_ROS_REGION,
     )
-    return s3_session.client("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
+    return s3_session.client("s3", endpoint_url=settings.S3_ROS_ENDPOINT, config=config)
 
 
 def generate_s3_object_url(client, upload_key):  # pragma: no cover

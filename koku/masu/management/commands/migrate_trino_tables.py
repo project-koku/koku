@@ -343,7 +343,7 @@ def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
                 return cur.fetchall()
         except TrinoExternalError as err:
             if err.error_name == "HIVE_METASTORE_ERROR" and n < (retries):
-                LOG.warn(
+                LOG.warning(
                     f"{err.message}. Attempt number {attempt} of {retries} failed. "
                     f"Trying {remaining_retries} more time{'s' if remaining_retries > 1 else ''} "
                     f"after waiting {wait:.2f}s."

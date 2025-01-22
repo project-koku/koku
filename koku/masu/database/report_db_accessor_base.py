@@ -109,6 +109,8 @@ class ReportDBAccessorBase:
 
     def _execute_trino_raw_sql_query(self, sql, *, sql_params=None, context=None, log_ref=None):
         """Execute a single trino query returning only the fetchall results"""
+        if sql_params is None:
+            sql_params = {}
         results, _ = self._execute_trino_raw_sql_query_with_description(
             sql, sql_params=sql_params, context=context, log_ref=log_ref
         )
@@ -119,14 +121,12 @@ class ReportDBAccessorBase:
         self,
         sql,
         *,
-        sql_params=None,
+        sql_params: dict,
         context=None,
         log_ref="Trino query",
         conn_params=None,
     ):
         """Execute a single trino query and return cur.fetchall and cur.description"""
-        if sql_params is None:
-            sql_params = {}
         if context is None:
             context = {}
         if conn_params is None:
@@ -137,6 +137,8 @@ class ReportDBAccessorBase:
             ctx = self.extract_context_from_sql_params(context)
         else:
             ctx = {}
+        if sql_params and settings.TRINO_SCHEMA_PREFIX_KEY not in sql_params:
+            sql_params[settings.TRINO_SCHEMA_PREFIX_KEY] = settings.TRINO_SCHEMA_PREFIX
         sql, bind_params = self.trino_prepare_query(sql, sql_params)
         t1 = time.time()
         trino_conn = trino_db.connect(schema=self.schema, **conn_params)
@@ -169,12 +171,13 @@ class ReportDBAccessorBase:
     def _execute_trino_multipart_sql_query(self, sql, *, bind_params=None):
         """Execute multiple related SQL queries in Trino."""
         trino_conn = trino_db.connect(schema=self.schema)
+        if isinstance(bind_params, dict) and settings.TRINO_SCHEMA_PREFIX_KEY not in bind_params:
+            bind_params[settings.TRINO_SCHEMA_PREFIX_KEY] = settings.TRINO_SCHEMA_PREFIX
         return trino_db.executescript(trino_conn, sql, params=bind_params, preprocessor=self.trino_prepare_query)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters=None, null_filters=None, table=None
     ):
-
         if table is None:
             table = self.line_item_daily_summary_table
         if not isinstance(table, str):
@@ -243,7 +246,7 @@ class ReportDBAccessorBase:
         cache_key = build_trino_schema_exists_key(self.schema)
         if result := get_value_from_cache(cache_key):
             return result
-        check_sql = f"SHOW SCHEMAS LIKE '{self.schema}'"
+        check_sql = f"SHOW SCHEMAS LIKE '{settings.TRINO_SCHEMA_PREFIX}{self.schema}'"
         exists = bool(self._execute_trino_raw_sql_query(check_sql, log_ref="schema_exists_trino"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -264,7 +267,7 @@ class ReportDBAccessorBase:
             for i in range(retries):
                 try:
                     sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
+                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
                     WHERE {source_column} = '{source}'
                     AND year = '{year}'
                     AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')

@@ -1,4 +1,4 @@
-INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_compute_summary_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpazure_compute_summary_p (
     id,
     usage_start,
     usage_end,
@@ -28,7 +28,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_compute_summary_p (
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid
-    FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
+    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND cluster_id = {{cluster_id}}

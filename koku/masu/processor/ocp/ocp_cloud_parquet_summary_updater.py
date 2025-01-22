@@ -273,7 +273,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # OpenShift on AWS
         sql_params = {
-            "schema_name": self._schema,
+            "schema": self._schema,
             "start_date": start_date,
             "end_date": end_date,
             "source_uuid": aws_provider_uuid,
@@ -403,7 +403,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # OpenShift on Azure
         sql_params = {
-            "schema_name": self._schema,
+            "schema": self._schema,
             "start_date": start_date,
             "end_date": end_date,
             "source_uuid": azure_provider_uuid,
@@ -527,7 +527,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # OpenShift on GCP
         sql_params = {
-            "schema_name": self._schema,
+            "schema": self._schema,
             "start_date": start_date,
             "end_date": end_date,
             "source_uuid": gcp_provider_uuid,

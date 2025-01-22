@@ -12,6 +12,7 @@ from os import path
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -270,7 +271,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 service_id,
                 service_description,
                 location_region
-            FROM hive.{self.schema}.gcp_line_items as gcp
+            FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.gcp_line_items as gcp
             WHERE gcp.source = '{source_uuid}'
                 AND gcp.year = '{invoice_month_date.strftime("%Y")}'
                 AND gcp.month = '{invoice_month_date.strftime("%m")}'
@@ -396,7 +397,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
                 sql = sql.decode("utf-8")
                 sql_params = {
-                    "schema_name": self.schema,
+                    "schema": self.schema,
                     "start_date": start_date,
                     "end_date": end_date,
                     "year": year,
@@ -431,7 +432,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     column_name = "gcp_source"
                 sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
+                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
                         WHERE {column_name} = '{gcp_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'

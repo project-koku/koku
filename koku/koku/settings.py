@@ -15,6 +15,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import logging
 import os
+import re
 import sys
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
@@ -26,10 +27,9 @@ from oci import config
 from oci.exceptions import ConfigFileNotFound
 
 from . import database
-from . import sentry
+from . import sentry  # noqa: F401
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
-
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
@@ -138,7 +138,12 @@ MIDDLEWARE = [
 MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
 
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
+SCHEMA_SUFFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("SCHEMA_SUFFIX", default=""))
+print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
 if DEVELOPMENT:
+    # if SCHEMA_SUFFIX == "":
+    #     SCHEMA_SUFFIX = f"_{ENVIRONMENT.get_value('USER', default='')}"
+    print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
@@ -370,7 +375,9 @@ VERBOSE_FORMATTING = (
     "%(task_id)s %(task_parent_id)s %(task_root_id)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(process)d %(message)s"
+SIMPLE_FORMATTING = (
+    "[%(asctime)s] %(levelname)s %(task_root_id)s %(task_parent_id)s %(task_id)s %(process)d %(message)s"
+)
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
@@ -488,21 +495,29 @@ REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value("REQUESTED_SUBS_BUCKET", default="
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
 S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
-S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
 S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
 S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
 S3_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_BUCKET)
+# HCS
+S3_HCS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
+S3_HCS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
+S3_HCS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_BUCKET)
+S3_HCS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_BUCKET)
+S3_HCS_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
+# ROS
 S3_ROS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_ROS_BUCKET)
 S3_ROS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_ROS_BUCKET)
 S3_ROS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_ROS_BUCKET)
 S3_ROS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_ROS_BUCKET)
+S3_ROS_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
+# SUBS
 S3_SUBS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_SUBS_BUCKET)
 S3_SUBS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_SUBS_BUCKET)
 S3_SUBS_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_SUBS_BUCKET)
 S3_SUBS_REGION = CONFIGURATOR.get_object_store_region(REQUESTED_SUBS_BUCKET)
+S3_SUBS_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 SKIP_MINIO_DATA_DELETION = ENVIRONMENT.bool("SKIP_MINIO_DATA_DELETION", default=False)
 
-ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
 PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
@@ -521,6 +536,9 @@ except ConfigFileNotFound:
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
+TRINO_SCHEMA_PREFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("TRINO_SCHEMA_PREFIX", default=""))
+TRINO_S3A_OR_S3 = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a")
+TRINO_SCHEMA_PREFIX_KEY = "trino_schema_prefix"
 
 # IBM Settings
 IBM_SERVICE_URL = ENVIRONMENT.get_value("IBM_SERVICE_URL", default="https://enterprise.cloud.ibm.com")

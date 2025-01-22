@@ -9,7 +9,6 @@ import logging
 import math
 import re
 import time
-import typing as t
 import uuid
 from itertools import chain
 
@@ -464,8 +463,8 @@ def update_account_aliases(provider: Provider):
 def get_bills_from_provider(
     provider_uuid: str,
     schema: str,
-    start_date: t.Union[datetime.datetime, str] = None,
-    end_date: t.Union[datetime.datetime, str] = None,
+    start_date: datetime.datetime | str = None,
+    end_date: datetime.datetime | str = None,
 ) -> list[AWSCostEntryBill]:
     """
     Return the AWS bill IDs given a provider UUID.
@@ -512,7 +511,7 @@ def get_bills_from_provider(
     return bills
 
 
-def get_s3_resource(access_key, secret_key, region):  # pragma: no cover
+def get_s3_resource(access_key, secret_key, region, endpoint_url=settings.S3_ENDPOINT):  # pragma: no cover
     """
     Obtain the s3 session client
     """
@@ -522,7 +521,7 @@ def get_s3_resource(access_key, secret_key, region):  # pragma: no cover
         aws_secret_access_key=secret_key,
         region_name=region,
     )
-    return aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
+    return aws_session.resource("s3", endpoint_url=endpoint_url, config=config)
 
 
 def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, context=None):
@@ -559,21 +558,6 @@ def copy_local_report_file_to_s3_bucket(
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         metadata = {"manifestid": str(manifest_id)}
         with open(full_file_path, "rb") as fin:
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
-
-
-def copy_local_hcs_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, finalize=False, finalize_date=None, context={}
-):
-    """
-    Copies local report file to s3 bucket
-    """
-    if s3_path and settings.ENABLE_S3_ARCHIVING:
-        LOG.info(f"copy_local_HCS_report_file_to_s3_bucket: {s3_path} {full_file_path}")
-        with open(full_file_path, "rb") as fin:
-            metadata = {"finalized": str(finalize)}
-            if finalize and finalize_date:
-                metadata["finalized-date"] = finalize_date
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
 
 
@@ -655,11 +639,11 @@ def safe_str_int_conversion(value):
 
 def filter_s3_objects_less_than(
     request_id: str,
-    keys: t.List[str],
+    keys: list[str],
     metadata_key: str,
     metadata_value_check: str,
-    context: t.Optional[t.Dict] = None,
-) -> t.List[str]:
+    context: dict | None = None,
+) -> list[str]:
     """Filter S3 object keys based on a metadata key integer value comparison.
 
     Parameters:
