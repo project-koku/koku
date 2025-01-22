@@ -452,7 +452,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
         """
         verification_tags = []
-        for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
+        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
             matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
             verification_tags.extend(matched_tags_result)
             self.delete_ocp_on_azure_hive_partition_by_day(

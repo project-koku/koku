@@ -14,7 +14,7 @@ from api.utils import DateHelper
 @dataclass
 class ManagedSqlMetadata:
     schema: str
-    ocp_source_uuids: List[str]
+    ocp_provider_uuids: List[str]
     cloud_provider_uuid: str
     start_date: date
     end_date: date
@@ -25,8 +25,8 @@ class ManagedSqlMetadata:
 
     def __post_init__(self):
         self._check_date_parameters_format()
-        if not self.ocp_source_uuids:
-            raise ValueError("ocp_source_uuids must not be empty.")
+        if not self.ocp_provider_uuids:
+            raise ValueError("ocp_provider_uuids must not be empty.")
         if len(self.cloud_provider_uuid) == 0:
             raise ValueError("cloud_provider_uuid must not be empty.")
         if self.start_date > self.end_date:
@@ -64,7 +64,7 @@ class ManagedSqlMetadata:
             "month": self.month,
             "year": self.year,
             "matched_tag_strs": self.matched_tag_strs,
-            "ocp_source_uuids": self.ocp_source_uuids,
+            "ocp_provider_uuids": self.ocp_provider_uuids,
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,

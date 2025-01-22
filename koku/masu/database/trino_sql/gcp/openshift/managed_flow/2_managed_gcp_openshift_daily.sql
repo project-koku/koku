@@ -64,6 +64,6 @@ FROM (
         AND gcp.month = {{month}}
         AND gcp.usage_start_time >= {{start_date}}
         AND gcp.usage_start_time < DATE_ADD('day', 1, {{end_date}})
-        AND gcp.ocp_source IN {{ocp_source_uuids | inclause}}
+        AND gcp.ocp_source IN {{ocp_provider_uuids | inclause}}
 ) ranked
 WHERE row_number = 1;
