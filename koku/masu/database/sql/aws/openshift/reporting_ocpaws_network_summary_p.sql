@@ -1,4 +1,4 @@
-INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_network_summary_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpaws_network_summary_p (
     id,
     usage_start,
     usage_end,
@@ -36,7 +36,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_network_summary_p (
         sum(markup_cost_savingsplan),
         max(currency_code),
         {{source_uuid}}::uuid
-    FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
+    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
     WHERE product_code IN ('AmazonVPC','AmazonCloudFront','AmazonRoute53','AmazonAPIGateway')
         AND usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date

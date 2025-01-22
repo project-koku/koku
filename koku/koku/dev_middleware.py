@@ -60,6 +60,9 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
                 identity_header = settings.DEVELOPMENT_IDENTITY
 
             user_dict = identity_header.get("identity", {}).get("user")
+            org_id = identity_header.get("org_id") or "1234567"
+            if not org_id.endswith(settings.SCHEMA_SUFFIX):
+                org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
             user = Mock(
                 spec=User,
                 access=user_dict.get("access", {}),
@@ -68,8 +71,8 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
                 admin=user_dict.get("is_org_admin", False),
                 customer=Mock(
                     account_id=identity_header.get("account_number", "10001"),
-                    org_id=identity_header.get("org_id", "1234567"),
-                    schema_name=f'org{identity_header.get("org_id", "1234567")}',
+                    org_id=org_id,
+                    schema_name=f"org{org_id}",
                 ),
                 req_id="DEVELOPMENT",
             )

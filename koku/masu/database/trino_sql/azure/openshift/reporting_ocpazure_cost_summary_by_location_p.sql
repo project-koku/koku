@@ -1,4 +1,4 @@
-INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpazure_cost_summary_by_location_p (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazure_cost_summary_by_location_p (
     id,
     usage_start,
     usage_end,
@@ -24,7 +24,7 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpazure_cost_summary_b
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
         cast({{azure_source_uuid}} as uuid) as source_uuid
-    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
     WHERE azure_source = {{azure_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND year = {{year}}

@@ -73,6 +73,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_SCHEMA_PREFIX
+          value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -109,6 +115,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_SCHEMA_PREFIX
+          value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -256,6 +268,13 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: SCHEMA_SUFFIX
+  description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
+  value: ""
+- name: TRINO_SCHEMA_PREFIX
+  value: ""
+- name: TRINO_S3A_OR_S3
+  value: "s3a"
 - name: S3_BUCKET_NAME
   value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME

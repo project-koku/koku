@@ -2,7 +2,7 @@
 -- CLEAR DATA FROM reporting_ocpall_network_summary_pt
 -- FOR {{start_date}} - {{end_date}}; source_type {{source_type}}; source {{source_uuid}}; cluster {{cluster_id}}
 DELETE
-  FROM {{schema_name | sqlsafe}}.reporting_ocpall_network_summary_pt
+  FROM {{schema | sqlsafe}}.reporting_ocpall_network_summary_pt
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
@@ -13,7 +13,7 @@ DELETE
 -- INSERT NEW DATA INTO reporting_ocpall_network_summary_pt
 -- FOR {{start_date}} - {{end_date}}; source_type {{source_type}}; source {{source_uuid}}; cluster {{cluster_id}}
 INSERT
-  INTO {{schema_name | sqlsafe}}.reporting_ocpall_network_summary_pt (
+  INTO {{schema | sqlsafe}}.reporting_ocpall_network_summary_pt (
            source_type,
            usage_start,
            usage_end,
@@ -45,7 +45,7 @@ SELECT {{source_type}},
        max(currency_code),
        max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid
-  FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
+  FROM {{schema | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid

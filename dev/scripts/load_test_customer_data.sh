@@ -267,7 +267,7 @@ enable_ocp_tags() {
   log-info "Enabling OCP tags..."
   RESPONSE=$(curl -s -w "%{http_code}\n" --header "Content-Type: application/json" \
   --request POST \
-  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application", "instance-type"], "provider_type": "ocp"}' \
+  --data '{"schema": "org1234567'"${SCHEMA_SUFFIX}"'","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application", "instance-type"], "provider_type": "ocp"}' \
   "${MASU_URL_PREFIX}"/v1/enabled_tags/)
   STATUS_CODE=${RESPONSE: -3}
   DATA=${RESPONSE:: -3}
@@ -302,11 +302,14 @@ build_aws_data() {
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
-
+  
+  log-info "Building OpenShift on ${_source_name} report data..."
   local _ocp_payload
   _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
-  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
+  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload "${S3_ENDPOINT}" --daily-reports --payload-name "$_ocp_payload"
+  # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload "${S3_ENDPOINT}" --payload-name "$_ocp_payload"
   trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
+  
   nise_report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
@@ -340,9 +343,9 @@ build_azure_data() {
   log-info "Building OpenShift on ${_source_name} report data..."
   local _ocp_payload
   _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
-  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
+  nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload "${S3_ENDPOINT}" --daily-reports --payload-name "$_ocp_payload"
+  # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload "${S3_ENDPOINT}" --payload-name "$_ocp_payload"
   trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
-  # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --minio-upload http://localhost:9000 --payload-name "$_ocp_payload"
   nise_report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
   nise_report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report-v2 --resource-group
 
@@ -377,6 +380,7 @@ build_gcp_data() {
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
 
+  log-info "Building OpenShift on ${_source_name} report data..."
   for i in "${!_ocp_ingest_names[@]}"; do
       _ocp_ingest_name="${_ocp_ingest_names[$i]}"
 
@@ -385,13 +389,13 @@ build_gcp_data() {
       log-info "Triggering OCP ingest for $_ocp_ingest_name with new payload $_ocp_payload"
 
       if [[ "$i" -eq 0 ]]; then
-          nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_replicate_pvc.yml" --ocp-cluster-id test-ocp-gcp-cluster-duplicate --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
+          nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_replicate_pvc.yml" --ocp-cluster-id test-ocp-gcp-cluster-duplicate --minio-upload "${S3_ENDPOINT}" --daily-reports --payload-name "$_ocp_payload"
       elif [[ "$i" -eq 1 ]]; then
-          nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
+          nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --minio-upload "${S3_ENDPOINT}" --daily-reports --payload-name "$_ocp_payload"
+          # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --minio-upload "${S3_ENDPOINT}" --payload-name "$_ocp_payload"
       fi
       trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
   done
-
 
   nise_report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local"
   nise_report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0" -r
@@ -420,8 +424,8 @@ build_onprem_data() {
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload http://localhost:9000 --daily-reports --payload-name "$_ocp_payload"
-  # nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload http://localhost:9000 --payload-name "$_ocp_payload"
+  nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload "${S3_ENDPOINT}" --daily-reports --payload-name "$_ocp_payload"
+  # nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --minio-upload "${S3_ENDPOINT}" --payload-name "$_ocp_payload"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"

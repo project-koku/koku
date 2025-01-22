@@ -11,6 +11,7 @@ from typing import Any
 from typing import List
 
 from dateutil.parser import parse
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -213,7 +214,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
-                "schema_name": self.schema,
+                "schema": self.schema,
                 "start_date": start_date,
                 "end_date": end_date,
                 "year": year,
@@ -247,7 +248,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     column_name = "azure_source"
                 sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
+                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
                         WHERE {column_name} = '{az_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'
