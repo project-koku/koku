@@ -95,6 +95,17 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     # ====================================================
     #      koku Management Command Job
     # ====================================================
@@ -131,6 +142,17 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
