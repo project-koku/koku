@@ -143,9 +143,7 @@ print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
 if DEVELOPMENT:
     # if SCHEMA_SUFFIX == "":
     #     SCHEMA_SUFFIX = f"_{ENVIRONMENT.get_value('USER', default='')}"
-    # if not SCHEMA_SUFFIX.startswith("_"):
-    #     SCHEMA_SUFFIX = f"_{SCHEMA_SUFFIX}"
-    # print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
+    print(f"ORG ID SUFFIX: '{SCHEMA_SUFFIX}'")
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",

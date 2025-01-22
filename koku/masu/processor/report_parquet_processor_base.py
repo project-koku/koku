@@ -228,6 +228,11 @@ class ReportParquetProcessorBase:
                 table=self._table_name,
             )
         )
-        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
+        sql = (
+            "CALL system.sync_partition_metadata('"
+            f"{settings.TRINO_SCHEMA_PREFIX}{self._schema_name}', "
+            f"'{self._table_name}', "
+            "'FULL')"
+        )
         LOG.info(sql)
         self._execute_trino_sql(sql, self._schema_name)
