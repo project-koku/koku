@@ -11,7 +11,7 @@ SELECT
 FROM
 (
     SELECT sum(lineitem_unblendedcost) AS managed_total_cost
-    FROM hive.{{schema | sqlsafe}}.managed_aws_openshift_daily as managed_ocpcloud
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_aws_openshift_daily as managed_ocpcloud
     WHERE managed_ocpcloud.source = {{cloud_source_uuid}}
     AND managed_ocpcloud.year = {{year}}
     AND managed_ocpcloud.month = {{month}}
@@ -21,7 +21,7 @@ FROM
 ) t1,
 (
     SELECT sum(lineitem_unblendedcost) as parquet_total_cost
-    FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as parquet_table
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_openshift_daily as parquet_table
     LEFT JOIN cte_agg_tags AS tag_matches
         ON any_match(tag_matches.matched_tags, x->strpos(parquet_table.resourcetags, x) != 0)
         AND parquet_table.resource_id_matched = False

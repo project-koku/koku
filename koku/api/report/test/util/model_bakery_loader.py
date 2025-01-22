@@ -35,7 +35,6 @@ from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 from reporting.models import AWSAccountAlias
 from reporting.models import AWSOrganizationalUnit
 
-
 BILL_MODELS = {
     Provider.PROVIDER_AWS: "AWSCostEntryBill",
     Provider.PROVIDER_AWS_LOCAL: "AWSCostEntryBill",
@@ -533,7 +532,7 @@ class ModelBakeryDataLoader(DataLoader):
 
             # update ui tables
             sql_params = {
-                "schema_name": self.schema,
+                "schema": self.schema,
                 "start_date": self.first_start_date,
                 "end_date": self.last_end_date,
                 "source_uuid": provider.uuid,

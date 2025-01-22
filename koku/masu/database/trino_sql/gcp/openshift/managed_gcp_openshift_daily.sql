@@ -1,5 +1,5 @@
 -- Now create our proper table if it does not exist
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily
 (
     invoice_month varchar,
     billing_account_id varchar,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
 ;
 
 -- Direct resource matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily (
     invoice_month,
     billing_account_id,
     project_id,
@@ -63,7 +63,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily (
 )
 WITH cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{gcp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -72,7 +72,7 @@ WITH cte_gcp_resource_names AS (
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -81,7 +81,7 @@ cte_array_agg_nodes AS (
 ),
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -141,7 +141,7 @@ SELECT gcp.invoice_month,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
 LEFT JOIN cte_agg_tags AS tag_matches

@@ -8,7 +8,7 @@
     cte_distinct_gcp_labels AS (
     SELECT DISTINCT labels,
         source
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{gcp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -34,7 +34,7 @@
     WITH cte_gcp_resource_name AS (
         SELECT DISTINCT gcp.resource_name,
             gcp.source
-        FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
+        FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
         WHERE gcp.usage_start_time >= {{start_date}}
             AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
             {% if gcp_provider_uuid %}
@@ -46,7 +46,7 @@
     cte_ocp_nodes AS (
         SELECT DISTINCT ocp.node,
             ocp.source
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
+        FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         WHERE ocp.interval_start >= {{start_date}}
             AND ocp.interval_start < date_add('day', 1, {{end_date}})
             AND ocp.node IS NOT NULL

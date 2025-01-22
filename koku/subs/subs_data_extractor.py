@@ -22,7 +22,6 @@ from masu.util.aws.common import get_s3_resource
 from reporting.models import SubsIDMap
 from reporting.models import SubsLastProcessed
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -40,7 +39,10 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             self.creation_processing_time = self.creation_processing_time - timedelta(days=1)
         self.tracing_id = tracing_id
         self.s3_resource = get_s3_resource(
-            settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
+            access_key=settings.S3_SUBS_ACCESS_KEY,
+            secret_key=settings.S3_SUBS_SECRET,
+            region=settings.S3_SUBS_REGION,
+            endpoint_url=settings.S3_SUBS_ENDPOINT,
         )
         self.context = context
 

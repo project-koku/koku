@@ -1,6 +1,6 @@
 -- Clear out old entries first
 -- Populate the daily aggregate line item data
-INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_by_account_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_by_account_p (
     id,
     cluster_id,
     cluster_alias,
@@ -26,7 +26,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_by_account_p
         source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
+    FROM {{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND invoice_month = {{invoice_month}}
