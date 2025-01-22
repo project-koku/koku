@@ -112,6 +112,9 @@ function run_smoke_tests_stage() {
         --set-parameter koku/DBM_IMAGE_TAG=${IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
+        --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG} \
+        --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
+        --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
