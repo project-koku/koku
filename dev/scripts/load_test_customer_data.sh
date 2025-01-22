@@ -309,7 +309,7 @@ build_aws_data() {
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload "${S3_ENDPOINT}" --daily-reports --payload-name "$_ocp_payload"
   # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload "${S3_ENDPOINT}" --payload-name "$_ocp_payload"
   trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
-  
+
   nise_report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
@@ -408,7 +408,6 @@ build_gcp_data() {
 
   log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
-
 }
 
 # ONPREM customer data
