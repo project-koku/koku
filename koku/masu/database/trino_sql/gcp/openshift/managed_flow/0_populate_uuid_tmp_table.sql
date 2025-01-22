@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily
 (
     invoice_month varchar,
     billing_account_id varchar,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
 ;
 
 -- Note: We can remove the need for this table if we add in uuid during parquet creation
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_uuid_temp
 (
     row_uuid varchar,
     invoice_month varchar,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
     partitioned_by=ARRAY['source', 'year', 'month', 'day']
 );
 
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
 (
     row_uuid varchar,
     invoice_month varchar,
@@ -98,14 +98,14 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
     partitioned_by=ARRAY['ocp_source', 'source', 'year', 'month', 'day']
 );
 
-DELETE FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
+DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_uuid_temp
 WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
 ;
 
 -- Populate the possible rows of GCP data assigning a uuid to each row
-INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_uuid_temp (
     row_uuid,
     invoice_month,
     billing_account_id,
@@ -157,7 +157,7 @@ SELECT cast(uuid() as varchar) as row_uuid,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 WHERE gcp.source = {{cloud_provider_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month= {{month}}

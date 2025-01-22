@@ -302,14 +302,13 @@ build_aws_data() {
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
-  
+
   log-info "Building OpenShift on ${_source_name} report data..."
   local _ocp_payload
   _ocp_payload="$(uuidgen | awk '{print tolower($0)}' | tr -d '-')"
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload "${S3_ENDPOINT}" --daily-reports --payload-name "$_ocp_payload"
   # nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --minio-upload "${S3_ENDPOINT}" --payload-name "$_ocp_payload"
   trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
-
   nise_report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
