@@ -48,7 +48,7 @@ cte_latest_values as (
         costcategory as cost_category,
         nullif(product_memory, '') as memory,
         cast(nullif(product_vcpu, '') AS INTEGER) as vcpu
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily as alid
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily as alid
     WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
@@ -57,7 +57,7 @@ cte_latest_values as (
     AND lineitem_resourceid != ''
     AND lineitem_usagestartdate = (
       SELECT max(date(lv.lineitem_usagestartdate)) AS usage_start
-      FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS lv
+      FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily AS lv
       WHERE lineitem_resourceid = alid.lineitem_resourceid
       AND year = '{{year | sqlsafe}}'
       AND month = '{{month | sqlsafe}}'
@@ -164,7 +164,7 @@ FROM (
         ) as calculated_amortized_cost,
         sum(pricing_publicondemandcost) as public_on_demand_cost,
         max(pricing_publicondemandrate) as public_on_demand_rate
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily as lid
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily as lid
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'

@@ -42,7 +42,6 @@ from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
-
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
@@ -331,7 +330,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             # Check for customer creation & user creation
             query_string = ""
             if request.META["QUERY_STRING"]:
-                query_string = "?{}".format(request.META["QUERY_STRING"])
+                query_string = f"?{request.META['QUERY_STRING']}"
+            if not org_id.endswith(settings.SCHEMA_SUFFIX):
+                org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
             stmt = {
                 "method": request.method,
                 "path": request.path + query_string,
