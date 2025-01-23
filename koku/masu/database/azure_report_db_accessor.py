@@ -465,7 +465,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         prepare_sql = pkgutil.get_data("masu.database", f"{managed_path}/0_prepare_managed_tables.sql")
         prepare_sql = prepare_sql.decode("utf-8")
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
-        for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
+        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
             self.delete_ocp_on_azure_hive_partition_by_day(
                 sql_metadata.days_tup,
                 sql_metadata.cloud_provider_uuid,
@@ -478,12 +478,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             resource_matching_params = sql_metadata.build_params(
                 ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
             )
-            resource_matching_params["ocp_source_uuid"] = ocp_provider_uuid
+            resource_matching_params["ocp_provider_uuid"] = ocp_provider_uuid
             resource_matching_params["matched_tag_array"] = self.find_openshift_keys_expected_values(
                 ocp_provider_uuid, sql_metadata
             )
-            LOG.info("\n\n\n\n")
-            LOG.info(resource_matching_params["matched_tag_array"])
             LOG.info(log_json(msg="Resource matching ocp on azure", **resource_matching_params))
             resource_matching_sql = pkgutil.get_data(
                 "masu.database", f"{managed_path}/1_resource_matching_by_cluster.sql"
@@ -502,7 +500,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             daily_summary_params = sql_metadata.build_params(
                 ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
             )
-            daily_summary_params["ocp_source_uuid"] = ocp_provider_uuid
+            daily_summary_params["ocp_provider_uuid"] = ocp_provider_uuid
             # TODO: add unleash check
             daily_summary_params["unattributed_storage"] = True
             # TODO: Grab markup from cost model
@@ -515,37 +513,3 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
             )
             self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
-
-    # def populate_ocp_on_cloud_daily_trino_old(self, sql_metadata: ManagedSqlMetadata) -> Any:
-    #     """Populate the managed_aws_openshift_daily trino table for OCP on Azure.
-    #     Args:
-    #         sql_metadata: object of ManagedSqlMetadata class
-    #     Returns
-    #         (None)
-    #     """
-    #     # verification_tags = [] --> We may not need these anymore when we
-    #     # switch to verifying the new table.
-    #     for ocp_provider_uuid in sql_metadata.ocp_source_uuids:
-    #         matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
-    #         verification_tags.extend(matched_tags_result)
-    #         self.delete_ocp_on_azure_hive_partition_by_day(
-    #             sql_metadata.days_tup,
-    #             sql_metadata.cloud_provider_uuid,
-    #             ocp_provider_uuid,
-    #             sql_metadata.year,
-    #             sql_metadata.month,
-    #             TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
-    #         )
-    #         summary_sql_params = sql_metadata.build_params(
-    #             ["schema", "start_date", "year", "month", "days", "end_date", "cloud_provider_uuid"]
-    #         )
-    #         summary_sql_params["ocp_source_uuid"] = ocp_provider_uuid
-    #         summary_sql_params["matched_tag_array"] = matched_tags_result
-    #         LOG.info(log_json(msg="running managed OCP on AZURE daily SQL", **summary_sql_params))
-    #         summary_sql = pkgutil.get_data(
-    #             "masu.database", "trino_sql/azure/openshift/managed_azure_openshift_daily.sql"
-    #         )
-    #         summary_sql = summary_sql.decode("utf-8")
-    #         self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
-    #     verification_tags = list(dict.fromkeys(verification_tags))
-    #     self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

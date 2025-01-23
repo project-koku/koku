@@ -1,10 +1,10 @@
-DELETE FROM hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
+DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
 WHERE source = {{cloud_provider_uuid}}
-AND ocp_source = {{ocp_source_uuid}}
+AND ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}};
 
-INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp (
     row_uuid,
     usage_start,
     resource_id,
@@ -61,7 +61,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp (
 )
 WITH cte_azure_resource_names AS (
     SELECT DISTINCT resourceid
-    FROM hive.{{schema | sqlsafe}}.managed_azure_uuid_temp
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_uuid_temp
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -70,8 +70,8 @@ WITH cte_azure_resource_names AS (
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
-    WHERE source = {{ocp_source_uuid}}
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND interval_start >= {{start_date}}
@@ -79,8 +79,8 @@ cte_array_agg_nodes AS (
 ),
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
-    WHERE source = {{ocp_source_uuid}}
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND interval_start >= {{start_date}}
@@ -115,7 +115,7 @@ cte_enabled_tag_keys AS (
         THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
         ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
     END as enabled_keys
-    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+    FROM postgres.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_enabledtagkeys
     WHERE enabled = TRUE
         AND provider_type = 'Azure'
 )
@@ -194,11 +194,11 @@ SELECT
     END as resource_id_matched,
     array_join(filter(tag_matches.matched_tags, x -> STRPOS(tags, x ) != 0), ',') as matched_tag,
     azure.source as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     azure.year,
     azure.month,
     cast(day(azure.date) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.managed_azure_uuid_temp AS azure
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_uuid_temp AS azure
 CROSS JOIN cte_enabled_tag_keys as etk
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON azure.resourceid = resource_names.resourceid

@@ -1,6 +1,6 @@
 {% if unattributed_storage %}
-DELETE FROM hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp
-WHERE ocp_source = {{ocp_source_uuid}}
+DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp
+WHERE ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}}
 {% endif %}
@@ -8,7 +8,7 @@ AND month = {{month}}
 
 
 {% if unattributed_storage %}
-INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp (
     resource_id,
     capacity,
     usage_start,
@@ -20,10 +20,10 @@ SELECT
     azure.resource_id,
     max(az_disk_capacity.capacity) as capacity,
     date(azure.date) as usage_start,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     {{year}} as year,
     {{month}} as month
-FROM hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
 JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
     ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
     AND az_disk_capacity.provider_type = 'Azure'
@@ -33,15 +33,15 @@ WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.resourceid LIKE '%%Microsoft.Compute/disks/%%'
     AND azure.year = {{year}}
     AND azure.month = {{month}}
-    AND azure.ocp_source = {{ocp_source_uuid}}
+    AND azure.ocp_source = {{ocp_provider_uuid}}
     and azure.source = {{cloud_provider_uuid}}
     AND azure.resource_id_matched = True
 GROUP BY azure.resource_id, date(date)
 {% endif %}
 ;
 
-DELETE FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
-WHERE ocp_source = {{ocp_source_uuid}}
+DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
+WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}};
@@ -52,7 +52,7 @@ AND month = {{month}};
 -- (PV’s Capacity) / Disk Capacity * Cost of Disk
 -- PV without PVCs are Unattributed Storage
 -- 2 volumes can share the same disk id
-INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
     row_uuid,
     cluster_id,
     cluster_alias,
@@ -129,11 +129,11 @@ SELECT azure.row_uuid as row_uuid,
         ELSE max(ocp.cost_category_id)
     END as cost_category_id,
     {{cloud_provider_uuid}} as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
@@ -141,11 +141,11 @@ SELECT azure.row_uuid as row_uuid,
                 (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
         AND azure.ocp_source = ocp.source
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
+    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = azure.ocp_source
-    WHERE ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
@@ -153,7 +153,7 @@ SELECT azure.row_uuid as row_uuid,
         AND ocp.persistentvolume is not null
         -- Filter out Node Network Costs because they cannot be tied to namespace level
         AND azure.data_transfer_direction IS NULL
-        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.ocp_source = {{ocp_provider_uuid}}
         and azure.source = {{cloud_provider_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
@@ -161,7 +161,7 @@ SELECT azure.row_uuid as row_uuid,
         AND ocp.namespace != 'Storage unattributed'
         AND az_disk.year = {{year}}
         AND az_disk.month = {{month}}
-        AND az_disk.ocp_source = {{ocp_source_uuid}}
+        AND az_disk.ocp_source = {{ocp_provider_uuid}}
     GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 -- The endif needs to come before the ; when using sqlparse
 {% endif %}
@@ -169,7 +169,7 @@ SELECT azure.row_uuid as row_uuid,
 
 {% if unattributed_storage %}
 -- Unallocated Cost: ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
-INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
     row_uuid,
     cluster_id,
     cluster_alias,
@@ -207,8 +207,8 @@ WITH cte_total_pv_capacity as (
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
             azure.resource_id as azure_resource_id,
             ocp.cluster_id
-        FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
+        FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
@@ -219,7 +219,7 @@ WITH cte_total_pv_capacity as (
             AND lpad(ocp.month, 2, '0') = {{month}}
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
-            AND azure.ocp_source = {{ocp_source_uuid}}
+            AND azure.ocp_source = {{ocp_provider_uuid}}
             AND azure.source = {{cloud_provider_uuid}}
             AND azure.year = {{year}}
             AND azure.month = {{month}}
@@ -249,11 +249,11 @@ SELECT cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedupl
         ((max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost, -- pretax_cost x markup = markup_cost
         max(azure.resource_id_matched) as resource_id_matched,
         {{cloud_provider_uuid}} as source,
-        {{ocp_source_uuid}} as ocp_source,
+        {{ocp_provider_uuid}} as ocp_source,
         max(azure.year) as year,
         max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
                 (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
@@ -261,18 +261,18 @@ SELECT cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedupl
                 (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
         AND azure.ocp_source = ocp.source
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
+    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = azure.ocp_source
     LEFT JOIN cte_total_pv_capacity as pv_cap
         ON pv_cap.azure_resource_id = azure.resource_id
-    WHERE ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}}
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.ocp_source = {{ocp_provider_uuid}}
         AND azure.source = {{cloud_provider_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
@@ -285,7 +285,7 @@ SELECT cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedupl
 ;
 
 -- Directly Pod resource_id matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
     row_uuid,
     cluster_id,
     cluster_alias,
@@ -372,23 +372,23 @@ SELECT azure.row_uuid as row_uuid,
     max(azure.resource_id_matched) as resource_id_matched,
     max(ocp.cost_category_id) as cost_category_id,
     {{cloud_provider_uuid}} as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON (azure.usage_start = ocp.usage_start)
         AND (
                 (replace(lower(azure.resource_id), '_osdisk', '') = lower(ocp.node) AND ocp.data_source = 'Pod')
                 OR (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
             )
         AND ocp.source = azure.ocp_source
-    LEFT JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp as disk_cap
+    LEFT JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp as disk_cap
         ON azure.resource_id = disk_cap.resource_id
         AND disk_cap.year = azure.year
         AND disk_cap.month = azure.month
         AND disk_cap.ocp_source = azure.ocp_source
-    WHERE ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
@@ -397,7 +397,7 @@ SELECT azure.row_uuid as row_uuid,
         AND azure.resource_id_matched = True
         -- Filter out Node Network Costs because they cannot be tied to namespace level
         AND azure.data_transfer_direction IS NULL
-        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.ocp_source = {{ocp_provider_uuid}}
         AND azure.source = {{cloud_provider_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
@@ -406,7 +406,7 @@ SELECT azure.row_uuid as row_uuid,
 ;
 
 -- Tag matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
     row_uuid,
     cluster_id,
     cluster_alias,
@@ -432,6 +432,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
     pod_labels,
     volume_labels,
     tags,
+    matched_tag,
     resource_id_matched,
     cost_category_id,
     source,
@@ -464,14 +465,15 @@ SELECT azure.row_uuid,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
+    max(azure.matched_tag) as matched_tag,
     FALSE as resource_id_matched,
     max(ocp.cost_category_id) as cost_category_id,
     {{cloud_provider_uuid}} as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON azure.usage_start = ocp.usage_start
         AND (
                 json_query(azure.tags, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
@@ -486,12 +488,12 @@ SELECT azure.row_uuid,
         AND namespace != 'Storage unattributed'
         AND namespace != 'Network unattributed'
         AND azure.ocp_source = ocp.source
-    WHERE ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
         AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.ocp_source = {{ocp_provider_uuid}}
         AND azure.source = {{cloud_provider_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
@@ -502,7 +504,7 @@ SELECT azure.row_uuid,
 
 -- Group by to calculate proper cost per project
 
-INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (
     row_uuid,
     cluster_id,
     cluster_alias,
@@ -530,6 +532,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
     project_markup_cost,
     pod_labels,
     tags,
+    resource_id_matched,
+    matched_tag,
     cost_category_id,
     source,
     ocp_source,
@@ -540,7 +544,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
 WITH cte_rankings AS (
     SELECT pds.row_uuid,
         count(*) as row_uuid_count
-    FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
     GROUP BY row_uuid
 )
 SELECT pds.row_uuid,
@@ -593,17 +597,19 @@ SELECT pds.row_uuid,
                 cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
     END as tags,
+    pds.resource_id_matched as resource_id_matched,
+    pds.matched_tag as matched_tag,
     cost_category_id,
     {{cloud_provider_uuid}} as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
 JOIN cte_rankings as r
     ON pds.row_uuid = r.row_uuid
 WHERE
-    pds.ocp_source = {{ocp_source_uuid}}
+    pds.ocp_source = {{ocp_provider_uuid}}
     AND pds.year = {{year}}
     AND pds.month = {{month}}
     AND pds.source = {{cloud_provider_uuid}}
@@ -614,7 +620,7 @@ WHERE
 -- and costs are split out by pod metrics, this puts all network costs per node
 -- into a "Network unattributed" project with no cost split and one record per
 -- data direction
-INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (
     row_uuid,
     cluster_id,
     cluster_alias,
@@ -674,16 +680,16 @@ SELECT azure.row_uuid as row_uuid,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as project_markup_cost,
     max(azure.tags) as tags,
     {{cloud_provider_uuid}} as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     max(azure.year) as year,
     max(azure.month) as month,
     cast(day(max(azure.usage_start)) as varchar) as day
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
         ON azure.usage_start = ocp.usage_start
         AND (azure.resource_id = ocp.node AND ocp.data_source = 'Pod')
         AND azure.ocp_source = ocp.source
-    WHERE ocp.source = {{ocp_source_uuid}}
+    WHERE ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= {{start_date}}
@@ -691,7 +697,7 @@ SELECT azure.row_uuid as row_uuid,
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
         -- Filter for Node Network Costs to tie them to the Network unattributed project
         AND azure.data_transfer_direction IS NOT NULL
-        AND azure.ocp_source = {{ocp_source_uuid}}
+        AND azure.ocp_source = {{ocp_provider_uuid}}
         AND azure.source = {{cloud_provider_uuid}}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
