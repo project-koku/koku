@@ -291,7 +291,7 @@ class EnvConfigurator(Configurator):
 
     def get_object_store_access_key_default(self, requested_name: str = ""):
         """Obtain object store access key."""
-        return ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
+        return self.get_object_store_access_key(requested_name)
 
     @staticmethod
     def get_object_store_access_key(requested_name: str = ""):
@@ -300,7 +300,7 @@ class EnvConfigurator(Configurator):
 
     def get_object_store_secret_key_default(self, requested_name: str = ""):
         """Obtain object store secret key."""
-        return ENVIRONMENT.get_value("S3_SECRET", default=None)
+        return self.get_object_store_secret_key(requested_name)
 
     @staticmethod
     def get_object_store_secret_key(requested_name: str = ""):
