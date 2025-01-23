@@ -170,8 +170,8 @@ SELECT aws.lineitem_resourceid,
     aws.savingsplan_savingsplaneffectivecost,
     aws.product_productname,
     aws.bill_invoiceid,
-    aws.product_vcpu
-    aws.product_memory
+    aws.product_vcpu,
+    aws.product_memory,
     CASE WHEN resource_names.lineitem_resourceid IS NOT NULL
         THEN TRUE
         ELSE FALSE
