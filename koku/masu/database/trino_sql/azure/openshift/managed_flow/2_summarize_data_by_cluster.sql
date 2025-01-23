@@ -30,7 +30,7 @@ JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
 WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND azure.service_name LIKE '%Storage%'
-    AND azure.resourceid LIKE '%%Microsoft.Compute/disks/%%'
+    AND azure.complete_resource_id LIKE '%%Microsoft.Compute/disks/%%'
     AND azure.year = {{year}}
     AND azure.month = {{month}}
     AND azure.ocp_source = {{ocp_provider_uuid}}
