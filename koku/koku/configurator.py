@@ -7,12 +7,17 @@ Handler module for gathering configuration data.
 """
 import pathlib
 
-from .env import ENVIRONMENT
+import boto3
 
+from .env import ENVIRONMENT
 
 CLOWDER_ENABLED = ENVIRONMENT.bool("CLOWDER_ENABLED", default=False)
 if CLOWDER_ENABLED:
-    from app_common_python import ObjectBuckets, LoadedConfig, KafkaTopics, KafkaServers, DependencyEndpoints
+    from app_common_python import DependencyEndpoints
+    from app_common_python import KafkaServers
+    from app_common_python import KafkaTopics
+    from app_common_python import LoadedConfig
+    from app_common_python import ObjectBuckets
 
 
 class Configurator:
@@ -98,9 +103,17 @@ class Configurator:
         """Obtain object store secret key."""
         pass
 
+    def get_object_store_access_key_default(self, requested_name: str = ""):
+        """Obtain object store access key."""
+        pass
+
     @staticmethod
     def get_object_store_access_key(requested_name: str = ""):
         """Obtain object store access key."""
+        pass
+
+    def get_object_store_secret_key_default(self, requested_name: str = ""):
+        """Obtain object store secret key."""
         pass
 
     @staticmethod
@@ -276,10 +289,18 @@ class EnvConfigurator(Configurator):
         # return ENVIRONMENT.bool("S3_SECURE", default=False)
         pass
 
+    def get_object_store_access_key_default(self, requested_name: str = ""):
+        """Obtain object store access key."""
+        return ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
+
     @staticmethod
     def get_object_store_access_key(requested_name: str = ""):
         """Obtain object store access key."""
         return ENVIRONMENT.get_value("S3_ACCESS_KEY", default=None)
+
+    def get_object_store_secret_key_default(self, requested_name: str = ""):
+        """Obtain object store secret key."""
+        return ENVIRONMENT.get_value("S3_SECRET", default=None)
 
     @staticmethod
     def get_object_store_secret_key(requested_name: str = ""):
@@ -358,6 +379,11 @@ class EnvConfigurator(Configurator):
 
 class ClowderConfigurator(Configurator):
     """Obtain configuration based on using Clowder and app-common."""
+
+    def __init__(self):
+        session = boto3.Session()
+        credentials = session.get_credentials()
+        self.credentials = credentials.get_frozen_credentials()
 
     @staticmethod
     def get_feature_flag_host():
@@ -465,6 +491,9 @@ class ClowderConfigurator(Configurator):
         else:
             return False
 
+    def get_object_store_access_key_default(self, requested_name: str = ""):
+        return self.credentials.access_key
+
     @staticmethod
     def get_object_store_access_key(requested_name: str = ""):
         """Obtain object store access key."""
@@ -474,6 +503,9 @@ class ClowderConfigurator(Configurator):
             return LoadedConfig.objectStore.buckets[0].accessKey
         if LoadedConfig.objectStore.accessKey:
             return LoadedConfig.objectStore.accessKey
+
+    def get_object_store_secret_key_default(self, requested_name: str = ""):
+        return self.credentials.secret_key
 
     @staticmethod
     def get_object_store_secret_key(requested_name: str = ""):
@@ -610,7 +642,7 @@ class ConfigFactory:
     @staticmethod
     def get_configurator():
         """Returns configurator based on mode from env variable."""
-        return ClowderConfigurator if CLOWDER_ENABLED else EnvConfigurator
+        return ClowderConfigurator() if CLOWDER_ENABLED else EnvConfigurator()
 
 
 CONFIGURATOR = ConfigFactory.get_configurator()
