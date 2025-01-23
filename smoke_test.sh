@@ -43,6 +43,7 @@ bonfire deploy \
     --no-single-replicas \
     --set-parameter rbac/MIN_REPLICAS=1 \
     --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG} \
+    --set-parameter koku/TRINO_S3A_OR_S3=s3 \
     --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
     --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
     ${COMPONENTS_ARG} \

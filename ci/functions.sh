@@ -101,7 +101,7 @@ function run_smoke_tests_stage() {
     bonfire deploy \
         ${APP_NAME} \
         --ref-env insights-production \
-        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
+        --set-template-ref ${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
@@ -113,6 +113,7 @@ function run_smoke_tests_stage() {
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
         --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG} \
+        --set-parameter koku/TRINO_S3A_OR_S3=s3 \
         --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
         --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
         --no-single-replicas \
