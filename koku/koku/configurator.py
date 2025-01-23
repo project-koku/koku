@@ -83,6 +83,9 @@ class Configurator:
         """Obtain cloudwatch log group."""
         pass
 
+    def get_object_store_endpoint_default(self):
+        pass
+
     @staticmethod
     def get_object_store_endpoint():
         """Obtain object store endpoint."""
@@ -262,6 +265,9 @@ class EnvConfigurator(Configurator):
     def get_cloudwatch_log_group():
         """Obtain cloudwatch log group."""
         return ENVIRONMENT.get_value("CW_LOG_GROUP", default="platform-dev")
+
+    def get_object_store_endpoint_default(self):
+        return self.get_object_store_endpoint()
 
     @staticmethod
     def get_object_store_endpoint():
@@ -457,6 +463,11 @@ class ClowderConfigurator(Configurator):
     def get_cloudwatch_log_group():
         """Obtain cloudwatch log group."""
         return LoadedConfig.logging.cloudwatch.logGroup
+
+    def get_object_store_endpoint_default(self):
+        if self.is_minio:
+            return self.get_object_store_endpoint()
+        return ENVIRONMENT.get_value("S3_ENDPOINT", default="https://s3.amazonaws.com")
 
     @staticmethod
     def get_object_store_endpoint():
