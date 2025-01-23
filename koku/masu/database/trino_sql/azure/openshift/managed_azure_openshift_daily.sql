@@ -90,7 +90,7 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
 WITH cte_azure_resource_names AS (
     SELECT DISTINCT resourceid
     FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_line_items
-    WHERE source = {{azure_source_uuid}}
+    WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND date >= {{start_date}}
@@ -186,7 +186,7 @@ LEFT JOIN cte_matchable_resource_names AS resource_names
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(tags, x) != 0)
     AND resource_names.resourceid IS NULL
-WHERE azure.source = {{azure_source_uuid}}
+WHERE azure.source = {{cloud_provider_uuid}}
     AND azure.year = {{year}}
     AND azure.month= {{month}}
     AND azure.date >= {{start_date}}

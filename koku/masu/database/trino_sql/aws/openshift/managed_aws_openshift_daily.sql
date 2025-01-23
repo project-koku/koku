@@ -56,6 +56,8 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
     lineitem_productcode,
     lineitem_availabilityzone,
     lineitem_lineitemtype,
+    lineitem_usagetype,
+    lineitem_operation,
     product_productfamily,
     product_instancetype,
     product_region,
@@ -75,6 +77,8 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
     savingsplan_savingsplaneffectivecost,
     product_productname,
     bill_invoiceid,
+    product_vcpu,
+    product_memory,
     resource_id_matched,
     matched_tag,
     source,
@@ -86,7 +90,7 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
 WITH cte_aws_resource_names AS (
     SELECT DISTINCT lineitem_resourceid
     FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily
-    WHERE source = {{aws_source_uuid}}
+    WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND lineitem_usagestartdate >= {{start_date}}
@@ -145,6 +149,8 @@ SELECT aws.lineitem_resourceid,
     aws.lineitem_productcode,
     aws.lineitem_availabilityzone,
     aws.lineitem_lineitemtype,
+    aws.lineitem_usagetype,
+    aws.lineitem_operation,
     aws.product_productfamily,
     aws.product_instancetype,
     aws.product_region,
@@ -164,6 +170,8 @@ SELECT aws.lineitem_resourceid,
     aws.savingsplan_savingsplaneffectivecost,
     aws.product_productname,
     aws.bill_invoiceid,
+    aws.product_vcpu,
+    aws.product_memory,
     CASE WHEN resource_names.lineitem_resourceid IS NOT NULL
         THEN TRUE
         ELSE FALSE
@@ -180,7 +188,7 @@ LEFT JOIN cte_matchable_resource_names AS resource_names
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(resourcetags, x) != 0)
     AND resource_names.lineitem_resourceid IS NULL
-WHERE aws.source = {{aws_source_uuid}}
+WHERE aws.source = {{cloud_provider_uuid}}
     AND aws.year = {{year}}
     AND aws.month= {{month}}
     AND aws.lineitem_usagestartdate >= {{start_date}}
