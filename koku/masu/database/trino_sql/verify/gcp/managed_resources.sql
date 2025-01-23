@@ -10,7 +10,7 @@ cte_resource_breakdown AS (
     FROM (
         SELECT 'parquet' AS source_type, resource_name, usage_start_time, cost
         FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily parquet_table
-        WHERE source = {{cloud_source_uuid}}
+        WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}} AND month = {{month}}
         AND (ocp_matched = TRUE OR EXISTS (
             SELECT 1
@@ -20,7 +20,7 @@ cte_resource_breakdown AS (
         UNION ALL
         SELECT 'managed' AS source_type, resource_name, usage_start_time, cost
         FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily
-        WHERE source = {{cloud_source_uuid}}
+        WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}} AND month = {{month}}
         AND (resource_id_matched = TRUE OR matched_tag != '')
     ) aggregated_data
@@ -55,7 +55,7 @@ cte_initial_cost_check AS (
     JOIN cte_discrepancies d
         ON gcp.resource_name = d.resource_name
         AND gcp.usage_start_time = d.usage_start_time
-    WHERE gcp.source = {{cloud_source_uuid}}
+    WHERE gcp.source = {{cloud_provider_uuid}}
     AND gcp.year = {{year}} AND gcp.month = {{month}}
     GROUP BY gcp.resource_name, gcp.usage_start_time
 )
