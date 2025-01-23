@@ -56,6 +56,8 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
     lineitem_productcode,
     lineitem_availabilityzone,
     lineitem_lineitemtype,
+    lineitem_usagetype,
+    lineitem_operation,
     product_productfamily,
     product_instancetype,
     product_region,
@@ -75,6 +77,8 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
     savingsplan_savingsplaneffectivecost,
     product_productname,
     bill_invoiceid,
+    product_vcpu,
+    product_memory,
     resource_id_matched,
     matched_tag,
     source,
@@ -147,6 +151,8 @@ SELECT aws.lineitem_resourceid,
     aws.lineitem_lineitemtype,
     aws.product_productfamily,
     aws.product_instancetype,
+    aws.lineitem_usagetype,
+    aws.lineitem_operation,
     aws.product_region,
     aws.pricing_unit,
     aws.resourcetags,
@@ -164,6 +170,8 @@ SELECT aws.lineitem_resourceid,
     aws.savingsplan_savingsplaneffectivecost,
     aws.product_productname,
     aws.bill_invoiceid,
+    aws.product_vcpu
+    aws.product_memory
     CASE WHEN resource_names.lineitem_resourceid IS NOT NULL
         THEN TRUE
         ELSE FALSE
