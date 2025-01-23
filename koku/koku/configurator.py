@@ -384,6 +384,7 @@ class ClowderConfigurator(Configurator):
         session = boto3.Session()
         credentials = session.get_credentials()
         self.credentials = credentials.get_frozen_credentials()
+        self.is_minio = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a") == "s3a"
 
     @staticmethod
     def get_feature_flag_host():
@@ -492,6 +493,8 @@ class ClowderConfigurator(Configurator):
             return False
 
     def get_object_store_access_key_default(self, requested_name: str = ""):
+        if self.is_minio:
+            return self.get_object_store_access_key(requested_name)
         return self.credentials.access_key
 
     @staticmethod
@@ -505,6 +508,8 @@ class ClowderConfigurator(Configurator):
             return LoadedConfig.objectStore.accessKey
 
     def get_object_store_secret_key_default(self, requested_name: str = ""):
+        if self.is_minio:
+            return self.get_object_store_secret_key(requested_name)
         return self.credentials.secret_key
 
     @staticmethod
