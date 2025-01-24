@@ -75,7 +75,7 @@ export OS
 
 export S3_ACCESS_KEY="${S3_ACCESS_KEY}"
 export S3_SECRET_KEY="${S3_SECRET}"
-export S3_BUCKET_NAME="ocp-ingress"
+export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS}"
 
 
 log-info "Calculating dates..."
