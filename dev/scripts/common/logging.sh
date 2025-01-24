@@ -9,12 +9,11 @@ TS=$(tput setaf 2)
 TAG=$(tput setaf 10)
 RESET=$(tput sgr0)
 
-# timestamp
-TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-
 log(){
     local _tag_name=${1}
     local _msg=${@:2}
+    # timestamp
+    local TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 
     printf "${TS}${TIMESTAMP} ${TAG}[${_tag_name}\t] ${_msg}\n"
     printf  ${RESET}
