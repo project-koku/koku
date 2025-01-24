@@ -230,7 +230,7 @@ trigger_ocp_ingest() {
         break
       else
         retries=$((retries + 1))
-        local wait_time=$((RANDOM % 10 + 1))
+        local wait_time=10
         log-info "has_data is false for source_name $1, retrying in $wait_time seconds... (Attempt $retries/$max_retries)"
         sleep "$wait_time"
       fi
