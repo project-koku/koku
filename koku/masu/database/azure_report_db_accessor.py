@@ -36,7 +36,7 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import TRINO_LINE_ITEM_TABLE
-from reporting.provider.azure.models import TRINO_MANAGED_OCP_AZURE_DAILY_TABLE
+from reporting.provider.azure.models import TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
 from reporting.provider.azure.openshift.models import UI_SUMMARY_TABLES as OCPAZURE_UI_SUMMARY_TABLES
 
@@ -243,10 +243,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                if table in [
-                    TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
-                    "managed_reporting_ocpazurecostlineitem_project_daily_summary",
-                ]:
+                if table in [TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE]:
                     column_name = "source"
                 else:
                     # TODO: Clean this up after we switch to
@@ -457,13 +454,11 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        managed_path = "trino_sql/azure/openshift/managed_flow"
-        prepare_params = sql_metadata.build_params(
-            ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
+        managed_path = "trino_sql/azure/openshift/daily_summary_flow"
+        prepare_sql, prepare_params = sql_metadata.prepare_template(
+            f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
         LOG.info(log_json(msg="Preparing tables for OCP on Azure flow", **prepare_params))
-        prepare_sql = pkgutil.get_data("masu.database", f"{managed_path}/0_prepare_managed_tables.sql")
-        prepare_sql = prepare_sql.decode("utf-8")
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
         for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
             self.delete_ocp_on_azure_hive_partition_by_day(
@@ -472,43 +467,28 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 ocp_provider_uuid,
                 sql_metadata.year,
                 sql_metadata.month,
-                "managed_reporting_ocpazurecostlineitem_project_daily_summary",  # TODO: Create a var for this
+                TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
             )
             # Resource Matching
-            resource_matching_params = sql_metadata.build_params(
-                ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
+            resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
+                f"{managed_path}/1_resource_matching_by_cluster.sql",
+                {
+                    "ocp_provider_uuid": ocp_provider_uuid,
+                    "matched_tag_array": self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata),
+                },
             )
-            resource_matching_params["ocp_provider_uuid"] = ocp_provider_uuid
-            resource_matching_params["matched_tag_array"] = self.find_openshift_keys_expected_values(
-                ocp_provider_uuid, sql_metadata
-            )
-            LOG.info(log_json(msg="Resource matching ocp on azure", **resource_matching_params))
-            resource_matching_sql = pkgutil.get_data(
-                "masu.database", f"{managed_path}/1_resource_matching_by_cluster.sql"
-            )
-            resource_matching_sql = resource_matching_sql.decode("utf-8")
             self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
             # Data Transformations for Daily Summary
-            self.delete_ocp_on_azure_hive_partition_by_day(
-                sql_metadata.days_tup,
-                sql_metadata.cloud_provider_uuid,
-                ocp_provider_uuid,
-                sql_metadata.year,
-                sql_metadata.month,
-                "managed_reporting_ocpazurecostlineitem_project_daily_summary",  # TODO: Create a var for this
+            daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
+                f"{managed_path}/2_summarize_data_by_cluster.sql",
+                {
+                    **sql_metadata.build_cost_model_params(ocp_provider_uuid),
+                    **{
+                        "ocp_provider_uuid": ocp_provider_uuid,
+                        "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
+                    },
+                },
             )
-            daily_summary_params = sql_metadata.build_params(
-                ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
-            )
-            daily_summary_params["ocp_provider_uuid"] = ocp_provider_uuid
-            # TODO: add unleash check
-            daily_summary_params["unattributed_storage"] = True
-            # TODO: Grab markup from cost model
-            daily_summary_params["markup"] = 1
-            daily_summary_params["pod_column"] = "pod_effective_usage_cpu_core_hours"
-            daily_summary_params["node_column"] = "node_capacity_cpu_core_hours"
-            daily_summary_sql = pkgutil.get_data("masu.database", f"{managed_path}/2_summarize_data_by_cluster.sql")
-            daily_summary_sql = daily_summary_sql.decode("utf-8")
             LOG.info(
                 log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
             )
