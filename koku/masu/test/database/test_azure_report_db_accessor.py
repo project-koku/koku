@@ -24,7 +24,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
@@ -427,7 +427,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
         matched_tags = "fake-tags"
-        params = ManagedSqlMetadata(
+        params = SummarySqlMetadata(
             ANY, [self.ocp_provider_uuid], self.azure_provider_uuid, "2024-08-01", "2024-08-05", matched_tags
         )
 
@@ -447,7 +447,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """
         Test validating trino tables.
         """
-        params = ManagedSqlMetadata(self.schema_name, ANY, self.azure_provider_uuid, "2024-08-01", "2024-08-01", ANY)
+        params = SummarySqlMetadata(self.schema_name, ANY, self.azure_provider_uuid, "2024-08-01", "2024-08-01", ANY)
         with self.assertLogs("masu.database.azure_report_db_accessor", level="INFO") as logger:
             self.accessor.verify_populate_ocp_on_cloud_daily_trino([], params)
             assert any(

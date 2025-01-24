@@ -27,7 +27,7 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.models import OCP_ON_GCP_TEMP_MANAGED_TABLES
@@ -573,7 +573,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return True
 
     def verify_populate_ocp_on_cloud_daily_trino(
-        self, verification_tags: List[str], sql_metadata: ManagedSqlMetadata
+        self, verification_tags: List[str], sql_metadata: SummarySqlMetadata
     ) -> Any:
         """
         Verify the managed trino table population went successfully.
@@ -602,7 +602,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return
         LOG.info(log_json(msg="Verification successful", **params))
 
-    def _create_tables_and_generate_unique_id(self, sql_metadata: ManagedSqlMetadata) -> Any:
+    def _create_tables_and_generate_unique_id(self, sql_metadata: SummarySqlMetadata) -> Any:
         """
         The parquet generated for the gcp line item table does not
         contain a unique identifer. Therefore, we create & populate
@@ -619,7 +619,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._execute_trino_multipart_sql_query(populate_uuid_sql, bind_params=params)
 
     def _populate_gcp_filtered_by_ocp_tmp_table(
-        self, ocp_provider_uuid: str, matched_tags_result: List[str], sql_metadata: ManagedSqlMetadata
+        self, ocp_provider_uuid: str, matched_tags_result: List[str], sql_metadata: SummarySqlMetadata
     ) -> Any:
         """Populate the managed_gcp_openshift_daily trino table for OCP on GCP.
         Args:
@@ -641,7 +641,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **params))
         self._execute_trino_multipart_sql_query(populate_tmp_managed_sql, bind_params=params)
 
-    def _populate_final_managed_table(self, sql_metadata: ManagedSqlMetadata) -> Any:
+    def _populate_final_managed_table(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populates the managed openshift on gcp table"""
         params = sql_metadata.build_params(
             [
@@ -662,7 +662,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg="populating managed OCP on GCP data", **params))
         self._execute_trino_multipart_sql_query(update_managed_sql, bind_params=params)
 
-    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
         self._create_tables_and_generate_unique_id(sql_metadata)
         verification_tags = []

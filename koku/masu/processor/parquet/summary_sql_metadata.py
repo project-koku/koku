@@ -16,7 +16,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 
 
 @dataclass
-class ManagedSqlMetadata:
+class SummarySqlMetadata:
     schema: str
     ocp_provider_uuids: List[str]
     cloud_provider_uuid: str

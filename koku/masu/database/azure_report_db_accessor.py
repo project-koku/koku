@@ -25,7 +25,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_azure
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_TEMP_MANAGED_TABLES
@@ -432,7 +432,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: ManagedSqlMetadata):
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: SummarySqlMetadata):
         """
         Verify the managed trino table population went successfully.
         """
@@ -447,10 +447,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         else:
             LOG.info(log_json(msg="Verification successful", **params))
 
-    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_azure_openshift_daily trino table for OCP on Azure.
         Args:
-            sql_metadata: object of ManagedSqlMetadata class
+            sql_metadata: object of SummarySqlMetadata class
         Returns
             (None)
         """
