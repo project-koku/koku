@@ -18,10 +18,12 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.models import Provider
+from api.utils import DateHelper
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_azure
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
@@ -69,6 +71,16 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         return AzureCostEntryBill.objects.filter(provider_id=provider_uuid)
+
+    def get_cost_entry_bill_id(self, sql_metadata):
+        """Get the cost entry bill."""
+        with schema_context(self.schema):
+            # TODO: Make sure there is only bill id for provider per billing
+            billing_date = DateHelper().month_start(sql_metadata.start_date)
+            azure_bill = AzureCostEntryBill.objects.filter(
+                provider__uuid=sql_metadata.cloud_provider_uuid, billing_period_start=billing_date
+            ).first()
+            return azure_bill.id
 
     def bills_for_provider_uuid(self, provider_uuid, start_date=None):
         """Return all cost entry bills for provider_uuid on date."""
@@ -477,6 +489,19 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
             )
             self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
+            # Postgresql update
+            extra_kwargs = {}
+            # This follows what we currently do in the daily summary
+            extra_kwargs["bill_id"] = self.get_cost_entry_bill_id(sql_metadata)
+            extra_kwargs["ocp_provider_uuid"] = ocp_provider_uuid
+            with OCPReportDBAccessor(self.schema) as accessor:
+                report_period = accessor.report_periods_for_provider_uuid(ocp_provider_uuid, sql_metadata.start_date)
+                extra_kwargs["report_period_id"] = report_period.id
+                transfer_sql, transfer_params = sql_metadata.prepare_template(
+                    f"{managed_path}/3_populate_postgresql_by_cluster.sql", extra_kwargs
+                )
+                self._execute_trino_multipart_sql_query(transfer_sql, bind_params=transfer_params)
+
         # # Verification
         # # TODO: If we switch the order of the celery tasks
         # # it will likely impact the verification logic.
