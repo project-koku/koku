@@ -48,7 +48,7 @@ cte_latest_values as (
         costcategory as cost_category,
         nullif(product_memory, '') as memory,
         cast(nullif(product_vcpu, '') AS INTEGER) as vcpu
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily as alid
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily as alid
     WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
@@ -57,7 +57,7 @@ cte_latest_values as (
     AND lineitem_resourceid != ''
     AND lineitem_usagestartdate = (
       SELECT max(date(lv.lineitem_usagestartdate)) AS usage_start
-      FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS lv
+      FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily AS lv
       WHERE lineitem_resourceid = alid.lineitem_resourceid
       AND year = '{{year | sqlsafe}}'
       AND month = '{{month | sqlsafe}}'
@@ -112,59 +112,59 @@ SELECT uuid() as uuid,
     aa.id as account_alias_id
 FROM (
     SELECT min(date(lineitem_usagestartdate)) as usage_start,
-       max(date(lineitem_usagestartdate)) as usage_end,
-       max(lineitem_usageaccountid) as usage_account_id,
-       lineitem_resourceid as resource_id,
-       max(nullif(product_operatingsystem, '')) as operating_system,
-       max(nullif(product_region, '')) as region,
-       max(nullif(pricing_unit, '')) as unit,
-       -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
-       sum(
-           CASE
-               WHEN lineitem_lineitemtype='SavingsPlanNegation'
-               THEN 0.0
-               ELSE lineitem_usageamount
-           END
-       ) as usage_amount,
-       max(lineitem_normalizationfactor) as normalization_factor,
-       sum(lineitem_normalizedusageamount) as normalized_usage_amount,
-       max(lineitem_currencycode) as currency_code,
-       max(lineitem_unblendedrate) as unblended_rate,
-       /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
-           that offset that cost.
-           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
-       */
-       sum(
-           CASE
-               WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
-               THEN 0.0
-               ELSE lineitem_unblendedcost
-           END
-       ) as unblended_cost,
-       max(lineitem_blendedrate) as blended_rate,
+        max(date(lineitem_usagestartdate)) as usage_end,
+        max(lineitem_usageaccountid) as usage_account_id,
+        lineitem_resourceid as resource_id,
+        max(nullif(product_operatingsystem, '')) as operating_system,
+        max(nullif(product_region, '')) as region,
+        max(nullif(pricing_unit, '')) as unit,
+        -- SavingsPlanNegation needs to be negated to prevent duplicate usage COST-5369
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanNegation'
+                THEN 0.0
+                ELSE lineitem_usageamount
+            END
+        ) as usage_amount,
+        max(lineitem_normalizationfactor) as normalization_factor,
+        sum(lineitem_normalizedusageamount) as normalized_usage_amount,
+        max(lineitem_currencycode) as currency_code,
+        max(lineitem_unblendedrate) as unblended_rate,
         /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
-           that offset that cost.
-           https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+            that offset that cost.
+            https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
         */
-       sum(
-           CASE
-               WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
-               THEN 0.0
-               ELSE lineitem_blendedcost
-           END
-       ) as blended_cost,
-       sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
-       sum(
-           CASE
-               WHEN lineitem_lineitemtype='Tax'
-               OR lineitem_lineitemtype='Usage'
-               THEN lineitem_unblendedcost
-               ELSE savingsplan_savingsplaneffectivecost
-           END
-       ) as calculated_amortized_cost,
-       sum(pricing_publicondemandcost) as public_on_demand_cost,
-       max(pricing_publicondemandrate) as public_on_demand_rate
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily as lid
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                THEN 0.0
+                ELSE lineitem_unblendedcost
+            END
+        ) as unblended_cost,
+        max(lineitem_blendedrate) as blended_rate,
+        /* SavingsPlanCoveredUsage entries have corresponding SavingsPlanNegation line items
+            that offset that cost.
+            https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html
+        */
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                THEN 0.0
+                ELSE lineitem_blendedcost
+            END
+        ) as blended_cost,
+        sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
+        sum(
+            CASE
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                OR lineitem_lineitemtype='SavingsPlanNegation'
+                THEN savingsplan_savingsplaneffectivecost
+                ELSE lineitem_unblendedcost
+            END
+        ) as calculated_amortized_cost,
+        sum(pricing_publicondemandcost) as public_on_demand_cost,
+        max(pricing_publicondemandrate) as public_on_demand_rate
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily as lid
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'

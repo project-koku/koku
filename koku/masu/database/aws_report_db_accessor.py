@@ -7,8 +7,11 @@ import json
 import logging
 import pkgutil
 import uuid
+from typing import Any
+from typing import List
 
 from dateutil.parser import parse
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -22,6 +25,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_aws
+from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
@@ -165,7 +169,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
-                "schema_name": self.schema,
+                "schema": self.schema,
                 "start_date": start_date,
                 "end_date": end_date,
                 "year": year,
@@ -199,7 +203,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     column_name = "aws_source"
                 sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
+                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
                         WHERE {column_name} = '{aws_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'
@@ -477,53 +481,48 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: ManagedSqlMetadata):
         """
         Verify the managed trino table population went successfully.
         """
+        params = sql_metadata.build_params(["schema", "cloud_provider_uuid", "year", "month"])
+        params["matched_tag_array"] = verification_tags
         verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_aws_verification.sql")
         verification_sql = verification_sql.decode("utf-8")
-        LOG.info(log_json(msg="running verification for managed OCP on AWS daily SQL", **verification_params))
-        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=verification_params)
+        LOG.info(log_json(msg="running verification for managed OCP on AWS daily SQL", **params))
+        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=params)
         if False in result[0]:
-            LOG.error(log_json(msg="Verification failed", **verification_params))
+            LOG.error(log_json(msg="Verification failed", **params))
         else:
-            LOG.info(log_json(msg="Verification successful", **verification_params))
+            LOG.info(log_json(msg="Verification successful", **params))
 
-    def populate_ocp_on_cloud_daily_trino(
-        self, aws_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
-    ):
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
         """Populate the managed_aws_openshift_daily trino table for OCP on AWS.
         Args:
-            aws_provider_uuid (UUID) AWS source UUID.
-            ocp_provider_uuid (UUID) OCP source UUID.
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            matched_tag_strs (str) matching tags.
+            sql_metadata: object of ManagedSqlMetadata class
         Returns
             (None)
         """
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        table = TRINO_MANAGED_OCP_AWS_DAILY_TABLE
-        days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_on_aws_hive_partition_by_day(
-            days_tup, aws_provider_uuid, openshift_provider_uuid, year, month, table
-        )
-
-        summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
-            "schema": self.schema,
-            "start_date": start_date,
-            "year": year,
-            "month": month,
-            "days": days_tup,
-            "end_date": end_date,
-            "aws_source_uuid": aws_provider_uuid,
-            "ocp_source_uuid": openshift_provider_uuid,
-            "matched_tag_array": matched_tags,
-        }
-        LOG.info(log_json(msg="running managed OCP on AWS daily SQL", **summary_sql_params))
-        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        verification_tags = []
+        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
+            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
+            verification_tags.extend(matched_tags_result)
+            self.delete_ocp_on_aws_hive_partition_by_day(
+                sql_metadata.days_tup,
+                sql_metadata.cloud_provider_uuid,
+                ocp_provider_uuid,
+                sql_metadata.year,
+                sql_metadata.month,
+                TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            )
+            summary_sql_params = sql_metadata.build_params(
+                ["schema", "start_date", "year", "month", "days", "end_date", "cloud_provider_uuid"]
+            )
+            summary_sql_params["ocp_source_uuid"] = ocp_provider_uuid
+            summary_sql_params["matched_tag_array"] = matched_tags_result
+            LOG.info(log_json(msg="running managed OCP on AWS daily SQL", **summary_sql_params))
+            summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        verification_tags = list(dict.fromkeys(verification_tags))
+        self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

@@ -9,19 +9,19 @@ SELECT
 FROM
 (
     SELECT sum(cost) AS managed_total_cost
-    FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily as managed_ocpcloud
-    WHERE managed_ocpcloud.source = {{cloud_source_uuid}}
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily as managed_ocpcloud
+    WHERE managed_ocpcloud.source = {{cloud_provider_uuid}}
     AND managed_ocpcloud.year = {{year}}
     AND managed_ocpcloud.month = {{month}}
     AND (resource_id_matched = True or matched_tag != '')
 ) t1,
 (
     SELECT sum(cost) AS parquet_total_cost
-    FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as parquet_table
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily as parquet_table
     LEFT JOIN cte_agg_tags AS tag_matches
         ON any_match(tag_matches.matched_tags, x->strpos(parquet_table.labels, x) != 0)
         AND parquet_table.ocp_matched = False
-    WHERE parquet_table.source = {{cloud_source_uuid}}
+    WHERE parquet_table.source = {{cloud_provider_uuid}}
     AND parquet_table.year = {{year}}
     AND parquet_table.month = {{month}}
     AND (ocp_matched = True or tag_matches.matched_tags IS NOT NULL)

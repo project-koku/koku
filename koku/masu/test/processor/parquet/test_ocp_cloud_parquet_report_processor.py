@@ -7,8 +7,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
-from dateutil.parser import parse
-from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -18,6 +16,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
@@ -478,10 +477,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     def test_process_ocp_cloud_trino(self):
         """Test that processing ocp on cloud via trino calls the expected functions."""
+        ocp_uuids = [self.ocp_provider_uuid]
         start_date = "2024-08-01"
         end_date = "2024-08-05"
-        ocp_uuids = (self.ocp_provider_uuid,)
         matched_tags = []
+        managed_sql_params = ManagedSqlMetadata(
+            ANY, ocp_uuids, self.aws_provider_uuid, start_date, end_date, matched_tags
+        )
         with patch(
             (
                 "masu.processor.parquet.ocp_cloud_parquet_report_processor"
@@ -503,10 +505,4 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
                 context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
             )
             rp.process_ocp_cloud_trino(start_date, end_date)
-            accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(
-                self.aws_provider_uuid,
-                self.ocp_provider_uuid,
-                parse(start_date).astimezone(tz=settings.UTC),
-                parse(end_date).astimezone(tz=settings.UTC),
-                ANY,
-            )
+            accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(managed_sql_params)

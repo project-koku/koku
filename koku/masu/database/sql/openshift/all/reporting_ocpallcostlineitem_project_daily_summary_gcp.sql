@@ -1,7 +1,7 @@
 -- OCP ON ALL PROJECT DAILY SUMMARY PROCESSING (GCP DATA)
 
 DELETE
-  FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_project_daily_summary_p
+  FROM {{schema | sqlsafe}}.reporting_ocpallcostlineitem_project_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
@@ -10,7 +10,7 @@ DELETE
 
 
 INSERT
-  INTO {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_project_daily_summary_p (
+  INTO {{schema | sqlsafe}}.reporting_ocpallcostlineitem_project_daily_summary_p (
            source_type,
            cluster_id,
            cluster_alias,
@@ -65,7 +65,7 @@ SELECT 'GCP' as source_type,
        max(currency) as currency_code,
        max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid as source_uuid
-  FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
+  FROM {{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND cluster_id = {{cluster_id}}

@@ -73,6 +73,14 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_SCHEMA_PREFIX
+          value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -89,6 +97,17 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     # ====================================================
     #      koku Management Command Job
     # ====================================================
@@ -109,6 +128,14 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_SCHEMA_PREFIX
+          value: ${TRINO_SCHEMA_PREFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -119,6 +146,17 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
@@ -153,25 +191,6 @@ objects:
     name: koku-secret
   data:
     django-secret-key: "${SECRET_KEY}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-aws
-  data:
-    aws-credentials: "${AWS_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-gcp
-  data:
-    gcp-credentials: "${GCP_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-oci
-  data:
-    oci-credentials: "${OCI_CREDENTIALS_EPH}"
-    oci-config: "${OCI_CONFIG_EPH}"
 
 - apiVersion: v1
   kind: ConfigMap
@@ -275,12 +294,19 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: SCHEMA_SUFFIX
+  description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
+  value: ""
+- name: TRINO_SCHEMA_PREFIX
+  value: ""
+- name: TRINO_S3A_OR_S3
+  value: "s3a"
 - name: S3_BUCKET_NAME
-  value: koku-eph-s3
+  value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME
-  value: ros-eph-s3
+  value: hccm-ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
-  value: subs-eph-s3
+  value: hccm-subs-eph-s3
 - name: AWS_SHARED_CREDENTIALS_FILE
   value: "/etc/aws/aws-credentials"
 - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -423,10 +449,6 @@ parameters:
   name: KOKU_ENABLE_SENTRY
   value: "False"
 
-- description: Enable S3 Archiving
-  displayName: Enable S3 Archiving
-  name: ENABLE_S3_ARCHIVING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
@@ -601,22 +623,6 @@ parameters:
   required: true
   from: "[a-f0-9]{20}"
   generate: expression
-- displayName: AWS credentials file
-  name: AWS_CREDENTIALS_EPH
-  required: true
-  value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
-- name: GCP_CREDENTIALS_EPH
-  displayName: GCP Credentials (Ephemeral)
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CREDENTIALS_EPH
-  displayName: OCI Credentials (Ephemeral)
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CONFIG_EPH
-  displayName: OCI Config (Ephemeral)
-  required: true
-  value: W0RFRkFVTFRdCnVzZXI9b2NpZDEudXNlci5pZApmaW5nZXJwcmludD0wMDAwMDAwMDAwMDAwMDAwMAp0ZW5hbmN5PW9jaWQxLnRlbmFuY3kuaWQK
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN

@@ -29,6 +29,7 @@ from django_prometheus.middleware import PrometheusBeforeMiddleware
 from django_tenants.middleware import TenantMainMiddleware
 from prometheus_client import Counter
 
+from api.common import log_json
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
 from api.iam.models import Customer
@@ -40,7 +41,6 @@ from api.utils import DateHelper
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
-
 
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
@@ -247,10 +247,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     def create_customer(account, org_id, request_method):
         """Create a customer.
         Args:
-            account (str): The account identifier
-            org_id (str): The org_id identifier
+            account (str): The account identifier.
+            org_id (str): The org_id identifier.
+            request_method (str): The HTTP request method.
         Returns:
-            (Customer) The created customer
+            Customer : The created  or retrieved customer.
         """
         try:
             with transaction.atomic():
@@ -260,7 +261,16 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     customer.save()
                     UNIQUE_ACCOUNT_COUNTER.inc()
                     LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
-        except IntegrityError:
+
+        except IntegrityError as err:
+            LOG.warning(
+                log_json(
+                    msg="IntegrityError when creating customer. Attempting to fetch existing record",
+                    account=account,
+                    org_id=org_id,
+                ),
+                exc_info=err,
+            )
             customer = Customer.objects.filter(org_id=org_id).get()
 
         return customer
@@ -320,7 +330,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             # Check for customer creation & user creation
             query_string = ""
             if request.META["QUERY_STRING"]:
-                query_string = "?{}".format(request.META["QUERY_STRING"])
+                query_string = f"?{request.META['QUERY_STRING']}"
+            if not org_id.endswith(settings.SCHEMA_SUFFIX):
+                org_id = f"{org_id}{settings.SCHEMA_SUFFIX}"
             stmt = {
                 "method": request.method,
                 "path": request.path + query_string,
@@ -426,7 +438,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 class RequestTimingMiddleware(MiddlewareMixin):
     """A class to add total time taken to a request/response."""
 
-    def process_request(self, request):  # noqa: C901
+    def process_request(self, request):
         """Process request to add start time.
         Args:
             request (object): The request object

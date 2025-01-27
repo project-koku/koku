@@ -1,5 +1,5 @@
 -- Now create our proper table if it does not exist
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_daily
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily
 (
     accountname varchar,
     additionalinfo varchar,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_dai
 ;
 
 -- Direct resource matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily (
     accountname,
     additionalinfo,
     billingcurrency,
@@ -89,8 +89,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily (
 )
 WITH cte_azure_resource_names AS (
     SELECT DISTINCT resourceid
-    FROM hive.{{schema | sqlsafe}}.azure_line_items
-    WHERE source = {{azure_source_uuid}}
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_line_items
+    WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND date >= {{start_date}}
@@ -98,7 +98,7 @@ WITH cte_azure_resource_names AS (
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -107,7 +107,7 @@ cte_array_agg_nodes AS (
 ),
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -180,13 +180,13 @@ SELECT azure.accountname,
     azure.year,
     azure.month,
     cast(day(azure.date) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_line_items AS azure
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON azure.resourceid = resource_names.resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(tags, x) != 0)
     AND resource_names.resourceid IS NULL
-WHERE azure.source = {{azure_source_uuid}}
+WHERE azure.source = {{cloud_provider_uuid}}
     AND azure.year = {{year}}
     AND azure.month= {{month}}
     AND azure.date >= {{start_date}}

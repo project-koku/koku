@@ -1,5 +1,5 @@
 -- Now create our proper table if it does not exist
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_aws_openshift_daily
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_aws_openshift_daily
 (
     lineitem_resourceid varchar,
     lineitem_usagestartdate timestamp(3),
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_aws_openshift_daily
 ;
 
 -- Direct resource matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_daily (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_aws_openshift_daily (
     lineitem_resourceid,
     lineitem_usagestartdate,
     bill_payeraccountid,
@@ -56,6 +56,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_daily (
     lineitem_productcode,
     lineitem_availabilityzone,
     lineitem_lineitemtype,
+    lineitem_usagetype,
+    lineitem_operation,
     product_productfamily,
     product_instancetype,
     product_region,
@@ -75,6 +77,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_daily (
     savingsplan_savingsplaneffectivecost,
     product_productname,
     bill_invoiceid,
+    product_vcpu,
+    product_memory,
     resource_id_matched,
     matched_tag,
     source,
@@ -85,8 +89,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_daily (
 )
 WITH cte_aws_resource_names AS (
     SELECT DISTINCT lineitem_resourceid
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily
-    WHERE source = {{aws_source_uuid}}
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily
+    WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND lineitem_usagestartdate >= {{start_date}}
@@ -94,7 +98,7 @@ WITH cte_aws_resource_names AS (
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT resource_id
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND resource_id != ''
         AND year = {{year}}
@@ -104,7 +108,7 @@ cte_array_agg_nodes AS (
 ),
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND persistentvolume != ''
         AND year = {{year}}
@@ -145,6 +149,8 @@ SELECT aws.lineitem_resourceid,
     aws.lineitem_productcode,
     aws.lineitem_availabilityzone,
     aws.lineitem_lineitemtype,
+    aws.lineitem_usagetype,
+    aws.lineitem_operation,
     aws.product_productfamily,
     aws.product_instancetype,
     aws.product_region,
@@ -164,6 +170,8 @@ SELECT aws.lineitem_resourceid,
     aws.savingsplan_savingsplaneffectivecost,
     aws.product_productname,
     aws.bill_invoiceid,
+    aws.product_vcpu,
+    aws.product_memory,
     CASE WHEN resource_names.lineitem_resourceid IS NOT NULL
         THEN TRUE
         ELSE FALSE
@@ -174,13 +182,13 @@ SELECT aws.lineitem_resourceid,
     aws.year,
     aws.month,
     cast(day(aws.lineitem_usagestartdate) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily AS aws
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON resource_names.lineitem_resourceid = aws.lineitem_resourceid
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(resourcetags, x) != 0)
     AND resource_names.lineitem_resourceid IS NULL
-WHERE aws.source = {{aws_source_uuid}}
+WHERE aws.source = {{cloud_provider_uuid}}
     AND aws.year = {{year}}
     AND aws.month= {{month}}
     AND aws.lineitem_usagestartdate >= {{start_date}}

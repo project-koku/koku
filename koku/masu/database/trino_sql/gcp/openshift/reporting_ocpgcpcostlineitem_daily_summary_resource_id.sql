@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS {{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
 (
     gcp_uuid varchar,
     cluster_id varchar,
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ;
 
 -- Now create our proper table if it does not exist
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
+CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
 (
    gcp_uuid varchar,
     cluster_id varchar,
@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['gcp_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp (
     uuid,
     usage_start,
     account_id,
@@ -225,7 +225,7 @@ SELECT cast(uuid() as varchar),
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
     AND gcp.month = {{month}}
@@ -243,7 +243,7 @@ GROUP BY gcp.usage_start_time,
     10 -- data transfer direction
 ;
 
-INSERT INTO hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp (
     uuid,
     usage_start,
     account_id,
@@ -309,7 +309,7 @@ SELECT cast(uuid() as varchar),
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 CROSS JOIN cte_enabled_tag_keys as etk
 WHERE gcp.source = {{gcp_source_uuid}}
     AND gcp.year = {{year}}
@@ -328,7 +328,7 @@ GROUP BY gcp.usage_start_time,
 ;
 
 -- Direct resource_id matching
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     gcp_uuid,
     cluster_id,
     cluster_alias,
@@ -430,8 +430,8 @@ SELECT gcp.uuid as gcp_uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
             (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
@@ -451,7 +451,7 @@ GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_la
 ;
 
 -- direct tag matching, these costs are split evenly between pod and storage since we don't have the info to quantify them separately
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     gcp_uuid,
     cluster_id,
     cluster_alias,
@@ -553,8 +553,8 @@ SELECT gcp.uuid as gcp_uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
                 json_query(gcp.labels, 'strict $.openshift_project' OMIT QUOTES) = ocp.namespace
@@ -580,7 +580,7 @@ GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
 
 -- Group by to calculate proper cost per project
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary (
     gcp_uuid,
     cluster_id,
     cluster_alias,
@@ -635,7 +635,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
 WITH cte_rankings AS (
     SELECT pds.gcp_uuid,
         count(*) as gcp_uuid_count
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
+    WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
     GROUP BY gcp_uuid
 )
 SELECT pds.gcp_uuid,
@@ -717,7 +718,7 @@ SELECT pds.gcp_uuid,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
 JOIN cte_rankings as r
     ON pds.gcp_uuid = r.gcp_uuid
 WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month = {{month}}
@@ -728,7 +729,7 @@ WHERE pds.ocp_source = {{ocp_source_uuid}} AND pds.year = {{year}} AND pds.month
 -- and costs are split out by pod metrics, this puts all network costs per node
 -- into a "Network unattributed" project with no cost split and one record per
 -- data direction
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary (
+INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary (
     gcp_uuid,
     cluster_id,
     cluster_alias,
@@ -806,8 +807,8 @@ SELECT gcp.uuid as gcp_uuid,
     cast(year(max(gcp.usage_start)) as varchar) as year,
     cast(month(max(gcp.usage_start)) as varchar) as month,
     cast(day(max(gcp.usage_start)) as varchar) as day
-FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
             (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
@@ -923,7 +924,7 @@ SELECT uuid(),
     cast(gcp_source as UUID),
     credit_amount,
     invoice_month
-FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
+FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
 WHERE gcp_source = {{gcp_source_uuid}}
     AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}

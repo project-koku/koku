@@ -112,17 +112,17 @@ FROM (
         sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
         sum(
             CASE
-                WHEN lineitem_lineitemtype='Tax'
-                OR   lineitem_lineitemtype='Usage'
-                THEN lineitem_unblendedcost
-                ELSE savingsplan_savingsplaneffectivecost
+                WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
+                OR lineitem_lineitemtype='SavingsPlanNegation'
+                THEN savingsplan_savingsplaneffectivecost
+                ELSE lineitem_unblendedcost
             END
         ) as calculated_amortized_cost,
         sum(pricing_publicondemandcost) as public_on_demand_cost,
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids,
         count(DISTINCT lineitem_resourceid) as resource_count
-    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'

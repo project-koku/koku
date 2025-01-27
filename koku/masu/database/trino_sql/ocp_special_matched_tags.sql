@@ -1,6 +1,6 @@
 WITH cte_array_agg_nodes AS (
     SELECT DISTINCT node
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -17,7 +17,7 @@ cte_cluster_info as (
     and provider.uuid = CAST({{ocp_source_uuid}} as UUID)
 ),
 cte_tag_matches AS (
-    SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
+    SELECT * FROM unnest(ARRAY{{matched_tag_strs | sqlsafe}}) as t(matched_tag)
 
     UNION
 
@@ -34,7 +34,7 @@ cte_tag_matches AS (
     UNION
 
     SELECT distinct format('"openshift_project": "%s"', namespace)
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
     AND month = {{month}}
     AND year = {{year}}
