@@ -322,6 +322,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
 
         sql_metadata = SummarySqlMetadata(
-            self.db_accessor.schema, ocp_provider_uuids, self.provider_uuid, start_date, end_date, matched_tag_strs
+            self.db_accessor.schema, self.provider_uuid, start_date, end_date, matched_tag_strs
         )
-        self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
+        self.db_accessor.populate_ocp_on_cloud_daily_trino(ocp_provider_uuids, sql_metadata)

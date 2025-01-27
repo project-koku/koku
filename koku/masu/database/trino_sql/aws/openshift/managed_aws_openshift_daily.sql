@@ -99,7 +99,7 @@ WITH cte_aws_resource_names AS (
 cte_array_agg_nodes AS (
     SELECT DISTINCT resource_id
     FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
-    WHERE source = {{ocp_source_uuid}}
+    WHERE source = {{ocp_provider_uuid}}
         AND resource_id != ''
         AND year = {{year}}
         AND month = {{month}}
@@ -109,7 +109,7 @@ cte_array_agg_nodes AS (
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
     FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
-    WHERE source = {{ocp_source_uuid}}
+    WHERE source = {{ocp_provider_uuid}}
         AND persistentvolume != ''
         AND year = {{year}}
         AND month = {{month}}
@@ -178,7 +178,7 @@ SELECT aws.lineitem_resourceid,
     END as resource_id_matched,
     array_join(filter(tag_matches.matched_tags, x -> STRPOS(resourcetags, x ) != 0), ',') as matched_tag,
     aws.source as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     aws.year,
     aws.month,
     cast(day(aws.lineitem_usagestartdate) as varchar) as day

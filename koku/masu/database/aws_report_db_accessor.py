@@ -496,7 +496,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         else:
             LOG.info(log_json(msg="Verification successful", **params))
 
-    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
+    def populate_ocp_on_cloud_daily_trino(self, ocp_provider_uuids, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_aws_openshift_daily trino table for OCP on AWS.
         Args:
             sql_metadata: object of SummarySqlMetadata class
@@ -504,8 +504,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
         """
         verification_tags = []
-        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
-            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
+        for ocp_provider_uuid in ocp_provider_uuids:
+            sql_metadata.set_ocp_provider_uuid(ocp_provider_uuid)
+            matched_tags_result = self.find_openshift_keys_expected_values(sql_metadata)
             verification_tags.extend(matched_tags_result)
             self.delete_ocp_on_aws_hive_partition_by_day(
                 sql_metadata.days_tup,
@@ -516,9 +517,17 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
             )
             summary_sql_params = sql_metadata.build_params(
-                ["schema", "start_date", "year", "month", "days", "end_date", "cloud_provider_uuid"]
+                [
+                    "schema",
+                    "start_date",
+                    "year",
+                    "month",
+                    "days",
+                    "end_date",
+                    "cloud_provider_uuid",
+                    "ocp_provider_uuid",
+                ]
             )
-            summary_sql_params["ocp_source_uuid"] = ocp_provider_uuid
             summary_sql_params["matched_tag_array"] = matched_tags_result
             LOG.info(log_json(msg="running managed OCP on AWS daily SQL", **summary_sql_params))
             summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")

@@ -444,7 +444,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
+    def populate_ocp_on_cloud_daily_trino(self, ocp_provider_uuids, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_azure_openshift_daily trino table for OCP on Azure.
         Args:
             sql_metadata: object of SummarySqlMetadata class
@@ -457,7 +457,8 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         LOG.info(log_json(msg="Preparing tables for OCP on Azure flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
-        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
+        for ocp_provider_uuid in ocp_provider_uuids:
+            sql_metadata.set_ocp_provider_uuid(ocp_provider_uuid)
             self.delete_ocp_on_azure_hive_partition_by_day(
                 sql_metadata.days_tup,
                 sql_metadata.cloud_provider_uuid,
@@ -470,8 +471,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
                 f"{managed_path}/1_resource_matching_by_cluster.sql",
                 {
-                    "ocp_provider_uuid": ocp_provider_uuid,
-                    "matched_tag_array": self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata),
+                    "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
                 },
             )
             self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
@@ -481,7 +481,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 {
                     **sql_metadata.build_cost_model_params(ocp_provider_uuid),
                     **{
-                        "ocp_provider_uuid": ocp_provider_uuid,
                         "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
                     },
                 },
@@ -495,7 +494,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 extra_kwargs = {}
                 # This follows what we currently do in the daily summary
                 extra_kwargs["bill_id"] = self.get_cost_entry_bill_id(sql_metadata)
-                extra_kwargs["ocp_provider_uuid"] = ocp_provider_uuid
                 with OCPReportDBAccessor(self.schema) as accessor:
                     report_period = accessor.report_periods_for_provider_uuid(
                         ocp_provider_uuid, sql_metadata.start_date
