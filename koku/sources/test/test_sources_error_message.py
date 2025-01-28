@@ -51,24 +51,6 @@ class SourcesErrorMessageTest(TestCase):
         test_matrix = [
             {
                 "key": ProviderErrors.AZURE_CLIENT_ERROR,
-                "internal_message": ", AdalError: Get Token request returned http error: 401 and server response:",
-                "expected_message": ProviderErrors.AZURE_CLIENT_SECRET_INCORRECT_MESSAGE,
-            },
-            {
-                "key": ProviderErrors.AZURE_CLIENT_ERROR,
-                "internal_message": "Authentication failed",
-                "expected_message": ProviderErrors.AZURE_CLIENT_SECRET_INCORRECT_MESSAGE,
-            },
-            {
-                "key": ProviderErrors.AZURE_CLIENT_ERROR,
-                "internal_message": (
-                    "(401) Unauthorized. Request ID: cca1a5a4-4107-4e7a-b3b4-b88f31e6a674\n"
-                    "Code: 401\nMessage: Unauthorized. Request ID: cca1a5a4-4107-4e7a-b3b4-b88f31e6a674"
-                ),
-                "expected_message": ProviderErrors.AZURE_CLIENT_SECRET_INCORRECT_MESSAGE,
-            },
-            {
-                "key": ProviderErrors.AZURE_CLIENT_ERROR,
                 "internal_message": (
                     ", AdalError: Get Token request returned http error: 400 and server response:"
                     ' {"error":"invalid_request","error_description":"AADSTS90002: Tenant'
@@ -115,26 +97,6 @@ class SourcesErrorMessageTest(TestCase):
                     " could not be found."
                 ),
                 "expected_message": ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE,
-            },
-            {
-                "key": ProviderErrors.AZURE_CLIENT_ERROR,
-                "internal_message": "Random azure error",
-                "expected_message": ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE,
-            },
-            {
-                "key": ProviderErrors.AZURE_CLIENT_ERROR,
-                "internal_message": (
-                    "The client 'xxxxx' with object id 'xxxxx' does not have authorization to perform action "
-                    "'Microsoft.Storage/storageAccounts/listKeys/action' over scope "
-                    "'/subscriptions/xxxxx/resourceGroups/xxxxx/providers/Microsoft.Storage/storageAccounts/xxxxx' "
-                    "or the scope is invalid. If access was recently granted, please refresh your credentials."
-                ),
-                "expected_message": ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE,
-            },
-            {
-                "key": ProviderErrors.AZURE_CLIENT_ERROR,
-                "internal_message": "'(RBACAccessDenied) The client does not have authorization to perform action.",
-                "expected_message": ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE,
             },
         ]
         for test in test_matrix:

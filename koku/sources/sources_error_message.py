@@ -21,9 +21,7 @@ class SourcesErrorMessage:
 
     def azure_client_errors(self, message):
         """Azure client error messages."""
-        scrubbed_message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
-        if any(test in message for test in ["http error: 401", "Authentication failed", "(401) Unauthorized"]):
-            scrubbed_message = ProviderErrors.AZURE_CLIENT_SECRET_INCORRECT_MESSAGE
+        scrubbed_message = str(message)
         if "AADSTS700016" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
         if "AADSTS90002" in message:
@@ -36,8 +34,6 @@ class SourcesErrorMessage:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
         if any(test in message for test in ["SubscriptionNotFound", "InvalidSubscriptionId"]):
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
-        if any(test in message for test in ["RBACAccessDenied", "does not have authorization", "scope is invalid"]):
-            scrubbed_message = ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE
         return scrubbed_message
 
     def aws_client_errors(self, message):
