@@ -449,11 +449,11 @@ def summarize_reports(  # noqa: C901
                 processor = OCPCloudParquetReportProcessor(
                     schema_name, "", provider_uuid, provider_type, manifest_id, ctx
                 )
-                if ocp_provider_uuids := processor.get_ocp_provider_uuids_tuple():
-                    matched_tag_strs = processor.get_matched_tags(ocp_provider_uuids, str_format=True)
-                    sql_metadata = SummarySqlMetadata(
-                        schema_name, provider_uuid, start_date, end_date, matched_tag_strs
-                    )
+                # these pieces where only for matched_tag_str which I would like
+                # to move lower in the process
+                # if ocp_provider_uuids := processor.get_ocp_provider_uuids_tuple():
+                # matched_tag_strs = processor.get_matched_tags(ocp_provider_uuids, str_format=True)
+                sql_metadata = SummarySqlMetadata(schema_name, provider_uuid, start_date, end_date)
                 processor.db_accessor.prepare_ocp_on_cloud_summary_tasks(sql_metadata)
             update_summary_tables.s(
                 schema_name,

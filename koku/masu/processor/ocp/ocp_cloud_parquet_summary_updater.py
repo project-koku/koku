@@ -425,6 +425,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 )
                 if is_managed_ocp_cloud_summary_enabled(self._schema):
                     # TODO: get matched tag strs here
+                    # return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
                     matched_tag_strs = [
                         '"app": "banking"',
                         '"app": "mobile"',
@@ -439,9 +440,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                         '"version": "MilkyWay"',
                         '"version": "Sombrero"',
                     ]
-                    sql_metadata = SummarySqlMetadata(
-                        self._schema, azure_provider_uuid, start_date, end_date, matched_tag_strs
-                    )
+                    sql_metadata = SummarySqlMetadata(self._schema, azure_provider_uuid, start_date, end_date)
+                    sql_metadata.set_matched_tag_strs(matched_tag_strs)
                     sql_metadata.set_ocp_provider_uuid(openshift_provider_uuid)
                     accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
                 else:

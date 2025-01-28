@@ -4,7 +4,6 @@
 #
 #
 """Processor to filter cost data for OpenShift and store as parquet."""
-import json
 import logging
 import pkgutil
 from functools import cached_property
@@ -163,10 +162,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         # If the key is in the cache but the value is None, there are no matching tags
         if matched_tags or is_key_in_cache(cache_key):
             LOG.info(log_json(msg="retreived matching tags from cache", context=ctx))
-            if str_format and matched_tags:
-                return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-            else:
-                return matched_tags
+            return matched_tags
         if self.has_enabled_ocp_labels:
             enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
             if enabled_tags:
@@ -187,10 +183,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     invoice_month_date=invoice_month,
                 )
         set_value_in_cache(cache_key, matched_tags)
-        if str_format and matched_tags:
-            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-        else:
-            return matched_tags
+        return matched_tags
 
     def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename):
         """Create a parquet file for daily aggregated data for each partition."""

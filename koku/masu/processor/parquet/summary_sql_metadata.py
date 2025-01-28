@@ -21,7 +21,7 @@ class SummarySqlMetadata:
     cloud_provider_uuid: str
     start_date: date
     end_date: date
-    matched_tag_strs: List[str]
+    matched_tag_strs: List[str] = field(init=False)
     days_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
@@ -37,6 +37,9 @@ class SummarySqlMetadata:
 
     def set_ocp_provider_uuid(self, value: str):
         self.ocp_provider_uuid = value
+
+    def set_matched_tag_strs(self, matched_tags):
+        self.matched_tag_strs = matched_tags
 
     def _check_date_parameters_format(self):
         """Checks to make sure the date parameters are in the correct format"""
@@ -94,15 +97,6 @@ class SummarySqlMetadata:
         sql_file = pkgutil.get_data("masu.database", filepath)
         sql_file_decoded = sql_file.decode("utf-8")
         return sql_file_decoded, base_params
-
-    def celery_kwargs(self):
-        return {
-            "start_date": str(self.start_date.date()),
-            "end_date": str(self.end_date.date()),
-            "schema": self.schema,
-            "cloud_provider_uuid": self.cloud_provider_uuid,
-            "matched_tag_strs": self.matched_tag_strs,
-        }
 
     def parameters(self, explicit_initialized=False) -> Dict[str, Any]:
         """
