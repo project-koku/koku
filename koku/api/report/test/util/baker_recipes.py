@@ -15,7 +15,6 @@ from api.report.test.util.constants import GCP_CONSTANTS
 from api.report.test.util.constants import OCI_CONSTANTS
 from api.report.test.util.constants import OCP_CONSTANTS
 
-
 fake = Faker()
 
 
