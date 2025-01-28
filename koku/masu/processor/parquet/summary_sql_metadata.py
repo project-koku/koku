@@ -19,7 +19,6 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 class SummarySqlMetadata:
     schema: str
     cloud_provider_uuid: str
-    provider_type: str
     start_date: date
     end_date: date
     matched_tag_strs: List[str]
@@ -101,7 +100,6 @@ class SummarySqlMetadata:
             "start_date": str(self.start_date.date()),
             "end_date": str(self.end_date.date()),
             "schema": self.schema,
-            "provider_type": self.provider_type,
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "matched_tag_strs": self.matched_tag_strs,
         }
@@ -116,7 +114,6 @@ class SummarySqlMetadata:
         attrs = {
             "schema": self.schema,
             "cloud_provider_uuid": self.cloud_provider_uuid,
-            "provider_type": self.provider_type,
             "start_date": start_date,
             "end_date": end_date,
             "matched_tag_strs": self.matched_tag_strs,

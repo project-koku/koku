@@ -45,16 +45,6 @@ GCP_PARTITION_MAP = {
 }
 
 
-def find_db_accessor(provider_type):
-    if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
-        return AWSReportDBAccessor
-    elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
-        return AzureReportDBAccessor
-    elif provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-        return GCPReportDBAccessor
-    return None
-
-
 class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     """Parquet report processor for OCP on Cloud infrastructure data."""
 

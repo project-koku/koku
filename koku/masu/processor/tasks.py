@@ -57,7 +57,6 @@ from masu.processor._tasks.remove_expired import _remove_expired_trino_partition
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
-from masu.processor.parquet.ocp_cloud_parquet_report_processor import find_db_accessor
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.processor.report_processor import ReportProcessorDBError
@@ -420,6 +419,9 @@ def summarize_reports(  # noqa: C901
     reports_deduplicated = deduplicate_summary_reports(reports_to_summarize, manifest_list)
     for report in reports_deduplicated:
         schema_name = report.get("schema_name")
+        provider_type = report.get("provider_type")
+        provider_uuid = report.get("provider_uuid")
+        manifest_id = report.get("manifest_id")
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
@@ -436,21 +438,36 @@ def summarize_reports(  # noqa: C901
 
             LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
 
-            months = get_months_in_date_range(report)
-            for month in months:
-                update_summary_tables.s(
-                    schema_name,
-                    report.get("provider_type"),
-                    report.get("provider_uuid"),
-                    start_date=month[0],
-                    end_date=month[1],
-                    ingress_report_uuid=ingress_report_uuid,
-                    manifest_id=report.get("manifest_id"),
-                    queue_name=queue_name,
-                    tracing_id=tracing_id,
-                    manifest_list=manifest_list,
-                    invoice_month=month[2],
-                ).apply_async(queue=queue_name or fallback_queue)
+        months = get_months_in_date_range(report)
+        for month in months:
+            if is_managed_ocp_cloud_processing_enabled(schema_name):
+                start_date = month[0]
+                end_date = month[1]
+                ctx = {"provider_type": provider_type, "schema_name": schema_name, "provider_uuid": provider_uuid}
+                ctx["start_date"] = start_date
+                ctx["end_date"] = end_date
+                processor = OCPCloudParquetReportProcessor(
+                    schema_name, "", provider_uuid, provider_type, manifest_id, ctx
+                )
+                if ocp_provider_uuids := processor.get_ocp_provider_uuids_tuple():
+                    matched_tag_strs = processor.get_matched_tags(ocp_provider_uuids, str_format=True)
+                    sql_metadata = SummarySqlMetadata(
+                        schema_name, provider_uuid, start_date, end_date, matched_tag_strs
+                    )
+                processor.db_accessor.prepare_ocp_on_cloud_summary_tasks(sql_metadata)
+            update_summary_tables.s(
+                schema_name,
+                report.get("provider_type"),
+                report.get("provider_uuid"),
+                start_date=month[0],
+                end_date=month[1],
+                ingress_report_uuid=ingress_report_uuid,
+                manifest_id=report.get("manifest_id"),
+                queue_name=queue_name,
+                tracing_id=tracing_id,
+                manifest_list=manifest_list,
+                invoice_month=month[2],
+            ).apply_async(queue=queue_name or fallback_queue)
 
 
 @celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=SummaryQueue.DEFAULT)  # noqa: C901
@@ -1253,63 +1270,3 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
         data_validator.check_data_integrity()
     else:
         LOG.info(log_json(msg="skipping validation, disabled for schema", context=context))
-
-
-@celery_app.task(
-    name="masu.processor.tasks.process_openshift_on_cloud_metadata", queue=SummaryQueue.DEFAULT, bind=True
-)
-def process_openshift_on_cloud_metadata(self, ocp_provider_uuid, **kwargs):
-    sql_metadata = SummarySqlMetadata(**kwargs)
-    sql_metadata.set_ocp_provider_uuid(ocp_provider_uuid)
-    LOG.info(sql_metadata.parameters())
-    accessor_class = find_db_accessor(sql_metadata.provider_type)
-    with accessor_class(sql_metadata.schema) as accessor:
-        accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
-
-
-@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=SummaryQueue.DEFAULT, bind=True)
-def process_openshift_on_cloud_trino(
-    self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id, masu_api_trigger=False
-):
-    """Process OCP on Cloud data into managed tables for summary"""
-    reports_deduplicated = deduplicate_summary_reports(reports_to_summarize, manifest_list=[])
-    for report in reports_deduplicated:
-        schema_name = report.get("schema_name")
-        ctx = {"provider_type": provider_type, "schema_name": schema_name, "provider_uuid": provider_uuid}
-        if provider_type not in Provider.MANAGED_OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
-            LOG.info(
-                log_json(tracing_id, msg="provider type not valid for COST-5129 OCP on cloud processing", context=ctx)
-            )
-            continue
-        if not is_managed_ocp_cloud_processing_enabled(schema_name):
-            LOG.info(
-                log_json(tracing_id, msg="provider not enabled for COST-5129 OCP on cloud processing", context=ctx)
-            )
-            continue
-        with ReportManifestDBAccessor() as manifest_accesor:
-            tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
-
-            if not masu_api_trigger and not manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
-                LOG.info(log_json(tracing_id, msg="manifest not ready for summary", context=report))
-                continue
-
-        LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
-
-        months = get_months_in_date_range(report)
-        for month in months:
-            start_date = month[0]
-            end_date = month[1]
-            ctx["start_date"] = start_date
-            ctx["end_date"] = end_date
-            manifest_id = report.get("manifest_id")
-            processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, ctx)
-            if ocp_provider_uuids := processor.get_ocp_provider_uuids_tuple():
-                matched_tag_strs = processor.get_matched_tags(ocp_provider_uuids, str_format=True)
-                sql_metadata = SummarySqlMetadata(
-                    schema_name, provider_uuid, provider_type, start_date, end_date, matched_tag_strs
-                )
-                processor.db_accessor.prepare_ocp_on_cloud_summary_tasks(sql_metadata)
-                for ocp_provider_uuid in ocp_provider_uuids:
-                    process_openshift_on_cloud_metadata.s(
-                        ocp_provider_uuid, **sql_metadata.celery_kwargs()
-                    ).apply_async(queue=SummaryQueue.DEFAULT)

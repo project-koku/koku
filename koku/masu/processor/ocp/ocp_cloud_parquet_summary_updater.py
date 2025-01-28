@@ -22,8 +22,10 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
@@ -421,16 +423,38 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                         **context,
                     )
                 )
-                accessor.populate_ocp_on_azure_cost_daily_summary_trino(
-                    start,
-                    end,
-                    openshift_provider_uuid,
-                    azure_provider_uuid,
-                    current_ocp_report_period_id,
-                    current_azure_bill_id,
-                    markup_value,
-                    distribution,
-                )
+                if is_managed_ocp_cloud_summary_enabled(self._schema):
+                    # TODO: get matched tag strs here
+                    matched_tag_strs = [
+                        '"app": "banking"',
+                        '"app": "mobile"',
+                        '"app": "weather"',
+                        '"environment": "Jupiter"',
+                        '"storageclass": "Baldur"',
+                        '"storageclass": "Loki"',
+                        '"storageclass": "Odin"',
+                        '"storageclass": "Thor"',
+                        '"version": "Andromeda"',
+                        '"version": "Mars"',
+                        '"version": "MilkyWay"',
+                        '"version": "Sombrero"',
+                    ]
+                    sql_metadata = SummarySqlMetadata(
+                        self._schema, azure_provider_uuid, start_date, end_date, matched_tag_strs
+                    )
+                    sql_metadata.set_ocp_provider_uuid(openshift_provider_uuid)
+                    accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
+                else:
+                    accessor.populate_ocp_on_azure_cost_daily_summary_trino(
+                        start,
+                        end,
+                        openshift_provider_uuid,
+                        azure_provider_uuid,
+                        current_ocp_report_period_id,
+                        current_azure_bill_id,
+                        markup_value,
+                        distribution,
+                    )
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)

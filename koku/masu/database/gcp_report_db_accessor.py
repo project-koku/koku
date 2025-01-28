@@ -662,23 +662,31 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(log_json(msg="populating managed OCP on GCP data", **params))
         self._execute_trino_multipart_sql_query(update_managed_sql, bind_params=params)
 
+    def prepare_ocp_on_cloud_summary_tasks(self, sql_metadata: SummarySqlMetadata) -> Any:
+        """
+        Ensures tables are created & populated prior to the summary tasks
+        """
+        pass
+
     def populate_ocp_on_cloud_daily_trino(self, ocp_provider_uuids, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
-        self._create_tables_and_generate_unique_id(sql_metadata)
-        verification_tags = []
-        for ocp_provider_uuid in ocp_provider_uuids:
-            sql_metadata.set_ocp_provider_uuid(ocp_provider_uuid)
-            matched_tags_result = self.find_openshift_keys_expected_values(sql_metadata)
-            verification_tags.extend(matched_tags_result)
-            self._populate_gcp_filtered_by_ocp_tmp_table(ocp_provider_uuid, matched_tags_result, sql_metadata)
-            self.delete_ocp_on_gcp_hive_partition_by_day(
-                sql_metadata.days_tup,
-                sql_metadata.cloud_provider_uuid,
-                ocp_provider_uuid,
-                sql_metadata.year,
-                sql_metadata.month,
-                TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
-            )
-        self._populate_final_managed_table(sql_metadata)
-        verification_tags = list(dict.fromkeys(verification_tags))
-        self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
+        # TODO: Turn this from trino to postgresql logic
+        # self._create_tables_and_generate_unique_id(sql_metadata)
+        # verification_tags = []
+        # for ocp_provider_uuid in ocp_provider_uuids:
+        #     sql_metadata.set_ocp_provider_uuid(ocp_provider_uuid)
+        #     matched_tags_result = self.find_openshift_keys_expected_values(sql_metadata)
+        #     verification_tags.extend(matched_tags_result)
+        #     self._populate_gcp_filtered_by_ocp_tmp_table(ocp_provider_uuid, matched_tags_result, sql_metadata)
+        #     self.delete_ocp_on_gcp_hive_partition_by_day(
+        #         sql_metadata.days_tup,
+        #         sql_metadata.cloud_provider_uuid,
+        #         ocp_provider_uuid,
+        #         sql_metadata.year,
+        #         sql_metadata.month,
+        #         TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+        #     )
+        # self._populate_final_managed_table(sql_metadata)
+        # verification_tags = list(dict.fromkeys(verification_tags))
+        # self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
+        pass
