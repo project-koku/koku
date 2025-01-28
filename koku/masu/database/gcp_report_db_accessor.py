@@ -25,6 +25,7 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -346,6 +347,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         else:
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
             matching_type = "tag"
+
+        if is_managed_ocp_cloud_summary_enabled(self.schema):
+            sql_level = "managed_reporting_ocpgcpcostlineitem_daily_summary.sql"
 
         sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
         sql = sql.decode("utf-8")
@@ -677,5 +681,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
             )
         self._populate_final_managed_table(sql_metadata)
+        # if is_managed_ocp_cloud_summary_enabled(schema_name):
+        # TODO: Insert into postgresql
         verification_tags = list(dict.fromkeys(verification_tags))
         self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

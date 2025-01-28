@@ -23,6 +23,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_aws
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
@@ -250,7 +251,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         unattributed_storage = is_feature_unattributed_storage_enabled_aws(self.schema)
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
+        sql_file = "reporting_ocpawscostlineitem_daily_summary.sql"
+        if is_managed_ocp_cloud_summary_enabled(self.schema):
+            sql_file = "managed_reporting_ocpawscostlineitem_daily_summary.sql"
+        sql = pkgutil.get_data("masu.database", f"trino_sql/{sql_file}")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -522,5 +526,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")
             summary_sql = summary_sql.decode("utf-8")
             self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+            # TODO I dont think we can put this here without drastically changing the current tasks or adding addional ones.
+            # For example we would need to handle COST-5649, because we couldnt send a single cluster at a time..
+            # if is_managed_ocp_cloud_summary_enabled(sql_metadata["schema"]):
+            #     trigger_ocp_on_cloud_summary(
+            #         context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name, synchronous
+            #     )
         verification_tags = list(dict.fromkeys(verification_tags))
         self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

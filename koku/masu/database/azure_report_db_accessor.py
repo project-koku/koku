@@ -23,6 +23,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_azure
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
@@ -285,8 +286,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if distribution == "memory":
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
-
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
+        sql_file = "reporting_ocpazurecostlineitem_daily_summary.sql"
+        if is_managed_ocp_cloud_summary_enabled(self.schema):
+            sql_file = "managed_reporting_ocpazurecostlineitem_daily_summary.sql"
+        sql = pkgutil.get_data("masu.database", f"trino_sql/{sql_file}")
         sql = sql.decode("utf-8")
         sql_params = {
             "uuid": str(openshift_provider_uuid).replace("-", "_"),
@@ -473,5 +476,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
             summary_sql = summary_sql.decode("utf-8")
             self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+            # if is_managed_ocp_cloud_summary_enabled(schema_name):
+            # TODO: Insert into postgresql
         verification_tags = list(dict.fromkeys(verification_tags))
         self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
