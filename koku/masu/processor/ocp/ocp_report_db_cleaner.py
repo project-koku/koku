@@ -129,11 +129,10 @@ class OCPReportDBCleaner:
                 LOG.info(log_json(msg="deleted table partitions", count=del_count, schema=self._schema))
 
                 # Remove all data related to the report period
-                del_count = cascade_delete(all_usage_periods.query.model, all_usage_periods)
+                cascade_delete(all_usage_periods.query.model, all_usage_periods)
                 LOG.info(
                     log_json(
                         msg="deleted ocp-usage-report-periods",
-                        count=del_count,
                         report_periods=all_report_periods,
                         schema=self._schema,
                     )
