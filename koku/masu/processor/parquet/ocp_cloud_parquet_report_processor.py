@@ -29,7 +29,6 @@ from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
-from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
@@ -44,6 +43,16 @@ GCP_PARTITION_MAP = {
     "month": "varchar",
     "day": "varchar",
 }
+
+
+def find_db_accessor(provider_type):
+    if provider_type in [Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL]:
+        return AWSReportDBAccessor
+    elif provider_type in [Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL]:
+        return AzureReportDBAccessor
+    elif provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+        return GCPReportDBAccessor
+    return None
 
 
 class OCPCloudParquetReportProcessor(ParquetReportProcessor):
@@ -150,7 +159,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         )
         self.create_parquet_table(file_path, daily=True, partition_map=self.partition_map)
 
-    def get_matched_tags(self, ocp_provider_uuids):
+    def get_matched_tags(self, ocp_provider_uuids, str_format=False):
         """Get tags that match between OCP and the cloud source."""
         # Get matching tags
         cache_key = build_matching_tags_key(self.schema_name, self.provider_type)
@@ -164,7 +173,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         # If the key is in the cache but the value is None, there are no matching tags
         if matched_tags or is_key_in_cache(cache_key):
             LOG.info(log_json(msg="retreived matching tags from cache", context=ctx))
-            return matched_tags
+            if str_format and matched_tags:
+                return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+            else:
+                return matched_tags
         if self.has_enabled_ocp_labels:
             enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
             if enabled_tags:
@@ -185,7 +197,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                     invoice_month_date=invoice_month,
                 )
         set_value_in_cache(cache_key, matched_tags)
-        return matched_tags
+        if str_format and matched_tags:
+            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+        else:
+            return matched_tags
 
     def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename):
         """Create a parquet file for daily aggregated data for each partition."""
@@ -311,17 +326,3 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         )
         matched_tags_result = matched_tags_result[0][0]
         return matched_tags_result
-
-    def process_ocp_cloud_trino(self, start_date, end_date):
-        """Populate cloud_openshift_daily trino table via SQL."""
-        if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
-            return
-        matched_tags = self.get_matched_tags(ocp_provider_uuids)
-        matched_tag_strs = []
-        if matched_tags:
-            matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-
-        sql_metadata = SummarySqlMetadata(
-            self.db_accessor.schema, self.provider_uuid, start_date, end_date, matched_tag_strs
-        )
-        self.db_accessor.populate_ocp_on_cloud_daily_trino(ocp_provider_uuids, sql_metadata)

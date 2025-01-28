@@ -19,6 +19,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 class SummarySqlMetadata:
     schema: str
     cloud_provider_uuid: str
+    provider_type: str
     start_date: date
     end_date: date
     matched_tag_strs: List[str]
@@ -80,42 +81,49 @@ class SummarySqlMetadata:
         Returns:
             Dict[str, Any]: A dictionary containing the requested keys and their values.
         """
-        base_params = {
-            "schema": self.schema,  # Placeholder if needed
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "month": self.month,
-            "year": self.year,
-            "matched_tag_strs": self.matched_tag_strs,
-            "cloud_provider_uuid": self.cloud_provider_uuid,
-            "days_tup": self.days_tup,
-            "days": self.days_tup,
-        }
-        if hasattr(self, "ocp_provider_uuid"):
-            base_params["ocp_provider_uuid"] = self.ocp_provider_uuid
+        base_params = self.parameters()
         return {key: base_params[key] for key in requested_keys}
 
     def prepare_template(self, filepath, extra_params={}):
         """
         Prepares the template & gathers params for execution
         """
-
-        base_params = {
-            "schema": self.schema,  # Placeholder if needed
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "month": self.month,
-            "year": self.year,
-            "matched_tag_strs": self.matched_tag_strs,
-            "cloud_provider_uuid": self.cloud_provider_uuid,
-            "days_tup": self.days_tup,
-            "days": self.days_tup,
-        }
-        if hasattr(self, "ocp_provider_uuid"):
-            base_params["ocp_provider_uuid"] = self.ocp_provider_uuid
+        base_params = self.parameters()
         for key, value in extra_params.items():
             base_params[key] = value
 
         sql_file = pkgutil.get_data("masu.database", filepath)
         sql_file_decoded = sql_file.decode("utf-8")
         return sql_file_decoded, base_params
+
+    def celery_kwargs(self):
+        return {
+            "start_date": str(self.start_date.date()),
+            "end_date": str(self.end_date.date()),
+            "schema": self.schema,
+            "provider_type": self.provider_type,
+            "cloud_provider_uuid": self.cloud_provider_uuid,
+            "matched_tag_strs": self.matched_tag_strs,
+        }
+
+    def parameters(self, explicit_initialized=False) -> Dict[str, Any]:
+        """
+        Converts the dataclass instance into a dictionary representation.
+        Serializes non-serialized field (like datetime) to strings
+        """
+        start_date = self.start_date
+        end_date = self.end_date
+        attrs = {
+            "schema": self.schema,
+            "cloud_provider_uuid": self.cloud_provider_uuid,
+            "provider_type": self.provider_type,
+            "start_date": start_date,
+            "end_date": end_date,
+            "matched_tag_strs": self.matched_tag_strs,
+            "year": self.year,
+            "month": self.month,
+            "days_tup": self.days_tup,
+        }
+        if hasattr(self, "ocp_provider_uuid"):
+            attrs["ocp_provider_uuid"] = self.ocp_provider_uuid
+        return attrs

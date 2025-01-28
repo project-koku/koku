@@ -444,12 +444,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def populate_ocp_on_cloud_daily_trino(self, ocp_provider_uuids, sql_metadata: SummarySqlMetadata) -> Any:
-        """Populate the managed_azure_openshift_daily trino table for OCP on Azure.
-        Args:
-            sql_metadata: object of SummarySqlMetadata class
-        Returns
-            (None)
+    def prepare_ocp_on_cloud_summary_tasks(self, sql_metadata: SummarySqlMetadata) -> Any:
+        """
+        Ensures tables are created & populated prior to the summary tasks
         """
         managed_path = "trino_sql/azure/openshift/daily_summary_flow"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
@@ -457,61 +454,54 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         LOG.info(log_json(msg="Preparing tables for OCP on Azure flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
-        for ocp_provider_uuid in ocp_provider_uuids:
-            sql_metadata.set_ocp_provider_uuid(ocp_provider_uuid)
-            self.delete_ocp_on_azure_hive_partition_by_day(
-                sql_metadata.days_tup,
-                sql_metadata.cloud_provider_uuid,
-                ocp_provider_uuid,
-                sql_metadata.year,
-                sql_metadata.month,
-                TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
-            )
-            # Resource Matching
-            resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
-                f"{managed_path}/1_resource_matching_by_cluster.sql",
-                {
-                    "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
-                },
-            )
-            self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
-            # Data Transformations for Daily Summary
-            daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
-                f"{managed_path}/2_summarize_data_by_cluster.sql",
-                {
-                    **sql_metadata.build_cost_model_params(ocp_provider_uuid),
-                    **{
-                        "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
-                    },
-                },
-            )
-            LOG.info(
-                log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
-            )
-            self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
-            if is_managed_ocp_cloud_summary_enabled(self.schema):
-                # Postgresql update
-                extra_kwargs = {}
-                # This follows what we currently do in the daily summary
-                extra_kwargs["bill_id"] = self.get_cost_entry_bill_id(sql_metadata)
-                with OCPReportDBAccessor(self.schema) as accessor:
-                    report_period = accessor.report_periods_for_provider_uuid(
-                        ocp_provider_uuid, sql_metadata.start_date
-                    )
-                    extra_kwargs["report_period_id"] = report_period.id
-                    transfer_sql, transfer_params = sql_metadata.prepare_template(
-                        f"{managed_path}/3_populate_postgresql_by_cluster.sql", extra_kwargs
-                    )
-                    self._execute_trino_multipart_sql_query(transfer_sql, bind_params=transfer_params)
 
-        # # Verification
-        # # TODO: If we switch the order of the celery tasks
-        # # it will likely impact the verification logic.
-        # path = "trino_sql/verify/managed_ocp_on_azure_verification.sql"
-        # verify_sql, verify_params = sql_metadata.prepare_template(path)
-        # LOG.info(log_json(msg="running verification for managed OCP on Azure daily SQL", **verify_params))
-        # result = self._execute_trino_multipart_sql_query(verify_sql, bind_params=verify_params)
-        # if False in result[0]:
-        #     LOG.error(log_json(msg="Verification failed", **verify_params))
-        # else:
-        #     LOG.info(log_json(msg="Verification successful", **verify_params))
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
+        """Populate the managed_azure_openshift_daily trino table for OCP on Azure.
+        Args:
+            sql_metadata: object of SummarySqlMetadata class
+        Returns
+            (None)
+        """
+        managed_path = "trino_sql/azure/openshift/daily_summary_flow"
+        self.delete_ocp_on_azure_hive_partition_by_day(
+            sql_metadata.days_tup,
+            sql_metadata.cloud_provider_uuid,
+            sql_metadata.ocp_provider_uuid,
+            sql_metadata.year,
+            sql_metadata.month,
+            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
+        )
+        # Resource Matching
+        resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
+            f"{managed_path}/1_resource_matching_by_cluster.sql",
+            {
+                "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
+            },
+        )
+        self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
+        # Data Transformations for Daily Summary
+        daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
+            f"{managed_path}/2_summarize_data_by_cluster.sql",
+            {
+                **sql_metadata.build_cost_model_params(sql_metadata.ocp_provider_uuid),
+                **{
+                    "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
+                },
+            },
+        )
+        LOG.info(log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params))
+        self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
+        if is_managed_ocp_cloud_summary_enabled(self.schema):
+            # Postgresql update
+            extra_kwargs = {}
+            # This follows what we currently do in the daily summary
+            extra_kwargs["bill_id"] = self.get_cost_entry_bill_id(sql_metadata)
+            with OCPReportDBAccessor(self.schema) as accessor:
+                report_period = accessor.report_periods_for_provider_uuid(
+                    sql_metadata.ocp_provider_uuid, sql_metadata.start_date
+                )
+                extra_kwargs["report_period_id"] = report_period.id
+                transfer_sql, transfer_params = sql_metadata.prepare_template(
+                    f"{managed_path}/3_populate_postgresql_by_cluster.sql", extra_kwargs
+                )
+                self._execute_trino_multipart_sql_query(transfer_sql, bind_params=transfer_params)

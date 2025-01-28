@@ -57,7 +57,9 @@ from masu.processor._tasks.remove_expired import _remove_expired_trino_partition
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
+from masu.processor.parquet.ocp_cloud_parquet_report_processor import find_db_accessor
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
@@ -1253,6 +1255,18 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
         LOG.info(log_json(msg="skipping validation, disabled for schema", context=context))
 
 
+@celery_app.task(
+    name="masu.processor.tasks.process_openshift_on_cloud_metadata", queue=SummaryQueue.DEFAULT, bind=True
+)
+def process_openshift_on_cloud_metadata(self, ocp_provider_uuid, **kwargs):
+    sql_metadata = SummarySqlMetadata(**kwargs)
+    sql_metadata.set_ocp_provider_uuid(ocp_provider_uuid)
+    LOG.info(sql_metadata.parameters())
+    accessor_class = find_db_accessor(sql_metadata.provider_type)
+    with accessor_class(sql_metadata.schema) as accessor:
+        accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
+
+
 @celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud_trino", queue=SummaryQueue.DEFAULT, bind=True)
 def process_openshift_on_cloud_trino(
     self, reports_to_summarize, provider_type, schema_name, provider_uuid, tracing_id, masu_api_trigger=False
@@ -1289,4 +1303,13 @@ def process_openshift_on_cloud_trino(
             ctx["end_date"] = end_date
             manifest_id = report.get("manifest_id")
             processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, ctx)
-            processor.process_ocp_cloud_trino(start_date, end_date)
+            if ocp_provider_uuids := processor.get_ocp_provider_uuids_tuple():
+                matched_tag_strs = processor.get_matched_tags(ocp_provider_uuids, str_format=True)
+                sql_metadata = SummarySqlMetadata(
+                    schema_name, provider_uuid, provider_type, start_date, end_date, matched_tag_strs
+                )
+                processor.db_accessor.prepare_ocp_on_cloud_summary_tasks(sql_metadata)
+                for ocp_provider_uuid in ocp_provider_uuids:
+                    process_openshift_on_cloud_metadata.s(
+                        ocp_provider_uuid, **sql_metadata.celery_kwargs()
+                    ).apply_async(queue=SummaryQueue.DEFAULT)
