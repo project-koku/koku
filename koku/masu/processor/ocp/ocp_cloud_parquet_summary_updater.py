@@ -160,7 +160,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         with self.db_accessor(self._schema) as accessor:
             accessor.truncate_partition(partition_name)
 
-    def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
+    def update_summary_tables(
+        self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type, **metadata_dict
+    ):
         """Populate the summary tables for reporting.
 
         Args:
@@ -176,7 +178,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         if infra_provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
         elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+            self.update_azure_summary_tables(
+                ocp_provider_uuid, infra_provider_uuid, start_date, end_date, **metadata_dict
+            )
         elif infra_provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
 
@@ -321,8 +325,13 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             report_period.ocp_on_cloud_updated_datetime = timezone.now()
             report_period.save()
 
-    def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
+    def update_azure_summary_tables(
+        self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date, **metadata_dict
+    ):
         """Update operations specifically for OpenShift on Azure."""
+        sql_metadata = SummarySqlMetadata(self._schema, azure_provider_uuid, start_date, end_date)
+        sql_metadata.restore_parameters(metadata_dict)
+        # the date parsing is already handled in sql_metadata
         if isinstance(start_date, str):
             start_date = parser.parse(start_date).date()
         if isinstance(end_date, str):
@@ -424,25 +433,16 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     )
                 )
                 if is_managed_ocp_cloud_summary_enabled(self._schema):
-                    # TODO: get matched tag strs here
-                    # return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-                    matched_tag_strs = [
-                        '"app": "banking"',
-                        '"app": "mobile"',
-                        '"app": "weather"',
-                        '"environment": "Jupiter"',
-                        '"storageclass": "Baldur"',
-                        '"storageclass": "Loki"',
-                        '"storageclass": "Odin"',
-                        '"storageclass": "Thor"',
-                        '"version": "Andromeda"',
-                        '"version": "Mars"',
-                        '"version": "MilkyWay"',
-                        '"version": "Sombrero"',
-                    ]
-                    sql_metadata = SummarySqlMetadata(self._schema, azure_provider_uuid, start_date, end_date)
-                    sql_metadata.set_matched_tag_strs(matched_tag_strs)
-                    sql_metadata.set_ocp_provider_uuid(openshift_provider_uuid)
+                    sql_metadata.add_parameter("ocp_provider_uuid", openshift_provider_uuid)
+                    sql_metadata.add_parameter("bill_id", current_azure_bill_id)
+                    sql_metadata.add_parameter("report_period_id", current_ocp_report_period_id)
+                    sql_metadata.add_parameter("markup", markup_value)
+                    if distribution == "memory":
+                        sql_metadata.add_parameter("pod_column", "pod_effective_usage_memory_gigabyte_hours")
+                        sql_metadata.add_parameter("node_column", "node_capacity_memory_gigabyte_hours")
+                    else:
+                        sql_metadata.add_parameter("pod_column", "pod_effective_usage_cpu_core_hours")
+                        sql_metadata.add_parameter("node_column", "node_capacity_cpu_core_hours")
                     accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
                 else:
                     accessor.populate_ocp_on_azure_cost_daily_summary_trino(

@@ -171,7 +171,14 @@ class ReportSummaryUpdater:
             raise ReportSummaryUpdaterCloudError(str(ex)) from ex
 
     def update_openshift_on_cloud_summary_tables(
-        self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type, tracing_id
+        self,
+        start_date,
+        end_date,
+        ocp_provider_uuid,
+        infra_provider_uuid,
+        infra_provider_type,
+        tracing_id,
+        **metadata_dict,
     ):
         """
         Update report summary tables.
@@ -211,7 +218,7 @@ class ReportSummaryUpdater:
 
         try:
             self._ocp_cloud_updater.update_summary_tables(
-                start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type
+                start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type, **metadata_dict
             )
             LOG.info(
                 log_json(

@@ -8,7 +8,6 @@ import logging
 import pkgutil
 import uuid
 from typing import Any
-from typing import List
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -480,21 +479,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
-
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: SummarySqlMetadata):
-        """
-        Verify the managed trino table population went successfully.
-        """
-        params = sql_metadata.build_params(["schema", "cloud_provider_uuid", "year", "month"])
-        params["matched_tag_array"] = verification_tags
-        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_aws_verification.sql")
-        verification_sql = verification_sql.decode("utf-8")
-        LOG.info(log_json(msg="running verification for managed OCP on AWS daily SQL", **params))
-        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=params)
-        if False in result[0]:
-            LOG.error(log_json(msg="Verification failed", **params))
-        else:
-            LOG.info(log_json(msg="Verification successful", **params))
 
     def prepare_ocp_on_cloud_summary_tasks(self, sql_metadata: SummarySqlMetadata) -> Any:
         """

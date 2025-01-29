@@ -419,9 +419,6 @@ def summarize_reports(  # noqa: C901
     reports_deduplicated = deduplicate_summary_reports(reports_to_summarize, manifest_list)
     for report in reports_deduplicated:
         schema_name = report.get("schema_name")
-        provider_type = report.get("provider_type")
-        provider_uuid = report.get("provider_uuid")
-        manifest_id = report.get("manifest_id")
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
@@ -440,21 +437,6 @@ def summarize_reports(  # noqa: C901
 
         months = get_months_in_date_range(report)
         for month in months:
-            if is_managed_ocp_cloud_processing_enabled(schema_name):
-                start_date = month[0]
-                end_date = month[1]
-                ctx = {"provider_type": provider_type, "schema_name": schema_name, "provider_uuid": provider_uuid}
-                ctx["start_date"] = start_date
-                ctx["end_date"] = end_date
-                processor = OCPCloudParquetReportProcessor(
-                    schema_name, "", provider_uuid, provider_type, manifest_id, ctx
-                )
-                # these pieces where only for matched_tag_str which I would like
-                # to move lower in the process
-                # if ocp_provider_uuids := processor.get_ocp_provider_uuids_tuple():
-                # matched_tag_strs = processor.get_matched_tags(ocp_provider_uuids, str_format=True)
-                sql_metadata = SummarySqlMetadata(schema_name, provider_uuid, start_date, end_date)
-                processor.db_accessor.prepare_ocp_on_cloud_summary_tasks(sql_metadata)
             update_summary_tables.s(
                 schema_name,
                 report.get("provider_type"),
@@ -500,6 +482,9 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
+    sql_metadata = SummarySqlMetadata(schema, provider_uuid, start_date, end_date)
+    sql_metadata.add_parameter("matched_tag_strs", [])
+
     context = {
         "schema": schema,
         "provider_type": provider_type,
@@ -576,6 +561,20 @@ def update_summary_tables(  # noqa: C901
         )
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
+            if ocp_on_cloud_infra_map and is_managed_ocp_cloud_processing_enabled(schema):
+                ocp_provider_uuids = ocp_on_cloud_infra_map.keys()
+                ctx = {"provider_type": provider_type, "schema": schema, "provider_uuid": provider_uuid}
+                ctx["start_date"] = start_date
+                ctx["end_date"] = end_date
+                # TODO: I would like to remove the parquet processor
+                # dependency here.
+                processor = OCPCloudParquetReportProcessor(schema, "", provider_uuid, provider_type, manifest_id, ctx)
+                processor.db_accessor.prepare_ocp_on_cloud_summary_tasks(sql_metadata)
+                # if ocp_provider_uuids := processor.get_ocp_provider_uuids_tuple():
+                matched_tags = processor.get_matched_tags(ocp_provider_uuids)
+                matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+                sql_metadata.add_parameter("matched_tag_strs", matched_tag_strs)
+
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
         # Mark summary failed time
@@ -640,6 +639,7 @@ def update_summary_tables(  # noqa: C901
     for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
         infra_provider_uuid = infrastructure_tuple[0]
         infra_provider_type = infrastructure_tuple[1]
+        sql_metadata.remove_duplicates()
         signature_list.append(
             update_openshift_on_cloud.si(
                 schema,
@@ -652,6 +652,7 @@ def update_summary_tables(  # noqa: C901
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
+                **sql_metadata.parameters,
             ).set(queue=fallback_update_summary_tables_queue)
         )
 
@@ -745,6 +746,7 @@ def update_openshift_on_cloud(  # noqa: C901
     queue_name=None,
     synchronous=False,
     tracing_id=None,
+    **metadata_dict,
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     # Get latest manifest id for running OCP provider
@@ -784,6 +786,7 @@ def update_openshift_on_cloud(  # noqa: C901
                 queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
+                **metadata_dict,
             ).apply_async(queue=queue_name or fallback_queue)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=timeout)
@@ -811,6 +814,7 @@ def update_openshift_on_cloud(  # noqa: C901
             infrastructure_provider_uuid,
             infrastructure_provider_type,
             tracing_id,
+            **metadata_dict,
         )
         # Regardless of an attached cost model we must run an update for default distribution costs
         LOG.info(log_json(tracing_id, msg="updating cost model costs", context=ctx))
