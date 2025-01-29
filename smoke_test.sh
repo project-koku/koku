@@ -21,7 +21,6 @@ curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 source ${CICD_ROOT}/_common_deploy_logic.sh
 set -x
-
 export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 export NAMESPACE=$(bonfire namespace reserve --duration 6h)
 SMOKE_NAMESPACE=$NAMESPACE
