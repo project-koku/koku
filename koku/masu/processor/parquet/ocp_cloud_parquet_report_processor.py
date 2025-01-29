@@ -300,7 +300,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             "year": year,
             "month": month,
             "end_date": end_date,
-            "ocp_source_uuid": ocp_provider_uuid,
+            "ocp_provider_uuid": ocp_provider_uuid,
             "matched_tag_array": matched_tag_strs,
         }
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matached_tags_params))

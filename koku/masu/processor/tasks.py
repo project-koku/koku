@@ -435,21 +435,21 @@ def summarize_reports(  # noqa: C901
 
             LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
 
-        months = get_months_in_date_range(report)
-        for month in months:
-            update_summary_tables.s(
-                schema_name,
-                report.get("provider_type"),
-                report.get("provider_uuid"),
-                start_date=month[0],
-                end_date=month[1],
-                ingress_report_uuid=ingress_report_uuid,
-                manifest_id=report.get("manifest_id"),
-                queue_name=queue_name,
-                tracing_id=tracing_id,
-                manifest_list=manifest_list,
-                invoice_month=month[2],
-            ).apply_async(queue=queue_name or fallback_queue)
+            months = get_months_in_date_range(report)
+            for month in months:
+                update_summary_tables.s(
+                    schema_name,
+                    report.get("provider_type"),
+                    report.get("provider_uuid"),
+                    start_date=month[0],
+                    end_date=month[1],
+                    ingress_report_uuid=ingress_report_uuid,
+                    manifest_id=report.get("manifest_id"),
+                    queue_name=queue_name,
+                    tracing_id=tracing_id,
+                    manifest_list=manifest_list,
+                    invoice_month=month[2],
+                ).apply_async(queue=queue_name or fallback_queue)
 
 
 @celery_app.task(name=UPDATE_SUMMARY_TABLES_TASK, queue=SummaryQueue.DEFAULT)  # noqa: C901
