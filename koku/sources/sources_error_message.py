@@ -21,7 +21,7 @@ class SourcesErrorMessage:
 
     def azure_client_errors(self, message):
         """Azure client error messages."""
-        scrubbed_message = str(message)
+        scrubbed_message = message
         if "AADSTS700016" in message:
             scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
         if "AADSTS90002" in message:
