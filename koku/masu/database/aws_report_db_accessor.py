@@ -164,6 +164,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
 
+        # TODO Remove this when we switch to managed flow
+        trino_table = "reporting_ocpawscostlineitem_project_daily_summary"
+        column_name = "aws_source"
+        if is_managed_ocp_cloud_summary_enabled:
+            trino_table = "managed_reporting_ocpawscostlineitem_project_daily_summary"
+            column_name = "source"
+
         for table_name in tables:
             sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/{table_name}.sql")
             sql = sql.decode("utf-8")
@@ -176,6 +183,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "days": days_tup,
                 "aws_source_uuid": aws_provider_uuid,
                 "ocp_source_uuid": openshift_provider_uuid,
+                "trino_table": trino_table,
+                "column_name": column_name,
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
@@ -526,11 +535,5 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")
             summary_sql = summary_sql.decode("utf-8")
             self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
-            # TODO I dont think we can put this here without drastically changing the current tasks or adding addional ones.
-            # For example we would need to handle COST-5649, because we couldnt send a single cluster at a time..
-            # if is_managed_ocp_cloud_summary_enabled(sql_metadata["schema"]):
-            #     trigger_ocp_on_cloud_summary(
-            #         context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name, synchronous
-            #     )
         verification_tags = list(dict.fromkeys(verification_tags))
         self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

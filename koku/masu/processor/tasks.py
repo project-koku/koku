@@ -1295,7 +1295,6 @@ def process_openshift_on_cloud_trino(
             manifest_id = report.get("manifest_id")
             processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, ctx)
             processor.process_ocp_cloud_trino(start_date, end_date)
-            # TODO the task may need to be here because of context passed into the summary tasks
             if is_managed_ocp_cloud_summary_enabled(schema_name):
                 trigger_ocp_on_cloud_summary(
                     ctx, schema_name, provider_uuid, manifest_id, tracing_id, start_date, end_date

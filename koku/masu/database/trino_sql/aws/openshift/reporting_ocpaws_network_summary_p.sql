@@ -41,7 +41,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpaws_network_summary_p (
         max(currency_code),
         cast({{aws_source_uuid}} as uuid) as source_uuid
     FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
-    WHERE aws_source = {{aws_source_uuid}}
+    WHERE {{column_name | sqlsafe}} = {{aws_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters

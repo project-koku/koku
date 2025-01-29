@@ -209,6 +209,13 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
 
+        # TODO Remove this when we switch to managed flow
+        trino_table = "reporting_ocpazurecostlineitem_project_daily_summary"
+        column_name = "azure_source"
+        if is_managed_ocp_cloud_summary_enabled:
+            trino_table = "managed_reporting_ocpazurecostlineitem_project_daily_summary"
+            column_name = "source"
+
         for table_name in tables:
             sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/{table_name}.sql")
             sql = sql.decode("utf-8")
@@ -221,6 +228,8 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "days": days_tup,
                 "azure_source_uuid": azure_provider_uuid,
                 "ocp_source_uuid": openshift_provider_uuid,
+                "trino_table": trino_table,
+                "column_name": column_name,
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
@@ -476,7 +485,5 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
             summary_sql = summary_sql.decode("utf-8")
             self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
-            # if is_managed_ocp_cloud_summary_enabled(schema_name):
-            # TODO: Insert into postgresql
         verification_tags = list(dict.fromkeys(verification_tags))
         self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

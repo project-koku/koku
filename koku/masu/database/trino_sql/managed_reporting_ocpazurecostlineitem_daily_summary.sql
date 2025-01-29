@@ -78,9 +78,9 @@ SELECT uuid(),
     pod_cost,
     json_parse(tags),
     cost_category_id,
-    cast(azure_source as UUID)
-FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
-WHERE azure_source = {{azure_source_uuid}}
+    cast(source as UUID)
+FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
+WHERE source = {{azure_source_uuid}}
     AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters

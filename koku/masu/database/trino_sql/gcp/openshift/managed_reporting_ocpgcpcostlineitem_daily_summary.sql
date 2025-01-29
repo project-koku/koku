@@ -95,11 +95,11 @@ SELECT uuid(),
     pod_credit,
     json_parse(tags),
     cost_category_id,
-    cast(gcp_source as UUID),
+    cast(source as UUID),
     credit_amount,
     invoice_month
-FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary
-WHERE gcp_source = {{gcp_source_uuid}}
+FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary
+WHERE source = {{gcp_source_uuid}}
     AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}
     AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters

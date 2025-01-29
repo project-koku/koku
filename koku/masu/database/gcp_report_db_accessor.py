@@ -397,6 +397,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
+
+        # TODO Remove this when we switch to managed flow
+        trino_table = "reporting_ocpgcpcostlineitem_project_daily_summary"
+        column_name = "gcp_source"
+        if is_managed_ocp_cloud_summary_enabled:
+            trino_table = "managed_reporting_ocpgcpcostlineitem_project_daily_summary"
+            column_name = "gcp_source"
+
         for invoice_month in invoice_month_list:
             for table_name in tables:
                 sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
@@ -411,6 +419,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "invoice_month": invoice_month,
                     "gcp_source_uuid": gcp_provider_uuid,
                     "ocp_source_uuid": openshift_provider_uuid,
+                    "trino_table": trino_table,
+                    "column_name": column_name,
                 }
                 self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
@@ -681,7 +691,5 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
             )
         self._populate_final_managed_table(sql_metadata)
-        # if is_managed_ocp_cloud_summary_enabled(schema_name):
-        # TODO: Insert into postgresql
         verification_tags = list(dict.fromkeys(verification_tags))
         self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
