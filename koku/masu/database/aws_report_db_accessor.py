@@ -260,10 +260,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         unattributed_storage = is_feature_unattributed_storage_enabled_aws(self.schema)
 
-        sql_file = "reporting_ocpawscostlineitem_daily_summary.sql"
+        sql_file = "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql"
         if is_managed_ocp_cloud_summary_enabled(self.schema):
-            sql_file = "managed_reporting_ocpawscostlineitem_daily_summary.sql"
-        sql = pkgutil.get_data("masu.database", f"trino_sql/{sql_file}")
+            sql_file = "trino_sql/aws/openshift/managed_reporting_ocpawscostlineitem_daily_summary.sql"
+        sql = pkgutil.get_data("masu.database", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
