@@ -8,10 +8,8 @@ import logging
 import pkgutil
 import uuid
 from typing import Any
-from typing import List
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -248,7 +246,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     column_name = "azure_source"
                 sql = f"""
-                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
+                    DELETE FROM hive.{self.schema}.{table}
                         WHERE {column_name} = '{az_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'
@@ -430,7 +428,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: ManagedSqlMetadata):
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: list[str], sql_metadata: ManagedSqlMetadata):
         """
         Verify the managed trino table population went successfully.
         """

@@ -87,8 +87,8 @@ FROM (
         max(c.cost_currencycode) as currency,
         sum(c.cost_mycost) as cost,
         c.tags as tags
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.oci_cost_line_items as c
-    JOIN hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.oci_usage_line_items as u
+    FROM hive.{{schema | sqlsafe}}.oci_cost_line_items as c
+    JOIN hive.{{schema | sqlsafe}}.oci_usage_line_items as u
         ON c.lineItem_intervalUsageStart = u.lineItem_intervalUsageStart
         AND c.product_resourceId = u.product_resourceId
     WHERE c.source = '{{source_uuid | sqlsafe}}'
