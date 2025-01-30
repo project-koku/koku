@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_uuid_temp
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_uuid_temp
 (
     row_uuid varchar,
     additionalinfo varchar,
@@ -25,12 +25,12 @@ CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqls
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])
 ;
 
-DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_uuid_temp
+DELETE FROM hive.{{schema | sqlsafe}}.managed_azure_uuid_temp
 WHERE source = {{cloud_provider_uuid}}
     AND year = {{year}}
     AND month= {{month}};
 
-INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_uuid_temp (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_uuid_temp (
     row_uuid,
     additionalinfo,
     billingcurrency,
@@ -77,14 +77,14 @@ SELECT
     azure.year,
     azure.month,
     cast(day(azure.date) as varchar) as day
-FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_line_items AS azure
+FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
 WHERE azure.source = {{cloud_provider_uuid}}
     AND azure.year = {{year}}
     AND azure.month= {{month}}
     AND azure.date >= {{start_date}}
     AND azure.date < date_add('day', 1, {{end_date}});
 
-CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
 (
     row_uuid varchar, -- custom
     usage_start timestamp, -- custom
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqls
 ;
 
 -- TODO: we may need a managed version of this table
-CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp
 (
     resource_id varchar,
     capacity integer,
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqls
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['ocp_source', 'year', 'month'])
 ;
 
-CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
 (
     row_uuid varchar,
     cluster_id varchar,
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqls
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-CREATE TABLE IF NOT EXISTS hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
 (
     row_uuid varchar,
     cluster_id varchar,

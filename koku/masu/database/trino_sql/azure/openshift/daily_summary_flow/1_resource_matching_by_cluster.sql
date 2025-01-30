@@ -1,11 +1,10 @@
-<<<<<<< HEAD:koku/masu/database/trino_sql/azure/openshift/daily_summary_flow/1_resource_matching_by_cluster.sql
-DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
+DELETE FROM hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
 WHERE source = {{cloud_provider_uuid}}
 AND ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}};
 
-INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp (
     row_uuid,
     usage_start,
     resource_id,
@@ -19,62 +18,6 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
     usage_quantity,
     currency,
     pretax_cost,
-=======
--- Now create our proper table if it does not exist
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_daily
-(
-    accountname varchar,
-    additionalinfo varchar,
-    billingcurrency varchar,
-    billingcurrencycode varchar,
-    consumedservice varchar,
-    costinbillingcurrency double,
-    date timestamp(3),
-    effectiveprice double,
-    frequency varchar,
-    isazurecrediteligible varchar,
-    metercategory varchar,
-    metername varchar,
-    metersubcategory varchar,
-    productname varchar,
-    publishername varchar,
-    publishertype varchar,
-    quantity double,
-    resourcegroup varchar,
-    resourceid varchar,
-    resourcelocation varchar,
-    resourcetype varchar,
-    servicefamily varchar,
-    serviceinfo1 varchar,
-    serviceinfo2 varchar,
-    servicename varchar,
-    servicetier varchar,
-    subscriptionguid varchar,
-    subscriptionid varchar,
-    subscriptionname varchar,
-    tags varchar,
-    term varchar,
-    unitofmeasure varchar,
-    unitprice double,
-    resource_id_matched boolean,
-    matched_tag varchar,
-    source varchar,
-    ocp_source varchar,
-    year varchar,
-    month varchar,
-    day varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'ocp_source', 'year', 'month', 'day'])
-;
-
--- Direct resource matching
-INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily (
-    accountname,
-    additionalinfo,
-    billingcurrency,
-    billingcurrencycode,
-    consumedservice,
-    costinbillingcurrency,
->>>>>>> origin:koku/masu/database/trino_sql/azure/openshift/managed_azure_openshift_daily.sql
     date,
     metername,
     complete_resource_id,
@@ -143,7 +86,7 @@ cte_enabled_tag_keys AS (
         THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
         ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
     END as enabled_keys
-    FROM postgres.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_enabledtagkeys
+    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
     WHERE enabled = TRUE
         AND provider_type = 'Azure'
 )
