@@ -39,7 +39,7 @@ SELECT
   -- if the VMName isn't present in additionalinfo, the end of the resourceid should be the VMName
   COALESCE(json_extract_scalar(lower(additionalinfo), '$.vmname'), regexp_extract(resourceid, '([^/]+$)')) as subs_vmname
 FROM
-    hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_line_items
+    hive.{{schema | sqlsafe}}.azure_line_items
 WHERE
     source = {{ source_uuid }}
     AND year = {{ year }}

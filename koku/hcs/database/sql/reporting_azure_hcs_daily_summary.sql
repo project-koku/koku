@@ -3,7 +3,7 @@ SELECT
   {{ebs_acct_num}} as ebs_account_id,
   {{org_id}} as org_id
 FROM
-  hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.{{table | sqlsafe}}
+  hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 WHERE
   source = {{provider_uuid}}
   AND year = {{year}}

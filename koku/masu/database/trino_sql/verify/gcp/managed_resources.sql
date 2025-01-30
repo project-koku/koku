@@ -9,7 +9,7 @@ cte_resource_breakdown AS (
         SUM(cost) AS cost
     FROM (
         SELECT 'parquet' AS source_type, resource_name, usage_start_time, cost
-        FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_openshift_daily parquet_table
+        FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily parquet_table
         WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}} AND month = {{month}}
         AND (ocp_matched = TRUE OR EXISTS (
@@ -19,7 +19,7 @@ cte_resource_breakdown AS (
         ))
         UNION ALL
         SELECT 'managed' AS source_type, resource_name, usage_start_time, cost
-        FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily
+        FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily
         WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}} AND month = {{month}}
         AND (resource_id_matched = TRUE OR matched_tag != '')
@@ -51,7 +51,7 @@ cte_initial_cost_check AS (
             WHEN SUM(gcp.cost) < MAX(d.parquet_cost) AND SUM(gcp.cost) = MAX(d.managed_cost)
             THEN TRUE ELSE FALSE
         END AS parquet_issue
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.gcp_line_items_daily gcp
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily gcp
     JOIN cte_discrepancies d
         ON gcp.resource_name = d.resource_name
         AND gcp.usage_start_time = d.usage_start_time

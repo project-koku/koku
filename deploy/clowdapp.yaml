@@ -24,8 +24,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: DJANGO_SECRET_KEY
@@ -217,8 +215,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: DJANGO_SECRET_KEY
@@ -401,8 +397,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: APP_POD_NAME
@@ -464,8 +458,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
@@ -616,8 +608,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: MASU
@@ -820,8 +810,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -986,8 +974,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: SOURCES
@@ -1159,8 +1145,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: SOURCES
@@ -1329,8 +1313,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -1517,8 +1499,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -1711,8 +1691,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -1905,8 +1883,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -2099,8 +2075,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -2297,8 +2271,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -2495,8 +2467,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -2693,8 +2663,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -2889,8 +2857,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -3085,8 +3051,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -3281,8 +3245,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -3483,8 +3445,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -3685,8 +3645,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -3887,8 +3845,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -4081,8 +4037,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -4275,8 +4229,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -4469,8 +4421,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -4667,8 +4617,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -4865,8 +4813,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -5063,8 +5009,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -5255,8 +5199,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -5435,8 +5377,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -5618,8 +5558,6 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
@@ -5670,8 +5608,6 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
@@ -5839,8 +5775,6 @@ parameters:
 - description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral
     testing
   name: SCHEMA_SUFFIX
-  value: ""
-- name: TRINO_SCHEMA_PREFIX
   value: ""
 - name: TRINO_S3A_OR_S3
   value: s3a
