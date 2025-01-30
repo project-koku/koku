@@ -102,7 +102,7 @@ function run_smoke_tests_stage() {
         ${APP_NAME} \
         --ref-env insights-production \
         --set-template-ref ${COMPONENT_NAME}=${ghprbActualCommit} \
-        --set-template-ref trino=b36404672c1d4563f55e9321252e58a9ec11c982 \
+        --set-template-ref trino=9c5624393b41e152014ffd1206714e836d9fcbdb \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
@@ -114,12 +114,12 @@ function run_smoke_tests_stage() {
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
         --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG}_${BUILD_NUMBER} \
-        --set-parameter koku/TRINO_S3A_OR_S3=s3 \
+        --set-parameter koku/TRINO_S3A_OR_S3=s3a \
         --set-parameter trino/IMAGE=quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/ubi-trino \
-        --set-parameter trino/IMAGE_TAG=pr-175-b364046 \
+        --set-parameter trino/IMAGE_TAG=pr-175-9c56243 \
         --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
         --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
-        --set-parameter trino/TRINO_S3A_OR_S3=s3 \
+        --set-parameter trino/TRINO_S3A_OR_S3=s3a \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
