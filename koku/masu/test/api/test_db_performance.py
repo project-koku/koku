@@ -13,7 +13,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
 
-TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", (CONFIGURATOR.__class__,), dict(CONFIGURATOR.__dict__))
+
+TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))
 
 
 def _get_database_name():
