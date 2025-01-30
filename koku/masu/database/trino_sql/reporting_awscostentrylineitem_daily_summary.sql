@@ -122,7 +122,7 @@ FROM (
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids,
         count(DISTINCT lineitem_resourceid) as resource_count
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily
+    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
