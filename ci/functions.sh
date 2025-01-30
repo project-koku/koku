@@ -114,10 +114,12 @@ function run_smoke_tests_stage() {
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
         --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG}_${BUILD_NUMBER} \
+        --set-parameter koku/TRINO_S3A_OR_S3=s3 \
         --set-parameter trino/IMAGE=quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/ubi-trino \
         --set-parameter trino/IMAGE_TAG=pr-175-b364046 \
         --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
         --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
+        --set-parameter trino/TRINO_S3A_OR_S3=s3 \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
@@ -175,8 +177,10 @@ function run_build_image_stage() {
 }
 
 function wait_for_image() {
-    echo "Waiting for initial image build..."
-    sleep 180
+    if ! [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?specificTag=${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; then
+        echo "Waiting for initial image build..."
+        sleep 180
+    fi
 
     local count=0
     local max=60  # Try for up to 30 minutes
