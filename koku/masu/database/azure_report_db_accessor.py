@@ -476,14 +476,3 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
             )
             self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
-        # # Verification
-        # # TODO: If we switch the order of the celery tasks
-        # # it will likely impact the verification logic.
-        # path = "trino_sql/verify/managed_ocp_on_azure_verification.sql"
-        # verify_sql, verify_params = sql_metadata.prepare_template(path)
-        # LOG.info(log_json(msg="running verification for managed OCP on Azure daily SQL", **verify_params))
-        # result = self._execute_trino_multipart_sql_query(verify_sql, bind_params=verify_params)
-        # if False in result[0]:
-        #     LOG.error(log_json(msg="Verification failed", **verify_params))
-        # else:
-        #     LOG.info(log_json(msg="Verification successful", **verify_params))
