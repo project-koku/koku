@@ -676,6 +676,7 @@ services:
       - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
       - S3_REGION=${S3_REGION-us-east-1}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
       - AWS_CATALOG_ID=${AWS_CATALOG_ID-}
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
