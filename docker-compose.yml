@@ -681,8 +681,7 @@ services:
       - ./dev/containers/trino/etc/config.properties:/etc/trino/config.properties
       - ./dev/containers/trino/etc/jvm.config:/etc/trino/jvm.config
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
-      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/${HIVE_PROPERTIES_FILE-hive.properties}
-      - ./dev/containers/trino/etc/catalog/glue.properties:/etc/trino/catalog/${GLUE_PROPERTIES_FILE-glue.properties}
+      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs
