@@ -11,7 +11,6 @@ from typing import Any
 from typing import List
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -203,7 +202,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     column_name = "aws_source"
                 sql = f"""
-                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
+                    DELETE FROM hive.{self.schema}.{table}
                         WHERE {column_name} = '{aws_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'

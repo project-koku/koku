@@ -70,6 +70,8 @@ jobs:
           echo Dockerfile >> docker-files.txt;
           echo pr_check.sh >> docker-files.txt;
           echo deploy/clowdapp.yaml >> docker-files.txt;
+          echo Jenkinsfile >> docker-files.txt;
+          echo ci/functions.sh >> docker-files.txt;
 
       - name: Show Dockerfiles
         run: cat docker-files.txt
@@ -330,15 +332,15 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: codecov/codecov-action@1e68e06f1dbfde0e4cefc87efeba9e4643565303 # v5.1.2
+        uses: codecov/codecov-action@13ce06bfc6bbe3ecf90edbbf1bc32fe5978ca1d3 # v5.3.1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           flags: unittests
           name: Python-${{ matrix.python-version}}
           fail_ci_if_error: true
-          plugin: pycoverage  # Only run one plugin even though we don't want any to run.
+          plugins: noop
 
       - name: Set Codecov job status on skipped tests
         if: needs.changed-files.outputs.run_tests != 'true'

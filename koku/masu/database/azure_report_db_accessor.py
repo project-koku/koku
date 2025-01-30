@@ -10,7 +10,6 @@ import uuid
 from typing import Any
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -249,7 +248,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     # managed flow
                     column_name = "azure_source"
                 sql = f"""
-                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
+                    DELETE FROM hive.{self.schema}.{table}
                         WHERE {column_name} = '{az_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'

@@ -22,7 +22,9 @@ class ExpiredDataTest(TestCase):
     @patch.object(Orchestrator, "remove_expired_report_data")
     def test_get_expired_data(self, mock_orchestrator, _, mock_service):
         """Test the GET expired_data endpoint."""
-        mock_response = [{"customer": "org1234567", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
+        mock_response = [
+            {"schema": "org1234567", "provider_type": "OCP", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}
+        ]
         expected_key = "Async jobs for expired data removal (simulated)"
         mock_orchestrator.return_value = mock_response
         response = self.client.get(reverse("expired_data"))
@@ -38,7 +40,9 @@ class ExpiredDataTest(TestCase):
     @patch.object(Orchestrator, "remove_expired_report_data")
     def test_del_expired_data(self, mock_orchestrator, mock_debug, _, mock_service):
         """Test the DELETE expired_data endpoint."""
-        mock_response = [{"customer": "org1234567", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
+        mock_response = [
+            {"schema": "org1234567", "provider_type": "OCP", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}
+        ]
         expected_key = "Async jobs for expired data removal"
         mock_orchestrator.return_value = mock_response
 
@@ -54,7 +58,9 @@ class ExpiredDataTest(TestCase):
     @patch.object(Orchestrator, "remove_expired_trino_partitions")
     def test_get_expired_partitions(self, mock_orchestrator, _, mock_service):
         """Test the GET expired_trino_paritions endpoint."""
-        mock_response = [{"customer": "org1234567", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
+        mock_response = [
+            {"schema": "org1234567", "provider_type": "OCP", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}
+        ]
         expected_key = "Async jobs for expired paritions removal (simulated)"
         mock_orchestrator.return_value = mock_response
         response = self.client.get(reverse("expired_trino_partitions"))
@@ -71,7 +77,9 @@ class ExpiredDataTest(TestCase):
     @patch.object(Orchestrator, "remove_expired_trino_partitions")
     def test_del_expired_partitions(self, mock_orchestrator, mock_debug, _, mock_service):
         """Test the DELETE expired_trino_partitions endpoint."""
-        mock_response = [{"customer": "org1234567", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}]
+        mock_response = [
+            {"schema": "org1234567", "provider_type": "OCP", "async_id": "f9eb2ce7-4564-4509-aecc-1200958c07cf"}
+        ]
         expected_key = "Async jobs for expired paritions removal"
         mock_orchestrator.return_value = mock_response
 

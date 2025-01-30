@@ -1,11 +1,11 @@
-DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
+DELETE FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
 WHERE ocp_source = {{ocp_source_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}};
 
 -- Direct resource matching
-INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
     row_uuid,
     invoice_month,
     billing_account_id,
@@ -37,7 +37,7 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_g
 )
 WITH cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_uuid_temp
+    FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -46,7 +46,7 @@ WITH cte_gcp_resource_names AS (
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -55,7 +55,7 @@ cte_array_agg_nodes AS (
 ),
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -115,7 +115,7 @@ SELECT gcp.row_uuid,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day
-FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_uuid_temp AS gcp
+FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp AS gcp
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
 LEFT JOIN cte_agg_tags AS tag_matches

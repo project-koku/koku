@@ -1,3 +1,4 @@
+<<<<<<< HEAD:koku/masu/database/trino_sql/azure/openshift/daily_summary_flow/1_resource_matching_by_cluster.sql
 DELETE FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
 WHERE source = {{cloud_provider_uuid}}
 AND ocp_source = {{ocp_provider_uuid}}
@@ -18,6 +19,62 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
     usage_quantity,
     currency,
     pretax_cost,
+=======
+-- Now create our proper table if it does not exist
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_daily
+(
+    accountname varchar,
+    additionalinfo varchar,
+    billingcurrency varchar,
+    billingcurrencycode varchar,
+    consumedservice varchar,
+    costinbillingcurrency double,
+    date timestamp(3),
+    effectiveprice double,
+    frequency varchar,
+    isazurecrediteligible varchar,
+    metercategory varchar,
+    metername varchar,
+    metersubcategory varchar,
+    productname varchar,
+    publishername varchar,
+    publishertype varchar,
+    quantity double,
+    resourcegroup varchar,
+    resourceid varchar,
+    resourcelocation varchar,
+    resourcetype varchar,
+    servicefamily varchar,
+    serviceinfo1 varchar,
+    serviceinfo2 varchar,
+    servicename varchar,
+    servicetier varchar,
+    subscriptionguid varchar,
+    subscriptionid varchar,
+    subscriptionname varchar,
+    tags varchar,
+    term varchar,
+    unitofmeasure varchar,
+    unitprice double,
+    resource_id_matched boolean,
+    matched_tag varchar,
+    source varchar,
+    ocp_source varchar,
+    year varchar,
+    month varchar,
+    day varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'ocp_source', 'year', 'month', 'day'])
+;
+
+-- Direct resource matching
+INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily (
+    accountname,
+    additionalinfo,
+    billingcurrency,
+    billingcurrencycode,
+    consumedservice,
+    costinbillingcurrency,
+>>>>>>> origin:koku/masu/database/trino_sql/azure/openshift/managed_azure_openshift_daily.sql
     date,
     metername,
     complete_resource_id,
@@ -32,7 +89,7 @@ INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_a
 )
 WITH cte_azure_resource_names AS (
     SELECT DISTINCT resourceid
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_uuid_temp
+    FROM hive.{{schema | sqlsafe}}.managed_azure_uuid_temp
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -41,7 +98,7 @@ WITH cte_azure_resource_names AS (
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
+    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
     WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -50,7 +107,7 @@ cte_array_agg_nodes AS (
 ),
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
+    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
     WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -140,7 +197,7 @@ SELECT
     azure.year,
     azure.month,
     cast(day(azure.date) as varchar) as day
-FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_azure_uuid_temp AS azure
+FROM hive.{{schema | sqlsafe}}.managed_azure_uuid_temp AS azure
 CROSS JOIN cte_enabled_tag_keys as etk
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON azure.resourceid = resource_names.resourceid

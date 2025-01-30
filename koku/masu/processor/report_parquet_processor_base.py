@@ -56,8 +56,6 @@ class ReportParquetProcessorBase:
     def _execute_trino_sql(self, sql, schema_name: str):  # pragma: no cover
         """Execute Trino SQL."""
         rows = []
-        if not schema_name.startswith(settings.TRINO_SCHEMA_PREFIX):
-            schema_name = f"{settings.TRINO_SCHEMA_PREFIX}{schema_name}"
         try:
             with trino.dbapi.connect(
                 host=settings.TRINO_HOST, port=settings.TRINO_PORT, user="admin", catalog="hive", schema=schema_name
@@ -93,7 +91,7 @@ class ReportParquetProcessorBase:
         cache_key = build_trino_schema_exists_key(self._schema_name)
         if result := get_value_from_cache(cache_key):
             return result
-        schema_check_sql = f"SHOW SCHEMAS LIKE '{settings.TRINO_SCHEMA_PREFIX}{self._schema_name}'"
+        schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
         exists = bool(self._execute_trino_sql(schema_check_sql, "default"))
         set_value_in_cache(cache_key, exists)
         return exists
@@ -112,7 +110,7 @@ class ReportParquetProcessorBase:
     def create_schema(self):
         """Create Trino schema."""
         LOG.info(log_json(msg="create trino/hive schema sql", schema=self._schema_name))
-        schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {settings.TRINO_SCHEMA_PREFIX}{self._schema_name}"
+        schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
         self._execute_trino_sql(schema_create_sql, "default")
         return self._schema_name
 
@@ -126,7 +124,7 @@ class ReportParquetProcessorBase:
         parquet_columns = self._generate_column_list()
         s3_path = f"{settings.S3_BUCKET_NAME}/{self._s3_path}"
 
-        sql = f"CREATE TABLE IF NOT EXISTS {settings.TRINO_SCHEMA_PREFIX}{self._schema_name}.{self._table_name} ("
+        sql = f"CREATE TABLE IF NOT EXISTS {self._schema_name}.{self._table_name} ("
         for idx, col in enumerate(parquet_columns):
             norm_col = strip_characters_from_column_name(col)
             if norm_col in self._column_types["numeric_columns"]:
@@ -228,11 +226,6 @@ class ReportParquetProcessorBase:
                 table=self._table_name,
             )
         )
-        sql = (
-            "CALL system.sync_partition_metadata('"
-            f"{settings.TRINO_SCHEMA_PREFIX}{self._schema_name}', "
-            f"'{self._table_name}', "
-            "'FULL')"
-        )
+        sql = "CALL system.sync_partition_metadata('" f"{self._schema_name}', " f"'{self._table_name}', " "'FULL')"
         LOG.info(sql)
         self._execute_trino_sql(sql, self._schema_name)

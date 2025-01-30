@@ -14,7 +14,6 @@ from typing import List
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
-from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -274,7 +273,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 service_id,
                 service_description,
                 location_region
-            FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.gcp_line_items as gcp
+            FROM hive.{self.schema}.gcp_line_items as gcp
             WHERE gcp.source = '{source_uuid}'
                 AND gcp.year = '{invoice_month_date.strftime("%Y")}'
                 AND gcp.month = '{invoice_month_date.strftime("%m")}'
@@ -435,7 +434,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     column_name = "gcp_source"
                 sql = f"""
-                    DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
+                    DELETE FROM hive.{self.schema}.{table}
                         WHERE {column_name} = '{gcp_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'
