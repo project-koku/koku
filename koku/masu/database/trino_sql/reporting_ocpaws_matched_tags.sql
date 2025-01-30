@@ -13,7 +13,7 @@ WITH cte_enabled_tag_keys AS (
 cte_unnested_aws_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items_daily AS aws
+    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
     CROSS JOIN UNNEST(cast(json_parse(resourcetags) as map(varchar, varchar))) AS tags(key, value)
     JOIN cte_enabled_tag_keys AS etk
         ON any_match(etk.key_array, x->strpos(aws.resourcetags, x) != 0)
@@ -28,7 +28,7 @@ cte_unnested_ocp_tags AS (
         pod_value,
         volume_key,
         volume_value
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
     CROSS JOIN UNNEST(
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))

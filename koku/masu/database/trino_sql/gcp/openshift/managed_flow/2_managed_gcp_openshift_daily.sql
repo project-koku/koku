@@ -1,4 +1,4 @@
-INSERT INTO hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily (
     invoice_month,
     billing_account_id,
     project_id,
@@ -58,7 +58,7 @@ FROM (
     SELECT
         *,
         ROW_NUMBER() OVER (PARTITION BY row_uuid ORDER BY usage_amount_in_pricing_units) AS row_number
-    FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp AS gcp
+    FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp AS gcp
     WHERE gcp.source = {{cloud_provider_uuid}}
         AND gcp.year = {{year}}
         AND gcp.month = {{month}}

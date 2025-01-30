@@ -1,6 +1,6 @@
 SELECT
   DISTINCT COALESCE(NULLIF(subscriptionid, ''), subscriptionguid)
-FROM hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.azure_line_items
+FROM hive.{{schema | sqlsafe}}.azure_line_items
 WHERE source={{source_uuid}}
   AND year={{year}}
   AND month={{month}}

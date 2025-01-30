@@ -11,7 +11,6 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
-from django.conf import settings
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -227,7 +226,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             )
             for day in days:
                 sql = f"""
-                DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
+                DELETE FROM hive.{self.schema}.{table}
                 WHERE source = '{source}'
                 AND year = '{year}'
                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
@@ -249,7 +248,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info(log_json(msg="deleting Hive partitions by source", context=ctx))
         sql = f"""
-        DELETE FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.{table}
+        DELETE FROM hive.{self.schema}.{table}
         WHERE {partition_column} = '{provider_uuid}'
         """
         self._execute_trino_raw_sql_query(
@@ -921,8 +920,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
                     ELSE 'worker'
                 END) as node_role
-            FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.openshift_pod_usage_line_items_daily as ocp
-            LEFT JOIN hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.openshift_node_labels_line_items_daily as nl
+            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
                 ON ocp.node = nl.node
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
@@ -948,7 +947,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             SELECT distinct persistentvolume,
                 persistentvolumeclaim,
                 csi_volume_handle
-            FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.openshift_storage_usage_line_items_daily as ocp
+            FROM hive.{self.schema}.openshift_storage_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
@@ -962,7 +961,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
             SELECT distinct namespace
-            FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
@@ -1120,7 +1119,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         sql = f"""
             SELECT min(interval_start) as min_timestamp,
                 max(interval_start) as max_timestamp
-            FROM hive.{settings.TRINO_SCHEMA_PREFIX}{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'

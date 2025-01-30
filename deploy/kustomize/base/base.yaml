@@ -77,8 +77,6 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
@@ -132,8 +130,6 @@ objects:
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
-        - name: TRINO_SCHEMA_PREFIX
-          value: ${TRINO_SCHEMA_PREFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
@@ -296,8 +292,6 @@ parameters:
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
 - name: SCHEMA_SUFFIX
   description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
-  value: ""
-- name: TRINO_SCHEMA_PREFIX
   value: ""
 - name: TRINO_S3A_OR_S3
   value: "s3a"
