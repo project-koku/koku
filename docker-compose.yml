@@ -34,7 +34,6 @@ services:
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
       - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
-      - TRINO_SCHEMA_PREFIX=${TRINO_SCHEMA_PREFIX-}
       - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
       - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
@@ -104,7 +103,6 @@ services:
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
       - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
-      - TRINO_SCHEMA_PREFIX=${TRINO_SCHEMA_PREFIX-}
       - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
       - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
@@ -174,7 +172,6 @@ services:
       - DEBUG_ATTACH=${DEBUG_ATTACH-False}
       - DEVELOPMENT=${DEVELOPMENT-True}
       - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
-      - TRINO_SCHEMA_PREFIX=${TRINO_SCHEMA_PREFIX-}
       - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
       - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
       - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
@@ -681,8 +678,7 @@ services:
       - ./dev/containers/trino/etc/config.properties:/etc/trino/config.properties
       - ./dev/containers/trino/etc/jvm.config:/etc/trino/jvm.config
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
-      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/${HIVE_PROPERTIES_FILE-hive.properties}
-      - ./dev/containers/trino/etc/catalog/glue.properties:/etc/trino/catalog/${GLUE_PROPERTIES_FILE-glue.properties}
+      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs

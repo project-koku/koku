@@ -58,7 +58,7 @@ FROM
         ) as json
       ) as tags
     from
-      hive.{{trino_schema_prefix | sqlsafe}}{{schema | sqlsafe}}.aws_line_items
+      hive.{{schema | sqlsafe}}.aws_line_items
     WHERE
       source = {{ source_uuid }}
       AND year = {{ year }}
