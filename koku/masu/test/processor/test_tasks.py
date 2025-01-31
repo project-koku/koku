@@ -805,7 +805,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
     )
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
@@ -892,7 +892,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         return_value=True,
     )
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
@@ -918,7 +918,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         return_value=True,
     )
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
@@ -950,7 +950,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.util.common.trino_db.connect")
-    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_summary_tables_remove_expired_data(self, mock_select_for_update, mock_chain, *args):
@@ -978,7 +978,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_summary_tables_remove_expired_data_gcp(self, mock_select_for_update, mock_chain, *args):
@@ -1010,7 +1010,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.update_openshift_on_cloud")
     @patch("masu.processor.tasks.delete_openshift_on_cloud_data")
     @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     def test_update_summary_tables_ocp_on_cloud(
         self, mock_select_for_update, mock_accessor, mock_chain, mock_delete, mock_update, _
@@ -1546,11 +1546,8 @@ class TestWorkerCacheThrottling(MasuTestCase):
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
         mock_summary.side_effect = ReportSummaryUpdaterCloudError
-        expected = "failed to correlate"
-        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+        with self.assertRaises(ReportSummaryUpdaterCloudError):
             update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
-            statement_found = any(expected in log for log in logger.output)
-            self.assertTrue(statement_found)
 
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
