@@ -646,7 +646,7 @@ def update_summary_tables(  # noqa: C901
     set_summary_timestamp(ManifestState.END, manifest_id)
 
     # if the managed ocp summary flow is enabled, ocp on cloud summary is triggered after ocp on cloud processing
-    if not is_managed_ocp_cloud_summary_enabled(schema):
+    if not is_managed_ocp_cloud_summary_enabled(schema, provider_type):
         trigger_ocp_on_cloud_summary(
             context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name, synchronous
         )
@@ -1295,7 +1295,7 @@ def process_openshift_on_cloud_trino(
             manifest_id = report.get("manifest_id")
             processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, ctx)
             processor.process_ocp_cloud_trino(start_date, end_date)
-            if is_managed_ocp_cloud_summary_enabled(schema_name):
+            if is_managed_ocp_cloud_summary_enabled(schema_name, provider_type):
                 trigger_ocp_on_cloud_summary(
                     ctx, schema_name, provider_uuid, manifest_id, tracing_id, start_date, end_date
                 )
