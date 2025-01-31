@@ -28,7 +28,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazure_network_summary_p (
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
         cast({{azure_source_uuid}} as uuid) as source_uuid
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
+    FROM hive.{{schema | sqlsafe}}.{{trino_table | sqlsafe}}
     WHERE {{column_name | sqlsafe}} = {{azure_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND year = {{year}}
