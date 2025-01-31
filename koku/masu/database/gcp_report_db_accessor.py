@@ -401,7 +401,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # TODO Remove this when we switch to managed flow
         trino_table = "reporting_ocpgcpcostlineitem_project_daily_summary"
         column_name = "gcp_source"
-        if is_managed_ocp_cloud_summary_enabled:
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
             trino_table = "managed_reporting_ocpgcpcostlineitem_project_daily_summary"
             column_name = "gcp_source"
 

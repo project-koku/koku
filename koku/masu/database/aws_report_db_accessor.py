@@ -167,7 +167,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # TODO Remove this when we switch to managed flow
         trino_table = "reporting_ocpawscostlineitem_project_daily_summary"
         column_name = "aws_source"
-        if is_managed_ocp_cloud_summary_enabled:
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
             trino_table = "managed_reporting_ocpawscostlineitem_project_daily_summary"
             column_name = "source"
 
