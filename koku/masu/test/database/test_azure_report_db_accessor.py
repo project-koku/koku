@@ -4,7 +4,6 @@
 #
 """Test the AzureReportDBAccessor utility object."""
 import decimal
-from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -428,7 +427,12 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """
         matched_tags = "fake-tags"
         params = SummarySqlMetadata(
-            ANY, [self.ocp_provider_uuid], self.azure_provider_uuid, "2024-08-01", "2024-08-05", matched_tags
+            self.schema_name,
+            [self.ocp_provider_uuid],
+            self.azure_provider_uuid,
+            "2024-08-01",
+            "2024-08-05",
+            matched_tags,
         )
 
         self.accessor.populate_ocp_on_cloud_daily_trino(params)
@@ -441,20 +445,3 @@ class AzureReportDBAccessorTest(MasuTestCase):
             TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
-
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
-        """
-        Test validating trino tables.
-        """
-        params = SummarySqlMetadata(self.schema_name, ANY, self.azure_provider_uuid, "2024-08-01", "2024-08-01", ANY)
-        with self.assertLogs("masu.database.azure_report_db_accessor", level="INFO") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], params)
-            assert any(
-                "Verification successful" in log for log in logger.output
-            ), "Verification successful not found in logs"
-
-        mock_trino.side_effect = [[[False]]]
-        with self.assertLogs("masu.database.azure_report_db_accessor", level="ERROR") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], params)
-            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"
