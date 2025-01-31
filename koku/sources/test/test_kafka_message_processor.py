@@ -11,6 +11,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.db.models.signals import post_save
+from django.test.utils import override_settings
 from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -286,6 +287,22 @@ class KafkaMessageProcessorTest(IamTestCase):
         msg = msg_generator(event_type=KAFKA_APPLICATION_CREATE)
         msg._headers = {}  # override the generator headers
         self.assertIsInstance(create_msg_processor(msg, COST_MGMT_APP_TYPE_ID), NoneType)
+
+    def test_schema_suffix_init(self):
+        event = KAFKA_APPLICATION_CREATE
+        cost_mgmt_id = 1
+        table = [
+            {"suffix": "", "expected": "1234567"},
+            {"suffix": "567", "expected": "1234567"},
+            {"suffix": "_real_suffix", "expected": "1234567_real_suffix"},
+        ]
+        for test in table:
+            with override_settings(SCHEMA_SUFFIX=test["suffix"]):
+                msg = msg_generator(
+                    event_type=event, value={"id": 1, "source_id": 1, "application_type_id": COST_MGMT_APP_TYPE_ID}
+                )
+                got = KafkaMessageProcessor(msg, event, cost_mgmt_id)
+                self.assertEqual(got.org_id, test["expected"])
 
     def test_msg_for_cost_mgmt(self):
         """Test msg_for_cost_mgmt true or false."""

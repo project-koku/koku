@@ -54,7 +54,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         """Test that the correct table is returned."""
         self.assertEqual(self.processor.postgres_summary_table, AWSCostEntryLineItemDailySummary)
 
-    @patch("masu.processor.aws.aws_report_parquet_processor.AWSReportParquetProcessor._execute_sql")
+    @patch("masu.processor.aws.aws_report_parquet_processor.AWSReportParquetProcessor._execute_trino_sql")
     def test_create_bill(self, mock_execute_sql):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().this_month_start
@@ -73,7 +73,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
             )
             self.assertIsNotNone(bill.first())
 
-    @patch("masu.processor.aws.aws_report_parquet_processor.AWSReportParquetProcessor._execute_sql")
+    @patch("masu.processor.aws.aws_report_parquet_processor.AWSReportParquetProcessor._execute_trino_sql")
     def test_create_bill_with_string_arg(self, mock_execute_sql):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().this_month_start

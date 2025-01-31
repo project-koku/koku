@@ -47,7 +47,7 @@ class SourceSerializerTest(MasuTestCase):
     def test_serializer(self):
         """Test the serializer."""
         for entry in self.data:
-            provider = entry.get("provider")
+            provider: Provider = entry.get("provider")
             customer = provider.customer
             infrastructure = provider.infrastructure
 
@@ -61,6 +61,7 @@ class SourceSerializerTest(MasuTestCase):
                 "setup_complete": provider.setup_complete,
                 "created_timestamp": provider.created_timestamp,
                 "data_updated_timestamp": provider.data_updated_timestamp,
+                "polling_timestamp": provider.polling_timestamp,
                 "active": provider.active,
                 "paused": provider.paused,
                 "customer": validated_customer,

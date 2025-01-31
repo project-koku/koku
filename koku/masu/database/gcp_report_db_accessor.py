@@ -9,6 +9,7 @@ import logging
 import pkgutil
 import uuid
 from os import path
+from typing import Any
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
@@ -24,6 +25,7 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.models import OCP_ON_GCP_TEMP_MANAGED_TABLES
@@ -396,7 +398,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
                 sql = sql.decode("utf-8")
                 sql_params = {
-                    "schema_name": self.schema,
+                    "schema": self.schema,
                     "start_date": start_date,
                     "end_date": end_date,
                     "year": year,
@@ -568,63 +570,112 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
+    def verify_populate_ocp_on_cloud_daily_trino(
+        self, verification_tags: list[str], sql_metadata: ManagedSqlMetadata
+    ) -> Any:
         """
         Verify the managed trino table population went successfully.
+
+        Args:
+            verification_tags: List of all cluster's matchable kv pairs
         """
+        params = sql_metadata.build_params(["schema", "cloud_provider_uuid", "year", "month"])
+        params["matched_tag_array"] = verification_tags
         verify_path = "trino_sql/verify/gcp/"
         cost_total_file = verify_path + "managed_ocp_on_gcp_verification.sql"
         cost_total_sql = pkgutil.get_data("masu.database", cost_total_file)
         cost_total_sql = cost_total_sql.decode("utf-8")
-        cost_total_result = self._execute_trino_multipart_sql_query(cost_total_sql, bind_params=verification_params)
+        cost_total_result = self._execute_trino_multipart_sql_query(cost_total_sql, bind_params=params)
         cost_total_inspect = cost_total_result[0]
         if False in cost_total_inspect:
             LOG.info(log_json(msg="Cost total validation failed", result=cost_total_inspect))
             resource_file = verify_path + "managed_resources.sql"
             resource_sql = pkgutil.get_data("masu.database", resource_file)
             resource_sql = resource_sql.decode("utf-8")
-            resource_result = self._execute_trino_multipart_sql_query(resource_sql, bind_params=verification_params)
+            resource_result = self._execute_trino_multipart_sql_query(resource_sql, bind_params=params)
             if resource_result:
                 # Limit the resources added to the log
-                verification_params["resources_failed"] = resource_result
-                LOG.error(log_json(msg="Verification failed", **verification_params))
+                params["resources_failed"] = resource_result
+                LOG.error(log_json(msg="Verification failed", **params))
                 return
-        LOG.info(log_json(msg="Verification successful", **verification_params))
+        LOG.info(log_json(msg="Verification successful", **params))
 
-    def populate_ocp_on_cloud_daily_trino(
-        self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
-    ):
+    def _create_tables_and_generate_unique_id(self, sql_metadata: ManagedSqlMetadata) -> Any:
+        """
+        The parquet generated for the gcp line item table does not
+        contain a unique identifer. Therefore, we create & populate
+        temporary tables to prevent cost duplication.
+        """
+        params = sql_metadata.build_params(
+            ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
+        )
+        populate_uuid_sql = pkgutil.get_data(
+            "masu.database", "trino_sql/gcp/openshift/managed_flow/0_populate_uuid_tmp_table.sql"
+        )
+        populate_uuid_sql = populate_uuid_sql.decode("utf-8")
+        LOG.info(log_json(msg="Create and populate temporary uuid manged tables", **params))
+        self._execute_trino_multipart_sql_query(populate_uuid_sql, bind_params=params)
+
+    def _populate_gcp_filtered_by_ocp_tmp_table(
+        self, ocp_provider_uuid: str, matched_tags_result: list[str], sql_metadata: ManagedSqlMetadata
+    ) -> Any:
         """Populate the managed_gcp_openshift_daily trino table for OCP on GCP.
         Args:
-            gcp_provider_uuid (UUID) GCP source UUID.
-            ocp_provider_uuid (UUID) OCP source UUID.
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            matched_tag_strs (str) matching tags.
+            ocp_provider_uuid (str) OCP source UUID.
+            matched_tags_result (list) List of kv pairs
         Returns
             (None)
         """
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        table = TRINO_MANAGED_OCP_GCP_DAILY_TABLE
-        days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_on_gcp_hive_partition_by_day(
-            days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month, table
+        params = sql_metadata.build_params(
+            ["schema", "cloud_provider_uuid", "start_date", "end_date", "days_tup", "year", "month"]
         )
+        params["ocp_source_uuid"] = ocp_provider_uuid
+        params["matched_tag_array"] = matched_tags_result
 
-        summary_sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/managed_gcp_openshift_daily.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
-            "schema": self.schema,
-            "start_date": start_date,
-            "year": year,
-            "month": month,
-            "days": days_tup,
-            "end_date": end_date,
-            "gcp_source_uuid": gcp_provider_uuid,
-            "ocp_source_uuid": openshift_provider_uuid,
-            "matched_tag_array": matched_tags,
-        }
-        LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **summary_sql_params))
-        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        populate_tmp_managed_sql = pkgutil.get_data(
+            "masu.database", "trino_sql/gcp/openshift/managed_flow/1_populate_managed_tmp_table.sql"
+        )
+        populate_tmp_managed_sql = populate_tmp_managed_sql.decode("utf-8")
+        LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **params))
+        self._execute_trino_multipart_sql_query(populate_tmp_managed_sql, bind_params=params)
+
+    def _populate_final_managed_table(self, sql_metadata: ManagedSqlMetadata) -> Any:
+        """Populates the managed openshift on gcp table"""
+        params = sql_metadata.build_params(
+            [
+                "schema",
+                "start_date",
+                "year",
+                "month",
+                "days",
+                "end_date",
+                "ocp_provider_uuids",
+                "cloud_provider_uuid",
+            ]
+        )
+        update_managed_sql = pkgutil.get_data(
+            "masu.database", "trino_sql/gcp/openshift/managed_flow/2_managed_gcp_openshift_daily.sql"
+        )
+        update_managed_sql = update_managed_sql.decode("utf-8")
+        LOG.info(log_json(msg="populating managed OCP on GCP data", **params))
+        self._execute_trino_multipart_sql_query(update_managed_sql, bind_params=params)
+
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
+        """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
+        self._create_tables_and_generate_unique_id(sql_metadata)
+        verification_tags = []
+        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
+            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
+            verification_tags.extend(matched_tags_result)
+            self._populate_gcp_filtered_by_ocp_tmp_table(ocp_provider_uuid, matched_tags_result, sql_metadata)
+            self.delete_ocp_on_gcp_hive_partition_by_day(
+                sql_metadata.days_tup,
+                sql_metadata.cloud_provider_uuid,
+                ocp_provider_uuid,
+                sql_metadata.year,
+                sql_metadata.month,
+                TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+            )
+        self._populate_final_managed_table(sql_metadata)
+        verification_tags = list(dict.fromkeys(verification_tags))
+        self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)

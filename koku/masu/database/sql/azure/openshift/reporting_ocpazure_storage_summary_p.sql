@@ -1,4 +1,4 @@
-INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_storage_summary_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpazure_storage_summary_p (
     id,
     usage_start,
     usage_end,
@@ -26,7 +26,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_storage_summary_p (
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid
-    FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
+    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE service_name LIKE '%%Storage%%'
         AND unit_of_measure = 'GB-Mo'
         AND usage_start >= {{start_date}}::date

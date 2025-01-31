@@ -53,7 +53,7 @@ class ReportParquetProcessorBase:
         """Return error if unimplemented in subclass."""
         raise PostgresSummaryTableError("This must be a property on the sub class.")
 
-    def _execute_sql(self, sql, schema_name):  # pragma: no cover
+    def _execute_trino_sql(self, sql, schema_name: str):  # pragma: no cover
         """Execute Trino SQL."""
         rows = []
         try:
@@ -63,7 +63,7 @@ class ReportParquetProcessorBase:
                 cur = conn.cursor()
                 cur.execute(sql)
                 rows = cur.fetchall()
-                LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
+                LOG.debug(f"_execute_trino_sql rows: {str(rows)}. Type: {type(rows)}")
         except TrinoUserError as err:
             LOG.warning(err)
         except TrinoExternalError as err:
@@ -92,7 +92,7 @@ class ReportParquetProcessorBase:
         if result := get_value_from_cache(cache_key):
             return result
         schema_check_sql = f"SHOW SCHEMAS LIKE '{self._schema_name}'"
-        exists = bool(self._execute_sql(schema_check_sql, "default"))
+        exists = bool(self._execute_trino_sql(schema_check_sql, "default"))
         set_value_in_cache(cache_key, exists)
         return exists
 
@@ -103,7 +103,7 @@ class ReportParquetProcessorBase:
         if result := get_value_from_cache(cache_key):
             return result
         table_check_sql = f"SHOW TABLES LIKE '{self._table_name}'"
-        exists = bool(self._execute_sql(table_check_sql, self._schema_name))
+        exists = bool(self._execute_trino_sql(table_check_sql, self._schema_name))
         set_value_in_cache(cache_key, exists)
         return exists
 
@@ -111,7 +111,7 @@ class ReportParquetProcessorBase:
         """Create Trino schema."""
         LOG.info(log_json(msg="create trino/hive schema sql", schema=self._schema_name))
         schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
-        self._execute_sql(schema_create_sql, "default")
+        self._execute_trino_sql(schema_create_sql, "default")
         return self._schema_name
 
     def _generate_column_list(self):
@@ -145,7 +145,7 @@ class ReportParquetProcessorBase:
             sql += ",".join([f"{item[0]} {item[1]} " for item in list(partition_map.items())])
             partition_column_str = ", ".join([f"'{key}'" for key in partition_map.keys()])
             sql += (
-                f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
+                f") WITH(external_location = '{settings.TRINO_S3A_OR_S3}://{s3_path}', format = 'PARQUET',"
                 f" partitioned_by=ARRAY[{partition_column_str}])"
             )
         else:
@@ -153,7 +153,7 @@ class ReportParquetProcessorBase:
             sql += ",source varchar, year varchar, month varchar"
 
             sql += (
-                f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET',"
+                f") WITH(external_location = '{settings.TRINO_S3A_OR_S3}://{s3_path}', format = 'PARQUET',"
                 " partitioned_by=ARRAY['source', 'year', 'month'])"
             )
         return sql
@@ -162,7 +162,7 @@ class ReportParquetProcessorBase:
         """Create Trino SQL table."""
         sql = self._generate_create_table_sql(partition_map=partition_map)
         LOG.info(log_json(msg="attempting to create parquet table", table=self._table_name, schema=self._schema_name))
-        self._execute_sql(sql, self._schema_name)
+        self._execute_trino_sql(sql, self._schema_name)
         LOG.info(log_json(msg="trino parquet table created", table=self._table_name, schema=self._schema_name))
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
@@ -226,6 +226,6 @@ class ReportParquetProcessorBase:
                 table=self._table_name,
             )
         )
-        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
+        sql = "CALL system.sync_partition_metadata('" f"{self._schema_name}', " f"'{self._table_name}', " "'FULL')"
         LOG.info(sql)
-        self._execute_sql(sql, self._schema_name)
+        self._execute_trino_sql(sql, self._schema_name)

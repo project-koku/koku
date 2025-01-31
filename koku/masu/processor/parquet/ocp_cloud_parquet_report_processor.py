@@ -10,8 +10,6 @@ import pkgutil
 from functools import cached_property
 
 import pandas as pd
-from dateutil.parser import parse
-from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -28,6 +26,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor import is_tag_processing_disabled
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
@@ -317,33 +316,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Populate cloud_openshift_daily trino table via SQL."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
-        if type(start_date) == str:
-            start_date = parse(start_date).astimezone(tz=settings.UTC)
-        if type(end_date) == str:
-            end_date = parse(end_date).astimezone(tz=settings.UTC)
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
         matched_tags = self.get_matched_tags(ocp_provider_uuids)
         matched_tag_strs = []
         if matched_tags:
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
 
-        verification_tags = []
-        for ocp_provider_uuid in ocp_provider_uuids:
-            matched_tags_result = self.find_openshift_keys_expected_values(
-                start_date, end_date, ocp_provider_uuid, matched_tag_strs
-            )
-            self.db_accessor.populate_ocp_on_cloud_daily_trino(
-                self.provider_uuid, ocp_provider_uuid, start_date, end_date, matched_tags_result
-            )
-            verification_tags.extend(matched_tags_result)
-
-        verification_tags = list(dict.fromkeys(verification_tags))
-        verification_params = {
-            "schema": self.db_accessor.schema,
-            "cloud_source_uuid": self.provider_uuid,
-            "year": year,
-            "month": month,
-            "matched_tag_array": verification_tags,
-        }
-        self.db_accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+        sql_metadata = ManagedSqlMetadata(
+            self.db_accessor.schema, ocp_provider_uuids, self.provider_uuid, start_date, end_date, matched_tag_strs
+        )
+        self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)

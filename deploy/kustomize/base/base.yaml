@@ -73,6 +73,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -89,6 +95,17 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     # ====================================================
     #      koku Management Command Job
     # ====================================================
@@ -109,6 +126,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -119,6 +142,17 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
@@ -256,6 +290,11 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: SCHEMA_SUFFIX
+  description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
+  value: ""
+- name: TRINO_S3A_OR_S3
+  value: "s3a"
 - name: S3_BUCKET_NAME
   value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME

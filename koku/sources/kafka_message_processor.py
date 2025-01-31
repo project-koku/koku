@@ -5,6 +5,7 @@
 import json
 import logging
 
+from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
@@ -16,7 +17,6 @@ from sources.sources_http_client import convert_header_to_dict
 from sources.sources_http_client import SourceNotFoundError
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
-
 
 LOG = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class KafkaMessageProcessor:
         except (AttributeError, ValueError, TypeError) as error:
             msg = f"[KafkaMessageProcessor] unable to load message: {msg.value}. Error: {error}"
             LOG.error(msg)
-            raise SourcesMessageError(msg)
+            raise SourcesMessageError(msg) from error
         self.event_type = event_type
         self.cost_mgmt_id = cost_mgmt_id
         self.offset = msg.offset()
@@ -101,6 +101,8 @@ class KafkaMessageProcessor:
             msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or  org_id: {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
+        if isinstance(self.org_id, str) and not self.org_id.endswith(settings.SCHEMA_SUFFIX):
+            self.org_id = f"{self.org_id}{settings.SCHEMA_SUFFIX}"
         self.source_id = None
         self.application_type_id = None
 

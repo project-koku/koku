@@ -22,6 +22,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -209,6 +213,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -387,6 +395,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: APP_POD_NAME
           valueFrom:
             fieldRef:
@@ -444,6 +456,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
         - name: AWS_SHARED_CREDENTIALS_FILE
@@ -590,6 +606,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: MASU
           value: "true"
         - name: DJANGO_SECRET_KEY
@@ -788,6 +808,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -948,6 +972,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: SOURCES
           value: "true"
         - name: SOURCES_PROBE_HEADER
@@ -1115,6 +1143,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: SOURCES
           value: "true"
         - name: SOURCES_PROBE_HEADER
@@ -1279,6 +1311,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1461,6 +1497,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1649,6 +1689,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -1837,6 +1881,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2025,6 +2073,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2217,6 +2269,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2409,6 +2465,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2601,6 +2661,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2791,6 +2855,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -2981,6 +3049,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3171,6 +3243,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3367,6 +3443,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3563,6 +3643,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3759,6 +3843,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -3947,6 +4035,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4135,6 +4227,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4323,6 +4419,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4515,6 +4615,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4707,6 +4811,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -4899,6 +5007,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5085,6 +5197,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5259,6 +5375,10 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: AWS_SHARED_CREDENTIALS_FILE
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -5434,6 +5554,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -5458,6 +5584,17 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_KOKU_MIGRATIONS}
             memory: ${MEMORY_REQUEST_KOKU_MIGRATIONS}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     - name: management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
       podSpec:
         args:
@@ -5467,6 +5604,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -5485,6 +5628,17 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_KOKU_MGMT}
             memory: ${MEMORY_REQUEST_KOKU_MGMT}
+        volumeMounts:
+        - mountPath: /etc/aws
+          name: aws-credentials
+          readOnly: true
+        volumes:
+        - name: aws-credentials
+          secret:
+            items:
+            - key: aws-credentials
+              path: aws-credentials
+            secretName: koku-aws
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -5618,6 +5772,12 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral
+    testing
+  name: SCHEMA_SUFFIX
+  value: ""
+- name: TRINO_S3A_OR_S3
+  value: s3a
 - name: S3_BUCKET_NAME
   value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME

@@ -430,7 +430,7 @@ SELECT gcp.uuid as gcp_uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
@@ -553,7 +553,7 @@ SELECT gcp.uuid as gcp_uuid,
     {{ocp_source_uuid}} as ocp_source,
     max(gcp.year) as year,
     max(gcp.month) as month
-FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_tag_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
@@ -636,6 +636,7 @@ WITH cte_rankings AS (
     SELECT pds.gcp_uuid,
         count(*) as gcp_uuid_count
     FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
+    WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
     GROUP BY gcp_uuid
 )
 SELECT pds.gcp_uuid,
@@ -806,7 +807,7 @@ SELECT gcp.uuid as gcp_uuid,
     cast(year(max(gcp.usage_start)) as varchar) as year,
     cast(month(max(gcp.usage_start)) as varchar) as month,
     cast(day(max(gcp.usage_start)) as varchar) as day
-FROM hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN hive.{{schema | sqlsafe}}.gcp_openshift_daily_resource_matched_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (

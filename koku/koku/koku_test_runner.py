@@ -13,7 +13,6 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
-from django_tenants.utils import tenant_context
 
 from api.models import Customer
 from api.models import Provider
@@ -134,6 +133,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
 
                         # OCI
                         bakery_data_loader.load_oci_data()
+
                         for account in [("10002", "org2222222", "2222222"), ("12345", "org3333333", "3333333")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                             tenant.save()
