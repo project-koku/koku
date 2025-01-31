@@ -104,9 +104,9 @@ def is_managed_ocp_cloud_processing_enabled(account):
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-processing", context)
 
 
-def is_managed_ocp_cloud_summary_enabled_by_provider(account, provider_type):
+def is_managed_ocp_cloud_summary_enabled(account, provider_type):
     context = {"provider_type": provider_type}
-    if UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-provider-type", context):
+    if UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-provider-type", context):
         account = convert_account(account)
         context = {"schema": account}
         return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
