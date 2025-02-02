@@ -98,7 +98,6 @@ help:
 	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
 	@echo "  delete-db                             delete local directory $(TOPDIR)/dev/containers/postgresql/data"
-	@echo "  delete-glue-data                      delete s3 files + database created in AWS/glue"
 	@echo "  delete-test-db                        delete the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
@@ -189,7 +188,7 @@ delete-test-sources:
 delete-cost-models:
 	$(PYTHON) $(SCRIPTDIR)/delete_cost_models.py
 
-delete-test-customer-data: delete-test-sources delete-cost-models
+delete-test-customer-data: delete-test-sources delete-cost-models delete-testing
 
 test_source=all
 load-test-customer-data:
@@ -216,9 +215,6 @@ make-migrations:
 
 delete-db:
 	@$(PREFIX) rm -rf $(TOPDIR)/dev/containers/postgresql/data/
-
-delete-glue-data:
-	@$(PYTHON) $(SCRIPTDIR)/clean_glue.py $(schema)
 
 delete-test-db:
 	@PGPASSWORD=$$DATABASE_PASSWORD psql -h $$POSTGRES_SQL_SERVICE_HOST \
@@ -342,10 +338,7 @@ docker-up-no-build: docker-up-db
 # basic dev environment targets
 docker-up-min: docker-build docker-up-min-no-build
 
-# docker-up-min-no-build: docker-host-dir-setup docker-up-db
-# 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
-
-docker-up-min-no-build: docker-host-dir-setup
+docker-up-min-no-build: docker-host-dir-setup docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets

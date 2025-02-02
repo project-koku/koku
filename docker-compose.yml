@@ -98,8 +98,8 @@ services:
       - S3_BUCKET_NAME_OCP_INGRESS=${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
-      - S3_ACCESS_KEY=${MINIO_ACCESS_KEY-}
-      - S3_SECRET=${MINIO_SECRET-}
+      - S3_ACCESS_KEY
+      - S3_SECRET
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
       - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
@@ -186,8 +186,8 @@ services:
       - ENABLE_ROS_DEBUG=${ENABLE_ROS_DEBUG-False}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
-      - S3_ACCESS_KEY=${MINIO_ACCESS_KEY-}
-      - S3_SECRET=${MINIO_SECRET-}
+      - S3_ACCESS_KEY
+      - S3_SECRET
       - DATA_DIR=${DATA_DIR-/testing/data}
       - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
@@ -280,8 +280,8 @@ services:
       - PYTHONPATH=/koku/koku
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
-      - S3_ACCESS_KEY=${MINIO_ACCESS_KEY-}
-      - S3_SECRET=${MINIO_SECRET-}
+      - S3_ACCESS_KEY
+      - S3_SECRET
       - TRINO_HOST=${TRINO_HOST-trino}
       - TRINO_PORT=${TRINO_PORT-8080}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
@@ -320,8 +320,8 @@ services:
       - ENABLE_SUBS_PROVIDER_TYPES=${ENABLE_SUBS_PROVIDER_TYPES}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
-      - S3_ACCESS_KEY=${MINIO_ACCESS_KEY-}
-      - S3_SECRET=${MINIO_SECRET-}
+      - S3_ACCESS_KEY
+      - S3_SECRET
       - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
       - REDIS_HOST=${REDIS_HOST-redis}
       - REDIS_PORT=${REDIS_PORT-6379}
@@ -616,13 +616,13 @@ services:
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local $MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET;
+      /usr/bin/mc config host add --quiet --api s3v4 local $MINIO_ENDPOINT $S3_ACCESS_KEY $S3_SECRET;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
       /usr/bin/mc anonymous set public local/koku-bucket;
-      /usr/bin/mc rb --force local/hccm-local-s3/;
-      /usr/bin/mc mb --quiet local/hccm-local-s3/;
-      /usr/bin/mc anonymous set public local/hccm-local-s3;
+      /usr/bin/mc rb --force local/ocp-ingress/;
+      /usr/bin/mc mb --quiet local/ocp-ingress/;
+      /usr/bin/mc anonymous set public local/ocp-ingress;
       /usr/bin/mc rb --force local/metastore/;
       /usr/bin/mc mb --quiet local/metastore/;
       /usr/bin/mc anonymous set public local/metastore;
@@ -663,17 +663,11 @@ services:
       - MY_NODE_ID=${MY_NODE_ID-localhost}
       - LOCAL=TRUE
       - TRINO_LOG_LEVEL=${LOG_LEVEL-INFO}
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY-kokuminioaccess}
-      - MINIO_SECRET=${MINIO_SECRET-kokuminiosecret}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID-kokuminioaccess}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY-kokuminiosecret}
-      - S3_ACCESS_KEY
-      - S3_SECRET
       - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
-      - S3_REGION=${S3_REGION-us-east-1}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
+      - S3_SECRET=${S3_SECRET-kokuminiosecret}
+      - S3_REGION=${S3_REGION-us-east-1}
       - AWS_CATALOG_ID=${AWS_CATALOG_ID-}
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
@@ -684,8 +678,7 @@ services:
       - ./dev/containers/trino/etc/config.properties:/etc/trino/config.properties
       - ./dev/containers/trino/etc/jvm.config:/etc/trino/jvm.config
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
-      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/${HIVE_PROPERTIES_FILE-hive.properties}
-      - ./dev/containers/trino/etc/catalog/glue.properties:/etc/trino/catalog/${GLUE_PROPERTIES_FILE-glue.properties}
+      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs
