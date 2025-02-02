@@ -3,19 +3,16 @@
 # This script avoids adding any external dependencies
 # except for python 2.7 standard library and Spark 2.1
 import argparse
-import json
 import logging
-import re
+import os
 import sys
-from datetime import datetime
 from datetime import UTC
 from time import localtime
 from time import strftime
 
+import adbc_driver_postgresql.dbapi
+import boto3
 import polars as pl
-from polars import DataFrame
-
-# import adbc_driver_postgresql.dbapi
 
 # from pyspark.context import SparkContext, SparkConf
 
@@ -49,39 +46,105 @@ MYSQL_DRIVER_CLASS = "com.mysql.jdbc.Driver"
 FROM_METASTORE = "from-metastore"
 TO_METASTORE = "to-metastore"
 
-
-def remove(lis, elem):
-    lis.remove(elem)
-    return lis
+S3_REGEX = r"^s3[a|n]:\/\/"
+S3_VALUE = "s3://"
 
 
-def get_schema_type(df, column_name):
-    return df.schema[column_name]
+def remove_null_cols(df):
+    not_null_cols = filter(lambda x: x.null_count() != df.height, df)
+    not_null_col_names = map(lambda x: x.name, not_null_cols)
+    return df.select(not_null_col_names)
 
 
-@pl.api.register_dataframe_namespace("custom_join")
-class JoinFrame:
-    def __init__(self, df: pl.DataFrame):
-        self._df = df
+class HiveMetastore:
+    """
+    The class to extract data from Hive Metastore into DataFrames and write Dataframes to
+    Hive Metastore. Each field represents a single Hive Metastore table.
+    As a convention, the fields are prefixed by ms_ to show that it is raw Hive Metastore data
+    """
 
-    def join_other_to_single_column(
-        self, other: pl.DataFrame, on: str, how: str, new_column_name: str
-    ) -> pl.DataFrame:
+    def read_table(self, uri, table_name=None):
         """
-        :param df: this dataframe
-        :param other: other dataframe
-        :param on: the column to join on
-        :param how: :param how: str, default "inner". One of "inner", "left", "right",
-                                             "full", "semi", "anti", "cross", "outer".
-        :param new_column_name: the column name for all fields from the other dataframe
-        :return: this dataframe, with a single new column containing all fields of the other dataframe
-        :type df: DataFrame
-        :type other: DataFrame
-        :type new_column_name: str
+        Load a JDBC table into Polars Dataframe
         """
-        other_cols = remove(other.columns, on)
-        other_combined = other.select([on, pl.struct(other_cols).alias(new_column_name)])
-        return self._df.join(other=other_combined, on=on, how=how)
+        return pl.read_database_uri(f'select * from "{table_name}"', uri, engine="adbc")
+
+    def write_table(self, uri, table_name=None, df: pl.DataFrame = None):
+        """
+        Write from Polars Dataframe into a JDBC table
+        """
+        uri = "postgresql://postgres:postgres@localhost:15432/postgres"
+        print(f"hive_metastore_migration:write_table. URL: {uri}, table: {table_name}")
+        with adbc_driver_postgresql.dbapi.connect(uri) as connection:
+            return df.write_database(
+                table_name=table_name,
+                connection=connection,
+                if_table_exists="append",
+                engine="adbc",
+            )
+
+    def extract_metastore(self):
+        print("extracting tables")
+        # self.ms_dbs = self.read_table(uri=self.uri, table_name="DBS")
+        self.ms_dbs = pl.read_database_uri(
+            """select * from "DBS" where "NAME" != 'default'""", self.uri, engine="adbc"
+        )
+        self.ms_database_params = self.read_table(uri=self.uri, table_name="DATABASE_PARAMS")
+        self.ms_cds = self.read_table(uri=self.uri, table_name="CDS")
+        self.ms_serdes = self.read_table(uri=self.uri, table_name="SERDES")
+        self.ms_sds = self.read_table(uri=self.uri, table_name="SDS")
+        self.ms_tbls = self.read_table(uri=self.uri, table_name="TBLS")
+        self.ms_table_params = self.read_table(uri=self.uri, table_name="TABLE_PARAMS")
+        self.ms_columns = self.read_table(uri=self.uri, table_name="COLUMNS_V2")
+        self.ms_bucketing_cols = self.read_table(uri=self.uri, table_name="BUCKETING_COLS")
+        self.ms_sd_params = self.read_table(uri=self.uri, table_name="SD_PARAMS")
+        self.ms_serde_params = self.read_table(uri=self.uri, table_name="SERDE_PARAMS")
+        self.ms_sort_cols = self.read_table(uri=self.uri, table_name="SORT_COLS")
+        self.ms_partitions = self.read_table(uri=self.uri, table_name="PARTITIONS")
+        self.ms_partition_params = self.read_table(uri=self.uri, table_name="PARTITION_PARAMS")
+        self.ms_partition_keys = self.read_table(uri=self.uri, table_name="PARTITION_KEYS")
+        self.ms_partition_key_vals = self.read_table(uri=self.uri, table_name="PARTITION_KEY_VALS")
+
+    # order of write matters here
+    def export_to_metastore(self):
+        print("exporting tables")
+        self.write_table(uri=self.uri, table_name="DBS", df=self.ms_dbs)
+        self.write_table(uri=self.uri, table_name="DATABASE_PARAMS", df=self.ms_database_params)
+        self.write_table(uri=self.uri, table_name="CDS", df=self.ms_cds)
+        self.write_table(uri=self.uri, table_name="SERDES", df=self.ms_serdes)
+        self.write_table(uri=self.uri, table_name="SDS", df=self.ms_sds)
+        self.write_table(uri=self.uri, table_name="TBLS", df=self.ms_tbls)
+        self.write_table(uri=self.uri, table_name="TABLE_PARAMS", df=self.ms_table_params)
+        self.write_table(uri=self.uri, table_name="COLUMNS_V2", df=self.ms_columns)
+        self.write_table(uri=self.uri, table_name="BUCKETING_COLS", df=self.ms_bucketing_cols)
+        self.write_table(uri=self.uri, table_name="SD_PARAMS", df=self.ms_sd_params)
+        self.write_table(uri=self.uri, table_name="SERDE_PARAMS", df=self.ms_serde_params)
+        self.write_table(uri=self.uri, table_name="SORT_COLS", df=self.ms_sort_cols)
+        self.write_table(uri=self.uri, table_name="PARTITIONS", df=self.ms_partitions)
+        self.write_table(uri=self.uri, table_name="PARTITION_PARAMS", df=self.ms_partition_params)
+        self.write_table(uri=self.uri, table_name="PARTITION_KEYS", df=self.ms_partition_keys)
+        self.write_table(uri=self.uri, table_name="PARTITION_KEY_VALS", df=self.ms_partition_key_vals)
+
+    def __init__(self, uri):
+        self.uri = uri
+        self.ms_dbs = None
+        self.ms_database_params = None
+        self.ms_tbls = None
+        self.ms_table_params = None
+        self.ms_columns = None
+        self.ms_bucketing_cols = None
+        self.ms_cds = None
+        self.ms_sds = None
+        self.ms_sd_params = None
+        self.ms_serdes = None
+        self.ms_serde_params = None
+        self.ms_sort_cols = None
+        self.ms_partitions = None
+        self.ms_partition_params = None
+        self.ms_partition_keys = None
+        self.ms_partition_key_vals = None
+
+        print(uri)
 
 
 class HiveMetastoreTransformer:
@@ -96,23 +159,21 @@ class HiveMetastoreTransformer:
         :param value: column name for value
         :return: dataframe of params in map
         """
-        return self.kv_pair_to_map(params_df, id_col, key, value, "parameters")
+        return self.kv_pair_to_map(params_df, id_col, key, value, "Parameters")
 
     def kv_pair_to_map(self, df: pl.DataFrame, id_col: str, key: str, value: str, map_col_name: str) -> pl.DataFrame:
         return df.group_by(id_col).agg(
             pl.struct([key, value])
             .map_elements(
-                lambda row: json.dumps({x[key]: x[value] for x in row if x[key] is not None}),
-                return_dtype=pl.String,
+                lambda row: {x[key]: x[value] for x in row if x[key] is not None},
+                return_dtype=pl.Struct,
             )
             .alias(map_col_name)
         )
 
-    def join_with_params(self, df: pl.DataFrame, df_params: pl.DataFrame, id_col: str) -> pl.DataFrame:
-        df_params_map = self.transform_params(params_df=df_params, id_col=id_col)
-        return df.join(other=df_params_map, on=id_col, how="left")
-
-    def transform_df_with_idx_string(self, df: pl.DataFrame, id_col, idx, payloads_column_name, select_col):
+    def transform_df_with_idx_string(
+        self, df: pl.DataFrame, id_col, idx, payloads_column_name, select_col
+    ) -> pl.DataFrame:
         """
         Aggregate dataframe by ID, create a single PAYLOAD column where each row is a list of data sorted by IDX, and
         each element is a payload created by payload_func. Example:
@@ -147,395 +208,235 @@ class HiveMetastoreTransformer:
         """
         return df.sort(idx).group_by(id_col).agg(pl.col(select_col).alias(payloads_column_name))
 
-    def transform_df_with_idx_struct(self, df: pl.DataFrame, id_col, idx, payloads_column_name, select_cols):
-        return df.sort(idx).group_by(id_col).agg(pl.struct(select_cols).alias(payloads_column_name))
+    def transform_df_with_idx_struct(
+        self, df: pl.DataFrame, id_col, idx, payloads_column_name, select_cols, rename_cols
+    ) -> pl.DataFrame:
+        return (
+            df.rename(rename_cols).sort(idx).group_by(id_col).agg(pl.struct(select_cols).alias(payloads_column_name))
+        )
 
     def transform_ms_partition_keys(self, ms_partition_keys: pl.DataFrame):
+        ms_partition_keys = ms_partition_keys.fill_null(strategy="zero")
         return self.transform_df_with_idx_struct(
             df=ms_partition_keys,
             id_col="TBL_ID",
             idx="INTEGER_IDX",
-            payloads_column_name="partitionKeys",
-            select_cols=["PKEY_NAME", "PKEY_TYPE", "PKEY_COMMENT"],
-        )
+            payloads_column_name="PartitionKeys",
+            select_cols=["Name", "Type", "Comment"],
+            rename_cols={"PKEY_NAME": "Name", "PKEY_TYPE": "Type", "PKEY_COMMENT": "Comment"},
+        ).with_columns(pl.col("PartitionKeys").fill_null(value=[]))
 
     def transform_ms_partition_key_vals(self, ms_partition_key_vals: pl.DataFrame):
+        ms_partition_key_vals = ms_partition_key_vals.fill_null(strategy="zero")
         return self.transform_df_with_idx_string(
             df=ms_partition_key_vals,
             id_col="PART_ID",
             idx="INTEGER_IDX",
-            payloads_column_name="values",
+            payloads_column_name="Values",
             select_col="PART_KEY_VAL",
         )
 
     def transform_ms_bucketing_cols(self, ms_bucketing_cols: pl.DataFrame):
+        ms_bucketing_cols = ms_bucketing_cols.fill_null(strategy="zero")
         return self.transform_df_with_idx_string(
             df=ms_bucketing_cols,
             id_col="SD_ID",
             idx="INTEGER_IDX",
-            payloads_column_name="bucketColumns",
+            payloads_column_name="BucketColumns",
             select_col="BUCKET_COL_NAME",
         )
 
     def transform_ms_columns(self, ms_columns: pl.DataFrame):
+        ms_columns = ms_columns.fill_null(strategy="zero")
         return self.transform_df_with_idx_struct(
             df=ms_columns,
             id_col="CD_ID",
             idx="INTEGER_IDX",
-            payloads_column_name="columns",
-            select_cols=["COLUMN_NAME", "TYPE_NAME", "COMMENT"],
-        )
-
-    def transform_ms_skewed_col_names(self, ms_skewed_col_names: pl.DataFrame):
-        return self.transform_df_with_idx_string(
-            df=ms_skewed_col_names,
-            id_col="SD_ID",
-            idx="INTEGER_IDX",
-            payloads_column_name="skewedColumnNames",
-            select_col="SKEWED_COL_NAME",
-        )
-
-    def transform_ms_skewed_string_list_values(self, ms_skewed_string_list_values: pl.DataFrame):
-        return self.transform_df_with_idx_string(
-            df=ms_skewed_string_list_values,
-            id_col="STRING_LIST_ID",
-            idx="INTEGER_IDX",
-            payloads_column_name="skewedColumnValuesList",
-            select_col="STRING_LIST_VALUE",
+            payloads_column_name="Columns",
+            select_cols=["Name", "Type", "Comment"],
+            rename_cols={"COLUMN_NAME": "Name", "TYPE_NAME": "Type", "COMMENT": "Comment"},
         )
 
     def transform_ms_sort_cols(self, ms_sort_cols: pl.DataFrame):
+        ms_sort_cols = ms_sort_cols.fill_null(strategy="zero")
         return self.transform_df_with_idx_struct(
             df=ms_sort_cols,
             id_col="SD_ID",
             idx="INTEGER_IDX",
-            payloads_column_name="sortColumns",
-            select_cols=["COLUMN_NAME", "ORDER"],
+            payloads_column_name="SortColumns",
+            select_cols=["Name", "SortOrder"],
+            rename_cols={"COLUMN_NAME": "Name", "ORDER": "SortOrder"},
+        ).with_columns(pl.col("SortColumns").fill_null(value=[]))
+
+    def transform_ms_serde_info(self, ms_serdes: pl.DataFrame, ms_serde_params: pl.DataFrame) -> pl.DataFrame:
+        ms_serdes = ms_serdes.join(ms_serde_params, on="SERDE_ID", how="left")
+        return ms_serdes.rename({"NAME": "Name", "SLIB": "SerializationLibrary"}).select(
+            "SERDE_ID",
+            pl.struct("Name", "SerializationLibrary").alias("SerdeInfo"),
+            "Parameters",
         )
-
-    @staticmethod
-    def udf_skewed_values_to_str():
-        return lambda values: "".join(map(lambda v: "" if v is None else "%d%%%s" % (len(v), v), values))
-
-    @staticmethod
-    def modify_column_by_udf(df: DataFrame, udf, column_to_modify, return_dtype, new_column_name=None) -> DataFrame:
-        """
-        transform a column of the dataframe with the user-defined function, keeping all other columns unchanged.
-        :param new_column_name: new column name. If None, old column name will be used
-        :param df: dataframe
-        :param udf: user-defined function
-        :param column_to_modify: the name of the column to modify.
-        :type column_to_modify: str
-        :return: the dataframe with single column modified
-        """
-        if new_column_name is None:
-            new_column_name = column_to_modify
-        return df.select(
-            *[
-                (
-                    pl.col(column).map_elements(udf, return_dtype=return_dtype).alias(new_column_name)
-                    if column == column_to_modify
-                    else column
-                )
-                for column in df.columns
-            ]
-        )
-
-    @staticmethod
-    def s3a_or_s3n_to_s3_in_location(df: pl.DataFrame, location_col_name: str) -> pl.DataFrame:
-        """
-        For a dataframe with a column containing location strings, for any location "s3a://..." or "s3n://...", replace
-        them with "s3://...".
-        :param df: dataframe
-        :param location_col_name: the name of the column containing location, must be string type
-        :return: dataframe with location columns where all "s3a" or "s3n" protocols are replaced by "s3"
-        """
-
-        def udf(location):
-            return None if location is None else re.sub(r"^s3[a|n]:\/\/", "s3://", location)
-
-        return df.with_columns(pl.col(location_col_name).map_elements(udf, return_dtype=pl.String))
-
-    @staticmethod
-    def add_prefix_to_column(df, column_to_modify, prefix):
-        def udf(col):
-            return prefix + col
-
-        if prefix is None or prefix == "":
-            return df
-        return df.with_columns(pl.col(column_to_modify).map_elements(udf, return_dtype=pl.String))
-
-    @staticmethod
-    def utc_timestamp_to_iso8601_time(df, date_col_name, new_date_col_name):
-        """
-        Tape DataCatalog writer uses Gson to parse Date column. According to Gson deserializer, (https://goo.gl/mQdXuK)
-        it uses either java DateFormat or ISO-8601 format. I convert Date to be compatible with java DateFormat
-        :param df: dataframe with a column of unix timestamp in seconds of number type
-        :param date_col_name: timestamp column
-        :param new_date_col_name: new column with converted timestamp, if None, old column name is used
-        :type df: DataFrame
-        :type date_col_name: str
-        :type new_date_col_name: str
-        :return: dataframe with timestamp column converted to string representation of time
-        """
-
-        def udf(timestamp):
-            if timestamp is None:
-                return None
-            return datetime.fromtimestamp(timestamp=float(timestamp), tz=UTC).strftime("%b %d, %Y %I:%M:%S %p")
-
-        return df.with_columns(
-            pl.col(date_col_name).map_elements(udf, return_dtype=pl.String).alias(new_date_col_name)
-        )
-
-    @staticmethod
-    def transform_timestamp_cols(df, date_cols_map):
-        """
-        Call timestamp_int_to_iso8601_time in batch, rename all time columns in date_cols_map keys.
-        :param df: dataframe with columns of unix timestamp
-        :param date_cols_map: map from old column name to new column name
-        :type date_cols_map: dict
-        :return: dataframe
-        """
-        for k, v in date_cols_map.items():
-            df = HiveMetastoreTransformer.utc_timestamp_to_iso8601_time(df, k, v)
-        return df
-
-    @staticmethod
-    def fill_none_with_empty_list(df, column):
-        """
-        Given a column of array type, fill each None value with empty list.
-        This is not doable by df.na.fill(), Spark will throw Unsupported value type java.util.ArrayList ([]).
-        :param df: dataframe with array type
-        :param column: column name string, the column must be array type
-        :return: dataframe that fills None with empty list for the given column
-        """
-        return df.with_columns(pl.col(column).fill_null(value=[]))
-
-    @staticmethod
-    def join_dbs_tbls(ms_dbs, ms_tbls):
-        return ms_dbs.select("DB_ID", "NAME").join(other=ms_tbls, on="DB_ID", how="inner")
-
-    def transform_skewed_values_and_loc_map(
-        self, ms_skewed_string_list_values, ms_skewed_col_value_loc_map: pl.DataFrame
-    ):
-        # columns: (STRING_LIST_ID:BigInt, skewedColumnValuesList:List[String])
-        skewed_values_list = self.transform_ms_skewed_string_list_values(ms_skewed_string_list_values)
-
-        # columns: (STRING_LIST_ID:BigInt, skewedColumnValuesStr:String)
-        skewed_value_str = skewed_values_list.with_columns(
-            pl.col("skewedColumnValuesList")
-            .map_elements(HiveMetastoreTransformer.udf_skewed_values_to_str, return_dtype=pl.String)
-            .alias("skewedColumnValuesStr")
-        )
-        # self.modify_column_by_udf(
-        #     df=skewed_values_list,
-        #     udf=HiveMetastoreTransformer.udf_skewed_values_to_str,
-        #     return_dtype=pl.String,
-        #     column_to_modify="skewedColumnValuesList",
-        #     new_column_name="skewedColumnValuesStr",
-        # )
-
-        # columns: (SD_ID: BigInt, STRING_LIST_ID_KID: BigInt, STRING_LIST_ID: BigInt,
-        # LOCATION: String, skewedColumnValuesStr: String)
-        skewed_value_str_with_loc = ms_skewed_col_value_loc_map.join(
-            other=skewed_value_str,
-            # on=[ms_skewed_col_value_loc_map["STRING_LIST_ID_KID"] == skewed_value_str["STRING_LIST_ID"]],
-            how="inner",
-            left_on="STRING_LIST_ID_KID",
-            right_on="STRING_LIST_ID",
-        )
-
-        # columns: (SD_ID: BigInt, skewedColumnValueLocationMaps: Map[String, String])
-        skewed_column_value_location_maps = self.kv_pair_to_map(
-            df=skewed_value_str_with_loc,
-            id_col="SD_ID",
-            key="skewedColumnValuesStr",
-            value="LOCATION",
-            map_col_name="skewedColumnValueLocationMaps",
-        )
-
-        # columns: (SD_ID: BigInt, skewedColumnValues: List[String])
-        skewed_column_values = skewed_value_str_with_loc.group_by("SD_ID").agg(pl.col("skewedColumnValuesStr"))
-
-        return skewed_column_values, skewed_column_value_location_maps
-
-    def transform_skewed_info(self, ms_skewed_col_names, ms_skewed_string_list_values, ms_skewed_col_value_loc_map):
-        (skewed_column_values, skewed_column_value_location_maps) = self.transform_skewed_values_and_loc_map(
-            ms_skewed_string_list_values, ms_skewed_col_value_loc_map
-        )
-
-        # columns: (SD_ID: BigInt, skewedColumnNames: List[String])
-        skewed_column_names = self.transform_ms_skewed_col_names(ms_skewed_col_names)
-
-        return skewed_column_names.join(
-            other=skewed_column_value_location_maps, on="SD_ID", how="outer", coalesce=True
-        ).join(other=skewed_column_values, on="SD_ID", how="outer", coalesce=True)
-
-    # TODO: remove when escape special characters fix in DatacatalogWriter is pushed to production.
-    def transform_param_value(self, df: pl.DataFrame):
-        def udf(param_value):
-            return (
-                param_value.replace("\\", "\\\\")
-                .replace("|", "\\|")
-                .replace('"', '\\"')
-                .replace("{", "\\{")
-                .replace(":", "\\:")
-                .replace("}", "\\}")
-            )
-
-        return df.with_columns(udf(pl.col("PARAM_VALUE")))
-
-    def transform_ms_serde_info(self, ms_serdes, ms_serde_params):
-        escaped_serde_params = self.transform_param_value(ms_serde_params)
-        serde_with_params = self.join_with_params(df=ms_serdes, df_params=escaped_serde_params, id_col="SERDE_ID")
-        return serde_with_params.rename({"NAME": "name", "SLIB": "serializationLibrary"})
 
     def transform_storage_descriptors(
         self,
-        ms_sds,
-        ms_sd_params,
-        ms_columns,
-        ms_bucketing_cols,
-        ms_serdes,
-        ms_serde_params,
-        ms_skewed_col_names,
-        ms_skewed_string_list_values,
-        ms_skewed_col_value_loc_map,
-        ms_sort_cols,
-    ):
+        ms_sds: pl.DataFrame,
+        ms_sd_params: pl.DataFrame,
+        ms_columns: pl.DataFrame,
+        ms_bucketing_cols: pl.DataFrame,
+        ms_serdes: pl.DataFrame,
+        ms_serde_params: pl.DataFrame,
+        ms_sort_cols: pl.DataFrame,
+    ) -> pl.DataFrame:
         bucket_columns = self.transform_ms_bucketing_cols(ms_bucketing_cols)
         columns = self.transform_ms_columns(ms_columns)
-        parameters = self.transform_params(params_df=ms_sd_params, id_col="SD_ID")
+        parameters = self.transform_params(ms_sd_params, id_col="SD_ID")
+        ms_serde_params = self.transform_params(ms_serde_params, id_col="SERDE_ID")
         serde_info = self.transform_ms_serde_info(ms_serdes=ms_serdes, ms_serde_params=ms_serde_params)
-        skewed_info = self.transform_skewed_info(
-            ms_skewed_col_names=ms_skewed_col_names,
-            ms_skewed_string_list_values=ms_skewed_string_list_values,
-            ms_skewed_col_value_loc_map=ms_skewed_col_value_loc_map,
-        )
         sort_columns = self.transform_ms_sort_cols(ms_sort_cols)
 
         storage_descriptors_joined = (
             ms_sds.join(other=bucket_columns, on="SD_ID", how="left")
             .join(other=columns, on="CD_ID", how="left")
             .join(other=parameters, on="SD_ID", how="left")
-            .custom_join.join_other_to_single_column(
-                other=serde_info, on="SERDE_ID", how="left", new_column_name="serdeInfo"
-            )
-            .custom_join.join_other_to_single_column(
-                other=skewed_info, on="SD_ID", how="left", new_column_name="skewedInfo"
-            )
+            .join(other=serde_info, on="SERDE_ID", how="left")
             .join(other=sort_columns, on="SD_ID", how="left")
+            .with_columns(Location=pl.col("LOCATION").str.replace(S3_REGEX, S3_VALUE))
+            .rename(
+                {
+                    "INPUT_FORMAT": "InputFormat",
+                    "OUTPUT_FORMAT": "OutputFormat",
+                    "NUM_BUCKETS": "NumberOfBuckets",
+                    "IS_COMPRESSED": "Compressed",
+                    "IS_STOREDASSUBDIRECTORIES": "StoredAsSubDirectories",
+                }
+            )
         )
+        cleaned = remove_null_cols(storage_descriptors_joined)
+        init_cols = {
+            "Columns",
+            "Location",
+            "InputFormat",
+            "OutputFormat",
+            "Compressed",
+            "NumberOfBuckets",
+            "SerdeInfo",
+            "BucketColumns",
+            "Parameters",
+            "StoredAsSubDirectories",
+        }
+        select_cols = set(cleaned.columns) & init_cols
 
-        storage_descriptors_s3_location_fixed = HiveMetastoreTransformer.s3a_or_s3n_to_s3_in_location(
-            storage_descriptors_joined, "LOCATION"
-        )
-        storage_descriptors_renamed = storage_descriptors_s3_location_fixed.rename(
-            {
-                "INPUT_FORMAT": "inputFormat",
-                "OUTPUT_FORMAT": "outputFormat",
-                "LOCATION": "location",
-                "NUM_BUCKETS": "numberOfBuckets",
-                "IS_COMPRESSED": "compressed",
-                "IS_STOREDASSUBDIRECTORIES": "storedAsSubDirectories",
-            }
-        )
+        return cleaned.select("SD_ID", StorageDescriptor=pl.struct(select_cols))
 
-        storage_descriptors_with_empty_sorted_cols = HiveMetastoreTransformer.fill_none_with_empty_list(
-            storage_descriptors_renamed, "sortColumns"
-        )
-        return storage_descriptors_with_empty_sorted_cols.drop(["SERDE_ID", "CD_ID"])
-
-    def transform_tables(self, db_tbl_joined, ms_table_params, storage_descriptors, ms_partition_keys):
-        tbls_date_transformed = self.transform_timestamp_cols(
-            db_tbl_joined, date_cols_map={"CREATE_TIME": "createTime", "LAST_ACCESS_TIME": "lastAccessTime"}
-        )
-        tbls_with_params = self.join_with_params(
-            df=tbls_date_transformed, df_params=self.transform_param_value(ms_table_params), id_col="TBL_ID"
-        )
+    def transform_tables(
+        self,
+        db_tbl_joined: pl.DataFrame,
+        ms_table_params: pl.DataFrame,
+        storage_descriptors: pl.DataFrame,
+        ms_partition_keys: pl.DataFrame,
+    ) -> pl.DataFrame:
+        ms_table_params = self.transform_params(ms_table_params, "TBL_ID")
         partition_keys = self.transform_ms_partition_keys(ms_partition_keys)
 
-        tbls_joined = tbls_with_params.join(
-            other=partition_keys, on="TBL_ID", how="left"
-        ).custom_join.join_other_to_single_column(
-            other=storage_descriptors, on="SD_ID", how="left", new_column_name="storageDescriptor"
-        )
+        tbls_joined = (
+            db_tbl_joined.with_columns(
+                pl.from_epoch(pl.col(["LAST_ACCESS_TIME"]), time_unit="s").cast(pl.Datetime(time_zone=UTC))
+            )
+            .join(ms_table_params, on="TBL_ID", how="left")
+            .join(other=partition_keys, on="TBL_ID", how="left")
+            .join(other=storage_descriptors, on="SD_ID", how="left")
+            .rename(
+                {
+                    "NAME": "DatabaseName",
+                    "TBL_NAME": "Name",
+                    "LAST_ACCESS_TIME": "LastAccessTime",
+                    "TBL_TYPE": "TableType",
+                    "OWNER": "Owner",
+                    "RETENTION": "Retention",
+                    "VIEW_EXPANDED_TEXT": "ViewExpandedText",
+                    "VIEW_ORIGINAL_TEXT": "ViewOriginalText",
+                },
+            )
+        ).drop_nulls(subset=["Name", "DatabaseName"])
 
-        tbls_renamed = tbls_joined.rename(
-            {
-                "NAME": "database",
-                "TBL_NAME": "name",
-                "TBL_TYPE": "tableType",
-                "OWNER": "owner",
-                "RETENTION": "retention",
-                "VIEW_EXPANDED_TEXT": "viewExpandedText",
-                "VIEW_ORIGINAL_TEXT": "viewOriginalText",
-            },
-        )
+        cleaned = remove_null_cols(tbls_joined)
+        init_cols = {
+            "Name",
+            "Owner",
+            "LastAccessTime",
+            "Retention",
+            "StorageDescriptor",
+            "PartitionKeys",
+            "ViewOriginalText",
+            "ViewExpandedText",
+            "TableType",
+            "Parameters",
+        }
+        select_cols = set(cleaned.columns) & init_cols
 
-        tbls_dropped_cols = tbls_renamed.drop(["DB_ID", "TBL_ID", "SD_ID"])
-        tbls_drop_invalid = tbls_dropped_cols.drop_nulls(subset=["name", "database"])
-        tbls_with_empty_part_cols = HiveMetastoreTransformer.fill_none_with_empty_list(
-            tbls_drop_invalid, "partitionKeys"
-        )
-        return tbls_with_empty_part_cols.select(
-            "database",
-            pl.struct(remove(tbls_dropped_cols.columns, "database")).alias("item"),
-        ).with_columns(type=pl.lit("table"))
-        # return tbls_with_empty_part_cols
+        return tbls_joined.select("DatabaseName", TableInput=pl.struct(select_cols))
 
     def transform_partitions(
-        self, db_tbl_joined, ms_partitions, storage_descriptors, ms_partition_params, ms_partition_key_vals
-    ):
-        parts_date_transformed = self.transform_timestamp_cols(
-            df=ms_partitions, date_cols_map={"CREATE_TIME": "creationTime", "LAST_ACCESS_TIME": "lastAccessTime"}
-        )
+        self,
+        db_tbl_joined: pl.DataFrame,
+        ms_partitions: pl.DataFrame,
+        storage_descriptors: pl.DataFrame,
+        ms_partition_params: pl.DataFrame,
+        ms_partition_key_vals: pl.DataFrame,
+    ) -> pl.DataFrame:
         db_tbl_names = db_tbl_joined.select(
-            db_tbl_joined["NAME"].alias("namespaceName"),
-            db_tbl_joined["TBL_NAME"].alias("tableName"),
-            "DB_ID",
+            db_tbl_joined["NAME"].alias("DatabaseName"),
+            db_tbl_joined["TBL_NAME"].alias("TableName"),
             "TBL_ID",
         )
-        parts_with_db_tbl = parts_date_transformed.join(other=db_tbl_names, on="TBL_ID", how="inner")
-        parts_with_params = self.join_with_params(
-            df=parts_with_db_tbl, df_params=self.transform_param_value(ms_partition_params), id_col="PART_ID"
-        )
-        parts_with_sd = parts_with_params.custom_join.join_other_to_single_column(
-            other=storage_descriptors, on="SD_ID", how="left", new_column_name="storageDescriptor"
-        )
+        ms_partition_params = self.transform_params(ms_partition_params, id_col="PART_ID")
         part_values = self.transform_ms_partition_key_vals(ms_partition_key_vals)
-        parts_with_values = parts_with_sd.join(other=part_values, on="PART_ID", how="left")
-        parts_dropped_cols = parts_with_values.drop(["DB_ID", "TBL_ID", "PART_ID", "SD_ID", "PART_NAME"])
-        parts_drop_invalid = parts_dropped_cols.drop_nulls(subset=["values", "namespaceName", "tableName"])
-        return parts_drop_invalid.select(
-            parts_drop_invalid["namespaceName"].alias("database"),
-            parts_drop_invalid["tableName"].alias("table"),
-            pl.struct(parts_drop_invalid.columns).alias("item"),
-        ).with_columns(type=pl.lit("partition"))
-        # return parts_drop_invalid
 
-    def transform_databases(self, ms_dbs, ms_database_params):
-        dbs_with_params = self.join_with_params(df=ms_dbs, df_params=ms_database_params, id_col="DB_ID")
-        dbs_with_params = HiveMetastoreTransformer.s3a_or_s3n_to_s3_in_location(dbs_with_params, "DB_LOCATION_URI")
-        dbs_renamed = dbs_with_params.rename(
-            {"NAME": "name", "DESC": "description", "DB_LOCATION_URI": "locationUri"},
-        )
-        dbs_dropped_cols = dbs_renamed.drop(["DB_ID", "OWNER_NAME", "OWNER_TYPE"])
-        dbs_drop_invalid = dbs_dropped_cols.drop_nulls(subset=["name"])
-        return dbs_drop_invalid.select(pl.struct(dbs_dropped_cols.columns).alias("item")).with_columns(
-            type=pl.lit("database")
+        parts_with_db_tbl = (
+            ms_partitions.with_columns(
+                pl.from_epoch(pl.col(["CREATE_TIME", "LAST_ACCESS_TIME"]), time_unit="s").cast(
+                    pl.Datetime(time_zone=UTC)
+                )
+            )
+            .rename({"CREATE_TIME": "CreationTime", "LAST_ACCESS_TIME": "LastAccessTime"})
+            .join(other=db_tbl_names, on="TBL_ID", how="inner")
+            .join(ms_partition_params, on="PART_ID", how="left")
+            .join(other=storage_descriptors, on="SD_ID", how="left")
+            .join(other=part_values, on="PART_ID", how="left")
+            .drop_nulls(subset=["Values", "DatabaseName", "TableName"])
         )
 
-    def transform(self, hive_metastore):
-        dbs_prefixed = HiveMetastoreTransformer.add_prefix_to_column(hive_metastore.ms_dbs, "NAME", self.db_prefix)
-        tbls_prefixed = HiveMetastoreTransformer.add_prefix_to_column(
-            hive_metastore.ms_tbls, "TBL_NAME", self.table_prefix
+        return remove_null_cols(
+            parts_with_db_tbl.group_by("DatabaseName", "TableName",).agg(
+                PartitionInputList=pl.struct(
+                    "Values",
+                    "LastAccessTime",
+                    "StorageDescriptor",
+                    "Parameters",
+                ),
+            )
         )
+
+    def transform_databases(self, ms_dbs: pl.DataFrame, ms_database_params) -> pl.DataFrame:
+        return (
+            ms_dbs.join(self.transform_params(ms_database_params, "DB_ID"), on="DB_ID", how="left")
+            .with_columns(LocationUri=pl.col("DB_LOCATION_URI").str.replace(S3_REGEX, S3_VALUE))
+            .rename({"NAME": "Name", "DESC": "Description"})
+            .select(
+                "Name",
+                "Description",
+                "LocationUri",
+                "Parameters",
+            )
+            .drop_nulls(subset=["Name"])
+            .fill_null("")
+        )
+
+    def transform(self, hive_metastore: HiveMetastore):
+        print("transforming data")
+        dbs_prefixed = hive_metastore.ms_dbs.with_columns(NAME=(self.db_prefix + pl.col("NAME")))
+        tbls_prefixed = hive_metastore.ms_tbls.with_columns(TBL_NAME=(self.db_prefix + pl.col("TBL_NAME")))
 
         databases = self.transform_databases(ms_dbs=dbs_prefixed, ms_database_params=hive_metastore.ms_database_params)
-
-        db_tbl_joined = HiveMetastoreTransformer.join_dbs_tbls(ms_dbs=dbs_prefixed, ms_tbls=tbls_prefixed)
 
         storage_descriptors = self.transform_storage_descriptors(
             ms_sds=hive_metastore.ms_sds,
@@ -544,11 +445,10 @@ class HiveMetastoreTransformer:
             ms_bucketing_cols=hive_metastore.ms_bucketing_cols,
             ms_serdes=hive_metastore.ms_serdes,
             ms_serde_params=hive_metastore.ms_serde_params,
-            ms_skewed_col_names=hive_metastore.ms_skewed_col_names,
-            ms_skewed_string_list_values=hive_metastore.ms_skewed_string_list_values,
-            ms_skewed_col_value_loc_map=hive_metastore.ms_skewed_col_value_loc_map,
             ms_sort_cols=hive_metastore.ms_sort_cols,
         )
+
+        db_tbl_joined = dbs_prefixed.select("DB_ID", "NAME").join(other=tbls_prefixed, on="DB_ID", how="inner")
 
         tables = self.transform_tables(
             db_tbl_joined=db_tbl_joined,
@@ -567,118 +467,19 @@ class HiveMetastoreTransformer:
 
         return databases, tables, partitions
 
-    def __init__(self, sc, sql_context, db_prefix, table_prefix):
-        self.sc = sc
-        self.sql_context = sql_context
+    def __init__(self, db_prefix, table_prefix):
         self.db_prefix = db_prefix
         self.table_prefix = table_prefix
-
-
-class HiveMetastore:
-    """
-    The class to extract data from Hive Metastore into DataFrames and write Dataframes to
-    Hive Metastore. Each field represents a single Hive Metastore table.
-    As a convention, the fields are prefixed by ms_ to show that it is raw Hive Metastore data
-    """
-
-    def read_table(self, connection, table_name=None):
-        """
-        Load a JDBC table into Pandas Dataframe
-        """
-        return pl.read_database(f'select * from "{table_name}"', connection)
-
-    def write_table(self, connection, table_name=None, df: pl.DataFrame = None):
-        """
-        Write from Pandas Dataframe into a JDBC table
-        """
-        logging.info(f"hive_metastore_migration:write_table. URL: {connection.adbc_get_info()}, table: {table_name}")
-        return df.write_database(
-            table_name=table_name,
-            connection=connection,
-            if_table_exists="append",
-        )
-
-    def extract_metastore(self):
-        self.ms_dbs = self.read_table(connection=self.connection, table_name="DBS")
-        self.ms_database_params = self.read_table(connection=self.connection, table_name="DATABASE_PARAMS")
-        self.ms_tbls = self.read_table(connection=self.connection, table_name="TBLS")
-        self.ms_table_params = self.read_table(connection=self.connection, table_name="TABLE_PARAMS")
-        self.ms_columns = self.read_table(connection=self.connection, table_name="COLUMNS_V2")
-        self.ms_bucketing_cols = self.read_table(connection=self.connection, table_name="BUCKETING_COLS")
-        self.ms_sds = self.read_table(connection=self.connection, table_name="SDS")
-        self.ms_sd_params = self.read_table(connection=self.connection, table_name="SD_PARAMS")
-        self.ms_serdes = self.read_table(connection=self.connection, table_name="SERDES")
-        self.ms_serde_params = self.read_table(connection=self.connection, table_name="SERDE_PARAMS")
-        self.ms_skewed_col_names = self.read_table(connection=self.connection, table_name="SKEWED_COL_NAMES")
-        self.ms_skewed_string_list = self.read_table(connection=self.connection, table_name="SKEWED_STRING_LIST")
-        self.ms_skewed_string_list_values = self.read_table(
-            connection=self.connection, table_name="SKEWED_STRING_LIST_VALUES"
-        )
-        self.ms_skewed_col_value_loc_map = self.read_table(
-            connection=self.connection, table_name="SKEWED_COL_VALUE_LOC_MAP"
-        )
-        self.ms_sort_cols = self.read_table(connection=self.connection, table_name="SORT_COLS")
-        self.ms_partitions = self.read_table(connection=self.connection, table_name="PARTITIONS")
-        self.ms_partition_params = self.read_table(connection=self.connection, table_name="PARTITION_PARAMS")
-        self.ms_partition_keys = self.read_table(connection=self.connection, table_name="PARTITION_KEYS")
-        self.ms_partition_key_vals = self.read_table(connection=self.connection, table_name="PARTITION_KEY_VALS")
-
-    # order of write matters here
-    def export_to_metastore(self):
-        self.write_table(connection=self.connection, table_name="DBS", df=self.ms_dbs)
-        self.write_table(connection=self.connection, table_name="DATABASE_PARAMS", df=self.ms_database_params)
-        self.write_table(connection=self.connection, table_name="CDS", df=self.ms_cds)
-        self.write_table(connection=self.connection, table_name="SERDES", df=self.ms_serdes)
-        self.write_table(connection=self.connection, table_name="SERDE_PARAMS", df=self.ms_serde_params)
-        self.write_table(connection=self.connection, table_name="COLUMNS_V2", df=self.ms_columns)
-        self.write_table(connection=self.connection, table_name="SDS", df=self.ms_sds)
-        self.write_table(connection=self.connection, table_name="SD_PARAMS", df=self.ms_sd_params)
-        self.write_table(connection=self.connection, table_name="SKEWED_COL_NAMES", df=self.ms_skewed_col_names)
-        self.write_table(connection=self.connection, table_name="SKEWED_STRING_LIST", df=self.ms_skewed_string_list)
-        self.write_table(
-            connection=self.connection, table_name="SKEWED_STRING_LIST_VALUES", df=self.ms_skewed_string_list_values
-        )
-        self.write_table(
-            connection=self.connection, table_name="SKEWED_COL_VALUE_LOC_MAP", df=self.ms_skewed_col_value_loc_map
-        )
-        self.write_table(connection=self.connection, table_name="SORT_COLS", df=self.ms_sort_cols)
-        self.write_table(connection=self.connection, table_name="TBLS", df=self.ms_tbls)
-        self.write_table(connection=self.connection, table_name="TABLE_PARAMS", df=self.ms_table_params)
-        self.write_table(connection=self.connection, table_name="PARTITION_KEYS", df=self.ms_partition_keys)
-        self.write_table(connection=self.connection, table_name="PARTITIONS", df=self.ms_partitions)
-        self.write_table(connection=self.connection, table_name="PARTITION_PARAMS", df=self.ms_partition_params)
-        self.write_table(connection=self.connection, table_name="PARTITION_KEY_VALS", df=self.ms_partition_key_vals)
-
-    def __init__(self, connection, sql_context):
-        self.connection = connection
-        self.sql_context = sql_context
-        self.ms_dbs = None
-        self.ms_database_params = None
-        self.ms_tbls = None
-        self.ms_table_params = None
-        self.ms_columns = None
-        self.ms_bucketing_cols = None
-        self.ms_sds = None
-        self.ms_sd_params = None
-        self.ms_serdes = None
-        self.ms_serde_params = None
-        self.ms_skewed_col_names = None
-        self.ms_skewed_string_list = None
-        self.ms_skewed_string_list_values = None
-        self.ms_skewed_col_value_loc_map = None
-        self.ms_sort_cols = None
-        self.ms_partitions = None
-        self.ms_partition_params = None
-        self.ms_partition_keys = None
-        self.ms_partition_key_vals = None
 
 
 def get_output_dir(output_dir_parent):
     if not output_dir_parent:
         raise ValueError("output path cannot be empty")
     if output_dir_parent[-1] != "/":
-        output_dir_parent = output_dir_parent + "/"
-    return f'{output_dir_parent}{strftime("%Y-%m-%d-%H-%M-%S", localtime())}/'
+        output_dir_parent = f"{output_dir_parent}/"
+    output_dir = f'{output_dir_parent}{strftime("%Y-%m-%d-%H-%M-%S", localtime())}/'
+    os.makedirs(os.path.dirname(output_dir), exist_ok=True)
+    return output_dir
 
 
 def get_options(parser, args):
@@ -702,7 +503,7 @@ def parse_arguments(args):
         "-U",
         "--jdbc-url",
         required=True,
-        help="Hive metastore JDBC url, example: jdbc:mysql://metastore.abcd.us-east-1.rds.amazonaws.com:3306",
+        help="Hive metastore JDBC url, example: metastore.abcd.us-east-1.rds.amazonaws.com:3306/database/",
     )
     parser.add_argument("-u", "--jdbc-username", required=True, help="Hive metastore JDBC user name")
     parser.add_argument("-p", "--jdbc-password", required=True, help="Hive metastore JDBC password")
@@ -731,29 +532,59 @@ def parse_arguments(args):
     return options
 
 
-# def get_spark_env():
-#     conf = SparkConf()
-#     sc = SparkContext(conf=conf)
-#     sc.setLogLevel("ERROR")
-#     sql_context = SQLContext(sc)
-#     return (conf, sc, sql_context)
-
-
-def etl_from_metastore(sc, sql_context, db_prefix, table_prefix, hive_metastore, options):
+def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, options):
     # extract
     hive_metastore.extract_metastore()
 
     # transform
-    (databases, tables, partitions) = HiveMetastoreTransformer(sc, sql_context, db_prefix, table_prefix).transform(
-        hive_metastore
-    )
+    (databases, tables, partitions) = HiveMetastoreTransformer(db_prefix, table_prefix).transform(hive_metastore)
 
     # load
     output_path = get_output_dir(options["output_path"])
 
-    databases.write.format("json").mode("overwrite").save(output_path + "databases")
-    tables.write.format("json").mode("overwrite").save(output_path + "tables")
-    partitions.write.format("json").mode("overwrite").save(output_path + "partitions")
+    print(f"saving data to {output_path}")
+
+    databases.write_json(f"{output_path}databases.json")
+    tables.write_json(f"{output_path}tables.json")
+    partitions.write_json(f"{output_path}partitions.json")
+
+    glue = boto3.client("glue", region_name="us-east-1")
+
+    # breakpoint()
+
+    print("creating db")
+    for db in databases.iter_rows(named=True):
+        try:
+            schema = db["Name"]
+            glue.delete_database(Name=schema)
+            print(f"Deleting database: {schema}")
+        except Exception as e:
+            print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
+        db = delete_none(db)
+        glue.create_database(CatalogId="589173575009", DatabaseInput=db)
+    print("creating tables")
+    for table in tables.iter_rows(named=True):
+        table = delete_none(table)
+        glue.create_table(CatalogId="589173575009", **table)
+    print("creating partitions")
+    for part in partitions.iter_rows(named=True):
+        part = delete_none(part)
+        glue.batch_create_partition(CatalogId="589173575009", **part)
+
+
+def delete_none(_dict):
+    """Delete None values recursively from all of the dictionaries"""
+    for key, value in list(_dict.items()):
+        if isinstance(value, dict):
+            delete_none(value)
+        elif value is None:
+            del _dict[key]
+        elif isinstance(value, list):
+            for v_i in value:
+                if isinstance(v_i, dict):
+                    delete_none(v_i)
+
+    return _dict
 
 
 def validate_options_in_mode(options, mode, required_options, not_allowed_options):
@@ -808,18 +639,17 @@ def validate_aws_regions(region):
 def main():
     options = parse_arguments(sys.argv)
 
-    connection = {"url": options["jdbc_url"], "user": options["jdbc_username"], "password": options["jdbc_password"]}
+    db_options = {"url": options["jdbc_url"], "user": options["jdbc_username"], "password": options["jdbc_password"]}
     db_prefix = options.get("database_prefix") or ""
     table_prefix = options.get("table_prefix") or ""
 
-    # spark env
-    # (conf, sc, sql_context) = get_spark_env()
-    (sc, sql_context) = None, None
     # extract
-    hive_metastore = HiveMetastore(connection, sql_context)
+    uri = f"postgresql://{db_options['user']}:{db_options['password']}@{db_options['url']}"
+    # connection = adbc_driver_postgresql.dbapi.connect(uri)
+    hive_metastore = HiveMetastore(uri)
 
     if options["mode"] == FROM_METASTORE:
-        etl_from_metastore(sc, sql_context, db_prefix, table_prefix, hive_metastore, options)
+        etl_from_metastore(db_prefix, table_prefix, hive_metastore, options)
 
 
 if __name__ == "__main__":
