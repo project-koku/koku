@@ -1,9 +1,8 @@
-# Copyright 2016-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: MIT
-# This script avoids adding any external dependencies
-# except for python 2.7 standard library and Spark 2.1
+#
+# Copyright 2025 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import argparse
-import logging
 import os
 import sys
 from datetime import UTC
@@ -12,35 +11,11 @@ from time import strftime
 
 import adbc_driver_postgresql.dbapi
 import boto3
+import environ
 import polars as pl
+from app_common_python import LoadedConfig
 
-# from pyspark.context import SparkContext, SparkConf
-
-# # from pyspark.sql import SQLContext, DataFrame, Rows
-# from pyspark.sql.functions import (
-#     lit,
-#     struct,
-#     array,
-#     col,
-#     UserDefinedFunction,
-#     concat,
-#     monotonically_increasing_id,
-#     explode,
-# )
-# from pyspark.sql.types import (
-#     StringType,
-#     StructField,
-#     StructType,
-#     LongType,
-#     ArrayType,
-#     MapType,
-#     IntegerType,
-#     FloatType,
-#     BooleanType,
-# )
-
-PYTHON_VERSION = sys.version_info[0]
-MYSQL_DRIVER_CLASS = "com.mysql.jdbc.Driver"
+ENVIRONMENT = environ.Env()
 
 # flags for migration direction
 FROM_METASTORE = "from-metastore"
@@ -73,7 +48,6 @@ class HiveMetastore:
         """
         Write from Polars Dataframe into a JDBC table
         """
-        uri = "postgresql://postgres:postgres@localhost:15432/postgres"
         print(f"hive_metastore_migration:write_table. URL: {uri}, table: {table_name}")
         with adbc_driver_postgresql.dbapi.connect(uri) as connection:
             return df.write_database(
@@ -478,7 +452,8 @@ def get_output_dir(output_dir_parent):
     if output_dir_parent[-1] != "/":
         output_dir_parent = f"{output_dir_parent}/"
     output_dir = f'{output_dir_parent}{strftime("%Y-%m-%d-%H-%M-%S", localtime())}/'
-    os.makedirs(os.path.dirname(output_dir), exist_ok=True)
+    if not output_dir.startswith(S3_VALUE):
+        os.makedirs(os.path.dirname(output_dir), exist_ok=True)
     return output_dir
 
 
@@ -502,11 +477,11 @@ def parse_arguments(args):
     parser.add_argument(
         "-U",
         "--jdbc-url",
-        required=True,
+        required=False,
         help="Hive metastore JDBC url, example: metastore.abcd.us-east-1.rds.amazonaws.com:3306/database/",
     )
-    parser.add_argument("-u", "--jdbc-username", required=True, help="Hive metastore JDBC user name")
-    parser.add_argument("-p", "--jdbc-password", required=True, help="Hive metastore JDBC password")
+    parser.add_argument("-u", "--jdbc-username", required=False, help="Hive metastore JDBC user name")
+    parser.add_argument("-p", "--jdbc-password", required=False, help="Hive metastore JDBC password")
     parser.add_argument(
         "-d", "--database-prefix", required=False, help="Optional prefix for database names in Glue DataCatalog"
     )
@@ -516,42 +491,37 @@ def parse_arguments(args):
     parser.add_argument("-o", "--output-path", required=False, help="Output path, either local directory or S3 path")
     parser.add_argument("-i", "--input_path", required=False, help="Input path, either local directory or S3 path")
 
-    options = get_options(parser, args)
+    parser.add_argument(
+        "-c",
+        "--catalog-id",
+        default=ENVIRONMENT.get_value("AWS_CATALOG_ID", default="589173575009"),
+        help="Target Catalog ID",
+    )
 
-    if options["mode"] == FROM_METASTORE:
-        validate_options_in_mode(
-            options=options, mode=FROM_METASTORE, required_options=["output_path"], not_allowed_options=["input_path"]
-        )
-    elif options["mode"] == TO_METASTORE:
-        validate_options_in_mode(
-            options=options, mode=TO_METASTORE, required_options=["input_path"], not_allowed_options=["output_path"]
-        )
-    else:
-        raise AssertionError("unknown mode " + options["mode"])
-
-    return options
+    return get_options(parser, args)
 
 
 def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, options):
+    catalog_id = options["catalog_id"]
     # extract
     hive_metastore.extract_metastore()
 
     # transform
     (databases, tables, partitions) = HiveMetastoreTransformer(db_prefix, table_prefix).transform(hive_metastore)
 
-    # load
-    output_path = get_output_dir(options["output_path"])
+    # output_path = get_output_dir(options["output_path"])
 
-    print(f"saving data to {output_path}")
+    # print(f"saving data to {output_path}")
 
-    databases.write_json(f"{output_path}databases.json")
-    tables.write_json(f"{output_path}tables.json")
-    partitions.write_json(f"{output_path}partitions.json")
+    # fs = s3fs.S3FileSystem()
+    # with fs.open(f"{output_path}databases.json", mode="wb") as f:
+    #     databases.write_json(f)
+    # with fs.open(f"{output_path}tables.json", mode="wb") as f:
+    #     tables.write_json(f)
+    # with fs.open(f"{output_path}partitions.json", mode="wb") as f:
+    #     partitions.write_json(f)
 
     glue = boto3.client("glue", region_name="us-east-1")
-
-    # breakpoint()
-
     print("creating db")
     for db in databases.iter_rows(named=True):
         try:
@@ -561,15 +531,15 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
         except Exception as e:
             print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
         db = delete_none(db)
-        glue.create_database(CatalogId="589173575009", DatabaseInput=db)
+        glue.create_database(CatalogId=catalog_id, DatabaseInput=db)
     print("creating tables")
     for table in tables.iter_rows(named=True):
         table = delete_none(table)
-        glue.create_table(CatalogId="589173575009", **table)
+        glue.create_table(CatalogId=catalog_id, **table)
     print("creating partitions")
     for part in partitions.iter_rows(named=True):
         part = delete_none(part)
-        glue.batch_create_partition(CatalogId="589173575009", **part)
+        glue.batch_create_partition(CatalogId=catalog_id, **part)
 
 
 def delete_none(_dict):
@@ -583,69 +553,25 @@ def delete_none(_dict):
             for v_i in value:
                 if isinstance(v_i, dict):
                     delete_none(v_i)
-
     return _dict
-
-
-def validate_options_in_mode(options, mode, required_options, not_allowed_options):
-    for option in required_options:
-        if options.get(option) is None:
-            raise AssertionError(f"Option {option} is required for mode {mode}")
-    for option in not_allowed_options:
-        if options.get(option) is not None:
-            raise AssertionError(f"Option {option} is not allowed for mode {mode}")
-
-
-def validate_aws_regions(region):
-    """
-    To validate the region in the input. The region list below may be outdated as AWS and Glue expands, so it only
-    create an error message if validation fails.
-    If the migration destination is in a region other than Glue supported regions, the job will fail.
-    :return: None
-    """
-    if region is None:
-        return
-
-    aws_glue_regions = [
-        "ap-northeast-1",  # Tokyo
-        "eu-west-1",  # Ireland
-        "us-east-1",  # North Virginia
-        "us-east-2",  # Ohio
-        "us-west-2",  # Oregon
-    ]
-
-    aws_regions = aws_glue_regions + [
-        "ap-northeast-2",  # Seoul
-        "ap-south-1",  # Mumbai
-        "ap-southeast-1",  # Singapore
-        "ap-southeast-2",  # Sydney
-        "ca-central-1",  # Montreal
-        "cn-north-1",  # Beijing
-        "cn-northwest-1",  # Ningxia
-        "eu-central-1",  # Frankfurt
-        "eu-west-2",  # London
-        "sa-east-1",  # Sao Paulo
-        "us-gov-west-1",  # GovCloud
-        "us-west-1",  # Northern California
-    ]
-
-    error_msg = f"Invalid region: {region}, the job will fail if the destination is not in a Glue supported region"
-    if region not in aws_regions:
-        logging.error(error_msg)
-    elif region not in aws_glue_regions:
-        logging.warn(error_msg)
 
 
 def main():
     options = parse_arguments(sys.argv)
 
-    db_options = {"url": options["jdbc_url"], "user": options["jdbc_username"], "password": options["jdbc_password"]}
+    if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
+        db = ENVIRONMENT.get_value("HIVE_DB_NAME", default="hive")
+        uri = (
+            f"postgresql://{LoadedConfig.database.username}:{LoadedConfig.database.password}@"
+            f"{LoadedConfig.database.hostname}:{LoadedConfig.database.port}/{db}"
+        )
+    else:
+        uri = f"postgresql://{options['jdbc_username']}:{options['jdbc_password']}@{options['jdbc_url']}"
+
     db_prefix = options.get("database_prefix") or ""
     table_prefix = options.get("table_prefix") or ""
 
     # extract
-    uri = f"postgresql://{db_options['user']}:{db_options['password']}@{db_options['url']}"
-    # connection = adbc_driver_postgresql.dbapi.connect(uri)
     hive_metastore = HiveMetastore(uri)
 
     if options["mode"] == FROM_METASTORE:
