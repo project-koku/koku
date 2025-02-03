@@ -493,11 +493,11 @@ REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-repor
 REQUESTED_ROS_BUCKET = ENVIRONMENT.get_value("REQUESTED_ROS_BUCKET", default="ros-report")
 REQUESTED_SUBS_BUCKET = ENVIRONMENT.get_value("REQUESTED_SUBS_BUCKET", default="subs-report")
 S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
-S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint_default()
+S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
 S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
-S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key_default(REQUESTED_BUCKET)
-S3_SECRET = CONFIGURATOR.get_object_store_secret_key_default(REQUESTED_BUCKET)
+S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
+S3_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_BUCKET)
 # HCS
 S3_HCS_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
 S3_HCS_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
@@ -536,9 +536,7 @@ except ConfigFileNotFound:
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
-TRINO_SCHEMA_PREFIX = re.sub("[^a-zA-Z0-9_]", "_", ENVIRONMENT.get_value("TRINO_SCHEMA_PREFIX", default=""))
 TRINO_S3A_OR_S3 = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a")
-TRINO_SCHEMA_PREFIX_KEY = "trino_schema_prefix"
 
 # IBM Settings
 IBM_SERVICE_URL = ENVIRONMENT.get_value("IBM_SERVICE_URL", default="https://enterprise.cloud.ibm.com")
