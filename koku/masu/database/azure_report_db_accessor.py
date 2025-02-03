@@ -437,7 +437,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        managed_path = "trino_sql/azure/openshift/daily_summary_flow"
+        managed_path = "trino_sql/azure/openshift/populate_daily_summary"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
