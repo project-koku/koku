@@ -349,7 +349,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             matching_type = "tag"
 
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
-            sql_level = "managed_reporting_ocpgcpcostlineitem_daily_summary.sql"
+            sql_level = "managed_reporting_ocpgcpcostlineitem_daily_summary"
 
         sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
         sql = sql.decode("utf-8")

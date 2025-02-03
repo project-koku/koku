@@ -1810,8 +1810,13 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",
         return_value=True,
     )
+    @patch(
+        "masu.processor.tasks.is_managed_ocp_cloud_summary_enabled",
+        return_value=True,
+    )
     @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
-    def test_process_openshift_on_cloud_trino(self, mock_process, mock_unleash):
+    @patch("masu.processor.tasks.trigger_ocp_on_cloud_summary")
+    def test_process_openshift_on_cloud_trino(self, mock_summary, mock_process, mock_unleash_summary, mock_unleash):
         """Test that the process_openshift_on_cloud_trino task performs expected functions"""
         end = self.dh.today.strftime("%Y-%m-%d")
         start = self.dh.month_start(end).strftime("%Y-%m-%d")
@@ -1828,6 +1833,7 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         ]
         process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
         mock_process.assert_called_with(start, end)
+        mock_summary.assert_called()
 
     @patch(
         "masu.processor.tasks.is_managed_ocp_cloud_processing_enabled",
