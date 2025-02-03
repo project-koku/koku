@@ -5619,7 +5619,7 @@ objects:
             memory: ${MEMORY_REQUEST_KOKU_MGMT}
     - name: glue-migration-cji-${GM_IMAGE_TAG}-${GM_INVOCATION}
       podSpec:
-        command:
+        args:
         - /bin/bash
         - -c
         - ${GM_COMMAND}

@@ -144,7 +144,7 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_KOKU_GM}
             memory: ${MEMORY_REQUEST_KOKU_GM}
-        command:
+        args:
         - /bin/bash
         - -c
         - ${GM_COMMAND}
