@@ -358,9 +358,9 @@ class HiveMetastoreTransformer:
         ms_partition_key_vals: pl.DataFrame,
     ) -> pl.DataFrame:
         db_tbl_names = db_tbl_joined.select(
-            db_tbl_joined["NAME"].alias("DatabaseName"),
-            db_tbl_joined["TBL_NAME"].alias("TableName"),
             "TBL_ID",
+            DatabaseName=pl.col("NAME"),
+            TableName=pl.col("TBL_NAME"),
         )
         ms_partition_params = self.transform_params(ms_partition_params, id_col="PART_ID")
         part_values = self.transform_ms_partition_key_vals(ms_partition_key_vals)
@@ -380,7 +380,7 @@ class HiveMetastoreTransformer:
         )
 
         return remove_null_cols(
-            parts_with_db_tbl.group_by("DatabaseName", "TableName",).agg(
+            parts_with_db_tbl.group_by("DatabaseName", "TableName").agg(
                 PartitionInputList=pl.struct(
                     "Values",
                     "LastAccessTime",
@@ -394,13 +394,7 @@ class HiveMetastoreTransformer:
         return (
             ms_dbs.join(self.transform_params(ms_database_params, "DB_ID"), on="DB_ID", how="left")
             .with_columns(LocationUri=pl.col("DB_LOCATION_URI").str.replace(S3_REGEX, S3_VALUE))
-            .rename({"NAME": "Name", "DESC": "Description"})
-            .select(
-                "Name",
-                "Description",
-                "LocationUri",
-                "Parameters",
-            )
+            .select("LocationUri", "Parameters", Name=pl.col("NAME"), Description=pl.col("DESC"))
             .drop_nulls(subset=["Name"])
             .fill_null("")
         )
@@ -498,7 +492,19 @@ def parse_arguments(args):
         help="Target Catalog ID",
     )
 
+    parser.add_argument("-a", "--assume-role-arn", required=False)
+
     return get_options(parser, args)
+
+
+def get_session(arn):
+    client = boto3.client("sts")
+    response = client.assume_role(RoleArn=arn, RoleSessionName="migration-session")
+    return boto3.Session(
+        aws_access_key_id=response["Credentials"]["AccessKeyId"],
+        aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
+        aws_session_token=response["Credentials"]["SessionToken"],
+    )
 
 
 def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, options):
@@ -521,7 +527,9 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
     # with fs.open(f"{output_path}partitions.json", mode="wb") as f:
     #     partitions.write_json(f)
 
-    glue = boto3.client("glue", region_name="us-east-1")
+    sesh = get_session(options["assume_role_arn"])
+    glue = sesh.client("glue", region_name="us-east-1")
+
     print("creating db")
     for db in databases.iter_rows(named=True):
         try:

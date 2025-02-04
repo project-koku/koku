@@ -5628,6 +5628,11 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: HIVE_DB_NAME
           value: ${HIVE_DB_NAME}
+        - name: ROLE_ARN
+          valueFrom:
+            secretKeyRef:
+              key: role_arn
+              name: ${ROLE_ARN_SECRET}
         image: ${GM_IMAGE}:${GM_IMAGE_TAG}
         machinePool: ${MACHINE_POOL_OPTION}
         resources:
@@ -5884,6 +5889,8 @@ parameters:
   value: echo 'No Command to Run'
 - name: HIVE_DB_NAME
   value: postgres
+- name: ROLE_ARN_SECRET
+  value: koku-aws
 - name: MACHINE_POOL_OPTION
   value: ""
 - name: CPU_LIMIT_KOKU_GM
