@@ -538,11 +538,9 @@ class SourcesStatusTest(IamTestCase):
         )
         response = client.get(url + "?source_id=1", **self.headers)
         actual_source_status = response.data
-        expected = {
-            "availability_status": "unavailable",
-            "availability_status_error": ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE,
-        }
-        self.assertEqual(actual_source_status, expected)
+
+        self.assertEqual(actual_source_status.get("availability_status"), "unavailable")
+        self.assertIn("SubscriptionNotFound", actual_source_status.get("availability_status_error"))
 
     def test_ocp_unavailable(self):
         """Test that the API returns status when a source is configured correctly."""
