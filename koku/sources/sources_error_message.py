@@ -19,27 +19,6 @@ class SourcesErrorMessage:
         """Initialize the message generator."""
         self._error = error
 
-    def azure_client_errors(self, message):
-        """Azure client error messages."""
-        scrubbed_message = ProviderErrors.AZURE_GENERAL_CLIENT_ERROR_MESSAGE
-        if any(test in message for test in ["http error: 401", "Authentication failed", "(401) Unauthorized"]):
-            scrubbed_message = ProviderErrors.AZURE_CLIENT_SECRET_INCORRECT_MESSAGE
-        if "AADSTS700016" in message:
-            scrubbed_message = ProviderErrors.AZURE_INCORRECT_CLIENT_ID_MESSAGE
-        if "AADSTS90002" in message:
-            scrubbed_message = ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE
-        if "AADSTS7000222" in message:
-            scrubbed_message = ProviderErrors.AZURE_EXPIRED_CLIENT_SECRET_KEYS_MESSAGE
-        if "ResourceGroupNotFound" in message:
-            scrubbed_message = ProviderErrors.AZURE_INCORRECT_RESOURCE_GROUP_MESSAGE
-        if "ResourceNotFound" in message:
-            scrubbed_message = ProviderErrors.AZURE_INCORRECT_STORAGE_ACCOUNT_MESSAGE
-        if any(test in message for test in ["SubscriptionNotFound", "InvalidSubscriptionId"]):
-            scrubbed_message = ProviderErrors.AZURE_INCORRECT_SUBSCRIPTION_ID_MESSAGE
-        if any(test in message for test in ["RBACAccessDenied", "does not have authorization", "scope is invalid"]):
-            scrubbed_message = ProviderErrors.AZURE_UNAUTHORIZED_MESSAGE
-        return scrubbed_message
-
     def aws_client_errors(self, message):
         """AWS client error messages."""
         return ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE
@@ -62,7 +41,6 @@ class SourcesErrorMessage:
     def _display_string_function(self, key):
         """Return function to get user facing string."""
         ui_function_map = {
-            ProviderErrors.AZURE_CLIENT_ERROR: self.azure_client_errors,
             ProviderErrors.AWS_ROLE_ARN_UNREACHABLE: self.aws_client_errors,
             ProviderErrors.AWS_BILLING_SOURCE_NOT_FOUND: self.aws_no_billing_source,
             ProviderErrors.AWS_COMPRESSION_REPORT_CONFIG: self.aws_invalid_report_compression,
