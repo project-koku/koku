@@ -8,6 +8,7 @@ import logging
 import pkgutil
 import uuid
 from typing import Any
+from typing import List
 
 from dateutil.parser import parse
 from django.db import connection
@@ -24,7 +25,7 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_aws
 from masu.processor import is_managed_ocp_cloud_summary_enabled
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
@@ -492,7 +493,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: list[str], sql_metadata: ManagedSqlMetadata):
+    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: SummarySqlMetadata):
         """
         Verify the managed trino table population went successfully.
         """
@@ -507,10 +508,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         else:
             LOG.info(log_json(msg="Verification successful", **params))
 
-    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: ManagedSqlMetadata) -> Any:
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_aws_openshift_daily trino table for OCP on AWS.
         Args:
-            sql_metadata: object of ManagedSqlMetadata class
+            sql_metadata: object of SummarySqlMetadata class
         Returns
             (None)
         """
