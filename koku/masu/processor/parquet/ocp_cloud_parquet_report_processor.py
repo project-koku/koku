@@ -26,10 +26,10 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor import is_tag_processing_disabled
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
@@ -321,7 +321,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         if matched_tags:
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
 
-        sql_metadata = ManagedSqlMetadata(
+        sql_metadata = SummarySqlMetadata(
             self.db_accessor.schema, ocp_provider_uuids, self.provider_uuid, start_date, end_date, matched_tag_strs
         )
         self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)

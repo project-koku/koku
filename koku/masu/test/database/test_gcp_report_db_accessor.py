@@ -25,7 +25,7 @@ from koku.trino_database import TrinoHiveMetastoreError
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
@@ -453,7 +453,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
             "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=False
         ):
             self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
-            mock_trino.assert_not_called()
+            mock_trino.assert_
+            not_called()
+            
             mock_table_exist.assert_not_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino")
@@ -573,7 +575,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
         matched_tags = "fake-tags"
-        mparams = ManagedSqlMetadata(
+        mparams = SummarySqlMetadata(
             self.schema_name,
             [self.ocp_provider_uuid],
             self.gcp_provider_uuid,
@@ -591,3 +593,20 @@ class GCPReportDBAccessorTest(MasuTestCase):
             TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
+        """
+        Test validating trino tables.
+        """
+        mparams = SummarySqlMetadata(self.schema_name, ANY, self.gcp_provider_uuid, "2024-08-01", "2024-08-01", ANY)
+        with self.assertLogs("masu.database.gcp_report_db_accessor", level="INFO") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], mparams)
+            assert any(
+                "Verification successful" in log for log in logger.output
+            ), "Verification successful not found in logs"
+
+        mock_trino.side_effect = [[[False]], [["fail"]]]
+        with self.assertLogs("masu.database.gcp_report_db_accessor", level="ERROR") as logger:
+            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], mparams)
+            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"
