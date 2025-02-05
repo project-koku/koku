@@ -5651,7 +5651,7 @@ objects:
             secretKeyRef:
               key: aws_secret_access_key
               name: ${AWS_SECRET_NAME}
-        - name: ROLE_ARN
+        - name: AWS_ASSUME_ROLE_ARN
           valueFrom:
             secretKeyRef:
               key: role_arn

@@ -485,7 +485,9 @@ def parse_arguments(args):
     parser.add_argument("-o", "--output-path", required=False, help="Output path, either local directory or S3 path")
     parser.add_argument("-i", "--input_path", required=False, help="Input path, either local directory or S3 path")
 
-    parser.add_argument("-a", "--assume-role-arn", required=False, default=ENVIRONMENT.get_value("ROLE_ARN"))
+    parser.add_argument(
+        "-a", "--assume-role-arn", required=False, default=ENVIRONMENT.get_value("AWS_ASSUME_ROLE_ARN")
+    )
 
     return get_options(parser, args)
 
@@ -538,9 +540,17 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
         table = delete_none(table)
         glue.create_table(CatalogId=catalog_id, **table)
     print("creating partitions")
+    batch_size = 100
     for part in partitions.iter_rows(named=True):
         part = delete_none(part)
-        glue.batch_create_partition(CatalogId=catalog_id, **part)
+        part_list = part["PartitionInputList"]
+        for i in range(0, len(part_list), batch_size):
+            glue.batch_create_partition(
+                CatalogId=catalog_id,
+                DatabaseName=part["DatabaseName"],
+                TableName=part["TableName"],
+                PartitionInputList=part_list[i : i + batch_size],
+            )
 
 
 def delete_none(_dict):
