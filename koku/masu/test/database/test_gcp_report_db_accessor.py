@@ -5,6 +5,7 @@
 """Test the GCPReportDBAccessor utility object."""
 import datetime
 import decimal
+from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -164,8 +165,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_ocp_on_gcp_ui_summary_tables_trino(
-        self,
-        mock_trino,
+            self,
+            mock_trino,
     ):
         """Test that Trino is used to populate UI summary."""
         start_date = self.dh.today.date()
@@ -231,7 +232,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_gcp_cost_daily_summary_trino_resource_names(
-        self, mock_trino, mock_month_delete, mock_delete
+            self, mock_trino, mock_month_delete, mock_delete
     ):
         """Test that we construst our SQL and query using Trino."""
         start_date = self.dh.this_month_start.date()
@@ -407,7 +408,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.report_db_accessor_base.trino_db.connect")
     @patch("time.sleep", return_value=None)
     def test_delete_ocp_on_gcp_hive_partition_by_day(
-        self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
+            self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
     ):
         """Test that deletions work with retries."""
         mock_schema_exists.return_value = False
@@ -438,7 +439,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
         with patch(
-            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
+                "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
         ):
             with self.assertRaises(TrinoExternalError):
                 self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
@@ -450,12 +451,11 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_trino.reset_mock()
         mock_table_exist.reset_mock()
         with patch(
-            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=False
+                "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=False
         ):
             self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
-            mock_trino.assert_
-            not_called()
-            
+            mock_trino.assert_not_called()
+
             mock_table_exist.assert_not_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino")
@@ -463,7 +463,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.report_db_accessor_base.trino_db.connect")
     @patch("time.sleep", return_value=None)
     def test_delete_ocp_on_gcp_hive_partition_by_day_managed_table(
-        self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
+            self, mock_sleep, mock_connect, mock_table_exists, mock_schema_exists
     ):
         """Test that deletions work with retries."""
         mock_schema_exists.return_value = False
