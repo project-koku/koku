@@ -29,7 +29,7 @@ from koku.trino_database import extract_context_from_sql_params
 from koku.trino_database import retry
 from koku.trino_database import TrinoHiveMetastoreError
 from koku.trino_database import TrinoNoSuchKeyError
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 
 LOG = logging.getLogger(__name__)
 
@@ -282,7 +282,7 @@ class ReportDBAccessorBase:
                     else:
                         raise err
 
-    def find_openshift_keys_expected_values(self, ocp_provider_uuid: str, sql_metadata: ManagedSqlMetadata) -> Any:
+    def find_openshift_keys_expected_values(self, ocp_provider_uuid: str, sql_metadata: SummarySqlMetadata) -> Any:
         """
         We need to find the expected values for the openshift specific keys.
         Keys: openshift-project, openshift-node, openshift-cluster

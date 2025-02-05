@@ -16,10 +16,10 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
@@ -481,7 +481,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         start_date = "2024-08-01"
         end_date = "2024-08-05"
         matched_tags = []
-        managed_sql_params = ManagedSqlMetadata(
+        managed_sql_params = SummarySqlMetadata(
             ANY, ocp_uuids, self.aws_provider_uuid, start_date, end_date, matched_tags
         )
         with patch(

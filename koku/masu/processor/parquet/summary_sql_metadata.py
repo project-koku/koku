@@ -1,6 +1,8 @@
+import pkgutil
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import date
+from decimal import Decimal
 from typing import Any
 from typing import Dict
 from typing import List
@@ -8,11 +10,13 @@ from typing import List
 from dateutil.parser import parse
 from django.conf import settings
 
+from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.utils import DateHelper
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 
 
 @dataclass
-class ManagedSqlMetadata:
+class SummarySqlMetadata:
     schema: str
     ocp_provider_uuids: List[str]
     cloud_provider_uuid: str
@@ -47,6 +51,24 @@ class ManagedSqlMetadata:
         self.year = self.start_date.strftime("%Y")
         self.month = self.start_date.strftime("%m")
 
+    def build_cost_model_params(self, ocp_provider_uuid):
+        """Set summary parameters based off cost model"""
+        cost_model_params = {}
+        with CostModelDBAccessor(self.schema, self.cloud_provider_uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = Decimal(markup.get("value", 0)) / 100
+            cost_model_params["markup"] = markup_value or 0
+
+        with CostModelDBAccessor(self.schema, ocp_provider_uuid) as cost_model_accessor:
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+            if distribution == "memory":
+                cost_model_params["pod_column"] = "pod_effective_usage_memory_gigabyte_hours"
+                cost_model_params["node_column"] = "node_capacity_memory_gigabyte_hours"
+            else:
+                cost_model_params["pod_column"] = "pod_effective_usage_cpu_core_hours"
+                cost_model_params["node_column"] = "node_capacity_cpu_core_hours"
+        return cost_model_params
+
     def build_params(self, requested_keys: List[str]) -> Dict[str, Any]:
         """
         Builds and returns a dictionary of parameters based on requested keys.
@@ -70,3 +92,26 @@ class ManagedSqlMetadata:
             "days": self.days_tup,
         }
         return {key: base_params[key] for key in requested_keys}
+
+    def prepare_template(self, filepath, extra_params={}):
+        """
+        Prepares the template & gathers params for execution
+        """
+        base_params = {
+            "schema": self.schema,  # Placeholder if needed
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "month": self.month,
+            "year": self.year,
+            "matched_tag_strs": self.matched_tag_strs,
+            "ocp_provider_uuids": self.ocp_provider_uuids,
+            "cloud_provider_uuid": self.cloud_provider_uuid,
+            "days_tup": self.days_tup,
+            "days": self.days_tup,
+        }
+        for key, value in extra_params.items():
+            base_params[key] = value
+
+        sql_file = pkgutil.get_data("masu.database", filepath)
+        sql_file_decoded = sql_file.decode("utf-8")
+        return sql_file_decoded, base_params
