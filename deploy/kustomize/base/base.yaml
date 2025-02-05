@@ -152,12 +152,35 @@ objects:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
         - name: HIVE_DB_NAME
-          value: ${HIVE_DB_NAME}
+          valueFrom:
+            secretKeyRef:
+              key: database_name
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: HIVE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: database_user
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: HIVE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: database_password
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: ${AWS_SECRET_NAME}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: ${AWS_SECRET_NAME}
         - name: ROLE_ARN
           valueFrom:
             secretKeyRef:
               key: role_arn
-              name: ${ROLE_ARN_SECRET}
+              name: ${AWS_ASSUME_ROLE_ARN_SECRET_NAME}
         machinePool: ${MACHINE_POOL_OPTION}
 
 
@@ -417,9 +440,11 @@ parameters:
 - name: GM_COMMAND
   value: "echo 'No Command to Run'"
   # python scripts/hive-migration-polars.py
-- name: HIVE_DB_NAME
-  value: postgres
-- name: ROLE_ARN_SECRET
+- name: HIVE_DB_SECRET_NAME
+  value: hive-db
+- name: AWS_SECRET_NAME
+  value: koku-aws
+- name: AWS_ASSUME_ROLE_ARN_SECRET_NAME
   value: koku-aws
 - name: MACHINE_POOL_OPTION
   value: ''

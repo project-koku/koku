@@ -485,14 +485,7 @@ def parse_arguments(args):
     parser.add_argument("-o", "--output-path", required=False, help="Output path, either local directory or S3 path")
     parser.add_argument("-i", "--input_path", required=False, help="Input path, either local directory or S3 path")
 
-    parser.add_argument(
-        "-c",
-        "--catalog-id",
-        default=ENVIRONMENT.get_value("AWS_CATALOG_ID", default="589173575009"),
-        help="Target Catalog ID",
-    )
-
-    parser.add_argument("-a", "--assume-role-arn", required=False)
+    parser.add_argument("-a", "--assume-role-arn", required=False, default=ENVIRONMENT.get_value("ROLE_ARN"))
 
     return get_options(parser, args)
 
@@ -508,7 +501,6 @@ def get_session(arn):
 
 
 def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, options):
-    catalog_id = options["catalog_id"]
     # extract
     hive_metastore.extract_metastore()
 
@@ -528,6 +520,7 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
     #     partitions.write_json(f)
 
     sesh = get_session(options["assume_role_arn"])
+    catalog_id = sesh.client("sts").get_caller_identity()["Account"]
     glue = sesh.client("glue", region_name="us-east-1")
 
     print("creating db")
@@ -552,15 +545,15 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
 
 def delete_none(_dict):
     """Delete None values recursively from all of the dictionaries"""
-    for key, value in list(_dict.items()):
-        if isinstance(value, dict):
-            delete_none(value)
-        elif value is None:
-            del _dict[key]
-        elif isinstance(value, list):
-            for v_i in value:
-                if isinstance(v_i, dict):
-                    delete_none(v_i)
+    if isinstance(_dict, dict):
+        for key, value in list(_dict.items()):
+            if isinstance(value, list | dict | tuple | set):
+                _dict[key] = delete_none(value)
+            elif value is None or key is None:
+                del _dict[key]
+    elif isinstance(_dict, list | set | tuple):
+        _dict = type(_dict)(delete_none(item) for item in _dict if item is not None)
+
     return _dict
 
 
@@ -569,10 +562,9 @@ def main():
 
     if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
         db = ENVIRONMENT.get_value("HIVE_DB_NAME", default="hive")
-        uri = (
-            f"postgresql://{LoadedConfig.database.username}:{LoadedConfig.database.password}@"
-            f"{LoadedConfig.database.hostname}:{LoadedConfig.database.port}/{db}"
-        )
+        username = ENVIRONMENT.get_value("HIVE_USERNAME", default="hive")
+        password = ENVIRONMENT.get_value("HIVE_PASSWORD", default="hive")
+        uri = f"postgresql://{username}:{password}@{LoadedConfig.database.hostname}:{LoadedConfig.database.port}/{db}"
     else:
         uri = f"postgresql://{options['jdbc_username']}:{options['jdbc_password']}@{options['jdbc_url']}"
 
