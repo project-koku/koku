@@ -118,8 +118,6 @@ class HiveMetastore:
         self.ms_partition_keys = None
         self.ms_partition_key_vals = None
 
-        print(uri)
-
 
 class HiveMetastoreTransformer:
     def transform_params(
@@ -453,7 +451,7 @@ def get_output_dir(output_dir_parent):
 
 def get_options(parser, args):
     parsed, extra = parser.parse_known_args(args[1:])
-    print("Found arguments:", vars(parsed))
+    # print("Found arguments:", vars(parsed))
     if extra:
         print("Found unrecognized arguments:", extra)
     return vars(parsed)
@@ -530,7 +528,7 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
         try:
             schema = db["Name"]
             glue.delete_database(Name=schema)
-            print(f"Deleting database: {schema}")
+            print(f"deleting existing database prior to creating: {schema}")
         except Exception as e:
             print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
         db = delete_none(db)
