@@ -669,7 +669,6 @@ services:
       - MINIO_SECRET=${MINIO_SECRET-kokuminiosecret}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID-kokuminioaccess}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY-kokuminiosecret}
-      - AWS_CATALOG_ID=${AWS_CATALOG_ID-}
       - AWS_ASSUME_ROLE_ARN=${AWS_ASSUME_ROLE_ARN-}
       - AWS_REGION=us-east-1
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-hccm-local-s3}
