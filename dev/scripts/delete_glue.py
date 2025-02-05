@@ -28,9 +28,9 @@ def delete_glue_data(schema):
         paginator = s3_client.get_paginator("list_objects_v2")
         for obj_list in paginator.paginate(Bucket=bucket_name, Prefix=file_prefix):
             if "Contents" in obj_list:
-                obj_list["Contents"].delete()
-            #     keys = [{"Key": x["Key"]} for x in obj_list["Contents"]]
-            #     s3_client.delete_objects(Bucket=bucket_name, Delete={"Objects": keys})
+                s3_client.delete_objects(
+                    Bucket=bucket_name, Delete={"Objects": [{"Key": x["Key"]} for x in obj_list["Contents"]]}
+                )
         print(f"Removed s3 files for prefix: {file_prefix}")
 
     glue_client = boto3.client("glue", region_name="us-east-1")
