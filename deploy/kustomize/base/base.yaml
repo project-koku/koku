@@ -95,17 +95,6 @@ objects:
           value: ${TENANT_MULTIPROCESSING_MAX_PROCESSES}
         - name: TENANT_MULTIPROCESSING_CHUNKS
           value: ${TENANT_MULTIPROCESSING_CHUNKS}
-        volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
-        volumes:
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
     # ====================================================
     #      koku Management Command Job
     # ====================================================
@@ -142,17 +131,59 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
-        volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
-        volumes:
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
+    # ====================================================
+    #      Glue Migration Job
+    # ====================================================
+    - name: glue-migration-cji-${GM_IMAGE_TAG}-${GM_INVOCATION}
+      podSpec:
+        image: ${GM_IMAGE}:${GM_IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_KOKU_GM}
+            memory: ${MEMORY_LIMIT_KOKU_GM}
+          requests:
+            cpu: ${CPU_REQUEST_KOKU_GM}
+            memory: ${MEMORY_REQUEST_KOKU_GM}
+        args:
+        - /bin/bash
+        - -c
+        - ${GM_COMMAND}
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: HIVE_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              key: database_name
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: HIVE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: database_user
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: HIVE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: database_password
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: ${AWS_SECRET_NAME}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: ${AWS_SECRET_NAME}
+        - name: AWS_ASSUME_ROLE_ARN
+          valueFrom:
+            secretKeyRef:
+              key: role_arn
+              name: ${AWS_ASSUME_ROLE_ARN_SECRET_NAME}
+        machinePool: ${MACHINE_POOL_OPTION}
+
+
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
@@ -180,6 +211,18 @@ objects:
     appName: koku
     jobs:
       - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
+
+# ====================================================
+#      Glue Migration CJI
+# ====================================================
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: glue-migration-cji-${GM_IMAGE_TAG}-${GM_INVOCATION}
+  spec:
+    appName: koku
+    jobs:
+      - glue-migration-cji-${GM_IMAGE_TAG}-${GM_INVOCATION}
 
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
@@ -387,6 +430,32 @@ parameters:
   name: CPU_LIMIT_KOKU_MGMT
   required: true
   value: "10m"
+
+- name: GM_IMAGE_TAG
+  value: latest
+- name: GM_IMAGE
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: GM_INVOCATION
+  value: "00"
+- name: GM_COMMAND
+  value: "echo 'No Command to Run'"
+  # python scripts/hive-migration-polars.py
+- name: HIVE_DB_SECRET_NAME
+  value: hive-db
+- name: AWS_SECRET_NAME
+  value: koku-aws
+- name: AWS_ASSUME_ROLE_ARN_SECRET_NAME
+  value: koku-aws
+- name: MACHINE_POOL_OPTION
+  value: ''
+- name: CPU_LIMIT_KOKU_GM
+  value: "10m"
+- name: MEMORY_LIMIT_KOKU_GM
+  value: 20Mi
+- name: CPU_REQUEST_KOKU_GM
+  value: "10m"
+- name: MEMORY_REQUEST_KOKU_GM
+  value: 20Mi
 
 - displayName: App domain
   name: APP_DOMAIN
