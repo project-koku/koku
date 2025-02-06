@@ -27,22 +27,11 @@ FROM hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp as azure
 JOIN postgres.public.reporting_common_diskcapacity as az_disk_capacity
     ON azure.metername LIKE '%' || az_disk_capacity.product_substring || ' %' -- space here is important to avoid partial matching
     AND az_disk_capacity.provider_type = 'Azure'
-JOIN reporting_ocpusagelineitem_daily_summary as ocp
-    ON (azure.usage_start = ocp.usage_start)
-    AND (
-            (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
-        OR
-            (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
-        )
-WHERE ocp.source = {{ocp_provider_uuid}}
-    AND ocp.year = {{year}}
-    AND lpad(ocp.month, 2, '0') = {{month}}
-    AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-    AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    AND azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
+WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND azure.service_name LIKE '%Storage%'
     AND azure.complete_resource_id LIKE '%%Microsoft.Compute/disks/%%'
+    AND lower(azure.resource_id) NOT LIKE '%%_osdisk'
     AND azure.year = {{year}}
     AND azure.month = {{month}}
     AND azure.ocp_source = {{ocp_provider_uuid}}
