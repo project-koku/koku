@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 -- Now create our proper table if it does not exist
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
 (
-   gcp_uuid varchar,
+    gcp_uuid varchar,
     cluster_id varchar,
     cluster_alias varchar,
     data_source varchar,
