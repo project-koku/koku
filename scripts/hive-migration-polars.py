@@ -483,10 +483,6 @@ def parse_arguments(args):
     parser.add_argument("-o", "--output-path", required=False, help="Output path, either local directory or S3 path")
     parser.add_argument("-i", "--input_path", required=False, help="Input path, either local directory or S3 path")
 
-    parser.add_argument(
-        "-a", "--assume-role-arn", required=False, default=ENVIRONMENT.get_value("AWS_ASSUME_ROLE_ARN")
-    )
-
     return get_options(parser, args)
 
 
