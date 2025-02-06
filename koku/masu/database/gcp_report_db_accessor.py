@@ -26,6 +26,7 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -348,6 +349,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
             matching_type = "tag"
 
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
+            sql_level = "managed_reporting_ocpgcpcostlineitem_daily_summary"
+
         sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -394,6 +398,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
+
+        # TODO Remove this when we switch to managed flow
+        trino_table = "reporting_ocpgcpcostlineitem_project_daily_summary"
+        column_name = "gcp_source"
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
+            trino_table = "managed_reporting_ocpgcpcostlineitem_project_daily_summary"
+            column_name = "gcp_source"
+
         for invoice_month in invoice_month_list:
             for table_name in tables:
                 sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
@@ -408,6 +420,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "invoice_month": invoice_month,
                     "gcp_source_uuid": gcp_provider_uuid,
                     "ocp_source_uuid": openshift_provider_uuid,
+                    "trino_table": trino_table,
+                    "column_name": column_name,
                 }
                 self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
