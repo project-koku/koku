@@ -5,7 +5,6 @@
 """Test the GCPReportDBAccessor utility object."""
 import datetime
 import decimal
-from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -643,20 +642,3 @@ class GCPReportDBAccessorTest(MasuTestCase):
             TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
-
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
-        """
-        Test validating trino tables.
-        """
-        mparams = SummarySqlMetadata(self.schema_name, ANY, self.gcp_provider_uuid, "2024-08-01", "2024-08-01", ANY)
-        with self.assertLogs("masu.database.gcp_report_db_accessor", level="INFO") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], mparams)
-            assert any(
-                "Verification successful" in log for log in logger.output
-            ), "Verification successful not found in logs"
-
-        mock_trino.side_effect = [[[False]], [["fail"]]]
-        with self.assertLogs("masu.database.gcp_report_db_accessor", level="ERROR") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], mparams)
-            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"

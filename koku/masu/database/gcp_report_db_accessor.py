@@ -586,36 +586,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def verify_populate_ocp_on_cloud_daily_trino(
-        self, verification_tags: List[str], sql_metadata: SummarySqlMetadata
-    ) -> Any:
-        """
-        Verify the managed trino table population went successfully.
-
-        Args:
-            verification_tags: List of all cluster's matchable kv pairs
-        """
-        params = sql_metadata.build_params(["schema", "cloud_provider_uuid", "year", "month"])
-        params["matched_tag_array"] = verification_tags
-        verify_path = "trino_sql/verify/gcp/"
-        cost_total_file = verify_path + "managed_ocp_on_gcp_verification.sql"
-        cost_total_sql = pkgutil.get_data("masu.database", cost_total_file)
-        cost_total_sql = cost_total_sql.decode("utf-8")
-        cost_total_result = self._execute_trino_multipart_sql_query(cost_total_sql, bind_params=params)
-        cost_total_inspect = cost_total_result[0]
-        if False in cost_total_inspect:
-            LOG.info(log_json(msg="Cost total validation failed", result=cost_total_inspect))
-            resource_file = verify_path + "managed_resources.sql"
-            resource_sql = pkgutil.get_data("masu.database", resource_file)
-            resource_sql = resource_sql.decode("utf-8")
-            resource_result = self._execute_trino_multipart_sql_query(resource_sql, bind_params=params)
-            if resource_result:
-                # Limit the resources added to the log
-                params["resources_failed"] = resource_result
-                LOG.error(log_json(msg="Verification failed", **params))
-                return
-        LOG.info(log_json(msg="Verification successful", **params))
-
     def _create_tables_and_generate_unique_id(self, sql_metadata: SummarySqlMetadata) -> Any:
         """
         The parquet generated for the gcp line item table does not
