@@ -23,6 +23,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_azure
+from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
@@ -208,6 +209,13 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
 
+        # TODO Remove this when we switch to managed flow
+        trino_table = "reporting_ocpazurecostlineitem_project_daily_summary"
+        column_name = "azure_source"
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AZURE):
+            trino_table = "managed_reporting_ocpazurecostlineitem_project_daily_summary"
+            column_name = "source"
+
         for table_name in tables:
             sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/{table_name}.sql")
             sql = sql.decode("utf-8")
@@ -220,6 +228,8 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "days": days_tup,
                 "azure_source_uuid": azure_provider_uuid,
                 "ocp_source_uuid": openshift_provider_uuid,
+                "trino_table": trino_table,
+                "column_name": column_name,
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
@@ -287,8 +297,10 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if distribution == "memory":
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
-
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
+        sql_file = "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql"
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AZURE):
+            sql_file = "trino_sql/azure/openshift/managed_reporting_ocpazurecostlineitem_daily_summary.sql"
+        sql = pkgutil.get_data("masu.database", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
             "uuid": str(openshift_provider_uuid).replace("-", "_"),
