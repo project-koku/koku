@@ -490,16 +490,6 @@ def parse_arguments(args):
     return get_options(parser, args)
 
 
-def get_session(arn):
-    client = boto3.client("sts")
-    response = client.assume_role(RoleArn=arn, RoleSessionName="migration-session")
-    return boto3.Session(
-        aws_access_key_id=response["Credentials"]["AccessKeyId"],
-        aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
-        aws_session_token=response["Credentials"]["SessionToken"],
-    )
-
-
 def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, options):
     # extract
     hive_metastore.extract_metastore()
@@ -519,9 +509,8 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
     # with fs.open(f"{output_path}partitions.json", mode="wb") as f:
     #     partitions.write_json(f)
 
-    sesh = get_session(options["assume_role_arn"])
-    catalog_id = sesh.client("sts").get_caller_identity()["Account"]
-    glue = sesh.client("glue", region_name="us-east-1")
+    catalog_id = boto3.client("sts").get_caller_identity()["Account"]
+    glue = boto3.client("glue", region_name="us-east-1")
 
     print("creating db")
     for db in databases.iter_rows(named=True):
