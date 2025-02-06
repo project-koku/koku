@@ -176,13 +176,7 @@ objects:
             secretKeyRef:
               key: aws_secret_access_key
               name: ${AWS_SECRET_NAME}
-        - name: AWS_ASSUME_ROLE_ARN
-          valueFrom:
-            secretKeyRef:
-              key: role_arn
-              name: ${AWS_ASSUME_ROLE_ARN_SECRET_NAME}
         machinePool: ${MACHINE_POOL_OPTION}
-
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -443,8 +437,6 @@ parameters:
 - name: HIVE_DB_SECRET_NAME
   value: hive-db
 - name: AWS_SECRET_NAME
-  value: koku-aws
-- name: AWS_ASSUME_ROLE_ARN_SECRET_NAME
   value: koku-aws
 - name: MACHINE_POOL_OPTION
   value: ''
