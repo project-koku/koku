@@ -509,22 +509,24 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
     glue = boto3.client("glue", region_name="us-east-1")
 
     print("creating db")
-    for db in databases.iter_rows(named=True):
+    for i, db in enumerate(databases.iter_rows(named=True), start=1):
+        schema = db["Name"]
+        print(f"deleting existing database prior to creating: {schema}")
         try:
-            schema = db["Name"]
             glue.delete_database(Name=schema)
-            print(f"deleting existing database prior to creating: {schema}")
         except Exception as e:
             print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
         db = delete_none(db)
         glue.create_database(CatalogId=catalog_id, DatabaseInput=db)
+        print(f"created {i} of {databases.height} dbs")
     print("creating tables")
-    for table in tables.iter_rows(named=True):
+    for j, table in enumerate(tables.iter_rows(named=True), start=1):
         table = delete_none(table)
         glue.create_table(CatalogId=catalog_id, **table)
+        print(f"created {j} of {tables.height} tables")
     print("creating partitions")
     batch_size = 100
-    for part in partitions.iter_rows(named=True):
+    for k, part in enumerate(partitions.iter_rows(named=True), start=1):
         part = delete_none(part)
         part_list = part["PartitionInputList"]
         for i in range(0, len(part_list), batch_size):
@@ -534,6 +536,7 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
                 TableName=part["TableName"],
                 PartitionInputList=part_list[i : i + batch_size],
             )
+        print(f"created {k} of {partitions.height} partitions")
 
 
 def delete_none(_dict):
