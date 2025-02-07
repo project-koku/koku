@@ -483,21 +483,7 @@ def parse_arguments(args):
     parser.add_argument("-o", "--output-path", required=False, help="Output path, either local directory or S3 path")
     parser.add_argument("-i", "--input_path", required=False, help="Input path, either local directory or S3 path")
 
-    parser.add_argument(
-        "-a", "--assume-role-arn", required=False, default=ENVIRONMENT.get_value("AWS_ASSUME_ROLE_ARN")
-    )
-
     return get_options(parser, args)
-
-
-def get_session(arn):
-    client = boto3.client("sts")
-    response = client.assume_role(RoleArn=arn, RoleSessionName="migration-session")
-    return boto3.Session(
-        aws_access_key_id=response["Credentials"]["AccessKeyId"],
-        aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
-        aws_session_token=response["Credentials"]["SessionToken"],
-    )
 
 
 def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, options):
@@ -519,27 +505,28 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
     # with fs.open(f"{output_path}partitions.json", mode="wb") as f:
     #     partitions.write_json(f)
 
-    sesh = get_session(options["assume_role_arn"])
-    catalog_id = sesh.client("sts").get_caller_identity()["Account"]
-    glue = sesh.client("glue", region_name="us-east-1")
+    catalog_id = boto3.client("sts").get_caller_identity()["Account"]
+    glue = boto3.client("glue", region_name="us-east-1")
 
     print("creating db")
-    for db in databases.iter_rows(named=True):
+    for i, db in enumerate(databases.iter_rows(named=True), start=1):
+        schema = db["Name"]
+        print(f"deleting existing database prior to creating: {schema}")
         try:
-            schema = db["Name"]
             glue.delete_database(Name=schema)
-            print(f"deleting existing database prior to creating: {schema}")
         except Exception as e:
             print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
         db = delete_none(db)
         glue.create_database(CatalogId=catalog_id, DatabaseInput=db)
+        print(f"created {i} of {databases.height} dbs")
     print("creating tables")
-    for table in tables.iter_rows(named=True):
+    for j, table in enumerate(tables.iter_rows(named=True), start=1):
         table = delete_none(table)
         glue.create_table(CatalogId=catalog_id, **table)
+        print(f"created {j} of {tables.height} tables")
     print("creating partitions")
     batch_size = 100
-    for part in partitions.iter_rows(named=True):
+    for k, part in enumerate(partitions.iter_rows(named=True), start=1):
         part = delete_none(part)
         part_list = part["PartitionInputList"]
         for i in range(0, len(part_list), batch_size):
@@ -549,6 +536,7 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
                 TableName=part["TableName"],
                 PartitionInputList=part_list[i : i + batch_size],
             )
+        print(f"created {k} of {partitions.height} partitions")
 
 
 def delete_none(_dict):
