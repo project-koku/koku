@@ -518,17 +518,18 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
             print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
         db = delete_none(db)
         glue.create_database(CatalogId=catalog_id, DatabaseInput=db)
-        print(f"created {i} of {databases.height} dbs")
+        print(f"created {i:>5} of {databases.height} dbs")
     print("creating tables")
     for j, table in enumerate(tables.iter_rows(named=True), start=1):
         table = delete_none(table)
         glue.create_table(CatalogId=catalog_id, **table)
-        print(f"created {j} of {tables.height} tables")
+        print(f"created {j:>5} of {tables.height} tables")
     print("creating partitions")
     batch_size = 100
     for k, part in enumerate(partitions.iter_rows(named=True), start=1):
         part = delete_none(part)
         part_list = part["PartitionInputList"]
+        print(f'creating {len(part_list):>5} partitions for {part["TableName"]:<55} in {part["DatabaseName"]:>20}')
         for i in range(0, len(part_list), batch_size):
             glue.batch_create_partition(
                 CatalogId=catalog_id,
@@ -536,7 +537,7 @@ def etl_from_metastore(db_prefix, table_prefix, hive_metastore: HiveMetastore, o
                 TableName=part["TableName"],
                 PartitionInputList=part_list[i : i + batch_size],
             )
-        print(f"created {k} of {partitions.height} partitions")
+        print(f"created {k:>5} of {partitions.height} partition batches")
 
 
 def delete_none(_dict):
