@@ -698,6 +698,7 @@ SELECT azure.row_uuid as row_uuid,
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
         -- Filter for Node Network Costs to tie them to the Network unattributed project
         AND azure.data_transfer_direction IS NOT NULL
+        AND azure.data_transfer_direction != ''
         AND azure.ocp_source = {{ocp_provider_uuid}}
         AND azure.source = {{cloud_provider_uuid}}
         AND azure.year = {{year}}
