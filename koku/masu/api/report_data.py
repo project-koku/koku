@@ -21,6 +21,8 @@ from api.utils import get_months_in_date_range
 from common.queues import get_customer_queue
 from common.queues import PriorityQueue
 from common.queues import QUEUE_LIST
+from masu.processor import is_managed_ocp_cloud_summary_enabled
+from masu.processor.tasks import process_openshift_on_cloud_trino
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
@@ -117,6 +119,21 @@ def report_data(request):
                     ocp_on_cloud=ocp_on_cloud,
                 ).apply_async(queue=queue_name or fallback_queue)
                 async_results.append({str(month): str(async_result)})
+                if is_managed_ocp_cloud_summary_enabled(schema_name, provider_type):
+                    tracing_id = str(async_result)
+                    report = {
+                        "schema_name": schema_name,
+                        "provider_type": provider,
+                        "provider_uuid": provider_uuid,
+                        "tracing_id": tracing_id,
+                        "start": month[0],
+                        "end": month[1],
+                        "invoice_month": month[2],
+                    }
+                    ocp_async = process_openshift_on_cloud_trino.s(
+                        [report], provider, schema_name, provider_uuid, tracing_id, masu_api_trigger=True
+                    ).apply_async(queue=queue_name or fallback_queue)
+                    async_results.append({f"Managed OCP on Cloud {str(month)}": str(ocp_async)})
         else:
             # TODO: when DEVELOPMENT=False, disable resummarization for all providers to prevent burning the db.
             # this query could be re-enabled if we need it, but we should consider limiting its use to a schema.
