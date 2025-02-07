@@ -69,7 +69,11 @@ MANAGED_TABLES = {
     "azure_openshift_disk_capacities_temp",
     "aws_openshift_disk_capacities_temp",
     "managed_aws_openshift_daily",
-    "managed_azure_openshift_daily",
+    "managed_azure_openshift_daily_temp",
+    "managed_azure_openshift_disk_capacities_temp",
+    "managed_azure_uuid_temp",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp",
     "managed_gcp_openshift_daily",
 }
 
@@ -90,7 +94,10 @@ manage_table_mapping = {
     "azure_openshift_disk_capacities_temp": "ocp_source",
     "aws_openshift_disk_capacities_temp": "ocp_source",
     "managed_aws_openshift_daily": "ocp_source",
-    "managed_azure_openshift_daily": "ocp_source",
+    "managed_azure_openshift_daily_temp": "ocp_source",
+    "managed_azure_openshift_disk_capacities_temp": "ocp_source",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
     "managed_gcp_openshift_daily": "ocp_source",
 }
 
