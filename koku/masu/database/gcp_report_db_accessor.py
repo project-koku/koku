@@ -10,7 +10,6 @@ import pkgutil
 import uuid
 from os import path
 from typing import Any
-from typing import List
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
@@ -585,29 +584,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on GCP", schema=self.schema))
                 return False
         return True
-
-    def _populate_gcp_filtered_by_ocp_tmp_table(
-        self, ocp_provider_uuid: str, matched_tags_result: List[str], sql_metadata: SummarySqlMetadata
-    ) -> Any:
-        """Populate the managed_gcp_openshift_daily trino table for OCP on GCP.
-        Args:
-            ocp_provider_uuid (str) OCP source UUID.
-            matched_tags_result (list) List of kv pairs
-        Returns
-            (None)
-        """
-        params = sql_metadata.build_params(
-            ["schema", "cloud_provider_uuid", "start_date", "end_date", "days_tup", "year", "month"]
-        )
-        params["ocp_source_uuid"] = ocp_provider_uuid
-        params["matched_tag_array"] = matched_tags_result
-
-        populate_tmp_managed_sql = pkgutil.get_data(
-            "masu.database", "trino_sql/gcp/openshift/managed_flow/1_populate_managed_tmp_table.sql"
-        )
-        populate_tmp_managed_sql = populate_tmp_managed_sql.decode("utf-8")
-        LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **params))
-        self._execute_trino_multipart_sql_query(populate_tmp_managed_sql, bind_params=params)
 
     def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
