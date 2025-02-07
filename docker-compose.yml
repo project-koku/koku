@@ -654,7 +654,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:461-007
+    image: quay.io/redhat-user-workloads/cost-mgmt-dev-tenant/ubi-trino:pr-182-5364560
     user: root
     ports:
       - 8080:8080
@@ -669,7 +669,6 @@ services:
       - MINIO_SECRET=${MINIO_SECRET-kokuminiosecret}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID-kokuminioaccess}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY-kokuminiosecret}
-      - AWS_ASSUME_ROLE_ARN=${AWS_ASSUME_ROLE_ARN-}
       - AWS_REGION=us-east-1
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-hccm-local-s3}
       - POSTGRES_SQL_SERVICE_HOST=db

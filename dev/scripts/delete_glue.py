@@ -21,6 +21,7 @@ def delete_glue_data(schema):
         "s3_csv_path": f"data/csv/{schema}",
         "s3_parquet_path": f"data/parquet/{schema}",
         "s3_daily_parquet": f"data/parquet/daily/{schema}",
+        "s3_schema_db_path": f"data/{schema}",
     }
 
     s3_client = boto3.client("s3", endpoint_url=endpoint, **credentials)
