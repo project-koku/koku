@@ -1,5 +1,5 @@
 {% if unattributed_storage %}
-DELETE FROM hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp
+DELETE FROM hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}}
@@ -8,7 +8,7 @@ AND month = {{month}}
 
 
 {% if unattributed_storage %}
-INSERT INTO hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp (
     resource_id,
     capacity,
     usage_start,
@@ -31,6 +31,7 @@ WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.date < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     AND azure.service_name LIKE '%Storage%'
     AND azure.complete_resource_id LIKE '%%Microsoft.Compute/disks/%%'
+    AND lower(azure.resource_id) NOT LIKE '%%_osdisk'
     AND azure.year = {{year}}
     AND azure.month = {{month}}
     AND azure.ocp_source = {{ocp_provider_uuid}}
@@ -141,7 +142,7 @@ SELECT azure.row_uuid as row_uuid,
                 (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
         AND azure.ocp_source = ocp.source
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
+    JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = azure.ocp_source
@@ -261,7 +262,7 @@ SELECT cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedupl
                 (lower(ocp.csi_volume_handle) = lower(azure.resource_id))
             )
         AND azure.ocp_source = ocp.source
-    JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
+    JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
         AND az_disk.ocp_source = azure.ocp_source
@@ -383,7 +384,7 @@ SELECT azure.row_uuid as row_uuid,
                 OR (strpos(azure.resource_id, ocp.persistentvolume) > 0 AND ocp.data_source = 'Storage')
             )
         AND ocp.source = azure.ocp_source
-    LEFT JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp as disk_cap
+    LEFT JOIN hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp as disk_cap
         ON azure.resource_id = disk_cap.resource_id
         AND disk_cap.year = azure.year
         AND disk_cap.month = azure.month

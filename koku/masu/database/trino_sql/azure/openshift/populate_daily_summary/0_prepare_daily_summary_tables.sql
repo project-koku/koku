@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_dai
 ;
 
 -- TODO: we may need a managed version of this table
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp
 (
     resource_id varchar,
     capacity integer,
