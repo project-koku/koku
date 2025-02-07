@@ -5,7 +5,6 @@
 """Test the GCPReportDBAccessor utility object."""
 import datetime
 import decimal
-from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -21,11 +20,12 @@ from trino.exceptions import TrinoExternalError
 
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
+from api.utils import DateHelper
 from koku.trino_database import TrinoHiveMetastoreError
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
@@ -34,7 +34,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPTopology
-from reporting.provider.gcp.models import TRINO_MANAGED_OCP_GCP_DAILY_TABLE
+from reporting.provider.gcp.models import TRINO_OCP_GCP_DAILY_SUMMARY_TABLE
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -175,6 +175,21 @@ class GCPReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
+    def test_populate_ocp_on_gcp_ui_summary_tables_trino_managed(
+        self,
+        mock_unleash,
+        mock_trino,
+    ):
+        """Test that Trino is used to populate UI summary."""
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        self.accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
+            start_date, end_date, self.gcp_test_provider_uuid, self.ocp_test_provider_uuid
+        )
+        mock_trino.assert_called()
+
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
         start_date = self.dh.this_month_start.date()
@@ -199,6 +214,41 @@ class GCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_gcp_cost_daily_summary_trino(self, mock_trino, mock_month_delete, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+
+        self.accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.ocp_cluster_id,
+            self.gcp_provider_uuid,
+            self.ocp_cluster_id,
+            current_bill_id,
+            markup_value,
+            distribution,
+        )
+        mock_trino.assert_called()
+        mock_month_delete.assert_called()
+        mock_delete.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
+    def test_populate_ocp_on_gcp_cost_daily_summary_trino_managed(
+        self, mock_unleash, mock_trino, mock_month_delete, mock_delete
+    ):
         """Test that we construst our SQL and query using Trino."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
@@ -471,7 +521,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+            TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -488,7 +538,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+                TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -573,12 +623,12 @@ class GCPReportDBAccessorTest(MasuTestCase):
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
         matched_tags = "fake-tags"
-        mparams = ManagedSqlMetadata(
+        mparams = SummarySqlMetadata(
             self.schema_name,
             [self.ocp_provider_uuid],
             self.gcp_provider_uuid,
-            "2024-08-01",
-            "2024-08-05",
+            DateHelper().today,
+            DateHelper().tomorrow,
             matched_tags,
         )
         self.accessor.populate_ocp_on_cloud_daily_trino(mparams)
@@ -588,23 +638,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             mparams.year,
             mparams.month,
-            TRINO_MANAGED_OCP_GCP_DAILY_TABLE,
+            TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
-
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
-        """
-        Test validating trino tables.
-        """
-        mparams = ManagedSqlMetadata(self.schema_name, ANY, self.gcp_provider_uuid, "2024-08-01", "2024-08-01", ANY)
-        with self.assertLogs("masu.database.gcp_report_db_accessor", level="INFO") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], mparams)
-            assert any(
-                "Verification successful" in log for log in logger.output
-            ), "Verification successful not found in logs"
-
-        mock_trino.side_effect = [[[False]], [["fail"]]]
-        with self.assertLogs("masu.database.gcp_report_db_accessor", level="ERROR") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], mparams)
-            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"

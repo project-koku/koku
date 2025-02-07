@@ -13,7 +13,7 @@ from django.db.models import JSONField
 TRINO_LINE_ITEM_TABLE = "azure_line_items"
 TRINO_LINE_ITEM_DAILY_TABLE = TRINO_LINE_ITEM_TABLE
 TRINO_OCP_ON_AZURE_DAILY_TABLE = "azure_openshift_daily"
-TRINO_MANAGED_OCP_AZURE_DAILY_TABLE = "managed_azure_openshift_daily"
+TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE = "managed_reporting_ocpazurecostlineitem_project_daily_summary"
 
 TRINO_REQUIRED_COLUMNS = {
     "accountname": "",

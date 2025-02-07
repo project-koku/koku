@@ -4,7 +4,6 @@
 #
 """Test the AzureReportDBAccessor utility object."""
 import decimal
-from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -24,14 +23,14 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.parquet.managed_flow_params import ManagedSqlMetadata
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureTagsSummary
-from reporting.provider.azure.models import TRINO_MANAGED_OCP_AZURE_DAILY_TABLE
+from reporting.provider.azure.models import TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -132,9 +131,56 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
+    @patch("masu.database.azure_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_azure_ui_summary_tables_trino_managed(self, mock_trino, mock_unleash):
+        """Test that Trino is used to populate UI summary."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.populate_ocp_on_azure_ui_summary_tables_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.azure_provider_uuid,
+        )
+        mock_trino.assert_called()
+
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_azure_cost_daily_summary_trino(self, mock_trino, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+
+        self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.azure_provider_uuid,
+            self.ocp_cluster_id,
+            current_bill_id,
+            markup_value,
+            distribution,
+        )
+        mock_trino.assert_called()
+        mock_delete.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.azure_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
+    def test_populate_ocp_on_azure_cost_daily_summary_trino_managed(self, mock_unleash, mock_trino, mock_delete):
         """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -325,7 +371,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
+            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -342,7 +388,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
+                TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -427,8 +473,13 @@ class AzureReportDBAccessorTest(MasuTestCase):
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
         matched_tags = "fake-tags"
-        params = ManagedSqlMetadata(
-            ANY, [self.ocp_provider_uuid], self.azure_provider_uuid, "2024-08-01", "2024-08-05", matched_tags
+        params = SummarySqlMetadata(
+            self.schema_name,
+            [self.ocp_provider_uuid],
+            self.azure_provider_uuid,
+            "2024-08-01",
+            "2024-08-05",
+            matched_tags,
         )
 
         self.accessor.populate_ocp_on_cloud_daily_trino(params)
@@ -438,23 +489,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             params.year,
             params.month,
-            TRINO_MANAGED_OCP_AZURE_DAILY_TABLE,
+            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
-
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
-        """
-        Test validating trino tables.
-        """
-        params = ManagedSqlMetadata(self.schema_name, ANY, self.azure_provider_uuid, "2024-08-01", "2024-08-01", ANY)
-        with self.assertLogs("masu.database.azure_report_db_accessor", level="INFO") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], params)
-            assert any(
-                "Verification successful" in log for log in logger.output
-            ), "Verification successful not found in logs"
-
-        mock_trino.side_effect = [[[False]]]
-        with self.assertLogs("masu.database.azure_report_db_accessor", level="ERROR") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], params)
-            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"
