@@ -10,7 +10,7 @@ IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
 IQE_PARALLEL_ENABLED="false"
-IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER},IQE_TESTS_LOCAL_CONF_PATH=/iqe_venv/lib/python3.12/site-packages/iqe_cost_management/conf_ephemeral_daily_job"
+IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER}"
 
 # Get bonfire helper scripts
 CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
