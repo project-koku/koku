@@ -34,6 +34,7 @@ def delete_glue_data(schema):
                 )
         print(f"Removed s3 files for prefix: {file_prefix}")
 
+    # this client requires AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY set in env
     glue_client = boto3.client("glue", region_name="us-east-1")
     try:
         glue_client.delete_database(Name=schema)
