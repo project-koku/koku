@@ -277,7 +277,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_reporting_ocpawscos
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
-CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp
 (
     resource_id varchar,
     capacity integer,

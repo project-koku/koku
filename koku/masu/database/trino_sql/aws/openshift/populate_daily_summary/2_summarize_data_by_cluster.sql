@@ -1,5 +1,5 @@
 {% if unattributed_storage %}
-DELETE FROM hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp
+DELETE FROM hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}}
@@ -11,7 +11,7 @@ AND month = {{month}}
 -- We can't use the aws_openshift_daily table to calcualte
 -- the capacity because it has already aggregated cost per
 -- each hour.
-INSERT INTO hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp (
+INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp (
     resource_id,
     capacity,
     usage_start,
@@ -287,7 +287,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
     AND strpos(aws.resource_id, ocp.csi_volume_handle) != 0
     AND ocp.csi_volume_handle is not null
     AND ocp.csi_volume_handle != ''
-JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
+JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
 WHERE ocp.source = {{ocp_provider_uuid}}
@@ -416,7 +416,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
     AND ocp.csi_volume_handle is not null
     AND ocp.csi_volume_handle != ''
     AND ocp.source = aws.ocp_source
-JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
+JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
 LEFT JOIN cte_total_pv_capacity as pv_cap
@@ -551,7 +551,7 @@ SELECT aws.row_uuid,
     JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
         ON aws.usage_start = ocp.usage_start
             AND strpos(aws.resource_id, ocp.resource_id) != 0
-    LEFT JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
+    LEFT JOIN hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp AS aws_disk
         ON aws_disk.usage_start = aws.usage_start
         AND aws_disk.resource_id = aws.resource_id
         AND aws_disk.year = aws.year
