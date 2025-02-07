@@ -15,7 +15,6 @@ TRINO_LINE_ITEM_TABLE = "gcp_line_items"
 TRINO_OCP_ON_GCP_DAILY_TABLE = "gcp_openshift_daily"
 TRINO_OCP_GCP_DAILY_SUMMARY_TABLE = "managed_reporting_ocpgcpcostlineitem_project_daily_summary"
 
-
 UI_SUMMARY_TABLES = (
     "reporting_gcp_cost_summary_p",
     "reporting_gcp_cost_summary_by_account_p",

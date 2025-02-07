@@ -586,22 +586,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def _create_tables_and_generate_unique_id(self, sql_metadata: SummarySqlMetadata) -> Any:
-        """
-        The parquet generated for the gcp line item table does not
-        contain a unique identifer. Therefore, we create & populate
-        temporary tables to prevent cost duplication.
-        """
-        params = sql_metadata.build_params(
-            ["schema", "cloud_provider_uuid", "year", "month", "start_date", "end_date"]
-        )
-        populate_uuid_sql = pkgutil.get_data(
-            "masu.database", "trino_sql/gcp/openshift/managed_flow/0_populate_uuid_tmp_table.sql"
-        )
-        populate_uuid_sql = populate_uuid_sql.decode("utf-8")
-        LOG.info(log_json(msg="Create and populate temporary uuid manged tables", **params))
-        self._execute_trino_multipart_sql_query(populate_uuid_sql, bind_params=params)
-
     def _populate_gcp_filtered_by_ocp_tmp_table(
         self, ocp_provider_uuid: str, matched_tags_result: List[str], sql_metadata: SummarySqlMetadata
     ) -> Any:
@@ -624,27 +608,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         populate_tmp_managed_sql = populate_tmp_managed_sql.decode("utf-8")
         LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **params))
         self._execute_trino_multipart_sql_query(populate_tmp_managed_sql, bind_params=params)
-
-    def _populate_final_managed_table(self, sql_metadata: SummarySqlMetadata) -> Any:
-        """Populates the managed openshift on gcp table"""
-        params = sql_metadata.build_params(
-            [
-                "schema",
-                "start_date",
-                "year",
-                "month",
-                "days",
-                "end_date",
-                "ocp_provider_uuids",
-                "cloud_provider_uuid",
-            ]
-        )
-        update_managed_sql = pkgutil.get_data(
-            "masu.database", "trino_sql/gcp/openshift/managed_flow/2_managed_gcp_openshift_daily.sql"
-        )
-        update_managed_sql = update_managed_sql.decode("utf-8")
-        LOG.info(log_json(msg="populating managed OCP on GCP data", **params))
-        self._execute_trino_multipart_sql_query(update_managed_sql, bind_params=params)
 
     def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""

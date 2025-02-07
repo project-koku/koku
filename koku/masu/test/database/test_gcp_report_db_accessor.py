@@ -504,7 +504,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
         ):
             self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_not_called()
-
             mock_table_exist.assert_not_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.schema_exists_trino")
