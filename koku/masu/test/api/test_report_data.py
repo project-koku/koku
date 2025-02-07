@@ -69,8 +69,9 @@ class ReportDataTests(TestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.process_openshift_on_cloud_trino")
+    @patch("masu.api.report_data.update_summary_tables")
     @patch("masu.api.report_data.is_managed_ocp_cloud_summary_enabled", return_value=True)
-    def test_get_report_data_w_managed(self, mock_unleash, mock_ocp_update, _):
+    def test_get_report_data_w_managed(self, mock_unleash, mock_ocp_update, mock_update, _):
         """Test the GET report_data endpoint."""
         params = {
             "schema": self.schema_name,
