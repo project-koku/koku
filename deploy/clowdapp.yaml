@@ -5660,6 +5660,34 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_KOKU_GM}
             memory: ${MEMORY_REQUEST_KOKU_GM}
+    - name: metastore-partition-expiration
+      podSpec:
+        args:
+        - /bin/bash
+        - -c
+        - ${MPE_COMMAND}
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: ${AWS_SECRET_NAME}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: ${AWS_SECRET_NAME}
+        image: ${IMAGE}:${IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_KOKU_MPE}
+            memory: ${MEMORY_LIMIT_KOKU_MPE}
+          requests:
+            cpu: ${CPU_REQUEST_KOKU_MPE}
+            memory: ${MEMORY_REQUEST_KOKU_MPE}
+      schedule: ${MPE_SCHEDULE}
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -5807,6 +5835,11 @@ parameters:
   value: ""
 - name: TRINO_S3A_OR_S3
   value: s3a
+- description: schedule to run metastore partition expiration
+  name: MPE_SCHEDULE
+  value: 0 4 12 * *
+- name: MPE_COMMAND
+  value: python koku/manage.py partition-expiration
 - name: S3_BUCKET_NAME
   value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME
@@ -5828,6 +5861,14 @@ parameters:
   value: koku-sentry
 - name: GLITCHTIP_KEY_NAME
   value: dsn
+- name: CPU_LIMIT_KOKU_MPE
+  value: 500m
+- name: MEMORY_LIMIT_KOKU_MPE
+  value: 512Mi
+- name: CPU_REQUEST_KOKU_MPE
+  value: 500m
+- name: MEMORY_REQUEST_KOKU_MPE
+  value: 512Mi
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
   required: true
