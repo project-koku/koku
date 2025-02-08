@@ -10,6 +10,15 @@ import boto3
 
 
 def delete_glue_data(schema):
+    # this client requires AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY set in env
+    glue_client = boto3.client("glue", region_name="us-east-1")
+    try:
+        glue_client.delete_database(Name=schema)
+        print(f"Deleting database: {schema}")
+    except Exception as e:
+        print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
+
+    # cleanup S3 data
     endpoint = os.environ.get("S3_ENDPOINT")
     bucket_name = os.environ.get("S3_BUCKET_NAME")
     credentials = {
@@ -33,14 +42,6 @@ def delete_glue_data(schema):
                     Bucket=bucket_name, Delete={"Objects": [{"Key": x["Key"]} for x in obj_list["Contents"]]}
                 )
         print(f"Removed s3 files for prefix: {file_prefix}")
-
-    # this client requires AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY set in env
-    glue_client = boto3.client("glue", region_name="us-east-1")
-    try:
-        glue_client.delete_database(Name=schema)
-        print(f"Deleting database: {schema}")
-    except Exception as e:
-        print(f"Failed to delete db: {schema}, its possible it was already deleted: {e}")
 
 
 def main():

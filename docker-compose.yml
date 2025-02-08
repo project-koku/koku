@@ -670,7 +670,7 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID-kokuminioaccess}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY-kokuminiosecret}
       - AWS_REGION=us-east-1
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME-hccm-local-s3}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
       - DATABASE_NAME=${DATABASE_NAME-postgres}
