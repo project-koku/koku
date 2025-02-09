@@ -5,17 +5,15 @@
 """Common utility functions for Kafka implementations."""
 import logging
 import random
-import socket
 import time
 
 from confluent_kafka import Consumer
 from confluent_kafka import Producer
-from kafka import BrokerConnection
+from confluent_kafka.admin import AdminClient
 
 from koku.configurator import CONFIGURATOR
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.common import SingletonMeta
-
 
 LOG = logging.getLogger(__name__)
 UPLOAD_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.announce")
@@ -24,6 +22,10 @@ NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingres
 ROS_TOPIC = CONFIGURATOR.get_kafka_topic("hccm.ros.events")
 SUBS_TOPIC = CONFIGURATOR.get_kafka_topic("platform.rhsm-subscriptions.service-instance-ingress")
 SOURCES_TOPIC = CONFIGURATOR.get_kafka_topic("platform.sources.event-stream")
+
+
+class AdminClientSingleton(AdminClient, metaclass=SingletonMeta):
+    """Creates a singleton instance of a Kafka Producer"""
 
 
 class ProducerSingleton(Producer, metaclass=SingletonMeta):
@@ -68,6 +70,11 @@ def get_consumer(conf_settings):  # pragma: no cover
     return Consumer(conf, logger=LOG)
 
 
+def get_admin_client():  # pragma: no cover
+    conf = _get_managed_kafka_config()
+    return AdminClientSingleton(conf)
+
+
 def _get_producer_config(conf_settings):  # pragma: no cover
     """Return Kafka Producer config"""
     producer_conf = {}
@@ -102,14 +109,9 @@ def backoff(interval, maximum=120):
 
 def check_kafka_connection():
     """Check connectability of Kafka Broker."""
-    for broker in CONFIGURATOR.get_kafka_broker_list():
-        host, port = broker.split(":")
-        conn = BrokerConnection(host, int(port), socket.AF_UNSPEC)
-        connected = conn.connect_blocking(timeout=1)
-        if connected:
-            conn.close()
-            break
-    return connected
+    client = get_admin_client()
+    topics = client.list_topics().topics
+    return bool(topics)
 
 
 def is_kafka_connected():
