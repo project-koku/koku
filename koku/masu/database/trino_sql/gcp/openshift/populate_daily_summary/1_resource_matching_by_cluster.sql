@@ -1,5 +1,5 @@
 DELETE FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp
-WHERE ocp_source = {{ocp_source_uuid}}
+WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}};
@@ -8,24 +8,28 @@ AND month = {{month}};
 INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
     row_uuid,
     invoice_month,
-    billing_account_id,
+    account_id,
     project_id,
-    usage_start_time,
+    usage_start,
+    data_transfer_direction,
     service_id,
     sku_id,
     system_labels,
     labels,
     cost_type,
-    location_region,
+    region,
     resource_name,
+    instance_type,
     project_name,
     service_description,
+    service_alias,
     sku_description,
-    usage_pricing_unit,
-    usage_amount_in_pricing_units,
+    sku_alias,
+    unit,
+    usage_amount,
     currency,
-    cost,
-    daily_credits,
+    unblended_cost,
+    credit_amount,
     resource_global_name,
     resource_id_matched,
     matched_tag,
@@ -47,7 +51,7 @@ WITH cte_gcp_resource_names AS (
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily
-    WHERE source = {{ocp_source_uuid}}
+    WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND interval_start >= {{start_date}}
@@ -56,7 +60,7 @@ cte_array_agg_nodes AS (
 cte_array_agg_volumes AS (
     SELECT DISTINCT persistentvolume, csi_volume_handle
     FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily
-    WHERE source = {{ocp_source_uuid}}
+    WHERE source = {{ocp_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
         AND interval_start >= {{start_date}}
@@ -83,27 +87,58 @@ cte_agg_tags AS (
     SELECT array_agg(cte_tag_matches.matched_tag) as matched_tags from (
         SELECT * FROM unnest(ARRAY{{matched_tag_array | sqlsafe}}) as t(matched_tag)
     ) as cte_tag_matches
+),
+cte_enabled_tag_keys AS (
+    SELECT
+    CASE WHEN array_agg(key) IS NOT NULL
+        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
+        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
+    END as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+    WHERE enabled = TRUE
+        AND provider_type = 'GCP'
 )
 SELECT gcp.row_uuid,
     gcp.invoice_month,
-    gcp.billing_account_id,
+    gcp.billing_account_id as account_id,
     gcp.project_id,
-    gcp.usage_start_time,
+    gcp.usage_start_time as usage_start,
+    CASE
+        WHEN gcp.service_description = 'Compute Engine'
+            AND STRPOS(lower(sku_description), 'data transfer in') != 0
+            AND resource_names.resource_name IS NOT NULL
+                THEN 'IN'
+        WHEN gcp.service_description = 'Compute Engine'
+            AND STRPOS(lower(sku_description), 'data transfer') != 0
+            AND resource_names.resource_name IS NOT NULL
+                THEN 'OUT'
+        ELSE NULL
+    END as data_transfer_direction,
     gcp.service_id,
-    gcp.sku_id,
+    nullif(gcp.sku_id, ''),
     gcp.system_labels,
-    gcp.labels,
+    json_format(
+        cast(
+            map_filter(
+                cast(json_parse(gcp.labels) as map(varchar, varchar)),
+                (k, v) -> contains(etk.enabled_keys, k)
+            ) as json
+        )
+    ) as labels,
     gcp.cost_type,
-    gcp.location_region,
+    gcp.location_region as region,
     gcp.resource_name,
+    json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]') as instance_type,
     gcp.project_name,
     gcp.service_description,
+    nullif(gcp.service_description, '') as service_alias,
     gcp.sku_description,
-    gcp.usage_pricing_unit,
-    gcp.usage_amount_in_pricing_units,
+    nullif(gcp.sku_description, '') as sku_alias,
+    gcp.usage_pricing_unit as unit,
+    cast(gcp.usage_amount_in_pricing_units AS decimal(24,9)) as usage_amount,
     gcp.currency,
-    gcp.cost,
-    gcp.daily_credits,
+    cast(gcp.cost AS decimal(24,9)) as unblended_cost,
+    gcp.daily_credits as credit_amount,
     gcp.resource_global_name,
     CASE WHEN resource_names.resource_name IS NOT NULL
         THEN TRUE
@@ -111,11 +146,12 @@ SELECT gcp.row_uuid,
     END as resource_id_matched,
     array_join(filter(tag_matches.matched_tags, x -> STRPOS(labels, x ) != 0), ',') as matched_tag,
     gcp.source as source,
-    {{ocp_source_uuid}} as ocp_source,
+    {{ocp_provider_uuid}} as ocp_source,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp AS gcp
+CROSS JOIN cte_enabled_tag_keys as etk
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
 LEFT JOIN cte_agg_tags AS tag_matches
