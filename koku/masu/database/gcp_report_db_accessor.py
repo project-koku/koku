@@ -350,7 +350,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             matching_type = "tag"
 
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
-            sql_level = "managed_reporting_ocpgcpcostlineitem_daily_summary"
+            sql_level = "reporting_ocpgcpcostlineitem_project_daily_summary_p"
 
         sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
         sql = sql.decode("utf-8")
@@ -399,12 +399,12 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
         invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
 
-        # TODO Remove this when we switch to managed flow
+        # COST-5881: Remove this when we switch to managed flow
         trino_table = "reporting_ocpgcpcostlineitem_project_daily_summary"
         column_name = "gcp_source"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
             trino_table = "managed_reporting_ocpgcpcostlineitem_project_daily_summary"
-            column_name = "gcp_source"
+            column_name = "source"
 
         for invoice_month in invoice_month_list:
             for table_name in tables:
