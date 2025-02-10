@@ -111,7 +111,8 @@ def check_kafka_connection():
     """Check connectability of Kafka Broker."""
     client = get_admin_client()
     topics = client.list_topics().topics
-    return bool(topics)
+    # if there is a list of topics, then we've successfully connected to kafka
+    return len(topics) > 0
 
 
 def is_kafka_connected():
