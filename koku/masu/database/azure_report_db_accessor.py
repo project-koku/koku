@@ -299,7 +299,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             node_column = "node_capacity_memory_gigabyte_hours"
         sql_file = "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AZURE):
-            sql_file = "trino_sql/azure/openshift/managed_reporting_ocpazurecostlineitem_daily_summary.sql"
+            sql_file = "trino_sql/azure/openshift/reporting_ocpazurecostlineitem_project_daily_summary_p.sql"
         sql = pkgutil.get_data("masu.database", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
