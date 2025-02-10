@@ -11,6 +11,7 @@ from django_filters import BooleanFilter
 from django_filters import ChoiceFilter
 from django_filters import DateFromToRangeFilter
 from django_filters import FilterSet
+from django_filters import UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions
 from rest_framework import status
@@ -110,6 +111,7 @@ class ManifestFilter(FilterSet):
     schema_name = CharListFilter(
         field_name="provider__customer__schema_name", lookup_expr="provider__customer__schema_name__icontains"
     )
+    provider_uuid = UUIDFilter(field_name="provider_id")
     created = DateFromToRangeFilter(field_name="creation_datetime")
     completed = DateFromToRangeFilter(field_name="completed_datetime")
     failed = BooleanFilter(method=manifest_failed_filter)
