@@ -75,7 +75,7 @@ export OS
 
 export S3_ACCESS_KEY="${S3_ACCESS_KEY}"
 export S3_SECRET_KEY="${S3_SECRET}"
-export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS-koku-bucket}"
+export S3_BUCKET_NAME="${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}"
 export MINIO_UPLOAD="${S3_ENDPOINT-http://localhost:9000}"
 
 
