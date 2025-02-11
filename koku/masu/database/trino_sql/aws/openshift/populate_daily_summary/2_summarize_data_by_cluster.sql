@@ -160,13 +160,13 @@ WHERE aws.source = {{cloud_provider_uuid}}
     AND aws.ocp_source = {{ocp_provider_uuid}}
 GROUP BY aws.lineitem_usagestartdate,
     aws.lineitem_resourceid,
-    4, -- product_code
+    aws.product_code,
     aws.product_productfamily,
     aws.product_instancetype,
     aws.lineitem_availabilityzone,
     aws.product_region,
     aws.costcategory,
-    17, -- tags
+    aws.tags,
     aws.matched_tag
 {% endif %}
 ;
