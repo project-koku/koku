@@ -178,6 +178,7 @@ class GCPPostProcessor:
         daily_data_frame.columns = columns
         daily_data_frame.reset_index(inplace=True)
 
+        daily_data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(daily_data_frame))]
         return daily_data_frame
 
     def process_dataframe(self, data_frame):
@@ -193,7 +194,6 @@ class GCPPostProcessor:
         for label in unique_labels:
             label_set.update(json.loads(label).keys())
         # Add a unique identifer that we can use for deduplicating
-        data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(data_frame))]
         self.enabled_tag_keys.update(label_set)
 
         return data_frame, self._generate_daily_data(data_frame)

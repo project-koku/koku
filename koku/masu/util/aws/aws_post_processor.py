@@ -240,6 +240,7 @@ class AWSPostProcessor:
         columns = daily_data_frame.columns.droplevel(1)
         daily_data_frame.columns = columns
         daily_data_frame.reset_index(inplace=True)
+        daily_data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(daily_data_frame))]
         return daily_data_frame
 
     def process_dataframe(self, data_frame):
@@ -279,7 +280,6 @@ class AWSPostProcessor:
         data_frame = data_frame.drop(columns=drop_columns)
         data_frame = data_frame.rename(columns=column_name_map)
 
-        data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(data_frame))]
         return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):
