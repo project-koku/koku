@@ -279,7 +279,6 @@ class AWSPostProcessor:
                 drop_columns.append(column)
         data_frame = data_frame.drop(columns=drop_columns)
         data_frame = data_frame.rename(columns=column_name_map)
-
         return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):
