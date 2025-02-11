@@ -1,6 +1,7 @@
 import json
 import logging
 from json.decoder import JSONDecodeError
+from uuid import uuid4
 
 import ciso8601
 import pandas as pd
@@ -191,6 +192,8 @@ class GCPPostProcessor:
         unique_labels = data_frame.labels.unique()
         for label in unique_labels:
             label_set.update(json.loads(label).keys())
+        # Add a unique identifer that we can use for deduplicating
+        data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(data_frame))]
         self.enabled_tag_keys.update(label_set)
 
         return data_frame, self._generate_daily_data(data_frame)

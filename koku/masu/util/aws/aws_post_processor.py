@@ -1,5 +1,6 @@
 import json
 import logging
+from uuid import uuid4
 
 import ciso8601
 import pandas as pd
@@ -277,6 +278,8 @@ class AWSPostProcessor:
                 drop_columns.append(column)
         data_frame = data_frame.drop(columns=drop_columns)
         data_frame = data_frame.rename(columns=column_name_map)
+
+        data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(data_frame))]
         return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):
