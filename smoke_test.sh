@@ -10,7 +10,7 @@ IQE_MARKER_EXPRESSION="cost_smoke"
 IQE_FILTER_EXPRESSION=""
 IQE_CJI_TIMEOUT="5h"
 IQE_PARALLEL_ENABLED="false"
-IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER}"
+IQE_ENV_VARS="JOB_NAME=${JOB_NAME},BUILD_NUMBER=${BUILD_NUMBER},SCHEMA_SUFFIX=_${BUILD_NUMBER}"
 
 # Get bonfire helper scripts
 CICD_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/main"
@@ -42,6 +42,9 @@ bonfire deploy \
     --optional-deps-method hybrid \
     --no-single-replicas \
     --set-parameter rbac/MIN_REPLICAS=1 \
+    --set-parameter koku/SCHEMA_SUFFIX=_${BUILD_NUMBER} \
+    --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
+    --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
     ${COMPONENTS_ARG} \
     ${COMPONENTS_RESOURCES_ARG} \
     ${EXTRA_DEPLOY_ARGS}
