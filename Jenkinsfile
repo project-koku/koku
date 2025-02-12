@@ -42,7 +42,7 @@ pipeline {
 
         IQE_PLUGINS="cost_management"
         BUILD_URL="https://ci.ext.devshift.net/job/koku-pipeline-pr-check-main/${BUILD_NUMBER}/"
-        IQE_ENV_VARS="JOB_NAME=koku-ci-jenkins,BUILD_NUMBER=${BUILD_NUMBER},BUILD_URL=${BUILD_URL}"
+        IQE_ENV_VARS="JOB_NAME=koku-ci-jenkins,BUILD_NUMBER=${BUILD_NUMBER},BUILD_URL=${BUILD_URL},SCHEMA_SUFFIX=_${IMAGE_TAG}_${BUILD_NUMBER}"
         IQE_PARALLEL_ENABLED="false"
 
         GITHUB_API_ROOT='https://api.github.com/repos/project-koku/koku'
