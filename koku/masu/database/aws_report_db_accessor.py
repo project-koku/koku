@@ -8,7 +8,6 @@ import logging
 import pkgutil
 import uuid
 from typing import Any
-from typing import List
 
 from dateutil.parser import parse
 from django.db import connection
@@ -35,7 +34,7 @@ from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_OCP_AWS_DAILY_SUMMARY_TABLE
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
 
@@ -165,7 +164,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
 
-        # TODO Remove this when we switch to managed flow
+        # COST-5881: Remove this when we switch to managed flow
         trino_table = "reporting_ocpawscostlineitem_project_daily_summary"
         column_name = "aws_source"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
@@ -207,7 +206,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                if table == TRINO_MANAGED_OCP_AWS_DAILY_TABLE:
+                if table == TRINO_OCP_AWS_DAILY_SUMMARY_TABLE:
                     column_name = "source"
                 else:
                     column_name = "aws_source"
@@ -263,7 +262,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         sql_file = "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
-            sql_file = "trino_sql/aws/openshift/managed_reporting_ocpawscostlineitem_daily_summary.sql"
+            sql_file = "trino_sql/aws/openshift/reporting_ocpawscostlineitem_project_daily_summary_p.sql"
         sql = pkgutil.get_data("masu.database", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
@@ -493,21 +492,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_tags: List[str], sql_metadata: SummarySqlMetadata):
-        """
-        Verify the managed trino table population went successfully.
-        """
-        params = sql_metadata.build_params(["schema", "cloud_provider_uuid", "year", "month"])
-        params["matched_tag_array"] = verification_tags
-        verification_sql = pkgutil.get_data("masu.database", "trino_sql/verify/managed_ocp_on_aws_verification.sql")
-        verification_sql = verification_sql.decode("utf-8")
-        LOG.info(log_json(msg="running verification for managed OCP on AWS daily SQL", **params))
-        result = self._execute_trino_multipart_sql_query(verification_sql, bind_params=params)
-        if False in result[0]:
-            LOG.error(log_json(msg="Verification failed", **params))
-        else:
-            LOG.info(log_json(msg="Verification successful", **params))
-
     def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_aws_openshift_daily trino table for OCP on AWS.
         Args:
@@ -515,26 +499,42 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Returns
             (None)
         """
-        verification_tags = []
+        managed_path = "trino_sql/aws/openshift/populate_daily_summary"
+        prepare_sql, prepare_params = sql_metadata.prepare_template(
+            f"{managed_path}/0_prepare_daily_summary_tables.sql"
+        )
+        LOG.info(log_json(msg="Preparing tables for OCP on AWS flow", **prepare_params))
+        self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
         for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
-            matched_tags_result = self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata)
-            verification_tags.extend(matched_tags_result)
             self.delete_ocp_on_aws_hive_partition_by_day(
                 sql_metadata.days_tup,
                 sql_metadata.cloud_provider_uuid,
                 ocp_provider_uuid,
                 sql_metadata.year,
                 sql_metadata.month,
-                TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+                TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
             )
-            summary_sql_params = sql_metadata.build_params(
-                ["schema", "start_date", "year", "month", "days", "end_date", "cloud_provider_uuid"]
+            # Resource Matching
+            resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
+                f"{managed_path}/1_resource_matching_by_cluster.sql",
+                {
+                    "ocp_provider_uuid": ocp_provider_uuid,
+                    "matched_tag_array": self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata),
+                },
             )
-            summary_sql_params["ocp_source_uuid"] = ocp_provider_uuid
-            summary_sql_params["matched_tag_array"] = matched_tags_result
-            LOG.info(log_json(msg="running managed OCP on AWS daily SQL", **summary_sql_params))
-            summary_sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/managed_aws_openshift_daily.sql")
-            summary_sql = summary_sql.decode("utf-8")
-            self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
-        verification_tags = list(dict.fromkeys(verification_tags))
-        self.verify_populate_ocp_on_cloud_daily_trino(verification_tags, sql_metadata)
+            self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
+            # Data Transformations for Daily Summary
+            daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
+                f"{managed_path}/2_summarize_data_by_cluster.sql",
+                {
+                    **sql_metadata.build_cost_model_params(ocp_provider_uuid),
+                    **{
+                        "ocp_provider_uuid": ocp_provider_uuid,
+                        "unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema),
+                    },
+                },
+            )
+            LOG.info(
+                log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
+            )
+            self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)

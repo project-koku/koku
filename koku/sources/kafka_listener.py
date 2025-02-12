@@ -20,7 +20,6 @@ from django.db import OperationalError
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from kafka.errors import KafkaError
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Sources
@@ -304,8 +303,6 @@ def listen_for_messages(kaf_msg, consumer, application_source_id):  # noqa: C901
         else:
             consumer.commit()
 
-    except KafkaError as error:
-        LOG.error(f"[listen_for_messages] Kafka error encountered: {type(error).__name__}: {error}", exc_info=True)
     except Exception as error:
         LOG.error(f"[listen_for_messages] UNKNOWN error encountered: {type(error).__name__}: {error}", exc_info=True)
 
