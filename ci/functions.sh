@@ -101,7 +101,7 @@ function run_smoke_tests_stage() {
     bonfire deploy \
         ${APP_NAME} \
         --ref-env insights-production \
-        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
+        --set-template-ref ${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
@@ -112,6 +112,9 @@ function run_smoke_tests_stage() {
         --set-parameter koku/DBM_IMAGE_TAG=${IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
+        --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG}_${BUILD_NUMBER} \
+        --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
+        --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
@@ -169,8 +172,10 @@ function run_build_image_stage() {
 }
 
 function wait_for_image() {
-    echo "Waiting for initial image build..."
-    sleep 180
+    if ! [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?specificTag=${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; then
+        echo "Waiting for initial image build..."
+        sleep 180
+    fi
 
     local count=0
     local max=60  # Try for up to 30 minutes
