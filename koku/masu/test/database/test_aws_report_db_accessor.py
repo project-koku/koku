@@ -7,7 +7,6 @@ import datetime
 import decimal
 import pkgutil
 from decimal import Decimal
-from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -38,7 +37,7 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
-from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_OCP_AWS_DAILY_SUMMARY_TABLE
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -353,7 +352,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -370,7 +369,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+                TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -586,23 +585,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             params.year,
             params.month,
-            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
-
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
-        """
-        Test validating trino tables.
-        """
-        params = SummarySqlMetadata(self.schema_name, ANY, self.aws_provider_uuid, "2024-08-01", "2024-08-01", ANY)
-        with self.assertLogs("masu.database.aws_report_db_accessor", level="INFO") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], params)
-            assert any(
-                "Verification successful" in log for log in logger.output
-            ), "Verification successful not found in logs"
-
-        mock_trino.side_effect = [[[False]]]
-        with self.assertLogs("masu.database.aws_report_db_accessor", level="ERROR") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino([], params)
-            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"
