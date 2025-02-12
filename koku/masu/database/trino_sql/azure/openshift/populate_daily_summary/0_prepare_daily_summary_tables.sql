@@ -86,19 +86,19 @@ WHERE azure.source = {{cloud_provider_uuid}}
 
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp
 (
-    row_uuid varchar, -- custom
-    usage_start timestamp, -- custom
-    resource_id varchar, -- custom
-    service_name varchar, -- custom
-    data_transfer_direction varchar, -- custom
-    instance_type varchar, -- custom
-    subscription_guid varchar, -- custom
-    subscription_name varchar, -- custom
-    resource_location varchar, -- custom
-    unit_of_measure varchar, -- custom
-    usage_quantity double, -- custom
-    currency varchar, -- custom
-    pretax_cost double, -- custom
+    row_uuid varchar,
+    usage_start timestamp,
+    resource_id varchar,
+    service_name varchar,
+    data_transfer_direction varchar,
+    instance_type varchar,
+    subscription_guid varchar,
+    subscription_name varchar,
+    resource_location varchar,
+    unit_of_measure varchar,
+    usage_quantity double,
+    currency varchar,
+    pretax_cost double,
     date timestamp(3),
     metername varchar,
     complete_resource_id varchar,
@@ -113,7 +113,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_dai
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
--- TODO: we may need a managed version of this table
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp
 (
     resource_id varchar,
