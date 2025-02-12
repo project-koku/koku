@@ -9,7 +9,6 @@ from urllib.parse import urlencode
 
 from django.test.utils import override_settings
 from django.urls import reverse
-from rest_framework import status
 
 from masu.test import MasuTestCase
 
@@ -78,7 +77,6 @@ class TrinoQueryTest(MasuTestCase):
             with self.subTest(params=query):
                 data = {"query": query, "schema": "org1234567"}
                 response = self.client.post(reverse("trino_query"), data=data)
-                assert response.status_code != status.HTTP_400_BAD_REQUEST
                 self.assertEqual(response.status_code, 200)
 
 
