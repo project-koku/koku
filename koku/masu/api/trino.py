@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for trino query endpoint."""
-# flake8: noqa
 import logging
 
 import requests
+import sqlparse
 import trino
 from django.conf import settings
 from django.views.decorators.cache import never_cache
@@ -40,10 +40,12 @@ def trino_query(request):
         if schema_name is None:
             errmsg = "Must provide a schema key to run."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
         lowered_query = query.lower()
         dissallowed_keywords = ["delete", "insert", "update", "alter", "create", "drop", "grant"]
-        for keyword in dissallowed_keywords:
-            if keyword in lowered_query:
+
+        for keyword in sqlparse.parse(lowered_query)[0].flatten():
+            if keyword.value.lower() in dissallowed_keywords:
                 errmsg = f"This endpoint does not allow a {keyword} operation to be performed."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 

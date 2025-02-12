@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 
 from django.test.utils import override_settings
 from django.urls import reverse
+from rest_framework import status
 
 from masu.test import MasuTestCase
 
@@ -59,6 +60,26 @@ class TrinoQueryTest(MasuTestCase):
             response = self.client.post(reverse("trino_query"), data=data)
             self.assertEqual(response.status_code, 400)
             self.assertEqual(response.json(), expected)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.trino.trino")
+    def test_trino_query_allowed_queries(self, *args):
+        """Test the GET trino/query endpoint with allowed queries."""
+        test_queries = [
+            "SELECT * FROM openshift_pod_usage_line_items",
+            "SELECT DISTINCT json_extract_scalar(json_parse(persistentvolumeclaim_labels), '$.kubevirt_io_created_by')",
+            "SELECT json_extract_scalar(json_parse(random_labels), '$.delete')",
+            "WITH cte AS (SELECT * FROM gcp_line_items) SELECT * FROM cte",
+            "SHOW TABLES",
+            "DESCRIBE openshift_storage_usage_line_items",
+        ]
+
+        for query in test_queries:
+            with self.subTest(params=query):
+                data = {"query": query, "schema": "org1234567"}
+                response = self.client.post(reverse("trino_query"), data=data)
+                assert response.status_code != status.HTTP_400_BAD_REQUEST
+                self.assertEqual(response.status_code, 200)
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
