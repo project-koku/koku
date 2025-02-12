@@ -6,7 +6,6 @@
 import logging
 
 import requests
-import sqlparse
 import trino
 from django.conf import settings
 from django.views.decorators.cache import never_cache
@@ -41,13 +40,12 @@ def trino_query(request):
             errmsg = "Must provide a schema key to run."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        lowered_query = query.lower()
-        dissallowed_keywords = ["delete", "insert", "update", "alter", "create", "drop", "grant"]
+        lowered_query = set(query.lower().split(" "))
+        dissallowed_keywords = {"delete", "insert", "update", "alter", "create", "drop", "grant"}
 
-        for keyword in sqlparse.parse(lowered_query)[0].flatten():
-            if keyword.value.lower() in dissallowed_keywords:
-                errmsg = f"This endpoint does not allow a {keyword} operation to be performed."
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        if keywords := dissallowed_keywords.intersection(lowered_query):
+            errmsg = f"This endpoint does not allow a {keywords} operation to be performed."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         msg = f"Running Trino query: {query}"
         LOG.info(msg)
