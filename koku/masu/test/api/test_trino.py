@@ -19,15 +19,6 @@ class TrinoQueryTest(MasuTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.trino.trino")
-    def test_trino_query(self, mock_trino, _):
-        """Test the GET trino/query endpoint."""
-        data = {"query": "SELECT 1", "schema": "org1234567"}
-
-        response = self.client.post(reverse("trino_query"), data=data)
-        self.assertEqual(response.status_code, 200)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.trino.trino")
     def test_trino_query_no_query(self, mock_trino, _):
         """Test the GET trino/query endpoint with no query."""
         data = {"schema": "org1234567"}
@@ -71,6 +62,7 @@ class TrinoQueryTest(MasuTestCase):
             "WITH cte AS (SELECT * FROM gcp_line_items) SELECT * FROM cte",
             "SHOW TABLES",
             "DESCRIBE openshift_storage_usage_line_items",
+            "SELECT 1",
         ]
 
         for query in test_queries:

@@ -43,8 +43,8 @@ def trino_query(request):
         lowered_query = set(query.lower().split(" "))
         dissallowed_keywords = {"delete", "insert", "update", "alter", "create", "drop", "grant"}
 
-        if keywords := list(dissallowed_keywords.intersection(lowered_query)):
-            errmsg = f"This endpoint does not allow a {keywords[0]} operation to be performed."
+        if keywords := dissallowed_keywords.intersection(lowered_query):
+            errmsg = f"This endpoint does not allow a {keywords.pop()} operation to be performed."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         msg = f"Running Trino query: {query}"
