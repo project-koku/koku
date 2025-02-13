@@ -7,8 +7,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
-from dateutil.parser import parse
-from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -21,6 +19,7 @@ from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
@@ -447,6 +446,17 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             self.report_processor.get_matched_tags([])
             mock_get_tags.assert_not_called()
 
+    @patch.object(AWSReportDBAccessor, "check_for_matching_enabled_keys", return_value=True)
+    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels", return_value=True)
+    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags", return_value=None)
+    @patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.is_tag_processing_disabled", return_value=True)
+    def test_get_matched_tags_trino_disabled(
+        self, mock_unleash, mock_pg_tags, mock_has_enabled, mock_matching_enabled
+    ):
+        """Test that we skip trino matched tag queries if disabled in unleash."""
+        result = self.report_processor.get_matched_tags([])
+        self.assertEqual(result, [])
+
     def test_instantiating_processor_without_manifest_id(self):
         """Assert that report_status exists and is None."""
         report_processor = OCPCloudParquetReportProcessor(
@@ -466,10 +476,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     def test_process_ocp_cloud_trino(self):
         """Test that processing ocp on cloud via trino calls the expected functions."""
+        ocp_uuids = [self.ocp_provider_uuid]
         start_date = "2024-08-01"
         end_date = "2024-08-05"
-        ocp_uuids = (self.ocp_provider_uuid,)
         matched_tags = []
+        managed_sql_params = SummarySqlMetadata(
+            ANY, ocp_uuids, self.aws_provider_uuid, start_date, end_date, matched_tags
+        )
         with (
             patch(
                 (
@@ -495,10 +508,4 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
                 context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
             )
             rp.process_ocp_cloud_trino(start_date, end_date)
-            accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(
-                self.aws_provider_uuid,
-                self.ocp_provider_uuid,
-                parse(start_date).astimezone(tz=settings.UTC),
-                parse(end_date).astimezone(tz=settings.UTC),
-                ANY,
-            )
+            accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(managed_sql_params)

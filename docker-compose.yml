@@ -33,6 +33,8 @@ services:
       - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
+      - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
+      - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
       - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
@@ -95,11 +97,13 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
       - S3_BUCKET_NAME_OCP_INGRESS=${S3_BUCKET_NAME_OCP_INGRESS-ocp-ingress}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_ENDPOINT
+      - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
       - S3_ACCESS_KEY
       - S3_SECRET
       - DJANGO_READ_DOT_ENV_FILE=True
       - DEVELOPMENT=${DEVELOPMENT-True}
+      - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
+      - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
       - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
@@ -167,6 +171,8 @@ services:
       - REDIS_PORT=${REDIS_PORT-6379}
       - DEBUG_ATTACH=${DEBUG_ATTACH-False}
       - DEVELOPMENT=${DEVELOPMENT-True}
+      - SCHEMA_SUFFIX=${SCHEMA_SUFFIX-}
+      - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
       - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
       - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
       - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
@@ -174,14 +180,12 @@ services:
       - DJANGO_SETTINGS_MODULE=koku.settings
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
-      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
       - ENABLE_HCS_DEBUG=${ENABLE_HCS_DEBUG-False}
       - ENABLE_SUBS_DEBUG=${ENABLE_SUBS_DEBUG-False}
       - ENABLE_SUBS_PROVIDER_TYPES=${ENABLE_SUBS_PROVIDER_TYPES}
       - ENABLE_ROS_DEBUG=${ENABLE_ROS_DEBUG-False}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
-      - S3_ENDPOINT
+      - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
       - S3_ACCESS_KEY
       - S3_SECRET
       - DATA_DIR=${DATA_DIR-/testing/data}
@@ -274,10 +278,8 @@ services:
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - INITIAL_INGEST_NUM_MONTHS=1
       - PYTHONPATH=/koku/koku
-      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
-      - S3_ENDPOINT
+      - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
       - S3_ACCESS_KEY
       - S3_SECRET
       - TRINO_HOST=${TRINO_HOST-trino}
@@ -317,8 +319,7 @@ services:
       - ENABLE_SUBS_DEBUG=${ENABLE_SUBS_DEBUG-False}
       - ENABLE_SUBS_PROVIDER_TYPES=${ENABLE_SUBS_PROVIDER_TYPES}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
-      - S3_ENDPOINT
+      - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
       - S3_ACCESS_KEY
       - S3_SECRET
       - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
@@ -577,8 +578,8 @@ services:
       - CHECK_VERSION=false
       - DATABASE_HOST=db
       - DATABASE_NAME=unleash
-      - DATABASE_USERNAME=${DATABASE_USER-postgres}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - DATABASE_USERNAME=${UNLEASH_DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${UNLEASH_DATABASE_PASSWORD-postgres}
       - DATABASE_SSL=false
       - IMPORT_DROP_BEFORE_IMPORT=true
       - IMPORT_FILE=/.unleash/flags.json
@@ -593,7 +594,7 @@ services:
 
   minio:
     container_name: koku-minio
-    image: minio/minio:RELEASE.2023-09-20T22-49-55Z
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
     environment:
       MINIO_ROOT_USER: kokuminioaccess
       MINIO_ROOT_PASSWORD: kokuminiosecret
@@ -615,7 +616,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc config host rm local;
-      /usr/bin/mc config host add --quiet --api s3v4 local $S3_ENDPOINT $S3_ACCESS_KEY $S3_SECRET;
+      /usr/bin/mc config host add --quiet --api s3v4 local $MINIO_ENDPOINT $S3_ACCESS_KEY $S3_SECRET;
       /usr/bin/mc rb --force local/koku-bucket/;
       /usr/bin/mc mb --quiet local/koku-bucket/;
       /usr/bin/mc anonymous set public local/koku-bucket;
@@ -634,17 +635,18 @@ services:
       - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - S3_HOST=koku-minio
-      - S3_PORT=9000
+      - S3_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data}
+      - S3_BUCKET_PATH=data
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
       - DATABASE_NAME=${DATABASE_NAME-hive}
       - DATABASE_USER=${DATABASE_USER-hive}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
+    volumes:
+      - ./dev/containers/hive-metastore/metastore-site.xml:/opt/hive-metastore-bin/conf/metastore-site.xml
     depends_on:
       - db
       - minio
@@ -652,7 +654,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:461-002
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:461-009
     user: root
     ports:
       - 8080:8080
@@ -661,12 +663,16 @@ services:
       - MY_NODE_ID=${MY_NODE_ID-localhost}
       - LOCAL=TRUE
       - TRINO_LOG_LEVEL=${LOG_LEVEL-INFO}
-      - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY-kokuminioaccess}
-      - AWS_SECRET_ACCESS_KEY=${S3_SECRET-kokuminiosecret}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://koku-minio:9000}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - TRINO_S3A_OR_S3=${TRINO_S3A_OR_S3-s3a}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT-http://koku-minio:9000}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID-kokuminioaccess}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY-kokuminiosecret}
+      - AWS_REGION=us-east-1
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
       - DATABASE_NAME=${DATABASE_NAME-postgres}
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
@@ -674,7 +680,8 @@ services:
       - ./dev/containers/trino/etc/config.properties:/etc/trino/config.properties
       - ./dev/containers/trino/etc/jvm.config:/etc/trino/jvm.config
       - ./dev/containers/trino/etc/log.properties:/etc/trino/log.properties
-      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
+      - ./dev/containers/trino/etc/catalog/hive.properties:/etc/trino/catalog/${HIVE_PROPERTIES_FILE-hive.properties}
+      - ./dev/containers/trino/etc/catalog/glue.properties:/etc/trino/catalog/${GLUE_PROPERTIES_FILE-glue.properties}
       - ./dev/containers/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
       - ./dev/containers/trino/data:/data/trino/data
       - ./dev/containers/trino/logs:/data/trino/logs

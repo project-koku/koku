@@ -1,5 +1,5 @@
 -- Populate the daily aggregate line item data
-INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_by_gcp_project_p (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_by_gcp_project_p (
     id,
     cluster_id,
     cluster_alias,
@@ -27,8 +27,8 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_cost_summary_by_
         cast({{gcp_source_uuid}} as uuid) as source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM hive.{{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
-    WHERE gcp_source = {{gcp_source_uuid}}
+    FROM hive.{{schema | sqlsafe}}.{{trino_table | sqlsafe}}
+    WHERE {{column_name | sqlsafe}} = {{gcp_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND invoice_month = {{invoice_month}}
         AND year = {{year}}

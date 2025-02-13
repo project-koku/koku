@@ -10,8 +10,6 @@ import pkgutil
 from functools import cached_property
 
 import pandas as pd
-from dateutil.parser import parse
-from django.conf import settings
 from django_tenants.utils import schema_context
 
 from api.common import log_json
@@ -26,10 +24,12 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import is_tag_processing_disabled
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
@@ -172,6 +172,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
             if not matched_tags and enabled_tags:
                 LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+                # This flag is specifically for disabling trino tag matching for specific customers.
+                if is_tag_processing_disabled(self.schema_name):
+                    LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
+                    return []
                 LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid,
@@ -312,33 +316,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         """Populate cloud_openshift_daily trino table via SQL."""
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
-        if isinstance(start_date, str):
-            start_date = parse(start_date).astimezone(tz=settings.UTC)
-        if isinstance(end_date, str):
-            end_date = parse(end_date).astimezone(tz=settings.UTC)
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
         matched_tags = self.get_matched_tags(ocp_provider_uuids)
         matched_tag_strs = []
         if matched_tags:
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
 
-        verification_tags = []
-        for ocp_provider_uuid in ocp_provider_uuids:
-            matched_tags_result = self.find_openshift_keys_expected_values(
-                start_date, end_date, ocp_provider_uuid, matched_tag_strs
-            )
-            self.db_accessor.populate_ocp_on_cloud_daily_trino(
-                self.provider_uuid, ocp_provider_uuid, start_date, end_date, matched_tags_result
-            )
-            verification_tags.extend(matched_tags_result)
-
-        verification_tags = list(dict.fromkeys(verification_tags))
-        verification_params = {
-            "schema": self.db_accessor.schema,
-            "cloud_source_uuid": self.provider_uuid,
-            "year": year,
-            "month": month,
-            "matched_tag_array": verification_tags,
-        }
-        self.db_accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
+        sql_metadata = SummarySqlMetadata(
+            self.db_accessor.schema, ocp_provider_uuids, self.provider_uuid, start_date, end_date, matched_tag_strs
+        )
+        self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)

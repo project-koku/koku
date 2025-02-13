@@ -684,7 +684,6 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
-    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 WHERE ocp.source = {{ocp_source_uuid}}
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -697,6 +696,9 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.data_transfer_direction IS NULL
     AND ocp.namespace != 'Storage unattributed'
     AND aws.resource_id_matched = True
+    AND aws_disk.year = {{year}}
+    AND aws_disk.month = {{month}}
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
 {% endif %}
 ;
@@ -741,23 +743,28 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
 WITH cte_total_pv_capacity as (
     SELECT
         aws_resource_id,
-        SUM(combined_requests.capacity) as total_pv_capacity
+        SUM(combined_requests.capacity) as total_pv_capacity,
+        count(distinct cluster_id) as cluster_count
     FROM (
         SELECT
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
-            aws.resource_id as aws_resource_id
+            aws.resource_id as aws_resource_id,
+            ocp.cluster_id
         FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
-        ON (aws.usage_start = ocp.usage_start)
-        AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
-        AND ocp.csi_volume_handle is not null
-        AND ocp.csi_volume_handle != ''
+            ON (aws.usage_start = ocp.usage_start)
+            AND strpos(aws.resource_id, ocp.csi_volume_handle) > 0
+            AND ocp.csi_volume_handle is not null
+            AND ocp.csi_volume_handle != ''
         WHERE ocp.year = {{year}}
             AND lpad(ocp.month, 2, '0') = {{month}}
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        GROUP BY ocp.persistentvolume, aws.resource_id
+            AND aws.ocp_source = {{ocp_source_uuid}}
+            AND aws.year = {{year}}
+            AND aws.month = {{month}}
+        GROUP BY ocp.persistentvolume, aws.resource_id, ocp.cluster_id
     ) as combined_requests group by aws_resource_id
 )
 SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will deduplicate
@@ -780,14 +787,14 @@ SELECT  cast(uuid() as varchar) as aws_uuid, -- need a new uuid or it will dedup
     max(aws.unit) as unit,
     cast(NULL as double) as usage_amount,
     max(aws.currency_code) as currency_code,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)  as unblended_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)  as blended_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_blended,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)  as savingsplan_effective_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_savingsplan,
-    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)  as calculated_amortized_cost,
-    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost_amortized,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost) / max(pv_cap.cluster_count)  as unblended_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.unblended_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost) / max(pv_cap.cluster_count)  as blended_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.blended_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_blended,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost) / max(pv_cap.cluster_count)  as savingsplan_effective_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.savingsplan_effective_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_savingsplan,
+    (max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost) / max(pv_cap.cluster_count)  as calculated_amortized_cost,
+    ((max(aws_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(aws_disk.capacity) * max(aws.calculated_amortized_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost_amortized,
     max(aws.resource_id_matched) as resource_id_matched,
     {{ocp_source_uuid}} as ocp_source,
     max(aws.year) as year,
@@ -801,7 +808,6 @@ JOIN hive.{{schema | sqlsafe}}.aws_openshift_daily_resource_matched_temp as aws
 JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
     ON aws_disk.usage_start = aws.usage_start
     AND aws_disk.resource_id = aws.resource_id
-    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 LEFT JOIN cte_total_pv_capacity as pv_cap
     ON pv_cap.aws_resource_id = aws.resource_id
 WHERE ocp.source = {{ocp_source_uuid}}
@@ -816,6 +822,9 @@ WHERE ocp.source = {{ocp_source_uuid}}
     AND aws.data_transfer_direction IS NULL
     AND ocp.namespace != 'Storage unattributed'
     AND aws_disk.capacity != pv_cap.total_pv_capacity -- prevent inserting zero cost rows
+    AND aws_disk.year = {{year}}
+    AND aws_disk.month = {{month}}
+    AND aws_disk.ocp_source = {{ocp_source_uuid}}
 GROUP BY aws.uuid, aws.resource_id
 {% endif %}
 ;
@@ -932,7 +941,9 @@ SELECT aws.uuid as aws_uuid,
     LEFT JOIN hive.{{schema | sqlsafe}}.aws_openshift_disk_capacities_temp AS aws_disk
         ON aws_disk.usage_start = aws.usage_start
         AND aws_disk.resource_id = aws.resource_id
-        AND aws_disk.ocp_source = {{ocp_source_uuid}}
+        AND aws_disk.year = aws.year
+        AND aws_disk.month = aws.month
+        AND aws_disk.ocp_source = aws.ocp_source
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -1126,6 +1137,7 @@ WITH cte_rankings AS (
     SELECT pds.aws_uuid,
         count(*) as aws_uuid_count
     FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+    WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
     GROUP BY aws_uuid
 )
 SELECT pds.aws_uuid,

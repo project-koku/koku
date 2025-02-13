@@ -445,7 +445,6 @@ SELECT cast(uuid() as varchar) as azure_uuid,
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
-        AND az_disk.ocp_source = {{ocp_source_uuid}}
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -458,6 +457,9 @@ SELECT cast(uuid() as varchar) as azure_uuid,
         AND azure.year = {{year}}
         AND azure.month = {{month}}
         AND ocp.namespace != 'Storage unattributed'
+        AND az_disk.year = {{year}}
+        AND az_disk.month = {{month}}
+        AND az_disk.ocp_source = {{ocp_source_uuid}}
     GROUP BY azure.uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
 -- The endif needs to come before the ; when using sqlparse
 {% endif %}
@@ -494,12 +496,14 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
 WITH cte_total_pv_capacity as (
     SELECT
         azure_resource_id,
-        SUM(combined_requests.capacity) as total_pv_capacity
+        SUM(combined_requests.capacity) as total_pv_capacity,
+        count(distinct cluster_id) as cluster_count
     FROM (
         SELECT
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
-            azure.resource_id as azure_resource_id
+            azure.resource_id as azure_resource_id,
+            ocp.cluster_id
         FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN hive.{{schema | sqlsafe}}.azure_openshift_daily_resource_matched_temp as azure
         ON (azure.usage_start = ocp.usage_start)
@@ -512,7 +516,10 @@ WITH cte_total_pv_capacity as (
             AND lpad(ocp.month, 2, '0') = {{month}}
             AND ocp.usage_start >= {{start_date}}
             AND ocp.usage_start < date_add('day', 1, {{end_date}})
-        GROUP BY ocp.persistentvolume, azure.resource_id
+            AND azure.ocp_source = {{ocp_source_uuid}}
+            AND azure.year = {{year}}
+            AND azure.month = {{month}}
+        GROUP BY ocp.persistentvolume, azure.resource_id, ocp.cluster_id
     ) as combined_requests group by azure_resource_id
 )
 SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will deduplicate
@@ -533,8 +540,8 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
         max(nullif(azure.resource_location, '')) as resource_location,
         'GB-Mo' as unit_of_measure, -- Has to have this unit to show up on storage endpoint
         max(azure.currency) as currency,
-        (max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)  as pretax_cost,
-        ((max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
+        (max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost) / max(pv_cap.cluster_count)  as pretax_cost,
+        ((max(az_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(az_disk.capacity) * max(azure.pretax_cost)) * cast({{markup}} as decimal(24,9)) / max(pv_cap.cluster_count) as markup_cost, -- pretax_cost x markup = markup_cost
         max(azure.resource_id_matched) as resource_id_matched,
         {{ocp_source_uuid}} as ocp_source,
         max(azure.year) as year,
@@ -550,7 +557,6 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
     JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp AS az_disk
         ON az_disk.usage_start = azure.usage_start
         AND az_disk.resource_id = azure.resource_id
-        AND az_disk.ocp_source = {{ocp_source_uuid}}
     LEFT JOIN cte_total_pv_capacity as pv_cap
         ON pv_cap.azure_resource_id = azure.resource_id
     WHERE ocp.source = {{ocp_source_uuid}}
@@ -562,6 +568,9 @@ SELECT cast(uuid() as varchar) as azure_uuid, -- need a new uuid or it will dedu
         AND azure.year = {{year}}
         AND azure.month = {{month}}
         AND ocp.namespace != 'Storage unattributed'
+        AND az_disk.year = {{year}}
+        AND az_disk.month = {{month}}
+        AND az_disk.ocp_source = {{ocp_source_uuid}}
     GROUP BY azure.uuid, ocp.data_source, azure.resource_id
 {% endif %}
 ;
@@ -664,9 +673,9 @@ SELECT azure.uuid as azure_uuid,
             )
     LEFT JOIN hive.{{schema | sqlsafe}}.azure_openshift_disk_capacities_temp as disk_cap
         ON azure.resource_id = disk_cap.resource_id
-        AND azure.ocp_source = disk_cap.ocp_source
-        AND azure.year = disk_cap.year
-        AND azure.month = disk_cap.month
+        AND disk_cap.year = azure.year
+        AND disk_cap.month = azure.month
+        AND disk_cap.ocp_source = azure.ocp_source
     WHERE ocp.source = {{ocp_source_uuid}}
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
@@ -812,6 +821,7 @@ WITH cte_rankings AS (
     SELECT pds.azure_uuid,
         count(*) as azure_uuid_count
     FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+    WHERE pds.ocp_source = {{ocp_source_uuid}} AND year = {{year}} AND month = {{month}}
     GROUP BY azure_uuid
 )
 SELECT pds.azure_uuid,

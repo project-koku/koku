@@ -11,7 +11,6 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import relativedelta
-from dateutil.parser import parse
 from django.conf import settings
 from django.db.models import F
 from django.db.models import Max
@@ -30,6 +29,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
@@ -37,8 +37,7 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
-from reporting.provider.aws.models import TRINO_MANAGED_OCP_AWS_DAILY_TABLE
-from reporting.provider.aws.models import TRINO_OCP_ON_AWS_DAILY_TABLE
+from reporting.provider.aws.models import TRINO_OCP_AWS_DAILY_SUMMARY_TABLE
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -175,10 +174,57 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
+    @patch("masu.database.aws_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
+    def test_populate_ocp_on_aws_ui_summary_tables_trino_managed(self, mock_trino, mock_unleash):
+        """Test that Trino is used to populate UI summary."""
+        start_date = datetime.datetime.strptime("2023-05-01", "%Y-%m-%d").date()
+        end_date = datetime.datetime.strptime("2023-05-31", "%Y-%m-%d").date()
+
+        self.accessor.populate_ocp_on_aws_ui_summary_tables_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.aws_provider_uuid,
+        )
+        mock_trino.assert_called()
+
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_aws_cost_daily_summary_trino(self, mock_trino, mock_month_delete, mock_delete):
+        """Test that we construst our SQL and query using Trino."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
+
+        self.accessor.populate_ocp_on_aws_cost_daily_summary_trino(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.aws_provider_uuid,
+            self.ocp_cluster_id,
+            current_bill_id,
+            markup_value,
+            distribution,
+        )
+        mock_trino.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_hive_partition_by_month")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.database.aws_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
+    def test_populate_ocp_on_aws_cost_daily_summary_trino_managed(
+        self, mock_unleash, mock_trino, mock_month_delete, mock_delete
+    ):
         """Test that we construst our SQL and query using Trino."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
@@ -306,7 +352,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -323,7 +369,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+                TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -523,46 +569,22 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
-        start_date = parse("2024-08-01").astimezone(tz=settings.UTC)
-        end_date = parse("2024-08-05").astimezone(tz=settings.UTC)
-        year = "2024"
-        month = "08"
         matched_tags = "fake-tags"
-        expected_days = ("1", "2", "3", "4", "5")
-
-        self.accessor.populate_ocp_on_cloud_daily_trino(
-            self.aws_provider_uuid, self.ocp_provider_uuid, start_date, end_date, matched_tags
+        params = SummarySqlMetadata(
+            self.schema_name,
+            [self.ocp_provider_uuid],
+            self.aws_provider_uuid,
+            "2024-08-01",
+            "2024-08-01",
+            matched_tags,
         )
+        self.accessor.populate_ocp_on_cloud_daily_trino(params)
         mock_partition_delete.assert_called_with(
-            expected_days,
+            params.days_tup,
             self.aws_provider_uuid,
             self.ocp_provider_uuid,
-            year,
-            month,
-            TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
+            params.year,
+            params.month,
+            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
-
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_verify_populate_ocp_on_cloud_daily_trino(self, mock_trino):
-        """
-        Test validating trino tables.
-        """
-        verification_params = {
-            "schema": self.schema,
-            "cloud_source_uuid": self.aws_provider_uuid,
-            "year": "2024",
-            "month": "08",
-            "managed_table": TRINO_MANAGED_OCP_AWS_DAILY_TABLE,
-            "parquet_table": TRINO_OCP_ON_AWS_DAILY_TABLE,
-        }
-        with self.assertLogs("masu.database.aws_report_db_accessor", level="INFO") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
-            assert any(
-                "Verification successful" in log for log in logger.output
-            ), "Verification successful not found in logs"
-
-        mock_trino.side_effect = [[[False]]]
-        with self.assertLogs("masu.database.aws_report_db_accessor", level="ERROR") as logger:
-            self.accessor.verify_populate_ocp_on_cloud_daily_trino(verification_params)
-            assert any("Verification failed" in log for log in logger.output), "Verification failed not found in logs"

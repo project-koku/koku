@@ -104,10 +104,14 @@ def is_managed_ocp_cloud_processing_enabled(account):
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-processing", context)
 
 
-def is_managed_ocp_cloud_summary_enabled(account):
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
+def is_managed_ocp_cloud_summary_enabled(account, provider_type):
+    context = {"provider_type": provider_type}
+    if UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-provider-type", context):
+        account = convert_account(account)
+        context = {"schema": account}
+        return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
+    else:
+        return False
 
 
 def is_source_disabled(source_uuid):  # pragma: no cover
@@ -181,3 +185,10 @@ def is_customer_cost_model_large(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.large-customer-cost-model", context)
+
+
+def is_tag_processing_disabled(account):  # pragma: no cover
+    """Flag the customer as tag processing disabled."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_tag_processing_disabled", context)

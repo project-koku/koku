@@ -54,7 +54,7 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         """Test that the correct table is returned."""
         self.assertEqual(self.processor.postgres_summary_table, GCPCostEntryLineItemDailySummary)
 
-    @patch("masu.processor.gcp.gcp_report_parquet_processor.GCPReportParquetProcessor._execute_sql")
+    @patch("masu.processor.gcp.gcp_report_parquet_processor.GCPReportParquetProcessor._execute_trino_sql")
     def test_create_bill(self, mock_execute_sql):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().this_month_start
@@ -72,7 +72,7 @@ class GCPReportProcessorParquetTest(MasuTestCase):
             )
             self.assertIsNotNone(bill.first())
 
-    @patch("masu.processor.gcp.gcp_report_parquet_processor.GCPReportParquetProcessor._execute_sql")
+    @patch("masu.processor.gcp.gcp_report_parquet_processor.GCPReportParquetProcessor._execute_trino_sql")
     def test_create_bill_with_string_arg(self, mock_execute_sql):
         """Test that a bill is created in the Postgres database."""
         bill_date = DateHelper().this_month_start

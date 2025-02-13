@@ -67,7 +67,7 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
                 AND year = '{bill_date.strftime("%Y")}'
                 AND month = '{bill_date.strftime("%m")}'
         """
-        rows = self._execute_sql(sql, self._schema_name)
+        rows = self._execute_trino_sql(sql, self._schema_name)
         payer_tenant_id = None
         if rows:
             payer_tenant_id = rows[0][0]

@@ -9,6 +9,7 @@ import logging
 import pkgutil
 import uuid
 from os import path
+from typing import Any
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
@@ -23,7 +24,10 @@ from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import is_managed_ocp_cloud_summary_enabled
+from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.models import OCP_ON_GCP_TEMP_MANAGED_TABLES
@@ -32,7 +36,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_TABLE
-from reporting.provider.gcp.models import TRINO_MANAGED_OCP_GCP_DAILY_TABLE
+from reporting.provider.gcp.models import TRINO_OCP_GCP_DAILY_SUMMARY_TABLE
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportStatus
@@ -345,6 +349,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
             matching_type = "tag"
 
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
+            sql_level = "reporting_ocpgcpcostlineitem_project_daily_summary_p"
+
         sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
         sql = sql.decode("utf-8")
         sql_params = {
@@ -391,12 +398,20 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
         invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
+
+        # COST-5881: Remove this when we switch to managed flow
+        trino_table = "reporting_ocpgcpcostlineitem_project_daily_summary"
+        column_name = "gcp_source"
+        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
+            trino_table = "managed_reporting_ocpgcpcostlineitem_project_daily_summary"
+            column_name = "source"
+
         for invoice_month in invoice_month_list:
             for table_name in tables:
                 sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
                 sql = sql.decode("utf-8")
                 sql_params = {
-                    "schema_name": self.schema,
+                    "schema": self.schema,
                     "start_date": start_date,
                     "end_date": end_date,
                     "year": year,
@@ -405,6 +420,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "invoice_month": invoice_month,
                     "gcp_source_uuid": gcp_provider_uuid,
                     "ocp_source_uuid": openshift_provider_uuid,
+                    "trino_table": trino_table,
+                    "column_name": column_name,
                 }
                 self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
@@ -426,7 +443,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
             )
             for day in days:
-                if table == TRINO_MANAGED_OCP_GCP_DAILY_TABLE:
+                if table == TRINO_OCP_GCP_DAILY_SUMMARY_TABLE:
                     column_name = "source"
                 else:
                     column_name = "gcp_source"
@@ -568,63 +585,49 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return False
         return True
 
-    def verify_populate_ocp_on_cloud_daily_trino(self, verification_params):
-        """
-        Verify the managed trino table population went successfully.
-        """
-        verify_path = "trino_sql/verify/gcp/"
-        cost_total_file = verify_path + "managed_ocp_on_gcp_verification.sql"
-        cost_total_sql = pkgutil.get_data("masu.database", cost_total_file)
-        cost_total_sql = cost_total_sql.decode("utf-8")
-        cost_total_result = self._execute_trino_multipart_sql_query(cost_total_sql, bind_params=verification_params)
-        cost_total_inspect = cost_total_result[0]
-        if False in cost_total_inspect:
-            LOG.info(log_json(msg="Cost total validation failed", result=cost_total_inspect))
-            resource_file = verify_path + "managed_resources.sql"
-            resource_sql = pkgutil.get_data("masu.database", resource_file)
-            resource_sql = resource_sql.decode("utf-8")
-            resource_result = self._execute_trino_multipart_sql_query(resource_sql, bind_params=verification_params)
-            if resource_result:
-                # Limit the resources added to the log
-                verification_params["resources_failed"] = resource_result
-                LOG.error(log_json(msg="Verification failed", **verification_params))
-                return
-        LOG.info(log_json(msg="Verification successful", **verification_params))
-
-    def populate_ocp_on_cloud_daily_trino(
-        self, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date, matched_tags
-    ):
-        """Populate the managed_gcp_openshift_daily trino table for OCP on GCP.
-        Args:
-            gcp_provider_uuid (UUID) GCP source UUID.
-            ocp_provider_uuid (UUID) OCP source UUID.
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            matched_tag_strs (str) matching tags.
-        Returns
-            (None)
-        """
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        table = TRINO_MANAGED_OCP_GCP_DAILY_TABLE
-        days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_on_gcp_hive_partition_by_day(
-            days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month, table
+    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
+        """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
+        managed_path = "trino_sql/gcp/openshift/populate_daily_summary/"
+        prepare_sql, prepare_params = sql_metadata.prepare_template(
+            f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
-
-        summary_sql = pkgutil.get_data("masu.database", "trino_sql/gcp/openshift/managed_gcp_openshift_daily.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
-            "schema": self.schema,
-            "start_date": start_date,
-            "year": year,
-            "month": month,
-            "days": days_tup,
-            "end_date": end_date,
-            "gcp_source_uuid": gcp_provider_uuid,
-            "ocp_source_uuid": openshift_provider_uuid,
-            "matched_tag_array": matched_tags,
-        }
-        LOG.info(log_json(msg="running managed OCP on GCP daily SQL", **summary_sql_params))
-        self._execute_trino_multipart_sql_query(summary_sql, bind_params=summary_sql_params)
+        LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
+        self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
+        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
+            with OCPReportDBAccessor(sql_metadata.schema) as accessor:
+                report_period = accessor.report_periods_for_provider_uuid(ocp_provider_uuid, sql_metadata.start_date)
+                ctx = sql_metadata.build_params(["schema", "cloud_provider_uuid", "start_date", "end_date"])
+                ctx["ocp_provider_uuid"] = ocp_provider_uuid
+                if not report_period:
+                    LOG.info(log_json(msg="no report period available", context=ctx))
+                    return
+                report_period_id = report_period.id
+            self.delete_ocp_on_gcp_hive_partition_by_day(
+                sql_metadata.days_tup,
+                sql_metadata.cloud_provider_uuid,
+                ocp_provider_uuid,
+                sql_metadata.year,
+                sql_metadata.month,
+                TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
+            )
+            # Resource Matching
+            resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
+                f"{managed_path}/1_resource_matching_by_cluster.sql",
+                {
+                    "ocp_provider_uuid": ocp_provider_uuid,
+                    "matched_tag_array": self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata),
+                },
+            )
+            self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
+            # Data Transformation for Daily Summary
+            daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
+                f"{managed_path}/2_summarize_data_by_cluster.sql",
+                {
+                    **sql_metadata.build_cost_model_params(ocp_provider_uuid),
+                    **{"ocp_provider_uuid": ocp_provider_uuid, "report_period_id": report_period_id},
+                },
+            )
+            LOG.info(
+                log_json(msg="executing data transformations for ocp on gcp daily summary", **daily_summary_params)
+            )
+            self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)

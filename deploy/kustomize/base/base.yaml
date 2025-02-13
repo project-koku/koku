@@ -73,6 +73,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -109,6 +115,12 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: SCHEMA_SUFFIX
+          value: ${SCHEMA_SUFFIX}
+        - name: TRINO_S3A_OR_S3
+          value: ${TRINO_S3A_OR_S3}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
         - name: MGMT_IMAGE
@@ -119,6 +131,53 @@ objects:
           value: ${TRINO_HOST}
         - name: TRINO_PORT
           value: ${TRINO_PORT}
+    # ====================================================
+    #      Glue Migration Job
+    # ====================================================
+    - name: glue-migration-cji-${GM_IMAGE_TAG}-${GM_INVOCATION}
+      podSpec:
+        image: ${GM_IMAGE}:${GM_IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_KOKU_GM}
+            memory: ${MEMORY_LIMIT_KOKU_GM}
+          requests:
+            cpu: ${CPU_REQUEST_KOKU_GM}
+            memory: ${MEMORY_REQUEST_KOKU_GM}
+        args:
+        - /bin/bash
+        - -c
+        - ${GM_COMMAND}
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: HIVE_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              key: database_name
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: HIVE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: database_user
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: HIVE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: database_password
+              name: ${HIVE_DB_SECRET_NAME}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: ${AWS_SECRET_NAME}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: ${AWS_SECRET_NAME}
+        machinePool: ${MACHINE_POOL_OPTION}
+
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
@@ -147,31 +206,24 @@ objects:
     jobs:
       - management-command-cji-${MGMT_IMAGE_TAG}-${MGMT_INVOCATION}
 
+# ====================================================
+#      Glue Migration CJI
+# ====================================================
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: glue-migration-cji-${GM_IMAGE_TAG}-${GM_INVOCATION}
+  spec:
+    appName: koku
+    jobs:
+      - glue-migration-cji-${GM_IMAGE_TAG}-${GM_INVOCATION}
+
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
     name: koku-secret
   data:
     django-secret-key: "${SECRET_KEY}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-aws
-  data:
-    aws-credentials: "${AWS_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-gcp
-  data:
-    gcp-credentials: "${GCP_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-oci
-  data:
-    oci-credentials: "${OCI_CREDENTIALS_EPH}"
-    oci-config: "${OCI_CONFIG_EPH}"
 
 - apiVersion: v1
   kind: ConfigMap
@@ -275,12 +327,17 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: SCHEMA_SUFFIX
+  description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral testing
+  value: ""
+- name: TRINO_S3A_OR_S3
+  value: "s3a"
 - name: S3_BUCKET_NAME
-  value: koku-eph-s3
+  value: hccm-eph-s3
 - name: S3_ROS_BUCKET_NAME
-  value: ros-eph-s3
+  value: hccm-ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
-  value: subs-eph-s3
+  value: hccm-subs-eph-s3
 - name: AWS_SHARED_CREDENTIALS_FILE
   value: "/etc/aws/aws-credentials"
 - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -368,6 +425,30 @@ parameters:
   required: true
   value: "10m"
 
+- name: GM_IMAGE_TAG
+  value: latest
+- name: GM_IMAGE
+  value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- name: GM_INVOCATION
+  value: "00"
+- name: GM_COMMAND
+  value: "echo 'No Command to Run'"
+  # python scripts/hive-migration-polars.py
+- name: HIVE_DB_SECRET_NAME
+  value: hive-db
+- name: AWS_SECRET_NAME
+  value: koku-aws
+- name: MACHINE_POOL_OPTION
+  value: ''
+- name: CPU_LIMIT_KOKU_GM
+  value: "10m"
+- name: MEMORY_LIMIT_KOKU_GM
+  value: 20Mi
+- name: CPU_REQUEST_KOKU_GM
+  value: "10m"
+- name: MEMORY_REQUEST_KOKU_GM
+  value: 20Mi
+
 - displayName: App domain
   name: APP_DOMAIN
   value: project-koku.com
@@ -423,10 +504,6 @@ parameters:
   name: KOKU_ENABLE_SENTRY
   value: "False"
 
-- description: Enable S3 Archiving
-  displayName: Enable S3 Archiving
-  name: ENABLE_S3_ARCHIVING
-  value: "false"
 - description: How many CSV rows to process into a Parquet file
   displayName: Parquet processing batch size
   name: PARQUET_PROCESSING_BATCH_SIZE
@@ -601,22 +678,6 @@ parameters:
   required: true
   from: "[a-f0-9]{20}"
   generate: expression
-- displayName: AWS credentials file
-  name: AWS_CREDENTIALS_EPH
-  required: true
-  value: W2RlZmF1bHRdCmF3c19hY2Nlc3Nfa2V5X2lkPUFXU19BQ0NFU1NfS0VZX0lECmF3c19zZWNyZXRfYWNjZXNzX2tleT1BV1NfU0VDUkVUX0FDQ0VTU19LRVkK
-- name: GCP_CREDENTIALS_EPH
-  displayName: GCP Credentials (Ephemeral)
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CREDENTIALS_EPH
-  displayName: OCI Credentials (Ephemeral)
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CONFIG_EPH
-  displayName: OCI Config (Ephemeral)
-  required: true
-  value: W0RFRkFVTFRdCnVzZXI9b2NpZDEudXNlci5pZApmaW5nZXJwcmludD0wMDAwMDAwMDAwMDAwMDAwMAp0ZW5hbmN5PW9jaWQxLnRlbmFuY3kuaWQK
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN

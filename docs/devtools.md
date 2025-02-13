@@ -76,7 +76,6 @@ S3_BUCKET_NAME=koku-bucket
 S3_ENDPOINT=http://kokuminio:9000
 S3_ACCESS_KEY=kokuminioaccess
 S3_SECRET=kokuminiosecret
-S3_BUCKET_PATH=data
 TRINO_DATE_STEP=31
 ```
 

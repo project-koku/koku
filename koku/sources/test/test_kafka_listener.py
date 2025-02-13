@@ -9,6 +9,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import requests_mock
+from confluent_kafka import KafkaError
+from confluent_kafka import KafkaException
 from django.db import IntegrityError
 from django.db import InterfaceError
 from django.db import OperationalError
@@ -16,7 +18,6 @@ from django.db.models.signals import post_save
 from django.forms.models import model_to_dict
 from django.test.utils import override_settings
 from faker import Faker
-from kafka.errors import KafkaError
 from rest_framework.exceptions import ValidationError
 
 import sources.kafka_listener as source_integration
@@ -59,7 +60,6 @@ from sources.test.test_kafka_message_processor import SOURCE_TYPE_IDS_MAP
 from sources.test.test_sources_http_client import COST_MGMT_APP_TYPE_ID
 from sources.test.test_sources_http_client import MOCK_PREFIX
 from sources.test.test_sources_http_client import MOCK_URL
-
 
 faker = Faker()
 FAKE_AWS_ARN = "arn:aws:iam::111111111111:role/CostManagement"
@@ -106,7 +106,7 @@ class MockKafkaConsumer:
     def getone(self):
         for msg in self.preloaded_messages:
             return msg
-        raise KafkaError("Closing Mock Consumer")
+        raise KafkaException(KafkaError._PARTITION_EOF)
 
     def __aiter__(self):
         return self

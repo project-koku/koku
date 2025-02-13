@@ -25,7 +25,6 @@ from masu.prometheus_stats import RHEL_ELS_SYSTEMS_PROCESSED
 from masu.prometheus_stats import RHEL_ELS_VCPU_HOURS
 from masu.util.aws.common import get_s3_resource
 
-
 LOG = logging.getLogger(__name__)
 
 HPC_ROLE = "Red Hat Enterprise Linux Compute Node"
@@ -51,7 +50,10 @@ class SUBSDataMessenger:
         self.tracing_id = tracing_id
         self.schema_name = schema_name
         self.s3_resource = get_s3_resource(
-            settings.S3_SUBS_ACCESS_KEY, settings.S3_SUBS_SECRET, settings.S3_SUBS_REGION
+            access_key=settings.S3_SUBS_ACCESS_KEY,
+            secret_key=settings.S3_SUBS_SECRET,
+            region=settings.S3_SUBS_REGION,
+            endpoint_url=settings.S3_SUBS_ENDPOINT,
         )
         subs_cust = Customer.objects.get(schema_name=schema_name)
         self.account_id = subs_cust.account_id

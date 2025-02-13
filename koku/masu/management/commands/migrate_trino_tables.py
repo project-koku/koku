@@ -66,10 +66,18 @@ MANAGED_TABLES = {
     "reporting_ocpgcpcostlineitem_project_daily_summary",
     "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
     "reporting_ocpusagelineitem_daily_summary",
-    "azure_openshift_disk_capacities_temp",
     "aws_openshift_disk_capacities_temp",
-    "managed_aws_openshift_daily",
-    "managed_azure_openshift_daily",
+    "managed_aws_openshift_daily_temp",
+    "managed_aws_openshift_disk_capacities_temp",
+    "managed_aws_uuid_temp",
+    "managed_reporting_ocpawscostlineitem_project_daily_summary",
+    "managed_reporting_ocpawscostlineitem_project_daily_summary_temp",
+    "azure_openshift_disk_capacities_temp",
+    "managed_azure_openshift_daily_temp",
+    "managed_azure_openshift_disk_capacities_temp",
+    "managed_azure_uuid_temp",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp",
     "managed_gcp_openshift_daily",
 }
 
@@ -89,8 +97,15 @@ manage_table_mapping = {
     "reporting_ocpusagelineitem_daily_summary": "source",
     "azure_openshift_disk_capacities_temp": "ocp_source",
     "aws_openshift_disk_capacities_temp": "ocp_source",
-    "managed_aws_openshift_daily": "ocp_source",
-    "managed_azure_openshift_daily": "ocp_source",
+    "managed_aws_openshift_daily_temp": "ocp_source",
+    "managed_aws_openshift_disk_capacities_temp": "ocp_source",
+    "managed_aws_uuid_temp": "ocp_source",
+    "managed_reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
+    "managed_reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",
+    "managed_azure_openshift_daily_temp": "ocp_source",
+    "managed_azure_openshift_disk_capacities_temp": "ocp_source",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
+    "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
     "managed_gcp_openshift_daily": "ocp_source",
 }
 
@@ -342,7 +357,7 @@ def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
                 return cur.fetchall()
         except TrinoExternalError as err:
             if err.error_name == "HIVE_METASTORE_ERROR" and n < (retries):
-                LOG.warn(
+                LOG.warning(
                     f"{err.message}. Attempt number {attempt} of {retries} failed. "
                     f"Trying {remaining_retries} more time{'s' if remaining_retries > 1 else ''} "
                     f"after waiting {wait:.2f}s."

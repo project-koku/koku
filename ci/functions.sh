@@ -94,33 +94,27 @@ function run_smoke_tests_stage() {
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration ${RESERVATION_TIMEOUT})
 
-    oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
-    oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
-    oc get secret/koku-oci -o json -n ephemeral-base | jq -r '.data' > oci-creds.json
-
-    AWS_CREDENTIALS_EPH=$(jq -r '."aws-credentials"' < aws-creds.json)
-    GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
-    OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
-    OCI_CONFIG_EPH=$(jq -r '."oci-config"' < oci-creds.json)
+    oc get secret koku-aws -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
+    oc get secret koku-gcp -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
+    oc get secret koku-oci -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
 
     bonfire deploy \
         ${APP_NAME} \
         --ref-env insights-production \
-        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
+        --set-template-ref ${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
         ${COMPONENTS_RESOURCES_ARG} \
         --optional-deps-method hybrid \
         --set-parameter rbac/MIN_REPLICAS=1 \
-        --set-parameter koku/AWS_CREDENTIALS_EPH=${AWS_CREDENTIALS_EPH} \
-        --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
-        --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
-        --set-parameter koku/OCI_CONFIG_EPH=${OCI_CONFIG_EPH} \
         --set-parameter koku/DBM_IMAGE=${IMAGE} \
         --set-parameter koku/DBM_IMAGE_TAG=${IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --set-parameter koku/IMAGE=${IMAGE} \
+        --set-parameter koku/SCHEMA_SUFFIX=_${IMAGE_TAG}_${BUILD_NUMBER} \
+        --set-parameter trino/HIVE_PROPERTIES_FILE=glue.properties \
+        --set-parameter trino/GLUE_PROPERTIES_FILE=hive.properties \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
@@ -178,12 +172,14 @@ function run_build_image_stage() {
 }
 
 function wait_for_image() {
-    echo "Waiting for initial image build..."
-    sleep 180
+    if ! [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?specificTag=${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; then
+        echo "Waiting for initial image build..."
+        sleep 180
+    fi
 
     local count=0
     local max=60  # Try for up to 30 minutes
-    until podman image search --limit 500 --list-tags "${IMAGE}" | grep -q "${IMAGE_TAG}"; do
+    until [[ $(curl -k -XGET "https://quay.io/api/v1/repository/redhat-user-workloads/cost-mgmt-dev-tenant/koku/tag?specificTag=${IMAGE_TAG}" -Ls | jq '.tags | length') -gt 0  ]]; do
         echo "${count}: Checking for image ${IMAGE}:${IMAGE_TAG}..."
         sleep 30
         ((count+=1))

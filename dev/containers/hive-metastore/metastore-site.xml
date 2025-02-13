@@ -1,0 +1,116 @@
+
+<configuration>
+<property>
+    <name>metastore.thrift.port</name>
+    <value>8000</value>
+    <description>Hive metastore listener port</description>
+</property>
+<property>
+    <name>metastore.thrift.uris</name>
+    <value>thrift://${env.HOSTNAME}:8000</value>
+    <description>Thrift URI for the remote metastore. Used by metastore client to connect to remote metastore.</description>
+</property>
+<property>
+    <name>metastore.metrics.enabled</name>
+    <value>true</value>
+    <description>Enable metrics on the metastore.</description>
+</property>
+<property>
+    <name>metastore.metrics.reporters</name>
+    <value>jmx</value>
+    <description>A comma separated list of metrics reporters to start</description>
+</property>
+<property>
+    <name>datanucleus.autoStartMechanismMode</name>
+    <value>ignored</value>
+    <description>Autostart mechanism for datanucleus.  Currently ignored is the only option supported.</description>
+</property>
+<property>
+    <name>datanucleus.schema.autoCreateAll</name>
+    <value>false</value>
+    <description>Auto creates necessary schema on a startup if one doesn't exist. Set this to false, after creating it once.To enable auto create also set hive.metastore.schema.verification=false. Auto creation is not recommended for production use cases, run schematool command instead.</description>
+</property>
+<property>
+    <name>metastore.schema.verification</name>
+    <value>true</value>
+    <description>
+    Enforce metastore schema version consistency.
+    True: Verify that version information stored in is compatible with one from Hive jars.  Also disable automatic
+            schema migration attempt. Users are required to manually migrate schema after Hive upgrade which ensures
+            proper metastore schema migration. (Default)
+    False: Warn if the version information stored in metastore doesn't match with one from in Hive jars.
+    </description>
+</property>
+<property>
+    <name>hive.default.fileformat</name>
+    <value>Parquet</value>
+</property>
+<property>
+    <name>fs.s3a.endpoint</name>
+    <description>AWS S3 endpoint to connect to.</description>
+    <value>${env.S3_ENDPOINT}</value>
+</property>
+<property>
+    <name>fs.s3a.access.key</name>
+    <description>AWS access key ID.</description>
+    <value>${env.S3_ACCESS_KEY}</value>
+</property>
+<property>
+    <name>fs.s3a.secret.key</name>
+    <description>AWS secret key.</description>
+    <value>${env.S3_SECRET}</value>
+</property>
+<property>
+    <name>fs.s3a.path.style.access</name>
+    <value>true</value>
+    <description>Enable S3 path style access.</description>
+</property>
+<property>
+    <name>metastore.warehouse.dir</name>
+    <value>s3a://${env.S3_BUCKET_NAME}/${env.S3_BUCKET_PATH}/</value>
+</property>
+<property>
+    <name>hive.metastore.db.type</name>
+    <value>postgres</value>
+    <description>
+    Expects one of [derby, oracle, mysql, mssql, postgres].
+    Type of database used by the metastore. Information schema &amp; JDBCStorageHandler depend on it.
+    </description>
+</property>
+<property>
+    <name>javax.jdo.option.ConnectionUserName</name>
+    <value>${env.DATABASE_USER}</value>
+    <description>Username to use against metastore database</description>
+</property>
+<property>
+    <name>javax.jdo.option.ConnectionPassword</name>
+    <value>${env.DATABASE_PASSWORD}</value>
+    <description>password to use against metastore database</description>
+</property>
+<property>
+    <name>javax.jdo.option.ConnectionURL</name>
+    <value>jdbc:postgresql://${env.POSTGRES_SQL_SERVICE_HOST}:${env.POSTGRES_SQL_SERVICE_PORT}/${env.DATABASE_NAME}?sslmode=prefer</value>
+    <description>
+    JDBC connect string for a JDBC metastore.
+    To use SSL to encrypt/authenticate the connection, provide database-specific SSL flag in the connection URL.
+    For example, jdbc:postgresql://myhost/db?ssl=true for postgres database.
+    </description>
+</property>
+<property>
+    <name>javax.jdo.option.ConnectionDriverName</name>
+    <value>org.postgresql.Driver</value>
+    <description>Driver class name for a JDBC metastore</description>
+</property>
+<property>
+    <name>hive.cluster.delegation.token.store.class</name>
+    <value>org.apache.hadoop.hive.thrift.DBTokenStore</value>
+</property>
+<property>
+    <name>metastore.task.threads.always</name>
+    <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask</value>
+</property>
+<property>
+    <name>metastore.expression.proxy</name>
+    <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
+</property>
+</configuration>

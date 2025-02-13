@@ -75,7 +75,9 @@ values (cast(uuid() as varchar), 10, 'default');
 insert into hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} (id, i_data, t_data)
 values (cast(uuid() as varchar), {{int_data}}, {{txt_data}});
 
-select t_data from hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}} where i_data = {{int_data}};
+select t_data
+    from hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}}
+where i_data = {{int_data}};
 
 drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
 """

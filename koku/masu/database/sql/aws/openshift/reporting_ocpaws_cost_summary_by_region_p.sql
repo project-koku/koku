@@ -1,4 +1,4 @@
-INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_by_region_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpaws_cost_summary_by_region_p (
     id,
     usage_start,
     usage_end,
@@ -34,7 +34,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_by_region_p 
         sum(markup_cost_savingsplan),
         max(currency_code),
         {{source_uuid}}::uuid
-    FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
+    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND cluster_id = {{cluster_id}}

@@ -112,25 +112,15 @@ class OrchestratorTest(MasuTestCase):
             self.assertIn(expected_result, captured_logs.output[0])
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.orchestrator.remove_expired_data.apply_async", return_value=True)
-    def test_remove_expired_report_data(self, mock_task, mock_remover, mock_inspect):
+    @patch("masu.processor.orchestrator.remove_expired_data.delay", return_value=True)
+    def test_remove_expired_report_data(self, mock_task, mock_inspect):
         """Test removing expired report data."""
-        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
-        mock_remover.return_value = expected_results
-
-        expected = (
-            "INFO:masu.processor.orchestrator:Expired data removal queued - schema_name: org1234567, Task ID: {}"
-        )
-        # unset disabling all logging below CRITICAL from masu/__init__.py
-        logging.disable(logging.NOTSET)
-        with self.assertLogs("masu.processor.orchestrator", level="INFO") as logger:
-            orchestrator = Orchestrator()
-            results = orchestrator.remove_expired_report_data()
-            self.assertTrue(results)
-            self.assertEqual(len(results), 8)
-            async_id = results.pop().get("async_id")
-            self.assertIn(expected.format(async_id), logger.output)
+        orchestrator = Orchestrator()
+        results = orchestrator.remove_expired_report_data()
+        self.assertTrue(results)
+        self.assertEqual(
+            len(results), Provider.objects.order_by().distinct("type").count()
+        )  # number of distinct provider types
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(ExpiredDataRemover, "remove")
