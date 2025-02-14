@@ -1,5 +1,6 @@
 import json
 import logging
+from uuid import uuid4
 
 import ciso8601
 import pandas as pd
@@ -122,6 +123,8 @@ class AzurePostProcessor:
             if pd.notnull(tags_json):
                 unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
+        # Add a unique identifer that we can use for deduplicating
+        data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(data_frame))]
         return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):

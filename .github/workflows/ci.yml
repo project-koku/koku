@@ -15,7 +15,7 @@ permissions:
 jobs:
   sanity:
     name: Sanity
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Harden Runner
@@ -41,7 +41,7 @@ jobs:
 
   smokes-labeler:
     name: Smoke Test Label
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     permissions:
       contents: read
@@ -151,7 +151,7 @@ jobs:
 
   changed-files:
     name: Detect changed files
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     outputs:
       run_tests: ${{ steps.check-files-or-fork.outputs.run_tests }}
 
@@ -195,7 +195,7 @@ jobs:
   units:
     name: Units - ${{ matrix.python-version }}
     needs: changed-files
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -304,7 +304,7 @@ jobs:
   coverage:
     name: Coverage
     needs: [ changed-files,units ]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       statuses: write
