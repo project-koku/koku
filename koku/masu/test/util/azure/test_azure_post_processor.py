@@ -41,11 +41,12 @@ class TestAzurePostProcessor(MasuTestCase):
 
         with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
             result, _ = self.post_processor.process_dataframe(df)
-            columns = list(result)
-            expected_columns = sorted(
-                col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_REQUIRED_COLUMNS
-            )
-            self.assertEqual(sorted(columns), sorted(expected_columns))
+        columns = list(result)
+        expected_columns = sorted(
+            col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_REQUIRED_COLUMNS
+        )
+        expected_columns.append("row_uuid")
+        self.assertEqual(sorted(columns), sorted(expected_columns))
 
     def test_azure_process_dataframe_mapped_cols(self):
         """Test that we end up with a dataframe with mapped column names."""
@@ -66,16 +67,17 @@ class TestAzurePostProcessor(MasuTestCase):
         with patch("masu.util.azure.azure_post_processor.AzurePostProcessor._generate_daily_data"):
             result, _ = self.post_processor.process_dataframe(df)
             columns = list(result)
-            expected_columns = sorted(
-                col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_REQUIRED_COLUMNS
-            )
-            self.assertEqual(sorted(columns), sorted(expected_columns))
-            self.assertIsNone(result.get("resourceGroupName"))
-            self.assertEqual(result.get("resourcegroup").iloc[0], expected_rg)
-            self.assertIsNone(result.get("InstanceName"))
-            self.assertEqual(result.get("resourceid").iloc[0], expected_resource_id)
-            self.assertIsNone(result.get("resourceGroupName"))
-            self.assertEqual(result.get("productname").iloc[0], expected_product)
+        expected_columns = sorted(
+            col.replace("-", "_").replace("/", "_").replace(":", "_").lower() for col in TRINO_REQUIRED_COLUMNS
+        )
+        expected_columns.append("row_uuid")
+        self.assertEqual(sorted(columns), sorted(expected_columns))
+        self.assertIsNone(result.get("resourceGroupName"))
+        self.assertEqual(result.get("resourcegroup").iloc[0], expected_rg)
+        self.assertIsNone(result.get("InstanceName"))
+        self.assertEqual(result.get("resourceid").iloc[0], expected_resource_id)
+        self.assertIsNone(result.get("resourceGroupName"))
+        self.assertEqual(result.get("productname").iloc[0], expected_product)
 
     def test_azure_date_converter(self):
         """Test that we convert the new Azure date format."""
