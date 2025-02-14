@@ -35,7 +35,7 @@ pipeline {
         PRESERVE_IMAGE_TAG="True"
         DBM_IMAGE="${IMAGE}"
         DBM_INVOCATION=sh(script: "echo \$((RANDOM%100))", returnStdout: true).trim()
-        COMPONENTS="hive-metastore koku trino"  // specific components to deploy (optional, default: all)
+        COMPONENTS="koku trino"  // specific components to deploy (optional, default: all)
 
         LABELS_DIR="${WORKSPACE}/github_labels"
         ARTIFACTS_DIR="${WORKSPACE}/artifacts"

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for trino query endpoint."""
-# flake8: noqa
 import logging
 
 import requests
@@ -40,12 +39,13 @@ def trino_query(request):
         if schema_name is None:
             errmsg = "Must provide a schema key to run."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-        lowered_query = query.lower()
-        dissallowed_keywords = ["delete", "insert", "update", "alter", "create", "drop", "grant"]
-        for keyword in dissallowed_keywords:
-            if keyword in lowered_query:
-                errmsg = f"This endpoint does not allow a {keyword} operation to be performed."
-                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+        lowered_query = set(query.lower().split(" "))
+        dissallowed_keywords = {"delete", "insert", "update", "alter", "create", "drop", "grant"}
+
+        if keywords := dissallowed_keywords.intersection(lowered_query):
+            errmsg = f"This endpoint does not allow a {keywords.pop()} operation to be performed."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         msg = f"Running Trino query: {query}"
         LOG.info(msg)
