@@ -17,14 +17,6 @@ apps:
       path: deploy/clowdapp.yaml
       ref: main
 
-    - name: hive-metastore
-      host: github
-      repo: redhatinsights/ubi-hive
-      path: deploy/clowdapp.yaml
-      ref: main
-      parameters:
-        IMAGE_TAG: 3.1.2-metastore-006
-        S3_BUCKET_NAME: hccm-eph-s3
     - name: trino
       host: github
       repo: redhatinsights/ubi-trino
