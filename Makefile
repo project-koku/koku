@@ -1,13 +1,7 @@
-# OpenShift settings
-OC_VERSION	= v3.11
-OC_DATA_DIR	= ${HOME}/.oc/openshift.local.data
-OC_SOURCE	= registry.access.redhat.com/openshift3/ose
-
-# PostgreSQL settings
-PGSQL_VERSION   = 9.6
+UV_ENV_FILE = .env
 
 # Basic environment settings
-PYTHON	= $(shell which python)
+PYTHON	= $(shell which uv) run --
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 SCRIPTDIR = $(TOPDIR)/dev/scripts
@@ -238,7 +232,7 @@ reset-db-statistics:
 	@echo "Statistics have been reset"
 
 requirements:
-	pipenv lock
+	uv lock
 
 run-migrations:
 	scripts/run_migrations.sh $(applabel) $(migration)
