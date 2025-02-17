@@ -432,6 +432,11 @@ class OCPVirtualMachineSummaryP(models.Model):
     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     raw_currency = models.TextField(null=True)
