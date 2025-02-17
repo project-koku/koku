@@ -86,7 +86,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
     year,
     month
 )
-SELECT azure.row_uuid as row_uuid,
+SELECT cast(uuid() as varchar) as row_uuid,
     max(ocp.cluster_id) as cluster_id,
     max(ocp.cluster_alias) as cluster_alias,
     'Storage' as data_source,
