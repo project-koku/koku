@@ -411,7 +411,15 @@ class OCPVirtualMachineSummaryP(models.Model):
             models.Index(fields=["vm_name"], name="ocp_vm_summ_vm_name"),
             GinIndex(fields=["pod_labels"], name="ocp_vm_summ_pod_labels_idx"),
         ]
-        unique_together = ("usage_start", "cluster_id", "namespace", "node", "vm_name", "cost_model_rate_type")
+        unique_together = (
+            "usage_start",
+            "cluster_id",
+            "namespace",
+            "node",
+            "vm_name",
+            "cost_model_rate_type",
+            "persistentvolumeclaim",
+        )
 
     id = models.UUIDField(primary_key=True)
 

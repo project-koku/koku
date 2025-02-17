@@ -85,16 +85,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": source_uuid,
+        }
         for table_name in tables:
             sql = pkgutil.get_data("masu.database", f"sql/openshift/{table_name}.sql")
             sql = sql.decode("utf-8")
-            sql_params = {
-                "start_date": start_date,
-                "end_date": end_date,
-                "schema": self.schema,
-                "source_uuid": source_uuid,
-            }
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
+
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p.sql")
+        sql = sql.decode("utf-8")
+        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.
