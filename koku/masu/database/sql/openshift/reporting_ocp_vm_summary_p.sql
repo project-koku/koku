@@ -6,7 +6,7 @@ WHERE usage_start >= {{start_date}}::date
 
 WITH second_to_last_day AS (
     SELECT DISTINCT usage_start::date AS day
-    FROM reporting_ocpusagelineitem_daily_summary
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
@@ -93,4 +93,83 @@ WHERE usage_start >= {{start_date}}::date
         + COALESCE(infrastructure_raw_cost, 0)
         + COALESCE(infrastructure_markup_cost, 0)) != 0
 GROUP BY cluster_alias, cluster_id, namespace, latest.node_name, vm_name, cost_model_rate_type, latest.labels
+;
+
+WITH second_to_last_day AS (
+    SELECT DISTINCT usage_start::date AS day
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+    WHERE usage_start >= {{start_date}}::date
+        AND usage_start <= {{end_date}}::date
+        AND source_uuid = {{source_uuid}}
+        AND pod_request_cpu_core_hours IS NOT NULL
+    ORDER BY day DESC
+    OFFSET 1 LIMIT 1  -- Get the second-to-last day
+),
+cte_distribution_type AS (
+    SELECT
+        {{source_uuid}}::uuid as source_uuid,
+        cm.distribution as dt
+    FROM {{schema | sqlsafe}}.cost_model_map as cmm
+    JOIN {{schema | sqlsafe}}.cost_model as cm
+        ON cmm.cost_model_id = cm.uuid
+    WHERE cmm.provider_uuid = {{source_uuid}}
+),
+cte_latest_resources AS (
+    SELECT DISTINCT ON (vm_name)
+        all_labels->>'vm_kubevirt_io_name' AS vm_name,
+        pod_request_cpu_core_hours AS cpu_request_hours,
+        pod_request_memory_gigabyte_hours AS memory_request_hours,
+        CASE WHEN cte_distribution_type.dt = 'cpu'
+            THEN pod_effective_usage_cpu_core_hours / node_capacity_cpu_core_hours
+            ELSE pod_effective_usage_memory_gigabyte_hours / node_capacity_memory_gigabyte_hours
+        END as ratio,
+        node as node_name,
+        namespace as namespace_name,
+        pod_labels as labels
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    JOIN cte_distribution_type
+        ON cte_distribution_type.source_uuid = ocp.source_uuid
+    WHERE usage_start::date = (SELECT day FROM second_to_last_day)
+        AND pod_request_cpu_core_hours IS NOT NULL
+        AND all_labels ? 'vm_kubevirt_io_name'
+    ORDER BY vm_name, usage_start DESC
+)
+INSERT INTO {{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
+    id,
+    cluster_alias,
+    cluster_id,
+    namespace,
+    node,
+    vm_name,
+    cost_model_rate_type,
+    distributed_cost,
+    pod_labels,
+    raw_currency,
+    resource_ids,
+    usage_start,
+    usage_end,
+    source_uuid
+)
+SELECT
+    uuid_generate_v4() as id,
+    cluster_alias,
+    cluster_id,
+    namespace,
+    latest.node_name as node,
+    latest.labels->>'vm_kubevirt_io_name' as vm_name,
+    'distributed_rates' as cost_model_rate_type,
+    sum(distributed_cost) * latest.ratio as distributed_cost,
+    latest.labels as pod_labels,
+    max(raw_currency) as raw_currency,
+    array_agg(DISTINCT resource_id) as resource_ids,
+    min(usage_start) as usage_start,
+    max(usage_start) as usage_end,
+    {{source_uuid}}::uuid as source_uuid
+FROM org1234567_mskarbek.reporting_ocpusagelineitem_daily_summary as ocp
+JOIN cte_latest_resources as latest
+    ON latest.node_name = ocp.node AND latest.namespace_name = ocp.namespace
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND source_uuid = {{source_uuid}}
+GROUP BY cluster_alias, cluster_id, namespace, latest.node_name, latest.ratio, vm_name, latest.labels
 ;
