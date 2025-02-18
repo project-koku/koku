@@ -98,6 +98,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p.sql")
         sql = sql.decode("utf-8")
+        sql_params["year"] = start_date.strftime("%Y")
+        sql_params["month"] = start_date.strftime("%m")
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
