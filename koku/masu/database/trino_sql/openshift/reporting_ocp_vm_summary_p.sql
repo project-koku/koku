@@ -1,3 +1,6 @@
+-- When debugging you can add
+-- pod_usage.namespace, pod_usage.node, pod_usage.pod, pod_usage.pod_labels,
+-- to the storage info select
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     id,
     cluster_alias,
@@ -23,41 +26,35 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     persistentvolumeclaim_usage_gigabyte_months,
     storageclass
 )
-with cte_vm_names as (
-    select
-        vm_name,
-        CONCAT('vm_kubevirt_io_name": "', vm_name) as substring
-    from postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p
-    WHERE usage_start >= DATE({{start_date}})
-        AND usage_start <= date({{end_date}})
-        AND source_uuid = {{source_uuid}}
-    group by vm_name
-),
-cte_persistent_storage_info as (
+WITH storage_info AS (
     SELECT
         storage.persistentvolumeclaim,
-        storage.pod,
-        pod_usage.vm_name
-    FROM openshift_storage_usage_line_items_daily storage
-    JOIN (
-            SELECT
-                pod,
-                vm.vm_name
-            FROM openshift_pod_usage_line_items_daily
-            JOIN cte_vm_names as vm
-                ON strpos(lower(pod_labels), vm.substring) != 0
-            WHERE pod_labels IS NOT NULL
-                AND pod_labels != ''
-                AND source = CAST({{source_uuid}} as varchar)
-                AND month = {{month}}
-                AND year = {{year}}
-            GROUP BY pod, vm.vm_name
-        ) pod_usage
-    ON storage.pod = pod_usage.pod
-    WHERE storage.month = {{month}}
-        AND storage.year = {{year}}
-        AND storage.source = CAST({{source_uuid}} as varchar)
-    GROUP BY storage.persistentvolumeclaim, storage.pod, pod_usage.vm_name
+        vm.vm_name
+    FROM openshift_pod_usage_line_items_daily AS pod_usage
+    INNER JOIN openshift_storage_usage_line_items_daily as storage
+        ON pod_usage.pod = storage.pod
+        AND pod_usage.year = storage.year
+        AND pod_usage.month = storage.month
+        AND pod_usage.source = storage.source
+    INNER JOIN (
+        select
+            vm_name,
+            CONCAT('vm_kubevirt_io_name": "', vm_name) as substring
+        from postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p
+        WHERE usage_start >= {{start_date}}
+            AND usage_start <= {{end_date}}
+            AND source_uuid = {{source_uuid}}
+        group by vm_name
+    ) vm
+        ON strpos(lower(pod_labels), vm.substring) != 0
+    WHERE storage.persistentvolumeclaim IS NOT NULL
+        AND storage.persistentvolumeclaim != ''
+        AND pod_usage.year = {{year}}
+        AND pod_usage.month = {{month}}
+        AND pod_usage.source = CAST({{source_uuid}} as varchar)
+        AND pod_usage.pod_labels != ''
+        AND pod_usage.pod_labels IS NOT NULL
+    GROUP BY storage.persistentvolumeclaim, vm_name
 )
 SELECT uuid() as id,
     cluster_alias,
@@ -83,7 +80,7 @@ SELECT uuid() as id,
     max(ocp.persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months,
     max(ocp.storageclass) as storageclass
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-INNER JOIN cte_persistent_storage_info as storage
+JOIN storage_info AS storage
     ON storage.persistentvolumeclaim = ocp.persistentvolumeclaim
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
