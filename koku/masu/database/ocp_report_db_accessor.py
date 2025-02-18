@@ -402,6 +402,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         key_to_file_mapping = {
             metric_constants.PLATFORM_COST: ("distribute_platform_cost.sql", False),
             metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
+            metric_constants.NODE_ASSIGNED_COST: ("distribute_node_assigned_cost.sql", True),
             metric_constants.STORAGE_UNATTRIBUTED: ("distribute_unattributed_storage_cost.sql", True),
             metric_constants.NETWORK_UNATTRIBUTED: ("distribute_unattributed_network_cost.sql", True),
         }
@@ -485,8 +486,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             )
             # We cleared out existing data, but there is no new to calculate.
             return
-
-        if cost_type in ("Node", "Cluster"):
+        if cost_type in ("Node", "Node-Core", "Cluster"):
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql")
@@ -537,7 +537,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         cpu_case, memory_case, volume_case = case_dict.get("cost")
         labels = case_dict.get("labels")
 
-        if cost_type == "Node":
+        if cost_type in ("Node", "Node-Core"):
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
@@ -569,34 +569,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg="populating monthly tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-
-    def populate_node_label_line_item_daily_table(self, start_date, end_date, cluster_id):
-        """Populate the daily node label aggregate of line items table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            cluster_id (String) Cluster Identifier
-
-        Returns
-            (None)
-
-        """
-        # Cast string to date object
-        start_date = DateHelper().validate_is_date(start_date)
-        end_date = DateHelper().validate_is_date(end_date)
-        table_name = self._table_map["node_label_line_item_daily"]
-
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpnodelabellineitem_daily.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "cluster_id": cluster_id,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
@@ -760,6 +732,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "memory_gb_effective_usage_per_hour": "memory",
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
+            "node_core_cost_per_hour": "node",
         }
         # Remove monthly rates
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())

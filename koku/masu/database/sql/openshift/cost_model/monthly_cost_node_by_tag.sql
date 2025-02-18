@@ -113,7 +113,11 @@ SELECT uuid_generate_v4(),
     data_source,
     usage_start,
     usage_end,
-    namespace,
+    CASE
+        WHEN {{cost_type}} = 'Node-Core'
+            THEN 'Node assigned costs'
+        ELSE lids.namespace
+    END AS namespace,
     node,
     resource_id,
     pod_labels::jsonb as pod_labels,
@@ -159,7 +163,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     data_source,
     usage_start,
     usage_end,
-    namespace,
+    CASE
+        WHEN {{cost_type}} = 'Node-Core'
+            THEN 'Node assigned costs'
+        ELSE lids.namespace
+    END AS namespace,
     node,
     resource_id,
     pod_labels,

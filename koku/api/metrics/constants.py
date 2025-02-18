@@ -15,6 +15,8 @@ OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR = "memory_gb_effective_usage_per_hour"
 OCP_METRIC_STORAGE_GB_USAGE_MONTH = "storage_gb_usage_per_month"
 OCP_METRIC_STORAGE_GB_REQUEST_MONTH = "storage_gb_request_per_month"
 OCP_NODE_MONTH = "node_cost_per_month"
+OCP_NODE_CORE_HOUR = "node_core_cost_per_hour"
+OCP_NODE_CORE_MONTH = "node_core_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_PVC_MONTH = "pvc_cost_per_month"
 
@@ -35,6 +37,8 @@ METRIC_CHOICES = (
     (OCP_METRIC_STORAGE_GB_USAGE_MONTH, OCP_METRIC_STORAGE_GB_USAGE_MONTH),
     (OCP_METRIC_STORAGE_GB_REQUEST_MONTH, OCP_METRIC_STORAGE_GB_REQUEST_MONTH),
     (OCP_NODE_MONTH, OCP_NODE_MONTH),
+    (OCP_NODE_CORE_HOUR, OCP_NODE_CORE_HOUR),
+    (OCP_NODE_CORE_MONTH, OCP_NODE_CORE_MONTH),
     (OCP_CLUSTER_MONTH, OCP_CLUSTER_MONTH),
     (OCP_PVC_MONTH, OCP_PVC_MONTH),
 )
@@ -53,10 +57,12 @@ COST_MODEL_USAGE_RATES = (
     OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR,
     OCP_METRIC_STORAGE_GB_USAGE_MONTH,
     OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
+    OCP_NODE_CORE_HOUR,
 )
 
 COST_MODEL_MONTHLY_RATES = (
     OCP_NODE_MONTH,
+    OCP_NODE_CORE_MONTH,
     OCP_CLUSTER_MONTH,
     OCP_PVC_MONTH,
 )
@@ -151,6 +157,22 @@ COST_MODEL_METRIC_MAP = [
     },
     {
         "source_type": "OCP",
+        "metric": "node_core_cost_per_month",
+        "label_metric": "Node",
+        "label_measurement": "Count",
+        "label_measurement_unit": "core-month",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "node_core_cost_per_hour",
+        "label_metric": "Node",
+        "label_measurement": "Count",
+        "label_measurement_unit": "core-hour",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
         "metric": "cluster_cost_per_month",
         "label_metric": "Cluster",
         "label_measurement": "Count",
@@ -168,6 +190,7 @@ COST_MODEL_METRIC_MAP = [
 ]
 
 PLATFORM_COST = "platform_cost"
+NODE_ASSIGNED_COST = "node_assigned_cost"
 WORKER_UNALLOCATED = "worker_cost"
 NETWORK_UNATTRIBUTED = "network_unattributed"
 STORAGE_UNATTRIBUTED = "storage_unattributed"
@@ -176,6 +199,7 @@ DISTRIBUTION_TYPE = "distribution_type"
 DEFAULT_DISTRIBUTION_INFO = {
     DISTRIBUTION_TYPE: CPU_DISTRIBUTION,
     PLATFORM_COST: True,
+    NODE_ASSIGNED_COST: True,
     WORKER_UNALLOCATED: True,
     NETWORK_UNATTRIBUTED: False,
     STORAGE_UNATTRIBUTED: False,

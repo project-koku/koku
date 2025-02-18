@@ -48,6 +48,7 @@ Monthly rates are flat rates that are intended to cover a subscription cost.
 **Cluster and Node**
 These cost are amortized, which means we distribute that cost evenly throughout the month so that each day has an equal portion of the total cost for the month. We distribute the rates applied to the node & cluster metrics within the [monthly_cost_cluster_and_node.sql](https://github.com/project-koku/koku/blob/main/koku/masu/database/sql/openshift/cost_model/monthly_cost_cluster_and_node.sql).
 
+`node_core_cost_per_month`
 `node_cost_per_month`
 `cluster_cost_per_month`
 
@@ -66,6 +67,11 @@ select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='
 *node_cost_per_month*
 ```
 select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='Node';
+```
+
+*node_core_cost_per_month*
+```
+select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='Node-Core';
 ```
 
 **PVC**

@@ -56,7 +56,11 @@ SELECT uuid_generate_v4(),
     'Pod' as data_source,
     usage_start,
     max(usage_end) as usage_end,
-    lids.namespace,
+    CASE
+        WHEN {{cost_type}} = 'Node-Core'
+            THEN 'Node assigned costs'
+        ELSE lids.namespace
+    END AS namespace,
     node,
     max(resource_id) as resource_id,
     pod_labels,
@@ -90,6 +94,8 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_cpu_core_hours) / max(cluster_capacity_cpu_core_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'cpu'
             THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * {{rate}}::decimal
+        WHEN {{cost_type}} = 'Node-Core'
+            THEN max(node_capacity_cpu_cores) * {{rate}}::decimal
         ELSE 0
     END AS cost_model_cpu_cost,
     CASE
