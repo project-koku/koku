@@ -158,7 +158,7 @@ SELECT
     namespace,
     latest.node_name as node,
     latest.labels->>'vm_kubevirt_io_name' as vm_name,
-    'distributed_rates' as cost_model_rate_type,
+    cost_model_rate_type,
     sum(distributed_cost) * latest.ratio as distributed_cost, -- the only cost inserted in this statement
     latest.labels as pod_labels,
     max(raw_currency) as raw_currency,
@@ -172,5 +172,6 @@ JOIN cte_latest_resources as latest
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
-GROUP BY cluster_alias, cluster_id, namespace, latest.node_name, latest.ratio, vm_name, latest.labels
+    AND distributed_cost != 0
+GROUP BY cluster_alias, cluster_id, namespace, latest.node_name, latest.ratio, vm_name, latest.labels, cost_model_rate_type
 ;
