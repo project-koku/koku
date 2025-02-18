@@ -26,6 +26,7 @@ WITH cte_narrow_dataset as (
         lids.namespace,
         lids.node,
         lids.resource_id,
+        lids.pod_labels,
         lids.node_capacity_cpu_cores,
         lids.node_capacity_cpu_core_hours,
         lids.node_capacity_memory_gigabytes,
@@ -79,6 +80,7 @@ cte_line_items as (
         filtered.namespace,
         filtered.node,
         max(resource_id) as resource_id,
+        filtered.pod_labels,
         max(node_capacity_cpu_cores) as node_capacity_cpu_cores,
         max(node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
         max(node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
@@ -108,14 +110,14 @@ cte_line_items as (
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id
     FROM cte_narrow_dataset as filtered
-    JOIN platform_cost as pc
+    JOIN platform_cost as pcreporting_ocp_vm_summary_p
         ON pc.usage_start = filtered.usage_start
         AND pc.cluster_id = filtered.cluster_id
     JOIN user_defined_project_sum as udps
         ON udps.usage_start = filtered.usage_start
         AND udps.cluster_id = filtered.cluster_id
     WHERE filtered.namespace IS NOT NULL
-    GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id, cost_category_id, filtered.data_source
+    GROUP BY filtered.usage_start, filtered.node, filtered.namespace, filtered.cluster_id, cost_category_id, filtered.data_source, filtered.pod_labels
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
@@ -128,6 +130,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     namespace,
     node,
     resource_id,
+    pod_labels,
     node_capacity_cpu_cores,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabytes,
@@ -150,6 +153,7 @@ SELECT
     ctl.namespace,
     ctl.node,
     ctl.resource_id,
+    ctl.pod_labels,
     ctl.node_capacity_cpu_cores,
     ctl.node_capacity_cpu_core_hours,
     ctl.node_capacity_memory_gigabytes,
