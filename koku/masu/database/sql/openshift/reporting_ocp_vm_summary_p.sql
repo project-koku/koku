@@ -106,9 +106,10 @@ WITH second_to_last_day AS (
     OFFSET 1 LIMIT 1  -- Get the second-to-last day
 ),
 cte_distribution_type AS (
+    -- get the distribution type from the cost model associated with this source
     SELECT
         {{source_uuid}}::uuid as source_uuid,
-        cm.distribution as dt
+        coalesce(max(cm.distribution), 'cpu')  as dt -- coalesce(max()) to return 'cpu' if a cost model does not exist for source
     FROM {{schema | sqlsafe}}.cost_model_map as cmm
     JOIN {{schema | sqlsafe}}.cost_model as cm
         ON cmm.cost_model_id = cm.uuid
@@ -158,7 +159,7 @@ SELECT
     latest.node_name as node,
     latest.labels->>'vm_kubevirt_io_name' as vm_name,
     'distributed_rates' as cost_model_rate_type,
-    sum(distributed_cost) * latest.ratio as distributed_cost,
+    sum(distributed_cost) * latest.ratio as distributed_cost, -- the only cost inserted in this statement
     latest.labels as pod_labels,
     max(raw_currency) as raw_currency,
     array_agg(DISTINCT resource_id) as resource_ids,
