@@ -110,7 +110,7 @@ cte_line_items as (
         END AS distributed_cost,
         max(cost_category_id) as cost_category_id
     FROM cte_narrow_dataset as filtered
-    JOIN platform_cost as pcreporting_ocp_vm_summary_p
+    JOIN platform_cost as pc
         ON pc.usage_start = filtered.usage_start
         AND pc.cluster_id = filtered.cluster_id
     JOIN user_defined_project_sum as udps
