@@ -91,7 +91,13 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     # Tag cost is actually a usage-based daily cost. We are overloading this field for
     # tag usage rates.
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Node-Core", "Node-Core"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag"))
+    MONTHLY_COST_TYPES = (
+        ("Node", "Node"),
+        ("Node-Core", "Node-Core"),
+        ("Cluster", "Cluster"),
+        ("PVC", "PVC"),
+        ("Tag", "Tag"),
+    )
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
         "Node-Core": "node_core_cost_per_month",

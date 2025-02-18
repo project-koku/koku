@@ -1001,7 +1001,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with self.accessor as acc:
             acc.prepare_query = mock_jinja
             acc.populate_distributed_cost_sql(
-                start_date, end_date, self.ocp_test_provider_uuid, {"worker_cost": True, "platform_cost": True, "node_assigned_cost": True}
+                start_date,
+                end_date,
+                self.ocp_test_provider_uuid,
+                {"worker_cost": True, "platform_cost": True, "node_assigned_cost": True},
             )
             expected_calls = [
                 call(masu_database, "sql/openshift/cost_model/distribute_node_assigned_cost.sql"),
