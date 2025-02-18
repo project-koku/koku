@@ -728,6 +728,7 @@ class ReportQueryHandler(QueryHandler):
             When(project__startswith="openshift-", then=Value("default")),
             When(project__startswith="kube-", then=Value("default")),
             When(project="openshift", then=Value("default")),
+            When(project__in=["Node assigned cost"], then=Value("node_assigned")),
             When(project__in=["Platform unallocated", "Worker unallocated"], then=Value("unallocated")),
             When(project__in=["Storage unattributed", "Network unattributed"], then=Value("unattributed")),
         ]

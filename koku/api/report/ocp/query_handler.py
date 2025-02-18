@@ -206,7 +206,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 output["distributed_overhead"] = False
                 if (
                     self.query_table.objects.filter(self.query_filter)
-                    .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
+                    .filter(
+                        cost_model_rate_type__in=["platform_distributed", "worker_distributed", "node_distributed"]
+                    )
                     .exists()
                 ):
                     output["distributed_overhead"] = True

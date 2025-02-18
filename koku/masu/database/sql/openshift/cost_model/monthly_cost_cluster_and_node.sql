@@ -58,7 +58,7 @@ SELECT uuid_generate_v4(),
     max(usage_end) as usage_end,
     CASE
         WHEN {{cost_type}} = 'Node-Core'
-            THEN 'Node assigned costs'
+            THEN 'Node assigned cost'
         ELSE lids.namespace
     END AS namespace,
     node,
@@ -107,7 +107,11 @@ SELECT uuid_generate_v4(),
     END as cost_model_memory_cost,
     0 as cost_model_volume_cost,
     {{cost_type}} as monthly_cost_type,
-    cost_category_id
+    CASE
+        WHEN {{cost_type}} = 'Node-Core'
+            THEN NULL
+        ELSE cost_category_id
+    END AS cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date

@@ -115,7 +115,7 @@ SELECT uuid_generate_v4(),
     usage_end,
     CASE
         WHEN {{cost_type}} = 'Node-Core'
-            THEN 'Node assigned costs'
+            THEN 'Node assigned cost'
         ELSE lids.namespace
     END AS namespace,
     node,
@@ -165,7 +165,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     usage_end,
     CASE
         WHEN {{cost_type}} = 'Node-Core'
-            THEN 'Node assigned costs'
+            THEN 'Node assigned cost'
         ELSE lids.namespace
     END AS namespace,
     node,
@@ -200,7 +200,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cost_model_memory_cost,
     cost_model_volume_cost,
     monthly_cost_type,
-    cost_category_id
+    CASE
+        WHEN {{cost_type}} = 'Node-Core'
+            THEN NULL
+        ELSE cost_category_id
+    END AS cost_category_id
 )
 WITH cte_unallocated AS (
     SELECT uuid_generate_v4() as uuid,

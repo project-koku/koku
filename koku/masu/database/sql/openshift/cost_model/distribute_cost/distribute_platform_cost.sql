@@ -42,7 +42,7 @@ WITH cte_narrow_dataset as (
         AND lids.namespace != 'Worker unallocated'
         AND lids.namespace != 'Storage unattributed'
         AND lids.namespace != 'Network unattributed'
-        AND lids.namespace != 'Node assigned costs'
+        AND lids.namespace != 'Node assigned cost'
 ),
 platform_cost AS (
     SELECT SUM(
