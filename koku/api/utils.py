@@ -204,14 +204,22 @@ class DateHelper:
             return in_date.replace(microsecond=0, second=0, minute=0, hour=0, day=month_end)
         return in_date.replace(day=month_end)
 
-    def validate_is_date(self, in_date):
-        """Return a date object from given in_date"""
-        if isinstance(in_date, str):
-            return datetime.datetime.strptime(in_date, "%Y-%m-%d").date()
-        if isinstance(in_date, datetime.datetime):
-            return in_date.date()
-        if isinstance(in_date, datetime.date):
-            return in_date
+    def parse_to_date(self, date_input):
+        """Convert input into a date object if it is a string, datetime, or date/
+
+        Args:
+            date_input (str | datetime.datetime | datetime.date): The input to be converted into a date.
+
+        Returns:
+          datetime.date: A date object parsed from the input.
+        """
+
+        if isinstance(date_input, str):
+            return datetime.datetime.strptime(date_input, "%Y-%m-%d").date()
+        if isinstance(date_input, datetime.datetime):
+            return date_input.date()
+        if isinstance(date_input, datetime.date):
+            return date_input
 
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.

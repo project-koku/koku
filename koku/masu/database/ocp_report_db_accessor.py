@@ -98,6 +98,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p.sql")
         sql = sql.decode("utf-8")
+        start_date = DateHelper().parse_to_date(start_date)
         sql_params["year"] = start_date.strftime("%Y")
         sql_params["month"] = start_date.strftime("%m")
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
@@ -304,8 +305,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         """
         # Cast start_date to date
-        start_date = DateHelper().validate_is_date(start_date)
-        end_date = DateHelper().validate_is_date(end_date)
+        start_date = DateHelper().parse_to_date(start_date)
+        end_date = DateHelper().parse_to_date(end_date)
 
         storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
 
@@ -589,8 +590,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         """
         # Cast string to date object
-        start_date = DateHelper().validate_is_date(start_date)
-        end_date = DateHelper().validate_is_date(end_date)
+        start_date = DateHelper().parse_to_date(start_date)
+        end_date = DateHelper().parse_to_date(end_date)
         table_name = self._table_map["node_label_line_item_daily"]
 
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpnodelabellineitem_daily.sql")
@@ -699,8 +700,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
-        start_date = DateHelper().validate_is_date(start_date)
-        end_date = DateHelper().validate_is_date(end_date)
+        start_date = DateHelper().parse_to_date(start_date)
+        end_date = DateHelper().parse_to_date(end_date)
         # updates costs from tags
         for rate_type in rate_types:
             rate = rate_type.get("rates")
@@ -779,8 +780,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             {"rates": supplementary_rates, "sql_file": "sql/openshift/cost_model/default_supplementary_tag_rates.sql"},
         ]
         # Cast start_date and end_date to date object, if they aren't already
-        start_date = DateHelper().validate_is_date(start_date)
-        end_date = DateHelper().validate_is_date(end_date)
+        start_date = DateHelper().parse_to_date(start_date)
+        end_date = DateHelper().parse_to_date(end_date)
 
         # updates costs from tags
         for rate_type in rate_types:
