@@ -3,7 +3,7 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
     AND lids.cost_model_rate_type = {{rate_type}}
-    AND lids.monthly_cost_type = 'Node'
+    AND lids.monthly_cost_type = {{cost_type}}
     AND lids.pod_labels ? {{tag_key}}
 ;
 
@@ -149,7 +149,11 @@ SELECT uuid_generate_v4(),
     cost_model_memory_cost,
     cost_model_volume_cost,
     monthly_cost_type,
-    cost_category_id
+    CASE
+        WHEN {{cost_type}} = 'Node-Core'
+            THEN NULL
+        ELSE cost_category_id
+    END AS cost_category_id
 FROM label_filtered_daily_summary AS lids
 ;
 

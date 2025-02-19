@@ -181,7 +181,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Call and organize cost, unallocated, and label case statements."""
         cost_case_statements = {}
         combined_case_statements = {}
-        if openshift_resource_type == "Node":
+        if openshift_resource_type in ["Node", "Node-Core"]:
             cost_case_statements = self._build_node_tag_cost_case_statements(rates, start_date, default_rates)
             unallocated_cost_case_statements = self._build_node_tag_cost_case_statements(
                 rates, start_date, default_rates, unallocated=True
@@ -222,9 +222,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                     if rate is None:
                         log_msg = "removing"
 
-                    LOG.debug(
+                    LOG.info(
                         log_json(
-                            msg=f"{log_msg} mothly cost",
+                            msg=f"{log_msg} monthly cost",
                             cost_type=cost_type,
                             schema=self._schema,
                             provider_type=self._provider.type,
@@ -277,7 +277,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             # The cost model has no rates for this metric
                             continue
 
-                        LOG.debug(
+                        LOG.info(
                             log_json(
                                 msg="updating tag based monthly cost",
                                 schema=self._schema,
