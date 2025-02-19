@@ -732,7 +732,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "memory_gb_effective_usage_per_hour": "memory",
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
-            "node_core_cost_per_hour": "node",
         }
         # Remove monthly rates
         infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())
