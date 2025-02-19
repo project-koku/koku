@@ -75,7 +75,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         client = APIClient()
 
         params = {"source_type": Provider.PROVIDER_OCP}
-        url = url + "?" + urlencode(params, quote_via=quote_plus) + "&limit=11"
+        url = url + "?" + urlencode(params, quote_via=quote_plus) + "&limit=13"
         response = client.get(url, **self.headers).data["data"]
         self.assertEqual(len(COST_MODEL_METRIC_MAP), len(response))
         for metric in COST_MODEL_METRIC_MAP:

@@ -847,6 +847,7 @@ class CostModelSerializerTest(IamTestCase):
                 instance = serializer.save()
             self.assertIsNotNone(instance)
             # Add in default options
+            valid_distrib_obj[metric_constants.NODE_ASSIGNED_COST] = True
             valid_distrib_obj[metric_constants.NETWORK_UNATTRIBUTED] = False
             valid_distrib_obj[metric_constants.STORAGE_UNATTRIBUTED] = False
             self.assertEqual(instance.distribution_info, valid_distrib_obj)

@@ -1016,7 +1016,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for expected_call in expected_calls:
                 self.assertIn(expected_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
-            self.assertEqual(len(mock_sql_execute.call_args_list), 4)
+            self.assertEqual(len(mock_sql_execute.call_args_list), 5)
 
     def test_update_line_item_daily_summary_with_tag_mapping(self):
         """
