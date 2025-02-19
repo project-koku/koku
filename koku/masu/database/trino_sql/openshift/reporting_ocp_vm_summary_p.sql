@@ -41,9 +41,9 @@ WITH storage_info AS (
             vm_name,
             CONCAT('vm_kubevirt_io_name": "', vm_name) as substring
         from postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p
-        WHERE usage_start >= {{start_date}}
-            AND usage_start <= {{end_date}}
-            AND source_uuid = {{source_uuid}}
+        WHERE usage_start >= DATE({{start_date}})
+            AND usage_start <= DATE({{end_date}})
+            AND source_uuid = CAST({{source_uuid}} as uuid)
         group by vm_name
     ) vm
         ON strpos(lower(pod_labels), vm.substring) != 0
@@ -51,7 +51,7 @@ WITH storage_info AS (
         AND storage.persistentvolumeclaim != ''
         AND pod_usage.year = {{year}}
         AND pod_usage.month = {{month}}
-        AND pod_usage.source = CAST({{source_uuid}} as varchar)
+        AND pod_usage.source = {{source_uuid}}
         AND pod_usage.pod_labels != ''
         AND pod_usage.pod_labels IS NOT NULL
     GROUP BY storage.persistentvolumeclaim, vm_name
@@ -74,7 +74,7 @@ SELECT uuid() as id,
     min(usage_start) as usage_start,
     max(usage_start) as usage_end,
     max(cost_category_id) as cost_category_id,
-    {{source_uuid}} as source_uuid,
+    CAST({{source_uuid}} as uuid) as source_uuid,
     max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
     max(ocp.persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
     max(ocp.persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months,
@@ -84,7 +84,7 @@ JOIN storage_info AS storage
     ON storage.persistentvolumeclaim = ocp.persistentvolumeclaim
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
-    AND source_uuid = {{source_uuid}}
+    AND source_uuid = CAST({{source_uuid}} as uuid)
     AND data_source = 'Storage'
     AND namespace IS DISTINCT FROM 'Worker unallocated'
     AND namespace IS DISTINCT FROM 'Platform unallocated'
