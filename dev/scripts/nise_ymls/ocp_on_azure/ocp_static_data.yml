@@ -20,7 +20,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_dashed-key-on-azure:dashed-value
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_dashed-key-on-azure:dashed-value|label_vm_kubevirt_io_name:pod_name1a_vm
                 - pod:
                   pod_name: pod_name1b
                   cpu_request: 1
@@ -51,7 +51,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_vm_kubevirt_io_name:pod_name2a_vm
                 - pod:
                   pod_name: pod_name2b
                   cpu_request: 1
@@ -88,7 +88,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:qe|label_app:banking|label_version:MilkyWay
+                  labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_vm_kubevirt_io_name:pod_name3a_vm
                 - pod:
                   pod_name: pod_name3b
                   cpu_request: 1
@@ -143,7 +143,7 @@ generators:
                   cpu_limit: 2
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Mars|label_app:weather|label_version:Andromeda
+                  labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_vm_kubevirt_io_name:pod_name4a_vm
                 - pod:
                   pod_name: pod_name4b
                   cpu_request: 2

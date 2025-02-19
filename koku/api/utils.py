@@ -205,10 +205,10 @@ class DateHelper:
         return in_date.replace(day=month_end)
 
     def parse_to_date(self, date_input):
-        """Convert input into a date object if it is a string, datetime, or date/
+        """Convert input into a date object if it is a string or datetime.
 
         Args:
-            date_input (str | datetime.datetime | datetime.date): The input to be converted into a date.
+            date_input (str | datetime.datetime): The input to be converted into a date.
 
         Returns:
           datetime.date: A date object parsed from the input.
@@ -218,8 +218,7 @@ class DateHelper:
             return datetime.datetime.strptime(date_input, "%Y-%m-%d").date()
         if isinstance(date_input, datetime.datetime):
             return date_input.date()
-        if isinstance(date_input, datetime.date):
-            return date_input
+        return date_input
 
     def next_month(self, in_date):
         """Return the first of the next month from the in_date.
