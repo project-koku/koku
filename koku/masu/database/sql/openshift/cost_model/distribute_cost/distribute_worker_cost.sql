@@ -38,7 +38,6 @@ WITH cte_narrow_dataset as (
     WHERE lids.usage_start >= {{start_date}}::date
         AND lids.usage_start <= {{end_date}}::date
         AND lids.report_period_id = {{report_period_id}}
-        AND lids.namespace != 'Node assigned cost'
         AND lids.namespace != 'Storage unattributed'
         AND lids.namespace != 'Network unattributed'
         AND (lids.cost_category_id IS NULL OR cat.name != 'Platform')

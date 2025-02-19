@@ -989,7 +989,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             "populate": True,
         }
         side_effect = [
-            [get_pkgutil_values("distribute_node_assigned_cost.sql"), default_sql_params],
             [get_pkgutil_values("distribute_worker_cost.sql"), default_sql_params],
             [get_pkgutil_values("distribute_platform_cost.sql"), default_sql_params],
             [get_pkgutil_values("distribute_unattributed_storage_cost.sql"), default_sql_params],
@@ -1004,10 +1003,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.ocp_test_provider_uuid,
-                {"worker_cost": True, "platform_cost": True, "node_assigned_cost": True},
+                {"worker_cost": True, "platform_cost": True},
             )
             expected_calls = [
-                call(masu_database, "sql/openshift/cost_model/distribute_node_assigned_cost.sql"),
                 call(masu_database, "sql/openshift/cost_model/distribute_worker_cost.sql"),
                 call(masu_database, "sql/openshift/cost_model/distribute_platform_cost.sql"),
                 call(masu_database, "sql/openshift/cost_model/distribute_unattributed_storage_cost.sql"),
@@ -1016,7 +1014,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for expected_call in expected_calls:
                 self.assertIn(expected_call, mock_data_get.call_args_list)
             mock_sql_execute.assert_called()
-            self.assertEqual(len(mock_sql_execute.call_args_list), 5)
+            self.assertEqual(len(mock_sql_execute.call_args_list), 4)
 
     def test_update_line_item_daily_summary_with_tag_mapping(self):
         """

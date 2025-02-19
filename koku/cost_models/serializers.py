@@ -61,17 +61,12 @@ class DistributionSerializer(BaseSerializer):
     distribution_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
     platform_cost = serializers.BooleanField(required=False)
     worker_cost = serializers.BooleanField(required=False)
-    node_assigned_cost = serializers.BooleanField(required=False)
     network_unattributed = serializers.BooleanField(required=False)
     storage_unattributed = serializers.BooleanField(required=False)
 
     def validate(self, data):
         """Run validation for distribution options."""
-        default_to_true = [
-            metric_constants.PLATFORM_COST,
-            metric_constants.WORKER_UNALLOCATED,
-            metric_constants.NODE_ASSIGNED_COST,
-        ]
+        default_to_true = [metric_constants.PLATFORM_COST, metric_constants.WORKER_UNALLOCATED]
         distribution_keys = metric_constants.DEFAULT_DISTRIBUTION_INFO.keys()
         diff = set(distribution_keys).difference(data)
         if diff == distribution_keys:

@@ -56,11 +56,7 @@ SELECT uuid_generate_v4(),
     'Pod' as data_source,
     usage_start,
     max(usage_end) as usage_end,
-    CASE
-        WHEN {{cost_type}} = 'Node-Core'
-            THEN 'Node assigned cost'
-        ELSE lids.namespace
-    END AS namespace,
+    lids.namespace,
     node,
     max(resource_id) as resource_id,
     pod_labels,
@@ -94,8 +90,8 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_cpu_core_hours) / max(cluster_capacity_cpu_core_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'cpu'
             THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * {{rate}}::decimal
-        WHEN {{cost_type}} = 'Node-Core'
-            THEN max(node_capacity_cpu_cores) * {{rate}}::decimal
+        WHEN {{cost_type}} = 'Node-Core' AND {{distribution}} = 'cpu'
+            THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * max(node_capacity_cpu_cores) * {{rate}}::decimal
         ELSE 0
     END AS cost_model_cpu_cost,
     CASE
@@ -103,15 +99,13 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'memory'
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * {{rate}}::decimal
+        WHEN {{cost_type}} = 'Node-Core' AND {{distribution}} = 'memory'
+            THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * max(node_capacity_cpu_cores) * {{rate}}::decimal
         ELSE 0
     END as cost_model_memory_cost,
     0 as cost_model_volume_cost,
     {{cost_type}} as monthly_cost_type,
-    CASE
-        WHEN {{cost_type}} = 'Node-Core'
-            THEN NULL
-        ELSE cost_category_id
-    END AS cost_category_id
+    cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date

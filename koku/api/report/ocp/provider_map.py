@@ -235,12 +235,10 @@ class OCPProviderMap(ProviderMap):
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.distributed_platform_cost
-                            + self.distributed_node_assigned_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_network_cost
                             + self.distributed_unattributed_storage_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
-                            "cost_node_assigned_distributed": self.distributed_node_assigned_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
                             "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
@@ -267,12 +265,10 @@ class OCPProviderMap(ProviderMap):
                             + self.markup_cost_by_project
                             + self.cost_model_cost
                             + self.distributed_platform_cost
-                            + self.distributed_node_assigned_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
                             + self.distributed_unattributed_network_cost,
                             "cost_platform_distributed": self.distributed_platform_cost,
-                            "cost_node_assigned_distributed": self.distributed_node_assigned_cost,
                             "cost_worker_unallocated_distributed": self.distributed_worker_cost,
                             "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
                             "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
@@ -1019,8 +1015,3 @@ class OCPProviderMap(ProviderMap):
     def distributed_worker_cost(self):
         """Worker unallocated distributed cost"""
         return self.__cost_model_distributed_cost("worker_distributed", "exchange_rate")
-
-    @cached_property
-    def distributed_node_assigned_cost(self):
-        """node assigned distributed cost"""
-        return self.__cost_model_distributed_cost("node_distributed", "exchange_rate")

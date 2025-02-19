@@ -74,7 +74,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_markup": {"key": "markup", "group": "cost"},
             "cost_usage": {"key": "usage", "group": "cost"},
             "cost_platform_distributed": {"key": "platform_distributed", "group": "cost"},
-            "cost_node_assigned_distributed": {"key": "node_assigned_distributed", "group": "cost"},
             "cost_worker_unallocated_distributed": {"key": "worker_unallocated_distributed", "group": "cost"},
             "cost_network_unattributed_distributed": {"key": "network_unattributed_distributed", "group": "cost"},
             "cost_storage_unattributed_distributed": {"key": "storage_unattributed_distributed", "group": "cost"},
@@ -206,9 +205,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 output["distributed_overhead"] = False
                 if (
                     self.query_table.objects.filter(self.query_filter)
-                    .filter(
-                        cost_model_rate_type__in=["platform_distributed", "worker_distributed", "node_distributed"]
-                    )
+                    .filter(cost_model_rate_type__in=["platform_distributed", "worker_distributed"])
                     .exists()
                 ):
                     output["distributed_overhead"] = True

@@ -41,7 +41,6 @@ WITH cte_narrow_dataset as (
         AND lids.report_period_id = {{report_period_id}}
         AND lids.namespace != 'Network unattributed'
         AND lids.namespace != 'Worker unallocated'
-        AND lids.namespace != 'Node assigned cost'
         AND (lids.cost_category_id IS NULL OR cat.name != 'Platform')
 ),
 unattributed_storage_cost AS (

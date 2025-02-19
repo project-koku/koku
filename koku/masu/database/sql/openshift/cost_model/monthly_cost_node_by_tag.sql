@@ -113,11 +113,7 @@ SELECT uuid_generate_v4(),
     data_source,
     usage_start,
     usage_end,
-    CASE
-        WHEN {{cost_type}} = 'Node-Core'
-            THEN 'Node assigned cost'
-        ELSE lids.namespace
-    END AS namespace,
+    namespace,
     node,
     resource_id,
     pod_labels::jsonb as pod_labels,
@@ -149,11 +145,7 @@ SELECT uuid_generate_v4(),
     cost_model_memory_cost,
     cost_model_volume_cost,
     monthly_cost_type,
-    CASE
-        WHEN {{cost_type}} = 'Node-Core'
-            THEN NULL
-        ELSE cost_category_id
-    END AS cost_category_id
+    cost_category_id
 FROM label_filtered_daily_summary AS lids
 ;
 
@@ -259,11 +251,7 @@ SELECT uuid,
     data_source,
     usage_start,
     usage_end,
-    CASE
-        WHEN {{cost_type}} = 'Node-Core'
-            THEN 'Node assigned cost'
-        ELSE uc.namespace
-    END AS namespace,
+    uc.namespace,
     node,
     resource_id,
     pod_labels,
@@ -296,11 +284,7 @@ SELECT uuid,
     cast(cost_model_memory_cost as decimal),
     cast(cost_model_volume_cost as decimal),
     monthly_cost_type,
-    CASE
-        WHEN {{cost_type}} = 'Node-Core'
-            THEN NULL
-        ELSE cat_ns.cost_category_id
-    END AS cost_category_id
+    cat_ns.cost_category_id as cost_category_id
 FROM cte_unallocated AS uc
 LEFT JOIN {{schema | sqlsafe}}.reporting_ocp_cost_category_namespace AS cat_ns
     ON uc.namespace LIKE cat_ns.namespace

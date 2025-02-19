@@ -402,7 +402,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
         key_to_file_mapping = {
             metric_constants.PLATFORM_COST: ("distribute_platform_cost.sql", False),
             metric_constants.WORKER_UNALLOCATED: ("distribute_worker_cost.sql", False),
-            metric_constants.NODE_ASSIGNED_COST: ("distribute_node_assigned_cost.sql", True),
             metric_constants.STORAGE_UNATTRIBUTED: ("distribute_unattributed_storage_cost.sql", True),
             metric_constants.NETWORK_UNATTRIBUTED: ("distribute_unattributed_network_cost.sql", True),
         }
