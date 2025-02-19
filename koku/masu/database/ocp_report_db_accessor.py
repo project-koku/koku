@@ -102,7 +102,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "source_uuid": str(source_uuid),
         }
-        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
         sql = sql.decode("utf-8")
         start_date = DateHelper().parse_to_date(start_date)
         sql_params["year"] = start_date.strftime("%Y")

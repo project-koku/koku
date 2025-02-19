@@ -24,7 +24,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     persistentvolumeclaim,
     persistentvolumeclaim_capacity_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
-    storageclass
+    storageclass,
+    pvc_api_metadata
 )
 WITH storage_info AS (
     SELECT
@@ -78,7 +79,16 @@ SELECT uuid() as id,
     max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
     max(ocp.persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
     max(ocp.persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months,
-    max(ocp.storageclass) as storageclass
+    max(ocp.storageclass) as storageclass,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim_usage_gigabyte_months) IS NOT NULL
+        THEN json_parse(json_object(
+            'pvc_name' : max(ocp.persistentvolumeclaim),
+            'storage_class' : max(ocp.storageclass),
+            'usage' : max(ocp.persistentvolumeclaim_usage_gigabyte_months),
+            'capacity' : max(ocp.persistentvolumeclaim_capacity_gigabyte_months)))
+        ELSE CAST(NULL as json)
+    END as pvc_api_metadata
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN storage_info AS storage
     ON storage.persistentvolumeclaim = ocp.persistentvolumeclaim
@@ -90,11 +100,11 @@ WHERE usage_start >= DATE({{start_date}})
     AND namespace IS DISTINCT FROM 'Platform unallocated'
     AND namespace IS DISTINCT FROM 'Network unattributed'
     AND namespace IS DISTINCT FROM 'Storage unattributed'
-    AND (
-        COALESCE(cost_model_cpu_cost, 0)
-        + COALESCE(cost_model_memory_cost, 0)
-        + COALESCE(cost_model_volume_cost, 0)
-        + COALESCE(distributed_cost, 0)
-        + COALESCE(infrastructure_raw_cost, 0)
-        + COALESCE(infrastructure_markup_cost, 0)) != 0
+    -- AND (
+    --     COALESCE(cost_model_cpu_cost, 0)
+    --     + COALESCE(cost_model_memory_cost, 0)
+    --     + COALESCE(cost_model_volume_cost, 0)
+    --     + COALESCE(distributed_cost, 0)
+    --     + COALESCE(infrastructure_raw_cost, 0)
+    --     + COALESCE(infrastructure_markup_cost, 0)) != 0
 GROUP BY cluster_alias, cluster_id, namespace, vm_name, cost_model_rate_type, ocp.persistentvolumeclaim

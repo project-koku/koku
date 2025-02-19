@@ -825,6 +825,9 @@ class OCPProviderMap(ProviderMap):
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
+                            "storage": ArrayAgg(
+                                F("pvc_api_metadata"), distinct=True, filter=~Q(pvc_api_metadata__isnull=True)
+                            ),
                             "tags": ArrayAgg(F("pod_labels"), distinct=True),
                         },
                         "delta_key": {
