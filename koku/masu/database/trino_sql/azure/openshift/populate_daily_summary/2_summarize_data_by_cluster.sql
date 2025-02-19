@@ -86,7 +86,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
     year,
     month
 )
-SELECT azure.row_uuid as row_uuid,
+SELECT cast(uuid() as varchar) as row_uuid,
     max(ocp.cluster_id) as cluster_id,
     max(ocp.cluster_alias) as cluster_alias,
     'Storage' as data_source,
@@ -311,17 +311,10 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
     markup_cost,
     pod_cost,
     project_markup_cost,
-    pod_usage_cpu_core_hours,
-    pod_request_cpu_core_hours,
     pod_effective_usage_cpu_core_hours,
-    pod_limit_cpu_core_hours,
-    pod_usage_memory_gigabyte_hours,
-    pod_request_memory_gigabyte_hours,
     pod_effective_usage_memory_gigabyte_hours,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabyte_hours,
-    cluster_capacity_cpu_core_hours,
-    cluster_capacity_memory_gigabyte_hours,
     pod_labels,
     volume_labels,
     tags,
@@ -356,17 +349,10 @@ SELECT azure.row_uuid as row_uuid,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
     cast(NULL as double) as pod_cost,
     cast(NULL as double) as project_markup_cost,
-    sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
-    sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
     sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
-    sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
-    sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
-    sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
     max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
     max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-    max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-    max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     ocp.pod_labels,
     ocp.volume_labels,
     max(azure.tags) as tags,
@@ -503,8 +489,13 @@ SELECT azure.row_uuid,
     GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source
 ;
 
--- Group by to calculate proper cost per project
-
+{%- if distribution == 'cpu' -%}
+{%- set pod_column = 'pod_effective_usage_cpu_core_hours' -%}
+{%- set node_column = 'node_capacity_cpu_core_hours' -%}
+{%- else -%}
+{%- set pod_column = 'pod_effective_usage_memory_gigabyte_hours' -%}
+{%- set node_column = 'node_capacity_memory_gigabyte_hours' -%}
+{%- endif -%}
 INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary (
     row_uuid,
     cluster_id,
