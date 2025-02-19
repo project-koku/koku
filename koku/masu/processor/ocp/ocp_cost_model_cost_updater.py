@@ -214,7 +214,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         return combined_case_statements
 
     def _update_monthly_cost(self, start_date, end_date):
-        """Update the montly cost for a period of time."""
+        """Update the monthly cost for a period of time."""
         try:
             with OCPReportDBAccessor(self._schema) as report_accessor:
                 # Ex. cost_type == "Node", rate_term == "node_cost_per_month", rate == 1000
