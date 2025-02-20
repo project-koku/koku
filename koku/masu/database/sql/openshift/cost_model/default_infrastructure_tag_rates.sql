@@ -86,9 +86,9 @@ FROM (
     WHERE lids.cluster_id = {{cluster_id}}
         AND lids.usage_start >= {{start_date}}
         AND lids.usage_start <= {{end_date}}
-        AND lids.{{labels_field | sqlsafe}} IS NULL
+        AND lids.{{labels_field | sqlsafe}} ? {{tag_key}}
         {% for pair in k_v_pair %}
-        OR NOT lids.{{labels_field | sqlsafe}} @> {{pair}}
+        AND NOT lids.{{labels_field | sqlsafe}} @> {{pair}}
         {% endfor %}
     GROUP BY lids.report_period_id,
         lids.cluster_id,
