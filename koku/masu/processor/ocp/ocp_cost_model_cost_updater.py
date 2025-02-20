@@ -188,13 +188,12 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Call and organize cost, unallocated, and label case statements."""
         cost_case_statements = {}
         combined_case_statements = {}
-        if openshift_resource_type in ["Node", "Node-Core"]:
-            node_core = True if openshift_resource_type == "Node-Core" else False
+        if openshift_resource_type in ["Node", "Node-Core-Hour", "Node-Core-Month"]:
             cost_case_statements = self._build_node_tag_cost_case_statements(
-                rates, start_date, default_rates, node_core=node_core
+                rates, start_date, default_rates, node_core=openshift_resource_type
             )
             unallocated_cost_case_statements = self._build_node_tag_cost_case_statements(
-                rates, start_date, default_rates, unallocated=True, node_core=node_core
+                rates, start_date, default_rates, unallocated=True, node_core=openshift_resource_type
             )
             labels_case_statement = self._build_labels_case_statement(rates, "pod_labels", default_rate=default_rates)
         elif openshift_resource_type == "PVC":

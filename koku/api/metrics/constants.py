@@ -15,6 +15,7 @@ OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR = "memory_gb_effective_usage_per_hour"
 OCP_METRIC_STORAGE_GB_USAGE_MONTH = "storage_gb_usage_per_month"
 OCP_METRIC_STORAGE_GB_REQUEST_MONTH = "storage_gb_request_per_month"
 OCP_NODE_MONTH = "node_cost_per_month"
+OCP_NODE_CORE_HOUR = "node_core_cost_per_hour"
 OCP_NODE_CORE_MONTH = "node_core_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_PVC_MONTH = "pvc_cost_per_month"
@@ -36,6 +37,7 @@ METRIC_CHOICES = (
     (OCP_METRIC_STORAGE_GB_USAGE_MONTH, OCP_METRIC_STORAGE_GB_USAGE_MONTH),
     (OCP_METRIC_STORAGE_GB_REQUEST_MONTH, OCP_METRIC_STORAGE_GB_REQUEST_MONTH),
     (OCP_NODE_MONTH, OCP_NODE_MONTH),
+    (OCP_NODE_CORE_HOUR, OCP_NODE_CORE_HOUR),
     (OCP_NODE_CORE_MONTH, OCP_NODE_CORE_MONTH),
     (OCP_CLUSTER_MONTH, OCP_CLUSTER_MONTH),
     (OCP_PVC_MONTH, OCP_PVC_MONTH),
@@ -59,6 +61,7 @@ COST_MODEL_USAGE_RATES = (
 
 COST_MODEL_MONTHLY_RATES = (
     OCP_NODE_MONTH,
+    OCP_NODE_CORE_HOUR,
     OCP_NODE_CORE_MONTH,
     OCP_CLUSTER_MONTH,
     OCP_PVC_MONTH,
@@ -143,6 +146,14 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement": "Request",
         "label_measurement_unit": "GiB-month",
         "default_cost_type": "Supplementary",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "node_core_cost_per_hour",
+        "label_metric": "Node",
+        "label_measurement": "Count",
+        "label_measurement_unit": "core-hour",
+        "default_cost_type": "Infrastructure",
     },
     {
         "source_type": "OCP",

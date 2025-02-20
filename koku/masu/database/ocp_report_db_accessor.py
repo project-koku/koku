@@ -485,7 +485,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             )
             # We cleared out existing data, but there is no new to calculate.
             return
-        if cost_type in ("Node", "Node-Core", "Cluster"):
+        if cost_type in ("Node", "Node-Core-Hour", "Node-Core-Month", "Cluster"):
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql")
@@ -536,7 +536,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         cpu_case, memory_case, volume_case = case_dict.get("cost")
         labels = case_dict.get("labels")
 
-        if cost_type in ("Node", "Node-Core"):
+        if cost_type in ("Node", "Node-Core-Hour", "Node-Core-Month"):
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
