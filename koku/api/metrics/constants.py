@@ -91,11 +91,6 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_OCI: "Oracle Cloud Infrastructure",
 }
 
-DISTRIBUTION_MAP = {
-    OCP_NODE_MONTH: [MEM, CPU],
-    OCP_CLUSTER_MONTH: [MEM, CPU],
-}
-
 COST_MODEL_METRIC_MAP = [
     {
         "source_type": "OCP",
