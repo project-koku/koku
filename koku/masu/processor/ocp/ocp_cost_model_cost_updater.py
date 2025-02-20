@@ -122,13 +122,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 )
             cpu_statement_list.append("END as cost_model_cpu_cost")
             memory_statement_list.append("END as cost_model_memory_cost")
-            if self._distribution == metric_constants.CPU_DISTRIBUTION:
+            if self._distribution == metric_constants.CPU:
                 case_dict[tag_key] = (
                     "\n".join(cpu_statement_list),
                     "0::decimal as cost_model_memory_cost",
                     "0::decimal as cost_model_volume_cost",
                 )
-            elif self._distribution == metric_constants.MEMORY_DISTRIBUTION:
+            elif self._distribution == metric_constants.MEM:
                 case_dict[tag_key] = (
                     "0::decimal as cost_model_cpu_cost",
                     "\n".join(memory_statement_list),

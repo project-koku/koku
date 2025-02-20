@@ -646,8 +646,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             }
         """
         # Remove monthly rates
-        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.METRIC_MAP.keys())
-        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.METRIC_MAP.keys())
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
@@ -662,7 +662,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql_file = rate_type.get("sql_file")
             for metric in rate:
                 tags = rate.get(metric, {})
-                usage_type = metric_constants.METRIC_MAP.get(metric)
+                usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:
@@ -712,8 +712,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             }
         """
         # Remove monthly rates
-        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.METRIC_MAP.keys())
-        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.METRIC_MAP.keys())
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {
@@ -732,7 +732,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql_file = rate_type.get("sql_file")
             for metric in rate:
                 tags = rate.get(metric, {})
-                usage_type = metric_constants.METRIC_MAP.get(metric)
+                usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:

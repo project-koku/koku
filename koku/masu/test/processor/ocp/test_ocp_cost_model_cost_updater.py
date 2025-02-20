@@ -407,7 +407,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             "0::decimal as cost_model_volume_cost",
         )
 
-        self.updater._distribution = metric_constants.MEMORY_DISTRIBUTION
+        self.updater._distribution = metric_constants.MEM
         case_dict = self.updater._build_node_tag_cost_case_statements(
             tag_rate_dict, start_date, default_rate_dict=default_rate_dict
         )
@@ -470,8 +470,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._tag_infra_rates = {"pvc_cost_per_month": pvc_tag_rate_dict}
 
         distribution_choices = (
-            {"metric": metric_constants.CPU_DISTRIBUTION, "column": "cost_model_cpu_cost"},
-            {"metric": metric_constants.MEMORY_DISTRIBUTION, "column": "cost_model_memory_cost"},
+            {"metric": metric_constants.CPU, "column": "cost_model_cpu_cost"},
+            {"metric": metric_constants.MEM, "column": "cost_model_memory_cost"},
         )
         for distribution_choice in distribution_choices:
             distribution = distribution_choice.get("metric")
