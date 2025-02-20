@@ -72,12 +72,12 @@ select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='
 
 *node_core_cost_per_month*
 ```
-select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='Node-Core-Month';
+select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='Node_Core_Month';
 ```
 
 *node_core_cost_per_hour*
 ```
-select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='Node-Core-Hour';
+select * from reporting_ocpusagelineitem_daily_summary where monthly_cost_type='Node_Core_Hour';
 ```
 
 **PVC**

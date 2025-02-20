@@ -55,7 +55,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._distribution_info = cost_model_accessor.distribution_info
 
     def _build_node_tag_cost_case_statements(
-        self, rate_dict, start_date, default_rate_dict={}, unallocated=False, node_core=False
+        self, rate_dict, start_date, default_rate_dict={}, unallocated=False, node_core_type=False
     ):
         """Given a tag key, value, and rate return a CASE SQL statement for tag based monthly SQL."""
         case_dict = {}
@@ -77,9 +77,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 (max(node_capacity_memory_gigabyte_hours) - sum(pod_effective_usage_memory_gigabyte_hours))
                     / max(node_capacity_memory_gigabyte_hours)
             """
+        if node_core_type == "Node_Core_Hour":
+            cpu_distribution_term += "* max(node_capacity_cpu_core_hours)"
+            memory_distribution_term += "* max(node_capacity_cpu_core_hours)"
 
-        if node_core:
-            # Used for calculating node_core_cost_per_month
+        if node_core_type == "Node_Core_Month":
             cpu_distribution_term += "* max(lids.node_capacity_cpu_cores)"
             memory_distribution_term += "* max(lids.node_capacity_cpu_cores)"
 
@@ -188,12 +190,12 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Call and organize cost, unallocated, and label case statements."""
         cost_case_statements = {}
         combined_case_statements = {}
-        if openshift_resource_type in ["Node", "Node-Core-Hour", "Node-Core-Month"]:
+        if openshift_resource_type in ["Node", "Node_Core_Hour", "Node_Core_Month"]:
             cost_case_statements = self._build_node_tag_cost_case_statements(
-                rates, start_date, default_rates, node_core=openshift_resource_type
+                rates, start_date, default_rates, node_core_type=openshift_resource_type
             )
             unallocated_cost_case_statements = self._build_node_tag_cost_case_statements(
-                rates, start_date, default_rates, unallocated=True, node_core=openshift_resource_type
+                rates, start_date, default_rates, unallocated=True, node_core_type=openshift_resource_type
             )
             labels_case_statement = self._build_labels_case_statement(rates, "pod_labels", default_rate=default_rates)
         elif openshift_resource_type == "PVC":
