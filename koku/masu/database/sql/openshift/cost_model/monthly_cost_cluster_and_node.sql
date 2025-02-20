@@ -1,11 +1,3 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-WHERE lids.usage_start >= {{start_date}}::date
-    AND lids.usage_start <= {{end_date}}::date
-    AND lids.report_period_id = {{report_period_id}}
-    AND lids.cost_model_rate_type = {{rate_type}}
-    AND lids.monthly_cost_type = {{cost_type}}
-;
-
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -92,7 +84,6 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node_Core_Hour' AND {{distribution}} = 'cpu'
             THEN sum(pod_effective_usage_cpu_core_hours) * {{rate}}::decimal
-        ELSE 0
         WHEN {{cost_type}} = 'Node_Core_Month' AND {{distribution}} = 'cpu'
             THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * max(node_capacity_cpu_cores) * {{rate}}::decimal
         ELSE 0
@@ -102,7 +93,6 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'memory'
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * {{rate}}::decimal
-        -- These are confusing, we are intentionally distributing node core (subscription metric cost) by memory usage.
         WHEN {{cost_type}} = 'Node_Core_Hour' AND {{distribution}} = 'memory'
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * max(node_capacity_cpu_core_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node_Core_Month' AND {{distribution}} = 'memory'
