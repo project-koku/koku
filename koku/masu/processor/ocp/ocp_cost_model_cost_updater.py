@@ -77,9 +77,6 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 (max(node_capacity_memory_gigabyte_hours) - sum(pod_effective_usage_memory_gigabyte_hours))
                     / max(node_capacity_memory_gigabyte_hours)
             """
-        if node_core_type == "Node_Core_Hour":
-            cpu_distribution_term += "* max(node_capacity_cpu_core_hours)"
-            memory_distribution_term += "* max(node_capacity_cpu_core_hours)"
 
         if node_core_type == "Node_Core_Month":
             cpu_distribution_term += "* max(lids.node_capacity_cpu_cores)"
@@ -190,7 +187,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Call and organize cost, unallocated, and label case statements."""
         cost_case_statements = {}
         combined_case_statements = {}
-        if openshift_resource_type in ["Node", "Node_Core_Hour", "Node_Core_Month"]:
+        if openshift_resource_type in ["Node", "Node_Core_Month"]:
             cost_case_statements = self._build_node_tag_cost_case_statements(
                 rates, start_date, default_rates, node_core_type=openshift_resource_type
             )

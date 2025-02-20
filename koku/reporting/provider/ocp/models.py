@@ -93,7 +93,6 @@ class OCPUsageLineItemDailySummary(models.Model):
     # tag usage rates.
     MONTHLY_COST_TYPES = (
         ("Node", "Node"),
-        ("Node_Core_Hour", "Node_Core_Hour"),
         ("Node_Core_Month", "Node_Core_Month"),
         ("Cluster", "Cluster"),
         ("PVC", "PVC"),
@@ -101,7 +100,6 @@ class OCPUsageLineItemDailySummary(models.Model):
     )
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
-        "Node_Core_Hour": "node_core_cost_per_hour",
         "Node_Core_Month": "node_core_cost_per_month",
         "Cluster": "cluster_cost_per_month",
         "PVC": "pvc_cost_per_month",

@@ -79,15 +79,16 @@ FROM (
             WHEN {{metric}}='memory_gb_effective_usage_per_hour' THEN sum(lids.pod_effective_usage_memory_gigabyte_hours)
             WHEN {{metric}}='storage_gb_usage_per_month' THEN sum(lids.persistentvolumeclaim_usage_gigabyte_months)
             WHEN {{metric}}='storage_gb_request_per_month' THEN sum(lids.volume_request_storage_gigabyte_months)
+            WHEN {{metric}}='node_core_cost_per_hour' THEN sum(lids.pod_effective_usage_cpu_core_hours)
         END as usage,
         lids.cost_category_id
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     WHERE lids.cluster_id = {{cluster_id}}
         AND lids.usage_start >= {{start_date}}
         AND lids.usage_start <= {{end_date}}
-        AND lids.{{labels_field | sqlsafe}} ? {{tag_key}}
+        AND lids.{{labels_field | sqlsafe}} IS NULL
         {% for pair in k_v_pair %}
-        AND NOT lids.{{labels_field | sqlsafe}} @> {{pair}}
+        OR NOT lids.{{labels_field | sqlsafe}} @> {{pair}}
         {% endfor %}
     GROUP BY lids.report_period_id,
         lids.cluster_id,
