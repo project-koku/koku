@@ -400,10 +400,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         if self.is_csv_output:
             date_string = self.date_to_string(self.time_interval[0])
-            for item in query_data:
-                # exclude tags when exporting to csv
-                item.pop("tags")
-
             return [{"date": date_string, "vm_names": query_data}]
 
         return query_data
