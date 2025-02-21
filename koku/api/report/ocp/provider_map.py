@@ -848,6 +848,7 @@ class OCPProviderMap(ProviderMap):
                         "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
                         "count_units_key": "Core",
+                        "storage_usage_units_key": "GiB-Mo",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                         "vm_name": Max("vm_name"),
                     },
