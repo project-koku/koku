@@ -60,13 +60,9 @@ class SummarySqlMetadata:
             cost_model_params["markup"] = markup_value or 0
 
         with CostModelDBAccessor(self.schema, ocp_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-            if distribution == "memory":
-                cost_model_params["pod_column"] = "pod_effective_usage_memory_gigabyte_hours"
-                cost_model_params["node_column"] = "node_capacity_memory_gigabyte_hours"
-            else:
-                cost_model_params["pod_column"] = "pod_effective_usage_cpu_core_hours"
-                cost_model_params["node_column"] = "node_capacity_cpu_core_hours"
+            cost_model_params["distribution"] = cost_model_accessor.distribution_info.get(
+                "distribution_type", DEFAULT_DISTRIBUTION_TYPE
+            )
         return cost_model_params
 
     def build_params(self, requested_keys: List[str]) -> Dict[str, Any]:
