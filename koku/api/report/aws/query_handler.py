@@ -601,12 +601,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     unique_tags = []
 
                     for tag in resource_values["tags"]:
-                        for key, value in tag.items():
-                            tag_tuple = (key, tuple([value]))
+                        if tag:
+                            for key, value in tag.items():
+                                tag_tuple = (key, tuple([value]))
 
-                            if tag_tuple not in seen_tags:
-                                seen_tags.add(tag_tuple)
-                                unique_tags.append({"key": key, "values": [value]})
+                                if tag_tuple not in seen_tags:
+                                    seen_tags.add(tag_tuple)
+                                    unique_tags.append({"key": key, "values": [value]})
 
                     resource_values["tags"] = unique_tags
 
