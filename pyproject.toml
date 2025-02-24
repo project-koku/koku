@@ -64,10 +64,6 @@ dependencies = [
     "adbc-driver-postgresql>=1.4.0",
 ]
 
-[[tool.uv.index]]
-name = "pypi"
-url = "https://pypi.python.org/simple"
-
 [dependency-groups]
 dev = [
     "argh>=0.31.3",
@@ -94,10 +90,8 @@ dev = [
 ]
 
 [tool.ruff]
-
 line-length = 119
 target-version = "py311"
-
 extend-exclude=["**/migrations/*.py"]
 
 [tool.ruff.lint]
@@ -106,7 +100,6 @@ extend-exclude=["**/migrations/*.py"]
 # C90 https://docs.astral.sh/ruff/rules/#mccabe-c90
 # UP https://docs.astral.sh/ruff/rules/#pyupgrade-up
 select = ["F", "E", "W", "C90", "UP"]
-# extend-select = ["UP"]
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore `F401` (unused import) in all `__init__.py`, `models.py`, and `views.py` files.
@@ -120,21 +113,6 @@ known-first-party = ["koku", "api", "common", "cost_models", "forecast", "hcs", 
 order-by-type = false
 
 [tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
-
-# Enable auto-formatting of code examples in docstrings. Markdown,
-# reStructuredText code/literal blocks and doctests are all supported.
-#
 # This is currently disabled by default, but it is planned for this
 # to be opt-out in the future.
 docstring-code-format = false
-
-# Set the line length limit used when formatting code snippets in
-# docstrings.
-#
-# This only has an effect when the `docstring-code-format` setting is
-# enabled.
-docstring-code-line-length = "dynamic"
