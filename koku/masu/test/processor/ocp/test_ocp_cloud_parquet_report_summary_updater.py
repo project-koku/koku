@@ -660,21 +660,26 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
         mock_truncate.assert_called()
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
-    def test_get_infra_map_ocp(self, mock_get_infra_map):
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_openshift_and_infra_providers_lists")
+    def test_get_infra_map_ocp(self, mock_get_ocp_list, mock_get_infra_map, mock_get_trino_infra_map):
         """Test getting infra map for ocp on cloud provider"""
         start_date = self.dh.last_month_start
         end_date = self.dh.last_month_end
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.ocp_provider, manifest=None)
         expected_infra_map = {self.ocp_provider.uuid: ("infra_provider_uuid", "infra_provider_type")}
         mock_get_infra_map.return_value = expected_infra_map
+        mock_get_ocp_list.return_value = ([self.ocp_provider_uuid], {})
         infra_map = updater.get_infra_map(start_date, end_date)
-        mock_get_infra_map.assert_called()
+        mock_get_trino_infra_map.assert_not_called()
         self.assertEqual(infra_map, expected_infra_map)
 
-    def test_get_infra_map_aws(self):
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_get_infra_map_aws(self, mock_infra_map):
         """Test getting infra map for ocp on cloud provider"""
         start_date = self.dh.last_month_start
         end_date = self.dh.last_month_end
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        mock_infra_map.return_value = updater.get_infra_map_from_providers()
         infra_map = updater.get_infra_map(start_date, end_date)
         self.assertIn(self.aws_provider_uuid, str(infra_map))
