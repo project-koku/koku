@@ -1501,6 +1501,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertTrue(tested)
 
     def test_format_vm_response_csv(self):
+        """Test that csv export response is formatted correctly."""
 
         query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
         handler = OCPReportQueryHandler(query_params)
@@ -1518,7 +1519,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         ]
         # Expected output
         expected_date_str = self.dh.this_month_start.strftime("%Y-%m")
-        expected_output = [{"date": expected_date_str, "vm_names": [{"vm_name": "basic_vm"}]}]
+        expected_output = [{"date": expected_date_str, "vm_names": query_data}]
 
         result = handler.format_vm_csv_response(query_data)
         self.assertEqual(result, expected_output)
@@ -1531,3 +1532,18 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         self.assertIsNotNone(data)
+
+    def test_format_tags(self):
+        """Test that tags are formatted correctly."""
+
+        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+        test_tags = [{"application": "CMSapp", "instance-type": "large", "vm_kubevirt_io_name": "fedora"}]
+        expected_output = [
+            {"key": "application", "values": ["CMSapp"]},
+            {"key": "instance-type", "values": ["large"]},
+            {"key": "vm_kubevirt_io_name", "values": ["fedora"]},
+        ]
+
+        result = handler.format_tags(test_tags)
+        self.assertEqual(result, expected_output)
