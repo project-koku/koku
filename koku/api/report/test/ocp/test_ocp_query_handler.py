@@ -1538,12 +1538,75 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
         handler = OCPReportQueryHandler(query_params)
-        test_tags = [{"application": "CMSapp", "instance-type": "large", "vm_kubevirt_io_name": "fedora"}]
-        expected_output = [
-            {"key": "application", "values": ["CMSapp"]},
-            {"key": "instance-type", "values": ["large"]},
-            {"key": "vm_kubevirt_io_name", "values": ["fedora"]},
+
+        test_tags_format_map = [
+            {
+                "test_tags": [{"application": "CMSapp", "instance-type": "large", "vm_kubevirt_io_name": "fedora"}],
+                "expected_output": [
+                    {"key": "application", "values": ["CMSapp"]},
+                    {"key": "instance-type", "values": ["large"]},
+                    {"key": "vm_kubevirt_io_name", "values": ["fedora"]},
+                ],
+            },
+            {"test_tags": [], "expected_output": []},
         ]
 
-        result = handler.format_tags(test_tags)
-        self.assertEqual(result, expected_output)
+        for item in test_tags_format_map:
+            with self.subTest(params=item):
+                result = handler.format_tags(item.get("test_tags"))
+                self.assertEqual(result, item.get("expected_output"))
+
+    def test_add_vm_storage_units(self):
+        """Test that a units field is added storage metadata."""
+
+        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+
+        test_storage_map = [
+            {
+                "test_storage": [
+                    {
+                        "vm_name": "sushi",
+                        "values": [
+                            {
+                                "storage": [
+                                    {
+                                        "usage": 0.470252976190476,
+                                        "capacity": 0.714285714285714,
+                                        "pvc_name": "san_francisco_pod_name5_data",
+                                        "storage_class": "hostpath",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+                "expected_output": [
+                    {
+                        "vm_name": "sushi",
+                        "values": [
+                            {
+                                "storage": [
+                                    {
+                                        "usage": 0.470252976190476,
+                                        "capacity": 0.714285714285714,
+                                        "pvc_name": "san_francisco_pod_name5_data",
+                                        "storage_class": "hostpath",
+                                        "units": "GiB-Mo",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            },
+            {"test_storage": {"storage": []}, "expected_output": {"storage": []}},
+            {"test_storage": [], "expected_output": []},
+            {"test_storage": {"storage": "invalid"}, "expected_output": {"storage": "invalid"}},
+        ]
+
+        for item in test_storage_map:
+            with self.subTest(params=item):
+                test_storage = item.get("test_storage")
+                handler.add_vm_storage_units(test_storage)
+                self.assertEqual(test_storage, item.get("expected_output"))

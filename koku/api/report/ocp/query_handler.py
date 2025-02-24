@@ -181,7 +181,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         Formats the tags into our standard format.
         """
         if not tags_iterable:
-            return
+            return []
         transformed_tags = defaultdict(lambda: {"values": set()})
 
         for tag in tags_iterable:
