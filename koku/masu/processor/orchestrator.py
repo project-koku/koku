@@ -296,7 +296,7 @@ class Orchestrator:
                     )
                     continue
 
-                cache_key = f"{provider_uuid}:{report_file}"  # noqa: E231
+                cache_key = f"{provider_uuid}:{report_file}"
                 if self.worker_cache.task_is_running(cache_key):
                     LOG.info(
                         log_json(
@@ -431,9 +431,7 @@ class Orchestrator:
         providers = self.get_polling_batch()
         if not providers:
             LOG.info(log_json(msg="no accounts to be polled"))
-            return
 
-        LOG.info(log_json(msg="polling accounts", count=len(providers)))
         for provider in providers:
             LOG.info(log_json(msg="polling for account", provider_uuid=provider.uuid))
 

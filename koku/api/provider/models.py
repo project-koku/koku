@@ -93,9 +93,7 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
         # Dynamically set batch limit (divide count by 21 hours so we always trigger a few extra + round up)
         batch_limit = math.ceil(len(self.filter(**filters)) / 21)
         if batch_limit <= 1:
-            # Django can't do negative indexing, so just return all the Providers.
-            # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
-            # Also if we have less than 21 providers we should collect them all
+            # If we have less than 21 providers we should collect them all
             return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta).order_by("polling_timestamp")
         return (
             self.filter(**filters)
@@ -489,7 +487,7 @@ delete
   from {qual_table_name}
  where "{target_info["column_name"]}" = any(%s)
 ;
-"""  # noqa: E231 E702 E272
+"""
         with transaction.get_connection().cursor() as cur:
             LOG.info(f"Attempting to delete records from {qual_table_name}")
             cur.execute(_sql, (target_values,))
