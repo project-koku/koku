@@ -35,7 +35,7 @@ generators:
                   labels: label_environment:ruby|label_app:fall|label_version:red|label_storageclass:banana
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name1_data
+                    volume_claim_name: fall_pod_name1_data
                     pod_name: pod_name1a
                     labels: label_environment:ruby|label_app:fall|label_version:red|label_storageclass:banana
                     capacity_gig: 20
@@ -65,7 +65,7 @@ generators:
                   labels: label_environment:ruby|label_app:snowdown|label_version:red|label_storageclass:watermelon
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name2_data
+                    volume_claim_name: snowdown_pod_name2_data
                     pod_name: pod_name2b
                     labels: label_environment:ruby|label_app:snowdown|label_version:red|label_storageclass:watermelon
                     capacity_gig: 20
@@ -100,7 +100,7 @@ generators:
                   labels: label_environment:clyde|label_app:winter|label_version:green|label_storageclass:apple
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name3_data
+                    volume_claim_name: cost_management_pod_name3_data
                     pod_name: pod_name3a
                     labels: label_environment:clyde|label_app:winter|label_version:green|label_storageclass:apple
                     capacity_gig: 20

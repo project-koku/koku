@@ -83,7 +83,7 @@ generators:
                   labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta||label_Mapping-B:B
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name2_data
+                    volume_claim_name: catalog_pod_name2_data
                     pod_name: pod_name2a
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta|label_Mapping-B:B
                     capacity_gig: 20
@@ -121,7 +121,7 @@ generators:
                   labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon|label_Mapping:C
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name3_data
+                    volume_claim_name: cost_management_pod_name3_data
                     pod_name: pod_name3b
                     labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon|label_Mapping:C
                     capacity_gig: 10
