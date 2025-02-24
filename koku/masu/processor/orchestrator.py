@@ -136,7 +136,7 @@ class Orchestrator:
             filters = {}
             if self.provider_type:
                 filters["type"] = self.provider_type
-            providers = Provider.polling_objects.get_polling_batch(settings.POLLING_BATCH_SIZE, filters=filters)
+            providers = Provider.polling_objects.get_polling_batch(filters=filters)
 
         batch = []
         for provider in providers:
@@ -432,7 +432,6 @@ class Orchestrator:
         if not providers:
             LOG.info(log_json(msg="no accounts to be polled"))
 
-        LOG.info(log_json(msg="polling accounts", count=len(providers)))
         for provider in providers:
             LOG.info(log_json(msg="polling for account", provider_uuid=provider.uuid))
 
