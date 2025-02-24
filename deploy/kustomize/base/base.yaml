@@ -523,9 +523,6 @@ parameters:
 - displayName: Timer between provider polling
   name: POLLING_TIMER
   value: "86400"
-- displayName: Provider count for batch polling
-  name: POLLING_BATCH_SIZE
-  value: "100"
 - description: Minimum number of reports before provider classed as XL
   displayName: Min report count for large providers
   name: XL_REPORT_COUNT

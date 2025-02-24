@@ -141,7 +141,7 @@ class ProviderModelTest(MasuTestCase):
     def test_get_pollable_providers(self):
         """Test that the pollable manager returns non-OCP providers only."""
         non_ocp_providers_count = Provider.objects.exclude(type=Provider.PROVIDER_OCP).count()
-        pollable = Provider.polling_objects.get_polling_batch(0)
+        pollable = Provider.polling_objects.get_polling_batch()
         self.assertEqual(pollable.count(), non_ocp_providers_count)
         for p in pollable:
             self.assertNotEqual(p.type, Provider.PROVIDER_OCP)
@@ -150,7 +150,7 @@ class ProviderModelTest(MasuTestCase):
     def test_get_pollable_providers_debug(self):
         """Test that the pollable manager returns OCP providers with DEBUG=True"""
         all_providers_count = Provider.objects.count()
-        pollable = Provider.polling_objects.get_polling_batch(0)
+        pollable = Provider.polling_objects.get_polling_batch()
         self.assertLess(pollable.count(), all_providers_count)
 
     def test_get_pollable_providers_with_timestamps(self):
@@ -168,24 +168,24 @@ class ProviderModelTest(MasuTestCase):
         p.polling_timestamp = self.dh.now_utc - timedelta(seconds=settings.POLLING_TIMER + 1)
         p.save()
 
-        pollable = Provider.polling_objects.get_polling_batch(0)
+        pollable = Provider.polling_objects.get_polling_batch()
         self.assertEqual(
             pollable.count(), non_ocp_providers_count - 1
         )  # subtract 1 because polling_timestamp is younger than POLLING_TIMER
         for p in pollable:
             self.assertNotEqual(p.type, Provider.PROVIDER_OCP)
 
-    def test_get_pollable_limits_offest(self):
-        """Test the limits and offset params of pollable providers."""
-        pollable_count = Provider.polling_objects.get_polling_batch(0).count()
-        first = Provider.polling_objects.get_polling_batch(1)
-        seen = set(first)
-        for i in range(1, pollable_count):
-            nextp = Provider.polling_objects.get_polling_batch(1, i)
-            self.assertNotEqual(first, nextp)
-            self.assertNotIn(nextp, seen)
-            seen.add(nextp)
-            first = nextp
+    def test_get_zero_batch_limit(self):
+        """Test batch limit of pollable providers."""
+        expected_count = Provider.polling_objects.get_polling_batch().count()
 
-        len_two = Provider.polling_objects.get_polling_batch(2).count()
-        self.assertEqual(len_two, 2)
+        with patch("api.provider.models.math.ceil", return_value=0):
+            polling_batch = Provider.polling_objects.get_polling_batch().count()
+            self.assertEqual(polling_batch, expected_count)
+
+    def test_get_batch(self):
+        """Test batch limit of 2 pollable providers."""
+        expected_count = 2
+        with patch("api.provider.models.math.ceil", return_value=2):
+            polling_batch = Provider.polling_objects.get_polling_batch().count()
+            self.assertEqual(polling_batch, expected_count)
