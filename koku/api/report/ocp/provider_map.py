@@ -832,6 +832,7 @@ class OCPProviderMap(ProviderMap):
                                     storage_class=F("storageclass"),
                                     usage=F("persistentvolumeclaim_usage_gigabyte_months"),
                                     capacity=F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                    usage_units=Value("GiB-Mo", output_field=CharField()),
                                 ),
                                 distinct=True,
                                 filter=~Q(persistentvolumeclaim_usage_gigabyte_months__isnull=True),

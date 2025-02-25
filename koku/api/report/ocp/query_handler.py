@@ -211,12 +211,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 ):
                     output["distributed_overhead"] = True
 
-        if self._report_type == "virtual_machines":
-            # Handle formating OCP VM response
-            output["data"] = self.format_vm_csv_response(self.query_data)
-        else:
-            output["data"] = self.query_data
-
+        output["data"] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
         output["total"] = self.query_sum
 
@@ -278,7 +273,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     row["tags"] = self.format_tags(tag_iterable)
 
             if self.is_csv_output:
-                data = list(query_data)
+                if self._report_type == "virtual_machines":
+                    date_string = self.date_to_string(self.time_interval[0])
+                    data = [{"date": date_string, "vm_names": query_data}]
+                else:
+                    data = list(query_data)
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix
@@ -365,41 +364,5 @@ class OCPReportQueryHandler(ReportQueryHandler):
             total_delta_percent = None
 
         self.query_delta = {"value": total_delta, "percent": total_delta_percent}
-
-        return query_data
-
-    def add_vm_storage_units(self, query_data):
-        """
-        Recursively traverse vm query_data (which may be a dict or list)
-        and add a `units` field to each dict found under the storage key list.
-        """
-
-        if isinstance(query_data, dict):
-            for key, value in query_data.items():
-                if key == "storage" and isinstance(value, list):
-                    for pvc in value:
-                        if isinstance(pvc, dict):
-                            pvc["units"] = self._mapper.report_type_map.get("storage_usage_units_key")
-                else:
-                    self.add_vm_storage_units(value)
-        elif isinstance(query_data, list):
-            for item in query_data:
-                self.add_vm_storage_units(item)
-
-    def format_vm_csv_response(self, query_data):
-        """
-        Format OCP VM CSV response data.
-
-        If CSV output, nests query data under a date key.
-
-        Returns:
-        list: The formatted query data based on the output format.
-        """
-
-        self.add_vm_storage_units(query_data)
-
-        if self.is_csv_output:
-            date_string = self.date_to_string(self.time_interval[0])
-            return [{"date": date_string, "vm_names": query_data}]
 
         return query_data
