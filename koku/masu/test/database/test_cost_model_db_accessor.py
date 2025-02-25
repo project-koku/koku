@@ -109,66 +109,6 @@ class CostModelDBAccessorTest(MasuTestCase):
             missing_rate = cost_model_accessor.get_rates("wrong_metric")
             self.assertIsNone(missing_rate)
 
-    def test_get_cpu_core_usage_per_hour_rates(self):
-        """Test get cpu usage rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            cpu_rates = cost_model_accessor.get_cpu_core_usage_per_hour_rates()
-            self.assertEqual(type(cpu_rates), dict)
-            for cost_type in ["Infrastructure", "Supplementary"]:
-                value_result = cpu_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected[cost_type]["cpu_core_usage_per_hour"]
-                self.assertEqual(value_result, expected_value)
-
-    def test_get_memory_gb_usage_per_hour_rates(self):
-        """Test get memory usage rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            mem_rates = cost_model_accessor.get_memory_gb_usage_per_hour_rates()
-            self.assertEqual(type(mem_rates), dict)
-            for cost_type in ["Infrastructure", "Supplementary"]:
-                value_result = mem_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected[cost_type]["memory_gb_usage_per_hour"]
-                self.assertEqual(value_result, expected_value)
-
-    def test_get_cpu_core_request_per_hour_rates(self):
-        """Test get cpu request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            cpu_rates = cost_model_accessor.get_cpu_core_request_per_hour_rates()
-            self.assertEqual(type(cpu_rates), dict)
-            for cost_type in ["Infrastructure", "Supplementary"]:
-                value_result = cpu_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected[cost_type]["cpu_core_request_per_hour"]
-                self.assertEqual(value_result, expected_value)
-
-    def test_get_memory_gb_request_per_hour_rates(self):
-        """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            mem_rates = cost_model_accessor.get_memory_gb_request_per_hour_rates()
-            self.assertEqual(type(mem_rates), dict)
-            for cost_type in ["Infrastructure", "Supplementary"]:
-                value_result = mem_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected[cost_type]["memory_gb_request_per_hour"]
-                self.assertEqual(value_result, expected_value)
-
-    def test_get_storage_gb_usage_per_month_rates(self):
-        """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            storage_rates = cost_model_accessor.get_storage_gb_usage_per_month_rates()
-            self.assertEqual(type(storage_rates), dict)
-            for cost_type in ["Infrastructure", "Supplementary"]:
-                value_result = storage_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected[cost_type]["storage_gb_usage_per_month"]
-                self.assertEqual(value_result, expected_value)
-
-    def test_get_storage_gb_request_per_month_rates(self):
-        """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            storage_rates = cost_model_accessor.get_storage_gb_request_per_month_rates()
-            self.assertEqual(type(storage_rates), dict)
-            for cost_type in ["Infrastructure", "Supplementary"]:
-                value_result = storage_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected[cost_type]["storage_gb_request_per_month"]
-                self.assertEqual(value_result, expected_value)
-
     def test_markup(self):
         """Test to make sure markup dictionary is returned."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
@@ -183,16 +123,6 @@ class CostModelDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             self.assertEqual(cost_model_accessor.cost_model, model)
             self.assertEqual(cost_model_accessor.cost_model.uuid, uuid)
-
-    def test_get_node_cost_per_month(self):
-        """Test get memory request rates."""
-        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            node_cost = cost_model_accessor.get_node_per_month_rates()
-            self.assertEqual(type(node_cost), dict)
-            for cost_type in ["Infrastructure", "Supplementary"]:
-                value_result = node_cost.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected[cost_type]["node_cost_per_month"]
-                self.assertEqual(value_result, expected_value)
 
     def test_infrastructure_rates(self):
         """Test infrastructure rates property."""

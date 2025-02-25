@@ -498,8 +498,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             )
             # We cleared out existing data, but there is no new to calculate.
             return
-
-        if cost_type in ("Node", "Cluster"):
+        if cost_type in ("Node", "Node_Core_Month", "Cluster"):
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql")
@@ -550,7 +549,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         cpu_case, memory_case, volume_case = case_dict.get("cost")
         labels = case_dict.get("labels")
 
-        if cost_type == "Node":
+        if cost_type in ("Node", "Node_Core_Month"):
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
@@ -582,34 +581,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg="populating monthly tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-
-    def populate_node_label_line_item_daily_table(self, start_date, end_date, cluster_id):
-        """Populate the daily node label aggregate of line items table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            cluster_id (String) Cluster Identifier
-
-        Returns
-            (None)
-
-        """
-        # Cast string to date object
-        start_date = DateHelper().parse_to_date(start_date)
-        end_date = DateHelper().parse_to_date(end_date)
-        table_name = self._table_map["node_label_line_item_daily"]
-
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpnodelabellineitem_daily.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "cluster_id": cluster_id,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
@@ -654,14 +625,15 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "schema": self.schema,
             "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
-            "cpu_usage_rate": rates.get("cpu_core_usage_per_hour", 0),
-            "cpu_request_rate": rates.get("cpu_core_request_per_hour", 0),
-            "cpu_effective_rate": rates.get("cpu_core_effective_usage_per_hour", 0),
-            "memory_usage_rate": rates.get("memory_gb_usage_per_hour", 0),
-            "memory_request_rate": rates.get("memory_gb_request_per_hour", 0),
-            "memory_effective_rate": rates.get("memory_gb_effective_usage_per_hour", 0),
-            "volume_usage_rate": rates.get("storage_gb_usage_per_month", 0),
-            "volume_request_rate": rates.get("storage_gb_request_per_month", 0),
+            "cpu_usage_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR, 0),
+            "cpu_request_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR, 0),
+            "cpu_effective_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, 0),
+            "node_core_hour_rate": rates.get(metric_constants.OCP_NODE_CORE_HOUR, 0),
+            "memory_usage_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR, 0),
+            "memory_request_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR, 0),
+            "memory_effective_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, 0),
+            "volume_usage_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH, 0),
+            "volume_request_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH, 0),
             "rate_type": rate_type,
         }
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
@@ -686,20 +658,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 }
             }
         """
-        # defines the usage type for each metric
-        metric_usage_type_map = {
-            "cpu_core_usage_per_hour": "cpu",
-            "cpu_core_request_per_hour": "cpu",
-            "cpu_core_effective_usage_per_hour": "cpu",
-            "memory_gb_usage_per_hour": "memory",
-            "memory_gb_request_per_hour": "memory",
-            "memory_gb_effective_usage_per_hour": "memory",
-            "storage_gb_usage_per_month": "storage",
-            "storage_gb_request_per_month": "storage",
-        }
         # Remove monthly rates
-        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())
-        supplementary_rates = filter_dictionary(supplementary_rates, metric_usage_type_map.keys())
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {"rates": infrastructure_rates, "sql_file": "sql/openshift/cost_model/infrastructure_tag_rates.sql"},
@@ -714,7 +675,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql_file = rate_type.get("sql_file")
             for metric in rate:
                 tags = rate.get(metric, {})
-                usage_type = metric_usage_type_map.get(metric)
+                usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:
@@ -763,20 +724,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 }
             }
         """
-        # defines the usage type for each metric
-        metric_usage_type_map = {
-            "cpu_core_usage_per_hour": "cpu",
-            "cpu_core_request_per_hour": "cpu",
-            "cpu_core_effective_usage_per_hour": "cpu",
-            "memory_gb_usage_per_hour": "memory",
-            "memory_gb_request_per_hour": "memory",
-            "memory_gb_effective_usage_per_hour": "memory",
-            "storage_gb_usage_per_month": "storage",
-            "storage_gb_request_per_month": "storage",
-        }
         # Remove monthly rates
-        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_usage_type_map.keys())
-        supplementary_rates = filter_dictionary(supplementary_rates, metric_usage_type_map.keys())
+        infrastructure_rates = filter_dictionary(infrastructure_rates, metric_constants.USAGE_METRIC_MAP.keys())
+        supplementary_rates = filter_dictionary(supplementary_rates, metric_constants.USAGE_METRIC_MAP.keys())
         # define the rates so the loop can operate on both rate types
         rate_types = [
             {
@@ -795,7 +745,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql_file = rate_type.get("sql_file")
             for metric in rate:
                 tags = rate.get(metric, {})
-                usage_type = metric_usage_type_map.get(metric)
+                usage_type = metric_constants.USAGE_METRIC_MAP.get(metric)
                 if usage_type == "storage":
                     labels_field = "volume_labels"
                 else:
