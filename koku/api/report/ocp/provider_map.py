@@ -16,6 +16,7 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.functions import Coalesce
+from django.db.models.functions import JSONObject
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
@@ -826,7 +827,14 @@ class OCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                             "storage": ArrayAgg(
-                                F("pvc_api_metadata"), distinct=True, filter=~Q(pvc_api_metadata__isnull=True)
+                                JSONObject(
+                                    pvc_name=F("persistentvolumeclaim"),
+                                    storage_class=F("storageclass"),
+                                    usage=F("persistentvolumeclaim_usage_gigabyte_months"),
+                                    capacity=F("persistentvolumeclaim_capacity_gigabyte_months"),
+                                ),
+                                distinct=True,
+                                filter=~Q(persistentvolumeclaim_usage_gigabyte_months__isnull=True),
                             ),
                             "tags": ArrayAgg(F("pod_labels"), distinct=True),
                         },
