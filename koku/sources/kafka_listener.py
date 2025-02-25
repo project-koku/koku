@@ -153,14 +153,10 @@ def process_synchronize_sources_msg(msg_tuple, process_queue):
     except Exception as error:
         # The reason for catching all exceptions is to ensure that the event
         # loop remains active in the event that provider synchronization fails unexpectedly.
-        sources_client = SourcesHTTPClient(
-            provider.auth_header, provider.source_id, provider.account_id, provider.org_id
-        )
-        # Make sure to send failures back integrations for the user.
-        sources_client.set_source_status(error)
+        source_id = provider.source_id if provider else "unknown"
         LOG.error(
-            f"[synchronize_sources] Unexpected synchronization error for source_id "
-            f"{provider.source_id} encountered: {type(error).__name__}: {error}",
+            f"[synchronize_sources] Unexpected synchronization error for source_id {source_id} "
+            f"encountered: {type(error).__name__}: {error}",
             exc_info=True,
         )
 
