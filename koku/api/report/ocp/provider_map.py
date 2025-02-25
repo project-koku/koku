@@ -837,6 +837,10 @@ class OCPProviderMap(ProviderMap):
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_network_cost
                             + self.distributed_unattributed_storage_cost,
+                            "cost_platform_distributed": self.distributed_platform_cost,
+                            "cost_worker_unallocated_distributed": self.distributed_worker_cost,
+                            "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
+                            "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
                             "cluster": Max(Coalesce("cluster_alias", "cluster_id")),
                             "node": Max(F("node")),
                             "project": Max("namespace"),
