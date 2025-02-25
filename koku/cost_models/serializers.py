@@ -479,7 +479,7 @@ class CostModelSerializer(BaseSerializer):
             # TODO: Have this return just the default distribution info after
             # QE updates tests.
             distribution_info = metric_constants.DEFAULT_DISTRIBUTION_INFO
-            distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
+            distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU)
             data["distribution_info"] = distribution_info
         if (
             data.get("markup")

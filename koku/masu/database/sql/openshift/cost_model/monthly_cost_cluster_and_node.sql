@@ -90,6 +90,8 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_cpu_core_hours) / max(cluster_capacity_cpu_core_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'cpu'
             THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * {{rate}}::decimal
+        WHEN {{cost_type}} = 'Node_Core_Month' AND {{distribution}} = 'cpu'
+            THEN sum(pod_effective_usage_cpu_core_hours) / max(node_capacity_cpu_core_hours) * max(node_capacity_cpu_cores) * {{rate}}::decimal
         ELSE 0
     END AS cost_model_cpu_cost,
     CASE
@@ -97,6 +99,8 @@ SELECT uuid_generate_v4(),
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) * {{rate}}::decimal
         WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'memory'
             THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * {{rate}}::decimal
+        WHEN {{cost_type}} = 'Node_Core_Month' AND {{distribution}} = 'memory'
+            THEN sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * max(node_capacity_cpu_cores) * {{rate}}::decimal
         ELSE 0
     END as cost_model_memory_cost,
     0 as cost_model_volume_cost,
