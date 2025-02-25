@@ -917,6 +917,21 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             priority, _ = test_queue.get_nowait()
             self.assertEqual(priority, i)
 
+    @patch("sources.kafka_listener.execute_koku_provider_op")
+    @patch("sources.kafka_listener.SourcesHTTPClient")
+    def test_process_synchronize_sources_msg_integration_exception(self, mock_sources_client, mock_process_message):
+        """Test processing synchronize messages with provider exception."""
+        provider = Sources.objects.create(**self.sources.get(Provider.PROVIDER_AWS))
+        provider.save()
+        kafka_msg = {"operation": "update", "provider": provider}
+        expected = "[synchronize_sources] Unexpected synchronization error for source_id"
+
+        with self.assertLogs("sources.kafka_listener", level="ERROR") as logger:
+            mock_process_message.side_effect = Exception
+            process_synchronize_sources_msg((1, kafka_msg), queue.PriorityQueue())
+            mock_sources_client.assert_called()
+            self.assertIn(expected, logger.output[0])
+
     # @patch("sources.kafka_listener.execute_koku_provider_op")
     # def test_process_synchronize_sources_msg(self, mock_process_message):
     #     """Test processing synchronize messages."""
