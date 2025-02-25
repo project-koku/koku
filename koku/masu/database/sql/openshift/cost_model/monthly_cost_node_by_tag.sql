@@ -3,7 +3,7 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
     AND lids.cost_model_rate_type = {{rate_type}}
-    AND lids.monthly_cost_type = 'Node'
+    AND lids.monthly_cost_type = {{cost_type}}
     AND lids.pod_labels ? {{tag_key}}
 ;
 

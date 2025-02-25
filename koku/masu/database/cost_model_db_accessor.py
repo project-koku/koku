@@ -118,48 +118,6 @@ class CostModelDBAccessor:
         """Get the rates."""
         return self.price_list.get(value)
 
-    def get_cpu_core_usage_per_hour_rates(self):
-        """Get cpu usage rates."""
-        cpu_usage_rates = self.get_rates("cpu_core_usage_per_hour")
-        LOG.info("OCP CPU usage rates: %s", str(cpu_usage_rates))
-        return cpu_usage_rates
-
-    def get_memory_gb_usage_per_hour_rates(self):
-        """Get the memory usage rates."""
-        mem_usage_rates = self.get_rates("memory_gb_usage_per_hour")
-        LOG.info("OCP Memory usage rates: %s", str(mem_usage_rates))
-        return mem_usage_rates
-
-    def get_cpu_core_request_per_hour_rates(self):
-        """Get cpu request rates."""
-        cpu_request_rates = self.get_rates("cpu_core_request_per_hour")
-        LOG.info("OCP CPU request rates: %s", str(cpu_request_rates))
-        return cpu_request_rates
-
-    def get_memory_gb_request_per_hour_rates(self):
-        """Get the memory request rates."""
-        mem_request_rates = self.get_rates("memory_gb_request_per_hour")
-        LOG.info("OCP Memory request rates: %s", str(mem_request_rates))
-        return mem_request_rates
-
-    def get_storage_gb_usage_per_month_rates(self):
-        """Get the storage usage rates."""
-        storage_usage_rates = self.get_rates("storage_gb_usage_per_month")
-        LOG.info("OCP Storage usage rates: %s", str(storage_usage_rates))
-        return storage_usage_rates
-
-    def get_storage_gb_request_per_month_rates(self):
-        """Get the storage request rates."""
-        storage_request_rates = self.get_rates("storage_gb_request_per_month")
-        LOG.info("OCP Storage request rates: %s", str(storage_request_rates))
-        return storage_request_rates
-
-    def get_node_per_month_rates(self):
-        """Get the storage request rates."""
-        node_rates = self.get_rates("node_cost_per_month")
-        LOG.info("OCP Node rate: %s", str(node_rates))
-        return node_rates
-
     @property  # noqa: C901
     def tag_based_price_list(self):  # noqa: C901
         """Return the rates definied on this cost model that come from tag based rates."""
