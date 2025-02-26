@@ -159,7 +159,7 @@ class OCPCloudUpdaterBase:
         return openshift_provider_uuids, infra_provider_uuids
 
     def get_ocp_provider_uuids_wo_infra_map(self):
-        """Fetch list of OCP providers which have no infrastructure mapping.
+        """Fetch list of OCP providers for the current customer which have no infrastructure mapping
 
         Returns:
             unmapped_ocp_provider_uuids list[uuids]: A list of uuids without mappings
@@ -167,7 +167,9 @@ class OCPCloudUpdaterBase:
 
         """
         unmapped_ocp_provider_uuids = []
-        ps = Provider.objects.filter(infrastructure=None, type=Provider.PROVIDER_OCP)
+        ps = Provider.objects.filter(
+            infrastructure=None, type=Provider.PROVIDER_OCP, customer_id=self._provider.customer_id
+        )
         for provider in ps:
             unmapped_ocp_provider_uuids.append(str(provider.uuid))
         return unmapped_ocp_provider_uuids
