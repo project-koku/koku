@@ -65,7 +65,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_Mapping-B:B
+                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_Mapping-B:B|label_vm_kubevirt_io_name:pod_name2a_vm
                 - pod:
                   pod_name: pod_name2b
                   cpu_request: 1
@@ -83,7 +83,7 @@ generators:
                   labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta||label_Mapping-B:B
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name2_data
+                    volume_claim_name: catalog_pod_name2_data
                     pod_name: pod_name2a
                     labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta|label_Mapping-B:B
                     capacity_gig: 20
@@ -111,7 +111,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:qe|label_app:cost|label_version:beta|label_qa:approved|label_Mapping:C
+                  labels: label_environment:qe|label_app:cost|label_version:beta|label_qa:approved|label_Mapping:C|label_vm_kubevirt_io_name:pod_name3b_vm
               volumes:
                 - volume:
                   volume_name: pvc-volume_3
@@ -121,8 +121,8 @@ generators:
                   labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon|label_Mapping:C
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name3_data
-                    pod_name: pod_name3a
+                    volume_claim_name: cost_management_pod_name3_data
+                    pod_name: pod_name3b
                     labels: label_environment:qe|label_app:cost|label_version:beta|label_storageclass:epsilon|label_Mapping:C
                     capacity_gig: 10
         - node:

@@ -181,12 +181,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
         Formats the tags into our standard format.
         """
         if not tags_iterable:
-            return
+            return []
         transformed_tags = defaultdict(lambda: {"values": set()})
 
         for tag in tags_iterable:
-            for key, value in tag.items():
-                transformed_tags[key]["values"].add(value)
+            if tag:
+                for key, value in tag.items():
+                    transformed_tags[key]["values"].add(value)
 
         return [{"key": key, "values": list(data["values"])} for key, data in transformed_tags.items()]
 
@@ -209,8 +210,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     .exists()
                 ):
                     output["distributed_overhead"] = True
-        output["data"] = self.query_data
 
+        output["data"] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
         output["total"] = self.query_sum
 
@@ -273,8 +274,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self.is_csv_output:
                 if self._report_type == "virtual_machines":
-                    # Handle formating OCP VM response
-                    data = self.format_vm_csv_response(query_data)
+                    date_string = self.date_to_string(self.time_interval[0])
+                    data = [{"date": date_string, "vm_names": query_data}]
                 else:
                     data = list(query_data)
             else:
@@ -365,19 +366,3 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_delta = {"value": total_delta, "percent": total_delta_percent}
 
         return query_data
-
-    def format_vm_csv_response(self, query_data):
-        """
-        Format OCP VM CSV response data.
-
-        If CSV output, nests query data under a date key.
-
-        Returns:
-        list: The formatted query data based on the output format.
-        """
-
-        date_string = self.date_to_string(self.time_interval[0])
-        for item in query_data:
-            # exclude tags when exporting to csv
-            item.pop("tags")
-        return [{"date": date_string, "vm_names": query_data}]

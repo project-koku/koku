@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """API views for CSV output."""
-from rest_framework_csv.renderers import CSVRenderer
+from rest_framework_csv.renderers import PaginatedCSVRenderer
 
 
-class PaginatedCSVRenderer(CSVRenderer):
+class PaginatedCSVRenderer(PaginatedCSVRenderer):
     """
     A Paginated CSV Renderer.
 
@@ -17,6 +17,5 @@ class PaginatedCSVRenderer(CSVRenderer):
 
     def render(self, data, *args, **kwargs):
         """Render a paginated CSV."""
-        if not isinstance(data, list):
-            data = data.get(self.results_field, [])
+
         return super().render(data, *args, **kwargs)
