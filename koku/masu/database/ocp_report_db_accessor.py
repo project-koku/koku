@@ -96,18 +96,22 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
-        sql_params = {
-            "start_date": str(start_date),
-            "end_date": str(end_date),
-            "schema": self.schema,
-            "source_uuid": str(source_uuid),
-        }
-        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
-        sql = sql.decode("utf-8")
-        start_date = DateHelper().parse_to_date(start_date)
-        sql_params["year"] = start_date.strftime("%Y")
-        sql_params["month"] = start_date.strftime("%m")
-        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        if self.schema_exists_trino():
+            storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
+            pod_exists = trino_table_exists(self.schema, "openshift_pod_usage_line_items_daily")
+            if storage_exists and pod_exists:
+                sql_params = {
+                    "start_date": str(start_date),
+                    "end_date": str(end_date),
+                    "schema": self.schema,
+                    "source_uuid": str(source_uuid),
+                }
+                sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
+                sql = sql.decode("utf-8")
+                start_date = DateHelper().parse_to_date(start_date)
+                sql_params["year"] = start_date.strftime("%Y")
+                sql_params["month"] = start_date.strftime("%m")
+                self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.

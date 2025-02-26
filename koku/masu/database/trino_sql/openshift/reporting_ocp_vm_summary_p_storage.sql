@@ -30,8 +30,8 @@ WITH storage_info AS (
     SELECT
         storage.persistentvolumeclaim,
         vm.vm_name
-    FROM openshift_pod_usage_line_items_daily AS pod_usage
-    INNER JOIN openshift_storage_usage_line_items_daily as storage
+    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS pod_usage
+    INNER JOIN hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as storage
         ON pod_usage.pod = storage.pod
         AND pod_usage.year = storage.year
         AND pod_usage.month = storage.month
