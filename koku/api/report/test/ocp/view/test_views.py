@@ -610,6 +610,27 @@ class OCPReportViewTest(IamTestCase):
         self.assertNotEqual(distributed_cost, Decimal(0))
         self.assertAlmostEqual(distributed_cost, expected_total, 6)
 
+    def test_virtual_machines_distributed_costs(self):
+        """Test that the virtual machines endpoint returns distributed costs."""
+        url = reverse("reports-openshift-virtual-machines")
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.data
+
+        meta_total_cost = data.get("meta", {}).get("total", {}).get("cost", {})
+        expected_dist_cost_keys = {
+            "platform_distributed",
+            "worker_unallocated_distributed",
+            "network_unattributed_distributed",
+            "storage_unattributed_distributed",
+        }
+        self.assertTrue(
+            expected_dist_cost_keys.issubset(meta_total_cost),
+            f"Missing {expected_dist_cost_keys.difference(meta_total_cost)}",
+        )
+
     def test_execute_query_ocp_costs_with_delta(self):
         """Test that deltas work for costs."""
         url = reverse("reports-openshift-costs")
@@ -1335,7 +1356,7 @@ class OCPReportViewTest(IamTestCase):
                     "filter[limit]": 5,
                 }
 
-                url = f'{reverse("reports-openshift-cpu")}?' + urlencode(params, quote_via=quote_plus)
+                url = f"{reverse('reports-openshift-cpu')}?" + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -1385,7 +1406,7 @@ class OCPReportViewTest(IamTestCase):
                     "filter[limit]": limit_size,
                     "filter[offset]": 0,
                 }
-                url = f'{reverse("reports-openshift-costs")}?' + urlencode(params, quote_via=quote_plus)
+                url = f"{reverse('reports-openshift-costs')}?" + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -1427,7 +1448,7 @@ class OCPReportViewTest(IamTestCase):
                     "filter[limit]": 5,
                 }
 
-                url = f'{reverse("reports-openshift-costs")}?' + urlencode(params, quote_via=quote_plus)
+                url = f"{reverse('reports-openshift-costs')}?" + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
