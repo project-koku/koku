@@ -2,6 +2,7 @@
 import logging
 
 import google.auth
+from google.api_core.exceptions import Forbidden
 from google.auth.exceptions import RefreshError
 from google.cloud import bigquery
 from google.cloud import storage
@@ -93,6 +94,10 @@ class GCPProvider(ProviderInterface):
             message = (
                 f"Unable to find dataset: {data_source.get('dataset')} in project: {credentials.get('project_id')}"
             )
+            raise serializers.ValidationError(error_obj(key, message))
+        except Forbidden as err:
+            key = "authentication.project_id"
+            message = f"403 forbidden error. {err.message}"
             raise serializers.ValidationError(error_obj(key, message))
         except BadRequest as e:
             LOG.warning(str(e))

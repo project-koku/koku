@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from faker import Faker
+from google.api_core.exceptions import Forbidden
 from google.auth.exceptions import RefreshError
 from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import GoogleCloudError
@@ -221,6 +222,17 @@ class GCPProviderTestCase(TestCase):
         provider = GCPProvider()
         with self.assertRaises(SkipStatusPush):
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
+    @patch("providers.gcp.provider.GCPProvider.get_table_id")
+    def test_detect_billing_export_table_forbidden(self, mock_get_table):
+        """Verify forbidden error is raised."""
+        err_msg = "GCP Error"
+        mock_get_table.side_effect = Forbidden(err_msg)
+        provider = GCPProvider()
+        billing = {"dataset": FAKE.word()}
+        creds = {"project_id": FAKE.word()}
+        with self.assertRaises(ValidationError):
+            provider._detect_billing_export_table(billing, creds)
 
     @patch("providers.gcp.provider.bigquery")
     @patch("providers.gcp.provider.discovery")
