@@ -796,6 +796,17 @@ class OCPProviderMap(ProviderMap):
                             "request_memory": Sum("pod_request_memory_gigabyte_hours") / 24,
                             "request_cpu_units": Max(Value("Core", output_field=CharField())),
                             "request_memory_units": Max(Value("GiB", output_field=CharField())),
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unattributed_storage_cost,
+                            "cost_platform_distributed": self.distributed_platform_cost,
+                            "cost_worker_unallocated_distributed": self.distributed_worker_cost,
+                            "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
+                            "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
                         },
                         "capacity_aggregate": {},
                         "annotations": {
@@ -819,6 +830,17 @@ class OCPProviderMap(ProviderMap):
                             "request_memory": Max("pod_request_memory_gigabyte_hours") / 24,
                             "request_cpu_units": Value("Core", output_field=CharField()),
                             "request_memory_units": Value("GiB", output_field=CharField()),
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_network_cost
+                            + self.distributed_unattributed_storage_cost,
+                            "cost_platform_distributed": self.distributed_platform_cost,
+                            "cost_worker_unallocated_distributed": self.distributed_worker_cost,
+                            "cost_network_unattributed_distributed": self.distributed_unattributed_network_cost,
+                            "cost_storage_unattributed_distributed": self.distributed_unattributed_storage_cost,
                             "cluster": Max(Coalesce("cluster_alias", "cluster_id")),
                             "node": Max(F("node")),
                             "project": Max("namespace"),
