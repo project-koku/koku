@@ -113,10 +113,11 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
     def get_infra_map(self, start_date, end_date):
         """Get the map of cloud source and associated OpenShift clusters."""
         infra_map = self.get_infra_map_from_providers()
-        openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
+        openshift_provider_uuids, _ = self.get_openshift_and_infra_providers_lists(infra_map)
 
         if (self.provider_type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids) or (
-            self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
+            self.provider_type in Provider.CLOUD_PROVIDER_LIST
+            and (p not in openshift_provider_uuids for p in self.get_ocp_provider_uuids_wo_infra_map())
         ):
             infra_map = self._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
         return infra_map

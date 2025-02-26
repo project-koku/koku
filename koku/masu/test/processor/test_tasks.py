@@ -45,6 +45,7 @@ from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
@@ -981,7 +982,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
-    def test_update_summary_tables_remove_expired_data_gcp(self, mock_select_for_update, mock_chain, *args):
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_update_summary_tables_remove_expired_data_gcp(
+        self, mock_infra_map, mock_select_for_update, mock_chain, *args
+    ):
         """Test that the update summary table task runs for GCP."""
         mock_queryset = mock_select_for_update.return_value
         mock_queryset.get.return_value = None
@@ -1012,8 +1016,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
     def test_update_summary_tables_ocp_on_cloud(
-        self, mock_select_for_update, mock_accessor, mock_chain, mock_delete, mock_update, _
+        self, mock_infra_map, mock_select_for_update, mock_accessor, mock_chain, mock_delete, mock_update, _
     ):
         """Test that we call delete tasks and ocp on cloud summary"""
         mock_queryset = mock_select_for_update.return_value
@@ -1023,7 +1028,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         end_date = self.dh.last_month_end
         manifest_id = 1
         tracing_id = "1234"
-
+        updater = OCPCloudParquetReportSummaryUpdater(
+            schema=self.schema, provider=self.aws_provider, manifest=manifest_id
+        )
+        mock_infra_map.return_value = updater.get_infra_map_from_providers()
         update_summary_tables(
             self.schema,
             self.aws_provider.type,
@@ -1311,7 +1319,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
-    def test_update_summary_tables(self, mock_select_for_update, mock_updater, mock_complete):
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_update_summary_tables(self, mock_infra_map, mock_select_for_update, mock_updater, mock_complete):
         """Test that this task runs."""
         mock_queryset = mock_select_for_update.return_value
         mock_queryset.get.return_value = None
@@ -1441,8 +1450,10 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
     def test_update_summary_tables_worker_throttled(
         self,
+        mock_infra_map,
         mock_select_for_update,
         mock_inspect,
         mock_lock,
@@ -1463,6 +1474,8 @@ class TestWorkerCacheThrottling(MasuTestCase):
         end_date = self.dh.this_month_end
         cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
         mock_lock.side_effect = self.lock_single_task
+        updater = OCPCloudParquetReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
+        mock_infra_map.return_value = updater.get_infra_map_from_providers()
 
         mock_summary.return_value = start_date, end_date
         update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
