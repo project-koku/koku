@@ -667,7 +667,7 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
         start_date = self.dh.last_month_start
         end_date = self.dh.last_month_end
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.ocp_provider, manifest=None)
-        expected_infra_map = {self.ocp_provider.uuid: ("infra_provider_uuid", "infra_provider_type")}
+        expected_infra_map = {self.ocp_provider_uuid: ("infra_provider_uuid", "infra_provider_type")}
         mock_get_infra_map.return_value = expected_infra_map
         mock_get_ocp_list.return_value = ([self.ocp_provider_uuid], {})
         infra_map = updater.get_infra_map(start_date, end_date)
