@@ -20,7 +20,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_dashed-key-on-azure:dashed-value
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_dashed-key-on-azure:dashed-value|label_vm_kubevirt_io_name:pod_name1a_vm
                 - pod:
                   pod_name: pod_name1b
                   cpu_request: 1
@@ -38,7 +38,7 @@ generators:
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur|label_dashed-key-on-azure:dashed-value
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name1_data
+                    volume_claim_name: mobile_pod_name1_data
                     pod_name: pod_name1a
                     labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur|label_dashed-key-on-azure:dashed-value
                     capacity_gig: 20
@@ -51,7 +51,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_vm_kubevirt_io_name:pod_name2a_vm
                 - pod:
                   pod_name: pod_name2b
                   cpu_request: 1
@@ -68,7 +68,7 @@ generators:
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Loki
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name2_data
+                    volume_claim_name: news_site_pod_name2_data
                     pod_name: pod_name2a
                     labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Loki
                     capacity_gig: 20
@@ -88,7 +88,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:qe|label_app:banking|label_version:MilkyWay
+                  labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_vm_kubevirt_io_name:pod_name3a_vm
                 - pod:
                   pod_name: pod_name3b
                   cpu_request: 1
@@ -106,7 +106,7 @@ generators:
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name1_data
+                    volume_claim_name: banking_pod_name3_data_1
                     pod_name: pod_name3a
                     labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                     capacity_gig: 20
@@ -117,7 +117,7 @@ generators:
                   labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_storageclass:Odin
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name3_data
+                    volume_claim_name: banking_pod_name3_data_2
                     pod_name: pod_name3a
                     labels: label_environment:qe|label_app:banking|label_version:MilkyWay|label_storageclass:Odin
                     capacity_gig: 20
@@ -143,7 +143,7 @@ generators:
                   cpu_limit: 2
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Mars|label_app:weather|label_version:Andromeda
+                  labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_vm_kubevirt_io_name:pod_name4a_vm
                 - pod:
                   pod_name: pod_name4b
                   cpu_request: 2
@@ -161,7 +161,7 @@ generators:
                   labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name1_data
+                    volume_claim_name: weather_pod_name4_data_1
                     pod_name: pod_name4a
                     labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
                     capacity_gig: 20
@@ -172,7 +172,7 @@ generators:
                   labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_storageclass:Thor
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name4_data
+                    volume_claim_name: weather_pod_name4_data_2
                     pod_name: pod_name4a
                     labels: label_environment:Mars|label_app:weather|label_version:Andromeda|label_storageclass:Thor
                     capacity_gig: 20
