@@ -59,6 +59,7 @@ pydantic = ">=2"
 sqlparse = "*"
 polars = "*"
 adbc-driver-postgresql = "*"
+packaging = "*"
 
 [dev-packages]
 argh = ">=0.26.2"
