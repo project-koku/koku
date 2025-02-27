@@ -185,8 +185,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         transformed_tags = defaultdict(lambda: {"values": set()})
 
         for tag in tags_iterable:
-            for key, value in tag.items():
-                transformed_tags[key]["values"].add(value)
+            if tag:
+                for key, value in tag.items():
+                    transformed_tags[key]["values"].add(value)
 
         return [{"key": key, "values": list(data["values"])} for key, data in transformed_tags.items()]
 
