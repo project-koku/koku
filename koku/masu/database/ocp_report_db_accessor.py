@@ -11,6 +11,8 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db import IntegrityError
+from django.db import transaction
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -836,7 +838,16 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
     def populate_node_table(self, cluster, nodes):
         """Get or create an entry in the OCP node table."""
-        LOG.info(log_json(msg="populating reporting_ocp_nodes table", schema=self.schema, cluster=cluster))
+
+        LOG.info(
+            log_json(
+                msg="populating reporting_ocp_nodes table",
+                schema=self.schema,
+                cluster_id=cluster.cluster_id,
+                cluster_alias=cluster.cluster_alias,
+            )
+        )
+
         for node in nodes:
             tmp_node = OCPNode.objects.filter(
                 node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
@@ -856,23 +867,51 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
-        LOG.info(log_json(msg="populating reporting_ocp_pvcs table", schema=self.schema, cluster=cluster))
+
+        LOG.info(
+            log_json(
+                msg="populating reporting_ocp_pvcs table",
+                schema=self.schema,
+                cluster_id=cluster.cluster_id,
+                cluster_alias=cluster.cluster_alias,
+            )
+        )
+
         for pvc in pvcs:
             try:
-                ocppvc = OCPPVC.objects.get(persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster)
-                if not ocppvc.csi_volume_handle:
-                    # Update the existing record's csi_volume_handle
-                    ocppvc.csi_volume_handle = pvc[2]
-                    ocppvc.save(update_fields=["csi_volume_handle"])
-            except OCPPVC.DoesNotExist:
-                # If the record does not exist, create a new one
-                OCPPVC.objects.create(
-                    persistent_volume=pvc[0], persistent_volume_claim=pvc[1], csi_volume_handle=pvc[2], cluster=cluster
-                )
+                with transaction.atomic():
+                    ocppvc = OCPPVC.objects.filter(
+                        persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster
+                    ).first()
+                    if ocppvc:
+                        if not ocppvc.csi_volume_handle:
+                            # Update the existing record's csi_volume_handle
+                            ocppvc.csi_volume_handle = pvc[2]
+                            ocppvc.save(update_fields=["csi_volume_handle"])
+                    else:
+                        # If the record does not exist, create a new one
+                        OCPPVC.objects.create(
+                            persistent_volume=pvc[0],
+                            persistent_volume_claim=pvc[1],
+                            csi_volume_handle=pvc[2],
+                            cluster=cluster,
+                        )
+
+            except IntegrityError:
+                LOG.warning(f"another process inserted this pvc record: {pvc}")
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
-        LOG.info(log_json(msg="populating reporting_ocp_projects table", schema=self.schema, cluster=cluster))
+
+        LOG.info(
+            log_json(
+                msg="populating reporting_ocp_projects table",
+                schema=self.schema,
+                cluster_id=cluster.cluster_id,
+                cluster_alias=cluster.cluster_alias,
+            )
+        )
+
         for project in projects:
             OCPProject.objects.get_or_create(project=project, cluster=cluster)
 
