@@ -555,6 +555,7 @@ PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default
 # Flag for automatic data ingest on Provider create
 AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
 POLLING_TIMER = ENVIRONMENT.int("POLLING_TIMER", default=86400)
+POLLING_COUNT = ENVIRONMENT.int("POLLING_COUNT", default=21)
 
 # Used for setting threshold for XL customers based on manifest report count.
 XL_REPORT_COUNT = ENVIRONMENT.int("XL_REPORT_COUNT", default=100)
