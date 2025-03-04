@@ -110,17 +110,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         return False
 
-    def get_infra_map(self, start_date, end_date):
-        """Get the map of cloud source and associated OpenShift clusters."""
-        infra_map = self.get_infra_map_from_providers()
-        openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
-
-        if (self.provider_type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids) or (
-            self.provider_type in Provider.CLOUD_PROVIDER_LIST and self._provider_uuid not in infra_provider_uuids
-        ):
-            infra_map = self._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
-        return infra_map
-
     def determine_truncates_and_deletes(self, start_date, end_date):
         """Clear out existing data in summary tables."""
         trunc_delete_map = {}

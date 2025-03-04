@@ -166,7 +166,7 @@ class ReportSummaryUpdater:
                 "end_date": end_date,
             }
             LOG.info(log_json(tracing_id, msg="getting OCP-on-Cloud infra map", context=context))
-            return self._ocp_cloud_updater.get_infra_map(start_date, end_date)
+            return self._ocp_cloud_updater._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex)) from ex
 

@@ -157,6 +157,7 @@ def trigger_ocp_on_cloud_summary(
         )
         return
     updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
+    ocp_on_cloud_infra_map = None
     try:
         ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
