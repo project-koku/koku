@@ -1,4 +1,4 @@
-from postgres:14
+FROM postgres:16
 
 ARG USER_ID=999
 ARG GROUP_ID=999

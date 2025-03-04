@@ -1500,29 +1500,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     tested = True
         self.assertTrue(tested)
 
-    def test_format_vm_response_csv(self):
-
-        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
-        handler = OCPReportQueryHandler(query_params)
-        handler.is_csv_output = True
-        handler.time_interval = [self.dh.this_month_start]
-
-        # Input data
-        query_data = [
-            {
-                "vm_name": "basic_vm",
-                "tags": [
-                    {"tag_key": "test"},
-                ],
-            }
-        ]
-        # Expected output
-        expected_date_str = self.dh.this_month_start.strftime("%Y-%m")
-        expected_output = [{"date": expected_date_str, "vm_names": [{"vm_name": "basic_vm"}]}]
-
-        result = handler.format_vm_csv_response(query_data)
-        self.assertEqual(result, expected_output)
-
     def test_execute_vm_csv_query(self):
         query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
         handler = OCPReportQueryHandler(query_params)
@@ -1531,3 +1508,26 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         self.assertIsNotNone(data)
+
+    def test_format_tags(self):
+        """Test that tags are formatted correctly."""
+
+        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+
+        test_tags_format_map = [
+            {
+                "test_tags": [{"application": "CMSapp", "instance-type": "large", "vm_kubevirt_io_name": "fedora"}],
+                "expected_output": [
+                    {"key": "application", "values": ["CMSapp"]},
+                    {"key": "instance-type", "values": ["large"]},
+                    {"key": "vm_kubevirt_io_name", "values": ["fedora"]},
+                ],
+            },
+            {"test_tags": [], "expected_output": []},
+        ]
+
+        for item in test_tags_format_map:
+            with self.subTest(params=item):
+                result = handler.format_tags(item.get("test_tags"))
+                self.assertEqual(result, item.get("expected_output"))
