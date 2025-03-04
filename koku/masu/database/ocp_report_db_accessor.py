@@ -12,7 +12,6 @@ import uuid
 
 from dateutil.parser import parse
 from django.db import IntegrityError
-from django.db import transaction
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
@@ -878,27 +877,26 @@ GROUP BY partitions.year, partitions.month, partitions.source
         )
 
         for pvc in pvcs:
-            try:
-                with transaction.atomic():
-                    ocppvc = OCPPVC.objects.filter(
-                        persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster
-                    ).first()
-                    if ocppvc:
-                        if not ocppvc.csi_volume_handle:
-                            # Update the existing record's csi_volume_handle
-                            ocppvc.csi_volume_handle = pvc[2]
-                            ocppvc.save(update_fields=["csi_volume_handle"])
-                    else:
-                        # If the record does not exist, create a new one
-                        OCPPVC.objects.create(
-                            persistent_volume=pvc[0],
-                            persistent_volume_claim=pvc[1],
-                            csi_volume_handle=pvc[2],
-                            cluster=cluster,
-                        )
+            ocppvc = OCPPVC.objects.filter(
+                persistent_volume=pvc[0], persistent_volume_claim=pvc[1], cluster=cluster
+            ).first()
+            if ocppvc:
+                if not ocppvc.csi_volume_handle:
+                    # Update the existing record's csi_volume_handle
+                    ocppvc.csi_volume_handle = pvc[2]
+                    ocppvc.save(update_fields=["csi_volume_handle"])
+            else:
+                # If the record does not exist, try creating a new one
+                try:
+                    OCPPVC.objects.create(
+                        persistent_volume=pvc[0],
+                        persistent_volume_claim=pvc[1],
+                        csi_volume_handle=pvc[2],
+                        cluster=cluster,
+                    )
 
-            except IntegrityError:
-                LOG.warning(f"another process inserted this pvc record: {pvc}")
+                except IntegrityError:
+                    LOG.warning(f"IntegrityError raised when creating pvc: {pvc}.")
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
