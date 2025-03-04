@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9-minimal:latest AS base
+FROM registry.access.redhat.com/ubi9-minimal:latest AS base-python
 
 USER root
 
@@ -28,17 +28,24 @@ LABEL summary="$SUMMARY" \
     version="1" \
     maintainer="Red Hat Cost Management Services <cost-mgmt@redhat.com>"
 
-# Very minimal set of packages
 # glibc-langpack-en is needed to set locale to en_US and disable warning about it
-# gcc to compile some python packages (e.g. ciso8601)
-# shadow-utils to make useradd available
-RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc-c++ shadow-utils" && \
+RUN INSTALL_PKGS="python3.11 glibc-langpack-en" && \
     microdnf --nodocs -y upgrade && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
 
-FROM base AS final
+
+FROM base-python as compile-image
+# Extra packages for compilation
+# gcc to compile some python packages (e.g. ciso8601)
+# shadow-utils to make useradd available
+RUN INSTALL_PKGS="python3.11-devel  gcc-c++ shadow-utils" && \
+    microdnf --nodocs -y upgrade && \
+    microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
+    microdnf -y clean all --enablerepo='*'
+
 # PIPENV_DEV is set to true in the docker-compose allowing
 # local builds to install the dev dependencies
 ARG PIPENV_DEV=False
@@ -79,7 +86,6 @@ RUN mv licenses/ /
 RUN \
     adduser koku -u ${USER_ID} -g 0 && \
     chmod ug+rw ${APP_ROOT} ${APP_HOME} ${APP_HOME}/static /tmp
-USER koku
 
 # create the static files
 RUN \
@@ -89,6 +95,19 @@ RUN \
     # will be recreated by the Pod when the application starts.
     rm ${APP_HOME}/app.log
 
+
+FROM base-python AS final
+WORKDIR ${APP_ROOT}
+
+COPY --from=compile-image ${APP_ROOT} ${APP_ROOT}
+COPY --from=compile-image /etc/passwd /etc/passwd
+COPY --from=compile-image /licenses /licenses
+
+# Make sure we use the virtualenv:
+ENV VIRTUAL_ENV=${APP_ROOT}/.venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+USER koku
 EXPOSE 8000
 
 # GIT_COMMIT is added during build in `build_deploy.sh`
