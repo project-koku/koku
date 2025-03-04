@@ -234,8 +234,10 @@ class DiskCapacity(models.Model):
     class Meta:
         """Meta for CostUsageReportStatus."""
 
+        # table: reporting_common_diskcapacity
+
         unique_together = ("product_substring", "capacity", "provider_type")
 
     product_substring = models.CharField(max_length=20, primary_key=True)
-    capacity = models.IntegerField()
+    capacity = models.IntegerField()  # GiB
     provider_type = models.CharField(max_length=50, null=False, choices=Provider.CLOUD_PROVIDER_CHOICES)

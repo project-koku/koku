@@ -18,6 +18,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.prometheus_stats import QUEUES
 from masu.test import MasuTestCase
+from masu.test.celery import test_azure_scrape_output
+from masu.util.azure.azure_disk_size_scraper import AzureDiskSizeScraper
 from reporting.models import TRINO_MANAGED_TABLES
 from reporting_common.models import DiskCapacity
 
@@ -412,20 +414,11 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.celery_app")
     def test_scrape_azure_storage_capacities(self, mock_celery_app):
         """Test the scrape storage capacities."""
+        adsf = AzureDiskSizeScraper()
         DiskCapacity.objects.all().delete()
         beforeRows = DiskCapacity.objects.count()
-        result = """
-            | Standard SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
-            | Standard Disk Type | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
-            | Premium SSD sizes | P1 | P2 | P3 | P4 | P6 | P10 | P15 | P20 | P30 | P40 | P50 | P60 | P70 | P80 |
-            |-------------------|----|----|----|----|----|-----|-----|-----|-----|-----|-----|------|------|------|
-            | Disk size in GiB | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384 | 32767 |
-        """
-        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
         with requests_mock.mock() as reqmock:
-            reqmock.register_uri("GET", f"{main_url}disk-storage-premium-ssd-sizes.md", status_code=200, text=result)
-            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-hdd-sizes.md", status_code=200, text=result)
-            reqmock.register_uri("GET", f"{main_url}disk-storage-standard-ssd-sizes.md", status_code=200, text=result)
+            reqmock.register_uri("GET", adsf.url, status_code=200, text=test_azure_scrape_output)
             tasks.scrape_azure_storage_capacities()
         afterRows = DiskCapacity.objects.count()
         self.assertNotEqual(beforeRows, afterRows)
@@ -433,20 +426,12 @@ class TestCeleryTasks(MasuTestCase):
 
     def test_error_scrape_azure_storage_capacities(self):
         """Test HTTP error capture."""
-        main_url = "https://raw.githubusercontent.com/MicrosoftDocs/azure-docs/main/includes/"
-        with self.assertLogs("masu.celery.tasks", "ERROR") as captured_logs:
+        adsf = AzureDiskSizeScraper()
+        with self.assertLogs("masu.util.azure.azure_disk_size_scraper", "ERROR") as captured_logs:
             with requests_mock.Mocker() as reqmock:
-                reqmock.register_uri(
-                    "GET", f"{main_url}disk-storage-premium-ssd-sizes.md", exc=HTTPError("Raised intentionally")
-                )
-                reqmock.register_uri(
-                    "GET", f"{main_url}disk-storage-standard-hdd-sizes.md", exc=HTTPError("Raised intentionally")
-                )
-                reqmock.register_uri(
-                    "GET", f"{main_url}disk-storage-standard-ssd-sizes.md", exc=HTTPError("Raised intentionally")
-                )
+                reqmock.register_uri("GET", adsf.url, exc=HTTPError("Raised intentionally"))
                 result = tasks.scrape_azure_storage_capacities()
 
         self.assertIsNone(result)
         self.assertIn("Unable to retrieve azure disk capacities", captured_logs.output[0])
-        self.assertIn("Raised intentionally", captured_logs.output[1])
+        self.assertIn("Raised intentionally", captured_logs.output[0])
