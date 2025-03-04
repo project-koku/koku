@@ -7,7 +7,6 @@ from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import AzureError
 from azure.core.exceptions import HttpResponseError
-from msrest.exceptions import ClientException
 from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
@@ -139,7 +138,6 @@ class AzureProvider(ProviderInterface):
             AzureError,
             AzureException,
             AzureServiceError,
-            ClientException,
             HttpResponseError,
             TypeError,
             ValueError,
@@ -209,7 +207,6 @@ class AzureProvider(ProviderInterface):
             AzureError,
             AzureException,
             AzureServiceError,
-            ClientException,
             HttpResponseError,
             TypeError,
             ValueError,
