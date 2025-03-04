@@ -13,7 +13,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
 
-
 TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))
 
 
@@ -195,7 +194,7 @@ class TestDBPerformanceClass(IamTestCase):
         expected = [
             {
                 "query_plan": (
-                    "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1\nQuery Identifier: 1147616880456321454"
+                    "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1\nQuery Identifier: 6865378226349601843"
                 ),
                 "query_text": "select 1",
             }

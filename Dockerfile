@@ -1,5 +1,3 @@
-ARG TARGETARCH
-
 FROM registry.access.redhat.com/ubi9-minimal:latest AS base
 
 USER root
@@ -34,35 +32,13 @@ LABEL summary="$SUMMARY" \
 # glibc-langpack-en is needed to set locale to en_US and disable warning about it
 # gcc to compile some python packages (e.g. ciso8601)
 # shadow-utils to make useradd available
-# libpq-devel needed for building psycopg2
-RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc-c++ shadow-utils libpq-devel" && \
+RUN INSTALL_PKGS="python3.11 python3.11-devel glibc-langpack-en gcc-c++ shadow-utils" && \
     microdnf --nodocs -y upgrade && \
     microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
 
-
-# Intermediary container only used for ARM systems
-FROM --platform=arm64 base AS build-arm64
-RUN microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel
-RUN git clone https://github.com/edenhill/librdkafka.git /root/librdkafka
-WORKDIR /root/librdkafka
-RUN git checkout tags/v2.0.2
-RUN ./configure --prefix /opt/librdkafka --install-deps
-RUN make -j4
-RUN make install
-
-
-# Intermeiate steps for ARM64
-FROM --platform=arm64 base AS stage-arm64
-COPY --from=build-arm64 /opt/librdkafka/include/librdkafka/ /usr/include/librdkafka/
-COPY --from=build-arm64 /opt/librdkafka/lib/ /usr/lib/
-RUN ldconfig
-
-# No intermetiate steps for x86_64, but declare it so it can be used for the final image
-FROM --platform=amd64 base AS stage-amd64
-
-FROM stage-${TARGETARCH} AS final
+FROM base AS final
 # PIPENV_DEV is set to true in the docker-compose allowing
 # local builds to install the dev dependencies
 ARG PIPENV_DEV=False
