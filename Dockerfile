@@ -107,6 +107,8 @@ COPY --from=compile-image /licenses /licenses
 ENV VIRTUAL_ENV=${APP_ROOT}/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
+RUN chmod ug+rw ${APP_ROOT} ${APP_HOME} ${APP_HOME}/static /tmp
+
 USER koku
 EXPOSE 8000
 
