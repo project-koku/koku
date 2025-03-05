@@ -728,7 +728,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             ).count()
             self.assertEqual(node_count, 1)
 
-    @patch("reporting.provider.ocp.models.OCPPVC.objects.create")
+    @patch("reporting.provider.ocp.models.OCPPVC.objects.create", side_effect=IntegrityError)
     @patch("masu.database.ocp_report_db_accessor.LOG.warning")
     def test_populate_pvc_table_handles_integrity_error(self, mock_log, mock_create):
         """Test that populating OCPPVC table handles IntegrityError exception."""
@@ -736,8 +736,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         pvcs = ["pvc_1", "pvc_2"]
         cluster_id = uuid.uuid4()
         cluster_alias = "test-cluster-1"
-
-        mock_create.side_effect = IntegrityError("IntegrityError raised when creating pvc")
 
         with self.accessor as accessor:
             cluster = accessor.populate_cluster_table(self.ocp_provider, cluster_id, cluster_alias)
