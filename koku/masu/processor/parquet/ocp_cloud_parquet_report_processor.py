@@ -89,6 +89,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         updater = OCPCloudUpdaterBase(self.schema_name, provider, manifest)
 
         if self.provider_type in Provider.CLOUD_PROVIDER_LIST:
+            # When running for an Infrastructure provider we want all
+            # of the matching clusters to run
             infra_map = updater._generate_ocp_infra_map_from_sql_trino(self.start_date, self.end_date)
         return infra_map
 
