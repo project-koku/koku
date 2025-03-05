@@ -1,4 +1,4 @@
-{% if not resource_level%}
+{% if not resource_level-%}
     WITH cte_openshift_cluster_info AS (
     SELECT DISTINCT cluster_id,
         cluster_alias,
@@ -28,23 +28,23 @@
             OR element_at(gcp.parsed_labels, 'openshift_cluster')  IN (ocp.cluster_id, ocp.cluster_alias)
     JOIN postgres.{{schema | sqlsafe}}.reporting_tenant_api_provider as api_provider
         ON gcp.source = cast(api_provider.uuid as varchar)
-{% endif %}
+{% endif -%}
 
-{% if resource_level %}
+{% if resource_level -%}
     WITH cte_gcp_resource_name AS (
         SELECT DISTINCT gcp.resource_name,
             gcp.source
         FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
         WHERE gcp.usage_start_time >= {{start_date}}
             AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
-            {% if gcp_provider_uuid %}
+            {% if gcp_provider_uuid -%}
             AND gcp.source = {{gcp_provider_uuid}}
-            {% endif %}
+            {% endif -%}
             AND gcp.year = {{year}}
             AND gcp.month = {{month}}
     ),
     cte_ocp_nodes AS (
-        {% if ocp_provider_uuid %}
+        {% if ocp_provider_uuid -%}
         SELECT DISTINCT ocp.node,
             ocp.source
         FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
@@ -55,7 +55,7 @@
             AND ocp.source = {{ocp_provider_uuid}}
             AND ocp.year = {{year}}
             AND ocp.month = {{month}}
-        {% else %}
+        {% else -%}
         SELECT DISTINCT ocp.node,
             ocp.source
         FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
@@ -69,7 +69,7 @@
         AND ocp.month = {{month}}
         AND provider.type = 'OCP'
         and provider.infrastructure_id IS NULL
-        {% endif %}
+        {% endif -%}
     )
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,
@@ -80,7 +80,7 @@
     JOIN postgres.{{schema | sqlsafe}}.reporting_tenant_api_provider as api_provider
         ON gcp.source = cast(api_provider.uuid as varchar)
 
-    {% if gcp_provider_uuid %}
+    {% if gcp_provider_uuid -%}
     UNION
 
     SELECT CAST(uuid AS varchar),
@@ -90,5 +90,5 @@
     JOIN postgres.public.api_providerinfrastructuremap AS infra_uuid
         ON provider_union.infrastructure_id = infra_uuid.id
     WHERE CAST(infrastructure_provider_id AS varchar) = {{gcp_provider_uuid}}
-    {% endif %}
-{% endif %}
+    {% endif -%}
+{% endif -%}

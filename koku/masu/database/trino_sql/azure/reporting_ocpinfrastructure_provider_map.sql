@@ -5,14 +5,14 @@ WITH cte_azure_instances AS (
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     WHERE azure.date >= {{start_date}}
         AND azure.date < date_add('day', 1, {{end_date}})
-        {% if azure_provider_uuid %}
+        {% if azure_provider_uuid -%}
         AND azure.source = {{azure_provider_uuid}}
-        {% endif %}
+        {% endif -%}
         AND azure.year = {{year}}
         AND azure.month = {{month}}
 ),
 cte_ocp_nodes AS (
-    {% if ocp_provider_uuid %}
+    {% if ocp_provider_uuid -%}
     SELECT DISTINCT ocp.node,
         ocp.source
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
@@ -23,7 +23,7 @@ cte_ocp_nodes AS (
         AND ocp.source = {{ocp_provider_uuid}}
         AND ocp.year = {{year}}
         AND ocp.month = {{month}}
-    {% else %}
+    {% else -%}
     SELECT DISTINCT ocp.node,
         ocp.source
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
@@ -37,7 +37,7 @@ cte_ocp_nodes AS (
     AND ocp.month = {{month}}
     AND provider.type = 'OCP'
     and provider.infrastructure_id IS NULL
-    {% endif %}
+    {% endif -%}
 )
 SELECT DISTINCT ocp.source as ocp_uuid,
     azure.source as infra_uuid,
@@ -48,7 +48,7 @@ JOIN cte_ocp_nodes AS ocp
 JOIN postgres.{{schema | sqlsafe}}.reporting_tenant_api_provider as api_provider
     ON azure.source = cast(api_provider.uuid as varchar)
 
-{% if azure_provider_uuid %}
+{% if azure_provider_uuid -%}
 UNION
 
 SELECT CAST(uuid AS varchar),
@@ -58,4 +58,4 @@ FROM postgres.public.api_provider AS provider_union
 JOIN postgres.public.api_providerinfrastructuremap AS infra_uuid
     ON provider_union.infrastructure_id = infra_uuid.id
 WHERE CAST(infrastructure_provider_id AS varchar) = {{azure_provider_uuid}}
-{% endif %}
+{% endif -%}
