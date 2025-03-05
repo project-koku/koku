@@ -14,6 +14,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.conf import settings
+from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models import Sum
 from django_tenants.utils import schema_context
@@ -726,6 +727,26 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             ).count()
             self.assertEqual(node_count, 1)
+
+    @patch("reporting.provider.ocp.models.OCPPVC.objects.create")
+    @patch("masu.database.ocp_report_db_accessor.LOG.warning")
+    def test_populate_pvc_table_handles_integrity_error(self, mock_log, mock_create):
+        """Test that populating OCPPVC table handles IntegrityError exception."""
+
+        pvcs = ["pvc_1", "pvc_2"]
+        cluster_id = uuid.uuid4()
+        cluster_alias = "test-cluster-1"
+
+        mock_create.side_effect = IntegrityError("IntegrityError raised when creating pvc")
+
+        with self.accessor as accessor:
+            cluster = accessor.populate_cluster_table(self.ocp_provider, cluster_id, cluster_alias)
+            accessor.populate_pvc_table(cluster, pvcs)
+
+            mock_create.assert_called()
+            self.assertTrue(
+                any("IntegrityError raised when creating pvc" in str(call) for call in mock_log.call_args_list)
+            )
 
     def test_delete_infrastructure_raw_cost_from_daily_summary(self):
         """Test that infra raw cost is deleted."""

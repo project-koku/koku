@@ -895,8 +895,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
                         cluster=cluster,
                     )
 
-                except IntegrityError:
-                    LOG.warning(f"IntegrityError raised when creating pvc: {pvc}.")
+                except IntegrityError as e:
+                    LOG.warning(log_json(msg="IntegrityError raised when creating pvc", pvc=pvc), exc_info=e)
 
     def populate_project_table(self, cluster, projects):
         """Get or create an entry in the OCP cluster table."""
