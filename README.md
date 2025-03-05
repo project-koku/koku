@@ -45,7 +45,7 @@ do the following:
 
 3.  (macOS only) Install libraries for building wheels on ARM:
 
-        brew install openssl librdkafka postgresql@13
+        brew install openssl librdkafka postgresql@16
 
 3.  (Fedora only) Install libraries for building wheels on Linux:
 
@@ -53,9 +53,9 @@ do the following:
 
 4.  (macOS only) Also add the following to your `.env` or shell profile:
 
-        LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib -L$(brew --prefix postgresql@13)/lib"
-        CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include -I$(brew --prefix postgresql@13)/include"
-        PATH="$PATH:$(brew --prefix postgresql@13)/bin"
+        LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib"
+        CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include"
+        PATH="$PATH:$(brew --prefix postgresql@16)/bin"
 
 5.  Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment and dependency management. To install `pipenv`:
 

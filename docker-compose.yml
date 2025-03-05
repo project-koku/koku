@@ -198,6 +198,7 @@ services:
       - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
       - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
       - POLLING_TIMER=${POLLING_TIMER-60}
+      - POLLING_COUNT=${POLLING_COUNT-21}
       - XL_REPORT_COUNT=${XL_REPORT_COUNT-100}
       - PROCESSING_WAIT_TIMER=${PROCESSING_WAIT_TIMER-3}
       - LARGE_PROCESSING_WAIT_TIMER=${LARGE_PROCESSING_WAIT_TIMER-7}
@@ -450,7 +451,7 @@ services:
 
   db:
     container_name: koku-db
-    image: koku-db:14
+    image: koku-db:16
     build:
       context: dev/containers/postgresql
       args:

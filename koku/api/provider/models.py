@@ -90,8 +90,8 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
         polling_delta = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
         if not filters:
             filters = {}
-        # Dynamically set batch limit (divide count by 21 hours so we always trigger a few extra + round up)
-        batch_limit = math.ceil(len(self.filter(**filters)) / 21)
+        # Dynamically set batch limit (divide count by 21 (default) hours so we always trigger a few extra + round up)
+        batch_limit = math.ceil(len(self.filter(**filters)) / settings.POLLING_COUNT)
         if batch_limit <= 1:
             # If we have less than 21 providers we should collect them all
             return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta).order_by("polling_timestamp")

@@ -30,5 +30,5 @@ def update_exchange_rates(request):
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def update_azure_storage_capacity(request):
     """Return updated exchange rates."""
-    scrape_azure_storage_capacities()
-    return Response({"updated_exchange_rates": {}})
+    disk_size_mapping = scrape_azure_storage_capacities()
+    return Response({"updated_exchange_rates": disk_size_mapping})
