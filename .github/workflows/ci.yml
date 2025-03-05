@@ -238,7 +238,7 @@ jobs:
       - name: Cache dependencies
         if: needs.changed-files.outputs.run_tests == 'true'
         id: cache-dependencies
-        uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         with:
           path: |
             ~/.cache/pipenv
@@ -326,13 +326,13 @@ jobs:
 
       - name: Download coverage result from units
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: coverage
 
       - name: Upload coverage to Codecov
         if: needs.changed-files.outputs.run_tests == 'true'
-        uses: codecov/codecov-action@13ce06bfc6bbe3ecf90edbbf1bc32fe5978ca1d3 # v5.3.1
+        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
