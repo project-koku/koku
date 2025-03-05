@@ -190,6 +190,12 @@ app.conf.beat_schedule["source_status_beat"] = {
     "schedule": source_status_schedule,
 }
 
+# Beat used to collect Azure disk capacities
+app.conf.beat_schedule["scrape_azure_storage_capacities"] = {
+    "task": "masu.celery.tasks.scrape_azure_storage_capacities",
+    "schedule": crontab(hour=2, minute=0),
+}
+
 
 # Beat used to crawl the account hierarchy
 app.conf.beat_schedule["crawl_account_hierarchy"] = {
