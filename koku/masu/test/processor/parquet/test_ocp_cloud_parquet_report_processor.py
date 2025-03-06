@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 from unittest.mock import ANY
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pandas as pd
@@ -15,6 +14,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
@@ -72,18 +72,17 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         )
         self.assertIsNone(report_processor.ocp_on_cloud_data_processor)
 
-    def test_ocp_infrastructure_map(self):
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_ocp_infrastructure_map(self, mock_trino_get):
         """Test that the infra map is returned."""
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        mock_trino_get.return_value = updater.get_infra_map_from_providers()
         infra_map = self.report_processor.ocp_infrastructure_map
         infra_tuple = infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid))
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(self.aws_provider_uuid, infra_tuple[0])
 
-        with patch.object(
-            OCPCloudUpdaterBase, "get_openshift_and_infra_providers_lists"
-        ) as mock_get_infra, patch.object(
-            OCPCloudUpdaterBase, "_generate_ocp_infra_map_from_sql_trino"
-        ) as mock_trino_get:
+        with patch.object(OCPCloudUpdaterBase, "get_openshift_and_infra_providers_lists") as mock_get_infra:
             mock_get_infra.return_value = ([], [])
             report_processor = OCPCloudParquetReportProcessor(
                 schema_name=self.schema,
@@ -94,7 +93,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
                 context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
             )
             res = report_processor.ocp_infrastructure_map
-            self.assertIsInstance(res, MagicMock)
+            self.assertEqual(res, infra_map)
             mock_trino_get.assert_called()
 
     def test_db_accessor(self):
@@ -248,11 +247,19 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "create_partitioned_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
+    @patch.object(OCPCloudParquetReportProcessor, "get_ocp_provider_uuids_tuple")
     def test_process(
-        self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
+        self,
+        mock_ocp_uuids,
+        mock_data_processor,
+        mock_create_parquet,
+        mock_topology,
+        mock_cluster_info,
+        mock_trino_tags,
     ):
         """Test that ocp on cloud data is fully processed."""
         # this is a yes or no check so true is fine
+        mock_ocp_uuids.return_value = [self.ocp_provider_uuid]
         mock_cluster_info.return_value = True
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
         self.report_processor.process("", [pd.DataFrame()])
@@ -266,10 +273,19 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPReportDBAccessor, "get_filtered_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "create_partitioned_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
     def test_process_gcp(
-        self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
+        self,
+        mock_infra_map,
+        mock_data_processor,
+        mock_create_parquet,
+        mock_topology,
+        mock_cluster_info,
+        mock_trino_tags,
     ):
         """Test that ocp on cloud data is fully processed for a gcp provider."""
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.gcp_provider, manifest=None)
+        mock_infra_map.return_value = updater.get_infra_map_from_providers()
         # this is a yes or no check so true is fine
         mock_cluster_info.return_value = True
         mock_topology.return_value = [{"cluster_id": self.ocpgcp_ocp_cluster_id}]
@@ -302,8 +318,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
-    def test_process_no_cluster_info(self, mock_data_processor, mock_create_parquet, mock_cluster_info):
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_process_no_cluster_info(
+        self, mock_infra_map, mock_data_processor, mock_create_parquet, mock_cluster_info
+    ):
         """Test that ocp on cloud data is not processed when there is no cluster info."""
+        updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
+        mock_infra_map.return_value = updater.get_infra_map_from_providers()
         # this is a yes or no check so false is fine
         mock_cluster_info.return_value = False
         self.report_processor.process("", [pd.DataFrame()])
@@ -313,9 +334,11 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
-    def test_process_no_data_frames(self, mock_has_labels, mock_topology, mock_cluster_info):
+    @patch.object(OCPCloudParquetReportProcessor, "get_ocp_provider_uuids_tuple")
+    def test_process_no_data_frames(self, mock_ocp_uuids, mock_has_labels, mock_topology, mock_cluster_info):
         """Test that ocp on cloud data is not processed when there is no data framse."""
         expected = f"no OCP on {Provider.PROVIDER_AWS} daily frames to processes, skipping"
+        mock_ocp_uuids.return_value = [self.ocp_provider_uuid]
         with self.assertLogs("masu.processor.parquet.ocp_cloud_parquet_report_processor", level="INFO") as logger:
             mock_cluster_info.return_value = True
             mock_has_labels.return_value = False
