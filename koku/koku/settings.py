@@ -20,8 +20,7 @@ import sys
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
 
-from boto3.session import Session
-from botocore.exceptions import ClientError
+import boto3
 from corsheaders.defaults import default_headers
 from oci import config
 from oci.exceptions import ConfigFileNotFound
@@ -361,8 +360,13 @@ REST_FRAMEWORK = {
 }
 
 CW_AWS_ACCESS_KEY_ID = CONFIGURATOR.get_cloudwatch_access_id()
-CW_AWS_SECRET_ACCESS_KEY = CONFIGURATOR.get_cloudwatch_access_key()
-CW_AWS_REGION = CONFIGURATOR.get_cloudwatch_region()
+
+CLOUDWATCH_CREDENTIALS = {
+    "aws_access_key_id": CW_AWS_ACCESS_KEY_ID,
+    "aws_secret_access_key": CONFIGURATOR.get_cloudwatch_access_key(),
+    "region_name": CONFIGURATOR.get_cloudwatch_region(),
+}
+
 CW_LOG_GROUP = CONFIGURATOR.get_cloudwatch_log_group()
 
 LOGGING_FORMATTER = ENVIRONMENT.get_value("DJANGO_LOG_FORMATTER", default="simple")
@@ -384,52 +388,45 @@ DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
 LOGGING_FILE = ENVIRONMENT.get_value("DJANGO_LOG_FILE", default=DEFAULT_LOG_FILE)
 
 if CW_AWS_ACCESS_KEY_ID:
-    try:
-        POD_NAME = ENVIRONMENT.get_value("APP_POD_NAME", default="local")
-        BOTO3_SESSION = Session(
-            aws_access_key_id=CW_AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=CW_AWS_SECRET_ACCESS_KEY,
-            region_name=CW_AWS_REGION,
-        )
-        watchtower = BOTO3_SESSION.client("logs")
-        watchtower.create_log_stream(logGroupName=CW_LOG_GROUP, logStreamName=POD_NAME)
-        LOGGING_HANDLERS += ["watchtower"]
-        WATCHTOWER_HANDLER = {
-            "level": KOKU_LOGGING_LEVEL,
-            "class": "watchtower.CloudWatchLogHandler",
-            "boto3_session": BOTO3_SESSION,
-            "log_group": CW_LOG_GROUP,
-            "stream_name": POD_NAME,
-            "formatter": LOGGING_FORMATTER,
-            "use_queues": False,
-            "create_log_group": False,
-        }
-    except ClientError as e:
-        if e.response.get("Error", {}).get("Code") == "ResourceAlreadyExistsException":
-            LOGGING_HANDLERS += ["watchtower"]
-            WATCHTOWER_HANDLER = {
-                "level": KOKU_LOGGING_LEVEL,
-                "class": "watchtower.CloudWatchLogHandler",
-                "boto3_session": BOTO3_SESSION,
-                "log_group": CW_LOG_GROUP,
-                "stream_name": POD_NAME,
-                "formatter": LOGGING_FORMATTER,
-                "use_queues": False,
-                "create_log_group": False,
-            }
-        else:
-            print("CloudWatch not configured.")
+    cw_client = boto3.client("logs", **CLOUDWATCH_CREDENTIALS)
+    POD_NAME = ENVIRONMENT.get_value("APP_POD_NAME", default="local")
+    LOGGING_HANDLERS += ["watchtower"]
+    WATCHTOWER_HANDLER = {
+        "level": KOKU_LOGGING_LEVEL,
+        "formatter": LOGGING_FORMATTER,
+        "class": "watchtower.CloudWatchLogHandler",
+        "log_group_name": CW_LOG_GROUP,
+        "log_stream_name": POD_NAME,
+        "use_queues": False,
+        "boto3_client": cw_client,
+        "create_log_group": False,
+        "create_log_stream": True,  # will create stream if it does not exist
+    }
+else:
+    print("CloudWatch not configured.")
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"()": "koku.log.TaskFormatter", "format": VERBOSE_FORMATTING},
-        "simple": {"()": "koku.log.TaskFormatter", "format": SIMPLE_FORMATTING},
+        "verbose": {
+            "()": "koku.log.TaskFormatter",
+            "format": VERBOSE_FORMATTING,
+        },
+        "simple": {
+            "()": "koku.log.TaskFormatter",
+            "format": SIMPLE_FORMATTING,
+        },
     },
     "handlers": {
-        "celery": {"class": "logging.StreamHandler", "formatter": LOGGING_FORMATTER},
-        "console": {"class": "logging.StreamHandler", "formatter": LOGGING_FORMATTER},
+        "celery": {
+            "class": "logging.StreamHandler",
+            "formatter": LOGGING_FORMATTER,
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": LOGGING_FORMATTER,
+        },
         "file": {
             "level": KOKU_LOGGING_LEVEL,
             "class": "logging.FileHandler",
@@ -446,24 +443,74 @@ LOGGING = {
             "handlers": LOGGING_HANDLERS,
             "level": ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="DEBUG"),
         },
-        "django": {"handlers": LOGGING_HANDLERS, "level": DJANGO_LOGGING_LEVEL},
-        "api": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "celery": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
-        "cost_models": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "forecast": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "hcs": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "kafka_utils": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "koku": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "providers": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "reporting": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "reporting_common": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "masu": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
-        "sources": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
-        "subs": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
+        "django": {
+            "handlers": LOGGING_HANDLERS,
+            "level": DJANGO_LOGGING_LEVEL,
+        },
+        "api": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "celery": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+            "propagate": False,
+        },
+        "cost_models": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "forecast": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "hcs": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "kafka_utils": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "koku": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "providers": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "reporting": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "reporting_common": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "masu": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+            "propagate": False,
+        },
+        "sources": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
+        "subs": {
+            "handlers": LOGGING_HANDLERS,
+            "level": KOKU_LOGGING_LEVEL,
+        },
         # The following set the log level for the UnleashClient and Unleash cache refresh jobs.
         # Setting to WARNING will prevent the INFO level spam.
-        "UnleashClient": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
-        "apscheduler": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
+        "UnleashClient": {
+            "handlers": LOGGING_HANDLERS,
+            "level": UNLEASH_LOGGING_LEVEL,
+        },
+        "apscheduler": {
+            "handlers": LOGGING_HANDLERS,
+            "level": UNLEASH_LOGGING_LEVEL,
+        },
     },
 }
 
