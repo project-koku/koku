@@ -96,6 +96,22 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             self.assertEqual(res, infra_map)
             mock_trino_get.assert_called()
 
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    def test_ocp_infrastructure_map_not_cloud(self, mock_trino_get):
+        """Test that the infra map is returned."""
+        with patch.object(OCPCloudUpdaterBase, "get_openshift_and_infra_providers_lists") as mock_get_infra:
+            mock_get_infra.return_value = ([], [])
+            report_processor = OCPCloudParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=self.ocp_provider_uuid,
+                provider_type=Provider.PROVIDER_OCP,
+                manifest_id=self.manifest_id,
+                context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+            )
+            report_processor.ocp_infrastructure_map
+            mock_trino_get.assert_not_called()
+
     def test_db_accessor(self):
         """Test that the correct class is returned."""
         self.assertIsInstance(self.report_processor.db_accessor, AWSReportDBAccessor)
