@@ -117,10 +117,10 @@ class OCPCloudUpdaterBase:
                     end_date,
                     gcp_provider_uuid=self._provider_uuid,
                 )
+        if infra_map is None:
+            return {}
 
-        # Save to DB
-        self.set_provider_infra_map(infra_map)
-
+        self.set_provider_infra_map(infra_map)  # Save to DB
         set_cached_infra_map(self._schema, self._provider.type, self._provider_uuid, infra_map)
         return infra_map
 
