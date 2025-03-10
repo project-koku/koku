@@ -163,24 +163,24 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         resource_level = False
 
         if not self.table_exists_trino(TRINO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
-            return None
+            return {}
         if aws_provider_uuid or ocp_provider_uuid:
             check_aws = self.table_exists_trino(AWS_TRINO_LINE_ITEM_DAILY_TABLE)
             if aws_provider_uuid and not check_aws:
-                return None
+                return {}
         if azure_provider_uuid or ocp_provider_uuid:
             check_azure = self.table_exists_trino(AZURE_TRINO_LINE_ITEM_DAILY_TABLE)
             if azure_provider_uuid and not check_azure:
-                return None
+                return {}
         if gcp_provider_uuid or ocp_provider_uuid:
             check_gcp = self.table_exists_trino(GCP_TRINO_LINE_ITEM_DAILY_TABLE)
             # Check for GCP resource level data
             if gcp_provider_uuid:
                 resource_level = check_resource_level(gcp_provider_uuid)
                 if not check_gcp:
-                    return None
+                    return {}
         if not any([check_aws, check_azure, check_gcp]):
-            return None
+            return {}
 
         check_flags = {
             Provider.PROVIDER_AWS: check_aws,
