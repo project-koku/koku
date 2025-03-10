@@ -48,5 +48,5 @@ def recheck_infra_map(request):
 
     ocp_updater = OCPCloudUpdaterBase(provider_schema, provider, None)
     # a manifest is not needed to recheck the infra map
-    infra_map = ocp_updater._generate_ocp_infra_map_from_sql_trino(start_date, end_date, False)
+    infra_map = ocp_updater._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
     return Response({"Infrastructure map": str(infra_map)})

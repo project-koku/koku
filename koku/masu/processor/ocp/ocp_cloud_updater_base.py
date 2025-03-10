@@ -7,11 +7,8 @@ import logging
 
 from django.db import IntegrityError
 
-from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
-from koku.cache import get_cached_infra_map
-from koku.cache import set_cached_infra_map
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 
 LOG = logging.getLogger(__name__)
@@ -66,7 +63,7 @@ class OCPCloudUpdaterBase:
                 infra_map[str(provider.uuid)] = (self._provider_uuid, self._provider.type)
         return infra_map
 
-    def _generate_ocp_infra_map_from_sql_trino(self, start_date, end_date, check_cache=True):
+    def _generate_ocp_infra_map_from_sql_trino(self, start_date, end_date):
         """Get the OCP on X infrastructure map.
 
         Args:
@@ -77,17 +74,6 @@ class OCPCloudUpdaterBase:
             infra_map (dict) The OCP infrastructure map.
 
         """
-        if check_cache:
-            cache_infra_map = get_cached_infra_map(self._schema, self._provider.type, self._provider_uuid)
-            if cache_infra_map:
-                LOG.info(
-                    log_json(
-                        msg="retrieved matching infra map from cache",
-                        provider_uuid=self._provider_uuid,
-                        schema=self._schema,
-                    )
-                )
-                return cache_infra_map
         infra_map = {}
         if self._provider.type == Provider.PROVIDER_OCP:
             with OCPReportDBAccessor(self._schema) as accessor:
@@ -117,11 +103,10 @@ class OCPCloudUpdaterBase:
                     end_date,
                     gcp_provider_uuid=self._provider_uuid,
                 )
-        if infra_map is None:
+        if not infra_map:
             return {}
 
         self.set_provider_infra_map(infra_map)  # Save to DB
-        set_cached_infra_map(self._schema, self._provider.type, self._provider_uuid, infra_map)
         return infra_map
 
     def set_provider_infra_map(self, infra_map):
