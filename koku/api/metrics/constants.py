@@ -21,6 +21,8 @@ OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_PVC_MONTH = "pvc_cost_per_month"
 OCP_VM_MONTH = "vm_cost_per_month"
 OCP_VM_CORE_MONTH = "vm_core_cost_per_month"
+OCP_VM_HOUR = "vm_cost_per_hour"
+OCP_VM_CORE_HOUR = "vm_core_cost_per_hour"
 
 # defines the usage type for each metric
 CPU = "cpu"
@@ -59,6 +61,8 @@ METRIC_CHOICES = (
     (OCP_PVC_MONTH, OCP_PVC_MONTH),
     (OCP_VM_MONTH, OCP_VM_MONTH),
     (OCP_VM_CORE_MONTH, OCP_VM_CORE_MONTH),
+    (OCP_VM_HOUR, OCP_VM_HOUR),
+    (OCP_VM_CORE_HOUR, OCP_VM_CORE_HOUR),
 )
 
 COST_TYPE_CHOICES = (
@@ -216,6 +220,22 @@ COST_MODEL_METRIC_MAP = [
         "label_metric": "Virtual Machine",
         "label_measurement": "Count",
         "label_measurement_unit": "vm-core-month",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "vm_core_cost_per_hour",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "vm-core-hour",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "vm_cost_per_hour",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "vm-hour",
         "default_cost_type": "Infrastructure",
     },
 ]
