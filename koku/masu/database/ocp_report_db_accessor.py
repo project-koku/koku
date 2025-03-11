@@ -507,6 +507,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql")
+        elif cost_type in ("OCP_VM", "OCP_VM_Core_Month"):
+            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_virtual_machine.sql")
 
         sql = sql.decode("utf-8")
         sql_params = {

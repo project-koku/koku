@@ -213,6 +213,20 @@
                 ]
             },
             "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "vm_cost_per_month"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.5,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Infrastructure"
         }
     ]
 }

@@ -19,6 +19,8 @@ OCP_NODE_MONTH = "node_cost_per_month"
 OCP_NODE_CORE_MONTH = "node_core_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_PVC_MONTH = "pvc_cost_per_month"
+OCP_VM_MONTH = "vm_cost_per_month"
+OCP_VM_CORE_MONTH = "vm_core_cost_per_month"
 
 # defines the usage type for each metric
 CPU = "cpu"
@@ -55,6 +57,8 @@ METRIC_CHOICES = (
     (OCP_NODE_CORE_MONTH, OCP_NODE_CORE_MONTH),
     (OCP_CLUSTER_MONTH, OCP_CLUSTER_MONTH),
     (OCP_PVC_MONTH, OCP_PVC_MONTH),
+    (OCP_VM_MONTH, OCP_VM_MONTH),
+    (OCP_VM_CORE_MONTH, OCP_VM_CORE_MONTH),
 )
 
 COST_TYPE_CHOICES = (
@@ -79,6 +83,8 @@ COST_MODEL_MONTHLY_RATES = (
     OCP_NODE_CORE_MONTH,
     OCP_CLUSTER_MONTH,
     OCP_PVC_MONTH,
+    OCP_VM_MONTH,
+    OCP_VM_CORE_MONTH,
 )
 
 DISTRIBUTION_CHOICES = ((MEM, MEM), (CPU, CPU))
@@ -194,6 +200,22 @@ COST_MODEL_METRIC_MAP = [
         "label_metric": "Persistent volume claims",
         "label_measurement": "Count",
         "label_measurement_unit": "pvc-month",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "vm_cost_per_month",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "vm-month",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "vm_core_cost_per_month",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "vm-core-month",
         "default_cost_type": "Infrastructure",
     },
 ]
