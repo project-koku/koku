@@ -46,10 +46,6 @@ class SourceStatus:
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
 
-    @property
-    def sources_response(self):
-        return self.sources_client.build_source_status(self.status())
-
     def _set_provider_active_status(self, active_status):
         """Set provider active status."""
         if self.source.koku_uuid:
