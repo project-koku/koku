@@ -178,6 +178,6 @@ def source_status(request):
     if not is_status_api_update_enabled(source_status_obj.source.account_id):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    status_data = source_status_obj.status()
+    source_status_obj.push_status()
 
-    return Response(data=status_data, status=status.HTTP_200_OK)
+    return Response(status=status.HTTP_204_NO_CONTENT)
