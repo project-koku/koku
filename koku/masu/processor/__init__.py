@@ -192,3 +192,10 @@ def is_tag_processing_disabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_tag_processing_disabled", context)
+
+
+def is_status_api_update_enabled(account):  # pragma: no cover
+    """Flag to enable the new source status retrieval method."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
