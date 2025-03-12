@@ -19,6 +19,7 @@ from api.provider.models import Provider
 from api.provider.models import Sources
 from masu.test.external.downloader.aws import fake_arn
 from providers.provider_access import ProviderAccessor
+from providers.provider_errors import ProviderErrors
 from sources.api.source_status import SourceStatus
 from sources.sources_http_client import SourcesHTTPClient
 from sources.sources_http_client import SourcesHTTPClientError
@@ -39,8 +40,7 @@ class SourcesStatusTest(IamTestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        payload = {"source_id": "1"}
-        response = client.post(url, data=payload, format="json", **self.headers)
+        response = client.get(url + "?source_id=1", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_mock_response_returns_false(self):
@@ -84,8 +84,7 @@ class SourcesStatusTest(IamTestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        payload = {"source_id": None}
-        response = client.post(url, data=payload, format="json", **self.headers)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, "Missing query parameter source_id")
 
@@ -98,8 +97,7 @@ class SourcesStatusTest(IamTestCase):
         """
         url = reverse("source-status")
         client = APIClient()
-        payload = {"source_id": "string"}
-        response = client.post(url, data=payload, format="json", **self.headers)
+        response = client.get(url + "?source_id=string", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, "source_id must be an integer")
 
@@ -379,21 +377,11 @@ class SourcesStatusTest(IamTestCase):
                     test["koku_uuid"] = str(provider.uuid)
                     url = reverse("source-status")
                     client = APIClient()
-
-                    source = Sources.objects.create(source_id=i, **test)
-                    payload = {"source_id": i}
-                    response = client.post(url, data=payload, format="json", **self.headers)
-
-                    if response.status_code == status.HTTP_204_NO_CONTENT:
-                        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-                        continue
-
-                    source_status_obj = SourceStatus(source.source_id)
-                    source_status_obj.push_status()
-                    raw_status = source_status_obj.status()
-                    availability_status = raw_status.get("availability_status")
-
-                    self.assertEqual("available", availability_status)
+                    # Insert a source with ID 1
+                    Sources.objects.create(source_id=i, **test)
+                    response = client.get(url + f"?source_id={i}", **self.headers)
+                    actual_source_status = response.data
+                    self.assertEqual("available", actual_source_status.get("availability_status"))
                     self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
 
     @override_settings(
@@ -501,8 +489,7 @@ class SourcesStatusTest(IamTestCase):
                     client = APIClient()
                     # Insert a source with ID 1
                     Sources.objects.create(source_id=i, **test)
-                    payload = {"source_id": "1"}
-                    response = client.post(url, data=payload, format="json", **self.headers)
+                    response = client.get(url + f"?source_id={i}", **self.headers)
                     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_aws_unavailable(self):
@@ -510,7 +497,7 @@ class SourcesStatusTest(IamTestCase):
         url = reverse("source-status")
         client = APIClient()
         # Insert a source with ID 1
-        source = Sources.objects.create(
+        Sources.objects.create(
             source_id=1,
             name="New AWS Mock Test Source",
             source_type=Provider.PROVIDER_AWS,
@@ -519,18 +506,13 @@ class SourcesStatusTest(IamTestCase):
             koku_uuid=faker.uuid4(),
             offset=1,
         )
-        payload = {"source_id": "1"}
-        response = client.post(url, data=payload, format="json", **self.headers)
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        source_status_obj = SourceStatus(source.source_id)
-        source_status_obj.push_status()
-        raw_status = source_status_obj.status()
-
-        raw_status_str = str(raw_status)
-
-        self.assertIn("Unable to access account resources with ARN", raw_status_str)
+        response = client.get(url + "?source_id=1", **self.headers)
+        actual_source_status = response.data
+        expected = {
+            "availability_status": "unavailable",
+            "availability_status_error": ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE,
+        }
+        self.assertEqual(actual_source_status, expected)
 
     @patch("providers.azure.client.ClientSecretCredential")
     def test_azure_unavailable(self, mock_client_credential):
@@ -545,7 +527,7 @@ class SourcesStatusTest(IamTestCase):
             "client_secret": faker.word(),
         }
         data_source = {"resource_group": faker.word(), "storage_account": faker.word()}
-        source = Sources.objects.create(
+        Sources.objects.create(
             source_id=1,
             name="New Azure Mock Test Source",
             source_type=Provider.PROVIDER_AZURE,
@@ -554,26 +536,19 @@ class SourcesStatusTest(IamTestCase):
             koku_uuid=faker.uuid4(),
             offset=1,
         )
-        payload = {"source_id": "1"}
-        response = client.post(url, data=payload, format="json", **self.headers)
+        response = client.get(url + "?source_id=1", **self.headers)
+        actual_source_status = response.data
 
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        source_status_obj = SourceStatus(source.source_id)
-        source_status_obj.push_status()
-        raw_status = source_status_obj.status()
-
-        raw_status_str = str(raw_status)
-
-        self.assertIn("SubscriptionNotFound", raw_status_str)
+        self.assertEqual(actual_source_status.get("availability_status"), "unavailable")
+        self.assertIn("SubscriptionNotFound", actual_source_status.get("availability_status_error"))
 
     def test_ocp_unavailable(self):
-        """Test that push_status() returns the correct status when a source is misconfigured."""
+        """Test that the API returns status when a source is configured correctly."""
         url = reverse("source-status")
         client = APIClient()
 
         # Insert a source with ID 1
-        source = Sources.objects.create(
+        Sources.objects.create(
             source_id=1,
             name="New OCP Mock Test Source",
             source_type=Provider.PROVIDER_OCP,
@@ -582,20 +557,13 @@ class SourcesStatusTest(IamTestCase):
             koku_uuid=faker.uuid4(),
             offset=1,
         )
-
-        payload = {"source_id": "1"}
-        response = client.post(url, data=payload, format="json", **self.headers)
-
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        source_status_obj = SourceStatus(source.source_id)
-        source_status_obj.push_status()
-        raw_status = source_status_obj.status()
-
-        raw_status_str = str(raw_status)
-
-        expected_error = "Provider resource name is a required parameter for OCP."
-        self.assertIn(expected_error, raw_status_str)
+        response = client.get(url + "?source_id=1", **self.headers)
+        actual_source_status = response.data
+        expected = {
+            "availability_status": "unavailable",
+            "availability_status_error": "Provider resource name is a required parameter for OCP.",
+        }
+        self.assertEqual(actual_source_status, expected)
 
     # TODO double check these new tests
     def test_post_status_provider_available(self):
@@ -709,3 +677,97 @@ class SourcesStatusTest(IamTestCase):
         with patch("sources.api.source_status.is_status_api_update_enabled", return_value=True):
             response = client.post(url, data=payload, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_push_status_called_when_flag_enabled(self):
+        """Test that push_status() is called when the feature flag is enabled."""
+        url = reverse("source-status")
+        client = APIClient()
+
+        source = Sources.objects.create(
+            source_id=1,
+            name="Test Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            offset=1,
+        )
+
+        payload = {"source_id": source.source_id}
+
+        with patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status, patch(
+            "sources.api.source_status.is_status_api_update_enabled", return_value=True
+        ):
+            response = client.post(url, data=payload, format="json", **self.headers)
+
+            mock_push_status.assert_called_once()
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_push_status_not_called_when_flag_disabled(self):
+        """Test that push_status() is NOT called when the feature flag is disabled."""
+        url = reverse("source-status")
+        client = APIClient()
+
+        source = Sources.objects.create(
+            source_id=1,
+            name="Test Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            offset=1,
+        )
+
+        payload = {"source_id": source.source_id}
+
+        with patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status, patch(
+            "sources.api.source_status.is_status_api_update_enabled", return_value=False
+        ):
+            response = client.post(url, data=payload, format="json", **self.headers)
+
+            mock_push_status.assert_not_called()
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_post_source_status_success(self):
+        """Test that POST to source_status works correctly when source_id is valid."""
+        url = reverse("source-status")
+        client = APIClient()
+
+        source = Sources.objects.create(
+            source_id=1,
+            name="Test Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            offset=1,
+        )
+        payload = {"source_id": source.source_id}
+        response = client.post(url, data=payload, format="json", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_post_source_status_missing_source_id(self):
+        """Test that POST returns 400 if source_id is missing."""
+        url = reverse("source-status")
+        client = APIClient()
+        payload = {}
+        response = client.post(url, data=payload, format="json", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, "Missing query parameter source_id")
+
+    def test_post_source_status_invalid_source_id(self):
+        """Test that POST returns 400 if source_id is not an integer."""
+        url = reverse("source-status")
+        client = APIClient()
+        payload = {"source_id": "invalid_id"}
+        response = client.post(url, data=payload, format="json", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, "source_id must be an integer")
+
+    def test_post_source_status_source_not_found(self):
+        url = reverse("source-status")
+        client = APIClient()
+        payload = {"source_id": 99999999}
+        response = client.post(url, data=payload, format="json", **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
