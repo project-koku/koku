@@ -690,3 +690,45 @@ class SourcesStatusTest(IamTestCase):
         for method in ["get", "put", "patch", "delete"]:
             response = getattr(client, method)(url, data=payload, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_source_status_push_status_called(self):
+        """Test that push_status() is called when the feature flag is enabled."""
+        url = reverse("source-status")
+        client = APIClient()
+
+        source = Sources.objects.create(
+            source_id=1,
+            name="Test Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            offset=1,
+        )
+
+        payload = {"source_id": source.source_id}
+
+        with patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status, patch(
+            "sources.api.source_status.is_status_api_update_enabled", return_value=True
+        ):
+            client.post(url, data=payload, format="json", **self.headers)
+            mock_push_status.assert_called_once()
+
+    def test_source_status_returns_204(self):
+        """Test that source_status endpoint returns 204 No Content when the feature flag is enabled."""
+        url = reverse("source-status")
+        client = APIClient()
+
+        source = Sources.objects.create(
+            source_id=1,
+            name="Test Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            offset=1,
+        )
+
+        payload = {"source_id": source.source_id}
+
+        with patch("sources.api.source_status.is_status_api_update_enabled", return_value=True):
+            response = client.post(url, data=payload, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
