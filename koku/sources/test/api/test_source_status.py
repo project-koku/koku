@@ -667,3 +667,26 @@ class SourcesStatusTest(IamTestCase):
                 status_obj.status()
                 expected = f"INFO:sources.api.source_status:No provider found for Source ID: {source_id}"
                 self.assertIn(expected, logger.output)
+
+    def test_only_post_allowed(self):
+        """Test that only POST method is allowed on the source-status endpoint."""
+        url = reverse("source-status")
+        client = APIClient()
+
+        source = Sources.objects.create(
+            source_id=1,
+            name="Test Source",
+            source_type=Provider.PROVIDER_AWS,
+            authentication={"credentials": {"role_arn": "fake-iam"}},
+            billing_source={"data_source": {"bucket": "my-bucket"}},
+            offset=1,
+        )
+
+        payload = {"source_id": source.source_id}
+
+        response = client.post(url, data=payload, format="json", **self.headers)
+        self.assertIn(response.status_code, [status.HTTP_204_NO_CONTENT, status.HTTP_200_OK])
+
+        for method in ["get", "put", "patch", "delete"]:
+            response = getattr(client, method)(url, data=payload, format="json", **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
