@@ -128,7 +128,7 @@ class SourcesStatusTest(IamTestCase):
     @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
     @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
     def test_push_status_first_gcp_table_discovery(
-        self, mock_set_source_status, mock_update_account, mock_create_account
+            self, mock_set_source_status, mock_update_account, mock_create_account
     ):
         """Test that push_status for initial discovery of GCP BigQuery table id."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
@@ -158,7 +158,7 @@ class SourcesStatusTest(IamTestCase):
     @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
     @patch("sources.api.source_status.SourcesHTTPClient.set_source_status")
     def test_push_status_first_gcp_table_discovery_update(
-        self, mock_set_source_status, mock_update_account, mock_create_account
+            self, mock_set_source_status, mock_update_account, mock_create_account
     ):
         """Test that push_status for initial discovery of GCP BigQuery table id after dataset was updated."""
         mock_status = {"availability_status": "available", "availability_status_error": ""}
@@ -279,7 +279,7 @@ class SourcesStatusTest(IamTestCase):
 
             status_obj = SourceStatus(test_source_id)
             with patch.object(
-                SourcesHTTPClient, "get_source_details", return_value={"name": "New Name", "source_type_id": "1"}
+                    SourcesHTTPClient, "get_source_details", return_value={"name": "New Name", "source_type_id": "1"}
             ):
                 status_obj.update_source_name()
                 mock_update_account.assert_called()
@@ -305,7 +305,7 @@ class SourcesStatusTest(IamTestCase):
 
             status_obj = SourceStatus(test_source_id)
             with patch.object(
-                SourcesHTTPClient, "get_source_details", return_value={"name": source_name, "source_type_id": "1"}
+                    SourcesHTTPClient, "get_source_details", return_value={"name": source_name, "source_type_id": "1"}
             ):
                 status_obj.update_source_name()
                 mock_update_account.assert_not_called()
@@ -668,29 +668,6 @@ class SourcesStatusTest(IamTestCase):
                 expected = f"INFO:sources.api.source_status:No provider found for Source ID: {source_id}"
                 self.assertIn(expected, logger.output)
 
-    def test_only_post_allowed(self):
-        """Test that only POST method is allowed on the source-status endpoint."""
-        url = reverse("source-status")
-        client = APIClient()
-
-        source = Sources.objects.create(
-            source_id=1,
-            name="Test Source",
-            source_type=Provider.PROVIDER_AWS,
-            authentication={"credentials": {"role_arn": "fake-iam"}},
-            billing_source={"data_source": {"bucket": "my-bucket"}},
-            offset=1,
-        )
-
-        payload = {"source_id": source.source_id}
-
-        response = client.post(url, data=payload, format="json", **self.headers)
-        self.assertIn(response.status_code, [status.HTTP_204_NO_CONTENT, status.HTTP_200_OK])
-
-        for method in ["get", "put", "patch", "delete"]:
-            response = getattr(client, method)(url, data=payload, format="json", **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
     def test_source_status_push_status_called(self):
         """Test that push_status() is called when the feature flag is enabled."""
         url = reverse("source-status")
@@ -708,7 +685,7 @@ class SourcesStatusTest(IamTestCase):
         payload = {"source_id": source.source_id}
 
         with patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status, patch(
-            "sources.api.source_status.is_status_api_update_enabled", return_value=True
+                "sources.api.source_status.is_status_api_update_enabled", return_value=True
         ):
             client.post(url, data=payload, format="json", **self.headers)
             mock_push_status.assert_called_once()

@@ -46,6 +46,10 @@ class SourceStatus:
             raise ObjectDoesNotExist(f"Source ID: {self.source_id} not ready for status")
         self.sources_client = SourcesHTTPClient(self.source.auth_header, source_id=source_id)
 
+    @property
+    def sources_response(self):
+        return self.sources_client.build_source_status(self.status())
+
     def _set_provider_active_status(self, active_status):
         """Set provider active status."""
         if self.source.koku_uuid:
@@ -129,15 +133,31 @@ class SourceStatus:
 
 def _get_source_id_from_request(request):
     """Get source id from request."""
-    if request.method == "POST":
+    if request.method == "GET":
+        source_id = request.query_params.get("source_id", None)
+    elif request.method == "POST":
         source_id = request.data.get("source_id", None)
     else:
         raise status.HTTP_405_METHOD_NOT_ALLOWED
     return source_id
 
 
+def _deliver_status(request, status_obj):
+    """Deliver status depending on request."""
+    if request.method == "GET":
+        return Response(status_obj.sources_response, status=status.HTTP_200_OK)
+    elif request.method == "POST":
+        # Keeping prior functionality if flag is disabled
+        if is_status_api_update_enabled(status_obj.source.account_id):
+            status_obj.push_status()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    else:
+        raise status.HTTP_405_METHOD_NOT_ALLOWED
+
+
 @never_cache
-@api_view(http_method_names=["POST"])
+@api_view(http_method_names=["GET", "POST"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def source_status(request):
@@ -170,10 +190,4 @@ def source_status(request):
         # Source isn't in our database, return 404.
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    # Keeping prior functionality if flag is disabled
-    if not is_status_api_update_enabled(source_status_obj.source.account_id):
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    source_status_obj.push_status()
-
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    return _deliver_status(request, source_status_obj)
