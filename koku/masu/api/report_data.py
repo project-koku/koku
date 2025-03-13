@@ -58,6 +58,9 @@ def report_data(request):
         if queue_name not in QUEUE_LIST:
             errmsg = f"'queue' must be one of {QUEUE_LIST}."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        if start_date is None:
+            errmsg = "start_date is a required parameter."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             provider = Provider.objects.get(uuid=provider_uuid)
@@ -68,10 +71,6 @@ def report_data(request):
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         if provider_schema != schema_name:
             errmsg = f"provider_uuid {provider_uuid} is not associated with schema {schema_name}."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-
-        if start_date is None:
-            errmsg = "start_date is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         # For GCP invoice month summary periods
