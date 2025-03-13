@@ -14,7 +14,7 @@ from redis import Redis
 
 from api.common import log_json
 from api.provider.models import Provider
-from koku.settings import CacheEnum  # noqa: F401
+from koku.settings import CacheEnum
 
 
 class KokuCacheError(Exception):
