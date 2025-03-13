@@ -643,8 +643,26 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "volume_request_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH, 0),
             "rate_type": rate_type,
         }
+
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+
+        if metric_constants.OCP_VM_HOUR in rates:
+            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/hourly_cost_virtual_machine.sql")
+            sql = sql.decode("utf-8")
+            sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "source_uuid": provider_uuid,
+                "report_period_id": report_period_id,
+                "vm_cost_per_hour": rates.get(metric_constants.OCP_VM_HOUR, 0),
+                "rate_type": rate_type,
+            }
+
+            LOG.info(log_json(msg=f"populating virtual machine {rate_type} hourly costs", context=ctx))
+
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id

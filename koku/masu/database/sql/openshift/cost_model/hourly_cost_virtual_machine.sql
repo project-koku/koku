@@ -3,7 +3,7 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.usage_start <= {{end_date}}::date
     AND lids.report_period_id = {{report_period_id}}
     AND lids.cost_model_rate_type = {{rate_type}}
-    AND lids.monthly_cost_type = {{cost_type}}
+    AND lids.monthly_cost_type IS NULL
     AND lids.pod_labels ? 'vm_kubevirt_io_name'
 ;
 
@@ -87,14 +87,10 @@ SELECT uuid_generate_v4(),
     NULL AS persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    CASE
-        WHEN {{cost_type}} = 'OCP_VM' AND pod_labels ? 'vm_kubevirt_io_name'
-            THEN {{rate}}::decimal
-        ELSE 0
-    END AS cost_model_cpu_cost,
+    24 * {{vm_cost_per_hour}}::decimal as cost_model_cpu_cost,
     0 AS cost_model_memory_cost,
     0 AS cost_model_volume_cost,
-    {{cost_type}} AS monthly_cost_type,
+    NULL AS monthly_cost_type,
     cost_category_id
 FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE usage_start >= {{start_date}}::date
@@ -105,7 +101,7 @@ WHERE usage_start >= {{start_date}}::date
     AND pod_request_cpu_core_hours IS NOT NULL
     AND pod_request_cpu_core_hours != 0
     AND monthly_cost_type IS NULL
-GROUP BY usage_start,
+GROUP BY usage_start, 
     usage_end,
     source_uuid,
     cluster_id,
