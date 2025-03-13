@@ -37,12 +37,12 @@ SOURCES_CACHE_PREFIX = "sources"
 TAG_MAPPING_PREFIX = "tag-mapping"
 
 
-def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None):
+def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name="default"):
     """Invalidate our view cache for a specific tenant and source type.
 
     If cache_key_prefix is None, all views will be invalidated.
     """
-    cache = caches["default"]
+    cache = caches[cache_name]
     if isinstance(cache, RedisCache):  # pragma: no cover
         cache = Redis(
             host=settings.REDIS_HOST,
@@ -58,7 +58,9 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
         all_keys = [key.split(":") for key in all_keys]
         all_keys = [":".join(splits[-2:]) for splits in all_keys]
     elif isinstance(cache, DummyCache):
-        LOG.info(log_json(msg="skipping cache invalidation because views caching is disabled", schema=schema_name))
+        LOG.info(
+            log_json(msg=f"skipping cache invalidation because `{cache_name}` caching is disabled", schema=schema_name)
+        )
         return
     else:
         msg = "Using an unsupported caching backend!"
@@ -67,13 +69,13 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     if cache_key_prefix:
         keys_to_invalidate = [key for key in all_keys if (schema_name in key and cache_key_prefix in key)]
     else:
-        # Invalidate all cached views for the tenant
+        # Invalidate all cached entries for the tenant
         keys_to_invalidate = [key for key in all_keys if schema_name in key]
 
     for key in keys_to_invalidate:
         cache.delete(key)
 
-    LOG.info(log_json(msg="invalidated request cache", schema=schema_name, cache_key_prefix=cache_key_prefix))
+    LOG.info(log_json(msg="invalidated cache", schema=schema_name, cache_key_prefix=cache_key_prefix))
 
 
 def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
@@ -97,7 +99,7 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
         cache_key_prefixes = (OCI_CACHE_PREFIX,)
 
     for cache_key_prefix in cache_key_prefixes:
-        invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
+        invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
 
 
 def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types):

@@ -41,6 +41,7 @@ from api.utils import DateHelper
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
+from koku.settings import CacheEnum
 
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
@@ -98,7 +99,7 @@ class HttpResponseFailedDependency(JsonResponse):
         data = {
             "errors": [
                 {
-                    "detail": f'{dikt.get("source")} unavailable. Error: {dikt.get("exception")}',
+                    "detail": f"{dikt.get('source')} unavailable. Error: {dikt.get('exception')}",
                     "status": self.status_code,
                     "title": "Failed Dependency",
                 }
@@ -375,7 +376,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             user.admin = is_admin
             user.req_id = req_id
 
-            cache = caches["rbac"]
+            cache = caches[CacheEnum.rbac]
             user_access = cache.get(f"{user.uuid}_{org_id}")
 
             if not user_access:

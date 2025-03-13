@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
+from koku.settings import CacheEnum
 
 # from api.forecast.views import AWSCostForecastView
 # from api.forecast.views import AzureCostForecastView
@@ -25,7 +26,7 @@ class AWSCostForecastViewTest(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
 
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}})
     def test_get_forecast(self):
@@ -73,7 +74,7 @@ class AzureCostForecastViewTest(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
 
     @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
     def test_get_forecast(self):
@@ -90,7 +91,7 @@ class OCICostForecastViewTest(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
 
     @RbacPermissions({"oci.payer_tenant_id": {"read": ["*"]}})
     def test_get_forecast(self):
@@ -107,7 +108,7 @@ class OCPCostForecastViewTest(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
 
     @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.node": {"read": ["*"]}})
     def test_get_forecast(self):
@@ -124,7 +125,7 @@ class OCPAWSCostForecastViewTest(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
 
     @RbacPermissions(
         {
@@ -148,7 +149,7 @@ class OCPAzureCostForecastViewTest(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
 
     @RbacPermissions(
         {
@@ -171,7 +172,7 @@ class OCPAllCostForecastViewTest(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
 
     @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.node": {"read": ["*"]}})
     def test_get_forecast(self):

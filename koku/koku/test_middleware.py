@@ -39,6 +39,7 @@ from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
 from koku.middleware import KokuTenantSchemaExistsMiddleware
 from koku.middleware import RequestTimingMiddleware
+from koku.settings import CacheEnum
 from koku.test_rbac import mocked_requests_get_500_text
 
 
@@ -247,7 +248,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         dup_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id, "POST")
         self.assertEqual(orig_cust, dup_cust)
 
-    @override_settings(CACHES={"rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+    @override_settings(CACHES={CacheEnum.rbac: {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_non_admin(self, get_access_mock):
         """Test case for process_request as a non-admin user."""
@@ -277,12 +278,12 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
 
         user_uuid = mock_request.user.uuid
         org_id = customer.get("org_id")
-        cache = caches["rbac"]
+        cache = caches[CacheEnum.rbac]
         cache_key = f"{user_uuid}_{org_id}"
         self.assertEqual(cache.get(cache_key), mock_access)
 
         middleware.process_request(mock_request)
-        cache = caches["rbac"]
+        cache = caches[CacheEnum.rbac]
         self.assertEqual(cache.get(cache_key), mock_access)
 
     def test_process_not_entitled(self):

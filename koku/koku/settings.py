@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import sys
+from enum import StrEnum
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
 
@@ -228,23 +229,33 @@ REDIS_CONNECTION_POOL_KWARGS = {
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 
+
+class CacheEnum(StrEnum):
+    default = "default"
+    rbac = "rbac"
+    worker = "worker"
+
+
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 TEST_CACHE_LOCATION = "unique-snowflake"
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
-        "default": {
+        CacheEnum.default: {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "LOCATION": TEST_CACHE_LOCATION,
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         },
-        "rbac": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
-        "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        CacheEnum.rbac: {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
+        CacheEnum.worker: {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": TEST_CACHE_LOCATION,
+        },
     }
 else:
     CACHES = {
-        "default": {
+        CacheEnum.default: {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
@@ -257,7 +268,7 @@ else:
                 "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
-        "rbac": {
+        CacheEnum.rbac: {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
             "TIMEOUT": ENVIRONMENT.get_value("RBAC_CACHE_TIMEOUT", default=300),
@@ -268,7 +279,7 @@ else:
                 "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
-        "worker": {
+        CacheEnum.worker: {
             "BACKEND": "django.core.cache.backends.db.DatabaseCache",
             "LOCATION": "worker_cache_table",
             "TIMEOUT": 86_400,  # 24 hours
@@ -276,7 +287,7 @@ else:
     }
 
 if ENVIRONMENT.bool("CACHED_VIEWS_DISABLED", default=False):
-    CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
+    CACHES.update({CacheEnum.default: {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
 
 DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
