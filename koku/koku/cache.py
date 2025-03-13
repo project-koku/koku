@@ -170,20 +170,6 @@ def set_cached_matching_tags(schema_name, provider_type, matched_tags):
     cache.set(cache_key, matched_tags)
 
 
-def get_cached_infra_map(schema_name, provider_type, provider_uuid):
-    """Return cached OCP on Cloud infra-map if exists."""
-    cache = caches["default"]
-    cache_key = f"OCP-on-{provider_type}:{schema_name}:{provider_uuid}:infra-map"
-    return cache.get(cache_key)
-
-
-def set_cached_infra_map(schema_name, provider_type, provider_uuid, infra_map):
-    """Return cached OCP on Cloud infra-map if exists."""
-    cache = caches["default"]
-    cache_key = f"OCP-on-{provider_type}:{schema_name}:{provider_uuid}:infra-map"
-    cache.set(cache_key, infra_map)
-
-
 def get_cached_tag_rate_map(schema_name):
     """Return cached tag rate map for tag mapping."""
     cache = caches["default"]
