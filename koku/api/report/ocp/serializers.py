@@ -170,7 +170,7 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
             (ValidationError): if field inputs are invalid
 
         """
-        if "virtual-machines" not in str(self.context.get("request")):
+        if not isinstance(self, OCPVirtualMachinesQueryParamSerializer):
             # Don't require group by for virtualization endpoint
             order_by_field_requires_group_by(data, DISTRIBUTED_COST_INTERNAL["distributed_cost"], "project")
 
