@@ -38,7 +38,7 @@ SOURCES_CACHE_PREFIX = "sources"
 TAG_MAPPING_PREFIX = "tag-mapping"
 
 
-def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.default):
+def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.api):
     """Invalidate our view cache for a specific tenant and source type.
 
     If cache_key_prefix is None, all views will be invalidated.

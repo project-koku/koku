@@ -25,7 +25,7 @@ LOG = logging.getLogger("__name__")
 
 class CacheInvalidationEvent(BaseModel):
     schema_name: str
-    cache_name: Literal[CacheEnum.default, CacheEnum.rbac]  # we don't support invalidating the CacheEnum.worker cache
+    cache_name: Literal[CacheEnum.api, CacheEnum.rbac]  # we don't support invalidating the CacheEnum.worker cache
 
 
 class CacheInvalidationEvents(BaseModel):
@@ -46,9 +46,14 @@ def invalidate_cache(request: Request):
         return Response(e.errors(), status=status.HTTP_400_BAD_REQUEST)
 
     for event in events.events:
-        if event.cache_name == CacheEnum.default:
-            invalidate_cache_for_tenant_and_cache_key(event.schema_name, cache_name=CacheEnum.default)
+        if event.cache_name == CacheEnum.api:
+            invalidate_cache_for_tenant_and_cache_key(
+                event.schema_name, cache_key_prefix=CacheEnum.api, cache_name=CacheEnum.api
+            )
         elif event.cache_name == CacheEnum.rbac:
-            invalidate_cache_for_tenant_and_cache_key(event.schema_name, cache_name=CacheEnum.rbac)
+            schema_name = event.schema_name.removeprefix("acct").removeprefix("org")
+            invalidate_cache_for_tenant_and_cache_key(
+                schema_name, cache_key_prefix=CacheEnum.rbac, cache_name=CacheEnum.rbac
+            )
 
     return Response({"msg": "invalidated cache"} | events.model_dump(), status=status.HTTP_200_OK)

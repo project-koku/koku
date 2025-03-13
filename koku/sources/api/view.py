@@ -34,6 +34,7 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
+from koku.cache import CacheEnum
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import SOURCES_CACHE_PREFIX
 from masu.util.aws.common import get_available_regions
@@ -226,7 +227,9 @@ class SourcesViewSet(*MIXIN_LIST):
         except SourcesDependencyError as error:
             raise SourcesDependencyException(str(error))
 
-    @method_decorator(cache_page(settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=SOURCES_CACHE_PREFIX))
+    @method_decorator(
+        cache_page(settings.CACHE_MIDDLEWARE_SECONDS, cache=CacheEnum.api, key_prefix=SOURCES_CACHE_PREFIX)
+    )
     def list(self, request, *args, **kwargs):
         """Obtain the list of sources."""
 
