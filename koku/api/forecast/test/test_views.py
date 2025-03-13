@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from koku.settings import CacheEnum
+from koku.cache import CacheEnum
 
 # from api.forecast.views import AWSCostForecastView
 # from api.forecast.views import AzureCostForecastView

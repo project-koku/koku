@@ -38,10 +38,10 @@ from api.iam.models import User
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
 from api.utils import DateHelper
+from koku.cache import CacheEnum
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
-from koku.settings import CacheEnum
 
 MAX_CACHE_SIZE = 10000
 USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)

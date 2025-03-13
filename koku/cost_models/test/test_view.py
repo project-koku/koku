@@ -22,8 +22,8 @@ from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModelAudit
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
+from koku.cache import CacheEnum
 from koku.rbac import RbacService
-from koku.settings import CacheEnum
 
 
 class CostModelViewTests(IamTestCase):

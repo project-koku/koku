@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import sys
-from enum import StrEnum
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
 
@@ -28,6 +27,7 @@ from oci.exceptions import ConfigFileNotFound
 
 from . import database
 from . import sentry  # noqa: F401
+from .cache import CacheEnum
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
 
@@ -228,12 +228,6 @@ REDIS_CONNECTION_POOL_KWARGS = {
     "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
-
-
-class CacheEnum(StrEnum):
-    default = "default"
-    rbac = "rbac"
-    worker = "worker"
 
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)

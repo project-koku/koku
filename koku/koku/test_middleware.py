@@ -33,13 +33,13 @@ from api.iam.models import Tenant
 from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from koku import middleware as MD
+from koku.cache import CacheEnum
 from koku.middleware import EXTENDED_METRICS
 from koku.middleware import HttpResponseUnauthorizedRequest
 from koku.middleware import IdentityHeaderMiddleware
 from koku.middleware import KokuTenantMiddleware
 from koku.middleware import KokuTenantSchemaExistsMiddleware
 from koku.middleware import RequestTimingMiddleware
-from koku.settings import CacheEnum
 from koku.test_rbac import mocked_requests_get_500_text
 
 

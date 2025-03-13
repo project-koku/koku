@@ -13,6 +13,7 @@ from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import build_matching_tags_key
+from koku.cache import CacheEnum
 from koku.cache import delete_value_from_cache
 from koku.cache import get_cached_infra_map
 from koku.cache import get_cached_tag_rate_map
@@ -43,7 +44,7 @@ CACHE_PREFIXES = (
 
 @override_settings(
     CACHES={
-        "default": {
+        CacheEnum.default: {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "unique-snowflake",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
@@ -58,7 +59,7 @@ class KokuCacheTest(IamTestCase):
         """Set up cache tests."""
         super().setUp()
 
-        self.cache = caches["default"]
+        self.cache = caches[CacheEnum.default]
         self.cache_key_prefix = random.choice(CACHE_PREFIXES)
 
     def tearDown(self):
@@ -83,7 +84,7 @@ class KokuCacheTest(IamTestCase):
 
     @override_settings(
         CACHES={
-            "default": {
+            CacheEnum.default: {
                 "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
                 "LOCATION": "unique-snowflake1",
                 "KEY_FUNCTION": "django_tenants.cache.make_key",
@@ -113,7 +114,7 @@ class KokuCacheTest(IamTestCase):
         self.assertIsNone(cache.get(key_to_clear))
         self.assertIsNotNone(cache.get(remaining_key))
 
-    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
+    @override_settings(CACHES={CacheEnum.default: {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
     def test_invalidate_cache_for_tenant_and_cache_key_dummy_cache(self):
         """Test that using DummyCache logs correctly."""
         with self.assertLogs(logger="koku.cache", level="INFO"):
@@ -121,7 +122,10 @@ class KokuCacheTest(IamTestCase):
 
     @override_settings(
         CACHES={
-            "default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "worker_cache_table"}
+            CacheEnum.default: {
+                "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+                "LOCATION": "worker_cache_table",
+            }
         }
     )
     def test_invalidate_cache_for_tenant_and_cache_key_unsupported_backend(self):

@@ -17,8 +17,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from koku.cache import CacheEnum
 from koku.cache import invalidate_cache_for_tenant_and_cache_key
-from koku.settings import CacheEnum
 
 LOG = logging.getLogger("__name__")
 

@@ -10,7 +10,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import status
 
-from koku.settings import CacheEnum
+from koku.cache import CacheEnum
 from masu.test import MasuTestCase
 
 LOG = logging.getLogger(__name__)
