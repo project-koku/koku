@@ -4,7 +4,6 @@
 #
 """Endpoint for cache invalidation."""
 import logging
-from enum import StrEnum
 
 from pydantic import BaseModel
 from pydantic import ValidationError
@@ -23,14 +22,9 @@ from koku.cache import invalidate_cache_for_tenant_and_cache_key
 LOG = logging.getLogger("__name__")
 
 
-class CacheType(StrEnum):
-    api = "api"
-    rbac = "rbac"
-
-
 class CacheInvalidationEvent(BaseModel):
     schema_name: str
-    cache_type: CacheType
+    cache_name: CacheEnum
 
 
 class CacheInvalidationEvents(BaseModel):
@@ -51,9 +45,9 @@ def invalidate_cache(request: Request):
         return Response(e.errors(), status=status.HTTP_400_BAD_REQUEST)
 
     for event in events.events:
-        if event.cache_type == CacheType.api:
+        if event.cache_name == CacheEnum.default:
             invalidate_cache_for_tenant_and_cache_key(event.schema_name, cache_name=CacheEnum.default)
-        elif event.cache_type == CacheType.rbac:
+        elif event.cache_name == CacheEnum.rbac:
             invalidate_cache_for_tenant_and_cache_key(event.schema_name, cache_name=CacheEnum.rbac)
 
     return Response({"msg": "invalidated cache"} | events.model_dump(), status=status.HTTP_200_OK)

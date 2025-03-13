@@ -31,13 +31,13 @@ class CacheInvalidationAPIViewTest(MasuTestCase):
         """Test the cache invalidation endpoint."""
         tests = [
             [
-                {"schema_name": self.schema_name, "cache_type": "api"},
-                {"schema_name": self.schema_name, "cache_type": "rbac"},
+                {"schema_name": self.schema_name, "cache_name": "default"},
+                {"schema_name": self.schema_name, "cache_name": "rbac"},
             ],
-            [{"schema_name": self.schema_name, "cache_type": "api"}],
-            [{"schema_name": self.schema_name, "cache_type": "rbac"}],
-            {"schema_name": self.schema_name, "cache_type": "api"},
-            {"schema_name": self.schema_name, "cache_type": "rbac"},
+            [{"schema_name": self.schema_name, "cache_name": "default"}],
+            [{"schema_name": self.schema_name, "cache_name": "rbac"}],
+            {"schema_name": self.schema_name, "cache_name": "default"},
+            {"schema_name": self.schema_name, "cache_name": "rbac"},
         ]
         url = reverse("invalidate_cache")
         for test in tests:
@@ -47,16 +47,16 @@ class CacheInvalidationAPIViewTest(MasuTestCase):
 
     def test_cache_invalidation_rbac_success(self, _):
         """Test the cache invalidation endpoint."""
-        test_payload = {"schema_name": self.schema_name, "cache_type": "rbac"}
+        test_payload = {"schema_name": self.schema_name, "cache_name": "rbac"}
         url = reverse("invalidate_cache")
         response = self.client.post(url, data=test_payload, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.mock_invalidate.assert_called_once_with(self.schema_name, cache_name=CacheEnum.rbac)
 
-    def test_cache_invalidation_api_success(self, _):
+    def test_cache_invalidation_default_success(self, _):
         """Test the cache invalidation endpoint."""
-        test_payload = {"schema_name": self.schema_name, "cache_type": "api"}
+        test_payload = {"schema_name": self.schema_name, "cache_name": "default"}
         url = reverse("invalidate_cache")
         response = self.client.post(url, data=test_payload, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -67,13 +67,13 @@ class CacheInvalidationAPIViewTest(MasuTestCase):
         """Test the cache invalidation endpoint."""
         tests = [
             [
-                {"schema_name": self.schema_name, "cache_type": "api1"},
-                {"schema_name": self.schema_name, "cache_type": "rbac1"},
+                {"schema_name": self.schema_name, "cache_name": "default1"},
+                {"schema_name": self.schema_name, "cache_name": "rbac1"},
             ],
-            [{"schema_name": self.schema_name, "cache_type": "api1"}],
-            [{"schema_name": self.schema_name, "cache_type": "rbac1"}],
-            {"schema_name": self.schema_name, "cache_type": "api1"},
-            {"schema_name": self.schema_name, "cache_type": "rbac1"},
+            [{"schema_name": self.schema_name, "cache_name": "default1"}],
+            [{"schema_name": self.schema_name, "cache_name": "rbac1"}],
+            {"schema_name": self.schema_name, "cache_name": "default1"},
+            {"schema_name": self.schema_name, "cache_name": "rbac1"},
         ]
         url = reverse("invalidate_cache")
         for test in tests:
@@ -86,12 +86,12 @@ class CacheInvalidationAPIViewTest(MasuTestCase):
     def test_cache_invalidation_api_missing_params(self, _):
         tests = [
             [
-                {"cache_type": "api1"},
+                {"cache_name": "default1"},
                 {"schema_name": self.schema_name},
             ],
-            [{"cache_type": "api1"}],
+            [{"cache_name": "default1"}],
             [{"schema_name": self.schema_name}],
-            {"cache_type": "api1"},
+            {"cache_name": "default1"},
             {"schema_name": self.schema_name},
         ]
         url = reverse("invalidate_cache")
@@ -105,8 +105,8 @@ class CacheInvalidationAPIViewTest(MasuTestCase):
     def test_cache_invalidation_api_invalid_payloads(self, _):
         tests = [
             [
-                "cache_type",
-                "api1",
+                "cache_name",
+                "default1",
                 {"schema_name": self.schema_name},
             ],
             "this is an invalid payload",
