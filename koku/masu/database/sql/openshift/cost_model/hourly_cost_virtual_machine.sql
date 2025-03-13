@@ -101,7 +101,7 @@ WHERE usage_start >= {{start_date}}::date
     AND pod_request_cpu_core_hours IS NOT NULL
     AND pod_request_cpu_core_hours != 0
     AND monthly_cost_type IS NULL
-GROUP BY usage_start, 
+GROUP BY usage_start,
     usage_end,
     source_uuid,
     cluster_id,
