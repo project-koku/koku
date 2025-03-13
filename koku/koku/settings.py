@@ -17,6 +17,7 @@ import logging
 import os
 import re
 import sys
+from enum import StrEnum
 from json import JSONDecodeError
 from zoneinfo import ZoneInfo
 
@@ -27,7 +28,6 @@ from oci.exceptions import ConfigFileNotFound
 
 from . import database
 from . import sentry  # noqa: F401
-from .cache import CacheEnum
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
 
@@ -229,8 +229,15 @@ REDIS_CONNECTION_POOL_KWARGS = {
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
 }
 
-
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
+
+
+class CacheEnum(StrEnum):
+    default = "default"
+    rbac = "rbac"
+    worker = "worker"
+
+
 TEST_CACHE_LOCATION = "unique-snowflake"
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"

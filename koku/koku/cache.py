@@ -4,7 +4,6 @@
 #
 """Cache functions."""
 import logging
-from enum import StrEnum
 
 from django.conf import settings
 from django.core.cache import caches
@@ -15,12 +14,7 @@ from redis import Redis
 
 from api.common import log_json
 from api.provider.models import Provider
-
-
-class CacheEnum(StrEnum):
-    default = "default"
-    rbac = "rbac"
-    worker = "worker"
+from koku.settings import CacheEnum  # noqa: F401
 
 
 class KokuCacheError(Exception):
