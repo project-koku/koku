@@ -4,6 +4,7 @@
 #
 """Endpoint for cache invalidation."""
 import logging
+from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import ValidationError
@@ -24,7 +25,7 @@ LOG = logging.getLogger("__name__")
 
 class CacheInvalidationEvent(BaseModel):
     schema_name: str
-    cache_name: CacheEnum
+    cache_name: Literal[CacheEnum.default, CacheEnum.rbac]  # we don't support invalidating the CacheEnum.worker cache
 
 
 class CacheInvalidationEvents(BaseModel):
