@@ -59,7 +59,7 @@ SELECT uuid_generate_v4(),
     max(pod_limit_memory_gigabyte_hours) AS pod_limit_memory_gigabyte_hours,
     source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    24 * {{vm_cost_per_hour}}::decimal as cost_model_cpu_cost,
+    max(pod_usage_cpu_core_hours) / max(pod_request_cpu_core_hours) * 24 * {{vm_cost_per_hour}} AS cost_model_cpu_cost,
     0 AS cost_model_memory_cost,
     0 AS cost_model_volume_cost,
     NULL AS monthly_cost_type,
@@ -70,6 +70,7 @@ WHERE usage_start >= {{start_date}}::date
     AND report_period_id = {{report_period_id}}
     AND data_source = 'Pod'
     AND all_labels ? 'vm_kubevirt_io_name'
+    AND pod_usage_cpu_core_hours IS NOT NULL
     AND pod_request_cpu_core_hours IS NOT NULL
     AND pod_request_cpu_core_hours != 0
     AND monthly_cost_type IS NULL
