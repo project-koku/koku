@@ -25,7 +25,7 @@ LOG = logging.getLogger("__name__")
 
 class CacheInvalidationEvent(BaseModel):
     schema_name: str
-    cache_name: Literal[CacheEnum.api, CacheEnum.rbac]  # we don't support invalidating the CacheEnum.worker cache
+    cache_name: Literal[CacheEnum.api, CacheEnum.rbac]
 
 
 class CacheInvalidationEvents(BaseModel):
