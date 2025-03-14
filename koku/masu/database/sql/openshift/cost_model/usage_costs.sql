@@ -88,7 +88,7 @@ SELECT uuid_generate_v4(),
         + sum(coalesce(pod_request_cpu_core_hours, 0)) * {{cpu_request_rate}}
         + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * {{cpu_effective_rate}}
         + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * {{node_core_hour_rate}}
-        + sum(coalesce(pod_usage_cpu_core_hours, 0)) * {{cluster_core_hour_rate}}
+        + sum(coalesce(pod_effective_usage_cpu_core_hours, 0)) * {{cluster_core_hour_rate}}
         as cost_model_cpu_cost,
     sum(coalesce(pod_usage_memory_gigabyte_hours, 0)) * {{memory_usage_rate}}
         + sum(coalesce(pod_request_memory_gigabyte_hours, 0)) * {{memory_request_rate}}
