@@ -46,10 +46,16 @@ CACHE_PREFIXES = (
     CACHES={
         CacheEnum.default: {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "unique-snowflake",
+            "LOCATION": "unique-snowflake-default",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
-        }
+        },
+        CacheEnum.api: {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake-api",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
+        },
     }
 )
 class KokuCacheTest(IamTestCase):
@@ -59,7 +65,7 @@ class KokuCacheTest(IamTestCase):
         """Set up cache tests."""
         super().setUp()
 
-        self.cache = caches[CacheEnum.default]
+        self.cache = caches[CacheEnum.api]
         self.cache_key_prefix = random.choice(CACHE_PREFIXES)
 
     def tearDown(self):
@@ -86,13 +92,13 @@ class KokuCacheTest(IamTestCase):
         CACHES={
             CacheEnum.default: {
                 "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-                "LOCATION": "unique-snowflake1",
+                "LOCATION": "unique-snowflake-default",
                 "KEY_FUNCTION": "django_tenants.cache.make_key",
                 "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             },
             "non-default": {
                 "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-                "LOCATION": "unique-snowflake2",
+                "LOCATION": "unique-snowflake-non-default",
                 "KEY_FUNCTION": "django_tenants.cache.make_key",
                 "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             },
@@ -114,7 +120,7 @@ class KokuCacheTest(IamTestCase):
         self.assertIsNone(cache.get(key_to_clear))
         self.assertIsNotNone(cache.get(remaining_key))
 
-    @override_settings(CACHES={CacheEnum.default: {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
+    @override_settings(CACHES={CacheEnum.api: {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
     def test_invalidate_cache_for_tenant_and_cache_key_dummy_cache(self):
         """Test that using DummyCache logs correctly."""
         with self.assertLogs(logger="koku.cache", level="INFO"):
@@ -122,7 +128,7 @@ class KokuCacheTest(IamTestCase):
 
     @override_settings(
         CACHES={
-            CacheEnum.default: {
+            CacheEnum.api: {
                 "BACKEND": "django.core.cache.backends.db.DatabaseCache",
                 "LOCATION": "worker_cache_table",
             }

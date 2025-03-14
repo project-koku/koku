@@ -52,7 +52,9 @@ class CacheInvalidationAPIViewTest(MasuTestCase):
         response = self.client.post(url, data=test_payload, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        self.mock_invalidate.assert_called_once_with(self.schema_name, cache_name=CacheEnum.rbac)
+        self.mock_invalidate.assert_called_once_with(
+            self.schema_name.removeprefix("org"), cache_key_prefix=CacheEnum.rbac, cache_name=CacheEnum.rbac
+        )
 
     def test_cache_invalidation_default_success(self, _):
         """Test the cache invalidation endpoint."""
@@ -61,7 +63,9 @@ class CacheInvalidationAPIViewTest(MasuTestCase):
         response = self.client.post(url, data=test_payload, content_type="application/json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        self.mock_invalidate.assert_called_once_with(self.schema_name, cache_name=CacheEnum.api)
+        self.mock_invalidate.assert_called_once_with(
+            self.schema_name, cache_key_prefix=CacheEnum.api, cache_name=CacheEnum.api
+        )
 
     def test_cache_invalidation_api_not_valid_type(self, _):
         """Test the cache invalidation endpoint."""

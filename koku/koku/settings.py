@@ -253,7 +253,7 @@ if "test" in sys.argv:
         CacheEnum.api: {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "LOCATION": TEST_CACHE_LOCATION,
-            "KEY_PREFIX": "default",
+            "KEY_PREFIX": "api",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         },
@@ -271,7 +271,7 @@ else:
     CACHES = {
         CacheEnum.default: {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+            "LOCATION": REDIS_URL,
             "KEY_PREFIX": "default",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
@@ -285,7 +285,7 @@ else:
         },
         CacheEnum.api: {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+            "LOCATION": REDIS_URL,
             "KEY_PREFIX": "api",
             "KEY_FUNCTION": "django_tenants.cache.make_key",
             "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
@@ -300,7 +300,7 @@ else:
         CacheEnum.rbac: {
             "BACKEND": "django_redis.cache.RedisCache",
             "KEY_PREFIX": "rbac",
-            "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+            "LOCATION": REDIS_URL,
             "TIMEOUT": ENVIRONMENT.get_value("RBAC_CACHE_TIMEOUT", default=300),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
