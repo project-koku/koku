@@ -473,6 +473,18 @@ GROUP BY partitions.year, partitions.month, partitions.source
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
+        cost_type_file_mapping = {
+            "Node": "monthly_cost_cluster_and_node.sql",
+            "Node_Core_Month": "monthly_cost_cluster_and_node.sql",
+            "Cluster": "monthly_cost_cluster_and_node.sql",
+            "PVC": "monthly_cost_persistentvolumeclaim.sql",
+            "OCP_VM": "monthly_cost_virtual_machine.sql",
+        }
+        cost_type_file = cost_type_file_mapping.get(cost_type)
+        if not cost_type_file:
+            LOG.error(f"invalid cost_type: {cost_type}")
+            return
+
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         ctx = {
@@ -503,11 +515,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             )
             # We cleared out existing data, but there is no new to calculate.
             return
-        if cost_type in ("Node", "Node_Core_Month", "Cluster"):
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql")
-        elif cost_type == "PVC":
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql")
 
+        sql = pkgutil.get_data(f"sql/openshift/cost_model/{cost_type_file}")
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,
@@ -641,8 +650,26 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "volume_request_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH, 0),
             "rate_type": rate_type,
         }
+
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+
+        if metric_constants.OCP_VM_HOUR in rates:
+            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/hourly_cost_virtual_machine.sql")
+            sql = sql.decode("utf-8")
+            sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "source_uuid": provider_uuid,
+                "report_period_id": report_period_id,
+                "vm_cost_per_hour": rates.get(metric_constants.OCP_VM_HOUR, 0),
+                "rate_type": rate_type,
+            }
+
+            LOG.info(log_json(msg=f"populating virtual machine {rate_type} hourly costs", context=ctx))
+
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
