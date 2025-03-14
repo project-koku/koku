@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Constants file."""
+from enum import StrEnum
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+
 from api.models import Provider
 
 """Model for our cost model metric map."""
@@ -19,6 +24,23 @@ OCP_NODE_MONTH = "node_cost_per_month"
 OCP_NODE_CORE_MONTH = "node_core_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_PVC_MONTH = "pvc_cost_per_month"
+
+
+class Metric(StrEnum):
+    OCP_METRIC_CPU_CORE_USAGE_HOUR = "cpu_core_usage_per_hour"
+    OCP_METRIC_CPU_CORE_REQUEST_HOUR = "cpu_core_request_per_hour"
+    OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR = "cpu_core_effective_usage_per_hour"
+    OCP_METRIC_MEM_GB_USAGE_HOUR = "memory_gb_usage_per_hour"
+    OCP_METRIC_MEM_GB_REQUEST_HOUR = "memory_gb_request_per_hour"
+    OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR = "memory_gb_effective_usage_per_hour"
+    OCP_METRIC_STORAGE_GB_USAGE_MONTH = "storage_gb_usage_per_month"
+    OCP_METRIC_STORAGE_GB_REQUEST_MONTH = "storage_gb_request_per_month"
+    OCP_NODE_CORE_HOUR = "node_core_cost_per_hour"
+    OCP_NODE_MONTH = "node_cost_per_month"
+    OCP_NODE_CORE_MONTH = "node_core_cost_per_month"
+    OCP_CLUSTER_MONTH = "cluster_cost_per_month"
+    OCP_PVC_MONTH = "pvc_cost_per_month"
+
 
 # defines the usage type for each metric
 CPU = "cpu"
@@ -57,9 +79,15 @@ METRIC_CHOICES = (
     (OCP_PVC_MONTH, OCP_PVC_MONTH),
 )
 
+
+class CostTypeChoices(StrEnum):
+    infrastructure = "Infrastructure"
+    supplementary = "Supplementary"
+
+
 COST_TYPE_CHOICES = (
-    (INFRASTRUCTURE_COST_TYPE, INFRASTRUCTURE_COST_TYPE),
-    (SUPPLEMENTARY_COST_TYPE, SUPPLEMENTARY_COST_TYPE),
+    (CostTypeChoices.infrastructure, CostTypeChoices.infrastructure),
+    (CostTypeChoices.supplementary, CostTypeChoices.supplementary),
 )
 
 COST_MODEL_USAGE_RATES = (
@@ -91,7 +119,27 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_OCI: "Oracle Cloud Infrastructure",
 }
 
+
+class CostModelMetric(BaseModel):
+    model_config = ConfigDict(strict=True)
+
+    source_type: str
+    metric: Metric
+    label_metric: str
+    label_measurement: str
+    label_measurement_unit: str
+    default_cost_type: CostTypeChoices
+
+
 COST_MODEL_METRIC_MAP = [
+    CostModelMetric(
+        source_type=Provider.PROVIDER_OCP,
+        metric="cpu_core_usage_per_hour",
+        label_metric=CPU,
+        label_measurement="Usage",
+        label_measurement_unit="core-hours",
+        default_cost_type="asdfjhsdjfh",
+    ),
     {
         "source_type": "OCP",
         "metric": "cpu_core_usage_per_hour",
