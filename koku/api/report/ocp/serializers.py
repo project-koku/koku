@@ -170,12 +170,16 @@ class OCPQueryParamSerializer(ReportQueryParamSerializer):
             (ValidationError): if field inputs are invalid
 
         """
+        if not isinstance(self, OCPVirtualMachinesQueryParamSerializer):
+            # Don't require group by for virtualization endpoint
+            order_by_field_requires_group_by(data, DISTRIBUTED_COST_INTERNAL["distributed_cost"], "project")
+
         super().validate(data)
         error = {}
         if "delta" in data.get("order_by", {}) and "delta" not in data:
             error["order_by"] = gettext("Cannot order by delta without a delta param")
             raise serializers.ValidationError(error)
-        order_by_field_requires_group_by(data, DISTRIBUTED_COST_INTERNAL["distributed_cost"], "project")
+
         order_by_field_requires_group_by(data, "storage_class", ["persistentvolumeclaim", "storageclass"])
         order_by_field_requires_group_by(data, "persistentvolumeclaim", "persistentvolumeclaim")
         if data.get("delta") == DISTRIBUTED_COST_INTERNAL["distributed_cost"] and "project" not in data.get(
@@ -289,7 +293,8 @@ class OCPVirtualMachinesExcludeSerializer(BaseExcludeSerializer):
 class OCPVirtualMachinesOrderBySerializer(OCPOrderBySerializer):
     """Serializer for handling VM specific query parameter order_by."""
 
-    _opfields = ("cluster", "node", "project", "vm_name", "request_memory", "request_cpu")
+    _opfields = ("cluster", "node", "project", "vm_name", "request_memory", "request_cpu", "distributed_cost")
+    _op_mapping = DISTRIBUTED_COST_INTERNAL
 
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -297,6 +302,7 @@ class OCPVirtualMachinesOrderBySerializer(OCPOrderBySerializer):
     vm_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     request_cpu = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     request_memory = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    cost_total_distributed = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
 
 
 class OCPVirtualMachinesGroupBySerializer(GroupSerializer):
@@ -309,7 +315,16 @@ class OCPVirtualMachinesGroupBySerializer(GroupSerializer):
 class OCPVirtualMachinesQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling VM query parameters."""
 
-    order_by_allowlist = ("cluster", "node", "project", "vm_name", "cost", "request_cpu", "request_memory")
+    order_by_allowlist = (
+        "cluster",
+        "node",
+        "project",
+        "vm_name",
+        "cost",
+        "request_cpu",
+        "request_memory",
+        DISTRIBUTED_COST_INTERNAL["distributed_cost"],
+    )
 
     DELTA_CHOICES = ()
     FILTER_SERIALIZER = OCPVirtualMachinesFilterSerializer
