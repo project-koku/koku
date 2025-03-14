@@ -445,16 +445,6 @@
                         }
                     },
                     {
-                        "name": "provider_type",
-                        "in": "query",
-                        "description": "The provider type",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "AWS"
-                        }
-                    },
-                    {
                         "name": "schema",
                         "in": "query",
                         "description": "The database schema",
@@ -510,78 +500,6 @@
                 "responses": {
                     "200": {
                         "description": "Data summary task has been queued",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ReportDataGetResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": [
-                    "Report Data"
-                ]
-            },
-            "delete": {
-                "operationId": "deleteReportData",
-                "description": "Delete report summary tables in the database.",
-                "parameters": [
-                    {
-                        "name": "provider_uuid",
-                        "in": "query",
-                        "description": "The provider database ID",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": 1
-                        }
-                    },
-                    {
-                        "name": "provider",
-                        "in": "query",
-                        "description": "The provider type",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "AWS"
-                        }
-                    },
-                    {
-                        "name": "schema",
-                        "in": "query",
-                        "description": "The database schema",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "acct12345"
-                        }
-                    },
-                    {
-                        "name": "simulate",
-                        "in": "query",
-                        "description": "Whether to actually delete",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean",
-                            "example": true
-                        }
-                    },
-                    {
-                        "name": "end_date",
-                        "in": "query",
-                        "description": "The date to end summarizing",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "format": "date",
-                            "example": "2019-12-31"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "Data deletion task has been queued",
                         "content": {
                             "application/json": {
                                 "schema": {
