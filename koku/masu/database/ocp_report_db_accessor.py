@@ -473,6 +473,18 @@ GROUP BY partitions.year, partitions.month, partitions.source
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
+        cost_type_file_mapping = {
+            "Node": "monthly_cost_cluster_and_node.sql",
+            "Node_Core_Month": "monthly_cost_cluster_and_node.sql",
+            "Cluster": "monthly_cost_cluster_and_node.sql",
+            "PVC": "monthly_cost_persistentvolumeclaim.sql",
+            "OCP_VM": "monthly_cost_virtual_machine.sql",
+        }
+        cost_type_file = cost_type_file_mapping.get(cost_type)
+        if not cost_type_file:
+            LOG.error(f"invalid cost_type: {cost_type}")
+            return
+
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
         ctx = {
@@ -503,13 +515,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             )
             # We cleared out existing data, but there is no new to calculate.
             return
-        if cost_type in ("Node", "Node_Core_Month", "Cluster"):
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql")
-        elif cost_type == "PVC":
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql")
-        elif cost_type in ("OCP_VM", "OCP_VM_Core_Month"):
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_virtual_machine.sql")
 
+        sql = pkgutil.get_data(f"sql/openshift/cost_model/{cost_type_file}")
         sql = sql.decode("utf-8")
         sql_params = {
             "start_date": start_date,
