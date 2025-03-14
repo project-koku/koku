@@ -10,6 +10,7 @@ from django.core.cache import caches
 from django.db import connection
 
 from koku import CELERY_INSPECT
+from koku.cache import CacheEnum
 
 TASK_CACHE_EXPIRE = 30
 LOG = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ class WorkerCache:
 
     """
 
-    cache = caches["worker"]
+    cache = caches[CacheEnum.worker]
 
     def __init__(self):
         self._hostname = settings.HOSTNAME
