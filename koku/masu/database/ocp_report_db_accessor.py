@@ -716,7 +716,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg=f"populating virtual machine {rate_type} hourly costs", context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
-        # self._execute_trino_raw_sql_query(sql, sql_params=sql_params)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id

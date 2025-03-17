@@ -21,7 +21,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
 
 -- get vms from daily table
 WITH cte_vms AS (
-SELECT 
+SELECT
     DISTINCT json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') AS vm_name
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 WHERE json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') IS NOT NULL
@@ -34,14 +34,14 @@ WHERE json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') IS NOT NULL
 
 -- get number of hours for every time we see a vm label
 cte_vm_usage_hours AS (
-    SELECT 
+    SELECT
         cte_vms.vm_name,
         DATE(interval_start) as interval_day,
-        count(pod_usage.interval_start) AS vm_interval_hours 
+        count(pod_usage.interval_start) AS vm_interval_hours
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
     INNER JOIN cte_vms
         ON json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') = cte_vms.vm_name
-    WHERE strpos(lower(pod_labels), 'vm_kubevirt_io_name": "') != 0 
+    WHERE strpos(lower(pod_labels), 'vm_kubevirt_io_name": "') != 0
         AND source = {{source_uuid}}
         AND year={{year}}
         AND month={{month}}
@@ -67,7 +67,7 @@ SELECT uuid(),
     0 AS cost_model_volume_cost,
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-JOIN cte_vm_usage_hours AS vmhrs 
+JOIN cte_vm_usage_hours AS vmhrs
     ON json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
     AND vmhrs.interval_day=lids.usage_start
     AND vmhrs.interval_day=lids.usage_end
