@@ -28,6 +28,7 @@ from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
 from masu.api.views import ingest_ocp_payload
 from masu.api.views import ingress_reports
+from masu.api.views import invalidate_cache
 from masu.api.views import lockinfo
 from masu.api.views import ManifestStatusViewSet
 from masu.api.views import notification
@@ -91,6 +92,7 @@ urlpatterns = [
     path("db-performance/explain-query/", explain_query, name="explain_query"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
+    path("invalidate_cache", invalidate_cache, name="invalidate_cache"),
 ]
 
 if settings.DEBUG:

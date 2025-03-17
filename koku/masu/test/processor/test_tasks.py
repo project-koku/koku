@@ -32,6 +32,7 @@ from django_tenants.utils import schema_context
 from api.iam.models import Tenant
 from api.models import Provider
 from common.queues import SummaryQueue
+from koku.cache import CacheEnum
 from koku.middleware import KokuTenantMiddleware
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -1430,13 +1431,13 @@ class TestWorkerCacheThrottling(MasuTestCase):
 
     def single_task_is_running(self, task_name, task_args=None):
         """Check for a single task key in the cache."""
-        cache = caches["worker"]
+        cache = caches[CacheEnum.worker]
         cache_str = create_single_task_cache_key(task_name, task_args)
         return bool(cache.get(cache_str))
 
     def lock_single_task(self, task_name, task_args=None, timeout=None):
         """Add a cache entry for a single task to lock a specific task."""
-        cache = caches["worker"]
+        cache = caches[CacheEnum.worker]
         cache_str = create_single_task_cache_key(task_name, task_args)
         cache.add(cache_str, "kokuworker", 3)
 
