@@ -654,12 +654,14 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-        if metric_constants.OCP_VM_HOUR in rates:
+        if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
             self.populate_vm_hourly_usage_costs(
-                rate_type, rates, start_date, end_date, provider_uuid, report_period_id
+                rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
             )
 
-    def populate_vm_hourly_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid, report_period_id):
+    def populate_vm_hourly_usage_costs(
+        self, rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
+    ):
         """Populate virtual machine hourly usage costs"""
 
         ctx = {
@@ -707,7 +709,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "schema": self.schema,
             "source_uuid": str(provider_uuid),
             "report_period_id": report_period_id,
-            "vm_cost_per_hour": rates.get(metric_constants.OCP_VM_HOUR, 0),
+            "vm_cost_per_hour": ocp_vm_hour_rate,
             "rate_type": rate_type,
         }
         start_date = DateHelper().parse_to_date(start_date)
