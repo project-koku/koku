@@ -19,6 +19,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     resource_ids,
     usage_start,
     usage_end,
+    pod_labels,
     cost_category_id,
     source_uuid,
     persistentvolumeclaim,
@@ -73,6 +74,7 @@ SELECT uuid() as id,
     array_agg(DISTINCT resource_id) as resource_ids,
     min(usage_start) as usage_start,
     max(usage_start) as usage_end,
+    all_labels as pod_labels,
     max(cost_category_id) as cost_category_id,
     CAST({{source_uuid}} as uuid) as source_uuid,
     max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
@@ -90,4 +92,4 @@ WHERE usage_start >= DATE({{start_date}})
     AND namespace IS DISTINCT FROM 'Platform unallocated'
     AND namespace IS DISTINCT FROM 'Network unattributed'
     AND namespace IS DISTINCT FROM 'Storage unattributed'
-GROUP BY cluster_alias, cluster_id, namespace, vm_name, cost_model_rate_type, ocp.persistentvolumeclaim
+GROUP BY all_labels, cluster_alias, cluster_id, namespace, vm_name, cost_model_rate_type, ocp.persistentvolumeclaim
