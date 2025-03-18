@@ -190,7 +190,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         if openshift_resource_type in ["Node", "Node_Core_Month"]:
             node_core = True if openshift_resource_type == "Node_Core_Month" else False
             cost_case_statements = self._build_node_tag_cost_case_statements(
-                rates, start_date, default_rates, node_core
+                rates, start_date, default_rates, node_core=node_core
             )
             unallocated_cost_case_statements = self._build_node_tag_cost_case_statements(
                 rates, start_date, default_rates, unallocated=True, node_core=node_core
