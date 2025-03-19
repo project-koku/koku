@@ -39,8 +39,8 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     serializer_class = ResourceTypeSerializer
     permission_classes = [AzureAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value"]
-    search_fields = ["value"]
+    ordering = ["value", "alias"]
+    search_fields = ["value", "alias"]
     pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
@@ -68,7 +68,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
                             .values("value", "alias")
                             .distinct()
                         )
-                        self.search_fields = ["alias"]
+
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:
