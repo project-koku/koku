@@ -25,7 +25,16 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     """API GET list view for Azure Subscription Guid."""
 
     queryset = (
-        AzureCostSummaryByAccountP.objects.annotate(**{"value": F("subscription_guid")}).values("value").distinct()
+        AzureCostSummaryByAccountP.objects.annotate(
+            **(
+                {
+                    "value": F("subscription_guid"),
+                    "alias": Coalesce(F("subscription_name"), "subscription_guid"),
+                }
+            )
+        )
+        .values("value", "alias")
+        .distinct()
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [AzureAccessPermission]
