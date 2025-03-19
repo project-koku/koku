@@ -315,6 +315,13 @@ class OCPProviderMap(ProviderMap):
                             "cost_usage": self.cost_model_cpu_cost,
                             "cost_markup": self.markup_cost,
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "limit": Sum("pod_limit_cpu_core_hours"),
@@ -349,6 +356,13 @@ class OCPProviderMap(ProviderMap):
                             "cost_usage": self.cost_model_cpu_cost,
                             "cost_markup": self.markup_cost,
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
@@ -365,8 +379,8 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
-                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
                             + self.cost_model_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
@@ -420,6 +434,13 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_memory_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
@@ -456,6 +477,13 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_memory_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
@@ -476,6 +504,13 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost
                             + self.markup_cost
                             + self.cost_model_memory_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
+                            + self.cost_model_cost
+                            + self.distributed_platform_cost
+                            + self.distributed_worker_cost
+                            + self.distributed_unattributed_storage_cost
+                            + self.distributed_unattributed_network_cost,
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
                         "conditionals": {
