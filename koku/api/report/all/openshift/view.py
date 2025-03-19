@@ -6,6 +6,7 @@
 from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 from api.models import Provider
 from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
+from api.report.all.openshift.serializers import OCPAllCostsQueryParamSerializer
 from api.report.all.openshift.serializers import OCPAllQueryParamSerializer
 from api.report.view import ReportView
 
@@ -23,6 +24,7 @@ class OCPAllView(ReportView):
 class OCPAllCostView(OCPAllView):
     """Get OpenShift on All Infrastructure cost usage data."""
 
+    serializer = OCPAllCostsQueryParamSerializer
     report = "costs"
 
 
