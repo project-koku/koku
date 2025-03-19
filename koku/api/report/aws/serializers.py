@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Report Serializers."""
-import logging
-
 from django.utils.translation import gettext
 from rest_framework import serializers
 
@@ -21,8 +19,6 @@ from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import get_cost_type
 from masu.processor import check_group_by_limit
-
-LOG = logging.getLogger(__name__)
 
 
 class AWSGroupBySerializer(GroupSerializer):
