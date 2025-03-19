@@ -539,7 +539,7 @@ class ParamSerializer(BaseSerializer):
                     )
                     raise serializers.ValidationError(error)
 
-            error[key] = gettext(f'Order-by "{key}" requires matching Group-by.')
+            error[key] = gettext(f'Order-by "{key}" is either not supported or requires matching Group-by.')
             raise serializers.ValidationError(error)
         validate_field(self, "order_by", self.ORDER_BY_SERIALIZER, value)
         return value

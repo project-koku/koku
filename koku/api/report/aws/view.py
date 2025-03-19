@@ -9,6 +9,7 @@ from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.models import Provider
 from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.aws.serializers import AWSCostQueryParamSerializer
 from api.report.aws.serializers import AWSEC2ComputeQueryParamSerializer
 from api.report.aws.serializers import AWSQueryParamSerializer
 from api.report.view import ReportView
@@ -28,6 +29,7 @@ class AWSView(ReportView):
 class AWSCostView(AWSView):
     """Get cost data."""
 
+    serializer = AWSCostQueryParamSerializer
     report = "costs"
 
 

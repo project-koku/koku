@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Report Serializers."""
+import logging
+
 from django.utils.translation import gettext
 from rest_framework import serializers
 
@@ -19,6 +21,8 @@ from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import get_cost_type
 from masu.processor import check_group_by_limit
+
+LOG = logging.getLogger(__name__)
 
 
 class AWSGroupBySerializer(GroupSerializer):
@@ -65,8 +69,6 @@ class AWSOrderBySerializer(OrderSerializer):
     _aws_category = True
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
-    # ordering by alias is supported, but ordering by account is not due to the
-    # probability that a human-recognizable alias is more useful than account number.
     account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
@@ -194,6 +196,19 @@ class AWSQueryParamSerializer(ReportQueryParamSerializer):
                         }
                         raise serializers.ValidationError(error)
         return value
+
+
+class AWSCostQueryParamSerializer(AWSQueryParamSerializer):
+    """Serializer for handling special order by parameters."""
+
+    order_by_allowlist = (
+        "account",
+        "account_alias",
+        "region",
+        "service",
+        "product_family",
+        "date",
+    )
 
 
 class AWSEC2ComputeFilterSerializer(BaseFilterSerializer):

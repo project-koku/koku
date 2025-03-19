@@ -7,6 +7,7 @@ from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.models import Provider
 from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
+from api.report.aws.openshift.serializers import OCPAWSCostQueryParamSerializer
 from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
 from api.report.view import ReportView
 
@@ -24,6 +25,7 @@ class OCPAWSView(ReportView):
 class OCPAWSCostView(OCPAWSView):
     """Get OpenShift on AWS cost usage data."""
 
+    serializer = OCPAWSCostQueryParamSerializer
     report = "costs"
 
 

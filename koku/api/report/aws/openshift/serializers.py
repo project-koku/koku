@@ -98,3 +98,19 @@ class OCPAWSQueryParamSerializer(awsser.AWSQueryParamSerializer):
         check_group_by_limit(self.schema, len(value))
         validate_field(self, "group_by", self.GROUP_BY_SERIALIZER, value, tag_keys=self.tag_keys)
         return value
+
+
+class OCPAWSCostQueryParamSerializer(OCPAWSQueryParamSerializer):
+    """Serializer for handling special order by parameters."""
+
+    order_by_allowlist = (
+        "account",
+        "account_alias",
+        "region",
+        "service",
+        "product_family",
+        "date",
+        "project",
+        "cluster",
+        "node",
+    )
