@@ -9,7 +9,7 @@ import ciso8601
 
 from api.models import Provider
 from api.utils import DateHelper
-from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
+from koku.cache import invalidate_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.cache import TAG_MAPPING_PREFIX
 from masu.processor import is_customer_cost_model_large
@@ -108,4 +108,4 @@ class CostModelCostUpdater:
                 self._updater.update_summary_cost_model_costs(start_date, end_date)
             invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
             # Invalidate the tag_rate_map for tag mapping
-            invalidate_view_cache_for_tenant_and_cache_key(self._schema, TAG_MAPPING_PREFIX)
+            invalidate_cache_for_tenant_and_cache_key(self._schema, TAG_MAPPING_PREFIX)
