@@ -5,6 +5,7 @@
 """View for Azure Subscription guid."""
 from django.conf import settings
 from django.db.models import F
+from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -24,13 +25,22 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     """API GET list view for Azure Subscription Guid."""
 
     queryset = (
-        AzureCostSummaryByAccountP.objects.annotate(**{"value": F("subscription_guid")}).values("value").distinct()
+        AzureCostSummaryByAccountP.objects.annotate(
+            **(
+                {
+                    "value": F("subscription_guid"),
+                    "alias": Coalesce(F("subscription_name"), "subscription_guid"),
+                }
+            )
+        )
+        .values("value", "alias")
+        .distinct()
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [AzureAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
-    ordering = ["value"]
-    search_fields = ["value"]
+    ordering = ["value", "alias"]
+    search_fields = ["value", "alias"]
     pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
@@ -50,12 +60,15 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
                     if openshift == "true":
                         self.queryset = (
                             OCPAzureCostSummaryByAccountP.objects.annotate(
-                                **{"value": F("subscription_guid"), "alias": F("cluster_alias")}
+                                **{
+                                    "value": F("subscription_guid"),
+                                    "alias": Coalesce(F("subscription_name"), "subscription_guid"),
+                                }
                             )
                             .values("value", "alias")
                             .distinct()
                         )
-                        self.search_fields = ["alias"]
+
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:
