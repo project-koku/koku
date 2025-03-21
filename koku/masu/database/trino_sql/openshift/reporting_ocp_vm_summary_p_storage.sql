@@ -3,6 +3,7 @@
 -- to the storage info select
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     id,
+    pod_labels,
     cluster_alias,
     cluster_id,
     namespace,
@@ -29,7 +30,21 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
 WITH storage_info AS (
     SELECT
         storage.persistentvolumeclaim,
-        vm.vm_name
+        vm.vm_name,
+        map_union(map_concat(
+            COALESCE(
+                cast(json_parse(storage.persistentvolume_labels) AS MAP(VARCHAR, VARCHAR)),
+                MAP(ARRAY['vm_kubevirt_io_name'], ARRAY[vm.vm_name])
+            ),
+            COALESCE(
+                cast(json_parse(storage.persistentvolumeclaim_labels) AS MAP(VARCHAR, VARCHAR)),
+                MAP(ARRAY['vm_kubevirt_io_name'], ARRAY[vm.vm_name])
+            ),
+            COALESCE(
+                cast(vm.vm_labels as MAP(VARCHAR, VARCHAR)),
+                MAP(ARRAY['vm_kubevirt_io_name'], ARRAY[vm.vm_name])
+            )
+        )) as combined_labels
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS pod_usage
     INNER JOIN hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as storage
         ON pod_usage.pod = storage.pod
@@ -39,12 +54,13 @@ WITH storage_info AS (
     INNER JOIN (
         select
             vm_name,
-            CONCAT('vm_kubevirt_io_name": "', vm_name) as substring
+            CONCAT('vm_kubevirt_io_name": "', vm_name) as substring,
+            pod_labels as vm_labels -- populate with latest during insert
         from postgres.{{schema | sqlsafe}}.reporting_ocp_vm_summary_p
         WHERE usage_start >= DATE({{start_date}})
             AND usage_start <= DATE({{end_date}})
             AND source_uuid = CAST({{source_uuid}} as uuid)
-        group by vm_name
+        group by vm_name, 3
     ) vm
         ON strpos(lower(pod_labels), vm.substring) != 0
     WHERE storage.persistentvolumeclaim IS NOT NULL
@@ -57,6 +73,7 @@ WITH storage_info AS (
     GROUP BY storage.persistentvolumeclaim, vm_name
 )
 SELECT uuid() as id,
+    cast(storage.combined_labels as JSON) as pod_labels,
     cluster_alias,
     cluster_id,
     namespace,
@@ -90,4 +107,4 @@ WHERE usage_start >= DATE({{start_date}})
     AND namespace IS DISTINCT FROM 'Platform unallocated'
     AND namespace IS DISTINCT FROM 'Network unattributed'
     AND namespace IS DISTINCT FROM 'Storage unattributed'
-GROUP BY cluster_alias, cluster_id, namespace, vm_name, cost_model_rate_type, ocp.persistentvolumeclaim
+GROUP BY 2, cluster_alias, cluster_id, namespace, vm_name, cost_model_rate_type, ocp.persistentvolumeclaim
