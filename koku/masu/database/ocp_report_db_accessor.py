@@ -564,7 +564,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         labels = case_dict.get("labels")
 
         if cost_type in ("Node", "Node_Core_Month"):
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
+            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/node_cost_by_tag.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
                 "masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql"
@@ -594,6 +594,65 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
 
         LOG.info(log_json(msg="populating monthly tag costs", context=ctx))
+        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+
+    def populate_node_hour_tag_cost_sql(
+        self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
+    ):
+        """
+        Update or insert daily summary line item for node hour cost.
+        It checks to see if a line item exists for each node
+        that contains the tag key:value pair,
+        if it does then the price is added to the hourly cost.
+        """
+        table_name = self._table_map["line_item_daily_summary"]
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period": report_period,
+        }
+        if not report_period:
+            LOG.info(
+                log_json(
+                    msg="no report period for OCP provider, skipping populate_node_hour_tag_cost_sql update",
+                    context=ctx,
+                )
+            )
+            return
+        report_period_id = report_period.id
+
+        cpu_case, memory_case, volume_case = case_dict.get("cost")
+        labels = case_dict.get("labels")
+
+        sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/node_cost_by_tag.sql")
+
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "source_uuid": provider_uuid,
+            "report_period_id": report_period_id,
+            "cost_model_cpu_cost": cpu_case,
+            "cost_model_memory_cost": memory_case,
+            "cost_model_volume_cost": volume_case,
+            "cost_type": cost_type,
+            "rate_type": rate_type,
+            "distribution": distribution,
+            "tag_key": tag_key,
+            "labels": labels,
+        }
+
+        if case_dict.get("unallocated"):
+            unallocated_cpu_case, unallocated_memory_case, unallocated_volume_case = case_dict.get("unallocated")
+            sql_params["unallocated_cost_model_cpu_cost"] = unallocated_cpu_case
+            sql_params["unallocated_cost_model_memory_cost"] = unallocated_memory_case
+            sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
+
+        LOG.info(log_json(msg="populating node hour tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
