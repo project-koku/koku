@@ -71,9 +71,24 @@ WITH storage_info AS (
         AND pod_usage.pod_labels != ''
         AND pod_usage.pod_labels IS NOT NULL
     GROUP BY storage.persistentvolumeclaim, vm_name
+),
+cte_enabled_tag_keys AS (
+    SELECT
+    CASE WHEN array_agg(key) IS NOT NULL
+        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
+        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
+    END as enabled_keys
+    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+    WHERE enabled = TRUE
+        AND provider_type = 'OCP'
 )
 SELECT uuid() as id,
-    cast(storage.combined_labels as JSON) as pod_labels,
+    cast(
+        map_filter(
+            storage.combined_labels,
+            (k, v) -> contains(etk.enabled_keys, k)
+        ) as json
+    ) as pod_labels,
     cluster_alias,
     cluster_id,
     namespace,
@@ -99,6 +114,7 @@ SELECT uuid() as id,
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
 JOIN storage_info AS storage
     ON storage.persistentvolumeclaim = ocp.persistentvolumeclaim
+CROSS JOIN cte_enabled_tag_keys as etk
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
     AND source_uuid = CAST({{source_uuid}} as uuid)
