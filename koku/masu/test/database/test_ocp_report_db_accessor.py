@@ -1016,16 +1016,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = "2000-02-01"
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             with self.accessor as acc:
-                acc.populate_monthly_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
-                self.assertIn("no report period for OCP provider", logger.output[0])
-
-    def test_populate_node_hour_cost_tag_sql_no_report_period(self):
-        """Test that updating node hour costs without a matching report period errors"""
-        start_date = "2000-01-01"
-        end_date = "2000-02-01"
-        with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
-            with self.accessor as acc:
-                acc.populate_node_hour_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
+                acc.populate_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
                 self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_usage_costs_new_columns_no_report_period(self):
