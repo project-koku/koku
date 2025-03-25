@@ -512,3 +512,46 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     for item in pvc_line_items:
                         self.assertNotEqual(item.cost_model_volume_cost, 0)
+
+    def test_update_node_hour_tag_based_cost(self):
+        """Test that node hour tag costs are applied."""
+        node_tag_key = "app"
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        rate_one = dh.days_in_month(start_date)
+        rate_two = rate_one * 2
+        node_tag_rate_dict = {node_tag_key: {"banking": rate_one, "weather": rate_two}}
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._tag_supplementary_rates = {metric_constants.OCP_NODE_CORE_HOUR: node_tag_rate_dict}
+
+        distribution_choices = (
+            {"metric": metric_constants.CPU, "column": "cost_model_cpu_cost"},
+            {"metric": metric_constants.MEM, "column": "cost_model_memory_cost"},
+        )
+        for distribution_choice in distribution_choices:
+            distribution = distribution_choice.get("metric")
+            column = distribution_choice.get("column")
+            with self.subTest(distribution=distribution, column=column):
+                updater._distribution = distribution
+                with schema_context(self.schema):
+                    OCPUsageLineItemDailySummary.objects.filter(monthly_cost_type__isnull=False).delete()
+                    node_line_item_count = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node_Core_Hour"
+                    ).count()
+
+                    self.assertEqual(node_line_item_count, 0)
+
+                updater._update_node_hour_tag_based_cost(start_date, end_date)
+
+                with schema_context(self.schema):
+                    node_line_items = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node_Core_Hour"
+                    ).all()
+
+                    self.assertNotEqual(len(node_line_items), 0)
+
+                    for item in node_line_items:
+                        self.assertNotEqual(getattr(item, column), 0)
