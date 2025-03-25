@@ -581,13 +581,14 @@ class CostModelSerializer(BaseSerializer):
             metric = rate.get("metric", {})
             display_data = self._get_metric_display_data(cost_model_obj.source_type, metric.get("name"))
             try:
-                metric.update(
-                    {
-                        "label_metric": display_data["label_metric"],
-                        "label_measurement": display_data["label_measurement"],
-                        "label_measurement_unit": display_data["label_measurement_unit"],
-                    }
-                )
+                if display_data:
+                    metric.update(
+                        {
+                            "label_metric": display_data["label_metric"],
+                            "label_measurement": display_data["label_measurement"],
+                            "label_measurement_unit": display_data["label_measurement_unit"],
+                        }
+                    )
             except (KeyError, TypeError):
                 LOG.error("Invalid Cost Model Metric Map", exc_info=True)
                 raise CostModelMetricMapJSONException("Internal Error.")
