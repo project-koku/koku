@@ -1037,7 +1037,7 @@ class ReportQueryHandler(QueryHandler):
                 field = field[1:]
             if field in numeric_ordering:
                 sorted_data = sorted(
-                    sorted_data, key=lambda entry: (entry[field] is None, entry[field]), reverse=reverse
+                    sorted_data, key=lambda entry: (entry.get(field) is None, entry.get(field)), reverse=reverse
                 )
             elif TAG_PREFIX in field:
                 tag_index = field.index(TAG_PREFIX) + len(TAG_PREFIX)
