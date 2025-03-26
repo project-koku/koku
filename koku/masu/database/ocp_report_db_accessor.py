@@ -554,7 +554,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    def populate_monthly_tag_cost_sql(  # noqa: C901
+    def populate_tag_cost_sql(
         self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
     ):
         """
@@ -585,8 +585,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
         cpu_case, memory_case, volume_case = case_dict.get("cost")
         labels = case_dict.get("labels")
 
-        if cost_type in ("Node", "Node_Core_Month"):
-            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/monthly_cost_node_by_tag.sql")
+        if "Node" in cost_type:
+            sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/node_cost_by_tag.sql")
         elif cost_type == "PVC":
             sql = pkgutil.get_data(
                 "masu.database", "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim_by_tag.sql"
@@ -615,7 +615,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             sql_params["unallocated_cost_model_memory_cost"] = unallocated_memory_case
             sql_params["unallocated_cost_model_volume_cost"] = unallocated_volume_case
 
-        LOG.info(log_json(msg="populating monthly tag costs", context=ctx))
+        LOG.info(log_json(msg="populating tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
     def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
