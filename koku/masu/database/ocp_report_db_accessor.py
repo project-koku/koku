@@ -97,22 +97,46 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
-        if self.schema_exists_trino():
-            storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
-            pod_exists = trino_table_exists(self.schema, "openshift_pod_usage_line_items_daily")
-            if storage_exists and pod_exists:
-                sql_params = {
-                    "start_date": str(start_date),
-                    "end_date": str(end_date),
-                    "schema": self.schema,
-                    "source_uuid": str(source_uuid),
-                }
-                sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
-                sql = sql.decode("utf-8")
-                start_date = DateHelper().parse_to_date(start_date)
-                sql_params["year"] = start_date.strftime("%Y")
-                sql_params["month"] = start_date.strftime("%m")
-                self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        self._populate_virtualization_storage_costs(sql_params)
+
+    def _populate_virtualization_storage_costs(self, sql_params):
+        """
+        Add storage costs for virtualization.
+        """
+        trino_query_requirements = [
+            self.schema_exists_trino(),
+            trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"),
+            trino_table_exists(self.schema, "openshift_pod_usage_line_items_daily"),
+            sql_params.get("start_date"),
+        ]
+        if not all(trino_query_requirements):
+            return
+        # We utillize the pod name in trino parquet files to build
+        # a mapping of pvcs to vm_names.
+        _start_date = DateHelper().parse_to_date(sql_params["start_date"])
+        sql_params["year"] = _start_date.strftime("%Y")
+        sql_params["month"] = _start_date.strftime("%m")
+        pvc_to_vm_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/pvc_to_vm_name_mapping.sql")
+        pvc_to_vm_sql = pvc_to_vm_sql.decode("utf-8")
+        rows = self._execute_trino_raw_sql_query(
+            pvc_to_vm_sql, sql_params=sql_params, context=sql_params, log_ref="retrieve pvc to vm mapping"
+        )
+        try:
+            pvc_to_vm_json_str = rows[0][0]
+        except IndexError:
+            return
+        if not pvc_to_vm_json_str:
+            return
+
+        # Utilize the mapping in the postgresql insert
+        sql_params["pvc_to_vm_json_str"] = pvc_to_vm_json_str
+        LOG.info("\n\n\n")
+        LOG.info(sql_params)
+        sql = pkgutil.get_data("masu.database", "sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
+        sql = sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            "reporting_ocp_vm_summary_p", sql, sql_params, operation="DELETE/INSERT"
+        )
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.
