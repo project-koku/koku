@@ -130,8 +130,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         # Utilize the mapping in the postgresql insert
         sql_params["pvc_to_vm_json_str"] = pvc_to_vm_json_str
-        LOG.info("\n\n\n")
-        LOG.info(sql_params)
         sql = pkgutil.get_data("masu.database", "sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(
