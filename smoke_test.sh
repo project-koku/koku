@@ -22,7 +22,7 @@ curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 source ${CICD_ROOT}/_common_deploy_logic.sh
 set -x
 export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
-export NAMESPACE=$(bonfire namespace reserve --duration 7h)
+export NAMESPACE=$(bonfire namespace reserve --duration 6h20m)
 SMOKE_NAMESPACE=$NAMESPACE
 
 oc get secret koku-aws -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
