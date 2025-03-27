@@ -118,9 +118,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["month"] = start_date.strftime("%m")
         pvc_to_vm_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/pvc_to_vm_name_mapping.sql")
         pvc_to_vm_sql = pvc_to_vm_sql.decode("utf-8")
-        rows = self._execute_trino_raw_sql_query(
-            pvc_to_vm_sql, sql_params=sql_params, context=sql_params, log_ref="retrieve pvc to vm mapping"
-        )
+        rows = self._execute_trino_multipart_sql_query(pvc_to_vm_sql, bind_params=sql_params)
         try:
             pvc_to_vm_json_str = rows[0][0]
         except IndexError:
@@ -132,9 +130,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["pvc_to_vm_json_str"] = pvc_to_vm_json_str
         sql = pkgutil.get_data("masu.database", "sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
         sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query(
-            "reporting_ocp_vm_summary_p", sql, sql_params, operation="DELETE/INSERT"
-        )
+        self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params, operation="INSERT")
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.
