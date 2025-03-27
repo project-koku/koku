@@ -673,12 +673,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "report_period": report_period_id,
         }
 
-        LOG.info(
-            log_json(
-                msg=f"removing virtual machine cost model {rate_type} hourly costs from daily summary", context=ctx
-            )
-        )
-
         sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql")
         sql = sql.decode("utf-8")
         sql_params = {
