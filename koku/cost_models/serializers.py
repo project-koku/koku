@@ -589,6 +589,9 @@ class CostModelSerializer(BaseSerializer):
                             "label_measurement_unit": display_data["label_measurement_unit"],
                         }
                     )
+                else:
+                    LOG.error("Invalid Cost Model Metric Map")
+                    raise CostModelMetricMapJSONException("Internal Error.")
             except (KeyError, TypeError):
                 LOG.error("Invalid Cost Model Metric Map", exc_info=True)
                 raise CostModelMetricMapJSONException("Internal Error.")
