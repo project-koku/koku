@@ -1,4 +1,5 @@
-WITH cte_mappings as (
+SELECT CAST(map_agg(pvc.persistentvolumeclaim, pvc.vm_name) as json) AS combined_json
+FROM (
     SELECT
         storage.persistentvolumeclaim,
         json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') as vm_name
@@ -15,6 +16,4 @@ WITH cte_mappings as (
         AND pod_usage.source = {{source_uuid | string}}
         AND strpos(lower(pod_labels), 'vm_kubevirt_io_name') != 0
     GROUP BY storage.persistentvolumeclaim, 2
-)
-SELECT CAST(map_agg(pvc.persistentvolumeclaim, pvc.vm_name) as json) AS combined_json
-FROM cte_mappings pvc
+) as pvc
