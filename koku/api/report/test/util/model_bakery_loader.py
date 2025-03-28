@@ -425,7 +425,7 @@ class ModelBakeryDataLoader(DataLoader):
         report_period_ids = [report_period.id for report_period in report_periods]
         with patch(
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query"
-        ), patch(
+        ), patch("masu.database.ocp_report_db_accessor.trino_table_exists"), patch(
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description"
         ) as mock_description_sql:
             mock_description_sql.return_value = ([], [])
