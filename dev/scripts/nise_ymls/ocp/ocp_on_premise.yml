@@ -49,7 +49,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering|label_vm_kubevirt_io_name:fedora|label_excluded:fedora
+                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering|label_vm_kubevirt_io_name:everett|label_excluded:everett
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
