@@ -22,6 +22,7 @@ from rest_framework.settings import api_settings
 from api.common import error_obj as error_object
 from api.provider.models import Provider
 from api.provider.models import Sources
+from masu.processor import is_status_api_update_enabled
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import ProviderErrors
 from providers.provider_errors import SkipStatusPush
@@ -146,6 +147,10 @@ def _deliver_status(request, status_obj):
     if request.method == "GET":
         return Response(status_obj.sources_response, status=status.HTTP_200_OK)
     elif request.method == "POST":
+        # Keeping prior functionality if flag is disabled
+        if is_status_api_update_enabled(status_obj.source.account_id):
+            status_obj.push_status()
+
         return Response(status=status.HTTP_204_NO_CONTENT)
     else:
         raise status.HTTP_405_METHOD_NOT_ALLOWED
@@ -165,7 +170,6 @@ def source_status(request):
     Returns:
         status (Dict): {'availability_status': 'unavailable/available',
                         'availability_status_error': ValidationError-detail}
-
     """
     LOG.info(f"{{'method': {request.method}, 'path': {request.path}, 'body': {request.data}}}")
 
@@ -173,6 +177,7 @@ def source_status(request):
 
     if source_id is None:
         return Response(data="Missing query parameter source_id", status=status.HTTP_400_BAD_REQUEST)
+
     try:
         int(source_id)
     except ValueError:

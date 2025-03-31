@@ -14,6 +14,7 @@ from redis import Redis
 
 from api.common import log_json
 from api.provider.models import Provider
+from koku.settings import CacheEnum
 
 
 class KokuCacheError(Exception):
@@ -37,12 +38,12 @@ SOURCES_CACHE_PREFIX = "sources"
 TAG_MAPPING_PREFIX = "tag-mapping"
 
 
-def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None):
+def invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None, *, cache_name=CacheEnum.api):
     """Invalidate our view cache for a specific tenant and source type.
 
     If cache_key_prefix is None, all views will be invalidated.
     """
-    cache = caches["default"]
+    cache = caches[cache_name]
     if isinstance(cache, RedisCache):  # pragma: no cover
         cache = Redis(
             host=settings.REDIS_HOST,
@@ -58,7 +59,9 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
         all_keys = [key.split(":") for key in all_keys]
         all_keys = [":".join(splits[-2:]) for splits in all_keys]
     elif isinstance(cache, DummyCache):
-        LOG.info(log_json(msg="skipping cache invalidation because views caching is disabled", schema=schema_name))
+        LOG.info(
+            log_json(msg=f"skipping cache invalidation because `{cache_name}` caching is disabled", schema=schema_name)
+        )
         return
     else:
         msg = "Using an unsupported caching backend!"
@@ -67,13 +70,13 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     if cache_key_prefix:
         keys_to_invalidate = [key for key in all_keys if (schema_name in key and cache_key_prefix in key)]
     else:
-        # Invalidate all cached views for the tenant
+        # Invalidate all cached entries for the tenant
         keys_to_invalidate = [key for key in all_keys if schema_name in key]
 
     for key in keys_to_invalidate:
         cache.delete(key)
 
-    LOG.info(log_json(msg="invalidated request cache", schema=schema_name, cache_key_prefix=cache_key_prefix))
+    LOG.info(log_json(msg="invalidated cache", schema=schema_name, cache_key_prefix=cache_key_prefix))
 
 
 def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
@@ -97,7 +100,7 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
         cache_key_prefixes = (OCI_CACHE_PREFIX,)
 
     for cache_key_prefix in cache_key_prefixes:
-        invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
+        invalidate_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
 
 
 def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types):
@@ -123,22 +126,22 @@ def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
         invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
 
 
-def get_value_from_cache(cache_key, cache_choice="default"):
+def get_value_from_cache(cache_key, cache_choice=CacheEnum.default):
     cache = caches[cache_choice]
     return cache.get(cache_key)
 
 
-def delete_value_from_cache(cache_key, cache_choice="default"):
+def delete_value_from_cache(cache_key, cache_choice=CacheEnum.default):
     cache = caches[cache_choice]
     return cache.delete(cache_key)
 
 
-def set_value_in_cache(cache_key, cache_value, cache_choice="default"):
+def set_value_in_cache(cache_key, cache_value, cache_choice=CacheEnum.default):
     cache = caches[cache_choice]
     cache.set(cache_key, cache_value)
 
 
-def is_key_in_cache(cache_key, cache_choice="default"):
+def is_key_in_cache(cache_key, cache_choice=CacheEnum.default):
     cache = caches[cache_choice]
     return cache.has_key(cache_key)
 
@@ -158,27 +161,27 @@ def build_trino_table_exists_key(schema_name, table_name):
 
 def get_cached_matching_tags(schema_name, provider_type):
     """Return cached OCP on Cloud matched tags if exists."""
-    cache = caches["default"]
+    cache = caches[CacheEnum.default]
     cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
     return cache.get(cache_key)
 
 
 def set_cached_matching_tags(schema_name, provider_type, matched_tags):
     """Return cached OCP on Cloud matched tags if exists."""
-    cache = caches["default"]
+    cache = caches[CacheEnum.default]
     cache_key = f"OCP-on-{provider_type}:{schema_name}:matching-tags"
     cache.set(cache_key, matched_tags)
 
 
 def get_cached_tag_rate_map(schema_name):
     """Return cached tag rate map for tag mapping."""
-    cache = caches["default"]
+    cache = caches[CacheEnum.default]
     cache_key = f"{TAG_MAPPING_PREFIX}:{schema_name}:tag-rate-map"
     return cache.get(cache_key)
 
 
 def set_cached_tag_rate_map(schema_name, tag_rate_map):
     """Return cached OCP on Cloud infra-map if exists."""
-    cache = caches["default"]
+    cache = caches[CacheEnum.default]
     cache_key = f"{TAG_MAPPING_PREFIX}:{schema_name}:tag-rate-map"
     cache.set(cache_key, tag_rate_map)
