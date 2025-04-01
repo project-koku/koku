@@ -535,6 +535,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 },
             )
             LOG.info(
-                log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
+                log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params)
             )
             self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
