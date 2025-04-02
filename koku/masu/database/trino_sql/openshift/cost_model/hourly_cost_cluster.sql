@@ -36,8 +36,8 @@ WITH cte_clusters AS (
 -- Get number of hours for each cluster
 cte_cluster_usage_hours AS (
     SELECT
-        cte_clusters.cluster_id,
-        cte_clusters.cluster_alias,
+        cte_clusters.cluster_id AS cluster_id,
+        cte_clusters.cluster_alias AS cluster_alias,
         DATE(interval_start) AS interval_day,
         COUNT(pod_usage.interval_start) AS cluster_interval_hours
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
@@ -51,8 +51,8 @@ cte_cluster_usage_hours AS (
 
 SELECT uuid(),
     max(report_period_id) AS report_period_id,
-    cluster_id,
-    max(cluster_alias) AS cluster_alias,
+    lids.cluster_id,
+    max(clusterhrs.cluster_alias) AS cluster_alias,
     data_source,
     usage_start,
     max(usage_end) AS usage_end,
@@ -63,7 +63,7 @@ SELECT uuid(),
     all_labels,
     source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    max(clusterhrs.cluster_interval_hours) * CAST({{cluster_hour_rate}} AS DECIMAL(33, 15)) AS cost_model_cpu_cost,
+    max(clusterhrs.cluster_interval_hours) * CAST({{cluster_cost_per_hour}} AS DECIMAL(33, 15)) AS cost_model_cpu_cost,
     0 AS cost_model_memory_cost,
     0 AS cost_model_volume_cost,
     cost_category_id
@@ -82,8 +82,8 @@ WHERE usage_start >= DATE({{start_date}})
 GROUP BY usage_start,
          usage_end,
          source_uuid,
-         cluster_id,
-         cluster_alias,
+         lids.cluster_id,
+         clusterhrs.cluster_alias,
          node,
          lids.namespace,
          data_source,
