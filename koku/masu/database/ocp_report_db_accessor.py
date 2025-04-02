@@ -697,35 +697,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "report_period": report_period_id,
         }
 
-        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-        LOG.info(
-            log_json(
-                msg=f"removing virtual machine cost model {rate_type} hourly costs from daily summary", context=ctx
-            )
-        )
-
-        tmp_sql = """
-            DELETE FROM {{schema | sqlsafe}}.{{table | sqlsafe}}
-                WHERE usage_start >= {{start_date}}
-                AND usage_start <= {{end_date}}
-                AND report_period_id = {{report_period_id}}
-                AND cost_model_rate_type = {{rate_type}}
-                AND source_uuid = {{source_uuid}}::uuid
-                AND monthly_cost_type IS NULL
-                AND all_labels ? 'vm_kubevirt_io_name'
-        """
-        tmp_sql_params = {
-            "schema": self.schema,
-            "table": table_name,
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_id": report_period_id,
-            "rate_type": rate_type,
-            "source_uuid": str(provider_uuid),
-        }
-
-        self._prepare_and_execute_raw_sql_query(table_name, tmp_sql, tmp_sql_params, operation="DELETE")
-
         sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql")
         sql = sql.decode("utf-8")
         sql_params = {
