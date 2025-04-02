@@ -663,7 +663,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "cpu_effective_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, 0),
             "node_core_hour_rate": rates.get(metric_constants.OCP_NODE_CORE_HOUR, 0),
             "cluster_core_hour_rate": rates.get(metric_constants.OCP_CLUSTER_CORE_HOUR, 0),
-            "cluster_hour_rate": rates.get(metric_constants.OCP_CLUSTER_HOUR, 0),
             "memory_usage_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR, 0),
             "memory_request_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR, 0),
             "memory_effective_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, 0),
@@ -678,6 +677,11 @@ GROUP BY partitions.year, partitions.month, partitions.source
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
             self.populate_vm_hourly_usage_costs(
                 rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
+            )
+
+        if ocp_cluster_hour_rate := rates.get(metric_constants.OCP_CLUSTER_HOUR):
+            self.populate_cluster_hourly_usage_costs(
+                rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
             )
 
     def populate_vm_hourly_usage_costs(
@@ -738,6 +742,61 @@ GROUP BY partitions.year, partitions.month, partitions.source
         sql_params["month"] = start_date.strftime("%m")
 
         LOG.info(log_json(msg=f"populating virtual machine {rate_type} hourly costs", context=ctx))
+        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+
+    def populate_cluster_hourly_usage_costs(
+        self, rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
+    ):
+        """Populate cluster hourly usage costs"""
+
+        ctx = {
+            "schema": self.schema,
+            "provider_uuid": str(provider_uuid),
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period": report_period_id,
+        }
+
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        LOG.info(log_json(msg=f"removing cluster cost model {rate_type} hourly costs from daily summary", context=ctx))
+
+        tmp_sql = """
+            DELETE FROM {{schema | sqlsafe}}.{{table | sqlsafe}}
+                WHERE usage_start >= {{start_date}}
+                AND usage_start <= {{end_date}}
+                AND report_period_id = {{report_period_id}}
+                AND cost_model_rate_type = {{rate_type}}
+                AND source_uuid = {{source_uuid}}::uuid
+                AND monthly_cost_type IS NULL
+        """
+        tmp_sql_params = {
+            "schema": self.schema,
+            "table": table_name,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+            "rate_type": rate_type,
+            "source_uuid": str(provider_uuid),
+        }
+
+        self._prepare_and_execute_raw_sql_query(table_name, tmp_sql, tmp_sql_params, operation="DELETE")
+
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_cluster.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": str(start_date),
+            "end_date": str(end_date),
+            "schema": self.schema,
+            "source_uuid": str(provider_uuid),
+            "report_period_id": report_period_id,
+            "cluster_cost_per_hour": ocp_cluster_hour_rate,
+            "rate_type": rate_type,
+        }
+        start_date = DateHelper().parse_to_date(start_date)
+        sql_params["year"] = start_date.strftime("%Y")
+        sql_params["month"] = start_date.strftime("%m")
+
+        LOG.info(log_json(msg=f"populating cluster {rate_type} hourly costs", context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def populate_tag_usage_costs(  # noqa: C901
