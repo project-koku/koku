@@ -39,13 +39,11 @@ cte_cluster_usage_hours AS (
         cte_clusters.cluster_id AS cluster_id,
         cte_clusters.cluster_alias AS cluster_alias,
         DATE(interval_start) AS interval_day,
-        COUNT(pod_usage.interval_start) AS cluster_interval_hours
+        COUNT(DISTINCT EXTRACT(hour FROM pod_usage.interval_start)) AS cluster_interval_hours
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
     INNER JOIN cte_clusters
         ON pod_usage.namespace = cte_clusters.namespace
     WHERE source = {{source_uuid}}
-        AND pod_usage.interval_start >= DATE({{start_date}})
-        AND pod_usage.interval_start <= DATE({{end_date}})
     GROUP BY cte_clusters.cluster_id, cte_clusters.cluster_alias, DATE(interval_start)
 )
 
