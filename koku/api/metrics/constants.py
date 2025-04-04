@@ -19,6 +19,7 @@ OCP_NODE_MONTH = "node_cost_per_month"
 OCP_NODE_CORE_MONTH = "node_core_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_CLUSTER_CORE_HOUR = "cluster_core_cost_per_hour"
+OCP_CLUSTER_HOUR = "cluster_cost_per_hour"
 OCP_PVC_MONTH = "pvc_cost_per_month"
 OCP_VM_MONTH = "vm_cost_per_month"
 OCP_VM_HOUR = "vm_cost_per_hour"
@@ -37,6 +38,7 @@ USAGE_METRIC_MAP = {
     OCP_METRIC_STORAGE_GB_USAGE_MONTH: STORAGE,
     OCP_METRIC_STORAGE_GB_REQUEST_MONTH: STORAGE,
     OCP_CLUSTER_CORE_HOUR: CPU,
+    OCP_CLUSTER_HOUR: CPU,
 }
 
 PVC_DISTRIBUTION = "pvc"
@@ -58,6 +60,7 @@ METRIC_CHOICES = (
     (OCP_NODE_CORE_MONTH, OCP_NODE_CORE_MONTH),
     (OCP_CLUSTER_MONTH, OCP_CLUSTER_MONTH),
     (OCP_CLUSTER_CORE_HOUR, OCP_CLUSTER_CORE_HOUR),
+    (OCP_CLUSTER_HOUR, OCP_CLUSTER_HOUR),
     (OCP_PVC_MONTH, OCP_PVC_MONTH),
     (OCP_VM_MONTH, OCP_VM_MONTH),
     (OCP_VM_HOUR, OCP_VM_HOUR),
@@ -80,6 +83,7 @@ COST_MODEL_USAGE_RATES = (
     OCP_NODE_CORE_HOUR,
     OCP_VM_HOUR,
     OCP_CLUSTER_CORE_HOUR,
+    OCP_CLUSTER_HOUR,
 )
 
 COST_MODEL_NODE_RATES = {
@@ -199,6 +203,14 @@ COST_MODEL_METRIC_MAP = [
         "label_metric": "Cluster",
         "label_measurement": "Count",
         "label_measurement_unit": "cluster-month",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "cluster_cost_per_hour",
+        "label_metric": "Cluster",
+        "label_measurement": "Count",
+        "label_measurement_unit": "cluster-hour",
         "default_cost_type": "Infrastructure",
     },
     {

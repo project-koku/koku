@@ -241,6 +241,20 @@
                 }
             ],
             "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "cluster_cost_per_hour"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 3.45,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Infrastructure"
         }
     ]
 }

@@ -1212,3 +1212,34 @@ class OCPReportDBAccessorTest(MasuTestCase):
         result = self.accessor._populate_virtualization_storage_costs(sql_params)
         self.assertTrue(result)
         mock_postgresql.assert_called_once_with("reporting_ocp_vm_summary_p", ANY, sql_params, operation="INSERT")
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_cluster_hourly_usage_costs(self, mock_postgres):
+        """Test the populate cluster hourly usage costs"""
+
+        with self.accessor as acc:
+            acc.populate_cluster_hourly_usage_costs(
+                metric_constants.SUPPLEMENTARY_COST_TYPE,
+                1,
+                self.dh.this_month_start,
+                self.dh.this_month_end,
+                self.ocp_provider_uuid,
+                1,
+            )
+            mock_postgres.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_usage_costs_cluster_rate(self, mock_trino, mock_postgres):
+        """Test the populate cluster hourly usage costs"""
+
+        with self.accessor as acc:
+            acc.populate_usage_costs(
+                metric_constants.SUPPLEMENTARY_COST_TYPE,
+                {metric_constants.OCP_CLUSTER_HOUR: 1},
+                self.dh.this_month_start,
+                self.dh.this_month_end,
+                self.ocp_provider_uuid,
+            )
+            mock_postgres.assert_called()
+            mock_trino.assert_called()
