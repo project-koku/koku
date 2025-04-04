@@ -71,4 +71,5 @@ GROUP BY lids.usage_start,
          cost_category_id,
          pod_labels,
          all_labels
+ LIMIT 1
 ;
