@@ -76,14 +76,14 @@ SELECT uuid(),
         ELSE 0
     END as cost_model_cpu_cost,
     CASE WHEN cte_distribution_type.dt = 'memory'
-    THEN ( max(cte_cluster.cluster_hours)/max(cte_cluster.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(lids.pod_effective_usage_memory_gigabyte_hours)/sum(cte_node_usage.mem_usage) )
+        THEN ( max(cte_cluster.cluster_hours)/max(cte_cluster.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(lids.pod_effective_usage_memory_gigabyte_hours)/sum(cte_node_usage.mem_usage) )
         ELSE 0
     END as cost_model_memory_cost,
     0 as cost_model_volume_cost,
     lids.cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
 JOIN cte_distribution_type
-        ON cte_distribution_type.source_uuid = lids.source_uuid
+    ON cte_distribution_type.source_uuid = lids.source_uuid
 JOIN cte_node_usage
     ON lids.source_uuid = cast({{source_uuid}} as uuid)
     AND lids.usage_start = cte_node_usage.usage_start
