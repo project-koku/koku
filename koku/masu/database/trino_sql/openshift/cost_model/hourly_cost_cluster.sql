@@ -83,7 +83,7 @@ SELECT uuid(),
     lids.cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
 JOIN cte_distribution_type
-    ON cte_distribution_type.source_uuid = lids.source_uuid
+    ON cast(cte_distribution_type.source_uuid as uuid) = lids.source_uuid
 JOIN cte_node_usage
     ON lids.source_uuid = cast({{source_uuid}} as uuid)
     AND lids.usage_start = cte_node_usage.usage_start
@@ -100,10 +100,12 @@ WHERE lids.usage_start >= date({{start_date}})
     AND lids.pod_effective_usage_cpu_core_hours > 0
 GROUP BY lids.usage_start,
          lids.cluster_id,
+         lids.source_uuid,
          lids.namespace,
          lids.node,
          lids.resource_id,
          lids.data_source,
          lids.cost_category_id,
-         lids.pod_labels
+         lids.pod_labels,
+         cte_distribution_type.dt
 ;
