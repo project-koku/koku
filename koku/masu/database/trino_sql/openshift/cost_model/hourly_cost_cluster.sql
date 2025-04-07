@@ -19,7 +19,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     cost_category_id
 )
 
-WITH cte_distribution_type AS (
+WITH cte_distribution_type as (
     -- get the distribution type from the cost model associated with this source
     SELECT
         {{source_uuid}} as source_uuid,
@@ -29,7 +29,7 @@ WITH cte_distribution_type AS (
         ON cmm.cost_model_id = cm.uuid
     WHERE cmm.provider_uuid = cast({{source_uuid}} as uuid)
 ),
-cte_node_usage AS (
+cte_node_usage as (
     -- get the total cpu/mem usage of a node
     SELECT
         usage_start,
@@ -37,12 +37,12 @@ cte_node_usage AS (
         sum(pod_effective_usage_cpu_core_hours) as cpu_usage,
         sum(pod_effective_usage_memory_gigabyte_hours) as mem_usage
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-    WHERE usage_start >= DATE({{start_date}})
-        AND usage_start <= DATE({{end_date}})
+    WHERE usage_start >= date({{start_date}})
+        AND usage_start <= date({{end_date}})
         AND source_uuid = cast({{source_uuid}} as uuid)
     GROUP BY usage_start, node
 ),
-cte_cluster_usage_hours AS (
+cte_cluster as (
     -- get the total number of hours a cluster ran in a day and the total number of nodes
     SELECT
         date(interval_start) as interval_day,
@@ -52,11 +52,11 @@ cte_cluster_usage_hours AS (
     WHERE source = {{source_uuid}}
         AND year = {{year}}
         AND month = {{month}}
-    GROUP BY DATE(interval_start)
+    GROUP BY date(interval_start)
 )
 
 SELECT uuid(),
-    {{report_period_id}} AS report_period_id,
+    {{report_period_id}} as report_period_id,
     lids.cluster_id,
     max(lids.cluster_alias) as cluster_alias,
     lids.data_source,
@@ -67,19 +67,19 @@ SELECT uuid(),
     lids.resource_id,
     lids.pod_labels,
     lids.pod_labels as all_labels,
-    cast({{source_uuid}} as uuid) as source_uuid,
-    {{rate_type}} AS cost_model_rate_type,
+    lids.source_uuid,
+    {{rate_type}} as cost_model_rate_type,
     -- distribute the cost evenly amongst the namespaces across nodes
     -- cost = (# hours running / number of nodes) * rate * (namespace usage on node / total usage of that node)
     CASE WHEN cte_distribution_type.dt = 'cpu'
-        THEN ( max(clusterhrs.cluster_hours)/max(clusterhrs.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(pod_effective_usage_cpu_core_hours)/sum(cte_node_usage.cpu_usage) )
+        THEN ( max(cte_cluster.cluster_hours)/max(cte_cluster.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(lids.pod_effective_usage_cpu_core_hours)/sum(cte_node_usage.cpu_usage) )
         ELSE 0
-    END AS cost_model_cpu_cost,
+    END as cost_model_cpu_cost,
     CASE WHEN cte_distribution_type.dt = 'memory'
-    THEN ( max(clusterhrs.cluster_hours)/max(clusterhrs.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(pod_effective_usage_memory_gigabyte_hours)/sum(cte_node_usage.mem_usage) )
+    THEN ( max(cte_cluster.cluster_hours)/max(cte_cluster.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(lids.pod_effective_usage_memory_gigabyte_hours)/sum(cte_node_usage.mem_usage) )
         ELSE 0
-    END AS cost_model_memory_cost,
-    0 AS cost_model_volume_cost,
+    END as cost_model_memory_cost,
+    0 as cost_model_volume_cost,
     lids.cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as lids
 JOIN cte_distribution_type
@@ -88,9 +88,9 @@ JOIN cte_node_usage
     ON lids.source_uuid = cast({{source_uuid}} as uuid)
     AND lids.usage_start = cte_node_usage.usage_start
     AND lids.node = cte_node_usage.node
-JOIN cte_cluster_usage_hours AS clusterhrs
+JOIN cte_cluster
     ON lids.source_uuid = cast({{source_uuid}} as uuid)
-    AND lids.usage_start = clusterhrs.interval_day
+    AND lids.usage_start = cte_cluster.interval_day
 WHERE lids.usage_start >= date({{start_date}})
     AND lids.usage_start <= date({{end_date}})
     AND lids.source_uuid = cast({{source_uuid}} as uuid)
