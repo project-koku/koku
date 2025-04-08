@@ -58,22 +58,13 @@ class MarkupSerializer(serializers.Serializer):
 class DistributionSerializer(BaseSerializer):
     """Serializer for distribution options"""
 
-    distribution_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
-    platform_cost = serializers.BooleanField(required=False)
-    worker_cost = serializers.BooleanField(required=False)
-    network_unattributed = serializers.BooleanField(required=False)
-    storage_unattributed = serializers.BooleanField(required=False)
-
-    def validate(self, data):
-        """Run validation for distribution options."""
-        default_to_true = [metric_constants.PLATFORM_COST, metric_constants.WORKER_UNALLOCATED]
-        distribution_keys = metric_constants.DEFAULT_DISTRIBUTION_INFO.keys()
-        diff = set(distribution_keys).difference(data)
-        if diff == distribution_keys:
-            return metric_constants.DEFAULT_DISTRIBUTION_INFO
-        for element in diff:
-            data[element] = element in default_to_true
-        return data
+    distribution_type = serializers.ChoiceField(
+        choices=metric_constants.DISTRIBUTION_CHOICES, required=False, default=metric_constants.CPU
+    )
+    platform_cost = serializers.BooleanField(required=False, default=True)
+    worker_cost = serializers.BooleanField(required=False, default=True)
+    network_unattributed = serializers.BooleanField(required=False, default=False)
+    storage_unattributed = serializers.BooleanField(required=False, default=False)
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -233,8 +224,8 @@ class RateSerializer(serializers.Serializer):
             ):  # noqa:W503
                 error_msg = (
                     "tiered_rate must not have gaps between tiers."
-                    "usage_start of {} should be less than or equal to the"
-                    " usage_end {} of the previous tier.".format(usage_start, next_tier)
+                    f"usage_start of {usage_start} should be less than or equal to the"
+                    f" usage_end {next_tier} of the previous tier."
                 )
                 raise serializers.ValidationError(error_msg)
             next_tier = usage_end
@@ -250,8 +241,8 @@ class RateSerializer(serializers.Serializer):
             if usage_end != next_bucket_usage_start:
                 error_msg = (
                     "tiered_rate must not have overlapping tiers."
-                    " usage_start value {} should equal to the"
-                    " usage_end value of the next tier, not {}.".format(usage_end, next_bucket_usage_start)
+                    f" usage_start value {usage_end} should equal to the"
+                    f" usage_end value of the next tier, not {next_bucket_usage_start}."
                 )
                 raise serializers.ValidationError(error_msg)
 
