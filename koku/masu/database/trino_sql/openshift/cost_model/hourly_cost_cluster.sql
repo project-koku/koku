@@ -23,7 +23,7 @@ WITH cte_distribution_type as (
     -- get the distribution type from the cost model associated with this source
     SELECT
         {{source_uuid}} as source_uuid,
-        coalesce(max(cm.distribution), 'cpu')  as dt -- coalesce(max()) to return 'cpu' if a cost model does not exist for source
+        coalesce(max(nullif(json_extract_scalar(distribution_info, '$.distribution_type'), 'false')), 'cpu') as dt -- coalesce(max()) to return 'cpu' if a cost model does not exist for source
     FROM postgres.{{schema | sqlsafe}}.cost_model_map as cmm
     JOIN postgres.{{schema | sqlsafe}}.cost_model as cm
         ON cmm.cost_model_id = cm.uuid
@@ -46,8 +46,7 @@ cte_cluster as (
     -- get the total number of hours a cluster ran in a day and the total number of nodes
     SELECT
         date(interval_start) as interval_day,
-        cast(count(distinct interval_start) as decimal(24, 9)) as cluster_hours,
-        cast(count(distinct node) as decimal(24, 9)) as node_count
+        cast(cast(count(distinct interval_start) as decimal(24, 9)) / count(distinct node) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) as decimal(24, 9)) as cost_per_node_per_hour
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items
     WHERE source = {{source_uuid}}
         AND year = {{year}}
@@ -72,11 +71,11 @@ SELECT uuid(),
     -- distribute the cost evenly amongst the namespaces across nodes
     -- cost = (# hours running / number of nodes) * rate * (namespace usage on node / total usage of that node)
     CASE WHEN cte_distribution_type.dt = 'cpu'
-        THEN ( max(cte_cluster.cluster_hours)/max(cte_cluster.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(lids.pod_effective_usage_cpu_core_hours)/sum(cte_node_usage.cpu_usage) )
+        THEN ( max(cte_cluster.cost_per_node_per_hour) * sum(lids.pod_effective_usage_cpu_core_hours)/sum(cte_node_usage.cpu_usage) )
         ELSE 0
     END as cost_model_cpu_cost,
     CASE WHEN cte_distribution_type.dt = 'memory'
-        THEN ( max(cte_cluster.cluster_hours)/max(cte_cluster.node_count) * cast({{cluster_cost_per_hour}} as decimal(24, 9)) * sum(lids.pod_effective_usage_memory_gigabyte_hours)/sum(cte_node_usage.mem_usage) )
+        THEN ( max(cte_cluster.cost_per_node_per_hour) * sum(lids.pod_effective_usage_memory_gigabyte_hours)/sum(cte_node_usage.mem_usage) )
         ELSE 0
     END as cost_model_memory_cost,
     0 as cost_model_volume_cost,
