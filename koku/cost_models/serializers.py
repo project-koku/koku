@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Rate serializer."""
-import copy
 import logging
 from collections import defaultdict
+from copy import deepcopy
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -59,12 +59,26 @@ class DistributionSerializer(BaseSerializer):
     """Serializer for distribution options"""
 
     distribution_type = serializers.ChoiceField(
-        choices=metric_constants.DISTRIBUTION_CHOICES, required=False, default=metric_constants.CPU
+        choices=metric_constants.DISTRIBUTION_CHOICES,
+        required=False,
+        default=metric_constants.DEFAULT_DISTRIBUTION_TYPE,
     )
-    platform_cost = serializers.BooleanField(required=False, default=True)
-    worker_cost = serializers.BooleanField(required=False, default=True)
-    network_unattributed = serializers.BooleanField(required=False, default=False)
-    storage_unattributed = serializers.BooleanField(required=False, default=False)
+    platform_cost = serializers.BooleanField(
+        required=False,
+        default=metric_constants.PLATFORM_COST_DEFAULT,
+    )
+    worker_cost = serializers.BooleanField(
+        required=False,
+        default=metric_constants.WORKER_UNALLOCATED_DEFAULT,
+    )
+    network_unattributed = serializers.BooleanField(
+        required=False,
+        default=metric_constants.NETWORK_UNATTRIBUTED_DEFAULT,
+    )
+    storage_unattributed = serializers.BooleanField(
+        required=False,
+        default=metric_constants.STORAGE_UNATTRIBUTED_DEFAULT,
+    )
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -199,7 +213,7 @@ class RateSerializer(serializers.Serializer):
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
+        metrics = deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
@@ -416,7 +430,7 @@ class CostModelSerializer(BaseSerializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
+        metric_map = deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         for metric in metric_map:
             try:
                 metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
@@ -469,7 +483,7 @@ class CostModelSerializer(BaseSerializer):
         if not data.get("distribution_info"):
             # TODO: Have this return just the default distribution info after
             # QE updates tests.
-            distribution_info = metric_constants.DEFAULT_DISTRIBUTION_INFO
+            distribution_info = deepcopy(metric_constants.DEFAULT_DISTRIBUTION_INFO)
             distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU)
             data["distribution_info"] = distribution_info
         if (

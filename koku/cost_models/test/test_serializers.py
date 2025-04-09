@@ -97,10 +97,10 @@ class CostModelSerializerTest(IamTestCase):
     def test_valid_data(self):
         """Test rate and markup for valid entries."""
         with tenant_context(self.tenant):
-            instance = None
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            instance = serializer.save()
+            self.assertIsNotNone(instance)
             self.assertIn(instance.source_type, SOURCE_TYPE_MAP.keys())
             self.assertIsNotNone(instance.markup)
             self.assertIsNotNone(instance.rates)
@@ -119,8 +119,7 @@ class CostModelSerializerTest(IamTestCase):
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
-                if serializer.is_valid(raise_exception=True):
-                    serializer.save()
+                serializer.is_valid(raise_exception=True)
 
     def test_not_OCP_source_type_with_markup(self):
         """Test that a source type is valid if it has markup."""
@@ -128,10 +127,9 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"] = []
 
         with tenant_context(self.tenant):
-            instance = None
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            instance = serializer.save()
             self.assertIsNotNone(instance)
             self.assertIsNotNone(instance.markup)
 
@@ -688,12 +686,12 @@ class CostModelSerializerTest(IamTestCase):
             self.ocp_data["distribution"] = good_input
             self.assertEqual(self.ocp_data["distribution"], good_input)
             with tenant_context(self.tenant):
-                instance = None
                 serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-                if serializer.is_valid(raise_exception=True):
-                    instance = serializer.save()
+                self.assertTrue(serializer.is_valid(raise_exception=True))
+                instance = serializer.save()
                 self.assertIsNotNone(instance)
                 self.assertIsNotNone(instance.uuid)
+                self.assertEqual(instance.distribution, good_input)
 
     def test_error_bad_distribution_choice(self):
         """Test that source successfully fails if bad distribution type."""
@@ -841,10 +839,9 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["distribution_info"] = valid_distrib_obj
         self.assertEqual(self.ocp_data["distribution_info"], valid_distrib_obj)
         with tenant_context(self.tenant):
-            instance = None
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            instance = serializer.save()
             self.assertIsNotNone(instance)
             # Add in default options
             valid_distrib_obj[metric_constants.NETWORK_UNATTRIBUTED] = False
@@ -858,7 +855,7 @@ class CostModelSerializerTest(IamTestCase):
         invalid_distrib_info_keys = {bad_key1: "", bad_key2: True, "worker_cost": False}
         with tenant_context(self.tenant):
             serializer = DistributionSerializer(data=invalid_distrib_info_keys)
-            self.assertTrue(serializer.is_valid(raise_exception=True))
+            self.assertFalse(serializer.is_valid(raise_exception=False))
             self.assertNotIn(bad_key1, serializer.data)
             self.assertNotIn(bad_key2, serializer.data)
 
@@ -867,8 +864,8 @@ class CostModelSerializerTest(IamTestCase):
         with tenant_context(self.tenant):
             instance = None
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            instance = serializer.save()
             self.assertIsNotNone(instance)
             self.assertEqual(instance.distribution_info, DEFAULT_DISTRIBUTION_INFO)
 
@@ -878,6 +875,6 @@ class CostModelSerializerTest(IamTestCase):
         with tenant_context(self.tenant):
             instance = None
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
+            self.assertTrue(serializer.is_valid(raise_exception=True))
+            instance = serializer.save()
             self.assertEqual(instance.distribution_info, DEFAULT_DISTRIBUTION_INFO)
