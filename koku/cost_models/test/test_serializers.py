@@ -5,6 +5,8 @@
 """Test the Cost Model serializers."""
 import random
 from decimal import Decimal
+from itertools import combinations
+from itertools import product
 from uuid import uuid4
 
 import faker
@@ -878,3 +880,33 @@ class CostModelSerializerTest(IamTestCase):
             self.assertTrue(serializer.is_valid(raise_exception=True))
             instance = serializer.save()
             self.assertEqual(instance.distribution_info, DEFAULT_DISTRIBUTION_INFO)
+
+    def test_all_valid_distribution_info_permutations(self):
+        """Completely overkill test for all valid permutations of distribution_info keys and values."""
+        # Define the keys and their possible values
+        valid_values = {
+            "distribution_type": ["cpu", "memory"],
+            "worker_cost": [True, False],
+            "platform_cost": [True, False],
+            "network_unattributed": [True, False],
+            "storage_unattributed": [True, False],
+        }
+
+        # Generate all combinations of key-value pairs
+        table = []
+        for r in range(1, len(valid_values) + 1):
+            for subset in combinations(valid_values.keys(), r):
+                subset_values = {p: valid_values[p] for p in subset}
+                table.extend(
+                    dict(zip(subset_values.keys(), combination)) for combination in product(*subset_values.values())
+                )
+        for test_case in table:
+            with self.subTest(distribution_info=test_case):
+                self.ocp_data["distribution_info"] = test_case
+                with tenant_context(self.tenant):
+                    serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+                    self.assertTrue(serializer.is_valid(raise_exception=True))
+                    instance = serializer.save()
+                    self.assertIsNotNone(instance)
+                    expected_distrib_obj = {**DEFAULT_DISTRIBUTION_INFO, **test_case}
+                    self.assertEqual(instance.distribution_info, expected_distrib_obj)
