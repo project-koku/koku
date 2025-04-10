@@ -19,6 +19,7 @@ OCP_NODE_MONTH = "node_cost_per_month"
 OCP_NODE_CORE_MONTH = "node_core_cost_per_month"
 OCP_CLUSTER_MONTH = "cluster_cost_per_month"
 OCP_CLUSTER_CORE_HOUR = "cluster_core_cost_per_hour"
+OCP_CLUSTER_HOUR = "cluster_cost_per_hour"
 OCP_PVC_MONTH = "pvc_cost_per_month"
 OCP_VM_MONTH = "vm_cost_per_month"
 OCP_VM_HOUR = "vm_cost_per_hour"
@@ -46,6 +47,7 @@ METRIC_CHOICES = (
     (OCP_NODE_CORE_MONTH, OCP_NODE_CORE_MONTH),
     (OCP_CLUSTER_MONTH, OCP_CLUSTER_MONTH),
     (OCP_CLUSTER_CORE_HOUR, OCP_CLUSTER_CORE_HOUR),
+    (OCP_CLUSTER_HOUR, OCP_CLUSTER_HOUR),
     (OCP_PVC_MONTH, OCP_PVC_MONTH),
     (OCP_VM_MONTH, OCP_VM_MONTH),
     (OCP_VM_HOUR, OCP_VM_HOUR),
@@ -68,6 +70,7 @@ COST_MODEL_USAGE_RATES = (
     OCP_NODE_CORE_HOUR,
     OCP_VM_HOUR,
     OCP_CLUSTER_CORE_HOUR,
+    OCP_CLUSTER_HOUR,
 )
 
 COST_MODEL_NODE_RATES = {
@@ -191,6 +194,14 @@ COST_MODEL_METRIC_MAP = [
     },
     {
         "source_type": "OCP",
+        "metric": "cluster_cost_per_hour",
+        "label_metric": "Cluster",
+        "label_measurement": "Count",
+        "label_measurement_unit": "cluster-hour",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
         "metric": "pvc_cost_per_month",
         "label_metric": "Persistent volume claims",
         "label_measurement": "Count",
@@ -224,17 +235,21 @@ COST_MODEL_METRIC_MAP = [
 ]
 
 PLATFORM_COST = "platform_cost"
+PLATFORM_COST_DEFAULT = True
 WORKER_UNALLOCATED = "worker_cost"
+WORKER_UNALLOCATED_DEFAULT = True
 NETWORK_UNATTRIBUTED = "network_unattributed"
+NETWORK_UNATTRIBUTED_DEFAULT = False
 STORAGE_UNATTRIBUTED = "storage_unattributed"
+STORAGE_UNATTRIBUTED_DEFAULT = False
 DISTRIBUTION_TYPE = "distribution_type"
 
 DEFAULT_DISTRIBUTION_INFO = {
-    DISTRIBUTION_TYPE: CPU,
-    PLATFORM_COST: True,
-    WORKER_UNALLOCATED: True,
-    NETWORK_UNATTRIBUTED: False,
-    STORAGE_UNATTRIBUTED: False,
+    DISTRIBUTION_TYPE: DEFAULT_DISTRIBUTION_TYPE,
+    PLATFORM_COST: PLATFORM_COST_DEFAULT,
+    WORKER_UNALLOCATED: WORKER_UNALLOCATED_DEFAULT,
+    NETWORK_UNATTRIBUTED: NETWORK_UNATTRIBUTED_DEFAULT,
+    STORAGE_UNATTRIBUTED: STORAGE_UNATTRIBUTED_DEFAULT,
 }
 
 # The usage metric map is used for the tag based rates
