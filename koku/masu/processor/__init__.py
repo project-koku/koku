@@ -109,9 +109,10 @@ def is_managed_ocp_cloud_summary_enabled(account, provider_type):
     if UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-provider-type", context):
         account = convert_account(account)
         context = {"schema": account}
-        return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
-    else:
-        return False
+        if UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context):
+            LOG.info(log_json(msg="managed table summary enabled", schema=account, provider_type=provider_type))
+            return True
+    return False
 
 
 def is_source_disabled(source_uuid):  # pragma: no cover
