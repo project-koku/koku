@@ -674,7 +674,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-        
+
         if ocp_cluster_hour_rate := rates.get(metric_constants.OCP_CLUSTER_HOUR):
             self.populate_cluster_hourly_usage_costs(
                 rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
