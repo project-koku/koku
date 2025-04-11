@@ -2353,8 +2353,6 @@ CREATE TABLE {{schema_name | sqlsafe}}."reporting_ocpawscostlineitem_project_dai
     "currency_code" character varying(10),
     "unblended_cost" numeric(30,15),
     "markup_cost" numeric(30,15),
-    "project_markup_cost" numeric(30,15),
-    "pod_cost" numeric(30,15),
     "source_uuid" "uuid",
     "account_alias_id" integer,
     "cost_entry_bill_id" integer,
