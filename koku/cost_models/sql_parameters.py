@@ -70,8 +70,7 @@ class VMCountParams:
             (Tuple[str, list[Dict]]): A tuple containing the SQL query and a list of tag-based parameters.
                 Returns empty list and None if no tag rates are found.
         """
-        metric_info = tag_based_price_list.get(metric_name, {})
-        tag_rates = metric_info.get("tag_rates", {})
+        tag_rates = tag_based_price_list.get(metric_name, {}).get("tag_rates", None)
         if not tag_rates:
             return None, []
         tag_parameters = []
