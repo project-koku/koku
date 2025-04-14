@@ -315,7 +315,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # outside the start and end date are not updated
                     for value, rate in rate_costs.get(cost).get("app").items():
                         for day, vals in initial_results_dict.get(value).items():
-
                             with self.subTest(
                                 msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, id: {day}"
                             ):
@@ -987,6 +986,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             acc.populate_usage_costs(
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
                 {metric_constants.OCP_VM_HOUR: 1},
+                metric_constants.DEFAULT_DISTRIBUTION_TYPE,
                 self.dh.this_month_start,
                 self.dh.this_month_end,
                 self.ocp_provider_uuid,
@@ -1002,6 +1002,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             acc.populate_usage_costs(
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
                 {},
+                metric_constants.DEFAULT_DISTRIBUTION_TYPE,
                 self.dh.this_month_start,
                 self.dh.this_month_end,
                 self.ocp_provider_uuid,
@@ -1024,7 +1025,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = "2000-02-01"
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             with self.accessor as acc:
-                acc.populate_usage_costs("", "", start_date, end_date, self.provider_uuid)
+                acc.populate_usage_costs("", "", "cpu", start_date, end_date, self.provider_uuid)
                 self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_distributed_cost_sql_no_report_period(self):
@@ -1237,6 +1238,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             acc.populate_usage_costs(
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
                 {metric_constants.OCP_CLUSTER_HOUR: 1},
+                metric_constants.DEFAULT_DISTRIBUTION_TYPE,
                 self.dh.this_month_start,
                 self.dh.this_month_end,
                 self.ocp_provider_uuid,

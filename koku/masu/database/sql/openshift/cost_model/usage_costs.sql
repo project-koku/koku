@@ -57,8 +57,8 @@ WITH cte_node_cost as (
         node,
         cpu_usage,
         mem_usage,
-        node_size_cpu * {{cluster_hour_rate}} * hours_used_cpu as node_cpu_per_day,
-        node_size_mem * {{cluster_hour_rate}} * hours_used_mem as node_mem_per_day
+        node_size_cpu * {{cluster_hour_rate}} * hours_used_cpu * cpu_distribution as node_cpu_per_day,
+        node_size_mem * {{cluster_hour_rate}} * hours_used_mem * mem_distribution as node_mem_per_day
     FROM (
         SELECT
             usage_start,
@@ -68,7 +68,9 @@ WITH cte_node_cost as (
             max(node_capacity_cpu_core_hours) / max(node_capacity_cpu_cores) as hours_used_cpu,
             max(node_capacity_cpu_core_hours) / max(cluster_capacity_cpu_core_hours) as node_size_cpu,
             max(node_capacity_memory_gigabyte_hours) / max(node_capacity_memory_gigabytes) as hours_used_mem,
-            max(node_capacity_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) as node_size_mem
+            max(node_capacity_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) as node_size_mem,
+            CASE WHEN {{distribution}} = 'cpu' THEN 1 ELSE 0 END as cpu_distribution,
+            CASE WHEN {{distribution}} = 'memory' THEN 1 ELSE 0 END as mem_distribution
         FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
         WHERE usage_start >= {{start_date}}
             AND usage_start <= {{end_date}}
@@ -116,12 +118,12 @@ SELECT uuid_generate_v4(),
         + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cpu_effective_rate}}
         + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{node_core_hour_rate}}
         + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cluster_core_hour_rate}}
-        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0))/sum(cte_node_cost.cpu_usage) * max(cte_node_cost.node_cpu_per_day)
+        + (sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0))/sum(cte_node_cost.cpu_usage) * max(cte_node_cost.node_cpu_per_day))
         as cost_model_cpu_cost,
     sum(coalesce(lids.pod_usage_memory_gigabyte_hours, 0)) * {{memory_usage_rate}}
         + sum(coalesce(lids.pod_request_memory_gigabyte_hours, 0)) * {{memory_request_rate}}
         + sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0)) * {{memory_effective_rate}}
-        + sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0))/sum(cte_node_cost.mem_usage) * max(cte_node_cost.node_mem_per_day)
+        + (sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0))/sum(cte_node_cost.mem_usage) * max(cte_node_cost.node_mem_per_day))
         as cost_model_memory_cost,
     sum(coalesce(lids.persistentvolumeclaim_usage_gigabyte_months, 0)) * {{volume_usage_rate}}
         + sum(coalesce(lids.volume_request_storage_gigabyte_months, 0)) * {{volume_request_rate}}

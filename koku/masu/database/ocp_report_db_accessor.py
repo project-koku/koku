@@ -615,7 +615,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg="populating tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
+    def populate_usage_costs(self, rate_type, rates, distribution, start_date, end_date, provider_uuid):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
@@ -670,6 +670,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "volume_usage_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH, 0),
             "volume_request_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH, 0),
             "rate_type": rate_type,
+            "distribution": distribution,
         }
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
