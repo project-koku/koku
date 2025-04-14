@@ -31,8 +31,6 @@ INSERT
            usage_amount,
            unit,
            unblended_cost,
-           project_markup_cost,
-           pod_cost,
            currency_code,
            cost_category_id,
            source_uuid
