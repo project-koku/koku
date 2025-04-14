@@ -680,11 +680,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
             )
 
-        # if ocp_cluster_hour_rate := rates.get(metric_constants.OCP_CLUSTER_HOUR):
-        #     self.populate_cluster_hourly_usage_costs(
-        #         rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
-        #     )
-
     def populate_vm_hourly_usage_costs(
         self, rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
     ):
@@ -715,34 +710,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg=f"populating virtual machine {rate_type} hourly costs", context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
-
-    def populate_cluster_hourly_usage_costs(
-        self, rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
-    ):
-        """Populate cluster hourly usage costs"""
-
-        ctx = {
-            "schema": self.schema,
-            "provider_uuid": str(provider_uuid),
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period": report_period_id,
-        }
-
-        sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/hourly_cost_cluster.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "schema": self.schema,
-            "source_uuid": provider_uuid,
-            "report_period_id": report_period_id,
-            "cluster_cost_per_hour": ocp_cluster_hour_rate,
-            "rate_type": rate_type,
-        }
-        table_name = self._table_map["line_item_daily_summary"]
-        LOG.info(log_json(msg=f"populating cluster {rate_type} hourly costs", context=ctx))
-        self._prepare_and_execute_raw_sql_query(table_name, sql, tmp_sql_params=sql_params)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
