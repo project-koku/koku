@@ -57,7 +57,6 @@ WITH cte_node_cost as (
         node,
         cpu_usage,
         mem_usage,
-        {{source_uuid}} as source_uuid,
         node_size_cpu * {{cluster_hour_rate}} * hours_used_cpu as node_cpu_per_day,
         node_size_mem * {{cluster_hour_rate}} * hours_used_mem as node_mem_per_day
     FROM (
@@ -134,7 +133,6 @@ FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN cte_node_cost
     ON lids.usage_start = cte_node_cost.usage_start
     AND lids.node = cte_node_cost.node
-    AND lids.source_uuid = {{source_uuid}}
 WHERE lids.usage_start >= {{start_date}}
     AND lids.usage_start <= {{end_date}}
     AND lids.source_uuid = {{source_uuid}}
