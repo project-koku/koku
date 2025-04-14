@@ -663,6 +663,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "cpu_effective_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, 0),
             "node_core_hour_rate": rates.get(metric_constants.OCP_NODE_CORE_HOUR, 0),
             "cluster_core_hour_rate": rates.get(metric_constants.OCP_CLUSTER_CORE_HOUR, 0),
+            "cluster_hour_rate": rates.get(metric_constants.OCP_CLUSTER_HOUR, 0),
             "memory_usage_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR, 0),
             "memory_request_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR, 0),
             "memory_effective_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, 0),
@@ -679,10 +680,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
             )
 
-        if ocp_cluster_hour_rate := rates.get(metric_constants.OCP_CLUSTER_HOUR):
-            self.populate_cluster_hourly_usage_costs(
-                rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
-            )
+        # if ocp_cluster_hour_rate := rates.get(metric_constants.OCP_CLUSTER_HOUR):
+        #     self.populate_cluster_hourly_usage_costs(
+        #         rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
+        #     )
 
     def populate_vm_hourly_usage_costs(
         self, rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
