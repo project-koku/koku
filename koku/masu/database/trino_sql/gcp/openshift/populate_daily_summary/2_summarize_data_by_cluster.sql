@@ -266,6 +266,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     invoice_month,
     credit_amount,
     unblended_cost,
+    markup_cost,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabyte_hours,
     volume_labels,
