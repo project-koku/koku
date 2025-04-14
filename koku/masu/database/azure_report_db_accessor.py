@@ -29,7 +29,6 @@ from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
-from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryBill
@@ -141,10 +140,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     ocpazure_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
                         markup_cost=(F("pretax_cost") * markup)
                     )
-
-                OCPAllCostLineItemProjectDailySummaryP.objects.filter(
-                    source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
-                ).update(project_markup_cost=(F("pod_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
                     markup_model.objects.filter(

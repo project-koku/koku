@@ -29,7 +29,6 @@ from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
-from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -357,10 +356,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                         markup_cost_amortized=(F("calculated_amortized_cost") * markup),
                     )
-
-                OCPAllCostLineItemProjectDailySummaryP.objects.filter(
-                    source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
-                ).update(project_markup_cost=(F("pod_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
                     markup_model.objects.filter(
