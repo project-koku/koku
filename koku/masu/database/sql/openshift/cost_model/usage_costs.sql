@@ -57,8 +57,16 @@ WITH cte_node_cost as (
         node,
         cpu_usage,
         mem_usage,
-        node_size_cpu * {{cluster_hour_rate}} * hours_used_cpu * cpu_distribution as node_cpu_per_day,
-        node_size_mem * {{cluster_hour_rate}} * hours_used_mem * mem_distribution as node_mem_per_day
+        CASE WHEN {{distribution}} = 'cpu' THEN
+            node_size_cpu * {{cluster_hour_rate}} * hours_used_cpu
+        ELSE
+            0
+        END as node_cpu_per_day,
+        CASE WHEN {{distribution}} = 'memory' THEN
+            node_size_mem * {{cluster_hour_rate}} * hours_used_mem
+        ELSE
+            0
+        END as node_mem_per_day
     FROM (
         SELECT
             usage_start,
@@ -68,9 +76,7 @@ WITH cte_node_cost as (
             max(node_capacity_cpu_core_hours) / max(node_capacity_cpu_cores) as hours_used_cpu,
             max(node_capacity_cpu_core_hours) / max(cluster_capacity_cpu_core_hours) as node_size_cpu,
             max(node_capacity_memory_gigabyte_hours) / max(node_capacity_memory_gigabytes) as hours_used_mem,
-            max(node_capacity_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) as node_size_mem,
-            CASE WHEN {{distribution}} = 'cpu' THEN 1 ELSE 0 END as cpu_distribution,
-            CASE WHEN {{distribution}} = 'memory' THEN 1 ELSE 0 END as mem_distribution
+            max(node_capacity_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) as node_size_mem
         FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
         WHERE usage_start >= {{start_date}}
             AND usage_start <= {{end_date}}
