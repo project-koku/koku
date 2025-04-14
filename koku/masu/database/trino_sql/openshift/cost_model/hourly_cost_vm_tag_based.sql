@@ -35,7 +35,7 @@ SELECT uuid(),
     {%- if value_rates is defined %}
     CASE
         {%- for value, rate in value_rates.items() %}
-        WHEN json_extract_scalar(lids.pod_labels, CONCAT('$.', {{tag_key}})) = {{value}}
+        WHEN json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
         THEN max(vmhrs.vm_interval_hours) * CAST({{rate}} as DECIMAL(33, 15))
         {%- endfor %}
         {%- if default_rate is defined %}
@@ -50,7 +50,7 @@ FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS l
 JOIN (
     SELECT
         json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') as vm_name,
-        json_extract_scalar(pod_usage.pod_labels, CONCAT('$.', {{tag_key}})) as group_value,
+        json_extract_scalar(pod_usage.pod_labels, '$.{{ tag_key|sqlsafe }}') as group_value,
         DATE(pod_usage.interval_start) as interval_day,
         count(pod_usage.interval_start) AS vm_interval_hours
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
@@ -59,18 +59,18 @@ JOIN (
         AND year = {{year}}
         AND month = {{month}}
     {%- if default_rate is defined %}
-        AND json_extract(pod_usage.pod_labels, CONCAT('$.', {{tag_key}})) IS NOT NULL
+        AND json_extract(pod_usage.pod_labels, '$.{{ tag_key|sqlsafe }}') IS NOT NULL
     {%- else %}
         AND (
             {%- for value, rate in value_rates.items() %}
-                {%- if not loop.first -%} OR {% endif %} json_extract_scalar(pod_usage.pod_labels, CONCAT('$.', {{tag_key}})) = {{value}}
+                {%- if not loop.first -%} OR {% endif %} json_extract_scalar(pod_usage.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
                 {%- if loop.last %} ) {%- endif %}
             {%- endfor %}
     {%- endif %}
     GROUP BY 1, 2, 3
 ) AS vmhrs
     ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
-    AND json_extract_scalar(lids.pod_labels, CONCAT('$.', {{tag_key}})) = vmhrs.group_value
+    AND json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = vmhrs.group_value
     AND DATE(vmhrs.interval_day) = lids.usage_start
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
@@ -80,11 +80,11 @@ WHERE usage_start >= DATE({{start_date}})
     AND pod_request_cpu_core_hours IS NOT NULL
     AND monthly_cost_type IS NULL
 {%- if default_rate is defined %}
-    AND json_extract(lids.pod_labels, CONCAT('$.', {{tag_key}})) IS NOT NULL
+    AND json_extract(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') IS NOT NULL
 {%- else %}
         AND (
             {%- for value, rate in value_rates.items() %}
-                {%- if not loop.first %} OR {%- endif %} json_extract_scalar(lids.pod_labels, CONCAT('$.', {{tag_key}})) = {{value}}
+                {%- if not loop.first %} OR {%- endif %} json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
                 {%- if loop.last %} ) {%- endif %}
             {%- endfor %}
 {%- endif %}
