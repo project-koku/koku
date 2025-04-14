@@ -47,7 +47,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution_info.get(
-                "distribution_type", metric_constants.DEFAULT_DISTRIBUTION_TYPE
+                metric_constants.DISTRIBUTION_TYPE, metric_constants.DEFAULT_DISTRIBUTION_TYPE
             )
             self._distribution_info = cost_model_accessor.distribution_info
             self.tag_based_price_list = cost_model_accessor.tag_based_price_list
