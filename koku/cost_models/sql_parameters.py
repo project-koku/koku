@@ -1,3 +1,8 @@
+#
+# Copyright 2025 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""VM count dataclass"""
 import pkgutil
 from dataclasses import dataclass
 from datetime import date

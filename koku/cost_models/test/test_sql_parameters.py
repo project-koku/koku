@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2025 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
