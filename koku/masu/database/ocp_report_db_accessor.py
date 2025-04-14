@@ -23,6 +23,7 @@ from api.metrics import constants as metric_constants
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
+from cost_models.sql_parameters import VMCountParams
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -677,40 +678,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
-            self.populate_vm_hourly_usage_costs(
-                rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
-            )
-
-    def populate_vm_hourly_usage_costs(
-        self, rate_type, ocp_vm_hour_rate, start_date, end_date, provider_uuid, report_period_id
-    ):
-        """Populate virtual machine hourly usage costs"""
-
-        ctx = {
-            "schema": self.schema,
-            "provider_uuid": str(provider_uuid),
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period": report_period_id,
-        }
-
-        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": str(start_date),
-            "end_date": str(end_date),
-            "schema": self.schema,
-            "source_uuid": str(provider_uuid),
-            "report_period_id": report_period_id,
-            "vm_cost_per_hour": ocp_vm_hour_rate,
-            "rate_type": rate_type,
-        }
-        start_date = DateHelper().parse_to_date(start_date)
-        sql_params["year"] = start_date.strftime("%Y")
-        sql_params["month"] = start_date.strftime("%m")
-
-        LOG.info(log_json(msg=f"populating virtual machine {rate_type} hourly costs", context=ctx))
-        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+            vm_hour = VMCountParams(self.schema, start_date, end_date, provider_uuid, report_period_id)
+            sql, vm_hour_params = vm_hour.build_vm_count_hourly_query(rate_type, ocp_vm_hour_rate)
+            LOG.info(log_json(msg="populating virtual machine hourly costs", context=vm_hour_params))
+            self._execute_trino_multipart_sql_query(sql, bind_params=vm_hour_params)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
