@@ -2386,7 +2386,6 @@ CREATE TABLE {{schema_name | sqlsafe}}."reporting_ocpazurecostlineitem_project_d
     "pretax_cost" numeric(17,9),
     "markup_cost" numeric(17,9),
     "project_markup_cost" numeric(17,9),
-    "pod_cost" numeric(24,6),
     "source_uuid" "uuid",
     "cost_entry_bill_id" integer NOT NULL,
     "report_period_id" integer,
@@ -2422,7 +2421,6 @@ CREATE MATERIALIZED VIEW {{schema_name | sqlsafe}}."reporting_ocpallcostlineitem
     "lids"."unit",
     "lids"."unblended_cost",
     "lids"."project_markup_cost",
-    "lids"."pod_cost",
     "lids"."currency_code",
     "lids"."source_uuid"
    FROM ( SELECT 'AWS'::"text" AS "source_type",
@@ -2446,7 +2444,6 @@ CREATE MATERIALIZED VIEW {{schema_name | sqlsafe}}."reporting_ocpallcostlineitem
             "max"(("reporting_ocpawscostlineitem_project_daily_summary"."unit")::"text") AS "unit",
             "sum"("reporting_ocpawscostlineitem_project_daily_summary"."unblended_cost") AS "unblended_cost",
             "sum"("reporting_ocpawscostlineitem_project_daily_summary"."project_markup_cost") AS "project_markup_cost",
-            "sum"("reporting_ocpawscostlineitem_project_daily_summary"."pod_cost") AS "pod_cost",
             "max"(("reporting_ocpawscostlineitem_project_daily_summary"."currency_code")::"text") AS "currency_code",
             ("max"(("reporting_ocpawscostlineitem_project_daily_summary"."source_uuid")::"text"))::"uuid" AS "source_uuid"
            FROM {{schema_name | sqlsafe}}."reporting_ocpawscostlineitem_project_daily_summary"
@@ -2474,7 +2471,6 @@ CREATE MATERIALIZED VIEW {{schema_name | sqlsafe}}."reporting_ocpallcostlineitem
             "max"("reporting_ocpazurecostlineitem_project_daily_summary"."unit_of_measure") AS "unit",
             "sum"("reporting_ocpazurecostlineitem_project_daily_summary"."pretax_cost") AS "unblended_cost",
             "sum"("reporting_ocpazurecostlineitem_project_daily_summary"."project_markup_cost") AS "project_markup_cost",
-            "sum"("reporting_ocpazurecostlineitem_project_daily_summary"."pod_cost") AS "pod_cost",
             "max"("reporting_ocpazurecostlineitem_project_daily_summary"."currency") AS "currency_code",
             ("max"(("reporting_ocpazurecostlineitem_project_daily_summary"."source_uuid")::"text"))::"uuid" AS "source_uuid"
            FROM {{schema_name | sqlsafe}}."reporting_ocpazurecostlineitem_project_daily_summary"
