@@ -728,23 +728,20 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "report_period": report_period_id,
         }
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_cluster.sql")
+        sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/hourly_cost_cluster.sql")
         sql = sql.decode("utf-8")
         sql_params = {
-            "start_date": str(start_date),
-            "end_date": str(end_date),
+            "start_date": start_date,
+            "end_date": end_date,
             "schema": self.schema,
-            "source_uuid": str(provider_uuid),
+            "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
             "cluster_cost_per_hour": ocp_cluster_hour_rate,
             "rate_type": rate_type,
         }
-        start_date = DateHelper().parse_to_date(start_date)
-        sql_params["year"] = start_date.strftime("%Y")
-        sql_params["month"] = start_date.strftime("%m")
-
+        table_name = self._table_map["line_item_daily_summary"]
         LOG.info(log_json(msg=f"populating cluster {rate_type} hourly costs", context=ctx))
-        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        self._prepare_and_execute_raw_sql_query(table_name, sql, tmp_sql_params=sql_params)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
