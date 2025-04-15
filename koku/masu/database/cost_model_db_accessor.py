@@ -202,7 +202,7 @@ class CostModelDBAccessor:
         {
             metric: {
                 key: {
-                    'default_value': <value>, 'defined_keys': [keys, to, be, ignored]
+                    'default_value': <value>, 'defined_keys': [values, to, be, ignored]
                 }
             }
         }
@@ -216,6 +216,7 @@ class CostModelDBAccessor:
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
+                    # NOTE: defined keys is actually list of values that have a rate associated with them.
                     tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
                     results_dict[key] = tag_dict
         return results_dict
@@ -255,7 +256,7 @@ class CostModelDBAccessor:
         {
             metric: {
                 key: {
-                    'default_value': <value>, 'defined_keys': [keys, to, be, ignored]
+                    'default_value': <value>, 'defined_keys': [values, to, be, ignored]
                 }
             }
         }
@@ -269,6 +270,7 @@ class CostModelDBAccessor:
                     tag_key = tag.get("tag_key")
                     tag_keys_to_ignore = list(tag.get("tag_values").keys())
                     default_value = tag.get("tag_key_default")
+                    # Note: defined_keys is actually a list of tag values that have a specific rate
                     tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
                     results_dict[key] = tag_dict
         return results_dict
