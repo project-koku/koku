@@ -965,20 +965,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 acc.populate_monthly_cost_sql("Fake", "", "", self.start_date, self.start_date, "", self.provider_uuid)
                 self.assertIn("Skipping populate_monthly_cost_sql update", logger.output[0])
 
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_vm_hourly_usage_costs(self, mock_trino):
-        """Test the populate vm hourly usage costs"""
-        with self.accessor as acc:
-            acc.populate_vm_hourly_usage_costs(
-                metric_constants.SUPPLEMENTARY_COST_TYPE,
-                1,
-                self.dh.this_month_start,
-                self.dh.this_month_end,
-                self.ocp_provider_uuid,
-                1,
-            )
-            mock_trino.assert_called()
-
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_usage_costs_vm_rate(self, mock_trino, mock_postgres):
