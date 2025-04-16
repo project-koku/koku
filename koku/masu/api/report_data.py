@@ -15,6 +15,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.common import log_json
 from api.models import Provider
 from api.utils import get_months_in_date_range
 from common.queues import get_customer_queue
@@ -95,6 +96,15 @@ def report_data(request):
                 ocp_on_cloud=ocp_on_cloud,
             ).apply_async(queue=queue_name or fallback_queue)
             async_results.append({str(month): str(async_result)})
+            LOG.info(
+                log_json(
+                    msg=f"masu summary triggered",
+                    queue=queue_name or fallback_queue,
+                    schema=schema_name,
+                    provider_type=provider_type,
+                    provider_uuid=provider_uuid,
+                )
+            )
             # If managed flow is enabled trigger trino managed processing
             if is_managed_ocp_cloud_summary_enabled(schema_name, provider_type):
                 tracing_id = str(async_result)
@@ -110,5 +120,14 @@ def report_data(request):
                 ocp_async = process_openshift_on_cloud_trino.s(
                     [report], provider_type, schema_name, provider_uuid, tracing_id, masu_api_trigger=True
                 ).apply_async(queue=queue_name or fallback_queue)
+                LOG.info(
+                    log_json(
+                        msg=f"masu managed table processing/summary queued",
+                        queue=queue_name or fallback_queue,
+                        schema=schema_name,
+                        provider_type=provider_type,
+                        provider_uuid=provider_uuid,
+                    )
+                )
                 async_results.append({f"Managed OCP on Cloud {str(month)}": str(ocp_async)})
         return Response({REPORT_DATA_KEY: async_results})

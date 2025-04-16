@@ -648,6 +648,7 @@ def update_summary_tables(  # noqa: C901
 
     # if the managed ocp summary flow is enabled, ocp on cloud summary is triggered after ocp on cloud processing
     if not is_managed_ocp_cloud_summary_enabled(schema, provider_type):
+        LOG.info(log_json(tracing_id, msg="triggering ocp on cloud summary", context=context))
         trigger_ocp_on_cloud_summary(
             context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date, queue_name, synchronous
         )
@@ -965,11 +966,13 @@ def mark_manifest_complete(
         "ingress_report_uuid": ingress_report_uuid,
         "manifest_list": manifest_list,
     }
-    LOG.info(log_json(tracing_id, msg="marking manifest complete", context=context))
     if provider := Provider.objects.filter(uuid=provider_uuid).first():
         provider.set_data_updated_timestamp()
-    with ReportManifestDBAccessor() as manifest_accessor:
-        manifest_accessor.mark_manifests_as_completed(manifest_list)
+    if manifest_list:
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest_accessor.mark_manifests_as_completed(manifest_list)
+    else:
+        LOG.info(log_json(tracing_id, msg="no manifest to mark complete, likely masu resummary task", context=context))
     if ingress_report_uuid:
         with schema_context(schema):
             report = IngressReports.objects.get(uuid=ingress_report_uuid)
@@ -1285,7 +1288,7 @@ def process_openshift_on_cloud_trino(
                 LOG.info(log_json(tracing_id, msg="manifest not ready for summary", context=report))
                 continue
 
-        LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
+        LOG.info(log_json(tracing_id, msg="managed table processing started", context=report))
 
         months = get_months_in_date_range(report)
         for month in months:
@@ -1297,6 +1300,7 @@ def process_openshift_on_cloud_trino(
             processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, ctx)
             processor.process_ocp_cloud_trino(start_date, end_date)
             if is_managed_ocp_cloud_summary_enabled(schema_name, provider_type):
+                LOG.info(log_json(tracing_id, msg="managed table summary started", context=report))
                 trigger_ocp_on_cloud_summary(
                     ctx, schema_name, provider_uuid, manifest_id, tracing_id, start_date, end_date
                 )
