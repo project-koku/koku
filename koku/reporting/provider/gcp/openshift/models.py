@@ -9,7 +9,6 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
-
 UI_SUMMARY_TABLES = (
     "reporting_ocpgcp_cost_summary_p",
     "reporting_ocpgcp_compute_summary_p",
@@ -151,9 +150,6 @@ class OCPGCPCostLineItemProjectDailySummaryP(models.Model):
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-    pod_credit = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     tags = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
