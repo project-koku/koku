@@ -129,7 +129,7 @@ SELECT uuid_generate_v4(),
     sum(coalesce(lids.pod_usage_memory_gigabyte_hours, 0)) * {{memory_usage_rate}}
         + sum(coalesce(lids.pod_request_memory_gigabyte_hours, 0)) * {{memory_request_rate}}
         + sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0)) * {{memory_effective_rate}}
-        + (sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0))/sum(cte_node_cost.mem_usage) * max(cte_node_cost.node_mem_per_day))
+        + (sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0))/max(cte_node_cost.mem_usage) * max(cte_node_cost.node_mem_per_day))
         as cost_model_memory_cost,
     sum(coalesce(lids.persistentvolumeclaim_usage_gigabyte_months, 0)) * {{volume_usage_rate}}
         + sum(coalesce(lids.volume_request_storage_gigabyte_months, 0)) * {{volume_request_rate}}
