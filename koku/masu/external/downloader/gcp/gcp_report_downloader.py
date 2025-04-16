@@ -33,8 +33,10 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import CreateDailyArchivesError
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import add_label_columns
+from masu.util.gcp.common import build_query_statement
+from masu.util.gcp.common import build_table_name
+from masu.util.gcp.common import GCP_COLUMN_LIST
 from providers.gcp.provider import GCPProvider
-from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -168,43 +170,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.storage_only = self.data_source.get("storage_only")
         if not self.tracing_id or self.tracing_id == "no_tracing_id":
             self.tracing_id = str(self._provider_uuid)
-        if not self.storage_only:
-            self.gcp_big_query_columns = [
-                "billing_account_id",
-                "service.id",
-                "service.description",
-                "sku.id",
-                "sku.description",
-                "usage_start_time",
-                "usage_end_time",
-                "project.id",
-                "project.name",
-                "project.labels",
-                "project.ancestry_numbers",
-                "labels",
-                "system_labels",
-                "location.location",
-                "location.country",
-                "location.region",
-                "location.zone",
-                "export_time",
-                "cost",
-                "currency",
-                "currency_conversion_rate",
-                "usage.amount",
-                "usage.unit",
-                "usage.amount_in_pricing_units",
-                "usage.pricing_unit",
-                "credits",
-                "invoice.month",
-                "cost_type",
-                "resource.name",
-                "resource.global_name",
-            ]
-            self.table_name = ".".join(
-                [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
-            )
-
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
@@ -233,12 +198,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def scan_end(self):
         """The end partition date we check for data in BigQuery."""
         return DateHelper().today.date()
-
-    def _get_dataset_name(self):
-        """Helper to get dataset ID when format is project:datasetName."""
-        if ":" in self.data_source.get("dataset"):
-            return self.data_source.get("dataset").split(":")[1]
-        return self.data_source.get("dataset")
 
     def retrieve_current_manifests_mapping(self):
         """
@@ -289,7 +248,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             client = bigquery.Client()
             export_partition_date_query = f"""
-                SELECT DATE(_PARTITIONTIME) AS partition_date, DATETIME(max(export_time))  FROM {self.table_name}
+                SELECT DATE(_PARTITIONTIME) AS partition_date, DATETIME(max(export_time))
+                FROM `{build_table_name(self.credentials, self.data_source)}`
                 WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
                 AND '{self.scan_end}' GROUP BY partition_date ORDER BY partition_date
             """
@@ -454,25 +414,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report = report.split("/")[-1]
         return report
 
-    def build_query_select_statement(self):
-        """Helper to build query select statement."""
-        columns_list = self.gcp_big_query_columns.copy()
-        columns_list = [
-            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels", "credits") else col
-            for col in columns_list
-        ]
-        # Swap out resource columns with NULLs when we are processing
-        # a non-resource-level BigQuery table
-        columns_list = [
-            f"NULL as {col.replace('.', '_')}"
-            if col in ("resource.name", "resource.global_name")
-            and RESOURCE_LEVEL_EXPORT_NAME not in self.data_source.get("table_id")
-            else col
-            for col in columns_list
-        ]
-        columns_list.append("DATE(_PARTITIONTIME) as partition_date")
-        return ",".join(columns_list)
-
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from GCP storage bucket.
@@ -509,11 +450,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             try:
                 filename = os.path.splitext(key)[0]
                 partition_date = filename.split("_")[-1]
-                query = f"""
-                    SELECT {self.build_query_select_statement()}
-                    FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
-                    """
+                query = build_query_statement(self.credentials, self.data_source, partition_date)
                 client = bigquery.Client()
                 query_job = client.query(query).result()
             except GoogleCloudError as err:
@@ -525,7 +462,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 msg = f"Error recovering start and end date from csv key ({key})."
                 raise GCPReportDownloaderError(msg) from e
             try:
-                column_list = self.gcp_big_query_columns.copy()
+                column_list = GCP_COLUMN_LIST.copy()
                 column_list.append("partition_date")
                 for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
                     full_local_path = self._get_local_file_path(directory_path, partition_date, i)

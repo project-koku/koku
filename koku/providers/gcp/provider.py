@@ -19,6 +19,10 @@ from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
 from api.provider.models import Sources
+from api.utils import DateHelper
+from masu.util.gcp.common import build_query_statement
+from masu.util.gcp.common import NON_RESOURCE_LEVEL_EXPORT_NAME
+from masu.util.gcp.common import RESOURCE_LEVEL_EXPORT_NAME
 
 LOG = logging.getLogger(__name__)
 
@@ -28,9 +32,6 @@ REQUIRED_IAM_PERMISSIONS = [
     "bigquery.tables.list",
     "bigquery.tables.get",
 ]
-
-RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export_resource"
-NON_RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export"
 
 
 class GCPReportExistsError(Exception):
@@ -84,8 +85,15 @@ class GCPProvider(ProviderInterface):
             if bigquery_table_id:
                 data_source["table_id"] = bigquery_table_id
                 self.update_source_data_source(data_source)
+                date_str = DateHelper().now_utc.strftime("%Y-%m-%d")
+                client = bigquery.Client()
+                client.query(build_query_statement(credentials, data_source, date_str))
             else:
                 raise SkipStatusPush("Table ID not ready.")
+        except GoogleCloudError as err:
+            key = "dataset.table.query"
+            message = f"table query check failed: {err}"
+            raise serializers.ValidationError(error_obj(key, message))
         except NotFound as e:
             data_source.pop("table_id", None)
             self.update_source_data_source(data_source)
@@ -165,7 +173,6 @@ class GCPProvider(ProviderInterface):
             key = "authentication.project_id"
             LOG.info(error_obj(key, reason))
             raise serializers.ValidationError(error_obj(key, reason))
-
         self._detect_billing_export_table(data_source, credentials)
 
         return True

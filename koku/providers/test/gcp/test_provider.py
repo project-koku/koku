@@ -35,10 +35,11 @@ class MockBigQueryTable:
 
 
 class MockBigQueryClient:
-    def __init__(self, project, dataset, valid_tables):
+    def __init__(self, project, dataset, valid_tables, query):
         self._project = project
         self._dataset = dataset
         self._valid_tables = valid_tables
+        self._query = query
 
     def list_tables(self, dataset):
         valid_tables = []
@@ -46,6 +47,9 @@ class MockBigQueryClient:
             bigquery_table = MockBigQueryTable(self._project, self._dataset, table)
             valid_tables.append(bigquery_table)
         return valid_tables
+
+    def query(self, query):
+        return self.query
 
 
 class MockStorageClient:
@@ -123,7 +127,7 @@ class GCPProviderTestCase(TestCase):
     def test_cost_usage_source_is_reachable_valid(self, mock_auth, mock_discovery, mock_bigquery):
         """Test that cost_usage_source_is_reachable bucket unreachable."""
         mock_bigquery.Client.return_value = MockBigQueryClient(
-            "test_project", "test_dataset", ["gcp_billing_export_1234"]
+            "test_project", "test_dataset", ["gcp_billing_export_1234"], ["this", "test"]
         )
         gcp_creds = MagicMock()
         mock_auth.return_value = (gcp_creds, MagicMock())
@@ -189,7 +193,7 @@ class GCPProviderTestCase(TestCase):
     def test_cost_usage_source_is_reachable_no_table_id_ready(self, mock_auth, mock_discovery, mock_bigquery):
         """Test that cost_usage_source_is_reachable succeeds."""
         mock_bigquery.Client.return_value = MockBigQueryClient(
-            "test_project", "test_dataset", ["gcp_billing_export_1234"]
+            "test_project", "test_dataset", ["gcp_billing_export_1234"], ["this", "test"]
         )
         gcp_creds = MagicMock()
         mock_auth.return_value = (gcp_creds, MagicMock())
@@ -211,7 +215,9 @@ class GCPProviderTestCase(TestCase):
     @patch("providers.gcp.provider.google.auth.default")
     def test_cost_usage_source_is_reachable_no_table_id_notready(self, mock_auth, mock_discovery, mock_bigquery):
         """Test that cost_usage_source_is_reachable succeeds."""
-        mock_bigquery.Client.return_value = MockBigQueryClient("test_project", "test_dataset", ["abc_1234"])
+        mock_bigquery.Client.return_value = MockBigQueryClient(
+            "test_project", "test_dataset", ["abc_1234"], ["this", "test"]
+        )
         gcp_creds = MagicMock()
         mock_auth.return_value = (gcp_creds, MagicMock())
         mock_discovery.build.return_value.projects.return_value.testIamPermissions.return_value.execute.return_value.get.return_value = (  # noqa: E501

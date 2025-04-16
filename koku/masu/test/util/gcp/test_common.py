@@ -8,12 +8,15 @@ from uuid import uuid4
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django_tenants.utils import schema_context
+from faker import Faker
 
 from api.provider.models import ProviderBillingSource
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.test import MasuTestCase
 from masu.util.gcp import common as utils
 from reporting.provider.gcp.models import GCPCostEntryBill
+
+FAKE = Faker()
 
 
 class TestGCPUtils(MasuTestCase):
@@ -320,3 +323,32 @@ class TestGCPUtils(MasuTestCase):
         self.gcp_provider.save()
         result = utils.check_resource_level(self.gcp_provider_uuid)
         self.assertFalse(result)
+
+    def test_build_query_statement(self):
+        """Test helper building query statement."""
+        project_id = FAKE.slug()
+        dataset_name = FAKE.slug()
+        table_id = FAKE.slug()
+        date = "2025-04-01"
+        table_name = ".".join([project_id, dataset_name, table_id])
+        data_source = {"table_id": table_id, "dataset": dataset_name}
+        credentials = {"project_id": project_id}
+        expected_query = f"""
+        SELECT {utils.build_query_select_statement(data_source)}
+        FROM `{table_name}`
+        WHERE DATE(_PARTITIONTIME) = '{date}'
+        """
+        query = utils.build_query_statement(credentials, data_source, date)
+        self.assertEqual(query, expected_query)
+
+    def test_build_table_name(self):
+        """Test helper building table name."""
+        project_id = FAKE.slug()
+        dataset_name = FAKE.slug()
+        table_id = FAKE.slug()
+        table_name = ".".join([project_id, dataset_name, table_id])
+        datasets = [f"{project_id}:{dataset_name}", dataset_name]
+        for dataset in datasets:
+            data_source = {"table_id": table_id, "dataset": dataset}
+            credentials = {"project_id": project_id}
+            self.assertEqual(utils.build_table_name(credentials, data_source), table_name)

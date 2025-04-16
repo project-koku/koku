@@ -5,7 +5,6 @@ import shutil
 import tempfile
 from unittest.mock import patch
 from unittest.mock import PropertyMock
-from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -253,23 +252,6 @@ class GCPReportDownloaderTest(MasuTestCase):
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(CreateDailyArchivesError, err_msg):
                 create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
-
-    def test_get_dataset_name(self):
-        """Test _get_dataset_name helper."""
-        project_id = FAKE.slug()
-        dataset_name = FAKE.slug()
-        datasets = [f"{project_id}:{dataset_name}", dataset_name]
-        for dataset in datasets:
-            billing_source = {"table_id": FAKE.slug(), "dataset": dataset}
-            credentials = {"project_id": project_id}
-            with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"):
-                downloader = GCPReportDownloader(
-                    customer_name=FAKE.name(),
-                    data_source=billing_source,
-                    provider_uuid=uuid4(),
-                    credentials=credentials,
-                )
-            self.assertEqual(downloader._get_dataset_name(), dataset_name)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.Provider")
     def test_scan_start_setup_complete(self, provider):
