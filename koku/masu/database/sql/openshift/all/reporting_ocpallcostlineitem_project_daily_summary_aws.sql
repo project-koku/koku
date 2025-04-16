@@ -32,6 +32,7 @@ INSERT
            unit,
            unblended_cost,
            project_markup_cost,
+           pod_cost,
            currency_code,
            cost_category_id,
            source_uuid
@@ -58,6 +59,7 @@ SELECT 'AWS' as source_type,
       --  OCP on ALL tables should use calculated_amortized_cost
        sum(calculated_amortized_cost) as unblended_cost,
        sum(markup_cost_amortized) as project_markup_cost,
+       sum(pod_cost) as pod_cost,
        max(currency_code) as currency_code,
        max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid as source_uuid
