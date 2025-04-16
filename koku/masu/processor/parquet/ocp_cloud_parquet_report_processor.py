@@ -231,7 +231,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 if not accessor.get_cluster_for_provider(ocp_provider_uuid):
                     LOG.info(
                         log_json(
-                            msg=f"no cluster information available - skipping OCP on {self.provider_type} processing",  # noqa: E501
+                            msg=f"no cluster information available - skipping OCP on {self.provider_type} processing",
                             context=ctx,
                         )
                     )
