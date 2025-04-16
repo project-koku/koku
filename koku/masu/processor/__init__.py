@@ -101,21 +101,15 @@ def is_validation_enabled(account):  # pragma: no cover
 def is_managed_ocp_cloud_processing_enabled(account):
     account = convert_account(account)
     context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.feature-cost-5129-ocp-cloud-processing", context, fallback_development_true
-    )
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-processing", context)
 
 
 def is_managed_ocp_cloud_summary_enabled(account, provider_type):
     context = {"provider_type": provider_type}
-    if UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.feature-cost-5129-provider-type", context, fallback_development_true
-    ):
+    if UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-provider-type", context):
         account = convert_account(account)
         context = {"schema": account}
-        result = UNLEASH_CLIENT.is_enabled(
-            "cost-management.backend.feature-cost-5129-ocp-cloud-summary", context, fallback_development_true
-        )
+        result = UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
         LOG.info(log_json(msg=f"managed table summary enabled: {result}", schema=account, provider_type=provider_type))
         return result
     return False
