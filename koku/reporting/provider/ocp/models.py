@@ -167,14 +167,10 @@ class OCPUsageLineItemDailySummary(models.Model):
     # Cost fields
     # Infrastructure raw cost comes from a Cloud Provider
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True, default=Decimal(0))
-    infrastructure_project_raw_cost = models.DecimalField(
-        max_digits=33, decimal_places=15, null=True, default=Decimal(0)
-    )
     infrastructure_data_in_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_data_out_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_usage_cost = JSONField(null=True)
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_monthly_cost_json = JSONField(null=True)
     infrastructure_project_monthly_cost = JSONField(null=True)
@@ -602,8 +598,8 @@ class OCPCostSummaryByProjectP(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     infrastructure_usage_cost = JSONField(null=True)
-    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_project_monthly_cost = JSONField(null=True)
     supplementary_usage_cost = JSONField(null=True)
     supplementary_project_monthly_cost = JSONField(null=True)

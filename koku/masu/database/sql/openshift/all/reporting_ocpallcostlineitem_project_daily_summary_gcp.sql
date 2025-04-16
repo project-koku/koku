@@ -31,6 +31,7 @@ INSERT
            usage_amount,
            unit,
            unblended_cost,
+           markup_cost,
            currency_code,
            cost_category_id,
            source_uuid
@@ -55,6 +56,7 @@ SELECT 'GCP' as source_type,
        sum(usage_amount),
        max(unit) as unit,
        sum(unblended_cost + credit_amount) as unblended_cost,
+       sum(markup_cost) as markup_cost,
        max(currency) as currency_code,
        max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid as source_uuid
