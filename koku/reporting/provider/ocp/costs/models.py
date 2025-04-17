@@ -48,10 +48,6 @@ class CostSummary(models.Model):
     # Rounding errors
     infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    # This field is used in place of infrastructure_cost when
-    # grouping by project
-    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
     pod_labels = JSONField(null=True)
