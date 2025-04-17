@@ -144,7 +144,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
                     source_uuid=provider_uuid, source_type=Provider.PROVIDER_AZURE, **date_filters
-                ).update(markup_cost=(F("pretax_cost") * markup))
+                ).update(markup_cost=(F("unblended_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
                     markup_model.objects.filter(

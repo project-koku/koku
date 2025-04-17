@@ -359,7 +359,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
                     OCPAllCostLineItemProjectDailySummaryP.objects.filter(
                         source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
-                    ).update(markup_cost=(F("calculated_amortized_cost") * markup))
+                    ).update(markup_cost=(F("unblended_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
                     markup_model.objects.filter(
