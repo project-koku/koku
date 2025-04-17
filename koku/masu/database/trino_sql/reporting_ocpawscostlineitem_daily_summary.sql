@@ -1287,7 +1287,7 @@ SELECT
     max(savingsplan_effective_cost) * cast({{markup}} AS decimal(24,9)),
     max(calculated_amortized_cost),
     max(calculated_amortized_cost) * cast({{markup}} AS decimal(33,9)),
-    max(calculated_amortized_cost) AS pod_cost,
+    max(ocp.pod_labels),
     cast(NULL AS varchar) AS tags,
     cast(NULL AS varchar) AS aws_cost_category,
     max({{aws_source_uuid}}) AS aws_source,
