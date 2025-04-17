@@ -4,7 +4,7 @@
 #
 """Test the Cost Model serializers."""
 from api.metrics import constants as metric_constants
-from cost_models.sql_parameters import VMCountParams
+from koku.cost_models.sql_parameters import VMCountParams
 from masu.test import MasuTestCase
 
 
@@ -50,7 +50,7 @@ class CostModelSQLParameterTest(MasuTestCase):
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )
-        _, result_params = params.build_tag_based_rate_query(tag_price_list, metric_constants.OCP_VM_HOUR)
+        result_params = params.build_tag_based_rate_parameters(tag_price_list, metric_constants.OCP_VM_HOUR)
         param_dict = result_params[0]
         self.assertEqual(param_dict.get("value_rates"), {"Engineering": 0.05})
         self.assertEqual(param_dict.get("tag_key"), "group")
@@ -85,7 +85,7 @@ class CostModelSQLParameterTest(MasuTestCase):
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )
-        _, result_params = params.build_tag_based_rate_query(tag_price_list, metric_constants.OCP_VM_HOUR)
+        result_params = params.build_tag_based_rate_parameters(tag_price_list, metric_constants.OCP_VM_HOUR)
         param_dict = result_params[0]
         self.assertIsNone(param_dict.get("value_rates"))
         self.assertEqual(param_dict.get("tag_key"), "group")

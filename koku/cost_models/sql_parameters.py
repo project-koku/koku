@@ -10,6 +10,9 @@ from datetime import date
 from dateutil.parser import parse
 from django.conf import settings
 
+from api.metrics import constants as metric_constants
+from api.utils import DateHelper as dh
+
 
 @dataclass
 class VMCountParams:
@@ -40,13 +43,13 @@ class VMCountParams:
         if type(self.end_date) == str:
             self.end_date = parse(self.end_date).astimezone(tz=settings.UTC)
 
-    def _create_base_parameters(self):
+    def _create_base_parameters(self, metric_name):
         """Creates a dictionary of base SQL parameters.
 
         Returns:
             (Dict): A dictionary containing base parameters for SQL queries.
         """
-        return {
+        base = {
             "start_date": str(self.start_date),
             "end_date": str(self.end_date),
             "year": self.start_date.strftime("%Y"),
@@ -55,6 +58,11 @@ class VMCountParams:
             "source_uuid": str(self.source_uuid),
             "report_period_id": self.report_period_id,
         }
+        if metric_name == metric_constants.OCP_VM_MONTH:
+            # amortized_denominator matches logic in get_amortized_monthly_cost_model_rate
+            base["amortized_denominator"] = dh().days_in_month(self.start_date)
+            base["cost_type"] = "Tag"
+        return base
 
     def build_vm_count_hourly_query(self, rate_type, hourly_rate):
         """Builds the SQL query and parameters for hourly VM cost calculation.
@@ -62,26 +70,27 @@ class VMCountParams:
         Returns:
             (Tuple[Dict, str]): A tuple containing the SQL parameters and the decoded SQL query.
         """
-        sql_params = self._create_base_parameters()
+        sql_params = self._create_base_parameters(metric_constants.OCP_VM_HOUR)
         sql_params["rate_type"] = rate_type
         sql_params["hourly_rate"] = hourly_rate
         sql_file = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql")
         return sql_file.decode("utf-8"), sql_params
 
-    def build_tag_based_rate_query(self, tag_based_price_list, metric_name):
+    def build_tag_based_rate_parameters(self, tag_based_price_list, metric_name):
         """Builds the SQL query and parameters for tag-based VM rates.
 
         Returns:
             (Tuple[str, list[Dict]]): A tuple containing the SQL query and a list of tag-based parameters.
-                Returns empty list and None if no tag rates are found.
+                Returns empty list if no tag rates are found.
         """
+
         tag_rates = tag_based_price_list.get(metric_name, {}).get("tag_rates", None)
         if not tag_rates:
-            return None, []
+            return
         tag_parameters = []
         for rate_type, rate_list in tag_rates.items():
             for tag_rate in rate_list:
-                sql_params = self._create_base_parameters()
+                sql_params = self._create_base_parameters(metric_name)
                 sql_params["rate_type"] = rate_type
                 sql_params["tag_key"] = tag_rate.get("tag_key")
                 if default_rate := tag_rate.get("tag_key_default", None):
@@ -93,5 +102,4 @@ class VMCountParams:
                 }:
                     sql_params["value_rates"] = value_rates
                 tag_parameters.append(sql_params)
-        sql_file = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_vm_tag_based.sql")
-        return sql_file.decode("utf-8"), tag_parameters
+        return tag_parameters

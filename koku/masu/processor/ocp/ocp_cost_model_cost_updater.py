@@ -4,6 +4,7 @@
 #
 """Updates report summary tables in the database with charge information."""
 import logging
+import pkgutil
 from decimal import Decimal
 
 from dateutil.parser import parse
@@ -518,19 +519,36 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """
         Handles tag based rates for vm count metrics.
         """
-        with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
-            if not report_period:
-                return
-            vm_count_params = VMCountParams(self._schema, start_date, end_date, self._provider_uuid, report_period.id)
-            hourly_sql, param_list = vm_count_params.build_tag_based_rate_query(
-                self.tag_based_price_list, metric_constants.OCP_VM_HOUR
-            )
-            if not hourly_sql or not param_list:
-                return
-            for sql_params in param_list:
-                LOG.info(log_json(msg="populating virtual machine tag based hourly costs", context=sql_params))
-                report_accessor._execute_trino_multipart_sql_query(hourly_sql, bind_params=sql_params)
+        metric_file_path = {
+            metric_constants.OCP_VM_HOUR: "trino_sql/openshift/cost_model/hourly_cost_vm_tag_based.sql",
+            metric_constants.OCP_VM_MONTH: "sql/openshift/cost_model/monthly_cost_virtual_machine.sql",
+        }
+        for metric_name, file_path in metric_file_path.items():
+            with OCPReportDBAccessor(self._schema) as report_accessor:
+                report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
+                if not report_period:
+                    continue
+                vm_count_params = VMCountParams(
+                    self._schema, start_date, end_date, self._provider_uuid, report_period.id
+                )
+                param_list = vm_count_params.build_tag_based_rate_parameters(self.tag_based_price_list, metric_name)
+                if not param_list:
+                    continue
+
+                sql = pkgutil.get_data("masu.database", file_path).decode("utf-8")
+                log_msg = "populating VM tag based costs"
+                for sql_params in param_list:
+                    if metric_name == metric_constants.OCP_VM_HOUR:
+                        LOG.info(log_json(msg=f"{log_msg} (hourly)", context=sql_params))
+                        report_accessor._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+                    elif metric_name == metric_constants.OCP_VM_MONTH:
+                        LOG.info(log_json(msg=f"{log_msg} (monthly)", context=sql_params))
+                        report_accessor._prepare_and_execute_raw_sql_query(
+                            report_accessor._table_map["line_item_daily_summary"],
+                            sql,
+                            sql_params,
+                            operation="INSERT",
+                        )
 
     def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
