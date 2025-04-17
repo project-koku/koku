@@ -87,7 +87,7 @@ def build_query_statement(credentials, data_source, date):
     """Helper to build initial GCP query"""
     return f"""
         SELECT {build_query_select_statement(data_source)}
-        FROM {build_table_name(credentials, data_source)}
+        FROM `{build_table_name(credentials, data_source)}`
         WHERE DATE(_PARTITIONTIME) = '{date}'
         """
 
