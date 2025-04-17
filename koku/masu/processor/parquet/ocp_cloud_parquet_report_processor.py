@@ -227,12 +227,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 "start_date": self.start_date,
                 "report_file": self.report_file,
             }
-            LOG.info(log_json(msg=f"processing OCP on {self.provider_type} to parquet", context=ctx))
             with OCPReportDBAccessor(self.schema_name) as accessor:
                 if not accessor.get_cluster_for_provider(ocp_provider_uuid):
                     LOG.info(
                         log_json(
-                            msg=f"no cluster information available - skipping OCP on {self.provider_type} parquet processing",  # noqa: E501
+                            msg=f"no cluster information available - skipping OCP on {self.provider_type} processing",
                             context=ctx,
                         )
                     )
@@ -242,6 +241,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
     def process(self, parquet_base_filename, daily_data_frames):
         """Filter data and convert to parquet."""
+        LOG.info(log_json(msg=f"starting OCP on {self.provider_type} to parquet processing", context=self._context))
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
         if daily_data_frames == []:
@@ -313,6 +313,9 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
     def process_ocp_cloud_trino(self, start_date, end_date):
         """Populate cloud_openshift_daily trino table via SQL."""
+        LOG.info(
+            log_json(msg=f"starting OCP on {self.provider_type} managed tables processing", context=self._context)
+        )
         if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
             return
         matched_tags = self.get_matched_tags(ocp_provider_uuids)
