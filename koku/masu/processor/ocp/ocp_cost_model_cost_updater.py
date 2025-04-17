@@ -12,6 +12,7 @@ from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.metrics import constants as metric_constants
+from cost_models.sql_parameters import VMCountParams
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
@@ -49,6 +50,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 "distribution_type", metric_constants.DEFAULT_DISTRIBUTION_TYPE
             )
             self._distribution_info = cost_model_accessor.distribution_info
+            self.tag_based_price_list = cost_model_accessor.tag_based_price_list
 
     def _build_node_tag_cost_case_statements(  # noqa: C901
         self, rate_dict, start_date, default_rate_dict={}, unallocated=False, node_core="", amortized=True
@@ -300,8 +302,10 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             ) in OCPUsageLineItemDailySummary.MONTHLY_COST_RATE_MAP.items():
                 # openshift_resource_type i.e. Cluster, Node, PVC
                 # monthly_cost_metric i.e. node_cost_per_month, cluster_cost_per_month, pvc_cost_per_month
-                if monthly_cost_metric == metric_constants.OCP_CLUSTER_MONTH:
-                    # Cluster monthly rates do not support tag based rating
+                if monthly_cost_metric in [
+                    metric_constants.OCP_VM_MONTH,  # special handling in _update_vm_count_tag_based_cost
+                    metric_constants.OCP_CLUSTER_MONTH,  # Cluster monthly rates do not support tag based rating
+                ]:
                     continue
 
                 for cost_model_cost_type in (
@@ -510,6 +514,24 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 report_period.derived_cost_datetime = timezone.now()
                 report_period.save()
 
+    def _update_vm_count_tag_based_cost(self, start_date, end_date):
+        """
+        Handles tag based rates for vm count metrics.
+        """
+        with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
+            if not report_period:
+                return
+            vm_count_params = VMCountParams(self._schema, start_date, end_date, self._provider_uuid, report_period.id)
+            hourly_sql, param_list = vm_count_params.build_tag_based_rate_query(
+                self.tag_based_price_list, metric_constants.OCP_VM_HOUR
+            )
+            if not hourly_sql or not param_list:
+                return
+            for sql_params in param_list:
+                LOG.info(log_json(msg="populating virtual machine tag based hourly costs", context=sql_params))
+                report_accessor._execute_trino_multipart_sql_query(hourly_sql, bind_params=sql_params)
+
     def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
@@ -546,6 +568,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._update_tag_usage_default_costs(start_date, end_date)
             self._update_monthly_tag_based_cost(start_date, end_date)
             self._update_node_hour_tag_based_cost(start_date, end_date)
+            self._update_vm_count_tag_based_cost(start_date, end_date)
         if not (self._tag_infra_rates or self._tag_supplementary_rates):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
