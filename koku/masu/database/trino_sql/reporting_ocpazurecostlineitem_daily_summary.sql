@@ -599,8 +599,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     currency,
     pretax_cost,
     markup_cost,
-    pod_cost,
-    project_markup_cost,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_effective_usage_cpu_core_hours,
@@ -643,8 +641,6 @@ SELECT azure.uuid as azure_uuid,
     max(azure.currency) as currency,
     max(cast(azure.pretax_cost as decimal(24,9))) as pretax_cost,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
-    cast(NULL as double) as pod_cost,
-    cast(NULL as double) as project_markup_cost,
     sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
     sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
     sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
@@ -806,8 +802,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     currency,
     pretax_cost,
     markup_cost,
-    pod_cost,
-    project_markup_cost,
     pod_labels,
     tags,
     cost_category_id,
@@ -853,14 +847,6 @@ SELECT pds.azure_uuid,
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
         ELSE pretax_cost / r.azure_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
-    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
-        ELSE pretax_cost / r.azure_uuid_count
-    END as pod_cost,
-    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
-        ELSE pretax_cost / r.azure_uuid_count * cast({{markup}} as decimal(24,9))
-    END as project_markup_cost,
     pds.pod_labels,
     CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
@@ -915,8 +901,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     currency,
     pretax_cost,
     markup_cost,
-    pod_cost,
-    project_markup_cost,
     tags,
     azure_source,
     ocp_source,
@@ -947,8 +931,6 @@ SELECT azure.uuid as azure_uuid,
     max(azure.currency) as currency,
     max(cast(azure.pretax_cost as decimal(24,9))) as pretax_cost,
     max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
-    max(cast(azure.pretax_cost as decimal(24,9))) as pod_cost,
-    max(cast(azure.pretax_cost as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as project_markup_cost,
     max(azure.tags) as tags,
     {{azure_source_uuid}} as azure_source,
     {{ocp_source_uuid}} as ocp_source,

@@ -696,8 +696,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_proje
     savingsplan_effective_cost,
     markup_cost_savingsplan,
     calculated_amortized_cost,
-    markup_cost_amortized,
-    pod_cost,
     project_markup_cost,
     pod_labels,
     tags,
@@ -773,14 +771,6 @@ SELECT pds.row_uuid,
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * calculated_amortized_cost * cast({{markup}} as decimal(33,9))
         ELSE calculated_amortized_cost / aws_uuid_count * cast({{markup}} as decimal(33,9))
     END as markup_cost_amortized,
-    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * calculated_amortized_cost
-        ELSE calculated_amortized_cost / aws_uuid_count
-    END as pod_cost,
-    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * calculated_amortized_cost * cast({{markup}} as decimal(24,9))
-        ELSE calculated_amortized_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
-    END as project_markup_cost,
     pds.pod_labels,
     CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
@@ -844,8 +834,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_proje
     markup_cost_savingsplan,
     calculated_amortized_cost,
     markup_cost_amortized,
-    pod_cost,
-    project_markup_cost,
     pod_labels,
     source,
     ocp_source,
@@ -885,8 +873,6 @@ SELECT
     max(savingsplan_effective_cost) * cast({{markup}} AS decimal(24,9)),
     max(calculated_amortized_cost),
     max(calculated_amortized_cost) * cast({{markup}} AS decimal(33,9)),
-    max(calculated_amortized_cost) AS pod_cost,
-    max(calculated_amortized_cost) * cast({{markup}} AS decimal(24,9)) AS project_markup_cost,
     max(ocp.pod_labels),
     max({{cloud_provider_uuid}}) AS source,
     max({{ocp_provider_uuid}}) AS ocp_source,
