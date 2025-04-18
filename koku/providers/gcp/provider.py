@@ -40,13 +40,16 @@ class GCPReportExistsError(Exception):
 class GCPProvider(ProviderInterface):
     """GCP provider."""
 
+    def __init__(self):
+        self.columns = GCP_COLUMN_LIST.copy()
+
     def name(self):
         """Return name of the provider."""
         return Provider.PROVIDER_GCP
 
     def missing_columns_check(self, table):
         """Helper function to validate GCP table columns"""
-        required_columns = set(GCP_COLUMN_LIST)
+        required_columns = set(self.columns)
         table_columns = set()
         for col in table.schema:
             # A few columns we json parse which means we need the col.name not the field.name
@@ -68,6 +71,8 @@ class GCPProvider(ProviderInterface):
                 break
             elif NON_RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
                 full_table_id = table.full_table_id.replace(":", ".")
+                self.columns.remove("resource.global_name")
+                self.columns.remove("resource.name")
         if full_table_id:
             _, _, table_id = full_table_id.split(".")
             return table_id
