@@ -136,7 +136,7 @@ SELECT uuid_generate_v4(),
         + sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0)) * {{memory_effective_rate}}
         + coalesce((
             sum(lids.pod_effective_usage_memory_gigabyte_hours::decimal)
-            / nullif(max(cte_node_cost.node_mem_usage), 0)
+            / nullif(max(cte_node_cost.node_mem_usage::decimal), 0)
             * max(cte_node_cost.node_cluster_hour_cost_mem_per_day::decimal)
           ), 0)
         as cost_model_memory_cost,
