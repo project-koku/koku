@@ -249,7 +249,7 @@ class GCPProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider._detect_billing_export_table(billing, creds)
 
-    @patch("providers.gcp.provider.GCPProvider.missing_columns")
+    @patch("providers.gcp.provider.GCPProvider.missing_columns_check")
     @patch("providers.gcp.provider.GCPProvider.get_table_id")
     @patch("providers.gcp.provider.bigquery")
     def test_detect_billing_export_table_missing_columns(self, mock_biqguery, mock_table_id, mock_missing_columns):
@@ -261,7 +261,7 @@ class GCPProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider._detect_billing_export_table(billing, creds)
 
-    @patch("providers.gcp.provider.GCPProvider.missing_columns", return_value=None)
+    @patch("providers.gcp.provider.GCPProvider.missing_columns_check", return_value=None)
     @patch("providers.gcp.provider.GCPProvider.get_table_id")
     @patch("providers.gcp.provider.bigquery")
     def test_detect_billing_export_table_missing_partitions(self, mock_bigquery, mock_table_id, mock_missing_columns):
@@ -455,7 +455,7 @@ class GCPProviderTestCase(TestCase):
         col.fields = fields
         table = MagicMock()
         table.schema = [col]
-        res = provider.missing_columns(table)
+        res = provider.missing_columns_check(table)
         self.assertFalse(res)
 
     def test_missing_columns_true(self):
@@ -465,5 +465,5 @@ class GCPProviderTestCase(TestCase):
         col.name = "name"
         table = MagicMock()
         table.schema = [col]
-        res = provider.missing_columns(table)
+        res = provider.missing_columns_check(table)
         self.assertTrue(res)

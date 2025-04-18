@@ -44,7 +44,7 @@ class GCPProvider(ProviderInterface):
         """Return name of the provider."""
         return Provider.PROVIDER_GCP
 
-    def missing_columns(self, table):
+    def missing_columns_check(self, table):
         """Helper function to validate GCP table columns"""
         required_columns = set(GCP_COLUMN_LIST)
         table_columns = set()
@@ -99,7 +99,7 @@ class GCPProvider(ProviderInterface):
                 self.update_source_data_source(data_source)
                 client = bigquery.Client(project=credentials.get("project_id"))
                 table = client.get_table(client.dataset(data_source.get("dataset")).table(bigquery_table_id))
-                missing_columns = self.missing_columns(table)
+                missing_columns = self.missing_columns_check(table)
                 if missing_columns:
                     key = "dataset.table.columns"
                     message = f"table missing expected columns: {missing_columns}"
