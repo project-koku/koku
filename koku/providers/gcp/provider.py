@@ -19,8 +19,7 @@ from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
 from api.provider.models import Sources
-from api.utils import DateHelper
-from masu.util.gcp.common import build_query_statement
+from masu.util.gcp.common import GCP_COLUMN_LIST
 from masu.util.gcp.common import NON_RESOURCE_LEVEL_EXPORT_NAME
 from masu.util.gcp.common import RESOURCE_LEVEL_EXPORT_NAME
 
@@ -44,6 +43,19 @@ class GCPProvider(ProviderInterface):
     def name(self):
         """Return name of the provider."""
         return Provider.PROVIDER_GCP
+
+    def missing_columns(self, table):
+        """Helper function to validate GCP table columns"""
+        required_columns = set(GCP_COLUMN_LIST)
+        table_columns = set()
+        for col in table.schema:
+            # A few columns we json parse which means we need the col.name not the field.name
+            if col.field_type == "RECORD" and col.name not in ["credits", "labels", "system_labels"]:
+                for field in col.fields:
+                    table_columns.add(f"{col.name}.{field.name}")
+            else:
+                table_columns.add(col.name)
+        return required_columns - table_columns
 
     def get_table_id(self, data_set):
         """Get the billing table from a dataset in the format projectID.dataset"""
@@ -85,9 +97,17 @@ class GCPProvider(ProviderInterface):
             if bigquery_table_id:
                 data_source["table_id"] = bigquery_table_id
                 self.update_source_data_source(data_source)
-                date_str = DateHelper().now_utc.strftime("%Y-%m-%d")
-                client = bigquery.Client()
-                client.query(build_query_statement(credentials, data_source, date_str))
+                client = bigquery.Client(project=credentials.get("project_id"))
+                table = client.get_table(client.dataset(data_source.get("dataset")).table(bigquery_table_id))
+                missing_columns = self.missing_columns(table)
+                if missing_columns:
+                    key = "dataset.table.columns"
+                    message = f"table missing expected columns: {missing_columns}"
+                    raise serializers.ValidationError(error_obj(key, message))
+                if table.time_partitioning.type_ != "DAY":
+                    key = "dataset.table.partitions"
+                    message = "table not correctly partitioned by day"
+                    raise serializers.ValidationError(error_obj(key, message))
             else:
                 raise SkipStatusPush("Table ID not ready.")
         except GoogleCloudError as err:

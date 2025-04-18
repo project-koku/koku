@@ -55,43 +55,6 @@ GCP_COLUMN_LIST = [
 ]
 
 
-def build_query_select_statement(data_source):
-    """Helper to build query select statement."""
-    columns_list = GCP_COLUMN_LIST.copy()
-    columns_list = [
-        f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels", "credits") else col
-        for col in columns_list
-    ]
-    # Swap out resource columns with NULLs when we are processing non-resource-level table
-    columns_list = [
-        f"NULL as {col.replace('.', '_')}"
-        if col in ("resource.name", "resource.global_name")
-        and RESOURCE_LEVEL_EXPORT_NAME not in data_source.get("table_id")
-        else col
-        for col in columns_list
-    ]
-    columns_list.append("DATE(_PARTITIONTIME) as partition_date")
-    return ",".join(columns_list)
-
-
-def build_table_name(credentials, data_source):
-    """Helper to build table name for query"""
-    dataset_name = data_source.get("dataset")
-    if ":" in data_source.get("dataset"):
-        dataset_name = data_source.get("dataset").split(":")[1]
-
-    return ".".join([credentials.get("project_id"), dataset_name, data_source.get("table_id")])
-
-
-def build_query_statement(credentials, data_source, date):
-    """Helper to build initial GCP query"""
-    return f"""
-        SELECT {build_query_select_statement(data_source)}
-        FROM `{build_table_name(credentials, data_source)}`
-        WHERE DATE(_PARTITIONTIME) = '{date}'
-        """
-
-
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """
     Return the GCP bill IDs given a provider UUID.
