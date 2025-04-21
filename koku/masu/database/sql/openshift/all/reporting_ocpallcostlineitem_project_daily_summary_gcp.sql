@@ -33,6 +33,7 @@ INSERT
            unblended_cost,
            project_markup_cost,
            pod_cost,
+           markup_cost,
            currency_code,
            cost_category_id,
            source_uuid
@@ -62,6 +63,7 @@ SELECT 'GCP' as source_type,
            coalesce(pod_cost, 0)
            + coalesce(pod_credit, 0)
        ) as pod_cost,
+       sum(project_markup_cost) as markup_cost,
        max(currency) as currency_code,
        max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid as source_uuid
