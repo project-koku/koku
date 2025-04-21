@@ -118,6 +118,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = supplementary_rates
+        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = {}
 
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
