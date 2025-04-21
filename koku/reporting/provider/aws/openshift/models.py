@@ -580,6 +580,8 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
     markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     calculated_amortized_cost = models.DecimalField(max_digits=33, decimal_places=9, null=True)
     markup_cost_amortized = models.DecimalField(max_digits=33, decimal_places=9, null=True)
+    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)  # this field is no longer used
     tags = JSONField(null=True)
     aws_cost_category = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
