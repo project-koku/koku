@@ -158,6 +158,8 @@ FROM (
             CASE
                 WHEN lineitem_lineitemtype='SavingsPlanCoveredUsage'
                 OR lineitem_lineitemtype='SavingsPlanNegation'
+                OR lineitem_lineitemtype='SavingsPlanUpfrontFee'
+                OR lineitem_lineitemtype='SavingsPlanRecurringFee'
                 THEN savingsplan_savingsplaneffectivecost
                 ELSE lineitem_unblendedcost
             END
