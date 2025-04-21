@@ -506,8 +506,6 @@ class OCPAzureCostLineItemProjectDailySummaryP(models.Model):
     currency = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-    project_markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-    pod_cost = models.DecimalField(max_digits=24, decimal_places=6, null=True)
     tags = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
