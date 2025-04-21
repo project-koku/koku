@@ -31,7 +31,7 @@ INSERT
            usage_amount,
            unit,
            unblended_cost,
-           markup_cost,
+           project_markup_cost,
            currency_code,
            cost_category_id,
            source_uuid
@@ -56,7 +56,7 @@ SELECT 'Azure' as source_type,
        sum(usage_quantity) as usage_amount,
        max(unit_of_measure) as unit,
        sum(pretax_cost) as unblended_cost,
-       sum(markup_cost) as markup_cost,
+       sum(project_markup_cost) as project_markup_cost,
        max(currency) as currency_code,
        max(cost_category_id) as cost_category_id,
        {{source_uuid}}::uuid as source_uuid

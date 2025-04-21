@@ -348,6 +348,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_cost_blended=(F("blended_cost") * markup),
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                     markup_cost_amortized=(F("calculated_amortized_cost") * markup),
+                    project_markup_cost=(F("calculated_amortized_cost") * markup),
                 )
                 for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:
                     ocpaws_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
@@ -359,7 +360,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
                 OCPAllCostLineItemProjectDailySummaryP.objects.filter(
                     source_uuid=provider_uuid, source_type=Provider.PROVIDER_AWS, **date_filters
-                ).update(markup_cost=(F("unblended_cost") * markup))
+                ).update(project_markup_cost=(F("unblended_cost") * markup))
 
                 for markup_model in OCPALL_MARKUP:
                     markup_model.objects.filter(
