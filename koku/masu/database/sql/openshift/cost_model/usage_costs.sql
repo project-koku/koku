@@ -82,6 +82,7 @@ WITH cte_node_cost as (
             AND usage_start <= {{end_date}}
             AND source_uuid = {{source_uuid}}
             AND node IS NOT NULL
+            AND node != ''
         GROUP BY usage_start, node
     )
 )
