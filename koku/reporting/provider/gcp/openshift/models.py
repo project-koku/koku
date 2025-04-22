@@ -9,7 +9,6 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
-
 UI_SUMMARY_TABLES = (
     "reporting_ocpgcp_cost_summary_p",
     "reporting_ocpgcp_compute_summary_p",
