@@ -144,9 +144,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     credit_amount,
     unblended_cost,
     markup_cost,
-    project_markup_cost,
-    pod_cost,
-    pod_credit,
     pod_effective_usage_cpu_core_hours,
     pod_effective_usage_memory_gigabyte_hours,
     node_capacity_cpu_core_hours,
@@ -190,9 +187,6 @@ SELECT gcp.row_uuid as row_uuid,
     max(gcp.credit_amount) as credit_amount,
     max(gcp.unblended_cost) as unblended_cost,
     max(gcp.unblended_cost * {{markup | sqlsafe}}) as markup_cost,
-    cast(NULL as double) AS project_markup_cost,
-    cast(NULL AS double) AS pod_cost,
-    cast(NULL AS double) AS pod_credit,
     sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
     max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
@@ -273,9 +267,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     credit_amount,
     unblended_cost,
     markup_cost,
-    project_markup_cost,
-    pod_cost,
-    pod_credit,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabyte_hours,
     volume_labels,
@@ -346,18 +337,6 @@ SELECT pds.row_uuid,
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / r.row_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
-    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
-        ELSE unblended_cost / r.row_uuid_count * cast({{markup}} as decimal(24,9))
-    END as project_markup_cost,
-    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
-        ELSE unblended_cost / r.row_uuid_count
-    END as pod_cost,
-    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * credit_amount
-        ELSE credit_amount / r.row_uuid_count
-    END as pod_credit,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabyte_hours,
     volume_labels,
@@ -414,9 +393,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     credit_amount,
     unblended_cost,
     markup_cost,
-    project_markup_cost,
-    pod_cost,
-    pod_credit,
     tags,
     source,
     ocp_source,
@@ -453,9 +429,6 @@ SELECT cast(uuid() as varchar) as row_uuid,
     max(gcp.credit_amount) as credit_amount,
     max(gcp.unblended_cost) as unblended_cost,
     max(gcp.unblended_cost * {{markup | sqlsafe}}) as markup_cost,
-    max(gcp.unblended_cost * {{markup | sqlsafe}}) AS project_markup_cost,
-    max(gcp.unblended_cost) AS pod_cost,
-    cast(NULL AS double) AS pod_credit,
     max(gcp.labels) as tags,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,

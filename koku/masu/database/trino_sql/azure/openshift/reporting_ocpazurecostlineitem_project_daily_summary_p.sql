@@ -29,8 +29,6 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project
     currency,
     pretax_cost,
     markup_cost,
-    project_markup_cost,
-    pod_cost,
     tags,
     cost_category_id,
     source_uuid
@@ -74,8 +72,6 @@ SELECT uuid(),
     currency,
     pretax_cost,
     markup_cost,
-    project_markup_cost,
-    pod_cost,
     json_parse(tags),
     cost_category_id,
     cast(source as UUID)
