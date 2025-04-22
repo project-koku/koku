@@ -1,0 +1,231 @@
+---
+generators:
+  - OCPGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      nodes:
+        - node:
+          node_name: rose_compute1
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa1
+          namespaces:
+            rosa1:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name1
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_1
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa1
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name1_data
+                    pod_name: rosa_pod_name1
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute2
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa2
+          namespaces:
+            rosa2:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name2
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_2
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa2
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name2_data
+                    pod_name: rosa_pod_name2
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute3
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa3
+          namespaces:
+            rosa3:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name3
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_3
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa3
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name3_data
+                    pod_name: rosa_pod_name3
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute4
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa4
+          namespaces:
+            rosa4:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name4
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_4
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa4
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name4_data
+                    pod_name: rosa_pod_name4
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute5
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa5
+          namespaces:
+            rosa5:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name5
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_5
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa5
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name5_data
+                    pod_name: rosa_pod_name5
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute6
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa6
+          namespaces:
+            rosa6:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name6
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_6
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa6
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name6_data
+                    pod_name: rosa_pod_name6
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute7
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa7
+          namespaces:
+            rosa7:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name7
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_7
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa7
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name7_data
+                    pod_name: rosa_pod_name7
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute8
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa8
+          namespaces:
+            rosa8:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name8
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_8
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa8
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name8_data
+                    pod_name: rosa_pod_name8
+                    capacity_gig: 300
+        - node:
+          node_name: rose_compute9
+          cpu_cores: 4
+          memory_gig: 16
+          resource_id: rosa9
+          namespaces:
+            rosa9:
+              pods:
+                - pod:
+                  pod_name: rosa_pod_name9
+                  cpu_request: 4
+                  mem_request_gig: 16
+                  cpu_limit: 4
+                  mem_limit_gig: 16
+              volumes:
+                - volume:
+                  volume_name: pvc-rosa_volume_9
+                  storage_class: gp3-csi
+                  csi_volume_handle: vol-rosa9
+                  volume_request_gig: 300
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: rosa_pod_name9_data
+                    pod_name: rosa_pod_name9
+                    capacity_gig: 300

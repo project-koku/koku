@@ -616,7 +616,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg="populating tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    def populate_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid):
+    def populate_usage_costs(self, rate_type, rates, distribution, start_date, end_date, provider_uuid):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
         table_name = self._table_map["line_item_daily_summary"]
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
@@ -664,21 +664,18 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "cpu_effective_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, 0),
             "node_core_hour_rate": rates.get(metric_constants.OCP_NODE_CORE_HOUR, 0),
             "cluster_core_hour_rate": rates.get(metric_constants.OCP_CLUSTER_CORE_HOUR, 0),
+            "cluster_hour_rate": rates.get(metric_constants.OCP_CLUSTER_HOUR, 0),
             "memory_usage_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR, 0),
             "memory_request_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR, 0),
             "memory_effective_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, 0),
             "volume_usage_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH, 0),
             "volume_request_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH, 0),
             "rate_type": rate_type,
+            "distribution": distribution,
         }
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-
-        if ocp_cluster_hour_rate := rates.get(metric_constants.OCP_CLUSTER_HOUR):
-            self.populate_cluster_hourly_usage_costs(
-                rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
-            )
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
             param_builder = VMCountParams(self.schema, start_date, end_date, provider_uuid, report_period_id)
@@ -689,37 +686,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             ).decode("utf-8")
             LOG.info(log_json(msg="populating virtual machine hourly costs", context=vm_hour_params))
             self._execute_trino_multipart_sql_query(sql, bind_params=vm_hour_params)
-
-    def populate_cluster_hourly_usage_costs(
-        self, rate_type, ocp_cluster_hour_rate, start_date, end_date, provider_uuid, report_period_id
-    ):
-        """Populate cluster hourly usage costs"""
-
-        ctx = {
-            "schema": self.schema,
-            "provider_uuid": str(provider_uuid),
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period": report_period_id,
-        }
-
-        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_cluster.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": str(start_date),
-            "end_date": str(end_date),
-            "schema": self.schema,
-            "source_uuid": str(provider_uuid),
-            "report_period_id": report_period_id,
-            "cluster_cost_per_hour": ocp_cluster_hour_rate,
-            "rate_type": rate_type,
-        }
-        start_date = DateHelper().parse_to_date(start_date)
-        sql_params["year"] = start_date.strftime("%Y")
-        sql_params["month"] = start_date.strftime("%m")
-
-        LOG.info(log_json(msg=f"populating cluster {rate_type} hourly costs", context=ctx))
-        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id

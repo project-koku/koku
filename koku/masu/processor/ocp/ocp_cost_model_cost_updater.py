@@ -46,7 +46,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution_info.get(
-                "distribution_type", metric_constants.DEFAULT_DISTRIBUTION_TYPE
+                metric_constants.DISTRIBUTION_TYPE, metric_constants.DEFAULT_DISTRIBUTION_TYPE
             )
             self._distribution_info = cost_model_accessor.distribution_info
             self.tag_based_price_list = cost_model_accessor.tag_based_price_list
@@ -399,6 +399,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             report_accessor.populate_usage_costs(
                 metric_constants.INFRASTRUCTURE_COST_TYPE,
                 filter_dictionary(self._infra_rates, metric_constants.COST_MODEL_USAGE_RATES),
+                self._distribution,
                 start_date,
                 end_date,
                 self._provider.uuid,
@@ -406,6 +407,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             report_accessor.populate_usage_costs(
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
                 filter_dictionary(self._supplementary_rates, metric_constants.COST_MODEL_USAGE_RATES),
+                self._distribution,
                 start_date,
                 end_date,
                 self._provider.uuid,
