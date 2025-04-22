@@ -73,10 +73,10 @@ WITH cte_node_cost as (
             node,
             sum(pod_effective_usage_cpu_core_hours) as node_cpu_usage,
             sum(pod_effective_usage_memory_gigabyte_hours) as node_mem_usage,
-            max(node_capacity_cpu_core_hours) / max(node_capacity_cpu_cores) as hours_used_cpu,
-            max(node_capacity_cpu_core_hours) / max(cluster_capacity_cpu_core_hours) as node_size_cpu,
-            max(node_capacity_memory_gigabyte_hours) / max(node_capacity_memory_gigabytes) as hours_used_mem,
-            max(node_capacity_memory_gigabyte_hours) / max(cluster_capacity_memory_gigabyte_hours) as node_size_mem
+            coalesce(max(node_capacity_cpu_core_hours) / nullif(max(node_capacity_cpu_cores), 0), 0) as hours_used_cpu,
+            coalesce(max(node_capacity_cpu_core_hours) / nullif(max(cluster_capacity_cpu_core_hours), 0), 0) as node_size_cpu,
+            coalesce(max(node_capacity_memory_gigabyte_hours) / nullif(max(node_capacity_memory_gigabytes), 0), 0) as hours_used_mem,
+            coalesce(max(node_capacity_memory_gigabyte_hours) / nullif(max(cluster_capacity_memory_gigabyte_hours), 0), 0) as node_size_mem
         FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
         WHERE usage_start >= {{start_date}}
             AND usage_start <= {{end_date}}
