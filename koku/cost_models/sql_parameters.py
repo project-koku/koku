@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """VM count dataclass"""
-import pkgutil
 from dataclasses import dataclass
 from datetime import date
 
@@ -43,13 +42,13 @@ class VMCountParams:
         if type(self.end_date) == str:
             self.end_date = parse(self.end_date).astimezone(tz=settings.UTC)
 
-    def _create_base_parameters(self, metric_name):
+    def _create_base_parameters(self):
         """Creates a dictionary of base SQL parameters.
 
         Returns:
             (Dict): A dictionary containing base parameters for SQL queries.
         """
-        base = {
+        return {
             "start_date": str(self.start_date),
             "end_date": str(self.end_date),
             "year": self.start_date.strftime("%Y"),
@@ -58,23 +57,19 @@ class VMCountParams:
             "source_uuid": str(self.source_uuid),
             "report_period_id": self.report_period_id,
         }
-        if metric_name == metric_constants.OCP_VM_MONTH:
-            # amortized_denominator matches logic in get_amortized_monthly_cost_model_rate
-            base["amortized_denominator"] = dh().days_in_month(self.start_date)
-            base["cost_type"] = "Tag"
-        return base
 
-    def build_vm_count_hourly_query(self, rate_type, hourly_rate):
-        """Builds the SQL query and parameters for hourly VM cost calculation.
+    def build_parameters(self, context_params):
+        """Combines base parameters with context-specific parameters.
+
+        Args:
+            context_params (dict): A dictionary of context-specific parameters.
 
         Returns:
-            (Tuple[Dict, str]): A tuple containing the SQL parameters and the decoded SQL query.
+            (Dict): A dictionary containing the combined base and context parameters.
         """
-        sql_params = self._create_base_parameters(metric_constants.OCP_VM_HOUR)
-        sql_params["rate_type"] = rate_type
-        sql_params["hourly_rate"] = hourly_rate
-        sql_file = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql")
-        return sql_file.decode("utf-8"), sql_params
+        base_params = self._create_base_parameters()
+        base_params.update(context_params)
+        return base_params
 
     def build_tag_based_rate_parameters(self, tag_based_price_list, metric_name):
         """Builds the SQL query and parameters for tag-based VM rates.
@@ -90,16 +85,17 @@ class VMCountParams:
         tag_parameters = []
         for rate_type, rate_list in tag_rates.items():
             for tag_rate in rate_list:
-                sql_params = self._create_base_parameters(metric_name)
-                sql_params["rate_type"] = rate_type
-                sql_params["tag_key"] = tag_rate.get("tag_key")
+                tag_based_params = {"rate_type": rate_type, "tag_key": tag_rate.get("tag_key")}
+                if metric_name == metric_constants.OCP_VM_MONTH:
+                    tag_based_params["amortized_denominator"] = dh().days_in_month(self.start_date)
+                    tag_based_params["cost_type"] = "Tag"
                 if default_rate := tag_rate.get("tag_key_default", None):
-                    sql_params["default_rate"] = default_rate
+                    tag_based_params["default_rate"] = default_rate
                 if value_rates := {
                     key_value: rate_dict.get("value")
                     for key_value, rate_dict in tag_rate.get("tag_values", {}).items()
-                    if rate_dict.get("value") != sql_params.get("default_rate", {})
+                    if rate_dict.get("value") != tag_based_params.get("default_rate", {})
                 }:
-                    sql_params["value_rates"] = value_rates
-                tag_parameters.append(sql_params)
+                    tag_based_params["value_rates"] = value_rates
+                tag_parameters.append(self.build_parameters(tag_based_params))
         return tag_parameters

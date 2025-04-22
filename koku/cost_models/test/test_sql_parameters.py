@@ -4,7 +4,7 @@
 #
 """Test the Cost Model serializers."""
 from api.metrics import constants as metric_constants
-from koku.cost_models.sql_parameters import VMCountParams
+from cost_models.sql_parameters import VMCountParams
 from masu.test import MasuTestCase
 
 
