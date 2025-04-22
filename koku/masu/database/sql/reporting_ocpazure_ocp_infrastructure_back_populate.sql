@@ -66,7 +66,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         rp.provider_id as source_uuid,
         sum(ocp_azure.pretax_cost + ocp_azure.markup_cost) AS infrastructure_raw_cost,
         sum(
-            coalesce(ocp_azure.pod_cost, 0)
+            coalesce(ocp_azure.pretax_cost, 0)
             + coalesce(ocp_azure.markup_cost, 0)
         ) AS infrastructure_project_raw_cost,
         CASE
