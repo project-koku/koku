@@ -1,0 +1,207 @@
+---
+generators:
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa1
+      product_sku: VEAJHRNKTJZQ
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa2
+      product_sku: VEAJHRNKTJAA
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa3
+      product_sku: VEAJHRNKTJAB
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa4
+      product_sku: VEAJHRNKTJAB
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa5
+      product_sku: VEAJHRNKTJAB
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa6
+      product_sku: VEAJHRNKTJAB
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa7
+      product_sku: VEAJHRNKTJAB
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa8
+      product_sku: VEAJHRNKTJAB
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+  - EC2Generator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 64-bit
+      resource_id: rosa9
+      product_sku: VEAJHRNKTJAB
+      region: us-east-1a
+      instance_type:
+        inst_type: m5.xlarge
+        physical_cores: 1
+        vcpu: 4
+        memory: '16 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 0.11301369863
+        rate: 0.11301369863
+
+
+
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa1
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa2
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa3
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa4
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa5
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa6
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa7
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa8
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa9
+      disk_size: 300
+      rate: 0.08
+  - EBSGenerator:
+      product_sku: VEAJHRNBBBBA
+      resource_id: rosa10
+      disk_size: 100
+      rate: 0.08
+      tags:
+        resourceTags/user:purpose: monitoring
+
+
+accounts:
+  payer: 9999999999998
+  user:
+    - 9999999999998
