@@ -1199,3 +1199,84 @@ class OCPReportDBAccessorTest(MasuTestCase):
         result = self.accessor._populate_virtualization_storage_costs(sql_params)
         self.assertTrue(result)
         mock_postgresql.assert_called_once_with("reporting_ocp_vm_summary_p", ANY, sql_params, operation="INSERT")
+
+    def test_no_report_period_populate_vm_count_tag_based_costs(self):
+        """
+        Test that if a valid report period is not found.
+        """
+        with self.accessor as acc:
+            result = acc.populate_vm_count_tag_based_costs("1970-10-01", "1970-10-31", self.ocp_provider_uuid, {})
+            self.assertFalse(result)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_monthly_populate_vm_count_tag_based_costs(self, mock_psql):
+        """Test monthly populated of vm count tag based costs."""
+        tag_price_list = {
+            metric_constants.OCP_VM_MONTH: {
+                "metric": {"name": "vm_cost_per_hour"},
+                "tag_rates": {
+                    "Supplementary": [
+                        {
+                            "tag_key": "group",
+                            "tag_values": {
+                                "Engineering": {
+                                    "unit": "USD",
+                                    "value": 0.05,
+                                    "default": False,
+                                }
+                            },
+                            "tag_key_default": 0,
+                        }
+                    ]
+                },
+            }
+        }
+        with self.accessor as acc:
+            acc.populate_vm_count_tag_based_costs(
+                self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
+            )
+            mock_psql.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_hourly_populate_vm_count_tag_based_costs(self, mock_trino):
+        """Test hourly populated of vm count tag based costs."""
+        tag_price_list = {
+            metric_constants.OCP_VM_HOUR: {
+                "metric": {"name": "vm_cost_per_hour"},
+                "tag_rates": {
+                    "Supplementary": [
+                        {
+                            "tag_key": "group",
+                            "tag_values": {
+                                "Engineering": {
+                                    "unit": "USD",
+                                    "value": 0.05,
+                                    "default": False,
+                                }
+                            },
+                            "tag_key_default": 0,
+                        }
+                    ]
+                },
+            }
+        }
+        with self.accessor as acc:
+            acc.populate_vm_count_tag_based_costs(
+                self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
+            )
+            mock_trino.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test_monthly_vm_count_no_tag_rates(self, mock_psql):
+        """Test monthly populated of vm count tag based costs."""
+        tag_price_list = {
+            metric_constants.OCP_VM_MONTH: {
+                "metric": {"name": "vm_cost_per_hour"},
+                "tiered_rates": {"Supplementary": [{}]},
+            }
+        }
+        with self.accessor as acc:
+            acc.populate_vm_count_tag_based_costs(
+                self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
+            )
+            mock_psql.assert_not_called()
