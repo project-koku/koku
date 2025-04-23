@@ -19,6 +19,9 @@ from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
 from api.provider.models import Sources
+from masu.util.gcp.common import GCP_COLUMN_LIST
+from masu.util.gcp.common import NON_RESOURCE_LEVEL_EXPORT_NAME
+from masu.util.gcp.common import RESOURCE_LEVEL_EXPORT_NAME
 
 LOG = logging.getLogger(__name__)
 
@@ -29,9 +32,6 @@ REQUIRED_IAM_PERMISSIONS = [
     "bigquery.tables.get",
 ]
 
-RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export_resource"
-NON_RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export"
-
 
 class GCPReportExistsError(Exception):
     """GCP Report Exists error."""
@@ -40,9 +40,25 @@ class GCPReportExistsError(Exception):
 class GCPProvider(ProviderInterface):
     """GCP provider."""
 
+    def __init__(self):
+        self.columns = GCP_COLUMN_LIST.copy()
+
     def name(self):
         """Return name of the provider."""
         return Provider.PROVIDER_GCP
+
+    def missing_columns_check(self, table):
+        """Helper function to validate GCP table columns"""
+        required_columns = set(self.columns)
+        table_columns = set()
+        for col in table.schema:
+            # A few columns we json parse which means we need the col.name not the field.name
+            if col.field_type == "RECORD" and col.name not in ["credits", "labels", "system_labels"]:
+                for field in col.fields:
+                    table_columns.add(f"{col.name}.{field.name}")
+            else:
+                table_columns.add(col.name)
+        return required_columns - table_columns
 
     def get_table_id(self, data_set):
         """Get the billing table from a dataset in the format projectID.dataset"""
@@ -55,6 +71,8 @@ class GCPProvider(ProviderInterface):
                 break
             elif NON_RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
                 full_table_id = table.full_table_id.replace(":", ".")
+                self.columns.remove("resource.global_name")
+                self.columns.remove("resource.name")
         if full_table_id:
             _, _, table_id = full_table_id.split(".")
             return table_id
@@ -84,8 +102,23 @@ class GCPProvider(ProviderInterface):
             if bigquery_table_id:
                 data_source["table_id"] = bigquery_table_id
                 self.update_source_data_source(data_source)
+                client = bigquery.Client(project=credentials.get("project_id"))
+                table = client.get_table(client.dataset(data_source.get("dataset")).table(bigquery_table_id))
+                missing_columns = self.missing_columns_check(table)
+                if missing_columns:
+                    key = "dataset.table.columns"
+                    message = f"table missing expected columns: {missing_columns}"
+                    raise serializers.ValidationError(error_obj(key, message))
+                if table.time_partitioning.type_ != "DAY":
+                    key = "dataset.table.partitions"
+                    message = "table not correctly partitioned by day"
+                    raise serializers.ValidationError(error_obj(key, message))
             else:
                 raise SkipStatusPush("Table ID not ready.")
+        except GoogleCloudError as err:
+            key = "dataset.table.query"
+            message = f"table query check failed: {err}"
+            raise serializers.ValidationError(error_obj(key, message))
         except NotFound as e:
             data_source.pop("table_id", None)
             self.update_source_data_source(data_source)
@@ -165,7 +198,6 @@ class GCPProvider(ProviderInterface):
             key = "authentication.project_id"
             LOG.info(error_obj(key, reason))
             raise serializers.ValidationError(error_obj(key, reason))
-
         self._detect_billing_export_table(data_source, credentials)
 
         return True

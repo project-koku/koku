@@ -35,10 +35,11 @@ class MockBigQueryTable:
 
 
 class MockBigQueryClient:
-    def __init__(self, project, dataset, valid_tables):
+    def __init__(self, project, dataset, valid_tables, table=None):
         self._project = project
         self._dataset = dataset
         self._valid_tables = valid_tables
+        self._table = table
 
     def list_tables(self, dataset):
         valid_tables = []
@@ -46,6 +47,16 @@ class MockBigQueryClient:
             bigquery_table = MockBigQueryTable(self._project, self._dataset, table)
             valid_tables.append(bigquery_table)
         return valid_tables
+
+    def get_table(self, table_id):
+        mock_partition = MagicMock()
+        mock_partition.type_ = "DAY"
+        mock_table = MagicMock()
+        mock_table.time_partition = mock_partition
+        return mock_table
+
+    def dataset(self, dataset):
+        return self._dataset
 
 
 class MockStorageClient:
@@ -120,7 +131,8 @@ class GCPProviderTestCase(TestCase):
     @patch("providers.gcp.provider.bigquery")
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
-    def test_cost_usage_source_is_reachable_valid(self, mock_auth, mock_discovery, mock_bigquery):
+    @patch("providers.gcp.provider.GCPProvider._detect_billing_export_table")
+    def test_cost_usage_source_is_reachable_valid(self, mock_export, mock_auth, mock_discovery, mock_bigquery):
         """Test that cost_usage_source_is_reachable bucket unreachable."""
         mock_bigquery.Client.return_value = MockBigQueryClient(
             "test_project", "test_dataset", ["gcp_billing_export_1234"]
@@ -186,7 +198,10 @@ class GCPProviderTestCase(TestCase):
     @patch("providers.gcp.provider.bigquery")
     @patch("providers.gcp.provider.discovery")
     @patch("providers.gcp.provider.google.auth.default")
-    def test_cost_usage_source_is_reachable_no_table_id_ready(self, mock_auth, mock_discovery, mock_bigquery):
+    @patch("providers.gcp.provider.GCPProvider._detect_billing_export_table")
+    def test_cost_usage_source_is_reachable_no_table_id_ready(
+        self, mock_export, mock_auth, mock_discovery, mock_bigquery
+    ):
         """Test that cost_usage_source_is_reachable succeeds."""
         mock_bigquery.Client.return_value = MockBigQueryClient(
             "test_project", "test_dataset", ["gcp_billing_export_1234"]
@@ -228,6 +243,34 @@ class GCPProviderTestCase(TestCase):
         """Verify forbidden error is raised."""
         err_msg = "GCP Error"
         mock_get_table.side_effect = Forbidden(err_msg)
+        provider = GCPProvider()
+        billing = {"dataset": FAKE.word()}
+        creds = {"project_id": FAKE.word()}
+        with self.assertRaises(ValidationError):
+            provider._detect_billing_export_table(billing, creds)
+
+    @patch("providers.gcp.provider.GCPProvider.missing_columns_check")
+    @patch("providers.gcp.provider.GCPProvider.get_table_id")
+    @patch("providers.gcp.provider.bigquery")
+    def test_detect_billing_export_table_missing_columns(self, mock_biqguery, mock_table_id, mock_missing_columns):
+        """Verify missing columns error is raised."""
+        mock_missing_columns.return_value = "test_column"
+        provider = GCPProvider()
+        billing = {"dataset": FAKE.word()}
+        creds = {"project_id": FAKE.word()}
+        with self.assertRaises(ValidationError):
+            provider._detect_billing_export_table(billing, creds)
+
+    @patch("providers.gcp.provider.GCPProvider.missing_columns_check", return_value=None)
+    @patch("providers.gcp.provider.GCPProvider.get_table_id")
+    @patch("providers.gcp.provider.bigquery")
+    def test_detect_billing_export_table_missing_partitions(self, mock_bigquery, mock_table_id, mock_missing_columns):
+        """Verify missing partitions error is raised."""
+        mock_partition = MagicMock()
+        mock_partition.type_ = "MONTH"
+        mock_table = MagicMock()
+        mock_table.time_partition = mock_partition
+        mock_bigquery.get_table = mock_table
         provider = GCPProvider()
         billing = {"dataset": FAKE.word()}
         creds = {"project_id": FAKE.word()}
@@ -399,3 +442,28 @@ class GCPProviderTestCase(TestCase):
         with self.assertRaises(GCPReportExistsError):
             provider = GCPProvider()
             provider.is_file_reachable(self.source, self.files)
+
+    @patch("providers.gcp.provider.GCP_COLUMN_LIST", return_value=["sku.id", "credits"])
+    def test_missing_columns_false(self, mock_columns):
+        """Test helper for checking missing columns"""
+        provider = GCPProvider()
+        fields = MagicMock()
+        fields.name = "id"
+        col = MagicMock()
+        col.name = "sku"
+        col.field_type = "RECORD"
+        col.fields = fields
+        table = MagicMock()
+        table.schema = [col]
+        res = provider.missing_columns_check(table)
+        self.assertFalse(res)
+
+    def test_missing_columns_true(self):
+        """Test helper for checking missing columns"""
+        provider = GCPProvider()
+        col = MagicMock()
+        col.name = "name"
+        table = MagicMock()
+        table.schema = [col]
+        res = provider.missing_columns_check(table)
+        self.assertTrue(res)
