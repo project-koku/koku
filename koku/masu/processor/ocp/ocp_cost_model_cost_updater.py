@@ -302,7 +302,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 # openshift_resource_type i.e. Cluster, Node, PVC
                 # monthly_cost_metric i.e. node_cost_per_month, cluster_cost_per_month, pvc_cost_per_month
                 if monthly_cost_metric in [
-                    metric_constants.OCP_VM_MONTH,  # special handling in _update_vm_count_tag_based_cost
+                    metric_constants.OCP_VM_MONTH,  # special handling in populate_vm_count_tag_based_costs
                     metric_constants.OCP_CLUSTER_MONTH,  # Cluster monthly rates do not support tag based rating
                 ]:
                     continue
