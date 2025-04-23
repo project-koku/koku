@@ -152,7 +152,6 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
     unit = models.CharField(max_length=63, null=True)
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
     cost_category = models.ForeignKey("OpenshiftCostCategory", on_delete=models.CASCADE, null=True)
@@ -282,7 +281,6 @@ class OCPAllCostLineItemProjectDailySummaryP(models.Model):
     unit = models.CharField(max_length=63, null=True)
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "reporting.TenantAPIProvider", on_delete=models.CASCADE, db_column="source_uuid", null=True
