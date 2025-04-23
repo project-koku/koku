@@ -109,7 +109,6 @@ customer:
           dataset: 'example-ocpgcp-dataset'
           table_id: 'gcp_billing_export_resource_v1_table'
           local_dir: '/tmp/gcp_local_bucket_0'
-
 koku:
   host: localhost
   port: 8000
