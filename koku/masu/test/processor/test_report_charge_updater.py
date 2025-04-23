@@ -10,7 +10,6 @@ from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCos
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
 from masu.processor.cost_model_cost_updater import CostModelCostUpdaterError
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
-from masu.processor.oci.oci_cost_model_cost_updater import OCICostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
 from masu.test import MasuTestCase
 
@@ -31,14 +30,6 @@ class CostModelCostUpdaterTest(MasuTestCase):
         """Test that AZURE-local charge updating works as expected."""
         updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
         self.assertIsInstance(updater._updater, AzureCostModelCostUpdater)
-        updater.update_cost_model_costs()
-        mock_update.assert_called()
-
-    @patch("masu.processor.cost_model_cost_updater.OCICostModelCostUpdater.update_summary_cost_model_costs")
-    def test_oci_local_route(self, mock_update):
-        """Test that OCI-local charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.oci_test_provider_uuid)
-        self.assertIsInstance(updater._updater, OCICostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
 
@@ -63,14 +54,6 @@ class CostModelCostUpdaterTest(MasuTestCase):
         """Test that Azure charge updating works as expected."""
         updater = CostModelCostUpdater(self.schema, self.azure_test_provider_uuid)
         self.assertIsInstance(updater._updater, AzureCostModelCostUpdater)
-        updater.update_cost_model_costs()
-        mock_update.assert_called()
-
-    @patch("masu.processor.cost_model_cost_updater.OCICostModelCostUpdater.update_summary_cost_model_costs")
-    def test_oci_route(self, mock_update):
-        """Test that OCI charge updating works as expected."""
-        updater = CostModelCostUpdater(self.schema, self.oci_test_provider_uuid)
-        self.assertIsInstance(updater._updater, OCICostModelCostUpdater)
         updater.update_cost_model_costs()
         mock_update.assert_called()
 

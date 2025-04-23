@@ -12,7 +12,6 @@ from api.report.test.util.constants import AWS_CONSTANTS
 from api.report.test.util.constants import AWS_GEOG
 from api.report.test.util.constants import AZURE_CONSTANTS
 from api.report.test.util.constants import GCP_CONSTANTS
-from api.report.test.util.constants import OCI_CONSTANTS
 from api.report.test.util.constants import OCP_CONSTANTS
 
 fake = Faker()
@@ -361,16 +360,4 @@ ocp_on_gcp_project_daily_summary_storage = Recipe(  # Storage data_source
     unit=cycle(GCP_CONSTANTS["units"]),
     _fill_optional=True,
     _quantity=min(GCP_CONSTANTS.length, 9),
-)
-
-oci_daily_summary = Recipe(
-    "OCICostEntryLineItemDailySummary",
-    product_service=cycle(OCI_CONSTANTS["product_service"]),
-    instance_type=cycle(OCI_CONSTANTS["instance_type"]),
-    resource_ids=cycle(OCI_CONSTANTS["resource_ids"]),
-    resource_count=cycle(OCI_CONSTANTS["resource_count"]),
-    unit=cycle(OCI_CONSTANTS["unit"]),
-    region="uk-london-1",
-    _fill_optional=True,
-    _quantity=OCI_CONSTANTS.length,
 )
