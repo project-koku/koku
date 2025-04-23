@@ -178,7 +178,6 @@
             - key: gcp-credentials
               path: gcp-credentials.json
 
-
 - op: add
   path: /parameters/-
   value:
