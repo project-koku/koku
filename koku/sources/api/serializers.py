@@ -80,8 +80,7 @@ class AdminSourcesSerializer(SourcesSerializer):
 
     def validate_source_type(self, source_type):
         """Validate credentials field."""
-        # Remove OCI from here after db migration
-        if source_type.lower() in LCASE_PROVIDER_CHOICE_LIST and source_type.lower() != "oci":
+        if source_type.lower() in LCASE_PROVIDER_CHOICE_LIST:
             return Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
         key = "source_type"
         message = f"Invalid source_type, {source_type}, provided."
