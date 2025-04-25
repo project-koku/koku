@@ -22,6 +22,7 @@ from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModelAudit
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
+from koku.cache import CacheEnum
 from koku.rbac import RbacService
 
 
@@ -89,7 +90,7 @@ class CostModelViewTests(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        caches["rbac"].clear()
+        caches[CacheEnum.rbac].clear()
         self.initialize_request()
 
     def test_create_cost_model_success(self):
@@ -421,7 +422,7 @@ class CostModelViewTests(IamTestCase):
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
                 url = reverse("cost-models-list")
-                caches["rbac"].clear()
+                caches[CacheEnum.rbac].clear()
                 response = client.get(url, **request_context["request"].META)
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
 
@@ -462,7 +463,7 @@ class CostModelViewTests(IamTestCase):
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
                 url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
-                caches["rbac"].clear()
+                caches[CacheEnum.rbac].clear()
                 response = client.get(url, **request_context["request"].META)
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
 
@@ -520,7 +521,7 @@ class CostModelViewTests(IamTestCase):
                 rate_data = copy.deepcopy(self.fake_data)
                 rate_data["source_uuids"] = []
                 rate_data["rates"][0]["metric"] = test_case.get("metric")
-                caches["rbac"].clear()
+                caches[CacheEnum.rbac].clear()
                 with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.post(url, data=rate_data, format="json", **request_context["request"].META)
 
@@ -555,7 +556,7 @@ class CostModelViewTests(IamTestCase):
                 rate_data["rates"][0].get("tiered_rates")[0]["value"] = test_case.get("value")
                 rate_data["source_uuids"] = []
                 url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
-                caches["rbac"].clear()
+                caches[CacheEnum.rbac].clear()
                 with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.put(url, data=rate_data, format="json", **request_context["request"].META)
 
@@ -588,7 +589,7 @@ class CostModelViewTests(IamTestCase):
         for test_case in test_matrix:
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
                 url = reverse("cost-models-detail", kwargs={"uuid": test_case.get("cost_model_uuid")})
-                caches["rbac"].clear()
+                caches[CacheEnum.rbac].clear()
                 with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.delete(url, **request_context["request"].META)
                 self.assertEqual(response.status_code, test_case.get("expected_response"))

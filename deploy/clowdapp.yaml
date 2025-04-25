@@ -693,8 +693,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -882,8 +882,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -1379,8 +1379,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -1565,8 +1565,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -1757,8 +1757,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -1949,8 +1949,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -2143,8 +2143,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -2339,8 +2339,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -2535,8 +2535,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -2729,8 +2729,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -2923,8 +2923,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -3117,8 +3117,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -3313,8 +3313,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -3513,8 +3513,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -3713,8 +3713,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -3911,8 +3911,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -4103,8 +4103,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -4295,8 +4295,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -4487,8 +4487,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -4683,8 +4683,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -4879,8 +4879,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -5077,8 +5077,8 @@ objects:
           value: ${INITIAL_INGEST_OVERRIDE}
         - name: POLLING_TIMER
           value: ${POLLING_TIMER}
-        - name: POLLING_BATCH_SIZE
-          value: ${POLLING_BATCH_SIZE}
+        - name: POLLING_COUNT
+          value: ${POLLING_COUNT}
         - name: XL_REPORT_COUNT
           value: ${XL_REPORT_COUNT}
         - name: PROCESSING_WAIT_TIMER
@@ -5738,7 +5738,7 @@ parameters:
   value: koku
 - name: DATABASE_VERSION
   required: true
-  value: "14"
+  value: "16"
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
@@ -5997,9 +5997,9 @@ parameters:
 - displayName: Timer between provider polling
   name: POLLING_TIMER
   value: "86400"
-- displayName: Provider count for batch polling
-  name: POLLING_BATCH_SIZE
-  value: "100"
+- displayName: Polling count (divide total providers by this for dynamic batch size)
+  name: POLLING_COUNT
+  value: "21"
 - description: Minimum number of reports before provider classed as XL
   displayName: Min report count for large providers
   name: XL_REPORT_COUNT

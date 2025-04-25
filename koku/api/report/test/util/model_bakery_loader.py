@@ -9,6 +9,7 @@ from datetime import datetime
 from datetime import timedelta
 from itertools import cycle
 from itertools import product
+from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
@@ -422,19 +423,25 @@ class ModelBakeryDataLoader(DataLoader):
                         )
 
         report_period_ids = [report_period.id for report_period in report_periods]
-        with OCPReportDBAccessor(self.schema) as accessor:
-            accessor.populate_unit_test_tag_data(report_period_ids, self.first_start_date, self.last_end_date)
-            update_cost_category(self.schema)
-            for date in self.dates:
-                update_cost_model_costs(
-                    self.schema,
-                    provider.uuid,
-                    date[0],
-                    date[1],
-                    tracing_id="12345",
-                    synchronous=True,
-                )
-            accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
+        with patch(
+            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query"
+        ), patch("masu.database.ocp_report_db_accessor.trino_table_exists"), patch(
+            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description"
+        ) as mock_description_sql:
+            mock_description_sql.return_value = ([], [])
+            with OCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_unit_test_tag_data(report_period_ids, self.first_start_date, self.last_end_date)
+                update_cost_category(self.schema)
+                for date in self.dates:
+                    update_cost_model_costs(
+                        self.schema,
+                        provider.uuid,
+                        date[0],
+                        date[1],
+                        tracing_id="12345",
+                        synchronous=True,
+                    )
+                accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
 
         populate_ocp_topology(self.schema, provider, cluster_id)
 

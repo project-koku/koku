@@ -4,6 +4,7 @@
 #
 """Models for provider management."""
 import logging
+import math
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid4
@@ -84,16 +85,21 @@ class ProviderObjectsPollingManager(ProviderObjectsManager):
         """Return a Queryset of non-OCP and active and non-paused Providers."""
         return super().get_queryset().filter(active=True, paused=False).exclude(type=Provider.PROVIDER_OCP)
 
-    def get_polling_batch(self, limit=-1, offset=0, filters=None):
+    def get_polling_batch(self, filters=None):
         """Return a Queryset of pollable Providers that have not polled in the last 24 hours."""
         polling_delta = datetime.now(tz=settings.UTC) - timedelta(seconds=settings.POLLING_TIMER)
         if not filters:
             filters = {}
-        if limit < 1:
-            # Django can't do negative indexing, so just return all the Providers.
-            # A limit of 0 doesn't make sense either. That would just return an empty QuerySet.
-            return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)
-        return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta)[offset : limit + offset]
+        # Dynamically set batch limit (divide count by 21 (default) hours so we always trigger a few extra + round up)
+        batch_limit = math.ceil(len(self.filter(**filters)) / settings.POLLING_COUNT)
+        if batch_limit <= 1:
+            # If we have less than 21 providers we should collect them all
+            return self.filter(**filters).exclude(polling_timestamp__gt=polling_delta).order_by("polling_timestamp")
+        return (
+            self.filter(**filters)
+            .exclude(polling_timestamp__gt=polling_delta)
+            .order_by("polling_timestamp")[:batch_limit]
+        )
 
 
 class Provider(models.Model):

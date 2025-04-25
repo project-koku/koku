@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
@@ -448,8 +449,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_monthly_start_and_end_volume_group_bys(self):
         """Test the volume capacities of a monthly volume report with various group bys"""
         base_url = (
-            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"
-            f"&filter[resolution]=monthly"
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
         )
         group_bys = [
             ["cluster"],
@@ -509,8 +509,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_node_capacity_monthly_start_and_end_volume_group_bys(self):
         """Test the volume capacities of a monthly volume report with various group bys"""
         base_url = (
-            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"
-            f"&filter[resolution]=monthly"
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
         )
         group_bys = [
             ["node"],
@@ -1004,10 +1003,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
             ("node", "cluster"),
             ("node", "project"),
         ]
-        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        base_url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        )
         tolerance = 1
-        for group_by in group_by_list:
-            sub_url = "&group_by[%s]=*&group_by[%s]=*" % group_by
+        for gb1, gb2 in group_by_list:
+            sub_url = f"&group_by[{gb1}]=*&group_by[{gb2}]=*"
             url = base_url + sub_url
             query_params = self.mocked_query_params(url, OCPCpuView)
             handler = OCPReportQueryHandler(query_params)
@@ -1530,3 +1531,26 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         self.assertIsNotNone(data)
+
+    def test_format_tags(self):
+        """Test that tags are formatted correctly."""
+
+        query_params = self.mocked_query_params("", OCPReportVirtualMachinesView)
+        handler = OCPReportQueryHandler(query_params)
+
+        test_tags_format_map = [
+            {
+                "test_tags": [{"application": "CMSapp", "instance-type": "large", "vm_kubevirt_io_name": "fedora"}],
+                "expected_output": [
+                    {"key": "application", "values": ["CMSapp"]},
+                    {"key": "instance-type", "values": ["large"]},
+                    {"key": "vm_kubevirt_io_name", "values": ["fedora"]},
+                ],
+            },
+            {"test_tags": [], "expected_output": []},
+        ]
+
+        for item in test_tags_format_map:
+            with self.subTest(params=item):
+                result = handler.format_tags(item.get("test_tags"))
+                self.assertEqual(result, item.get("expected_output"))

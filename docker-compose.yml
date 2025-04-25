@@ -198,10 +198,10 @@ services:
       - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
       - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
       - POLLING_TIMER=${POLLING_TIMER-60}
+      - POLLING_COUNT=${POLLING_COUNT-21}
       - XL_REPORT_COUNT=${XL_REPORT_COUNT-100}
       - PROCESSING_WAIT_TIMER=${PROCESSING_WAIT_TIMER-3}
       - LARGE_PROCESSING_WAIT_TIMER=${LARGE_PROCESSING_WAIT_TIMER-7}
-      - POLLING_BATCH_SIZE=${POLLING_BATCH_SIZE-100}
       - DELAYED_TASK_TIME=${DELAYED_TASK_TIME-20}
       - DELAYED_TASK_POLLING_MINUTES=${DELAYED_TASK_POLLING_MINUTES-5}
       - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
@@ -451,7 +451,7 @@ services:
 
   db:
     container_name: koku-db
-    image: koku-db:14
+    image: koku-db:16
     build:
       context: dev/containers/postgresql
       args:
@@ -654,7 +654,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:470-009
+    image: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/ubi-trino:471-001
     user: root
     ports:
       - 8080:8080

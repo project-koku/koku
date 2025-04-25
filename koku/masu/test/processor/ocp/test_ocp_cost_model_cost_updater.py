@@ -118,6 +118,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
         mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = supplementary_rates
+        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = {}
 
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
@@ -407,7 +408,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             "0::decimal as cost_model_volume_cost",
         )
 
-        self.updater._distribution = metric_constants.MEMORY_DISTRIBUTION
+        self.updater._distribution = metric_constants.MEM
         case_dict = self.updater._build_node_tag_cost_case_statements(
             tag_rate_dict, start_date, default_rate_dict=default_rate_dict
         )
@@ -470,8 +471,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._tag_infra_rates = {"pvc_cost_per_month": pvc_tag_rate_dict}
 
         distribution_choices = (
-            {"metric": metric_constants.CPU_DISTRIBUTION, "column": "cost_model_cpu_cost"},
-            {"metric": metric_constants.MEMORY_DISTRIBUTION, "column": "cost_model_memory_cost"},
+            {"metric": metric_constants.CPU, "column": "cost_model_cpu_cost"},
+            {"metric": metric_constants.MEM, "column": "cost_model_memory_cost"},
         )
         for distribution_choice in distribution_choices:
             distribution = distribution_choice.get("metric")
@@ -512,3 +513,46 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
                     for item in pvc_line_items:
                         self.assertNotEqual(item.cost_model_volume_cost, 0)
+
+    def test_update_node_hour_tag_based_cost(self):
+        """Test that node hour tag costs are applied."""
+        node_tag_key = "app"
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        rate_one = dh.days_in_month(start_date)
+        rate_two = rate_one * 2
+        node_tag_rate_dict = {node_tag_key: {"banking": rate_one, "weather": rate_two}}
+
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._tag_supplementary_rates = {metric_constants.OCP_NODE_CORE_HOUR: node_tag_rate_dict}
+
+        distribution_choices = (
+            {"metric": metric_constants.CPU, "column": "cost_model_cpu_cost"},
+            {"metric": metric_constants.MEM, "column": "cost_model_memory_cost"},
+        )
+        for distribution_choice in distribution_choices:
+            distribution = distribution_choice.get("metric")
+            column = distribution_choice.get("column")
+            with self.subTest(distribution=distribution, column=column):
+                updater._distribution = distribution
+                with schema_context(self.schema):
+                    OCPUsageLineItemDailySummary.objects.filter(monthly_cost_type__isnull=False).delete()
+                    node_line_item_count = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node_Core_Hour"
+                    ).count()
+
+                    self.assertEqual(node_line_item_count, 0)
+
+                updater._update_node_hour_tag_based_cost(start_date, end_date)
+
+                with schema_context(self.schema):
+                    node_line_items = OCPUsageLineItemDailySummary.objects.filter(
+                        usage_start__gte=start_date, usage_start__lte=end_date, monthly_cost_type="Node_Core_Hour"
+                    ).all()
+
+                    self.assertNotEqual(len(node_line_items), 0)
+
+                    for item in node_line_items:
+                        self.assertNotEqual(getattr(item, column), 0)

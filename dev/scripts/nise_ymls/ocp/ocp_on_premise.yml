@@ -28,7 +28,7 @@ generators:
                   labels: label_environment:Production|label_app:OpenCart|label_version:Production|label_storageclass:gold|label_dashed-key-on-prem:dashed-value
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name1_data
+                    volume_claim_name: toronto_pod_name1_data
                     pod_name: pod_name1
                     labels: label_environment:Production|label_app:OpenCart|label_version:Production|label_storageclass:gold|label_dashed-key-on-prem:dashed-value
                     capacity_gig: 20
@@ -49,7 +49,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering|label_vm_kubevirt_io_name:fedora|label_excluded:fedora
+                  labels: label_application:Phoenix|label_stage:Development|label_group:Engineering|label_vm_kubevirt_io_name:everett|label_excluded:everett
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
@@ -58,7 +58,7 @@ generators:
                   labels: label_environment:Development|label_app:Phoenix|label_version:Development|label_storageclass:silver
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name2_data
+                    volume_claim_name: raleigh_pod_name2_data
                     pod_name: pod_name2
                     labels: label_environment:Development|label_app:Phoenix|label_version:Development|label_storageclass:silver
                     capacity_gig: 20
@@ -86,7 +86,7 @@ generators:
                   labels: label_environment:Development|label_app:Candlepin|label_version:Development|label_storageclass:bronze
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name3_data
+                    volume_claim_name: madrid_pod_name3_data
                     pod_name: pod_name3
                     labels: label_environment:Development|label_app:Candlepin|label_version:Development|label_storageclass:bronze
                     capacity_gig: 20
@@ -108,7 +108,7 @@ generators:
                   labels: label_environment:Production|label_app:Candlepin|label_version:Production|label_storageclass:gold
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name4_data
+                    volume_claim_name: boston_pod_name4_data
                     pod_name: pod_name4
                     labels: label_environment:Production|label_app:Candlepin|label_version:Production|label_storageclass:gold
                     capacity_gig: 20
@@ -136,7 +136,7 @@ generators:
                   labels: label_environment:Production|label_app:Cygwin|label_version:Production|label_storageclass:gold
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name5_data
+                    volume_claim_name: san_francisco_pod_name5_data
                     pod_name: pod_name5
                     labels: label_environment:Production|label_app:Cygwin|label_version:Production|label_storageclass:gold
                     capacity_gig: 20
@@ -158,7 +158,7 @@ generators:
                   labels: label_environment:QA|label_app:Phoenix|label_version:QA|label_storageclass:silver
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name6_data
+                    volume_claim_name: los_angeles_pod_name6_data
                     pod_name: pod_name6
                     labels: label_environment:QA|label_app:Phoenix|label_version:QA|label_storageclass:silver
                     capacity_gig: 20
@@ -186,7 +186,7 @@ generators:
                   labels: label_environment:Production|label_app:CMSapp|label_version:Production|label_storageclass:gold
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name7_data
+                    volume_claim_name: london_pod_name7_data
                     pod_name: pod_name7
                     labels: label_environment:Production|label_app:CMSapp|label_version:Production|label_storageclass:gold
                     capacity_gig: 20
@@ -208,7 +208,7 @@ generators:
                   labels: label_environment:Test|label_app:Atomic|label_version:Test|label_storageclass:bronze
                   volume_claims:
                   - volume_claim:
-                    volume_claim_name: pod_name8_data
+                    volume_claim_name: paris_pod_name8_data
                     pod_name: pod_name8
                     labels: label_environment:Test|label_app:Atomic|label_version:Test|label_storageclass:bronze
                     capacity_gig: 20

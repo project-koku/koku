@@ -54,8 +54,6 @@ class CostSummary(models.Model):
 
     markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
 
-    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
-
     pod_labels = JSONField(null=True)
 
     monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)

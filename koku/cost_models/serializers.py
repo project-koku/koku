@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Rate serializer."""
-import copy
 import logging
 from collections import defaultdict
+from copy import deepcopy
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -58,22 +58,27 @@ class MarkupSerializer(serializers.Serializer):
 class DistributionSerializer(BaseSerializer):
     """Serializer for distribution options"""
 
-    distribution_type = serializers.ChoiceField(choices=metric_constants.DISTRIBUTION_CHOICES, required=False)
-    platform_cost = serializers.BooleanField(required=False)
-    worker_cost = serializers.BooleanField(required=False)
-    network_unattributed = serializers.BooleanField(required=False)
-    storage_unattributed = serializers.BooleanField(required=False)
-
-    def validate(self, data):
-        """Run validation for distribution options."""
-        default_to_true = [metric_constants.PLATFORM_COST, metric_constants.WORKER_UNALLOCATED]
-        distribution_keys = metric_constants.DEFAULT_DISTRIBUTION_INFO.keys()
-        diff = set(distribution_keys).difference(data)
-        if diff == distribution_keys:
-            return metric_constants.DEFAULT_DISTRIBUTION_INFO
-        for element in diff:
-            data[element] = element in default_to_true
-        return data
+    distribution_type = serializers.ChoiceField(
+        choices=metric_constants.DISTRIBUTION_CHOICES,
+        required=False,
+        default=metric_constants.DEFAULT_DISTRIBUTION_TYPE,
+    )
+    platform_cost = serializers.BooleanField(
+        required=False,
+        default=metric_constants.PLATFORM_COST_DEFAULT,
+    )
+    worker_cost = serializers.BooleanField(
+        required=False,
+        default=metric_constants.WORKER_UNALLOCATED_DEFAULT,
+    )
+    network_unattributed = serializers.BooleanField(
+        required=False,
+        default=metric_constants.NETWORK_UNATTRIBUTED_DEFAULT,
+    )
+    storage_unattributed = serializers.BooleanField(
+        required=False,
+        default=metric_constants.STORAGE_UNATTRIBUTED_DEFAULT,
+    )
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -208,7 +213,7 @@ class RateSerializer(serializers.Serializer):
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
+        metrics = deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
 
     @staticmethod
@@ -233,8 +238,8 @@ class RateSerializer(serializers.Serializer):
             ):  # noqa:W503
                 error_msg = (
                     "tiered_rate must not have gaps between tiers."
-                    "usage_start of {} should be less than or equal to the"
-                    " usage_end {} of the previous tier.".format(usage_start, next_tier)
+                    f"usage_start of {usage_start} should be less than or equal to the"
+                    f" usage_end {next_tier} of the previous tier."
                 )
                 raise serializers.ValidationError(error_msg)
             next_tier = usage_end
@@ -250,8 +255,8 @@ class RateSerializer(serializers.Serializer):
             if usage_end != next_bucket_usage_start:
                 error_msg = (
                     "tiered_rate must not have overlapping tiers."
-                    " usage_start value {} should equal to the"
-                    " usage_end value of the next tier, not {}.".format(usage_end, next_bucket_usage_start)
+                    f" usage_start value {usage_end} should equal to the"
+                    f" usage_end value of the next tier, not {next_bucket_usage_start}."
                 )
                 raise serializers.ValidationError(error_msg)
 
@@ -425,7 +430,7 @@ class CostModelSerializer(BaseSerializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = copy.deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
+        metric_map = deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
         for metric in metric_map:
             try:
                 metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
@@ -478,8 +483,8 @@ class CostModelSerializer(BaseSerializer):
         if not data.get("distribution_info"):
             # TODO: Have this return just the default distribution info after
             # QE updates tests.
-            distribution_info = metric_constants.DEFAULT_DISTRIBUTION_INFO
-            distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU_DISTRIBUTION)
+            distribution_info = deepcopy(metric_constants.DEFAULT_DISTRIBUTION_INFO)
+            distribution_info["distribution_type"] = data.get("distribution", metric_constants.CPU)
             data["distribution_info"] = distribution_info
         if (
             data.get("markup")

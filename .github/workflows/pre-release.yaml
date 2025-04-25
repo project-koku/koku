@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
         with:
           egress-policy: audit
 
@@ -51,7 +51,7 @@ jobs:
         run: bash .github/scripts/get_description.sh
 
       - name: Set release body
-        uses: ncipollo/release-action@cdcc88a9acf3ca41c16c37bb7d21b9ad48560d87 # v1.15.0
+        uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
         with:
           bodyFile: release_body.md
           commit: ${{ github.event.inputs.commit }}

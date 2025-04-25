@@ -213,6 +213,48 @@
                 ]
             },
             "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "vm_cost_per_month"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.5,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "vm_cost_per_hour"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.007,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "cluster_cost_per_hour"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 3.45,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Infrastructure"
         }
     ]
 }

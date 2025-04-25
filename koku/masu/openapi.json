@@ -445,16 +445,6 @@
                         }
                     },
                     {
-                        "name": "provider_type",
-                        "in": "query",
-                        "description": "The provider type",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "AWS"
-                        }
-                    },
-                    {
                         "name": "schema",
                         "in": "query",
                         "description": "The database schema",
@@ -510,78 +500,6 @@
                 "responses": {
                     "200": {
                         "description": "Data summary task has been queued",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ReportDataGetResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": [
-                    "Report Data"
-                ]
-            },
-            "delete": {
-                "operationId": "deleteReportData",
-                "description": "Delete report summary tables in the database.",
-                "parameters": [
-                    {
-                        "name": "provider_uuid",
-                        "in": "query",
-                        "description": "The provider database ID",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": 1
-                        }
-                    },
-                    {
-                        "name": "provider",
-                        "in": "query",
-                        "description": "The provider type",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "AWS"
-                        }
-                    },
-                    {
-                        "name": "schema",
-                        "in": "query",
-                        "description": "The database schema",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "acct12345"
-                        }
-                    },
-                    {
-                        "name": "simulate",
-                        "in": "query",
-                        "description": "Whether to actually delete",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean",
-                            "example": true
-                        }
-                    },
-                    {
-                        "name": "end_date",
-                        "in": "query",
-                        "description": "The date to end summarizing",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "format": "date",
-                            "example": "2019-12-31"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "Data deletion task has been queued",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2211,6 +2129,55 @@
                     }
                 }
             ]
+        },
+        "/invalidate_cache/": {
+            "post": {
+                "summary": "trigger cache invalidation",
+                "operationId": "postInvalidateCache",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/InvalidateCachePostList"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InvalidateCachePostDict"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "notification that cache was invalidated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InvalidateCacheOKResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid payload",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InvalidateCacheBadRequestResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    "Invalidate Cache"
+                ]
+            }
         }
     },
     "components": {
@@ -3269,6 +3236,122 @@
                     "aws_list_account_aliases": {
                         "type": "boolean",
                         "example": true
+                    }
+                }
+            },
+            "InvalidateCachePostDict": {
+                "properties": {
+                    "schema_name": {
+                        "title": "Schema Name",
+                        "type": "string"
+                    },
+                    "cache_name": {
+                        "enum": [
+                            "api",
+                            "rbac"
+                        ],
+                        "title": "Cache Name",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "schema_name",
+                    "cache_name"
+                ],
+                "type": "object"
+            },
+            "InvalidateCachePostList": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/components/schemas/InvalidateCachePostDict"
+                },
+                "example": [
+                    {
+                        "schema_name": "org1234567",
+                        "cache_name": "api"
+                    },
+                    {
+                        "schema_name": "org1234567",
+                        "cache_name": "rbac"
+                    }
+                ]
+            },
+            "InvalidateCacheOKResponse": {
+                "type": "object",
+                "properties": {
+                    "msg": {
+                        "type": "string",
+                        "example": "invalidated cache"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/InvalidateCachePostDict"
+                        }
+                    }
+                },
+                "example": {
+                    "msg": "invalidated cache",
+                    "events": [
+                        {
+                            "schema_name": "org1234567",
+                            "cache_name": "rbac"
+                        },
+                        {
+                            "schema_name": "org1234567",
+                            "cache_name": "api"
+                        }
+                    ]
+                }
+            },
+            "InvalidateCacheBadRequestResponse": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/components/schemas/PydanticErrorObject"
+                },
+                "example": [
+                    {
+                        "type": "literal_error",
+                        "loc": [
+                            "events",
+                            0,
+                            "cache_name"
+                        ],
+                        "msg": "Input should be <CacheEnum.api: 'api'> or <CacheEnum.rbac: 'rbac'>",
+                        "input": "asdfasdf",
+                        "ctx": {
+                            "expected": "<CacheEnum.api: 'api'> or <CacheEnum.rbac: 'rbac'>"
+                        },
+                        "url": "https://errors.pydantic.dev/2.10/v/literal_error"
+                    }
+                ]
+            },
+            "PydanticErrorObject": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "description": "A computer-readable identifier of the error type."
+                    },
+                    "loc": {
+                        "type": "object",
+                        "description": "The error's location as a list."
+                    },
+                    "msg": {
+                        "type": "string",
+                        "description": "A human-readable explanation of the error."
+                    },
+                    "input": {
+                        "type": "object",
+                        "description": "The input provided for validation."
+                    },
+                    "ctx": {
+                        "type": "string",
+                        "description": "An optional object which contains values required to render the error message."
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to further information about the error."
                     }
                 }
             }

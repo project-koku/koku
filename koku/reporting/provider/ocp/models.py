@@ -91,11 +91,20 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     # Tag cost is actually a usage-based daily cost. We are overloading this field for
     # tag usage rates.
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag"))
+    MONTHLY_COST_TYPES = (
+        ("Node", "Node"),
+        ("Node_Core_Month", "Node_Core_Month"),
+        ("Cluster", "Cluster"),
+        ("PVC", "PVC"),
+        ("Tag", "Tag"),
+        ("OCP_VM", "OCP_VM"),
+    )
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
+        "Node_Core_Month": "node_core_cost_per_month",
         "Cluster": "cluster_cost_per_month",
         "PVC": "pvc_cost_per_month",
+        "OCP_VM": "vm_cost_per_month",
     }
     DISTRIBUTION_COST_TYPES = ["cpu", "memory", "pvc"]
 
@@ -411,7 +420,15 @@ class OCPVirtualMachineSummaryP(models.Model):
             models.Index(fields=["vm_name"], name="ocp_vm_summ_vm_name"),
             GinIndex(fields=["pod_labels"], name="ocp_vm_summ_pod_labels_idx"),
         ]
-        unique_together = ("usage_start", "cluster_id", "namespace", "node", "vm_name", "cost_model_rate_type")
+        unique_together = (
+            "usage_start",
+            "cluster_id",
+            "namespace",
+            "node",
+            "vm_name",
+            "cost_model_rate_type",
+            "persistentvolumeclaim",
+        )
 
     id = models.UUIDField(primary_key=True)
 
@@ -431,6 +448,12 @@ class OCPVirtualMachineSummaryP(models.Model):
     pod_labels = JSONField(null=True)
     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    # Storage
+    persistentvolumeclaim = models.CharField(max_length=253, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)

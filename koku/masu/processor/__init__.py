@@ -109,9 +109,10 @@ def is_managed_ocp_cloud_summary_enabled(account, provider_type):
     if UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-provider-type", context):
         account = convert_account(account)
         context = {"schema": account}
-        return UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
-    else:
-        return False
+        result = UNLEASH_CLIENT.is_enabled("cost-management.backend.feature-cost-5129-ocp-cloud-summary", context)
+        LOG.info(log_json(msg=f"managed table summary enabled: {result}", schema=account, provider_type=provider_type))
+        return result
+    return False
 
 
 def is_source_disabled(source_uuid):  # pragma: no cover
@@ -192,3 +193,10 @@ def is_tag_processing_disabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_tag_processing_disabled", context)
+
+
+def is_status_api_update_enabled(account):  # pragma: no cover
+    """Flag to enable the new source status retrieval method."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
