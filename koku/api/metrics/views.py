@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for CostModelMetricsMap."""
+
 import copy
 
 from django.utils.encoding import force_str

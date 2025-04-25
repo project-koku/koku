@@ -335,9 +335,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
-    def test_process_no_cluster_info(
-        self, mock_infra_map, mock_data_processor, mock_create_parquet, mock_cluster_info
-    ):
+    def test_process_no_cluster_info(self, mock_infra_map, mock_data_processor, mock_create_parquet, mock_cluster_info):
         """Test that ocp on cloud data is not processed when there is no cluster info."""
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.aws_provider, manifest=None)
         mock_infra_map.return_value = updater.get_infra_map_from_providers()
@@ -490,9 +488,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels", return_value=True)
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags", return_value=None)
     @patch("masu.processor.parquet.ocp_cloud_parquet_report_processor.is_tag_processing_disabled", return_value=True)
-    def test_get_matched_tags_trino_disabled(
-        self, mock_unleash, mock_pg_tags, mock_has_enabled, mock_matching_enabled
-    ):
+    def test_get_matched_tags_trino_disabled(self, mock_unleash, mock_pg_tags, mock_has_enabled, mock_matching_enabled):
         """Test that we skip trino matched tag queries if disabled in unleash."""
         result = self.report_processor.get_matched_tags([])
         self.assertEqual(result, [])

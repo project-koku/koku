@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSOrgUnitCrawler object."""
+
 import logging
 from datetime import timedelta
 from unittest.mock import MagicMock

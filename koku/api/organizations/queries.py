@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for Organizations."""
+
 import copy
 import logging
 import operator

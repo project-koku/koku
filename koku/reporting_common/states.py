@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common util functions."""
+
 from django.db.models import IntegerChoices
 
 from common.enum import StrEnum

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Azure tag view."""
+
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 

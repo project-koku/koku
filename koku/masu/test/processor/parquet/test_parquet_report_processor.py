@@ -357,7 +357,7 @@ class TestParquetReportProcessor(MasuTestCase):
             patch("masu.processor.parquet.parquet_report_processor.pd") as mock_pd,
             patch("masu.processor.parquet.parquet_report_processor.open", side_effect=Exception),
             patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"),
-            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor." "create_parquet_table"),
+            patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.create_parquet_table"),
         ):
             mock_pd.read_csv.return_value.__enter__.return_value = [1, 2, 3]
             _, __, result = self.report_processor.convert_csv_to_parquet(Path("file.csv.gz"))

@@ -250,18 +250,18 @@ def lockinfo(request):
                 "blocking_pid": 'class="sans"',
                 "blocked_pid": 'class="sans"',
             }
-            activity_url = f'{reverse("conn_activity")}?pid={rec["blocking_pid"]}&pid={rec["blocked_pid"]}'
+            activity_url = f"{reverse('conn_activity')}?pid={rec['blocking_pid']}&pid={rec['blocked_pid']}"
             for t in targets:
                 rec[f"_raw_{t}"] = rec[t]
             if template != "gen_table.html":
                 rec["blocking_pid"] = (
                     f'<a href="{activity_url}" title="Click this link to see the '
-                    + f'current activity for pids {rec["_raw_blocking_pid"]}, '
+                    + f"current activity for pids {rec['_raw_blocking_pid']}, "
                     + f'{rec["_raw_blocked_pid"]}">{rec["_raw_blocking_pid"]}</a>'
                 )
                 rec["blocked_pid"] = (
                     f'<a href="{activity_url}" title="Click this link to see the '
-                    + f'current activity for pids {rec["_raw_blocked_pid"]}, '
+                    + f"current activity for pids {rec['_raw_blocked_pid']}, "
                     + f'{rec["_raw_blocking_pid"]}">{rec["_raw_blocked_pid"]}</a>'
                 )
             rec["blocked_statement"] = format_sql(
@@ -491,7 +491,7 @@ def explain_query(request):
 
                 for p_num, plan in enumerate(data):
                     header = f"QUERY PLAN {p_num + 1}{os.linesep}" if enumeration else f"QUERY PLAN{os.linesep}"
-                    all_plans.append(f'{header}{plan["query_plan"]}')
+                    all_plans.append(f"{header}{plan['query_plan']}")
 
                 data = {"query_plan": (os.linesep * 3).join(all_plans)}
 

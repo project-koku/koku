@@ -152,9 +152,7 @@ class TestDBPerformanceClass(IamTestCase):
             activity = dbp.get_activity(TEST_CONFIGURATOR.get_database_name())
             self.assertTrue(any(a["backend_pid"] == dbpid for a in activity))
 
-            activity = dbp.get_activity(
-                TEST_CONFIGURATOR.get_database_name(), state=["COMPLETELY INVALID STATE HERE!"]
-            )
+            activity = dbp.get_activity(TEST_CONFIGURATOR.get_database_name(), state=["COMPLETELY INVALID STATE HERE!"])
             self.assertEqual(activity, [])
 
     def test_get_stmt_stats(self):

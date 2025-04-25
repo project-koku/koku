@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database with charge information."""
+
 import logging
 from decimal import Decimal
 

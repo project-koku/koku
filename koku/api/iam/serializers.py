@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Identity and Access Serializers."""
+
 import locale
 from base64 import b64decode
 from json import loads as json_loads

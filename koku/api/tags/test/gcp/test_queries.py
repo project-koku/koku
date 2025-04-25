@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+
 from django_tenants.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -186,9 +187,7 @@ class GCPTagQueryHandlerTest(IamTestCase):
         query_params.kwargs = {"key": key}
         handler = GCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = (
-                GCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
-            )
+            tags = GCPTagsValues.objects.filter(key__exact=key, value__icontains=value).values("value").distinct().all()
             tag_values = [tag.get("value") for tag in tags]
             self.assertTrue(tag_values)
         expected = {"key": key, "values": tag_values}

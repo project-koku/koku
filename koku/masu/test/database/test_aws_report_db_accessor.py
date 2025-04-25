@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSReportDBAccessor utility object."""
+
 import datetime
 import decimal
 import pkgutil
@@ -131,9 +132,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(
-            self.aws_provider.uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
-        )
+        self.accessor.populate_markup_cost(self.aws_provider.uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids)
         with schema_context(self.schema):
             query = AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
                 Sum("markup_cost")
@@ -435,9 +434,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         table = "reporting_ocpawscostlineitem_project_daily_summary_temp"
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
-        with patch(
-            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
-        ):
+        with patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True):
             with self.assertRaises(TrinoExternalError):
                 self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_called()

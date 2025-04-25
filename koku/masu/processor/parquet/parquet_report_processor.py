@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor to convert Cost Usage Reports to parquet."""
+
 import datetime
 import logging
 import os

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the QueryParameters."""
+
 import random
 from collections import OrderedDict
 from unittest.mock import Mock
@@ -401,7 +402,7 @@ class QueryParametersTests(TestCase):
 
     def test_has_start_end_dates_filter_no_filter(self):
         """Test the default filter query parameters with start and end dates."""
-        fake_uri = "start_date=2021-04-01&" "end_date=2021-04-13"
+        fake_uri = "start_date=2021-04-01&end_date=2021-04-13"
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
@@ -422,7 +423,7 @@ class QueryParametersTests(TestCase):
 
     def test_has_filter_no_value(self):
         """Test the default filter parameters when time_scope_value is undefined."""
-        fake_uri = "filter[resolution]=monthly&" "filter[time_scope_units]=month"
+        fake_uri = "filter[resolution]=monthly&filter[time_scope_units]=month"
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
@@ -441,7 +442,7 @@ class QueryParametersTests(TestCase):
 
     def test_has_filter_no_units(self):
         """Test the default filter parameters when time_scope_units is undefined."""
-        fake_uri = "filter[resolution]=monthly&" "filter[time_scope_value]=-1"
+        fake_uri = "filter[resolution]=monthly&filter[time_scope_value]=-1"
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
@@ -460,7 +461,7 @@ class QueryParametersTests(TestCase):
 
     def test_has_filter_no_resolution(self):
         """Test the default filter parameters when resolution is undefined."""
-        fake_uri = "filter[time_scope_units]=month&" "filter[time_scope_value]=-1"
+        fake_uri = "filter[time_scope_units]=month&filter[time_scope_value]=-1"
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
@@ -480,7 +481,7 @@ class QueryParametersTests(TestCase):
     def test_access_with_wildcard(self):
         """Test wildcard doesn't update query parameters."""
         provider = random.choice(PROVIDERS)
-        fake_uri = "group_by[account]=*&" "group_by[region]=*"
+        fake_uri = "group_by[account]=*&group_by[region]=*"
         test_access = {f"{provider}.account": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
@@ -501,7 +502,7 @@ class QueryParametersTests(TestCase):
 
     def test_access_replace_wildcard(self):
         """Test that a group by account wildcard only has access to the proper accounts."""
-        fake_uri = "group_by[account]=*&" "group_by[region]=*"
+        fake_uri = "group_by[account]=*&group_by[region]=*"
         test_access = {"aws.account": {"read": ["account1", "account2"]}, "aws.organizational_unit": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
@@ -526,9 +527,7 @@ class QueryParametersTests(TestCase):
         guid2 = uuid4()
         guid3 = uuid4()
         fake_uri = (
-            f"group_by[subscription_guid]={guid1}&"
-            f"group_by[subscription_guid]={guid2}&"
-            f"group_by[resource_location]=*"
+            f"group_by[subscription_guid]={guid1}&group_by[subscription_guid]={guid2}&group_by[resource_location]=*"
         )
         test_access = {"azure.subscription_guid": {"read": [str(guid1), str(guid3)]}}
         fake_request = Mock(
@@ -549,7 +548,7 @@ class QueryParametersTests(TestCase):
 
     def test_access_empty_intersection(self):
         """Test that a group by cluster filtered list causes 403 with empty intersection."""
-        fake_uri = "group_by[cluster]=cluster1&" "group_by[cluster]=cluster3"
+        fake_uri = "group_by[cluster]=cluster1&group_by[cluster]=cluster3"
         test_access = {"openshift.cluster": {"read": ["cluster4", "cluster2"]}}
         fake_request = Mock(
             spec=HttpRequest,
@@ -632,7 +631,7 @@ class QueryParametersTests(TestCase):
 
     def test_update_query_parameters_filtered_intersection(self):
         """Test that a filter by cluster filtered list causes a 403 when filtering on accounts without access."""
-        fake_uri = "filter[cluster]=cluster1&" "filter[cluster]=cluster3"
+        fake_uri = "filter[cluster]=cluster1&filter[cluster]=cluster3"
         test_access = {"openshift.cluster": {"read": ["cluster1", "cluster2"]}}
         fake_request = Mock(
             spec=HttpRequest,

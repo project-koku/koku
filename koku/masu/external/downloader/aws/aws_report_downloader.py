@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Report Downloader."""
+
 import copy
 import datetime
 import json

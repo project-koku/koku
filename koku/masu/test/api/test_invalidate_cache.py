@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the cache invalidation endpoint."""
+
 import logging
 from unittest.mock import patch
 

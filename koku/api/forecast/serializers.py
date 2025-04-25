@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Forecast Serializers."""
+
 from rest_framework import serializers
 
 from api.currency.currencies import CURRENCY_CHOICES

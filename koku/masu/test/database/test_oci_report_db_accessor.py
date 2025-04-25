@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCIReportDBAccessor utility object."""
+
 import decimal
 from unittest.mock import patch
 

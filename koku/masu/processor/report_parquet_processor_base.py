@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for Parquet files."""
+
 import logging
 
 import pyarrow.parquet as pq
@@ -195,7 +196,7 @@ class ReportParquetProcessorBase:
 
         created = False  # used for actual bill_date partition
         for _from, _to in partition_ranges:
-            part_rec["table_name"] = f'{table_name}_{_from.strftime("%Y_%m")}'
+            part_rec["table_name"] = f"{table_name}_{_from.strftime('%Y_%m')}"
             part_rec["partition_parameters"]["from"] = str(_from)
             part_rec["partition_parameters"]["to"] = str(_to)
             # This func will to the get_or_create on the tracking table
@@ -226,6 +227,6 @@ class ReportParquetProcessorBase:
                 table=self._table_name,
             )
         )
-        sql = "CALL system.sync_partition_metadata('" f"{self._schema_name}', " f"'{self._table_name}', " "'FULL')"
+        sql = f"CALL system.sync_partition_metadata('{self._schema_name}', '{self._table_name}', 'FULL')"
         LOG.info(sql)
         self._execute_trino_sql(sql, self._schema_name)

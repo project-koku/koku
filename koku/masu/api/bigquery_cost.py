@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View that runs queries in bigquery for continuity testing."""
+
 import logging
 
 from django.views.decorators.cache import never_cache

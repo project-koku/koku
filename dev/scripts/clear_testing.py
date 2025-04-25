@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Clear out our local testing directories."""
+
 import argparse
 import os
 import shutil

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the IBM common util."""
+
 from unittest.mock import MagicMock
 from unittest.mock import patch
 

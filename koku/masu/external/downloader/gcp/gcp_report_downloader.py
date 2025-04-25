@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Report Downloader."""
+
 import csv
 import datetime
 import logging
@@ -404,9 +405,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "manifest_id": manifest_id,
             "assembly_id": assembly_id,
             "compression": UNCOMPRESSED,
-            "files": [
-                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
-            ],
+            "files": [{"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")],
         }
 
     def get_local_file_for_report(self, report):

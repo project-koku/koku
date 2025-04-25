@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
+
 import logging
 import pkgutil
 import random
@@ -547,9 +548,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         with self.accessor as acc:
             cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
-            OCPPVC.objects.get_or_create(
-                persistent_volume_claim=pvcs[0], persistent_volume=volumes[0], cluster=cluster
-            )
+            OCPPVC.objects.get_or_create(persistent_volume_claim=pvcs[0], persistent_volume=volumes[0], cluster=cluster)
             acc.populate_openshift_cluster_information_tables(
                 self.aws_provider, cluster_id, cluster_alias, start_date, end_date
             )
@@ -649,9 +648,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = self.dh.this_month_end.date()
 
         with self.accessor as acc:
-            cluster = OCPCluster(
-                cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid
-            )
+            cluster = OCPCluster(cluster_id=cluster_id, cluster_alias=cluster_alias, provider_id=self.gcp_provider_uuid)
             cluster.save()
             topology = acc.get_filtered_openshift_topology_for_multiple_providers(
                 [self.gcp_provider_uuid], start_date, end_date

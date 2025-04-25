@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OCI tags."""
+
 from api.common.permissions.oci_access import OCIAccessPermission
 from api.provider.models import Provider
 from api.tags.oci.queries import OCITagQueryHandler

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources Error Messages."""
+
 from django.test import TestCase
 from rest_framework.serializers import ValidationError
 
@@ -97,7 +98,7 @@ class SourcesErrorMessageTest(TestCase):
             {
                 "key": ProviderErrors.AZURE_CLIENT_ERROR,
                 "internal_message": (
-                    "Azure Error: ResourceGroupNotFound\nMessage: Resource group" "'RG2' could not be found."
+                    "Azure Error: ResourceGroupNotFound\nMessage: Resource group'RG2' could not be found."
                 ),
             },
             {

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report serializers."""
+
 from unittest import TestCase
 
 from rest_framework import serializers

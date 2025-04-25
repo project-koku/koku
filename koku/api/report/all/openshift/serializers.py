@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP-on-All infrastructure Report Serializers."""
+
 from rest_framework import serializers
 
 import api.report.aws.serializers as awsser

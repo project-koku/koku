@@ -20,7 +20,6 @@ from django_tenants.utils import schema_context
 
 from koku.database import get_model
 
-
 random.seed(time.time())
 PartitionedTable = get_model("PartitionedTable")
 
@@ -1231,8 +1230,7 @@ LOCK TABLE "{self.source_schema}"."{self.source_table_name}" ;
             sql_actions.append(vdef.rename_original_view())
 
         messages.append(
-            f'Renaming source table "{self.source_schema}"."{self.source_table_name}"'
-            f' to "__{self.source_table_name}"'
+            f'Renaming source table "{self.source_schema}"."{self.source_table_name}" to "__{self.source_table_name}"'
         )
         sql_actions.append(
             f"""
@@ -1256,9 +1254,9 @@ UPDATE "{self.target_schema}".partitioned_tables
             )
         )
         for partition in self.created_partitions:
-            r_partition_name = f'{self.source_table_name}_{partition["suffix"]}'
+            r_partition_name = f"{self.source_table_name}_{partition['suffix']}"
             messages.append(
-                f'''Renaming table partition "{self.target_schema}"."{partition['table_name']}"'''
+                f'''Renaming table partition "{self.target_schema}"."{partition["table_name"]}"'''
                 f' to "{r_partition_name}"'
             )
             sql_actions.append(
@@ -1304,10 +1302,7 @@ LOCK TABLE "{self.source_schema}"."{self.source_table_name}" ;
             LOG.info(f'Renaming view "{vdef.view_schema}"."{vdef.view_name}" to "__{vdef.view_name}"')
             sql_actions.append(vdef.rename_original_view())
 
-        msg = (
-            f'Renaming source table "{self.source_schema}"."{self.source_table_name}"'
-            f' to "__{self.source_table_name}"'
-        )
+        msg = f'Renaming source table "{self.source_schema}"."{self.source_table_name}" to "__{self.source_table_name}"'
         LOG.info(msg)
         sql_actions.append(
             f"""
@@ -1327,15 +1322,15 @@ RENAME TO "{self.source_table_name}" ;
 """
         )
         for partition in self.created_partitions:
-            r_partition_name = f'{self.source_table_name}_{partition["suffix"]}'
+            r_partition_name = f"{self.source_table_name}_{partition['suffix']}"
             msg = (
-                f'''Renaming table partition "{self.target_schema}"."{partition['table_name']}"'''
+                f'''Renaming table partition "{self.target_schema}"."{partition["table_name"]}"'''
                 f' to "{r_partition_name}"'
             )
             LOG.info(msg)
             sql_actions.append(
                 f"""
-ALTER TABLE "{self.target_schema}"."{partition['table_name']}"
+ALTER TABLE "{self.target_schema}"."{partition["table_name"]}"
 RENAME TO "{r_partition_name}" ;
 """
             )
@@ -1604,7 +1599,7 @@ SELECT * FROM __mv_recs_{self.tx_id} ;
             for bounds in new_partitions:
                 p_from, p_to = bounds
                 self.tracking_rec["table_name"] = f"{self.partitioned_table}_{p_from.strftime('%Y_%m')}"
-                full_partition_name = f'''"{self.schema_name}"."{self.tracking_rec['table_name']}"'''
+                full_partition_name = f'''"{self.schema_name}"."{self.tracking_rec["table_name"]}"'''
 
                 # A little jiggery-pokery here to increase efficiency.
                 # The partition is named properly, but it set as a partition for 100 years in the future
@@ -1876,7 +1871,7 @@ def get_or_create_partition(part_rec, _default_partition=None):
 
 
 class PartitionHandlerMixin:
-    def _handle_partitions(self, schema_name, table_names, start_date, end_date):  # noqas: C901
+    def _handle_partitions(self, schema_name, table_names, start_date, end_date):  # noqa: C901
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
         elif isinstance(start_date, str):

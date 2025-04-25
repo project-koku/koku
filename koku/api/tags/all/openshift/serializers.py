@@ -22,9 +22,7 @@ class OCPAllFilterSerializer(AWSFilterSerializer, AzureFilterSerializer, OCPFilt
     def __init__(self, *args, **kwargs):
         """Initialize the OCPAllFilterSerializer."""
         super().__init__(*args, **kwargs)
-        add_operator_specified_fields(
-            self.fields, AWS_FILTER_OP_FIELDS + AZURE_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS
-        )
+        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS + AZURE_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
 
 
 class OCPAllExcludeSerializer(AWSExcludeSerializer, AzureExcludeSerializer, OCPExcludeSerializer):
@@ -33,9 +31,7 @@ class OCPAllExcludeSerializer(AWSExcludeSerializer, AzureExcludeSerializer, OCPE
     def __init__(self, *args, **kwargs):
         """Initialize the OCPAllExcludeSerializer."""
         super().__init__(*args, **kwargs)
-        add_operator_specified_fields(
-            self.fields, AWS_FILTER_OP_FIELDS + AZURE_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS
-        )
+        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS + AZURE_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
 
 
 class OCPAllTagsQueryParamSerializer(AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer):

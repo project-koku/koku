@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Removes report data from database."""
+
 import logging
 from datetime import date
 

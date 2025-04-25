@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for Rate Access Permissions."""
+
 from unittest.mock import Mock
 from uuid import uuid4
 

@@ -52,9 +52,7 @@ class CSVFileHandler:
         if finalize:
             # reports are finalized on the 15th of the month following the report date
             finalize_date = (date.replace(day=15) + relativedelta.relativedelta(months=1)).strftime("%Y-%m-%d")
-        s3_path = (
-            f"hcs/csv/{self._schema_name}/{self._provider}/source={self._provider_uuid}/year={year}/month={month}"
-        )
+        s3_path = f"hcs/csv/{self._schema_name}/{self._provider}/source={self._provider_uuid}/year={year}/month={month}"
 
         LOG.info(log_json(tracing_id, msg="preparing to write file to object storage", context=context))
         self.copy_data_to_s3_bucket(tracing_id, data, cols, filename, s3_path, finalize, finalize_date, context)

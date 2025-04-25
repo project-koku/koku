@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider Model Serializers."""
+
 import logging
 from collections import defaultdict
 

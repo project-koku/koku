@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test cases for VataValidator"""
+
 from unittest.mock import patch
 
 from trino.exceptions import TrinoExternalError
@@ -69,9 +70,7 @@ class TestDataValidator(MasuTestCase):
 
     def test_compare_data(self):
         """Test comparing input data."""
-        validator = DataValidator(
-            self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test"
-        )
+        validator = DataValidator(self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test")
         # Test no trino data
         incomplete_days, valid_cost = validator.compare_data({}, {})
         self.assertTrue(valid_cost)
@@ -110,18 +109,14 @@ class TestDataValidator(MasuTestCase):
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._prepare_and_execute_raw_sql_query")
     def test_query_postgres(self, mock_pg_query):
         """Test making postgres queries."""
-        validator = DataValidator(
-            self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test"
-        )
+        validator = DataValidator(self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test")
         validator.execute_relevant_query("AWS")
         mock_pg_query.assert_called()
 
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_trino_raw_sql_query")
     def test_query_trino(self, mock_trino_query):
         """Test making trino queries."""
-        validator = DataValidator(
-            self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test"
-        )
+        validator = DataValidator(self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test")
         validator.execute_relevant_query("AWS", trino=True)
         mock_trino_query.assert_called()
 
@@ -131,9 +126,7 @@ class TestDataValidator(MasuTestCase):
         date = DateHelper().today
         expected_result = {date.date(): 30.0}
         mock_trino_query.return_value = [[30, date]]
-        validator = DataValidator(
-            self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test"
-        )
+        validator = DataValidator(self.schema, self.start_date, self.end_date, self.provider_uuid, None, context="test")
         result = validator.execute_relevant_query("AWS", trino=True)
         self.assertEqual(result, expected_result)
 

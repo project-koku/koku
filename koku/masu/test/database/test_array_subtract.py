@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test ArraySubtract."""
+
 import json
 
 from django.db import connection

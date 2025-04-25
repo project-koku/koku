@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for UserAccess."""
+
 import dataclasses
 import logging
 

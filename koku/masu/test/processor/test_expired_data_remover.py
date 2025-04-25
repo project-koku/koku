@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ExpiredDataRemover object."""
+
 import logging
 import re
 from datetime import datetime

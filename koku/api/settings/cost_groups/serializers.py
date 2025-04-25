@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for settings cost groups."""
+
 from rest_framework import serializers
 
 from api.report.serializers import ExcludeSerializer

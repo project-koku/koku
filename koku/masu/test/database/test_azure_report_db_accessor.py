@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDBAccessor utility object."""
+
 import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -81,9 +82,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
             end_date = summary_entry["usage_start__max"]
 
         with schema_context(self.schema):
-            expected_markup = AzureCostEntryLineItemDailySummary.objects.filter(
-                cost_entry_bill__in=bill_ids
-            ).aggregate(markup=Sum(F("pretax_cost") * decimal.Decimal(0.1)))
+            expected_markup = AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill__in=bill_ids).aggregate(
+                markup=Sum(F("pretax_cost") * decimal.Decimal(0.1))
+            )
             expected_markup = expected_markup.get("markup")
 
         self.accessor.populate_markup_cost(
@@ -337,9 +338,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         table = "reporting_ocpazurecostlineitem_project_daily_summary_temp"
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
-        with patch(
-            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
-        ):
+        with patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True):
             with self.assertRaises(TrinoExternalError):
                 self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_called()

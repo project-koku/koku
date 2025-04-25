@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the common util functions."""
+
 import gzip
 import json
 import types
@@ -210,15 +211,14 @@ class CommonUtilTests(MasuTestCase):
         month = start_date.strftime("%m")
         expected_path_prefix = f"{Config.WAREHOUSE_PATH}/{Config.PARQUET_DATA_TYPE}"
         expected_path = (
-            f"{expected_path_prefix}/{account}/{provider_type}/" f"source={provider_uuid}/year={year}/month={month}"
+            f"{expected_path_prefix}/{account}/{provider_type}/source={provider_uuid}/year={year}/month={month}"
         )
 
         path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
         self.assertEqual(path, expected_path)
 
         expected_path = (
-            f"{expected_path_prefix}/daily/{account}/{provider_type}/"
-            f"source={provider_uuid}/year={year}/month={month}"
+            f"{expected_path_prefix}/daily/{account}/{provider_type}/source={provider_uuid}/year={year}/month={month}"
         )
         path = common_utils.get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet", daily=True)
         self.assertEqual(path, expected_path)

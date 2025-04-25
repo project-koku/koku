@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common place for queues"""
+
 from common.enum import StrEnum
 from masu.processor import is_customer_large
 from masu.processor import is_customer_penalty

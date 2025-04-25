@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Masu Processor."""
+
 import logging
 from uuid import UUID
 

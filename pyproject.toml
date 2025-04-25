@@ -7,21 +7,22 @@ license = {file = "LICENSE"}
 requires-python = ">=3.11.0,<3.12"
 dependencies = [
     "adal>=1.2.7",
+    "adbc-driver-postgresql>=1.4.0",
     "app-common-python>=0.2.7",
+    "azure-identity>=1.21.0",
     "azure-mgmt-compute>=33.1.0",
     "azure-mgmt-costmanagement>=4.0.1",
     "azure-mgmt-resource>=23.2.0",
     "azure-mgmt-storage>=21.2.1",
     "azure-storage-blob>=12.24.0",
+    "beautifulsoup4>=4.12.3",
     "boto3>=1.35.91",
-    "bs4>=0.0.2",
     "cachetools>=5.5.0",
     "celery>=5.2.7",
     "ciso8601>=2.3.2",
     "confluent-kafka>=2.7.0",
-    "croniter>=6.0.0",
-    "django-cors-headers>=4.6.0",
     "django~=4.2.0",
+    "django-cors-headers>=4.6.0",
     "django-environ>=0.11.2",
     "django-extensions>=3.2.3",
     "django-filter>=24.3",
@@ -38,30 +39,29 @@ dependencies = [
     "ibm-cloud-sdk-core>=3.22.0",
     "ibm-platform-services>=0.59.0",
     "jinjasql2>=0.1.11",
-    "kafka-python>=2.0.2",
     "kombu<5.3",
     "msrestazure>=0.6.4.post1",
     "numpy>=2.2.1",
     "oci>=2.141.1",
+    "packaging>=24.2",
     "pandas<2.3",
+    "polars>=1.18.0",
     "prometheus-client>=0.21.1",
     "psutil>=6.1.1",
-    "psycopg2>=2.9.10",
+    "psycopg2-binary>=2.9.10",
     "pyarrow>=18.1.0",
+    "pydantic>=2.10.4",
     "python-dateutil>=2.9.0.post0",
     "querystring-parser>=1.2.4",
     "redis>=5.2.1",
     "requests>=2.32.3",
     "sentry-sdk>=2.19.2",
+    "sqlparse>=0.5.3",
     "statsmodels>=0.14.4",
     "trino>=0.331.0",
-    "unleashclient<5",
-    "watchtower==1.0.6",
+    "unleashclient<=5",
+    "watchtower>=1.0.6",
     "whitenoise>=6.8.2",
-    "pydantic>=2.10.4",
-    "sqlparse>=0.5.3",
-    "polars>=1.18.0",
-    "adbc-driver-postgresql>=1.4.0",
 ]
 
 [dependency-groups]
@@ -90,7 +90,7 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 119
+line-length = 120
 target-version = "py311"
 extend-exclude=["**/migrations/*.py"]
 
@@ -98,8 +98,7 @@ extend-exclude=["**/migrations/*.py"]
 # F https://docs.astral.sh/ruff/rules/#pyflakes-f
 # E, W https://docs.astral.sh/ruff/rules/#pycodestyle-e-w
 # C90 https://docs.astral.sh/ruff/rules/#mccabe-c90
-# UP https://docs.astral.sh/ruff/rules/#pyupgrade-up
-select = ["F", "E", "W", "C90", "UP"]
+select = ["F", "E", "W", "C90"]
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore `F401` (unused import) in all `__init__.py`, `models.py`, and `views.py` files.

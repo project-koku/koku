@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OCP-on-GCP tags."""
+
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.provider.models import Provider

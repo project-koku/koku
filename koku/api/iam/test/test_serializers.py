@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the IAM serializers."""
+
 import uuid
 
 from rest_framework.exceptions import ValidationError

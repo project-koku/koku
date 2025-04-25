@@ -1,4 +1,5 @@
 """Masu Azure post processor module tests."""
+
 #
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0

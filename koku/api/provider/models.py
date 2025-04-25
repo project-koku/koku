@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for provider management."""
+
 import logging
 import math
 from datetime import datetime
@@ -481,7 +482,7 @@ select ftn.nspname as "table_schema",
         if target_values is None:
             target_values = [self.uuid]
 
-        qual_table_name = f'''"{target_info['table_schema']}"."{target_info["table_name"]}"'''
+        qual_table_name = f'''"{target_info["table_schema"]}"."{target_info["table_name"]}"'''
         _sql = f"""
 delete
   from {qual_table_name}

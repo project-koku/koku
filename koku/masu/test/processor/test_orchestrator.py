@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Orchestrator object."""
+
 import logging
 import random
 from datetime import date
@@ -424,9 +425,7 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.orchestrator.group")
     @patch("masu.processor.orchestrator.chord")
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
-    def test_start_manifest_processing_no_resummary(
-        self, mock_download_manifest, mock_chord, mock_group, mock_inspect
-    ):
+    def test_start_manifest_processing_no_resummary(self, mock_download_manifest, mock_chord, mock_group, mock_inspect):
         """Test start_manifest_processing."""
         test_matrix = [
             {"mock_downloader_manifest_list": [], "expect_chord_called": False, "expected_chain_called": False},

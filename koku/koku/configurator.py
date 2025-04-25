@@ -5,6 +5,7 @@
 """
 Handler module for gathering configuration data.
 """
+
 import pathlib
 
 from .env import ENVIRONMENT
@@ -206,8 +207,8 @@ class EnvConfigurator(Configurator):
     def get_kafka_broker_list():
         """Obtain kafka broker host address."""
         return [
-            f'{ENVIRONMENT.get_value("INSIGHTS_KAFKA_HOST", default="localhost")}:'
-            f'{ENVIRONMENT.get_value("INSIGHTS_KAFKA_PORT", default="29092")}'
+            f"{ENVIRONMENT.get_value('INSIGHTS_KAFKA_HOST', default='localhost')}:"
+            f"{ENVIRONMENT.get_value('INSIGHTS_KAFKA_PORT', default='29092')}"
         ]
 
     @staticmethod

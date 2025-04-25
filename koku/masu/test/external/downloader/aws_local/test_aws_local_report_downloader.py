@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Local Report Downloader."""
+
 import logging
 import os.path
 import random

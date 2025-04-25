@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Azure Provider query handler."""
+
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal

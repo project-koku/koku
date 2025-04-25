@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP common util."""
+
 from uuid import uuid4
 
 import pandas as pd

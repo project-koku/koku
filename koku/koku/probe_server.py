@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """HTTP server for liveness/readiness probes."""
+
 import json
 import logging
 import threading

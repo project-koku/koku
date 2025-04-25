@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Organization views."""
+
 from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.models import Provider
 from api.organizations.aws.queries import AWSOrgQueryHandler

@@ -1,4 +1,5 @@
 """Test GCP Provider."""
+
 import copy
 from unittest.mock import MagicMock
 from unittest.mock import Mock

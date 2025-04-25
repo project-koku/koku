@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources HTTP Client."""
+
 from base64 import b64encode
 from itertools import product
 from unittest.mock import patch
@@ -401,9 +402,7 @@ class SourcesHTTPClientTest(TestCase):
                     f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}"
                 ),
                 "status": 200,
-                "json": {
-                    "data": [{"id": resource_id, "username": "", "extra": {"external_id": expected_external_id}}]
-                },
+                "json": {"data": [{"id": resource_id, "username": "", "extra": {"external_id": expected_external_id}}]},
             },
             {
                 "url": (

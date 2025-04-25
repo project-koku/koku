@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Oracel cloud infrastructure provider implementation to be used by Koku."""
+
 import logging
 
 from oci import object_storage as storage_client

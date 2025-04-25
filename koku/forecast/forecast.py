@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Base forecasting module."""
+
 import logging
 import operator
 from collections import defaultdict

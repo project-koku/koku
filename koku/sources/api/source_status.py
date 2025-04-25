@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Source status."""
+
 import logging
 
 from django.conf import settings

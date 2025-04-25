@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Clear out our glue testing data."""
+
 import argparse
 import os
 

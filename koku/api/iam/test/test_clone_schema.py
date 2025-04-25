@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the clone_schema functionality."""
+
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
@@ -10,10 +11,11 @@ from django.db import connection as conn
 from django.db import DatabaseError
 from django_tenants.utils import schema_exists
 
+from koku.database import dbfunc_exists
+
 from ..models import CloneSchemaFuncMissing
 from ..models import Tenant
 from .iam_test_case import IamTestCase
-from koku.database import dbfunc_exists
 
 
 def _verify_clone_func():
@@ -24,7 +26,7 @@ def _verify_clone_func():
 
 def _drop_clone_func():
     sql = f"""
-drop function if exists {Tenant._CLONE_SCHEMA_FUNC_SIG.replace(' DEFAULT false', '')} ;
+drop function if exists {Tenant._CLONE_SCHEMA_FUNC_SIG.replace(" DEFAULT false", "")} ;
 """
     with conn.cursor() as cur:
         cur.execute(sql, None)
@@ -151,9 +153,7 @@ class CloneSchemaTest(IamTestCase):
         Test that a DatabaseError is raised from within the call is logged and handled
         """
         tst_schema = "test_clone_schema_exception"
-        expected = 'ERROR:api.iam.models:Exception DatabaseError cloning "{}" to "{}": Too Many Quatloos'.format(
-            Tenant._TEMPLATE_SCHEMA, tst_schema
-        )
+        expected = f'ERROR:api.iam.models:Exception DatabaseError cloning "{Tenant._TEMPLATE_SCHEMA}" to "{tst_schema}": Too Many Quatloos'  # noqa
         with patch("api.iam.models.Tenant._clone_schema", side_effect=DatabaseError("Too Many Quatloos")):
             with self.assertLogs("api.iam.models", level="INFO") as _logger:
                 with self.assertRaises(DatabaseError):

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the common tag query function."""
+
 from unittest.mock import patch
 
 from api.iam.test.iam_test_case import IamTestCase

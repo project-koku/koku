@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the report downloader base class."""
+
 import os.path
 from unittest.mock import patch
 

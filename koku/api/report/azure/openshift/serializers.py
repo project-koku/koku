@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP-on-Azure Report Serializers."""
+
 import api.report.azure.serializers as azureser
 import api.report.ocp.serializers as ocpser
 

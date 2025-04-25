@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for openapi documentation."""
+
 import json
 import logging
 import os

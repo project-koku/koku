@@ -20,6 +20,7 @@ be ingested simultaneously by providing a comma separated list of payload names:
 http://localhost:5042/api/cost-management/v1/ingest_ocp_payload/?payload_name=payload-name-1.gz,payload-name-2.gz
 ```
 """
+
 import json
 from http import HTTPStatus
 from threading import Thread

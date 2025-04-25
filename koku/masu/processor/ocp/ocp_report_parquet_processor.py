@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for OCP Parquet files."""
+
 import datetime
 import logging
 

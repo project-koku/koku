@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the organizations serializer."""
+
 from unittest import TestCase
 
 from dateutil.relativedelta import relativedelta

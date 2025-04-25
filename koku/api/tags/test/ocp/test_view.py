@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP tag view."""
+
 import calendar
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
@@ -178,9 +179,7 @@ class OCPTagsViewTest(IamTestCase):
             banking_usage_tags = (
                 OCPUsagePodLabelSummary.objects.filter(namespace="banking").values("key").distinct().all()
             )
-            tag_keys = [tag.get("key") for tag in banking_storage_tags] + [
-                tag.get("key") for tag in banking_usage_tags
-            ]
+            tag_keys = [tag.get("key") for tag in banking_storage_tags] + [tag.get("key") for tag in banking_usage_tags]
 
         url = reverse("openshift-tags")
         client = APIClient()
@@ -215,8 +214,6 @@ class OCPTagsViewTest(IamTestCase):
                 .distinct()
                 .all()
             )
-            tag_keys = [tag.get("key") for tag in cluster_storage_tags] + [
-                tag.get("key") for tag in cluster_usage_tags
-            ]
+            tag_keys = [tag.get("key") for tag in cluster_storage_tags] + [tag.get("key") for tag in cluster_usage_tags]
         for tag in data.get("data"):
             self.assertIn(tag.get("key"), tag_keys)

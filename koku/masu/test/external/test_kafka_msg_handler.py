@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Kafka msg handler."""
+
 import copy
 import json
 import logging
@@ -617,8 +618,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     "fake_identity",
                                     {"account": "1234", "org_id": "5678"},
                                 )
-                                expected_path = "{}/{}/{}/".format(
-                                    Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                expected_path = (
+                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
@@ -764,8 +765,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     "fake_identity",
                                     {"account": "1234", "org_id": "5678"},
                                 )
-                                expected_path = "{}/{}/{}/".format(
-                                    Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                expected_path = (
+                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
                                 )
                                 self.assertFalse(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)

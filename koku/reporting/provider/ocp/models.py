@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for OCP cost entry tables."""
+
 from decimal import Decimal
 from uuid import uuid4
 

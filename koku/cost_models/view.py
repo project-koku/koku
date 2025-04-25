@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Rates."""
+
 import logging
 from functools import reduce
 from operator import and_

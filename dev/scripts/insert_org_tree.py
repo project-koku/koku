@@ -64,7 +64,7 @@ class UploadAwsTree:
         try:
             requests.post(url, json=aws_org_tree_json)
         except Exception as e:
-            msg = ("Error: uploading to endpoint", f"post_url: {url}" f"response: {e}")
+            msg = ("Error: uploading to endpoint", f"post_url: {url}response: {e}")
             raise UploadAwsTreeError(err_msg=msg)
 
     def source_exists(self, koku_host, koku_port):
@@ -86,7 +86,7 @@ class UploadAwsTree:
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/LocalAWSSource"}},
             "billing_source": {"data_source": {"bucket": "/tmp/local_bucket_1"}},
         }
-        LOG.info("Creating a source with the following information:\n" f"\t{json_info}")
+        LOG.info(f"Creating a source with the following information:\n\t{json_info}")
         source_info = requests.post(source_url, json=json_info)
         source_data = source_info.json()
         return source_data["uuid"]
@@ -98,7 +98,7 @@ class UploadAwsTree:
             f"nise report aws --static-report-file {nise_yaml} "
             f"--aws-s3-bucket-name {testing_path} --aws-s3-report-name local-bucket"
         )
-        LOG.info("Running the following Nise command:\n" f"\t{nise_command}")
+        LOG.info(f"Running the following Nise command:\n\t{nise_command}")
         os.system(nise_command)
         LOG.info("Triggering the masu download")
         download_url = f"http://{self.masu_host}:{self.masu_port}/api/cost-management/v1/download/"

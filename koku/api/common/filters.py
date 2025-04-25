@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common filters for the views."""
+
 from functools import reduce
 from operator import and_
 

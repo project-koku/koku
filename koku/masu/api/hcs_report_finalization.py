@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for running_celery_task collect_hcs_report_finalization endpoint."""
+
 import datetime
 import logging
 import uuid

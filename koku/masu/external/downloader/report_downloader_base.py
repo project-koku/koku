@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Report Downloader."""
+
 import logging
 from tempfile import mkdtemp
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Forecast unit tests."""
+
 import logging
 import random
 from datetime import date

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the OCIProvider implementation for the Koku interface."""
+
 from unittest.mock import patch
 
 from django.test import TestCase

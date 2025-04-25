@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the additional_context endpoint view."""
+
 from unittest.mock import patch
 from urllib.parse import urlencode
 

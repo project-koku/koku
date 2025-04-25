@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Describes the urls and patterns for the API application."""
+
 from django.conf import settings
 from django.urls import path
 from django.views.decorators.cache import cache_page

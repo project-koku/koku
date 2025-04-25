@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the validate data endpoint."""
+
 import uuid
 from unittest.mock import patch
 

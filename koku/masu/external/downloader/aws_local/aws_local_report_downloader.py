@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Local Report Downloader."""
+
 import datetime
 import hashlib
 import json

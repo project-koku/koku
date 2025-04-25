@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS utility functions."""
+
 import contextlib
 import datetime
 import logging
@@ -546,9 +547,7 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
     return upload
 
 
-def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, context=None
-):
+def copy_local_report_file_to_s3_bucket(request_id, s3_path, full_file_path, local_filename, manifest_id, context=None):
     """
     Copies local report file to s3 bucket
     """

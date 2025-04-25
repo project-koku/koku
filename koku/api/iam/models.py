@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for identity and access management."""
+
 import logging
 import os
 from uuid import uuid4

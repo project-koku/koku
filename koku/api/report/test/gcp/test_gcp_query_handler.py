@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test GCP Report Queries."""
+
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -145,7 +146,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 service[0]
                 for service in GCPCostEntryLineItemDailySummary.objects.values_list("service_alias").distinct()
             ]
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -251,7 +254,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -459,9 +464,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
         with tenant_context(self.tenant):
-            account = GCPCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.this_month_start
-            ).values("account_id")[0]
+            account = GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start).values(
+                "account_id"
+            )[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={account}"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
@@ -1207,7 +1212,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1327,9 +1334,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_execute_query_annotate(self):
         """Test that query enters cost unit and usage unit ."""
         with tenant_context(self.tenant):
-            account = GCPCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.this_month_start
-            ).values("account_id")[0]
+            account = GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start).values(
+                "account_id"
+            )[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={account}"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
@@ -1403,9 +1410,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_execute_query_annotate_instance_types(self):
         """Test that query enters cost unit and usage unit ."""
         with tenant_context(self.tenant):
-            account = GCPCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.this_month_start
-            ).values("account_id")[0]
+            account = GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start).values(
+                "account_id"
+            )[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={account}"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPInstanceTypeView)
         handler = GCPReportQueryHandler(query_params)
@@ -1446,7 +1453,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
         Query for storage, validating that cost totals are present.
         """
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, GCPStorageView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()

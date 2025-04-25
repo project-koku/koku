@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Report Processing Orchestrator."""
+
 import copy
 import logging
 from collections import defaultdict
@@ -470,9 +471,7 @@ class Orchestrator:
             account["report_month"] = month
             try:
                 LOG.info(
-                    log_json(
-                        tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid
-                    )
+                    log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid)
                 )
                 _, reports_tasks_queued = self.start_manifest_processing(**account)
                 LOG.info(

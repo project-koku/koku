@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for cost models."""
+
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """QueryFilterfor Reports."""
+
 from collections import defaultdict
 from collections import UserDict
 from functools import total_ordering

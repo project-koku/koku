@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Local Report Downloader."""
+
 import datetime
 import logging
 import os

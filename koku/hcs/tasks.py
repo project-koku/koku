@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tasks for Hybrid Committed Spend (HCS)"""
+
 import datetime
 import logging
 import uuid
@@ -228,9 +229,7 @@ def collect_hcs_report_finalization(  # noqa: C901
         return
 
     if schema_name is not None and provider_uuid is not None:
-        LOG.warning(
-            log_json(tracing_id, msg="'schema_name' and 'provider_uuid' are not supported in the same request")
-        )
+        LOG.warning(log_json(tracing_id, msg="'schema_name' and 'provider_uuid' are not supported in the same request"))
         return
 
     if schema_name is not None and not enable_hcs_processing(schema_name):

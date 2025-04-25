@@ -176,9 +176,7 @@ class TestOCIUtils(MasuTestCase):
             },
         ]
         manifest_list = utils.deduplicate_reports_for_oci(test_report_list)
-        result_manifest_ids = {
-            manifest.get("manifest_id") for manifest in manifest_list if manifest.get("manifest_id")
-        }
+        result_manifest_ids = {manifest.get("manifest_id") for manifest in manifest_list if manifest.get("manifest_id")}
         self.assertEqual(list(result_manifest_ids), expected_manifest_ids)
 
     def test_deduplicate_reports_for_oci_with_diff_start_end_pair(self):

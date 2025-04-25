@@ -7,6 +7,7 @@
 Search for the koku SOURCE_REPOSITORY_REF setting in the
 e2e-deploy buildfactory dir koku.yaml file.
 """
+
 import logging
 import os
 import re

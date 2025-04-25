@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCIReportDBCleaner utility object."""
+
 import datetime
 import uuid
 

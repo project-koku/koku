@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportDBAccessor utility object."""
+
 import datetime
 import decimal
 from unittest.mock import Mock
@@ -487,9 +488,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         table = "reporting_ocpgcpcostlineitem_project_daily_summary_temp"
         error = {"errorName": "HIVE_METASTORE_ERROR"}
         mock_trino.side_effect = TrinoExternalError(error)
-        with patch(
-            "masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True
-        ):
+        with patch("masu.database.report_db_accessor_base.ReportDBAccessorBase.schema_exists_trino", return_value=True):
             with self.assertRaises(TrinoExternalError):
                 self.accessor.delete_hive_partition_by_month(table, self.ocp_provider_uuid, "2022", "01")
             mock_trino.assert_called()

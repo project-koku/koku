@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for server status."""
+
 import logging
 import platform
 import sys

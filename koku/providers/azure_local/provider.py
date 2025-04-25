@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure-local service provider implementation to be used by Koku."""
+
 from rest_framework.serializers import ValidationError
 
 from ..azure.provider import AzureProvider

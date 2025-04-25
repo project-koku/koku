@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the expired_endpoint endpoint view."""
+
 from unittest.mock import patch
 
 from django.test import TestCase

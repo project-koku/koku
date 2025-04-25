@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the ReportProcessor object."""
+
 from unittest.mock import patch
 
 from api.models import Provider

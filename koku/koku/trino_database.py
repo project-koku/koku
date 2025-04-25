@@ -22,8 +22,7 @@ NAMED_VARS = re.compile(r"%(.+)s")
 EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
-class KokuError(Exception):
-    ...
+class KokuError(Exception): ...
 
 
 class KokuTrinoError(KokuError):
@@ -44,7 +43,7 @@ class TrinoStatementExecError(KokuTrinoError):
         statement: str,
         statement_number: int,
         sql_params: dict[str, t.Any],
-        trino_error: t.Optional[TrinoQueryError] = None,
+        trino_error: TrinoQueryError | None = None,
     ):
         self.statement = statement
         self.statement_number = statement_number
@@ -72,23 +71,23 @@ class TrinoStatementExecError(KokuTrinoError):
         return (self.__class__, (self.statement, self.statement_number, self.sql_params, self._trino_error))
 
     @property
-    def error_code(self) -> t.Optional[int]:
+    def error_code(self) -> int | None:
         return self._trino_error.error_code
 
     @property
-    def error_name(self) -> t.Optional[str]:
+    def error_name(self) -> str | None:
         return self._trino_error.error_name
 
     @property
-    def error_type(self) -> t.Optional[str]:
+    def error_type(self) -> str | None:
         return self._trino_error.error_type
 
     @property
-    def error_exception(self) -> t.Optional[str]:
+    def error_exception(self) -> str | None:
         return self._trino_error.error_exception
 
     @property
-    def failure_info(self) -> t.Optional[dict[str, t.Any]]:
+    def failure_info(self) -> dict[str, t.Any] | None:
         return self._trino_error.failure_info
 
     @property
@@ -96,7 +95,7 @@ class TrinoStatementExecError(KokuTrinoError):
         return self._trino_error.message
 
     @property
-    def query_id(self) -> t.Optional[str]:
+    def query_id(self) -> str | None:
         return self._trino_error.query_id
 
 
@@ -134,7 +133,7 @@ def retry(
     retries: int = settings.HIVE_PARTITION_DELETE_RETRIES,
     retry_on: type[Exception] | tuple[type[Exception], ...] = TrinoExternalError,
     max_wait: int = 30,
-    log_message: t.Optional[str] = "Retrying...",
+    log_message: str | None = "Retrying...",
 ):
     """Decorator with the retry logic."""
 

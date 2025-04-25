@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the status endpoint view."""
+
 import logging
 import re
 from collections import namedtuple

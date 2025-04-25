@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Defines the GCP Access Permissions class."""
+
 from django.conf import settings
 from rest_framework import permissions
 

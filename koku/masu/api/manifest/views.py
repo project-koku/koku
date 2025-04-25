@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for Masu API `manifest`."""
+
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404

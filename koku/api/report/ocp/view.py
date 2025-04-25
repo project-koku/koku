@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OpenShift Usage Reports."""
+
 from rest_framework.exceptions import NotFound
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission

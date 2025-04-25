@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """IBM provider implementation to be used by Koku."""
+
 from ibm_cloud_sdk_core.api_exception import ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from ibm_platform_services.enterprise_usage_reports_v1 import EnterpriseUsageReportsV1

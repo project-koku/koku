@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider external interface for koku to consume."""
+
 import logging
 
 from api.common import log_json

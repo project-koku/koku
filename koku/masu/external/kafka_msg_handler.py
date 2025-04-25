@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Kafka message handler."""
+
 import itertools
 import json
 import logging
@@ -89,8 +90,7 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})
     daily_data_frames = [
-        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
-        for cur_day in days
+        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day} for cur_day in days
     ]
 
     daily_files = []
@@ -681,7 +681,7 @@ def summarize_manifest(report_meta, manifest_uuid):
     cr_status = report_meta.get("cr_status", {})
     if data_collection_message := cr_status.get("reports", {}).get("data_collection_message", ""):
         # remove potentially sensitive info from the error message
-        msg = f'data collection error [operator]: {re.sub("{[^}]+}", "{***}", data_collection_message)}'
+        msg = f"data collection error [operator]: {re.sub('{[^}]+}', '{***}', data_collection_message)}"
         cr_status["reports"]["data_collection_message"] = msg
         # The full CR status is logged below, but we should limit our alert to just the query.
         # We can check the full manifest to get the full error.

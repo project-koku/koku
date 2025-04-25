@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Sources HTTP Client."""
+
 import binascii
 import logging
 from base64 import b64decode

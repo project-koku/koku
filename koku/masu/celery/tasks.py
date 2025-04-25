@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
+
 import json
 import logging
 
@@ -343,9 +344,7 @@ def crawl_account_hierarchy(provider_uuid=None):
             crawler = AWSOrgUnitCrawler(provider)
 
         if crawler:
-            LOG.info(
-                f"Starting account hierarchy crawler for type {provider.type} with provider_uuid: {provider.uuid}"
-            )
+            LOG.info(f"Starting account hierarchy crawler for type {provider.type} with provider_uuid: {provider.uuid}")
             crawler.crawl_account_hierarchy()
             processed += 1
         else:
@@ -399,9 +398,7 @@ def check_for_stale_ocp_source(provider_uuid=None):
                 processed += 1
             else:
                 skipped += 1
-        LOG.info(
-            f"Openshift stale source status check finished. {processed} notifications fired and {skipped} skipped"
-        )
+        LOG.info(f"Openshift stale source status check finished. {processed} notifications fired and {skipped} skipped")
 
 
 @celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PriorityQueue.DEFAULT)
@@ -422,9 +419,7 @@ def out_of_order_source_delete_async(source_id):
     try:
         source = Sources.objects.get(source_id=source_id)
     except Sources.DoesNotExist:
-        LOG.warning(
-            f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
-        )
+        LOG.warning(f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
         return
     if source.account_id in settings.DEMO_ACCOUNTS:
         LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")

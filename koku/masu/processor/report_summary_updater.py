@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Update reporting summary tables."""
+
 import datetime
 import logging
 
@@ -68,9 +69,7 @@ class ReportSummaryUpdater:
                 self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         self._provider = Provider.objects.filter(uuid=self._provider_uuid).first()
         if not self._provider:
-            raise ReportSummaryUpdaterProviderNotFoundError(
-                f"provider data for uuid '{self._provider_uuid}' not found"
-            )
+            raise ReportSummaryUpdaterProviderNotFoundError(f"provider data for uuid '{self._provider_uuid}' not found")
 
         try:
             self._updater, self._ocp_cloud_updater = self._set_updater()
@@ -204,9 +203,7 @@ class ReportSummaryUpdater:
         }
 
         LOG.info(
-            log_json(
-                tracing_id, msg=f"OpenShift on {infra_provider_type} summary processing starting", context=context
-            )
+            log_json(tracing_id, msg=f"OpenShift on {infra_provider_type} summary processing starting", context=context)
         )
 
         try:

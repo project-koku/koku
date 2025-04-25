@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views for OpenShift Virtual Machines."""
+
 from django.db.models import F
 from django.urls import reverse
 from django_tenants.utils import schema_context

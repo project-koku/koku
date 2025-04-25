@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS org unit crawler."""
+
 import logging
 
 from botocore.exceptions import ClientError
@@ -94,7 +95,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             # recurse and look for sub org units
             ou_pager = self._client.get_paginator("list_organizational_units_for_parent")
             for sub_ou in ou_pager.paginate(ParentId=ou.get("Id")).build_full_result().get("OrganizationalUnits"):
-                new_prefix = f'{prefix}&{sub_ou.get("Id")}'
+                new_prefix = f"{prefix}&{sub_ou.get('Id')}"
                 LOG.info(
                     f"Organizational unit found for account with provider_uuid: {self.provider.uuid} "
                     f"and account_id: {self.account_id} during crawl. org_unit_id: {sub_ou.get('Id')}"

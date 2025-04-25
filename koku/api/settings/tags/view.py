@@ -1,5 +1,4 @@
 import logging
-import typing as t
 
 from django.db.models import Q
 from django.db.models.query import QuerySet
@@ -90,7 +89,7 @@ class SettingsTagUpdateView(APIView):
 class SettingsEnableTagView(SettingsTagUpdateView):
     enabled = True
 
-    def _check_limit(self, qs: QuerySet) -> t.Optional[Response]:
+    def _check_limit(self, qs: QuerySet) -> Response | None:
         if Config.ENABLED_TAG_LIMIT > 0:
             # Only count UUIDs requested to be enabled that are currently disabled.
             records_to_update_count = qs.filter(enabled=False).count()
@@ -119,7 +118,7 @@ class SettingsDisableTagView(SettingsTagUpdateView):
     def _check_limit(self, qs):
         pass
 
-    def _check_tag_mapping(self, uuid_list) -> t.Optional[Response]:
+    def _check_tag_mapping(self, uuid_list) -> Response | None:
         """Checks that a map tag can not be enabled or disabled."""
         tag_keys = TagMapping.objects.filter(Q(parent__uuid__in=uuid_list) | Q(child__uuid__in=uuid_list))
         if not tag_keys:

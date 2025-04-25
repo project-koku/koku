@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider interface to be used by Koku."""
+
 from abc import ABC
 from abc import abstractmethod
 

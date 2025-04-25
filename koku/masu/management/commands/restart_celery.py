@@ -4,6 +4,7 @@
 #
 # pragma: no cover
 """Command to start celery worker with autoreload."""
+
 import os
 import signal
 import subprocess

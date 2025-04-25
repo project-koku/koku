@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Configuration loader for Masu application."""
+
 from tempfile import mkdtemp
 
 from django.conf import settings

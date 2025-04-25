@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the OCPProvider implementation for the Koku interface."""
+
 from django.test import TestCase
 from rest_framework.serializers import ValidationError
 

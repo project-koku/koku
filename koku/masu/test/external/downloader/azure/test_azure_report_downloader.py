@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportDownloader object."""
+
 import json
 import os.path
 import shutil
@@ -79,7 +80,7 @@ class MockAzureService:
         elif report_path == self.bad_report_path:
             mock_export = BadExport()
         else:
-            message = f"No cost report found in container {container_name} for " f"path {report_path}."
+            message = f"No cost report found in container {container_name} for path {report_path}."
             raise AzureCostReportNotFound(message)
         return mock_export
 

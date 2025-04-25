@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """command overrides."""
+
 import logging
 
 from django_tenants.management.commands import migrate_schemas

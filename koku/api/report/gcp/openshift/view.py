@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OpenShift on GCP Usage Reports."""
+
 # Done
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission

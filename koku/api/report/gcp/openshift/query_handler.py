@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP Query Handling for Reports."""
+
 import copy
 
 from django.db.models import CharField

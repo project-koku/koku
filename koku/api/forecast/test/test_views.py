@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Forecast view unit tests."""
+
 from django.core.cache import caches
 from django.urls import reverse
 from rest_framework import status

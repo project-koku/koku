@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources Status HTTP Client."""
+
 from unittest.mock import create_autospec
 from unittest.mock import patch
 from uuid import uuid4
@@ -652,8 +653,9 @@ class SourcesStatusTest(IamTestCase):
 
         payload = {"source_id": source.source_id}
 
-        with patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status, patch(
-            "sources.api.source_status.is_status_api_update_enabled", return_value=True
+        with (
+            patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status,
+            patch("sources.api.source_status.is_status_api_update_enabled", return_value=True),
         ):
             response = client.post(url, data=payload, format="json", **self.headers)
 
@@ -676,8 +678,9 @@ class SourcesStatusTest(IamTestCase):
 
         payload = {"source_id": source.source_id}
 
-        with patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status, patch(
-            "sources.api.source_status.is_status_api_update_enabled", return_value=False
+        with (
+            patch("sources.api.source_status.SourceStatus.push_status") as mock_push_status,
+            patch("sources.api.source_status.is_status_api_update_enabled", return_value=False),
         ):
             response = client.post(url, data=payload, format="json", **self.headers)
 

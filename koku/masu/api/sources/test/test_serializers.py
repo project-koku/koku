@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the Masu API `manifest` Serializers."""
+
 from rest_framework.serializers import ValidationError
 
 from api.provider.models import Provider

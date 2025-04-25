@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the HCS task."""
+
 import uuid
 from datetime import timedelta
 from unittest.mock import Mock

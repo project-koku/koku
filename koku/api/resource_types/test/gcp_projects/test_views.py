@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
+
 from unittest.mock import patch
 from uuid import uuid4
 

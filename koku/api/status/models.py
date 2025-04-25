@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models to capture server status."""
+
 import logging
 import platform
 import sys

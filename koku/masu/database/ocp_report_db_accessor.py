@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for OCP report data."""
+
 import datetime
 import json
 import logging
@@ -1026,9 +1027,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
     def get_nodes_for_cluster(self, cluster_id):
         """Get all nodes for an OCP cluster."""
-        nodes = (
-            OCPNode.objects.filter(cluster_id=cluster_id).exclude(node__exact="").values_list("node", "resource_id")
-        )
+        nodes = OCPNode.objects.filter(cluster_id=cluster_id).exclude(node__exact="").values_list("node", "resource_id")
         nodes = [(node[0], node[1]) for node in nodes]
         return nodes
 

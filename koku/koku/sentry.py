@@ -1,4 +1,5 @@
 """Sentry configuration file for the Koku project."""
+
 import sentry_sdk
 
 from .env import ENVIRONMENT

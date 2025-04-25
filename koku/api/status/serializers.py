@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializer to capture server status."""
+
 from rest_framework import serializers
 
 from .models import Status

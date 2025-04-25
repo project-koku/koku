@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Org Unit Query Handling."""
+
 from api.models import Provider
 from api.organizations.aws.provider_map import AWSOrgProviderMap
 from api.organizations.queries import OrgQueryHandler

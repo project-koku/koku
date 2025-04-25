@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query parameter parsing for query handler."""
+
 import copy
 import logging
 import operator

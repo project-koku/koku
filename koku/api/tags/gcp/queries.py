@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Tag Query Handling."""
+
 from copy import deepcopy
 
 from django.db.models import Exists
@@ -74,9 +75,7 @@ class GCPTagQueryHandler(TagQueryHandler):
         else:
             filter_map.update(
                 {
-                    "account": [
-                        {"field": "account_id", "operation": "icontains", "composition_key": "account_filter"}
-                    ],
+                    "account": [{"field": "account_id", "operation": "icontains", "composition_key": "account_filter"}],
                     "gcp_project": [
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},

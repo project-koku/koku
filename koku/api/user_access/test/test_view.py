@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the UserAccess view."""
+
 from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework import status

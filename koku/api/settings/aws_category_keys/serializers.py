@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for Masu API `manifest`."""
+
 from rest_framework import serializers
 
 from reporting.provider.aws.models import AWSEnabledCategoryKeys

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for cost entry tables."""
+
 from reporting.currency.models import CurrencySettings
 from reporting.ingress.models import IngressReports
 from reporting.partition.models import PartitionedTable

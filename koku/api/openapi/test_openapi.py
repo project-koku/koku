@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Open API endpoint."""
+
 import json
 import os
 from tempfile import NamedTemporaryFile

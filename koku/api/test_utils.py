@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the API utils module."""
+
 import datetime
 import unittest
 from unittest.mock import patch

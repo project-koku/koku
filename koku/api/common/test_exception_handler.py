@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the API exception handler module."""
+
 from django.test import TestCase
 
 from .exception_handler import _generate_errors_from_dict

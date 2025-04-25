@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for report posting."""
+
 from uuid import UUID
 
 from rest_framework import status

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Provider Mapper for OCP Reports."""
+
 from functools import cached_property
 
 from django.contrib.postgres.aggregates import ArrayAgg

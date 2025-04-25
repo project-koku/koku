@@ -53,8 +53,7 @@ class ProviderErrors:
 
     AWS_MISSING_ROLE_ARN_MESSAGE = "Role ARN is a required parameter for AWS and must not be blank."
     AWS_ROLE_ARN_UNREACHABLE_MESSAGE = (
-        "The role ARN was entered incorrectly for this source. "
-        "Edit your AWS source and verify the name of your ARN."
+        "The role ARN was entered incorrectly for this source. Edit your AWS source and verify the name of your ARN."
     )
     AWS_BUCKET_MISSING_MESSAGE = (
         "Cost management requires an S3 bucket to store cost and usage reports. "

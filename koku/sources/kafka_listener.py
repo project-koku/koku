@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Sources Integration Service."""
+
 import itertools
 import logging
 import queue
@@ -234,8 +235,7 @@ def _requeue_provider_sync_message(priority, msg, queue):
     _log_process_queue_event(queue, msg, "_requeue_provider_sync_message")
     queue.put((priority, msg))
     LOG.warning(
-        f'Requeue of failed operation: {msg.get("operation")} '
-        f'for source_id: {msg.get("provider").source_id} complete.'
+        f"Requeue of failed operation: {msg.get('operation')} for source_id: {msg.get('provider').source_id} complete."
     )
 
 

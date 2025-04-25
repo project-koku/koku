@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Forecasting Module."""
+
 from .forecast import AWSForecast  # noqa: F401
 from .forecast import AzureForecast  # noqa: F401
 from .forecast import Forecast  # noqa: F401

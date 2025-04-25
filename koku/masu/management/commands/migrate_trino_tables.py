@@ -10,7 +10,6 @@ import secrets
 import sys
 import textwrap
 import time
-import typing as t
 from datetime import datetime
 from datetime import timedelta
 
@@ -154,8 +153,8 @@ class ListDropPartitions(BaseModel):
 
 
 class Action(BaseModel):
-    list_of_cols: t.Union[ListAddColumns, ListDropColumns]
-    schemas: t.Optional[list[str]] = Field(default_factory=list)
+    list_of_cols: ListAddColumns | ListDropColumns
+    schemas: list[str] | None = Field(default_factory=list)
     find_query: str
     modify_query: str
 
@@ -276,8 +275,7 @@ class Command(BaseCommand):
             "--drop-columns",
             action=JSONArgs,
             help=(
-                "a json encoded string that contains an array of "
-                "objects which must include `table` and `column` keys"
+                "a json encoded string that contains an array of objects which must include `table` and `column` keys"
             ),
             dest="columns_to_drop",
         )
@@ -342,7 +340,7 @@ def get_all_schemas() -> list[str]:
     return sorted(schemas)
 
 
-def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
+def run_trino_sql(sql, schema=None) -> list[list[int] | None]:
     retries = 8
     for n in range(1, retries + 1):
         attempt = n

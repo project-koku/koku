@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database."""
+
 import datetime
 import logging
 from decimal import Decimal
@@ -189,8 +190,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
                 LOG.info(
                     log_json(
-                        msg="cluster information not available - "
-                        "skipping OCP on Cloud summary table update for AWS",
+                        msg="cluster information not available - skipping OCP on Cloud summary table update for AWS",
                         provider_uuid=openshift_provider_uuid,
                         schema=self._schema,
                     )
@@ -322,7 +322,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
                 LOG.info(
                     log_json(
-                        msg="cluster information not available - " "skipping OCP on Cloud summary table update",
+                        msg="cluster information not available - skipping OCP on Cloud summary table update",
                         provider_uuid=openshift_provider_uuid,
                         schema=self._schema,
                     )
@@ -423,9 +423,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
                 accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
-                accessor.populate_ocp_on_azure_tag_information(
-                    azure_bill_ids, start, end, current_ocp_report_period_id
-                )
+                accessor.populate_ocp_on_azure_tag_information(azure_bill_ids, start, end, current_ocp_report_period_id)
                 accessor.populate_ocp_on_azure_ui_summary_tables_trino(
                     start, end, openshift_provider_uuid, azure_provider_uuid
                 )

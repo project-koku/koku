@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+
 import operator
 from collections import OrderedDict
 from datetime import datetime
@@ -426,7 +427,9 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -495,7 +498,9 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -622,7 +627,9 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_region(self):
         """Test execute_query for current month on monthly breakdown by region."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -2192,7 +2199,9 @@ class AWSReportQueryTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
         """
 
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -2239,7 +2248,9 @@ class AWSReportQueryTest(IamTestCase):
 
         Query for storage, validating that cost totals are present.
         """
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, AWSStorageView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -2957,9 +2968,7 @@ class AWSReportQueryTest(IamTestCase):
                 filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                 expected_total = overall_total - filtered_total
                 # Test exclude
-                exclude_url = (
-                    f"?filter[{exclude_opt}]={parent_org_unit}&exclude[{exclude_opt}]={child_org_unit}"  # noqa: E501
-                )
+                exclude_url = f"?filter[{exclude_opt}]={parent_org_unit}&exclude[{exclude_opt}]={child_org_unit}"  # noqa: E501
                 query_params = self.mocked_query_params(exclude_url, view)
                 handler = AWSReportQueryHandler(query_params)
                 self.assertIsNotNone(handler.query_exclusions)
@@ -3020,35 +3029,49 @@ class AWSQueryHandlerTest(IamTestCase):
         """Test Group By star does not override filters, with example below.
 
         This is an expected response. Notice that the only region is eu-west-3
-        {'data': [{'date': '2019-11-30', 'regions': []},
-        {'date': '2019-12-01',
-        'regions': [{'region': 'eu-west-3',
-                        'services': [{'instance_types': [{'instance_type': 'r5.2xlarge',
-                                                        'values': [{'cost': {'units': 'USD',
-                                                                            'value': Decimal('2405.158832135')},
-                                                                    'count': {'units': 'instances',
-                                                                                'value': 1},
-                                                                    'date': '2019-12-01',
-                                                                    'derived_cost': {'units': 'USD',
-                                                                                    'value': Decimal('0')},
-                                                                    'infrastructure_cost': {'units': 'USD',
-                                                                                            'value': Decimal('2186.508029214')}, # noqa
-                                                                    'instance_type': 'r5.2xlarge',
-                                                                    'markup_cost': {'units': 'USD',
-                                                                                     'value': Decimal('218.650802921')},
-                                                                    'region': 'eu-west-3',
-                                                                    'service': 'AmazonEC2',
-                                                                    'usage': {'units': 'Hrs',
-                                                                                'value': Decimal('3807.000000000')}}]}],
-                                    'service': 'AmazonEC2'}]}]},
-        {'date': '2019-12-02', 'regions': []},
-        {'date': '2019-12-03', 'regions': []},
-        {'date': '2019-12-04', 'regions': []},
-        {'date': '2019-12-05', 'regions': []},
-        {'date': '2019-12-06', 'regions': []},
-        {'date': '2019-12-07', 'regions': []},
-        {'date': '2019-12-08', 'regions': []},
-        {'date': '2019-12-09', 'regions': []}],
+        {"data": [
+        {"date": "2019-11-30", "regions": []},
+        {
+            "date": "2019-12-01",
+            "regions": [
+                {
+                    "region": "eu-west-3",
+                    "services": [
+                        {
+                            "instance_types": [
+                                {
+                                    "instance_type": "r5.2xlarge",
+                                    "values": [
+                                        {
+                                            "cost": {"units": "USD", "value": Decimal("2405.158832135")},
+                                            "count": {"units": "instances", "value": 1},
+                                            "date": "2019-12-01",
+                                            "derived_cost": {"units": "USD", "value": Decimal("0")},
+                                            "infrastructure_cost": {"units": "USD", "value": Decimal("2186.50802921")},
+                                            "instance_type": "r5.2xlarge",
+                                            "markup_cost": {"units": "USD", "value": Decimal("218.650802921")},
+                                            "region": "eu-west-3",
+                                            "service": "AmazonEC2",
+                                            "usage": {"units": "Hrs", "value": Decimal("3807.000000000")},
+                                        }
+                                    ],
+                                }
+                            ],
+                            "service": "AmazonEC2",
+                        }
+                    ],
+                }
+            ],
+        },
+        {"date": "2019-12-02", "regions": []},
+        {"date": "2019-12-03", "regions": []},
+        {"date": "2019-12-04", "regions": []},
+        {"date": "2019-12-05", "regions": []},
+        {"date": "2019-12-06", "regions": []},
+        {"date": "2019-12-07", "regions": []},
+        {"date": "2019-12-08", "regions": []},
+        {"date": "2019-12-09", "regions": []},
+        ]}
 
         """
 

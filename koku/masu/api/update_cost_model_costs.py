@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for update_cost_model_costs endpoint."""
+
 import logging
 
 from django.views.decorators.cache import never_cache

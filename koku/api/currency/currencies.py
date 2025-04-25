@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """List of currencies."""
+
 # turn off black formatting
 # fmt: off
 CURRENCIES = [

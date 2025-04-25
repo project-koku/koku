@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the CostModelCostUpdater object."""
+
 from unittest.mock import patch
 
 from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdater

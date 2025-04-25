@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for OCP on GCP tables."""
+
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField

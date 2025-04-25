@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common serializer logic."""
+
 import copy
 from collections.abc import Mapping
 
@@ -521,9 +522,7 @@ class ParamSerializer(BaseSerializer):
                 # special case: we order by account_alias, but we group by account.
                 if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
                     continue  # special case: we order by subscription_name, but we group by subscription_guid.
-                if key == "subscription_name" and (
-                    "subscription_guid" in group_keys or "subscription_guid" in or_keys
-                ):
+                if key == "subscription_name" and ("subscription_guid" in group_keys or "subscription_guid" in or_keys):
                     continue
                 # sepcial case: we order by date, but we group by an allowed param.
                 if key == "date" and group_keys:

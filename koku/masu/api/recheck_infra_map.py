@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for temporary force check of infra map."""
+
 import logging
 
 from django.views.decorators.cache import never_cache

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Org Unit Provider Map."""
+
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSOrganizationalUnit

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for temporary force download endpoint."""
+
 import logging
 from uuid import UUID
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common exception handler class."""
+
 import copy
 
 from rest_framework.views import exception_handler

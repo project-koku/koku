@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Interactions with the notifications service."""
+
 import datetime
 import json
 import logging

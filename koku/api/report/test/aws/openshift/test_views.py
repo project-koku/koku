@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on AWS Report views."""
+
 import datetime
 import random
 from urllib.parse import quote_plus

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Sources Model Serializers."""
+
 import logging
 from uuid import uuid4
 

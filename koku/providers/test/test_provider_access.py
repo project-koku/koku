@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the ProviderAccessor implementation for the Koku consumption."""
+
 from unittest.mock import patch
 
 from django.test import TestCase

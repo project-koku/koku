@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """draw a graph from cost & forecast data."""
+
 import datetime
 import json
 import sys

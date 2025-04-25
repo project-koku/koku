@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportParquetSummaryUpdater."""
+
 from datetime import timedelta
 from unittest.mock import patch
 

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """API views for CSV output."""
+
 from rest_framework_csv.renderers import PaginatedCSVRenderer
 
 

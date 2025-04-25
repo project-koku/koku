@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common utility functions for Kafka implementations."""
+
 import logging
 import random
 import time

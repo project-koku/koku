@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP-on-GCP Report Serializers."""
+
 from rest_framework import serializers
 
 import api.report.gcp.serializers as gcpser

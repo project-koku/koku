@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test utilities."""
+
 from abc import ABC
 from abc import abstractmethod
 

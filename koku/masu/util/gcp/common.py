@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP utility functions and vars."""
+
 import datetime
 import logging
 import uuid

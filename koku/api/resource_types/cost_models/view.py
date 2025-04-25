@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Resource Types Cost Model."""
+
 from django.db.models import CharField
 from django.db.models import Value as V
 from django.db.models.functions import Concat

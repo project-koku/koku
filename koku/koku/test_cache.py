@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test view caching functions."""
+
 import random
 
 from django.core.cache import caches

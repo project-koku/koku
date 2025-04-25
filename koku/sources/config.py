@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Configuration for Source Service."""
+
 from koku.configurator import CONFIGURATOR
 from koku.env import ENVIRONMENT
 

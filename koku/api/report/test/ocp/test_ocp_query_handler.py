@@ -226,7 +226,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self):
         """Test that cluster capacity returns capacity by cluster."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
+        )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -358,9 +360,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                 capacity = element.get("capacity", {}).get("value")
                                 monthly_vals = [
                                     element.get("capacity") or Decimal(0.0)
-                                    for element in query_results.filter(
-                                        usage_start__gte=date, node=element.get("node")
-                                    )
+                                    for element in query_results.filter(usage_start__gte=date, node=element.get("node"))
                                 ]
                                 self.assertAlmostEqual(capacity, sum(monthly_vals))
 
@@ -396,9 +396,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                 capacity = element.get("capacity", {}).get("value")
                                 monthly_vals = [
                                     element.get("capacity") or Decimal(0.0)
-                                    for element in query_results.filter(
-                                        usage_start__gte=date, node=element.get("node")
-                                    )
+                                    for element in query_results.filter(usage_start__gte=date, node=element.get("node"))
                                 ]
                                 self.assertAlmostEqual(capacity, sum(monthly_vals))
 
@@ -659,9 +657,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_daily_resolution_group_by_clusters(self):
         """Test that cluster capacity returns daily capacity by cluster."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*"
-        )
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()

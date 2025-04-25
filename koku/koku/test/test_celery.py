@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Celery utility functions."""
+
 from unittest.mock import patch
 
 from api.iam.test.iam_test_case import IamTestCase

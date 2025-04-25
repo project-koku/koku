@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources Storage access layer."""
+
 from base64 import b64decode
 from json import loads as json_loads
 from unittest.mock import Mock

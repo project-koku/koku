@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+
 from collections import OrderedDict
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -360,9 +361,7 @@ class ReportQueryHandlerTest(IamTestCase):
 
         expected = QueryFilterCollection(
             filters=[
-                QueryFilter(
-                    table="tags", field=term, operation=operation, parameter=second, logical_operator=operator
-                ),
+                QueryFilter(table="tags", field=term, operation=operation, parameter=second, logical_operator=operator),
                 QueryFilter(table="tags", field=term, operation=operation, parameter=first, logical_operator=operator),
             ]
         )

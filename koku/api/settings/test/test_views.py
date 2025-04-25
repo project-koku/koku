@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Metrics views."""
+
 from django.urls import reverse
 from django_tenants.utils import schema_context
 from rest_framework import status

@@ -1,4 +1,5 @@
 """Table export settings for masu celery tasks."""
+
 import collections
 
 

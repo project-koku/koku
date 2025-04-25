@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
+
 import json
 import logging
 import os
@@ -683,9 +684,7 @@ def update_summary_tables(  # noqa: C901
             tracing_id=tracing_id,
         ).set(queue=priority_queue) | validate_daily_data.si(
             schema, start_date, end_date, provider_uuid, context=context
-        ).set(
-            queue=priority_queue
-        )
+        ).set(queue=priority_queue)
 
     chain(linked_tasks).apply_async()
 
@@ -860,9 +859,9 @@ def update_all_summary_tables(start_date, end_date=None):
     for account in all_accounts:
         log_statement = (
             f"Gathering data for for\n"
-            f' schema_name: {account.get("schema_name")}\n'
-            f' provider: {account.get("provider_type")}\n'
-            f' account (provider uuid): {account.get("provider_uuid")}'
+            f" schema_name: {account.get('schema_name')}\n"
+            f" provider: {account.get('provider_type')}\n"
+            f" account (provider uuid): {account.get('provider_uuid')}"
         )
         LOG.info(log_statement)
         schema_name = account.get("schema_name")
@@ -1165,9 +1164,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
     )
     for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
         query_sql = (
-            f"SELECT * FROM {table_name}"
-            f" {where_clause} "
-            f"OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+            f"SELECT * FROM {table_name} {where_clause} OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
         )
         results, columns = execute_trino_query(schema_name, query_sql)
         data_frame = pd.DataFrame(data=results, columns=columns)

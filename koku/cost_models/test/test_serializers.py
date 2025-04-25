@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
+
 import random
 from decimal import Decimal
 from itertools import combinations

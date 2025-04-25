@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """VM count dataclass"""
+
 from dataclasses import dataclass
 from datetime import date
 
@@ -37,9 +38,9 @@ class VMCountParams:
 
     def _check_date_parameters_format(self):
         """Checks to make sure the date parameters are in the correct format"""
-        if type(self.start_date) == str:
+        if isinstance(self.start_date, str):
             self.start_date = parse(self.start_date).astimezone(tz=settings.UTC)
-        if type(self.end_date) == str:
+        if isinstance(self.end_date, str):
             self.end_date = parse(self.end_date).astimezone(tz=settings.UTC)
 
     def _create_base_parameters(self):

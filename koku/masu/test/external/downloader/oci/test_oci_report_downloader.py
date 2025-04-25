@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCIReportDownloader class."""
+
 import os
 import shutil
 import tempfile

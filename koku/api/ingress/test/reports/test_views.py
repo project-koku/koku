@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Report Views."""
+
 import uuid
 from unittest.mock import patch
 

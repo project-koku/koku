@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for OCP-on-Azure tags."""
+
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.provider.models import Provider

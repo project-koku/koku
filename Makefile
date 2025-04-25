@@ -2,6 +2,8 @@ UV_ENV_FILE = .env
 
 # Basic environment settings
 PYTHON	= $(shell which uv) run --
+# Basic environment settings
+# PYTHON	= $(shell which python3)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
 SCRIPTDIR = $(TOPDIR)/dev/scripts

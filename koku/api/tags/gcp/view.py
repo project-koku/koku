@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for GCP tags."""
+
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.provider.models import Provider
 from api.tags.gcp.queries import GCPTagQueryHandler

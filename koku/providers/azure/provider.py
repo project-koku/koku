@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure provider."""
+
 from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import AzureError

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests for Settings Access Permissions."""
+
 from unittest.mock import Mock
 
 from django.test import TestCase

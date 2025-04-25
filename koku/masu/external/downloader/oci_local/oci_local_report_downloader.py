@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCI Local Report Downloader."""
+
 import datetime
 import logging
 import os

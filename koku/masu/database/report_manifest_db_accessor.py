@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Report manifest database accessor for cost usage reports."""
+
 import logging
 from datetime import datetime
 
@@ -319,9 +320,7 @@ class ReportManifestDBAccessor:
            manifest_count: {len(manifest_id_list)}
         """
         LOG.info(msg)
-        manifests_to_delete = CostUsageReportManifest.objects.filter(
-            provider_id=provider_uuid, id__in=manifest_id_list
-        )
+        manifests_to_delete = CostUsageReportManifest.objects.filter(provider_id=provider_uuid, id__in=manifest_id_list)
         count = manifests_to_delete.count()
         cascade_delete(manifests_to_delete.query.model, manifests_to_delete)
         LOG.info(

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Endpoint for cache invalidation."""
+
 import logging
 from typing import Literal
 

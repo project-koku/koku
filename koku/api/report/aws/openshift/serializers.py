@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCP-on-AWS Report Serializers."""
+
 import api.report.aws.serializers as awsser
 import api.report.ocp.serializers as ocpser
 from api.report.serializers import validate_field

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for organizations."""
+
 from api.report.view import ReportView
 
 

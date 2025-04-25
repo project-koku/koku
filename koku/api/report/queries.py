@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Query Handling for Reports."""
+
 import copy
 import logging
 import random
@@ -173,9 +174,7 @@ class ReportQueryHandler(QueryHandler):
             Provider.OCP_AWS,
             Provider.OCP_AZURE,
             Provider.OCP_ALL,
-        ) and not check_view_filter_and_group_by_criteria(
-            self.query_table_filter_keys, self.query_table_group_by_keys
-        ):
+        ) and not check_view_filter_and_group_by_criteria(self.query_table_filter_keys, self.query_table_group_by_keys):
             return query_table
 
         key_tuple = tuple(
@@ -424,9 +423,7 @@ class ReportQueryHandler(QueryHandler):
         """
 
         exclusions = QueryFilterCollection()
-        exclude_list = (
-            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("exclude", [])
-        )
+        exclude_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("exclude", [])
         for exclusion in exclude_list:
             exclusions.add(**exclusion)
         return exclusions.compose()

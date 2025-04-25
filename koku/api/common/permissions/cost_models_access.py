@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Defines the Rate Access Permissions class."""
+
 from uuid import UUID
 
 from django.conf import settings

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database Extended Exceptions."""
+
 import inspect
 import json
 import logging

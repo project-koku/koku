@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test Case extension to collect common test data."""
+
 import functools
 from base64 import b64encode
 from copy import deepcopy

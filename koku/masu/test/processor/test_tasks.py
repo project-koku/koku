@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the download task."""
+
 import datetime
 import json
 import logging
@@ -1106,9 +1107,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.02")})
         ]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
-        )
+        expected = "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
@@ -1122,8 +1121,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model "
-            "set (autovacuum_vacuum_scale_factor = 0.0001);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.0001);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -1156,9 +1154,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.004")})
         ]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
-        )
+        expected = "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
@@ -1783,9 +1779,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         end_date = self.dh.last_month_end
         with patch("masu.processor.tasks.is_source_disabled") as disable_source:
             disable_source.return_value = True
-            update_summary_tables(
-                self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True
-            )
+            update_summary_tables(self.schema, provider_type, provider_ocp_uuid, start_date, end_date, synchronous=True)
             mock_chain.return_value.apply_async.assert_not_called()
 
 

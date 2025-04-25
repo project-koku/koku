@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Serializers for Tag Mappings."""
+
 from collections import defaultdict
 
 from django.db.models import Q
