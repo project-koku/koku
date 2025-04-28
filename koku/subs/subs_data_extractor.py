@@ -2,6 +2,7 @@
 # Copyright 2023 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import hashlib
 import logging
 import math
 import os
@@ -50,6 +51,11 @@ class SUBSDataExtractor(ReportDBAccessorBase):
     def subs_s3_path(self):
         """The S3 path to be used for a SUBS report upload."""
         return f"{self.schema}/{self.provider_type}/source={self.provider_uuid}/date={self.date_helper.today.date()}"
+
+    def obfuscate_usage_account_id(self, usage_account_id):
+        """Generate a short deterministic has from the usage account"""
+        full_hash = hashlib.sha256(usage_account_id.encode()).hexdigest()
+        return full_hash[:12]
 
     def get_latest_processed_dict_for_provider(self, year, month):
         """Get a dictionary of resourceid, last processed time for all resources for this source."""
@@ -129,6 +135,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
 
     def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
         """Gather the data and upload it to S3 for a batch of resource ids"""
+        # TODO: Determine if the AWS & AZURE resource_id to usage acount
+        # is a 1:1 relationship. If 1:Many, then we will
+        # need to filter on usage account here to prevent double dip.
         sql_params = {
             "source_uuid": self.provider_uuid,
             "year": year,
@@ -208,8 +217,11 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
             return []
         last_processed_dict = self.get_latest_processed_dict_for_provider(year, month)
-        base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}"
+        # base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}"
         for usage_account in usage_accounts:
+            usage_account_hash = self.obfuscate_usage_account_id(usage_account)
+            base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}_{usage_account_hash}"
+
             resource_ids = self.get_resource_ids_for_usage_account(usage_account, year, month)
             if not resource_ids:
                 LOG.debug(
