@@ -340,7 +340,7 @@ def construct_daily_archives(payload_info: utils.PayloadInfo, report_file_path: 
     return create_daily_archives(
         payload_info.request_id,
         payload_info.account,
-        payload_info.provider.uuid,
+        payload_info.provider_uuid,
         report_file_path,
         payload_info.manifest,
         context,

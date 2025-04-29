@@ -284,25 +284,17 @@ class Manifest(BaseModel):
     def model_post_init(self, context: Any, /) -> None:
         if not (self.start and self.end):
             return
-        print(self.start)
-        print(self.end)
         hours_per_day = {}
         current_date = self.start.date()
-        print("wtf")
         while current_date <= self.end.date():
             start_of_day = datetime.combine(current_date, datetime.min.time(), tzinfo=UTC)
             end_of_day = datetime.combine(current_date + relativedelta(days=1), datetime.min.time(), tzinfo=UTC)
-            print(start_of_day, end_of_day)
             start = max(self.start, start_of_day)
             end = min(self.end, end_of_day)
-            print(start, end)
             duration = end - start
             hours = duration.total_seconds() / 3600
-            print(duration, hours)
             hours_per_day[current_date.strftime("%Y-%m-%d")] = ceil(hours)
-            print(hours_per_day)
             current_date += relativedelta(days=1)
-            print(current_date)
         self.hours_per_day = hours_per_day
 
 
