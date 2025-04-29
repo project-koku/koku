@@ -59,7 +59,6 @@ from reporting_common.models import CostUsageReportManifest
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
 
-
 LOG = logging.getLogger(__name__)
 SUCCESS_CONFIRM_STATUS = "success"
 FAILURE_CONFIRM_STATUS = "failure"
@@ -79,7 +78,7 @@ def get_data_frame(file_path: os.PathLike):
         raise error
 
 
-def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
+def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict):
     """
     Split local file into daily content.
     """
@@ -95,8 +94,8 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
 
     daily_files = []
     for daily_data in daily_data_frames:
-        day = daily_data.get("date")
-        df = daily_data.get("data_frame")
+        day = daily_data["date"]
+        df = daily_data["data_frame"]
         file_prefix = f"{report_type}.{day}.{manifest_id}"
         with transaction.atomic():
             # With split payloads, we could have a race condition trying to update the `report_tracker`.
@@ -115,13 +114,13 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int):
             {
                 "filepath": day_filepath,
                 "date": datetime.strptime(day, "%Y-%m-%d"),
-                "num_hours": len(df.interval_start.unique()),
+                "num_hours": hour_dict.get(day) or len(df.interval_start.unique()),
             }
         )
     return daily_files
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest_id, start_date, context):
+def create_daily_archives(tracing_id, account, provider_uuid, filepath: Path, manifest: utils.Manifest, context):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -134,20 +133,20 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
-    manifest = CostUsageReportManifest.objects.get(id=manifest_id)
+    cur_manifest = CostUsageReportManifest.objects.get(id=manifest.manifest_id)
     daily_file_names = {}
-    if manifest.operator_version and not manifest.operator_daily_reports:
+    if cur_manifest.operator_version and not cur_manifest.operator_daily_reports:
         # operator_version and NOT operator_daily_reports is used for payloads received from
         # cost-mgmt-metrics-operators that are not generating daily reports
         # These reports are additive and cannot be split
-        daily_files = [{"filepath": filepath, "date": start_date, "num_hours": 0}]
+        daily_files = [{"filepath": filepath, "date": manifest.date, "num_hours": 0}]
     else:
-        # we call divide_csv_daily for really old operators (those still relying on metering)
-        # or for operators sending daily files
-        daily_files = divide_csv_daily(filepath, manifest.id)
+        # we call divide_csv_daily for operators sending daily files
+        # or for really old operators (those still relying on metering)
+        daily_files = divide_csv_daily(filepath, manifest.manifest_id, manifest.hours_per_day)
 
     if not daily_files:
-        daily_files = [{"filepath": filepath, "date": start_date, "num_hours": 0}]
+        daily_files = [{"filepath": filepath, "date": manifest.date, "num_hours": 0}]
 
     for daily_file in daily_files:
         # Push to S3
@@ -160,7 +159,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest
             s3_csv_path,
             filepath,
             filepath.name,
-            manifest_id,
+            manifest.manifest_id,
             context,
         )
         daily_file_names[filepath] = {
@@ -170,7 +169,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath, manifest
     return daily_file_names
 
 
-def process_cr(report_meta):
+def process_cr(manifest: utils.Manifest, context: dict) -> dict:
     """
     Process the manifest info.
 
@@ -185,21 +184,18 @@ def process_cr(report_meta):
             channel: (str or None)
             errors: (Dict or None)
     """
-    LOG.info(log_json(report_meta.get("tracing_id"), msg="Processing the manifest"))
+    LOG.info(log_json(manifest.uuid, msg="processing the manifest", context=context))
 
-    version = report_meta.get("version")
     manifest_info = {
-        "cluster_id": report_meta.get("cluster_id"),
-        "operator_certified": report_meta.get("certified"),
-        "operator_version": utils.OPERATOR_VERSIONS.get(
-            version, version  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
-        ),
+        "cluster_id": manifest.cluster_id,
+        "operator_certified": manifest.certified,
+        "operator_version": manifest.operator_version,
         "cluster_channel": None,
         "operator_airgapped": None,
         "operator_errors": None,
-        "operator_daily_reports": report_meta.get("daily_reports", False),
+        "operator_daily_reports": manifest.daily_reports,
     }
-    if cr_status := report_meta.get("cr_status"):
+    if cr_status := manifest.cr_status:
         manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
         manifest_info["operator_airgapped"] = not cr_status.get("upload", {}).get("upload")
         errors = {}
@@ -210,24 +206,19 @@ def process_cr(report_meta):
 
         auth_type = cr_status.get("authentication", {}).get("type")
         if auth_type == "basic":
-            ctx = {
-                "schema": report_meta.get("schema_name"),
-                "provider_uuid": report_meta.get("provider_uuid"),
-                "cluster_id": report_meta.get("cluster_id"),
-            }
-            LOG.info(log_json(report_meta.get("tracing_id"), msg="cluster is using basic auth", context=ctx))
+            LOG.info(log_json(manifest.uuid, msg="cluster is using basic auth", context=context))
 
     return manifest_info
 
 
-def create_cost_and_usage_report_manifest(provider_uuid, manifest):
+def create_cost_and_usage_report_manifest(provider_uuid, manifest: utils.Manifest, context: dict) -> int:
     """Prepare to insert or update the manifest DB record."""
-    assembly_id = manifest.get("uuid")
-    manifest_timestamp = manifest.get("date")
+    assembly_id = manifest.uuid
+    manifest_timestamp = manifest.date
 
     # old manifests may not have a 'start', so fallback to the
     # datetime when the manifest was created:
-    start = manifest.get("start") or manifest_timestamp
+    start = manifest.start or manifest_timestamp
 
     date_range = utils.month_date_range(start)
     billing_str = date_range.split("-")[0]
@@ -236,18 +227,18 @@ def create_cost_and_usage_report_manifest(provider_uuid, manifest):
     manifest_dict = {
         "assembly_id": assembly_id,
         "billing_period_start_datetime": billing_start,
-        "num_total_files": len(manifest.get("files") or []),
+        "num_total_files": len(manifest.files),
         "provider_id": provider_uuid,
         "export_datetime": manifest_timestamp,
     }
-    cr_info = process_cr(manifest)
+    cr_info = process_cr(manifest, context)
 
     try:
-        manifest, _ = CostUsageReportManifest.objects.get_or_create(**manifest_dict, **cr_info)
+        cur_manifest, _ = CostUsageReportManifest.objects.get_or_create(**manifest_dict, **cr_info)
     except IntegrityError:
-        manifest = CostUsageReportManifest.objects.get(provider_id=provider_uuid, assembly_id=assembly_id)
+        cur_manifest = CostUsageReportManifest.objects.get(provider_id=provider_uuid, assembly_id=assembly_id)
 
-    return manifest.id
+    return cur_manifest.id
 
 
 def close_and_set_db_connection():  # pragma: no cover
@@ -344,20 +335,18 @@ def extract_payload_contents(request_id, tarball_path, context):
     return manifest_path[0], files
 
 
-def construct_daily_archives(request_id, context, report_meta, report_file_path):
+def construct_daily_archives(payload_info: utils.PayloadInfo, report_file_path: Path, context: dict):
     """Build, upload and convert parquet reports."""
     return create_daily_archives(
-        request_id,
-        report_meta["account"],
-        report_meta["provider_uuid"],
+        payload_info.request_id,
+        payload_info.account,
+        payload_info.provider.uuid,
         report_file_path,
-        report_meta["manifest_id"],
-        report_meta["date"],
+        payload_info.manifest,
         context,
     )
 
 
-# pylint: disable=too-many-locals
 def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
@@ -406,106 +395,109 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = Path(payload_path.parent, manifest_path)
-    report_meta = utils.get_report_details(full_manifest_path.parent)
+    manifest = utils.parse_manifest(full_manifest_path)
 
-    # Filter and get account from payload's cluster-id
-    cluster_id = report_meta.get("cluster_id")
-    manifest_uuid = report_meta.get("uuid", request_id)
     context |= {
         "request_id": request_id,
-        "cluster_id": cluster_id,
-        "manifest_uuid": manifest_uuid,
+        "cluster_id": manifest.cluster_id,
+        "manifest_uuid": manifest.uuid,
     }
     LOG.info(
         log_json(
             request_id,
-            msg=f"Payload with the request id {request_id} from cluster {cluster_id}"
-            + f" is part of the report with manifest id {manifest_uuid}",
+            msg=f"Payload with the request id {request_id} from cluster {manifest.cluster_id}"
+            + f" is part of the report with manifest id {manifest.uuid}",
             context=context,
         )
     )
-    source = utils.get_source_and_provider_from_cluster_id(cluster_id)
+    source = utils.get_source_and_provider_from_cluster_id(manifest.cluster_id)
     if not source:
-        msg = f"Recieved unexpected OCP report from {cluster_id}"
-        LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
+        msg = f"Recieved unexpected OCP report from {manifest.cluster_id}"
+        LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)
-        return None, manifest_uuid
-    provider = source.provider
-    account = provider.account
-    schema_name = account.get("schema_name")
+        return None, manifest.uuid
+    provider: Provider = source.provider
+    schema_name = provider.account.get("schema_name")
     context["provider_type"] = provider.type
     context["schema"] = schema_name
-    report_meta["source_id"] = source.source_id
-    report_meta["provider_uuid"] = provider.uuid
-    report_meta["provider_type"] = provider.type
-    report_meta["schema_name"] = schema_name
-    # Existing schema will start with acct and we strip that prefix for use later
-    # new customers include the org prefix in case an org-id and an account number might overlap
-    report_meta["account"] = schema_name.strip("acct")
-    report_meta["request_id"] = request_id
-    report_meta["tracing_id"] = manifest_uuid
+
+    payload = utils.PayloadInfo(
+        request_id=request_id,
+        manifest=manifest,
+        source_id=source.source_id,
+        provider_uuid=provider.uuid,
+        provider_type=provider.type,
+        cluster_alias=provider.name,
+        account=context["account"],
+        org_id=context["org_id"],
+        schema_name=provider.account.get("schema_name"),
+    )
+    # report_meta["source_id"] = source.source_id
+    # report_meta["provider_uuid"] = provider.uuid
+    # report_meta["provider_type"] = provider.type
+    # report_meta["schema_name"] = schema_name
+    # # Existing schema will start with acct and we strip that prefix for use later
+    # # new customers include the org prefix in case an org-id and an account number might overlap
+    # report_meta["account"] = schema_name.strip("acct")
+    # report_meta["request_id"] = request_id
+    # report_meta["tracing_id"] = manifest.uuid
 
     # Create directory tree for report.
-    usage_month = utils.month_date_range(report_meta.get("date"))
-    destination_dir = Path(Config.INSIGHTS_LOCAL_REPORT_DIR, cluster_id, usage_month)
+    usage_month = utils.month_date_range(manifest.date)
+    destination_dir = Path(Config.INSIGHTS_LOCAL_REPORT_DIR, manifest.cluster_id, usage_month)
     os.makedirs(destination_dir, exist_ok=True)
 
     # Copy manifest
-    manifest_destination_path = Path(destination_dir, report_meta["manifest_path"].name)
-    shutil.copy(report_meta["manifest_path"], manifest_destination_path)
+    manifest_destination_path = Path(destination_dir, full_manifest_path.name)
+    shutil.copy(full_manifest_path, manifest_destination_path)
 
     # Save Manifest
-    report_meta["manifest_id"] = create_cost_and_usage_report_manifest(provider.uuid, report_meta)
-    ReportManifestDBAccessor().update_manifest_state(
-        ManifestStep.DOWNLOAD, ManifestState.START, report_meta["manifest_id"]
-    )
+    manifest.manifest_id = create_cost_and_usage_report_manifest(provider.uuid, manifest, context)
+    ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.START, manifest.manifest_id)
 
     # Copy report payload
     report_metas = []
-    ros_reports = []
-    manifest_ros_files = report_meta.get("resource_optimization_files") or []
-    manifest_files = report_meta.get("files") or []
-    for ros_file in manifest_ros_files:
-        if ros_file in payload_files:
-            ros_reports.append((ros_file, payload_path.with_name(ros_file)))
-    ros_processor = ROSReportShipper(
-        provider,
-        report_meta,
-        b64_identity,
-        context,
-    )
+    manifest_ros_files = manifest.resource_optimization_files
+    manifest_files = manifest.files
+    ros_reports = [
+        (ros_file, payload_path.with_name(ros_file)) for ros_file in manifest_ros_files if ros_file in payload_files
+    ]
+    ros_processor = ROSReportShipper(payload, b64_identity, context)
     try:
         ros_processor.process_manifest_reports(ros_reports)
     except Exception as e:
         # If a ROS report fails to process, this should not prevent Koku processing from continuing.
         msg = f"ROS reports not processed for payload. Reason: {e}"
-        LOG.warning(log_json(manifest_uuid, msg=msg, context=context))
+        LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
+    extra_meta_needed_to_process_reports = {
+        "schema_name": schema_name,
+        "provider_uuid": provider.uuid,
+        "provider_type": provider.type,
+    }
     for report_file in manifest_files:
-        current_meta = report_meta.copy()
+        current_meta = manifest.model_dump() | extra_meta_needed_to_process_reports
         payload_source_path = Path(payload_path.parent, report_file)
         payload_destination_path = Path(destination_dir, report_file)
         try:
             shutil.copy(payload_source_path, payload_destination_path)
             current_meta["current_file"] = payload_destination_path
-            record_all_manifest_files(report_meta["manifest_id"], report_meta.get("files"), manifest_uuid)
-            if record_report_status(report_meta["manifest_id"], report_file, manifest_uuid, context):
+            record_all_manifest_files(manifest.manifest_id, manifest.files, manifest.uuid)
+            if record_report_status(manifest.manifest_id, report_file, manifest.uuid, context):
                 # Report already processed
                 continue
-            msg = f"Successfully extracted OCP for {report_meta.get('cluster_id')}/{usage_month}"
-            LOG.info(log_json(manifest_uuid, msg=msg, context=context))
-            split_files = construct_daily_archives(request_id, context, report_meta, payload_destination_path)
+            msg = f"Successfully extracted OCP for {manifest.cluster_id}/{usage_month}"
+            LOG.info(log_json(manifest.uuid, msg=msg, context=context))
+            split_files = construct_daily_archives(payload, payload_destination_path, context)
             current_meta["split_files"] = list(split_files)
             current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
-            LOG.debug(log_json(manifest_uuid, msg=msg, context=context))
+            LOG.debug(log_json(manifest.uuid, msg=msg, context=context))
     # Remove temporary directory and files
     shutil.rmtree(payload_path.parent)
-    ReportManifestDBAccessor().update_manifest_state(
-        ManifestStep.DOWNLOAD, ManifestState.END, report_meta["manifest_id"]
-    )
-    return report_metas, manifest_uuid
+    ReportManifestDBAccessor().update_manifest_state(ManifestStep.DOWNLOAD, ManifestState.END, manifest.manifest_id)
+    return report_metas, manifest.uuid
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
@@ -680,7 +672,7 @@ def summarize_manifest(report_meta, manifest_uuid):
     cr_status = report_meta.get("cr_status", {})
     if data_collection_message := cr_status.get("reports", {}).get("data_collection_message", ""):
         # remove potentially sensitive info from the error message
-        msg = f'data collection error [operator]: {re.sub("{[^}]+}", "{***}", data_collection_message)}'
+        msg = f"data collection error [operator]: {re.sub('{[^}]+}', '{***}', data_collection_message)}"
         cr_status["reports"]["data_collection_message"] = msg
         # The full CR status is logged below, but we should limit our alert to just the query.
         # We can check the full manifest to get the full error.
@@ -740,7 +732,7 @@ def process_report(request_id, report):
         "manifest_id": manifest_id,
         "provider_uuid": provider_uuid,
         "request_id": request_id,
-        "tracing_id": report.get("tracing_id"),
+        "tracing_id": report.get("uuid"),
         "provider_type": "OCP",
         "start_date": date,
         "create_table": True,
