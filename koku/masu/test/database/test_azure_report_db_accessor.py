@@ -475,7 +475,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         matched_tags = "fake-tags"
         params = SummarySqlMetadata(
             self.schema_name,
-            [self.ocp_provider_uuid],
+            self.ocp_provider_uuid,
             self.azure_provider_uuid,
             "2024-08-01",
             "2024-08-05",

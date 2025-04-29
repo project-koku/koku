@@ -311,19 +311,17 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         matched_tags_result = matched_tags_result[0][0]
         return matched_tags_result
 
-    def process_ocp_cloud_trino(self, start_date, end_date):
-        """Populate cloud_openshift_daily trino table via SQL."""
+    def process_ocp_cloud_trino(self, ocp_provider_uuid, start_date, end_date):
+        """Populate managed_cloud_openshift_daily trino table via SQL."""
         LOG.info(
             log_json(msg=f"starting OCP on {self.provider_type} managed tables processing", context=self._context)
         )
-        if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
-            return
-        matched_tags = self.get_matched_tags(ocp_provider_uuids)
+        matched_tags = self.get_matched_tags([ocp_provider_uuid])
         matched_tag_strs = []
         if matched_tags:
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
 
         sql_metadata = SummarySqlMetadata(
-            self.db_accessor.schema, ocp_provider_uuids, self.provider_uuid, start_date, end_date, matched_tag_strs
+            self.db_accessor.schema, ocp_provider_uuid, self.provider_uuid, start_date, end_date, matched_tag_strs
         )
         self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)

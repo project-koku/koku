@@ -455,36 +455,31 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         LOG.info(log_json(msg="Preparing tables for OCP on Azure flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
-        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
-            self.delete_ocp_on_azure_hive_partition_by_day(
-                sql_metadata.days_tup,
-                sql_metadata.cloud_provider_uuid,
-                ocp_provider_uuid,
-                sql_metadata.year,
-                sql_metadata.month,
-                TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
-            )
-            # Resource Matching
-            resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
-                f"{managed_path}/1_resource_matching_by_cluster.sql",
-                {
-                    "ocp_provider_uuid": ocp_provider_uuid,
-                    "matched_tag_array": self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata),
+        self.delete_ocp_on_azure_hive_partition_by_day(
+            sql_metadata.days_tup,
+            sql_metadata.cloud_provider_uuid,
+            sql_metadata.ocp_provider_uuid,
+            sql_metadata.year,
+            sql_metadata.month,
+            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
+        )
+        # Resource Matching
+        resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
+            f"{managed_path}/1_resource_matching_by_cluster.sql",
+            {
+                "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
+            },
+        )
+        self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
+        # Data Transformations for Daily Summary
+        daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
+            f"{managed_path}/2_summarize_data_by_cluster.sql",
+            {
+                **sql_metadata.build_cost_model_params(),
+                **{
+                    "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
                 },
-            )
-            self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
-            # Data Transformations for Daily Summary
-            daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
-                f"{managed_path}/2_summarize_data_by_cluster.sql",
-                {
-                    **sql_metadata.build_cost_model_params(ocp_provider_uuid),
-                    **{
-                        "ocp_provider_uuid": ocp_provider_uuid,
-                        "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
-                    },
-                },
-            )
-            LOG.info(
-                log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params)
-            )
-            self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
+            },
+        )
+        LOG.info(log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params))
+        self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)

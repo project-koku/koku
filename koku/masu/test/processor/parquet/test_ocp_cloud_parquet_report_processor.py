@@ -516,19 +516,18 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     def test_process_ocp_cloud_trino(self):
         """Test that processing ocp on cloud via trino calls the expected functions."""
-        ocp_uuids = [self.ocp_provider_uuid]
         start_date = "2024-08-01"
         end_date = "2024-08-05"
         matched_tags = []
         managed_sql_params = SummarySqlMetadata(
-            ANY, ocp_uuids, self.aws_provider_uuid, start_date, end_date, matched_tags
+            ANY, self.ocp_provider_uuid, self.aws_provider_uuid, start_date, end_date, matched_tags
         )
         with patch(
             (
                 "masu.processor.parquet.ocp_cloud_parquet_report_processor"
                 ".OCPCloudParquetReportProcessor.get_ocp_provider_uuids_tuple"
             ),
-            return_value=ocp_uuids,
+            return_value=self.ocp_provider_uuid,
         ), patch(
             "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.get_matched_tags",
             return_value=matched_tags,
@@ -543,5 +542,5 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
                 manifest_id=self.manifest_id,
                 context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
             )
-            rp.process_ocp_cloud_trino(start_date, end_date)
+            rp.process_ocp_cloud_trino(self.ocp_provider_uuid, start_date, end_date)
             accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(managed_sql_params)

@@ -23,11 +23,8 @@ from api.utils import get_months_in_date_range
 from common.queues import DownloadQueue
 from common.queues import get_customer_queue
 from common.queues import QUEUE_LIST
-from common.queues import SummaryQueue
-from masu.processor import is_managed_ocp_cloud_processing_enabled
 from masu.processor.tasks import process_daily_openshift_on_cloud as process_daily_openshift_on_cloud_task
 from masu.processor.tasks import process_openshift_on_cloud as process_openshift_on_cloud_task
-from masu.processor.tasks import process_openshift_on_cloud_trino
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "process_openshift_on_cloud Task IDs"
@@ -76,27 +73,6 @@ def process_openshift_on_cloud(request):
         months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
     else:
         months = get_months_in_date_range(start=start_date, end=end_date)
-
-    if provider.type in Provider.MANAGED_OPENSHIFT_ON_CLOUD_PROVIDER_LIST and is_managed_ocp_cloud_processing_enabled(
-        schema_name
-    ):
-        fallback_queue = get_customer_queue(schema_name, SummaryQueue)
-        for month in months:
-            tracing_id = str(uuid4())
-            report = {
-                "schema_name": schema_name,
-                "provider_type": provider.type,
-                "provider_uuid": cloud_provider_uuid,
-                "tracing_id": tracing_id,
-                "start": month[0],
-                "end": month[1],
-                "invoice_month": month[2],
-            }
-            ocp_async = process_openshift_on_cloud_trino.s(
-                [report], provider.type, schema_name, cloud_provider_uuid, tracing_id, masu_api_trigger=True
-            ).apply_async(queue=queue_name or fallback_queue)
-            async_results.append({f"Managed OCP on Cloud {str(month)}": str(ocp_async)})
-        return Response({REPORT_DATA_KEY: async_results})
 
     bill_dates = [ciso8601.parse_datetime(month[0]).replace(day=1).strftime("%Y-%m-%d") for month in months]
 

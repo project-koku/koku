@@ -288,7 +288,7 @@ class ReportDBAccessorBase:
                     else:
                         raise err
 
-    def find_openshift_keys_expected_values(self, ocp_provider_uuid: str, sql_metadata: SummarySqlMetadata) -> Any:
+    def find_openshift_keys_expected_values(self, sql_metadata: SummarySqlMetadata) -> Any:
         """
         We need to find the expected values for the openshift specific keys.
         Keys: openshift-project, openshift-node, openshift-cluster
@@ -297,7 +297,7 @@ class ReportDBAccessorBase:
         matched_tag_params = sql_metadata.build_params(
             ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs"]
         )
-        matched_tag_params["ocp_source_uuid"] = ocp_provider_uuid
+        matched_tag_params["ocp_source_uuid"] = sql_metadata.ocp_provider_uuid
         matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))

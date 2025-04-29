@@ -625,7 +625,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         matched_tags = "fake-tags"
         mparams = SummarySqlMetadata(
             self.schema_name,
-            [self.ocp_provider_uuid],
+            self.ocp_provider_uuid,
             self.gcp_provider_uuid,
             DateHelper().today,
             DateHelper().tomorrow,
