@@ -325,3 +325,14 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             self.db_accessor.schema, ocp_provider_uuid, self.provider_uuid, start_date, end_date, matched_tag_strs
         )
         self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
+
+    def initialise_manageed_cloud_row_uuid_data(self, provider_type, start_date, end_date):
+        """Create table and populate cloud data with unique row_uuid this is a workaround for COST-5866"""
+        sql_metadata = SummarySqlMetadata(
+            self.db_accessor.schema, "not-required", self.provider_uuid, start_date, end_date, []
+        )
+        p_type = provider_type.strip("-local").lower()
+        prepare_sql, prepare_params = sql_metadata.prepare_template(
+            f"trino_sql/{p_type}/openshift/populate_daily_summary/00_cloud_prepare_row_uuid.sql"
+        )
+        self.db_accessor._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
