@@ -37,7 +37,10 @@ class SubsLastProcessed(models.Model):
     resource_id = models.TextField(null=False, default="")
     year = models.CharField(null=False, max_length=4)
     month = models.CharField(null=False, max_length=2)
+    # records the latest processed time when the csv files are created
     latest_processed_time = models.DateTimeField(null=True)
+    # records the last latest_processed_time sent using kafka
+    latest_event_sent = models.DateTimeField(null=True)
 
 
 class SubsIDMap(models.Model):

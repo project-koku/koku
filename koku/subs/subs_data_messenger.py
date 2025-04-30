@@ -13,6 +13,7 @@ from tempfile import mkdtemp
 
 from dateutil import parser
 from django.conf import settings
+from django_tenants.utils import schema_context
 
 from api.common import log_json
 from api.iam.models import Customer
@@ -24,6 +25,7 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import RHEL_ELS_SYSTEMS_PROCESSED
 from masu.prometheus_stats import RHEL_ELS_VCPU_HOURS
 from masu.util.aws.common import get_s3_resource
+from reporting.models import SubsLastProcessed
 
 LOG = logging.getLogger(__name__)
 
@@ -61,6 +63,24 @@ class SUBSDataMessenger:
         self.download_path = mkdtemp(prefix="subs")
         self.instance_map = {}
         self.date_map = defaultdict(dict)
+        self.resources_event_sent = set()
+
+    def mark_last_processed_sent(self):
+        """
+        Update the last processed table to include the timestamp the
+        resource was sent to the Subscription team.
+        """
+        if not self.resources_event_sent:
+            return
+        with schema_context(self.schema_name):
+            records = SubsLastProcessed.objects.filter(resource_id__in=self.resources_event_sent)
+            for record in records:
+                # If the sent timestamp ever stops being updated
+                # it is more helpful for us to know the last processed time
+                # that was sent. We could recreate events
+                # based off that information.
+                record.latest_event_sent = record.latest_processed_time
+            SubsLastProcessed.objects.bulk_update(records, ["latest_event_sent"])
 
     def determine_azure_instance_and_tenant_id(self, row, instance_key):
         """Build the instance id string and get the tenant for Azure."""
@@ -112,8 +132,7 @@ class SUBSDataMessenger:
                             row["subs_conversion"],
                             row["subs_addon_id"],
                         )
-                        msg = bytes(json.dumps(subs_dict), "utf-8")
-                        self.send_kafka_message(msg)
+                        self.send_kafka_message(subs_dict)
                         msg_count += 1
                         RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AWS).inc()
                         try:
@@ -136,10 +155,14 @@ class SUBSDataMessenger:
                 )
             )
             os.remove(csv_path)
+        self.mark_last_processed_sent()
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
-    def send_kafka_message(self, msg):
+    def send_kafka_message(self, subs_dict):
         """Sends a kafka message to the SUBS topic with the S3 keys for the uploaded reports."""
+        if instance_id := subs_dict.get("instance_id"):
+            self.resources_event_sent.add(instance_id)
+        msg = bytes(json.dumps(subs_dict), "utf-8")
         producer = get_producer()
         producer.produce(SUBS_TOPIC, key=self.org_id, value=msg, callback=delivery_callback)
         producer.poll(0)
@@ -262,10 +285,9 @@ class SUBSDataMessenger:
                 tenant_id,
                 row["subs_vmname"],
             )
-            msg = bytes(json.dumps(subs_dict), "utf-8")
             # move to the next hour in the range
             start = end
-            self.send_kafka_message(msg)
+            self.send_kafka_message(subs_dict)
             msg_count += 1
             RHEL_ELS_SYSTEMS_PROCESSED.labels(provider_type=Provider.PROVIDER_AZURE).inc()
             try:
