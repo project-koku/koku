@@ -619,9 +619,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
     def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete):
-        """
-        Test that calling ocp on cloud populate triggers the deletes and summary sql.
-        """
+        """Test that calling ocp on cloud populate triggers the deletes and summary sql."""
         matched_tags = "fake-tags"
         mparams = SummarySqlMetadata(
             self.schema_name,
@@ -641,3 +639,23 @@ class GCPReportDBAccessorTest(MasuTestCase):
             TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.report_periods_for_provider_uuid")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
+    def test_populate_ocp_on_cloud_daily_trino_no_report_id(
+        self, mock_trino, mock_partition_delete, mock_report_period
+    ):
+        """Test that calling ocp on cloud populate with no report id returns."""
+        matched_tags = "fake-tags"
+        mparams = SummarySqlMetadata(
+            self.schema_name,
+            self.ocp_provider_uuid,
+            self.gcp_provider_uuid,
+            DateHelper().today,
+            DateHelper().tomorrow,
+            matched_tags,
+        )
+        mock_report_period.return_value = None
+        self.accessor.populate_ocp_on_cloud_daily_trino(mparams)
+        mock_partition_delete.assert_not_called()
