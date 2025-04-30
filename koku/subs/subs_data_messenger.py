@@ -41,11 +41,6 @@ RHEL_8_SAP_ID = "241"
 class SUBSDataMessenger:
     def __init__(self, context, schema_name, tracing_id):
         self.provider_type = context["provider_type"].removesuffix("-local")
-        # Local azure providers shouldnt attempt to query Azure
-        if context["provider_type"] == Provider.PROVIDER_AZURE_LOCAL:
-            self.local_prov = True
-        else:
-            self.local_prov = False
         self.context = context
         self.tracing_id = tracing_id
         self.schema_name = schema_name
