@@ -795,6 +795,12 @@ class OCPReportViewTest(IamTestCase):
         expected_delta = current_total - prev_total
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
+
+        reconstructed_delta = sum(current_totals.get(date, 0) - prev_totals.get(date, 0) for date in current_totals)
+        print("Expected:", expected_delta)
+        print("Reconstructed:", reconstructed_delta)
+        print("API:", delta)
+
         self.assertAlmostEqual(delta, expected_delta, 6)
         tested = False
         for item in data.get("data"):
