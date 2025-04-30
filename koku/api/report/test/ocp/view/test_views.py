@@ -61,24 +61,24 @@ class OCPReportViewTest(IamTestCase):
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh.now, 9)
         cls.provider_map = OCPProviderMap(Provider.PROVIDER_OCP, "costs", cls.schema_name)
         cls.cost_term = (
-            cls.provider_map.cloud_infrastructure_cost
-            + cls.provider_map.markup_cost
-            + cls.provider_map.cost_model_cost
+                cls.provider_map.cloud_infrastructure_cost
+                + cls.provider_map.markup_cost
+                + cls.provider_map.cost_model_cost
         )
         cls.cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost_by_project
-            + cls.provider_map.markup_cost_by_project
-            + cls.provider_map.cost_model_cost
+                cls.provider_map.cloud_infrastructure_cost_by_project
+                + cls.provider_map.markup_cost_by_project
+                + cls.provider_map.cost_model_cost
         )
 
         cls.distributed_cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost_by_project
-            + cls.provider_map.markup_cost_by_project
-            + cls.provider_map.cost_model_cost
-            + cls.provider_map.distributed_platform_cost
-            + cls.provider_map.distributed_unattributed_network_cost
-            + cls.provider_map.distributed_unattributed_storage_cost
-            + cls.provider_map.distributed_worker_cost
+                cls.provider_map.cloud_infrastructure_cost_by_project
+                + cls.provider_map.markup_cost_by_project
+                + cls.provider_map.cost_model_cost
+                + cls.provider_map.distributed_platform_cost
+                + cls.provider_map.distributed_unattributed_network_cost
+                + cls.provider_map.distributed_unattributed_storage_cost
+                + cls.provider_map.distributed_worker_cost
         )
 
     def setUp(self):
@@ -732,13 +732,13 @@ class OCPReportViewTest(IamTestCase):
         last_month_end = self.dh.this_month_end - date_delta
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost_by_project
-            + self.provider_map.markup_cost_by_project
-            + self.provider_map.cost_model_cost
-            + self.provider_map.distributed_platform_cost
-            + self.provider_map.distributed_worker_cost
-            + self.provider_map.distributed_unattributed_network_cost
-            + self.provider_map.distributed_unattributed_storage_cost
+                self.provider_map.cloud_infrastructure_cost_by_project
+                + self.provider_map.markup_cost_by_project
+                + self.provider_map.cost_model_cost
+                + self.provider_map.distributed_platform_cost
+                + self.provider_map.distributed_worker_cost
+                + self.provider_map.distributed_unattributed_network_cost
+                + self.provider_map.distributed_unattributed_storage_cost
         )
 
         with tenant_context(self.tenant):
@@ -795,12 +795,6 @@ class OCPReportViewTest(IamTestCase):
         expected_delta = current_total - prev_total
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
-
-        reconstructed_delta = sum(current_totals.get(date, 0) - prev_totals.get(date, 0) for date in current_totals)
-        print("Expected:", expected_delta)
-        print("Reconstructed:", reconstructed_delta)
-        print("API:", delta)
-
         self.assertAlmostEqual(delta, expected_delta, 6)
         tested = False
         for item in data.get("data"):
@@ -1111,9 +1105,9 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost
-            + self.provider_map.markup_cost
-            + self.provider_map.cost_model_cpu_cost
+                self.provider_map.cloud_infrastructure_cost
+                + self.provider_map.markup_cost
+                + self.provider_map.cost_model_cpu_cost
         )
 
         with tenant_context(self.tenant):
@@ -1207,9 +1201,9 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost
-            + self.provider_map.markup_cost
-            + self.provider_map.cost_model_cpu_cost
+                self.provider_map.cloud_infrastructure_cost
+                + self.provider_map.markup_cost
+                + self.provider_map.cost_model_cpu_cost
         )
 
         with tenant_context(self.tenant):
