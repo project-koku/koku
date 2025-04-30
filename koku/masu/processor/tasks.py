@@ -1399,7 +1399,7 @@ def trino_initilise_cloud_data(
     """Temporary task to create and populate the initial cloud data in trino workaround for COST-5866"""
     LOG.info(log_json(tracing_id, msg="managed table initial cloud row_uuid processing started", context=context))
     processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, context)
-    processor.initialise_manageed_cloud_row_uuid_data(provider_type, start_date, end_date)
+    processor.initialise_managed_cloud_row_uuid_data(provider_type, start_date, end_date)
     LOG.info(log_json(tracing_id, msg="managed table initial cloud row_uuid processing complete", context=context))
 
 
