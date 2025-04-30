@@ -53,7 +53,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
         return f"{self.schema}/{self.provider_type}/source={self.provider_uuid}/date={self.date_helper.today.date()}"
 
     def obfuscate_usage_account_id(self, usage_account_id):
-        """Generate a short deterministic has from the usage account"""
+        """Generate a short deterministic hash from the usage account"""
         full_hash = hashlib.sha256(usage_account_id.encode()).hexdigest()
         return full_hash[:12]
 
