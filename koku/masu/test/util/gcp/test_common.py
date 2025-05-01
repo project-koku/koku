@@ -3,13 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP common util."""
-from uuid import uuid4
-
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django_tenants.utils import schema_context
 
-from api.provider.models import ProviderBillingSource
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.test import MasuTestCase
 from masu.util.gcp import common as utils
@@ -278,45 +275,3 @@ class TestGCPUtils(MasuTestCase):
             self.assertIsNotNone(expected_dates)
             self.assertEqual(expected_dates.get("start"), result.get("start"))
             self.assertEqual(expected_dates.get("end"), result.get("end"))
-
-    def test_check_resource_level_invalid_uuid(self):
-        """Test gcp resource level paused source."""
-        expected_log = "Account not returned, source likely has processing suspended."
-        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-            result = utils.check_resource_level(uuid4())
-            self.assertFalse(result)
-            log_seen = False
-            for log_message in logger.output:
-                if expected_log in log_message:
-                    log_seen = True
-            self.assertTrue(log_seen)
-
-    def test_check_resource_level_storage_account(self):
-        """Test gcp resource level for storage only account"""
-        self.gcp_provider.billing_source = ProviderBillingSource.objects.create(data_source={"storage_only": True})
-        self.gcp_provider.save()
-        result = utils.check_resource_level(self.gcp_provider_uuid)
-        self.assertTrue(result)
-
-    def test_check_resource_level_account(self):
-        """Test gcp resource table id"""
-        self.gcp_provider.billing_source = ProviderBillingSource.objects.create(
-            data_source={"table_id": "/fake/resource/path"}
-        )
-        self.gcp_provider.save()
-        result = utils.check_resource_level(self.gcp_provider_uuid)
-        self.assertTrue(result)
-
-    def test_default_tag_matching(self):
-        """Test a source where the resource matching conditions were not met."""
-        self.gcp_provider.billing_source = ProviderBillingSource.objects.create(data_source={"table_id": "/fake/path"})
-        self.gcp_provider.save()
-        result = utils.check_resource_level(self.gcp_provider_uuid)
-        self.assertFalse(result)
-
-    def test_empty_data_source(self):
-        """Test a source where the resource matching conditions were not met."""
-        self.gcp_provider.billing_source = ProviderBillingSource.objects.create(data_source={})
-        self.gcp_provider.save()
-        result = utils.check_resource_level(self.gcp_provider_uuid)
-        self.assertFalse(result)

@@ -34,7 +34,6 @@ from masu.util.common import CreateDailyArchivesError
 from masu.util.common import get_path_prefix
 from masu.util.gcp.common import add_label_columns
 from masu.util.gcp.common import GCP_COLUMN_LIST
-from masu.util.gcp.common import RESOURCE_LEVEL_EXPORT_NAME
 from providers.gcp.provider import GCPProvider
 
 DATA_DIR = Config.TMP_DIR
@@ -428,15 +427,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         columns_list = GCP_COLUMN_LIST.copy()
         columns_list = [
             f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels", "credits") else col
-            for col in columns_list
-        ]
-        # Swap out resource columns with NULLs when we are processing
-        # a non-resource-level BigQuery table
-        columns_list = [
-            f"NULL as {col.replace('.', '_')}"
-            if col in ("resource.name", "resource.global_name")
-            and RESOURCE_LEVEL_EXPORT_NAME not in self.data_source.get("table_id")
-            else col
             for col in columns_list
         ]
         columns_list.append("DATE(_PARTITIONTIME) as partition_date")

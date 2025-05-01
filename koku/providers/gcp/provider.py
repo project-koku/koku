@@ -20,7 +20,6 @@ from api.common import error_obj
 from api.models import Provider
 from api.provider.models import Sources
 from masu.util.gcp.common import GCP_COLUMN_LIST
-from masu.util.gcp.common import NON_RESOURCE_LEVEL_EXPORT_NAME
 from masu.util.gcp.common import RESOURCE_LEVEL_EXPORT_NAME
 
 LOG = logging.getLogger(__name__)
@@ -67,12 +66,7 @@ class GCPProvider(ProviderInterface):
         for table in client.list_tables(data_set):
             if RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
                 full_table_id = table.full_table_id.replace(":", ".")
-                # Break because we prefer the resource-level report.
                 break
-            elif NON_RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
-                full_table_id = table.full_table_id.replace(":", ".")
-                self.columns.remove("resource.global_name")
-                self.columns.remove("resource.name")
         if full_table_id:
             _, _, table_id = full_table_id.split(".")
             return table_id

@@ -19,7 +19,6 @@ pd.options.mode.chained_assignment = None
 
 
 RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export_resource"
-NON_RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export"
 
 GCP_COLUMN_LIST = [
     "billing_account_id",
@@ -233,20 +232,6 @@ def deduplicate_reports_for_gcp(report_list):
             }
         )
     return reports_deduplicated
-
-
-def check_resource_level(gcp_provider_uuid):
-    provider = Provider.objects.filter(uuid=gcp_provider_uuid).first()
-    if not provider:
-        LOG.info("Account not returned, source likely has processing suspended.")
-        return False
-    if source := provider.account.get("data_source"):
-        if source.get("storage_only") or "resource" in source.get("table_id"):
-            # storage only sources default to resource level only
-            LOG.info("OCP GCP matching set to resource level")
-            return True
-    LOG.info("Defaulting to GCP tag matching")
-    return False
 
 
 def add_label_columns(data_frame):
