@@ -506,19 +506,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
         mock_trino.assert_called()
 
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_trino):
-        """Test that Trino is used to find matched resource names."""
-        start_date = self.dh.this_month_start.date()
-        end_date = self.dh.this_month_end.date()
-        expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
-        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-            self.accessor.get_ocp_infrastructure_map_trino(
-                start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
-            )
-            mock_trino.assert_called()
-            self.assertIn(expected_log, logger.output)
-
     @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_trino")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query")

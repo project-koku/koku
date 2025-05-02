@@ -339,8 +339,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             node_column = "node_capacity_memory_gigabyte_hours"
 
         sql_filename = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
+        log_msg = "running OCP on GCP SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
             sql_filename = "reporting_ocpgcpcostlineitem_project_daily_summary_p"
+            log_msg = "running OCP on GCP SQL managed flow"
 
         sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_filename}.sql")
         sql = sql.decode("utf-8")
@@ -363,7 +365,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg="running OCP on GCP SQL (not by node)", context=ctx))
+        LOG.info(log_json(msg=log_msg, context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
