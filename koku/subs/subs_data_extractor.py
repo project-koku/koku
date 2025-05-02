@@ -127,7 +127,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
         )
 
-    def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
+    def gather_and_upload_for_resource_batch(self, year, month, batch, batch_filename, usage_account):
         """Gather the data and upload it to S3 for a batch of resource ids"""
         sql_params = {
             "source_uuid": self.provider_uuid,
@@ -135,6 +135,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             "month": month,
             "schema": self.schema,
             "resources": batch,
+            "usage_account": usage_account,
         }
         sql_file = f"trino_sql/{self.provider_type.lower()}/subs_summary.sql"
         summary_sql = pkgutil.get_data("subs", sql_file)
@@ -160,7 +161,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             # col[0] grabs the column names from the query results
             cols = [col[0] for col in description]
             if results:
-                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{base_filename}_{i}.csv"))
+                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{batch_filename}_{i}.csv"))
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):
@@ -208,8 +209,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
             return []
         last_processed_dict = self.get_latest_processed_dict_for_provider(year, month)
-        base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}"
         for usage_account in usage_accounts:
+            base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}_{usage_account}"
+
             resource_ids = self.get_resource_ids_for_usage_account(usage_account, year, month)
             if not resource_ids:
                 LOG.debug(
@@ -241,13 +243,17 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 batch.append({"rid": rid, "start": start_time, "end": end_time})
                 if len(batch) >= 100:
                     upload_keys.extend(
-                        self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")
+                        self.gather_and_upload_for_resource_batch(
+                            year, month, batch, f"{base_filename}_{batch_num}", usage_account
+                        )
                     )
                     batch_num += 1
                     batch = []
             if batch:
                 upload_keys.extend(
-                    self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")
+                    self.gather_and_upload_for_resource_batch(
+                        year, month, batch, f"{base_filename}_{batch_num}", usage_account
+                    )
                 )
             self.bulk_update_latest_processed_time(resource_ids, year, month)
         LOG.info(
