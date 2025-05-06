@@ -14,7 +14,6 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParquetSummaryUpdater
-from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdaterClusterNotFound
@@ -24,7 +23,6 @@ REPORT_SUMMARY_UPDATER_DICT = {
     Provider.PROVIDER_AWS: AWSReportParquetSummaryUpdater,
     Provider.PROVIDER_AZURE: AzureReportParquetSummaryUpdater,
     Provider.PROVIDER_GCP: GCPReportParquetSummaryUpdater,
-    Provider.PROVIDER_OCI: OCIReportParquetSummaryUpdater,
     Provider.PROVIDER_OCP: OCPReportParquetSummaryUpdater,
 }
 

@@ -290,6 +290,9 @@ docker-down-db:
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
 
+docker-logs-debug:
+	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server | grep --color=always -iE "ERROR|Exception|Traceback|CRITICAL|FATAL"
+
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
 
@@ -454,24 +457,6 @@ endif
 	(printenv GCP_TABLE_ID > /dev/null 2>&1) || (echo 'GCP_TABLE_ID is not set in .env' && exit 1)
 	(printenv GCP_PROJECT_ID > /dev/null 2>&1) || (echo 'GCP_PROJECT_ID is not set in .env' && exit 1)
 	curl -d '{"name": "$(gcp_name)", "source_type": "GCP", "authentication": {"credentials": {"project_id":"${GCP_PROJECT_ID}"}}, "billing_source": {"data_source": {"table_id": "${GCP_TABLE_ID}", "dataset": "${GCP_DATASET}"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
-
-oci-source:
-ifndef oci_name
-	$(error param oci_name is not set)
-endif
-ifndef bucket
-	$(error param bucket is not set)
-endif
-ifndef namespace
-	$(error param namespace is not set)
-endif
-ifndef region
-	$(error param region is not set)
-endif
-# Required environment variables: [OCI_SHARED_CREDENTIALS_FILE, OCI_CLI_KEY_FILE]
-	(printenv OCI_SHARED_CREDENTIALS_FILE > /dev/null 2>&1) || (echo 'OCI_SHARED_CREDENTIALS_FILE is not set in .env' && exit 1)
-	(printenv OCI_CLI_KEY_FILE > /dev/null 2>&1) || (echo 'OCI_CLI_KEY_FILE is not set in .env' && exit 1)
-	curl -d '{"name": "$(oci_name)", "source_type": "OCI", "authentication": {"credentials": []}, "billing_source": {"data_source": {"bucket": "$(bucket)", "bucket_namespace": "$(namespace)", "bucket_region": "$(region)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 
 ###################################################

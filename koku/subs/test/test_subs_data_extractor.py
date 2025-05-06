@@ -166,7 +166,9 @@ class TestSUBSDataExtractor(SUBSTestCase):
         base_filename = "fake_filename"
         mock_copy.return_value = expected_key
         mock_trino.return_value = (MagicMock(), MagicMock())
-        upload_keys = self.extractor.gather_and_upload_for_resource_batch(year, month, batch, base_filename)
+        upload_keys = self.extractor.gather_and_upload_for_resource_batch(
+            year, month, batch, base_filename, "fake_usage_account"
+        )
         mock_row_count.assert_called_once()
         mock_trino.assert_called_once()
         mock_copy.assert_called_once()
@@ -194,7 +196,9 @@ class TestSUBSDataExtractor(SUBSTestCase):
         base_filename = "fake_filename"
         mock_copy.return_value = expected_key
         mock_trino.return_value = ([], [("fake_col1",), ("fake_col2",)])
-        upload_keys = self.extractor.gather_and_upload_for_resource_batch(year, month, batch, base_filename)
+        upload_keys = self.extractor.gather_and_upload_for_resource_batch(
+            year, month, batch, base_filename, "fake_usage_account"
+        )
         mock_row_count.assert_called_once()
         mock_trino.assert_called_once()
         mock_copy.assert_not_called()

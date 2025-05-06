@@ -109,16 +109,6 @@ customer:
           dataset: 'example-ocpgcp-dataset'
           table_id: 'gcp_billing_export_resource_v1_table'
           local_dir: '/tmp/gcp_local_bucket_0'
-    - oci_source:
-      source_name: Test OCI Source
-      source_type: 'OCI-local'
-      authentication:
-        credentials:
-      billing_source:
-        data_source:
-          bucket: '/tmp/oci_local/bucket_1'
-          bucket_namespace: 'local_namespace'
-          bucket_region: 'local_region'
 koku:
   host: localhost
   port: 8000

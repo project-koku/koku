@@ -23,7 +23,6 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
-from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import copy_data_to_s3_bucket
@@ -35,8 +34,6 @@ from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
-from masu.util.oci.common import detect_type as oci_detect_type
-from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
@@ -130,7 +127,6 @@ class ParquetReportProcessor:
             Provider.PROVIDER_AWS,
             Provider.PROVIDER_AZURE,
             Provider.PROVIDER_GCP,
-            Provider.PROVIDER_OCI,
             Provider.PROVIDER_OCP,
         }:
             msg = f"no ReportParquetProcessor for provider type {self._provider_type}"
@@ -229,15 +225,10 @@ class ParquetReportProcessor:
 
     @property
     def report_type(self):
-        """Report type for OpenShift and OCI else None."""
+        """Report type for OpenShift."""
         if self.provider_type == Provider.PROVIDER_OCP:
             for file_name in self.file_list:
                 report_type, _ = ocp_detect_type(file_name)
-                if report_type:
-                    return report_type
-        elif self.provider_type == Provider.PROVIDER_OCI:
-            for file_name in self.file_list:
-                report_type = oci_detect_type(file_name)
                 if report_type:
                     return report_type
         return None
@@ -313,8 +304,6 @@ class ParquetReportProcessor:
             return AzurePostProcessor(schema=self.schema_name)
         elif self.provider_type == Provider.PROVIDER_GCP:
             return GCPPostProcessor(schema=self._schema_name)
-        elif self.provider_type == Provider.PROVIDER_OCI:
-            return OCIPostProcessor(schema=self._schema_name)
         elif self.provider_type == Provider.PROVIDER_OCP:
             return OCPPostProcessor(schema=self._schema_name, report_type=self.report_type)
 
@@ -339,10 +328,6 @@ class ParquetReportProcessor:
             return GCPReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
             )
-        elif self.provider_type == Provider.PROVIDER_OCI:
-            return OCIReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file, self.report_type
-            )
 
     def prepare_parquet_s3(self, filename: os.PathLike):
 
@@ -362,8 +347,6 @@ class ParquetReportProcessor:
             in (
                 Provider.PROVIDER_GCP,
                 Provider.PROVIDER_GCP_LOCAL,
-                Provider.PROVIDER_OCI,
-                Provider.PROVIDER_OCI_LOCAL,
             )
         ):
             return
@@ -465,9 +448,7 @@ class ParquetReportProcessor:
         for csv_filename in file_list:
 
             # set start date based on data in the file being processed:
-            if self.provider_type == Provider.PROVIDER_OCI:
-                self.start_date = str(csv_filename).split(".")[1]
-            elif self.provider_type == Provider.PROVIDER_OCP:
+            if self.provider_type == Provider.PROVIDER_OCP:
                 self.start_date = self.ocp_files_to_process[csv_filename.stem]["meta_reportdatestart"]
 
             self.prepare_parquet_s3(Path(csv_filename))

@@ -248,7 +248,7 @@ class Orchestrator:
             report_name=None,
             ingress_reports=self.ingress_reports,
         )
-        # only GCP and OCI return more than one manifest at the moment.
+        # only GCP returns more than one manifest.
         manifest_list = downloader.download_manifest(report_month)
         report_tasks = []
         LOG.info(log_json("start_manifest_processing", msg="creating manifest list", schema=schema_name))
@@ -316,8 +316,6 @@ class Orchestrator:
                     in [
                         Provider.PROVIDER_OCP,
                         Provider.PROVIDER_GCP,
-                        Provider.PROVIDER_OCI,
-                        Provider.PROVIDER_OCI_LOCAL,
                     ]
                     or i == last_report_index
                 ):
@@ -436,8 +434,6 @@ class Orchestrator:
             LOG.info(log_json(msg="polling for account", provider_uuid=provider.uuid))
 
             if provider.type in [
-                Provider.PROVIDER_OCI,
-                Provider.PROVIDER_OCI_LOCAL,
                 Provider.PROVIDER_GCP,
                 Provider.PROVIDER_GCP_LOCAL,
             ]:
@@ -517,7 +513,7 @@ class Orchestrator:
 
     def prepare_continuous_report_sources(self, provider: Provider):
         """
-        Prepare processing for source types that have continious reports GCP/OCI.
+        Prepare processing for source types that have continious reports (GCP).
 
         Scans the database for providers that have reports that need to be processed.
         Any report it finds are queued to the appropriate celery task to download
