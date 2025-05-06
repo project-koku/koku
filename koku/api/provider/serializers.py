@@ -210,13 +210,10 @@ AUTHENTICATION_SERIALIZERS = {
     Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
     Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPAuthenticationSerializer,
-    Provider.PROVIDER_IBM: IBMAuthenticationSerializer,
-    Provider.PROVIDER_IBM_LOCAL: IBMAuthenticationSerializer,
     Provider.PROVIDER_OCP: OCPAuthenticationSerializer,
     Provider.OCP_AWS: AWSAuthenticationSerializer,
     Provider.OCP_AZURE: AzureAuthenticationSerializer,
 }
-
 
 # Registry of billing_source serializers.
 BILLING_SOURCE_SERIALIZERS = {
@@ -228,8 +225,6 @@ BILLING_SOURCE_SERIALIZERS = {
     Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
     Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
     Provider.PROVIDER_GCP_LOCAL: GCPBillingSourceSerializer,
-    Provider.PROVIDER_IBM: IBMBillingSourceSerializer,
-    Provider.PROVIDER_IBM_LOCAL: IBMBillingSourceSerializer,
     Provider.PROVIDER_OCP: OCPBillingSourceSerializer,
     Provider.OCP_AWS: AWSBillingSourceSerializer,
     Provider.OCP_AZURE: AzureBillingSourceSerializer,

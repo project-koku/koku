@@ -40,7 +40,6 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -69,7 +68,6 @@ class QueryParameters:
             (Provider.PROVIDER_GCP, "account", "gcp.account"),
             (Provider.PROVIDER_GCP, "gcp_project", "gcp.project"),
         ],
-        "ibm": [(Provider.PROVIDER_IBM, "account", "ibm.account")],
     }
 
     def __init__(self, request, caller, **kwargs):
