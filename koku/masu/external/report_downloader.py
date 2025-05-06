@@ -16,7 +16,6 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
-from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
@@ -27,7 +26,6 @@ from reporting_common.models import CombinedChoices
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
-
 
 LOG = logging.getLogger(__name__)
 
@@ -101,7 +99,6 @@ class ReportDownloader:
             Provider.PROVIDER_GCP_LOCAL: GCPLocalReportDownloader,
             Provider.PROVIDER_OCI: OCIReportDownloader,
             Provider.PROVIDER_OCI_LOCAL: OCILocalReportDownloader,
-            Provider.PROVIDER_IBM: IBMReportDownloader,
         }
         if self.provider_type in downloader_map:
             return downloader_map[self.provider_type](

@@ -4,7 +4,6 @@ from django.db import models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("api", "0053_additional_context")]
 
     operations = [
@@ -17,7 +16,6 @@ class Migration(migrations.Migration):
                     ("OCP", "OCP"),
                     ("Azure", "Azure"),
                     ("GCP", "GCP"),
-                    ("IBM", "IBM"),
                     ("OCI", "OCI"),
                     ("AWS-local", "AWS-local"),
                     ("Azure-local", "Azure-local"),
