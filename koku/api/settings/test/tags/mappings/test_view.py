@@ -220,7 +220,7 @@ class TestSettingsTagMappingView(MasuTestCase):
             {
                 "child": {
                     "key": "CreatedOn",
-                    "source_type": "OCI",
+                    "source_type": "GCP",
                     "uuid": "09eae71b-4665-4958-9649-9031ee67180b",
                 },
                 "parent": {
@@ -232,7 +232,7 @@ class TestSettingsTagMappingView(MasuTestCase):
             {
                 "child": {
                     "key": "free-tier-retained",
-                    "source_type": "OCI",
+                    "source_type": "GCP",
                     "uuid": "00398f0a-bdb7-4fd3-841f-b9cd476cab7e",
                 },
                 "parent": {

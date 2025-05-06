@@ -21,7 +21,6 @@ from masu.config import Config
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
-from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.processor.parquet.parquet_report_processor import CSV_EXT
 from masu.processor.parquet.parquet_report_processor import CSV_GZIP_EXT
@@ -34,7 +33,6 @@ from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import RECOMMENDED_COLUMNS
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
-from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
@@ -221,11 +219,6 @@ class TestParquetReportProcessor(MasuTestCase):
                 "provider_uuid": str(self.gcp_provider_uuid),
                 "provider_type": Provider.PROVIDER_GCP,
                 "expected": GCPPostProcessor,
-            },
-            {
-                "provider_uuid": str(self.oci_provider_uuid),
-                "provider_type": Provider.PROVIDER_OCI,
-                "expected": OCIPostProcessor,
             },
             {
                 "provider_uuid": str(self.ocp_provider_uuid),
@@ -468,20 +461,6 @@ class TestParquetReportProcessor(MasuTestCase):
                 "provider_type": Provider.PROVIDER_GCP,
                 "patch": (GCPReportParquetProcessor, "create_bill"),
             },
-            {
-                "provider_uuid": str(self.oci_provider_uuid),
-                "provider_type": Provider.PROVIDER_OCI,
-                "report_file": "usage.csv",
-                "patch": (OCIReportParquetProcessor, "create_bill"),
-                "daily": False,
-            },
-            {
-                "provider_uuid": str(self.oci_provider_uuid),
-                "provider_type": Provider.PROVIDER_OCI,
-                "report_file": "usage.csv",
-                "patch": (OCIReportParquetProcessor, "create_bill"),
-                "daily": True,
-            },
         ]
         output_file = "local_path/file.parquet"
 
@@ -491,8 +470,6 @@ class TestParquetReportProcessor(MasuTestCase):
         for test in test_matrix:
             if test.get("provider_type") == Provider.PROVIDER_OCP:
                 mock_report_type.return_value = "pod_usage"
-            elif test.get("provider_type") == Provider.PROVIDER_OCI:
-                mock_report_type.return_value = "usage"
             else:
                 mock_report_type.return_value = None
             provider_uuid = test.get("provider_uuid")

@@ -39,13 +39,6 @@ class ProviderErrors:
     GCP_BUCKET_MISSING = "gcp.billing_source.bucket.missing"
     GCP_REPORT_NOT_FOUND = "billing_source.bucket.noreportfound"
 
-    OCI_NO_REPORT_FOUND = "billing_source.bucket.noreportfound"
-    OCI_REGION_NOT_SUPPORTED = "billing_source.bucket_region.notsupported"
-    OCI_INVALID_VALUES = "billing_source"
-    OCI_BUCKET_MISSING = "billing_source.bucket.missing"
-    OCI_BUCKET_NAMESPACE_MISSING = "billing_source.bucket_namespace.missing"
-    OCI_BUCKET_REGION_MISSING = "billing_source.bucket_region.missing"
-
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
     BILLING_SOURCE_GENERAL_ERROR = "There is a problem with the given source."
@@ -98,16 +91,4 @@ class ProviderErrors:
         "Cost management requires a resource group,  storage account"
         " and subscription ID or scope with export name. "
         "Edit your Azure source to include these details."
-    )
-    OCI_BUCKET_MISSING_MESSAGE = (
-        "Cost management requires an OCI bucket to store cost and usage reports. "
-        "Edit your OCI source to include the name of your OCI bucket."
-    )
-    OCI_BUCKET_NAMESPACE_MISSING_MESSAGE = (
-        "Cost management requires the namespace for the OCI bucket storing cost and usage reports. "
-        "Edit your OCI source to include the namespace of your OCI bucket."
-    )
-    OCI_BUCKET_REGION_MISSING_MESSAGE = (
-        "Cost management requires the region for the OCI bucket storing cost and usage reports. "
-        "Edit your OCI source to include the region of your OCI bucket."
     )

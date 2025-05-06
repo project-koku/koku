@@ -14,7 +14,6 @@ from masu.test import MasuTestCase
 from reporting.models import AWSTagsSummary
 from reporting.models import AzureTagsSummary
 from reporting.models import GCPTagsSummary
-from reporting.models import OCITagsSummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -31,7 +30,6 @@ class EnabledTagsTest(MasuTestCase):
             Provider.PROVIDER_AWS.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS),
             Provider.PROVIDER_AZURE.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE),
             Provider.PROVIDER_GCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP),
-            Provider.PROVIDER_OCI.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCI),
             Provider.PROVIDER_OCP.lower(): EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP),
         }
 
@@ -132,7 +130,6 @@ class EnabledTagsTest(MasuTestCase):
             Provider.PROVIDER_AWS: AWSTagsSummary,
             Provider.PROVIDER_AZURE: AzureTagsSummary,
             Provider.PROVIDER_GCP: GCPTagsSummary,
-            Provider.PROVIDER_OCI: OCITagsSummary,
         }
 
         for provider_type, tag_model in testing_metadata.items():

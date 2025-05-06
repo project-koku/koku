@@ -54,7 +54,6 @@ class Config:
     AWS_DATETIME_STR_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
     OCP_DATETIME_STR_FORMAT = "%Y-%m-%d %H:%M:%S +0000 UTC"
     AZURE_DATETIME_STR_FORMAT = "%Y-%m-%d"
-    OCI_DATETIME_STR_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # Override the service's current date time time. Format: "%Y-%m-%d %H:%M:%S"
     MASU_DATE_OVERRIDE = ENVIRONMENT.get_value("DATE_OVERRIDE", default=DEFAULT_MASU_DATE_OVERRIDE)

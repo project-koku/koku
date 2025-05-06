@@ -36,7 +36,6 @@ RESOURCE_TYPES = OrderedDict(
         ("cost_model", ["read", "write"]),
         ("settings", ["read", "write"]),
         ("ibm.account", ["read"]),
-        ("oci.payer_tenant_id", ["read"]),
     ]
 )
 
