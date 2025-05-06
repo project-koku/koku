@@ -24,7 +24,6 @@ TESTING_DIRS = [
     "local_providers/gcp_local_2",
     "local_providers/gcp_local_3",
     "local_providers/insights_local",
-    "local_providers/oci_local",
     "data/insights_local",
     "data/processing",
     "parquet_data",

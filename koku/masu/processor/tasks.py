@@ -71,7 +71,6 @@ from masu.util.common import get_latest_openshift_on_cloud_manifest
 from masu.util.common import get_path_prefix
 from masu.util.common import set_summary_timestamp
 from masu.util.gcp.common import deduplicate_reports_for_gcp
-from masu.util.oci.common import deduplicate_reports_for_oci
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
@@ -99,8 +98,6 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
     dedup_func_map = {
         Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
         Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_OCI: deduplicate_reports_for_oci,
-        Provider.PROVIDER_OCI_LOCAL: deduplicate_reports_for_oci,
     }
 
     kwargs = {}
@@ -111,7 +108,6 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
     for report_list in reports_by_source.values():
         if report and report.get("provider_type") in dedup_func_map:
             provider_type = report.get("provider_type")
-            manifest_list = [] if "oci" in provider_type.lower() else manifest_list
             dedup_func = dedup_func_map.get(provider_type)
             reports_deduplicated.extend(dedup_func(report_list))
         else:

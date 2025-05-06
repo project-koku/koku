@@ -358,7 +358,5 @@ class SourcesViewTests(IamTestCase):
             Provider.PROVIDER_OCP,
             Provider.PROVIDER_GCP,
             Provider.PROVIDER_GCP_LOCAL,
-            Provider.PROVIDER_OCI,
-            Provider.PROVIDER_OCI_LOCAL,
         ]
         self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))

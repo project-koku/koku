@@ -336,7 +336,6 @@ class ProcessReportFileTests(MasuTestCase):
         providers = [
             {"type": Provider.PROVIDER_OCP, "uuid": self.ocp_test_provider_uuid},
             {"type": Provider.PROVIDER_GCP, "uuid": self.gcp_test_provider_uuid},
-            {"type": Provider.PROVIDER_OCI, "uuid": self.oci_test_provider_uuid},
         ]
         test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
 
@@ -1881,18 +1880,20 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         """Test that the process_openshift_on_cloud_trino task performs expected functions"""
         start = "2024-08-01"
         end = "2024-08-05"
+        test_uuid = uuid4()
+        p_type = "test"
         reports = [
             {
                 "schema_name": self.schema,
-                "provider_type": self.oci_provider.type,
-                "provider_uuid": str(self.oci_provider.uuid),
+                "provider_type": p_type,
+                "provider_uuid": str(test_uuid),
                 "tracing_id": "",
                 "start": start,
                 "end": end,
                 "manifest_id": 1,
             }
         ]
-        process_openshift_on_cloud_trino(reports, self.oci_provider.type, self.schema, self.provider_uuid, "")
+        process_openshift_on_cloud_trino(reports, p_type, self.schema, test_uuid, "")
         mock_process.assert_not_called()
 
     @patch(
@@ -1907,7 +1908,7 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         reports = [
             {
                 "schema_name": self.schema,
-                "provider_type": self.oci_provider.type,
+                "provider_type": self.azure_provider.type,
                 "provider_uuid": str(self.aws_provider.uuid),
                 "tracing_id": "",
                 "start": start,
