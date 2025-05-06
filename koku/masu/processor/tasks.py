@@ -1298,6 +1298,7 @@ def trigger_openshift_on_cloud_trino(
         ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
+        return
     if not ocp_on_cloud_infra_map:
         LOG.info(
             log_json(

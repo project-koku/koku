@@ -1850,6 +1850,25 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, "", start, end)
         mock_chain.assert_called()
 
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.report_summary_updater.ReportSummaryUpdater.get_openshift_on_cloud_infra_map")
+    def test_process_openshift_on_cloud_trino_exception(self, mock_infra_map, mock_chain):
+        """Test exception is raised"""
+        end = self.dh.today.strftime("%Y-%m-%d")
+        start = self.dh.month_start(end).strftime("%Y-%m-%d")
+        context = {
+            "schema_name": self.schema,
+            "provider_type": self.aws_provider.type,
+            "provider_uuid": str(self.aws_provider.uuid),
+            "tracing_id": "",
+            "start": start,
+            "end": end,
+            "manifest_id": 1,
+        }
+        mock_infra_map.side_effect = ReportSummaryUpdaterCloudError
+        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, "", start, end)
+        mock_chain.assert_not_called()
+
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
     @patch("masu.processor.tasks.chain")
     def test_process_openshift_on_cloud_trino_synchronous(
