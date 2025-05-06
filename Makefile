@@ -290,6 +290,9 @@ docker-down-db:
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
 
+docker-logs-debug:
+	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server | grep --color=always -iE "ERROR|Exception|Traceback|CRITICAL|FATAL"
+
 docker-trino-logs:
 	$(DOCKER_COMPOSE) logs -f trino
 
