@@ -184,7 +184,7 @@ class QueryParameters:
         if "all" in provider_list:
             for p, v in self.provider_resource_list.items():
                 # Do not include GCP for OCP-on-All until OCP on GCP is implemented.
-                if "OCI" or "IBM" in v[0] in v[0]:
+                if "OCI" in v[0] or "IBM" in v[0]:
                     continue
                 access.extend(v)
         else:
