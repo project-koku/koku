@@ -192,8 +192,6 @@ class ReportQueryHandler(QueryHandler):
         service_filter = set(self.parameters.get("filter", {}).get("service", []))
         if self.provider in (Provider.PROVIDER_AZURE, Provider.OCP_AZURE):
             service_filter = set(self.parameters.get("filter", {}).get("service_name", []))
-        if self.provider == Provider.PROVIDER_OCI:
-            service_filter = set(self.parameters.get("filter", {}).get("product_service", []))
         if report_type == "costs" and service_filter and not service_filter.difference(self.network_services):
             report_type = "network"
         elif report_type == "costs" and service_filter and not service_filter.difference(self.database_services):

@@ -6,7 +6,6 @@ from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.gcp_access import GcpAccessPermission
-from api.common.permissions.oci_access import OCIAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftNodePermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
@@ -20,7 +19,6 @@ RESOURCE_TYPES = [
     OpenShiftProjectPermission.resource_type,
     OpenShiftNodePermission.resource_type,
     GcpAccessPermission.resource_type,
-    OCIAccessPermission.resource_type,
 ]
 
 RESOURCE_TYPE_MAP = {
@@ -31,5 +29,4 @@ RESOURCE_TYPE_MAP = {
     OpenShiftProjectPermission.resource_type: [Provider.PROVIDER_OCP],
     OpenShiftNodePermission.resource_type: [Provider.PROVIDER_OCP],
     GcpAccessPermission.resource_type: [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL],
-    OCIAccessPermission.resource_type: [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL],
 }

@@ -41,7 +41,6 @@ from masu.prometheus_stats import QUEUES
 from masu.util.aws.common import delete_s3_objects
 from masu.util.aws.common import get_s3_resource
 from masu.util.azure.azure_disk_size_scraper import AzureDiskSizeScraper
-from masu.util.oci.common import OCI_REPORT_TYPES
 from masu.util.ocp.common import OCP_REPORT_TYPES
 from reporting.models import TRINO_MANAGED_TABLES
 from reporting_common.models import DelayedCeleryTasks
@@ -52,8 +51,6 @@ LOG = logging.getLogger(__name__)
 
 PROVIDER_REPORT_TYPE_MAP = {
     Provider.PROVIDER_OCP: OCP_REPORT_TYPES,
-    Provider.PROVIDER_OCI: OCI_REPORT_TYPES,
-    Provider.PROVIDER_OCI_LOCAL: OCI_REPORT_TYPES,
 }
 
 

@@ -53,14 +53,11 @@ class ProviderBuilder:
         return db_dict
 
     def _build_credentials_auth(self, provider_type, authentication):
-        if provider_type == Provider.PROVIDER_OCI or provider_type == Provider.PROVIDER_OCI_LOCAL:
-            auth = {}
+        credentials = authentication.get("credentials")
+        if credentials and isinstance(credentials, dict):
+            auth = {"credentials": credentials}
         else:
-            credentials = authentication.get("credentials")
-            if credentials and isinstance(credentials, dict):
-                auth = {"credentials": credentials}
-            else:
-                raise ProviderBuilderError("Missing credentials")
+            raise ProviderBuilderError("Missing credentials")
         return auth
 
     def _build_provider_data_source(self, billing_source):

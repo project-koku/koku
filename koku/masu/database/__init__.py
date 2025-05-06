@@ -42,9 +42,3 @@ GCP_REPORT_TABLE_MAP = {
     "ocp_on_gcp_project_daily_summary": "reporting_ocpgcpcostlineitem_project_daily_summary_p",
     "ocp_on_gcp_tags_summary": "reporting_ocpgcptags_summary",
 }
-
-OCI_CUR_TABLE_MAP = {
-    "bill": "reporting_ocicostentrybill",
-    "line_item_daily_summary": "reporting_ocicostentrylineitem_daily_summary",
-    "tags_summary": "reporting_ocitags_summary",
-}

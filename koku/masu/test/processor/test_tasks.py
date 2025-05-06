@@ -339,7 +339,6 @@ class ProcessReportFileTests(MasuTestCase):
         providers = [
             {"type": Provider.PROVIDER_OCP, "uuid": self.ocp_test_provider_uuid},
             {"type": Provider.PROVIDER_GCP, "uuid": self.gcp_test_provider_uuid},
-            {"type": Provider.PROVIDER_OCI, "uuid": self.oci_test_provider_uuid},
         ]
         test_date = datetime.datetime(2023, 3, 3, tzinfo=settings.UTC)
 
@@ -1940,6 +1939,30 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         mock_processor.assert_called()
 
     @patch(
+        "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.initialise_managed_cloud_row_uuid_data"  # noqa E501
+    )
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
+    def test_process_openshift_on_cloud_trino_bad_provider_type(self, mock_process, mock_unleash):
+        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
+        start = "2024-08-01"
+        end = "2024-08-05"
+        test_uuid = uuid4()
+        p_type = "test"
+        reports = [
+            {
+                "schema_name": self.schema,
+                "provider_type": p_type,
+                "provider_uuid": str(test_uuid),
+                "tracing_id": "",
+                "start": start,
+                "end": end,
+                "manifest_id": 1,
+            }
+        ]
+        process_openshift_on_cloud_trino(reports, p_type, self.schema, test_uuid, "")
+        mock_process.assert_not_called()
+
+    @patch(
         "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.process_ocp_cloud_trino"  # noqa E501
     )
     def test_populate_openshift_on_cloud_managed_tables(self, mock_processor):
@@ -1965,3 +1988,25 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
             context=context,
         )
         mock_processor.assert_called()
+
+    @patch(
+        "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.process_ocp_cloud_trino"  # noqa E501
+    )
+    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
+    def test_process_openshift_on_cloud_trino_manifest_not_ready(self, mock_process, mock_unleash):
+        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
+        start = "2024-08-01"
+        end = "2024-08-05"
+        reports = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.azure_provider.type,
+                "provider_uuid": str(self.aws_provider.uuid),
+                "tracing_id": "",
+                "start": start,
+                "end": end,
+                "manifest_id": 1000,
+            }
+        ]
+        process_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
+        mock_process.assert_not_called()
