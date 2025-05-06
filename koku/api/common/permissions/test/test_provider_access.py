@@ -11,7 +11,6 @@ from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.common.permissions.gcp_access import GcpAccessPermission
-from api.common.permissions.ibm_access import IbmAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftNodePermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
@@ -36,7 +35,6 @@ RESOURCE_TYPE_PERMS = {
         "permission": OpenShiftProjectPermission(),
     },
     GcpAccessPermission.resource_type: {"provider": Provider.PROVIDER_GCP, "permission": GcpAccessPermission()},
-    IbmAccessPermission.resource_type: {"provider": Provider.PROVIDER_IBM, "permission": IbmAccessPermission()},
     Provider.OCP_ALL: {"provider": Provider.OCP_ALL, "permission": OpenshiftAllAccessPermission()},
 }
 
@@ -44,7 +42,6 @@ ACCESS_KEYS = {
     AwsAccessPermission.resource_type: {"aws.account": {"read": ["*"]}},
     AWSOUAccessPermission.resource_type: {"aws.organizational_unit": {"read": ["*"]}},
     GcpAccessPermission.resource_type: {"gcp.account": {"read": ["*"]}},
-    IbmAccessPermission.resource_type: {"ibm.account": {"read": ["*"]}},
     AzureAccessPermission.resource_type: {"azure.subscription_guid": {"read": ["*"]}},
     OpenShiftAccessPermission.resource_type: {"openshift.cluster": {"read": ["*"]}},
     OpenShiftNodePermission.resource_type: {"openshift.node": {"read": ["*"]}},
