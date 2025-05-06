@@ -2279,7 +2279,6 @@
                             "aws",
                             "azure",
                             "gcp",
-                            "oci",
                             "ocp"
                         ]
                     },

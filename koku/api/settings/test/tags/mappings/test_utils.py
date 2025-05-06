@@ -17,7 +17,6 @@ class TestTagMappingUtils(MasuTestCase):
             Provider.PROVIDER_AWS: self.aws_provider.uuid,
             Provider.PROVIDER_AZURE: self.azure_provider.uuid,
             Provider.PROVIDER_GCP: self.gcp_provider.uuid,
-            Provider.PROVIDER_OCI: self.oci_provider.uuid,
             Provider.PROVIDER_OCP: self.ocp_provider.uuid,
         }
 
