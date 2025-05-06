@@ -26,10 +26,9 @@ class TestSUBSDataMessenger(SUBSTestCase):
             cls.azure_messenger = SUBSDataMessenger(cls.azure_context, cls.schema, cls.tracing_id)
 
     @patch("subs.subs_data_messenger.os.remove")
-    @patch("subs.subs_data_messenger.get_producer")
     @patch("subs.subs_data_messenger.csv.DictReader")
     @patch("subs.subs_data_messenger.SUBSDataMessenger.build_aws_subs_dict")
-    def test_process_and_send_subs_message(self, mock_msg_builder, mock_reader, mock_producer, mock_remove):
+    def test_process_and_send_subs_message(self, mock_msg_builder, mock_reader, mock_remove):
         """Tests that the proper functions are called when running process_and_send_subs_message"""
         upload_keys = ["fake_key"]
         mock_msg_builder.return_value = defaultdict(str)
@@ -54,7 +53,6 @@ class TestSUBSDataMessenger(SUBSTestCase):
         with patch("builtins.open", mock_op):
             self.messenger.process_and_send_subs_message(upload_keys)
         mock_msg_builder.assert_called_once()
-        mock_producer.assert_called_once()
 
     @patch("subs.subs_data_messenger.os.remove")
     @patch("subs.subs_data_messenger.get_producer")
@@ -419,7 +417,7 @@ class TestSUBSDataMessenger(SUBSTestCase):
     @patch("subs.subs_data_messenger.get_producer")
     def test_send_kafka_message(self, mock_producer):
         """Test that we would try to send a kafka message"""
-        kafka_msg = {"test"}
+        kafka_msg = {"instance_id": "test"}
         self.messenger.send_kafka_message(kafka_msg)
         mock_producer.assert_called()
 
@@ -593,11 +591,10 @@ class TestSUBSDataMessenger(SUBSTestCase):
 
     @patch("subs.subs_data_messenger.SUBSDataMessenger.determine_azure_instance_and_tenant_id")
     @patch("subs.subs_data_messenger.os.remove")
-    @patch("subs.subs_data_messenger.get_producer")
     @patch("subs.subs_data_messenger.csv.DictReader")
     @patch("subs.subs_data_messenger.SUBSDataMessenger.build_azure_subs_dict")
     def test_process_and_send_subs_message_azure_time_already_processed(
-        self, mock_msg_builder, mock_reader, mock_producer, mock_remove, mock_azure_id
+        self, mock_msg_builder, mock_reader, mock_remove, mock_azure_id
     ):
         """Tests that the start for the range is updated."""
         mock_azure_id.return_value = ("expected", "expected")
@@ -662,7 +659,6 @@ class TestSUBSDataMessenger(SUBSTestCase):
             tenant_id,
             vm_name,
         )
-        mock_producer.assert_called_once()
 
     def test_determine_product_ids(self):
         """Test that different combinations of inputs result in expected product IDs"""
