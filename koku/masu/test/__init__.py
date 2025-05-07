@@ -26,7 +26,6 @@ class MasuTestCase(IamTestCase):
         )
         self.azure_provider = Provider.objects.get(type=Provider.PROVIDER_AZURE_LOCAL)
         self.gcp_provider = Provider.objects.get(type=Provider.PROVIDER_GCP_LOCAL)
-        self.oci_provider = Provider.objects.get(type=Provider.PROVIDER_OCI_LOCAL)
         self.unkown_test_provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
 
         self.ocp_on_aws_ocp_provider = Provider.objects.get(
@@ -43,13 +42,11 @@ class MasuTestCase(IamTestCase):
         self.ocp_provider_uuid = str(self.ocp_provider.uuid)
         self.azure_provider_uuid = str(self.azure_provider.uuid)
         self.gcp_provider_uuid = str(self.gcp_provider.uuid)
-        self.oci_provider_uuid = str(self.oci_provider.uuid)
 
         self.aws_test_provider_uuid = self.aws_provider_uuid
         self.azure_test_provider_uuid = self.azure_provider_uuid
         self.ocp_test_provider_uuid = self.ocp_provider_uuid
         self.gcp_test_provider_uuid = self.gcp_provider_uuid
-        self.oci_test_provider_uuid = self.oci_provider_uuid
 
         self.ocpaws_provider_uuid = str(self.ocp_on_aws_ocp_provider.uuid)
         self.ocpazure_provider_uuid = str(self.ocp_on_azure_ocp_provider.uuid)
@@ -64,10 +61,8 @@ class MasuTestCase(IamTestCase):
         self.aws_db_auth = self.aws_provider.authentication
         self.azure_db_auth = self.azure_provider.authentication
         self.gcp_db_auth = self.gcp_provider.authentication
-        self.oci_db_auth = self.oci_provider.authentication
 
         self.ocp_billing_source = self.ocp_provider.billing_source
         self.aws_billing_source = self.aws_provider.billing_source
         self.azure_billing_source = self.azure_provider.billing_source
         self.gcp_billing_source = self.gcp_provider.billing_source
-        self.oci_billing_source = self.oci_provider.billing_source

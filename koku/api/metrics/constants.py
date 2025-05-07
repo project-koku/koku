@@ -92,7 +92,6 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_AWS: "Amazon Web Services",
     Provider.PROVIDER_AZURE: "Microsoft Azure",
     Provider.PROVIDER_GCP: "Google Cloud Platform",
-    Provider.PROVIDER_OCI: "Oracle Cloud Infrastructure",
 }
 
 COST_MODEL_METRIC_MAP = [

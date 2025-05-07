@@ -26,7 +26,6 @@ ALL_TABLES = {
     "OCPAZURE": "reporting_ocpazurecostlineitem_project_daily_summary_p",
     "GCP": "reporting_gcpcostentrylineitem_daily_summary",
     "OCPGCP": "reporting_ocpgcpcostlineitem_project_daily_summary_p",
-    "OCI": "reporting_ocicostentrylineitem_daily_summary",
     "OCPALL": "reporting_ocpallcostlineitem_project_daily_summary_p",
     "OCP": "reporting_ocpusagelineitem_daily_summary",
 }
@@ -38,10 +37,6 @@ ALL_TRINO_TABLES = {
     "AZUREDAILY": "azure_openshift_daily",
     "GCP": "gcp_line_items",
     "GCPDAILY": "gcp_line_items_daily",
-    "OCICOST": "oci_cost_line_items",
-    "OCICOSTDAILY": "oci_cost_line_items_daily",
-    "OCIUSAGE": "oci_usage_line_items",
-    "OCIUSAGEDAILY": "oci_usage_line_items_daily",
     "OCPAWS": "reporting_ocpawscostlineitem_project_daily_summary",
     "OCPAZURE": "reporting_ocpazurecostlineitem_project_daily_summary",
     "OCPGCP": "reporting_ocpgcpcostlineitem_project_daily_summary",
@@ -115,7 +110,7 @@ def date_range_pair(start_date, end_date, step):
 def get_providers_and_tables_for_schema(gabi_url, token, schema):
     # Get relevant tables for providers
     pg_tables = set()
-    provider_count = {"AWS": 0, "AZURE": 0, "GCP": 0, "OCI": 0, "OCP": 0}
+    provider_count = {"AWS": 0, "AZURE": 0, "GCP": 0, "OCP": 0}
     trino_tables = set()
 
     query = f"select p.type, i.infrastructure_type from api_provider as p left join api_customer as c on p.customer_id = c.id left join api_providerinfrastructuremap as i on p.infrastructure_id = i.id where p.paused = 'false' and p.active = 'true' and p.setup_complete = 'true' and c.schema_name = '{schema}';"  # noqa E501
@@ -139,13 +134,6 @@ def get_providers_and_tables_for_schema(gabi_url, token, schema):
             pg_tables.add(ALL_TABLES["GCP"])
             trino_tables.add(ALL_TRINO_TABLES["GCP"])
             trino_tables.add(ALL_TRINO_TABLES["GCPDAILY"])
-        elif "OCI" == t[0]:
-            provider_count["OCI"] += 1
-            pg_tables.add(ALL_TABLES["OCI"])
-            trino_tables.add(ALL_TRINO_TABLES["OCICOST"])
-            trino_tables.add(ALL_TRINO_TABLES["OCICOSTDAILY"])
-            trino_tables.add(ALL_TRINO_TABLES["OCIUSAGE"])
-            trino_tables.add(ALL_TRINO_TABLES["OCIUSAGEDAILY"])
         elif "OCP" == t[0]:
             provider_count["OCP"] += 1
             pg_tables.add(ALL_TABLES["OCP"])
@@ -169,7 +157,7 @@ def get_providers_and_tables_for_schema(gabi_url, token, schema):
 def get_list_of_active_schema(gabi_url, token, cloud_only=False):
     # Fetch list of active schemas
     schemas = set()
-    prov_types = ("AWS", "AZURE", "GCP", "OCI") if cloud_only else ("AWS", "AZURE", "GCP", "OCI", "OCP")
+    prov_types = ("AWS", "AZURE", "GCP") if cloud_only else ("AWS", "AZURE", "GCP", "OCP")
     query = f"select distinct(c.schema_name) from api_provider as p left join api_customer as c on p.customer_id = c.id where p.type in {prov_types} and p.paused = 'false' and p.active = 'true' and p.setup_complete = 'true';"  # noqa E501
     query_result = submit_query_request(gabi_url, token, query)
     for i in query_result["result"][1:]:
@@ -241,8 +229,6 @@ def trino_data_validation(trino_url, cert, key, table, schema, start_date, end_d
         provider = "AZURE"
     elif "gcp" in table:
         provider = "GCP"
-    elif "oci" in table:
-        provider = "OCI"
     elif "ocp" in table:
         provider = "OCP"
 
@@ -250,7 +236,6 @@ def trino_data_validation(trino_url, cert, key, table, schema, start_date, end_d
         "AWS": "lineitem_usagestartdate",
         "AZURE": "date",
         "GCP": "usage_start_time",
-        "OCI": "usage_start",
         "OCP": "usage_start",
     }
     date_field = date_fields[provider]
