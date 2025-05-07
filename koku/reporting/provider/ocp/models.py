@@ -598,8 +598,6 @@ class OCPCostSummaryByProjectP(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     infrastructure_usage_cost = JSONField(null=True)
-    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_project_monthly_cost = JSONField(null=True)
     supplementary_usage_cost = JSONField(null=True)
     supplementary_project_monthly_cost = JSONField(null=True)
