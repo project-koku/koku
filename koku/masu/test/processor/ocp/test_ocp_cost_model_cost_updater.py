@@ -73,8 +73,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                     self.assertAlmostEqual(
                         line_item.infrastructure_markup_cost, line_item.infrastructure_raw_cost * markup_dec, 6
                     )
-                if line_item.infrastructure_project_raw_cost is not None:
-                    li_infra_proj_cost = line_item.infrastructure_project_raw_cost
+                if line_item.infrastructure_raw_cost is not None:
+                    li_infra_proj_cost = line_item.infrastructure_raw_cost
                 else:
                     li_infra_proj_cost = dec_zero
                 # If raw cost is zero, then markup will also be zero
