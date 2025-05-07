@@ -14,14 +14,12 @@ from api.utils import DateHelper
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import GCP_REPORT_TABLE_MAP
-from masu.database import OCI_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import date_range_pair
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import TRINO_LINE_ITEM_DAILY_TABLE as AZURE_TRINO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import TRINO_LINE_ITEM_DAILY_TABLE as GCP_TRINO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.oci.models import TRINO_LINE_ITEM_DAILY_TABLE_MAP as OCI_TRINO_LINE_ITEM_DAILY_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -30,7 +28,6 @@ TRINO_FILTER_MAP = {
     Provider.PROVIDER_AWS: {"date": "lineitem_usagestartdate", "metric": "lineitem_unblendedcost"},
     Provider.PROVIDER_AZURE: {"date": "date", "metric": "costinbillingcurrency"},
     Provider.PROVIDER_GCP: {"date": "usage_start_time", "metric": "cost"},
-    Provider.PROVIDER_OCI: {"date": "lineitem_intervalusagestart", "metric": "cost_mycost"},
     Provider.PROVIDER_OCP: {
         "date": "usage_start",
         "metric": "pod_effective_usage_cpu_core_hours",
@@ -49,7 +46,6 @@ PG_FILTER_MAP = {
         "date": "usage_start",
         "metric": "unblended_cost",
     },
-    Provider.PROVIDER_OCI: {"date": "usage_start", "metric": "cost"},
     Provider.PROVIDER_OCP: {
         "date": "usage_start",
         "metric": "pod_effective_usage_cpu_core_hours",
@@ -64,7 +60,6 @@ PG_TABLE_MAP = {
     Provider.PROVIDER_AWS: AWS_CUR_TABLE_MAP.get("line_item_daily_summary"),
     Provider.PROVIDER_AZURE: AZURE_REPORT_TABLE_MAP.get("line_item_daily_summary"),
     Provider.PROVIDER_GCP: GCP_REPORT_TABLE_MAP.get("line_item_daily_summary"),
-    Provider.PROVIDER_OCI: OCI_CUR_TABLE_MAP.get("line_item_daily_summary"),
     Provider.PROVIDER_OCP: OCP_REPORT_TABLE_MAP.get("line_item_daily_summary"),
     "OCPAWS": AWS_CUR_TABLE_MAP.get("ocp_on_aws_project_daily_summary"),
     "OCPAzure": AZURE_REPORT_TABLE_MAP.get("ocp_on_azure_project_daily_summary"),
@@ -75,7 +70,6 @@ TRINO_TABLE_MAP = {
     Provider.PROVIDER_AWS: AWS_TRINO_LINE_ITEM_DAILY_TABLE,
     Provider.PROVIDER_AZURE: AZURE_TRINO_LINE_ITEM_DAILY_TABLE,
     Provider.PROVIDER_GCP: GCP_TRINO_LINE_ITEM_DAILY_TABLE,
-    Provider.PROVIDER_OCI: OCI_TRINO_LINE_ITEM_DAILY_TABLE.get("cost"),
     Provider.PROVIDER_OCP: "reporting_ocpusagelineitem_daily_summary",
     "OCPAWS": "reporting_ocpawscostlineitem_project_daily_summary",
     "OCPAzure": "reporting_ocpazurecostlineitem_project_daily_summary",

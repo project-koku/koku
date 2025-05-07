@@ -8,5 +8,4 @@ from .aws.openshift.queries import OCPAWSTagQueryHandler  # noqa: F401
 from .aws.queries import AWSTagQueryHandler  # noqa: F401
 from .azure.openshift.queries import OCPAzureTagQueryHandler  # noqa: F401
 from .azure.queries import AzureTagQueryHandler  # noqa: F401
-from .oci.queries import OCITagQueryHandler  # noqa: F401
 from .ocp.queries import OCPTagQueryHandler  # noqa: F401

@@ -21,7 +21,6 @@ from masu.processor.tasks import delayed_summarize_current_month
 from reporting.models import AWSTagsSummary
 from reporting.models import AzureTagsSummary
 from reporting.models import GCPTagsSummary
-from reporting.models import OCITagsSummary
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.ocp.models import OCPTagsValues
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -70,7 +69,6 @@ def resummarize_current_month_by_tag_keys(list_of_uuids, schema_name):
         Provider.PROVIDER_AWS: AWSTagsSummary,
         Provider.PROVIDER_AZURE: AzureTagsSummary,
         Provider.PROVIDER_GCP: GCPTagsSummary,
-        Provider.PROVIDER_OCI: OCITagsSummary,
     }
     key_sorting = defaultdict(list)
     for row in EnabledTagKeys.objects.filter(uuid__in=list_of_uuids):
