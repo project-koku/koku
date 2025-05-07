@@ -1351,6 +1351,9 @@ def trigger_openshift_on_cloud_trino(
         )
     # Apply OCP on Cloud managed tasks
     LOG.info(log_json(tracing_id, msg="chaining managed table processing, deletes and summary tasks", context=context))
+    LOG.info(
+        f"\n\n TASKS, TRINO: {len(trino_signiture_list)}, PG DEL: {len(pg_delete_signature_list)}, PG list: {len(pg_signature_list)} \n\n"
+    )
     trino_processing = group(trino_signiture_list)
     pg_deletes = group(pg_delete_signature_list)
     pg_summaries = group(pg_signature_list)
