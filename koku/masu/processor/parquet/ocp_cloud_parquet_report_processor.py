@@ -194,6 +194,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             "provider_type": self.provider_type,
             "ocp_provider_uuid": ocp_provider_uuid,
         }
+        matched_tags = None
         if self.has_enabled_ocp_labels:
             enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
             if enabled_tags:
