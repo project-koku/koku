@@ -287,32 +287,3 @@ OCP_ON_PREM_COST_MODEL = {
         },
     ],
 }
-
-OCI_SERVICE_NAMES = (
-    "BLOCK_STORAGE",
-    "COMPUTE",
-    "LOGGING",
-    "NETWORK",
-    "OBJECTSTORE",
-    "ORACLE_FUNCTIONS",
-    "TELEMETRY",
-)
-OCI_INSTANCE_TYPES = (
-    None,
-    "Virtual Machine Standard - E2 Micro - Free",
-) + (None,) * 5
-OCI_INSTANCE_IDS = (
-    [None],
-    ["ocid1.instance.oc1.uk-london-1.anwgiljtcf22xzacqqiueuntvcjnqkbep26cg24lpnu5tpekmi2sdif2vpma"],
-) + ([None],) * 5
-OCI_INSTANCE_COUNTS = (1, 1) + (0,) * 5
-OCI_UNITS_OF_MEASURE = ("BYTES",) + (None,) * 3 + ("BYTE_MS",) + (None,) * 2
-OCI_CONSTANTS = SameLengthDict(
-    {
-        "product_service": OCI_SERVICE_NAMES,
-        "instance_type": OCI_INSTANCE_TYPES,
-        "resource_ids": OCI_INSTANCE_IDS,
-        "resource_count": OCI_INSTANCE_COUNTS,
-        "unit": OCI_UNITS_OF_MEASURE,
-    }
-)

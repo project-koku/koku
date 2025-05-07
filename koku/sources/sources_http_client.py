@@ -26,15 +26,12 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: ["resource_group", "storage_account"],
     Provider.PROVIDER_GCP: [],
     Provider.PROVIDER_GCP_LOCAL: [],
-    Provider.PROVIDER_OCI: ["bucket", "bucket_namespace", "bucket_region"],
-    Provider.PROVIDER_OCI_LOCAL: ["bucket", "bucket_namespace", "bucket_region"],
 }
 AUTH_TYPES = {
     Provider.PROVIDER_OCP: "token",
     Provider.PROVIDER_AWS: "arn",
     Provider.PROVIDER_AZURE: "tenant_id_client_id_client_secret",
     Provider.PROVIDER_GCP: "project_id_service_account_json",
-    Provider.PROVIDER_OCI: "ocid",
 }
 ENDPOINT_APPLICATIONS = "applications"
 ENDPOINT_APPLICATION_TYPES = "application_types"
@@ -49,8 +46,6 @@ APP_OPT_EXTRA_FEILD_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: ["scope", "export_name", "storage_only", "metered"],
     Provider.PROVIDER_GCP: ["dataset", "bucket", "storage_only"],
     Provider.PROVIDER_GCP_LOCAL: ["dataset", "bucket", "storage_only"],
-    Provider.PROVIDER_OCI: [],
-    Provider.PROVIDER_OCI_LOCAL: [],
 }
 
 

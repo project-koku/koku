@@ -23,7 +23,6 @@ PROVIDER_TYPE_OPTIONS = {
     Provider.PROVIDER_AWS.lower(),
     Provider.PROVIDER_AZURE.lower(),
     Provider.PROVIDER_GCP.lower(),
-    Provider.PROVIDER_OCI.lower(),
     Provider.PROVIDER_OCP.lower(),
 }
 
@@ -31,7 +30,6 @@ PROVIDER_TYPE_TO_FILE_PATH = {
     Provider.PROVIDER_AWS.lower(): "aws",
     Provider.PROVIDER_AZURE.lower(): "azure",
     Provider.PROVIDER_GCP.lower(): "gcp",
-    Provider.PROVIDER_OCI.lower(): "oci",
     Provider.PROVIDER_OCP.lower(): "openshift",
 }
 

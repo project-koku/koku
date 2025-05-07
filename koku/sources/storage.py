@@ -22,8 +22,6 @@ ALLOWED_BILLING_SOURCE_PROVIDERS = (
     Provider.PROVIDER_AZURE_LOCAL,
     Provider.PROVIDER_GCP,
     Provider.PROVIDER_GCP_LOCAL,
-    Provider.PROVIDER_OCI,
-    Provider.PROVIDER_OCI_LOCAL,
 )
 ALLOWED_AUTHENTICATION_PROVIDERS = (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL)
 
@@ -109,23 +107,6 @@ def _gcp_provider_ready_for_create(provider):
     )
 
 
-def oci_settings_ready(provider):
-    """Verify that the Application Settings are complete."""
-    return bool(provider.billing_source.get("data_source"))
-
-
-def _oci_provider_ready_for_create(provider):
-    """Determine if OCI provider is ready for provider creation."""
-    return bool(
-        provider.source_id
-        and provider.name
-        and provider.auth_header
-        and oci_settings_ready(provider)
-        and not provider.status
-        and not provider.koku_uuid
-    )
-
-
 SCREEN_MAP = {
     Provider.PROVIDER_AWS: _aws_provider_ready_for_create,
     Provider.PROVIDER_AWS_LOCAL: _aws_provider_ready_for_create,
@@ -134,8 +115,6 @@ SCREEN_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: _azure_provider_ready_for_create,
     Provider.PROVIDER_GCP: _gcp_provider_ready_for_create,
     Provider.PROVIDER_GCP_LOCAL: _gcp_provider_ready_for_create,
-    Provider.PROVIDER_OCI: _oci_provider_ready_for_create,
-    Provider.PROVIDER_OCI_LOCAL: _oci_provider_ready_for_create,
 }
 
 
@@ -156,8 +135,6 @@ APP_SETTINGS_SCREEN_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: azure_settings_ready,
     Provider.PROVIDER_GCP: gcp_settings_ready,
     Provider.PROVIDER_GCP_LOCAL: gcp_settings_ready,
-    Provider.PROVIDER_OCI: oci_settings_ready,
-    Provider.PROVIDER_OCI_LOCAL: oci_settings_ready,
 }
 
 

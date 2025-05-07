@@ -16,13 +16,11 @@ from api.common.pagination import ForecastListPaginator
 from api.common.permissions import AwsAccessPermission
 from api.common.permissions import AzureAccessPermission
 from api.common.permissions import GcpAccessPermission
-from api.common.permissions import OCIAccessPermission
 from api.common.permissions import OpenShiftAccessPermission
 from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermission
 from api.forecast.serializers import AWSCostForecastParamSerializer
 from api.forecast.serializers import AzureCostForecastParamSerializer
 from api.forecast.serializers import GCPCostForecastParamSerializer
-from api.forecast.serializers import OCICostForecastParamSerializer
 from api.forecast.serializers import OCPAllCostForecastParamSerializer
 from api.forecast.serializers import OCPAWSCostForecastParamSerializer
 from api.forecast.serializers import OCPAzureCostForecastParamSerializer
@@ -33,7 +31,6 @@ from api.query_params import QueryParameters
 from forecast import AWSForecast
 from forecast import AzureForecast
 from forecast import GCPForecast
-from forecast import OCIForecast
 from forecast import OCPAllForecast
 from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
@@ -138,12 +135,3 @@ class GCPCostForecastView(ForecastView):
     query_handler = GCPForecast
     serializer = GCPCostForecastParamSerializer
     tag_providers = [Provider.PROVIDER_GCP]
-
-
-class OCICostForecastView(ForecastView):
-    """OCI Cost Forecast View."""
-
-    permission_classes = (OCIAccessPermission,)
-    query_handler = OCIForecast
-    serializer = OCICostForecastParamSerializer
-    tag_providers = [Provider.PROVIDER_OCI]
