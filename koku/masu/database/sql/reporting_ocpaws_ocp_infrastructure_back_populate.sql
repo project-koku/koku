@@ -18,7 +18,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     all_labels,
     source_uuid,
     infrastructure_raw_cost,
-    infrastructure_project_raw_cost,
     infrastructure_usage_cost,
     supplementary_usage_cost,
     infrastructure_data_in_gigabytes,
@@ -66,7 +65,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         ocp_aws.pod_labels as all_labels,
         rp.provider_id as source_uuid,
         sum(calculated_amortized_cost + markup_cost_amortized) AS infrastructure_raw_cost,
-        sum(calculated_amortized_cost + markup_cost_amortized) AS infrastructure_project_raw_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
         CASE

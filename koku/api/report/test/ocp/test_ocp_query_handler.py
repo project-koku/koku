@@ -80,9 +80,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
             return (
-                OCPUsageLineItemDailySummary.objects.filter(**filters)
-                .annotate(**handler.annotations)
-                .aggregate(**aggregates)
+                handler.query_table.objects.filter(**filters).annotate(**handler.annotations).aggregate(**aggregates)
             )
 
     def get_totals_by_time_scope(self, handler, filters=None):
