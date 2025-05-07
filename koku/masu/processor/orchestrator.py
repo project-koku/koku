@@ -384,7 +384,7 @@ class Orchestrator:
                     queue=SUBS_EXTRACTION_QUEUE
                 )
                 LOG.info(log_json("start_manifest_processing", msg="created subs_task signature", schema=schema_name))
-                # Note that the summary, hcs and subs will excecutue concurrently, so the order can not be garunteed.
+                # Note that the summary, hcs and subs tasks will excecutue concurrently, so ordering can't be garunteed.
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
                 LOG.info(
                     log_json(

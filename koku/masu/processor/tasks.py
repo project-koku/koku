@@ -1304,21 +1304,6 @@ def trigger_openshift_on_cloud_trino(
         return
     context["start_date"] = start_date
     context["end_date"] = end_date
-    # TODO remove trino_cloud_initilizing_signiture_list logic when row_uuid is avaiable in parquet files COST-5866
-    # This needs to be run once for the cluod provider, before splitting tasks by cluster
-    trino_cloud_initilizing_signiture_list = []
-    trino_cloud_initilizing_signiture_list.append(
-        trino_initilise_cloud_data.si(
-            schema,
-            provider_uuid,
-            provider_type,
-            start_date,
-            end_date,
-            manifest_id=manifest_id,
-            tracing_id=tracing_id,
-            context=context,
-        ).set(queue=fallback_update_summary_tables_queue)
-    )
     pg_delete_signature_list = []
     trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
     for table_name, operation in trunc_delete_map.items():
@@ -1368,36 +1353,14 @@ def trigger_openshift_on_cloud_trino(
         )
     # Apply OCP on Cloud managed tasks
     LOG.info(log_json(tracing_id, msg="chaining managed table processing, deletes and summary tasks", context=context))
-    trino_cloud_initilizing = group(trino_cloud_initilizing_signiture_list)
     trino_processing = group(trino_signiture_list)
     pg_deletes = group(pg_delete_signature_list)
     pg_summaries = group(pg_signature_list)
-    c = chain(trino_cloud_initilizing, trino_processing, pg_deletes, pg_summaries)
+    c = chain(trino_processing, pg_deletes, pg_summaries)
     if synchronous:
         c.apply()
     else:
         c.apply_async()
-
-
-@celery_app.task(
-    name="masu.processor.tasks.trino_initilise_cloud_data",
-    queue=SummaryQueue.DEFAULT,
-)
-def trino_initilise_cloud_data(
-    schema_name,
-    provider_uuid,
-    provider_type,
-    start_date,
-    end_date,
-    manifest_id=None,
-    tracing_id=None,
-    context=None,
-):
-    """Temporary task to create and populate the initial cloud data in trino workaround for COST-5866"""
-    LOG.info(log_json(tracing_id, msg="managed table initial cloud row_uuid processing started", context=context))
-    processor = OCPCloudParquetReportProcessor(schema_name, "", provider_uuid, provider_type, manifest_id, context)
-    processor.initialise_managed_cloud_row_uuid_data(provider_type, start_date, end_date)
-    LOG.info(log_json(tracing_id, msg="managed table initial cloud row_uuid processing complete", context=context))
 
 
 @celery_app.task(

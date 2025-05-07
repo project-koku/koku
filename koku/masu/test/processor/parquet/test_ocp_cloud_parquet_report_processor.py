@@ -545,24 +545,6 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             rp.process_ocp_cloud_trino(self.ocp_provider_uuid, start_date, end_date)
             accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(managed_sql_params)
 
-    def test_initialise_managed_cloud_row_uuid_data(self):
-        """Test running cloud provider row uuid populate logic."""
-        start_date = "2024-08-01"
-        end_date = "2024-08-05"
-        with patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.db_accessor"
-        ) as accessor:
-            rp = OCPCloudParquetReportProcessor(
-                schema_name=self.schema,
-                report_path=self.report_path,
-                provider_uuid=self.aws_provider_uuid,
-                provider_type=Provider.PROVIDER_AWS_LOCAL,
-                manifest_id=self.manifest_id,
-                context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
-            )
-            rp.initialise_managed_cloud_row_uuid_data(Provider.PROVIDER_AWS_LOCAL, start_date, end_date)
-            accessor._execute_trino_multipart_sql_query.assert_called()
-
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags")
     @patch.object(AWSReportDBAccessor, "check_for_matching_enabled_keys")
