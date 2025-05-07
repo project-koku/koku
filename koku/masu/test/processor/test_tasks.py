@@ -1845,7 +1845,7 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
             "end": end,
             "manifest_id": 1,
         }
-        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, "", start, end)
+        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end)
         mock_chain.assert_called()
 
     @patch("masu.processor.tasks.chain")
@@ -1864,7 +1864,7 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
             "manifest_id": 1,
         }
         mock_infra_map.side_effect = ReportSummaryUpdaterCloudError
-        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, "", start, end)
+        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end)
         mock_chain.assert_not_called()
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
@@ -1886,9 +1886,7 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
             "end": end,
             "manifest_id": 1,
         }
-        trigger_openshift_on_cloud_trino(
-            context, self.schema, self.aws_provider.uuid, "", start, end, synchronous=True
-        )
+        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end, synchronous=True)
         mock_chain.assert_called()
 
     @patch(
@@ -1913,29 +1911,8 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
             "end": end,
             "manifest_id": 1,
         }
-        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, "", start, end)
+        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end)
         mock_chain.assert_not_called()
-
-    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
-    def test_trigger_openshift_on_cloud_trino_bad_provider_type(self, mock_process, mock_unleash):
-        """Test that the trigger_openshift_on_cloud_trino task performs expected functions"""
-        start = "2024-08-01"
-        end = "2024-08-05"
-        test_uuid = uuid4()
-        p_type = "test"
-        reports = [
-            {
-                "schema_name": self.schema,
-                "provider_type": p_type,
-                "provider_uuid": str(test_uuid),
-                "tracing_id": "",
-                "start": start,
-                "end": end,
-                "manifest_id": 1,
-            }
-        ]
-        trigger_openshift_on_cloud_trino(reports, p_type, self.schema, test_uuid, "")
-        mock_process.assert_not_called()
 
     @patch(
         "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.process_ocp_cloud_trino"  # noqa E501
@@ -1963,25 +1940,3 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
             context=context,
         )
         mock_processor.assert_called()
-
-    @patch(
-        "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.process_ocp_cloud_trino"  # noqa E501
-    )
-    @patch("masu.processor.tasks.OCPCloudParquetReportProcessor.process_ocp_cloud_trino")
-    def test_trigger_openshift_on_cloud_trino_manifest_not_ready(self, mock_process, mock_unleash):
-        """Test that the trigger_openshift_on_cloud_trino task performs expected functions"""
-        start = "2024-08-01"
-        end = "2024-08-05"
-        reports = [
-            {
-                "schema_name": self.schema,
-                "provider_type": self.azure_provider.type,
-                "provider_uuid": str(self.aws_provider.uuid),
-                "tracing_id": "",
-                "start": start,
-                "end": end,
-                "manifest_id": 1000,
-            }
-        ]
-        trigger_openshift_on_cloud_trino(reports, self.aws_provider.type, self.schema, self.provider_uuid, "")
-        mock_process.assert_not_called()
