@@ -275,6 +275,9 @@ class Manifest(BaseModel):
 
     @model_validator(mode="after")
     def validate_start_and_end(self) -> Self:
+        print(self)
+        if not (self.start and self.end):
+            return self
         if self.start.month != self.end.month and self.end.day == 1:
             # We override the end date from the first of the next month to the end of current month
             # We do this to prevent summary from triggering unnecessarily on the next month
@@ -282,6 +285,7 @@ class Manifest(BaseModel):
         return self
 
     def model_post_init(self, context: Any, /) -> None:
+        print(self)
         if not (self.start and self.end):
             return
         hours_per_day = {}

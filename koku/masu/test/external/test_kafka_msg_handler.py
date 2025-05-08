@@ -34,7 +34,6 @@ from masu.test import MasuTestCase
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
 
-
 FILE_PATH_ONE = Path("path/to/file_one")
 FILE_PATH_TWO = Path("path/to/file_two")
 
@@ -617,8 +616,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     "fake_identity",
                                     {"account": "1234", "org_id": "5678"},
                                 )
-                                expected_path = "{}/{}/{}/".format(
-                                    Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                expected_path = (
+                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
@@ -764,8 +763,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     "fake_identity",
                                     {"account": "1234", "org_id": "5678"},
                                 )
-                                expected_path = "{}/{}/{}/".format(
-                                    Config.INSIGHTS_LOCAL_REPORT_DIR, self.cluster_id, self.date_range
+                                expected_path = (
+                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
                                 )
                                 self.assertFalse(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
@@ -922,7 +921,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_create_cost_and_usage_report_manifest(self):
         manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
-        report_meta = utils.get_report_details(manifest.parent)
+        report_meta = utils.parse_manifest(manifest)
         manifest_id = msg_handler.create_cost_and_usage_report_manifest(self.ocp_provider_uuid, report_meta)
         manifest = CostUsageReportManifest.objects.get(id=manifest_id)
         self.assertEqual(manifest.assembly_id, report_meta["uuid"])
@@ -940,13 +939,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     return_value=("storage_usage", None),
                 ):
                     dates = ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"]
+                    hour_dict = {"2020-01-01": 1, "2020-01-02": 1}
                     mock_report = {
                         "interval_start": dates,
                         "persistentvolumeclaim_labels": ["label1", "label2"],
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id)
+                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id, hour_dict)
                     self.assertNotEqual([], daily_files)
                     self.assertEqual(len(daily_files), 2)
                     gen_files = [

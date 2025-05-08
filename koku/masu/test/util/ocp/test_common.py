@@ -9,12 +9,17 @@ import tempfile
 from unittest.mock import patch
 
 from model_bakery import baker
+from polyfactory.factories.pydantic_factory import ModelFactory
 
 from api.provider.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.test import MasuTestCase
 from masu.util.ocp import common as utils
+
+
+class ManifestFactory(ModelFactory[utils.Manifest]):
+    ...
 
 
 class OCPUtilTests(MasuTestCase):

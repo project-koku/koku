@@ -120,7 +120,11 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict):
     return daily_files
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filepath: Path, manifest: utils.Manifest, context):
+def create_daily_archives(
+    payload_info: utils.PayloadInfo,
+    filepath: Path,
+    context,
+):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -133,6 +137,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath: Path, ma
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    manifest = payload_info.manifest
     cur_manifest = CostUsageReportManifest.objects.get(id=manifest.manifest_id)
     daily_file_names = {}
     if cur_manifest.operator_version and not cur_manifest.operator_daily_reports:
@@ -151,11 +156,15 @@ def create_daily_archives(tracing_id, account, provider_uuid, filepath: Path, ma
     for daily_file in daily_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
-            account, Provider.PROVIDER_OCP, provider_uuid, daily_file.get("date"), Config.CSV_DATA_TYPE
+            payload_info.account,
+            payload_info.provider_type,
+            payload_info.provider_uuid,
+            daily_file.get("date"),
+            Config.CSV_DATA_TYPE,
         )
         filepath = daily_file.get("filepath")
         copy_local_report_file_to_s3_bucket(
-            tracing_id,
+            payload_info.request_id,
             s3_csv_path,
             filepath,
             filepath.name,
@@ -335,18 +344,6 @@ def extract_payload_contents(request_id, tarball_path, context):
     return manifest_path[0], files
 
 
-def construct_daily_archives(payload_info: utils.PayloadInfo, report_file_path: Path, context: dict):
-    """Build, upload and convert parquet reports."""
-    return create_daily_archives(
-        payload_info.request_id,
-        payload_info.account,
-        payload_info.provider_uuid,
-        report_file_path,
-        payload_info.manifest,
-        context,
-    )
-
-
 def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     """
     Extract OCP usage report payload into local directory structure.
@@ -432,15 +429,6 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         org_id=context["org_id"],
         schema_name=provider.account.get("schema_name"),
     )
-    # report_meta["source_id"] = source.source_id
-    # report_meta["provider_uuid"] = provider.uuid
-    # report_meta["provider_type"] = provider.type
-    # report_meta["schema_name"] = schema_name
-    # # Existing schema will start with acct and we strip that prefix for use later
-    # # new customers include the org prefix in case an org-id and an account number might overlap
-    # report_meta["account"] = schema_name.strip("acct")
-    # report_meta["request_id"] = request_id
-    # report_meta["tracing_id"] = manifest.uuid
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(manifest.date)
@@ -487,7 +475,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
                 continue
             msg = f"Successfully extracted OCP for {manifest.cluster_id}/{usage_month}"
             LOG.info(log_json(manifest.uuid, msg=msg, context=context))
-            split_files = construct_daily_archives(payload, payload_destination_path, context)
+            split_files = create_daily_archives(payload, payload_destination_path, context)
             current_meta["split_files"] = list(split_files)
             current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
