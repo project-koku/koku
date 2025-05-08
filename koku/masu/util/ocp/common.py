@@ -276,7 +276,6 @@ class Manifest(BaseModel):
 
     @model_validator(mode="after")
     def validate_start_and_end(self) -> Self:
-        print(self)
         if not (self.start and self.end):
             return self
         if self.start.month != self.end.month and self.end.day == 1:
@@ -286,7 +285,6 @@ class Manifest(BaseModel):
         return self
 
     def model_post_init(self, context: Any, /) -> None:
-        print(self)
         if not (self.start and self.end):
             return
         hours_per_day = {}
@@ -315,7 +313,7 @@ class PayloadInfo(BaseModel):
     schema_name: str
 
 
-def parse_manifest(manifest_path) -> Manifest | None:
+def parse_manifest(report_directory) -> Manifest | None:
     """
     Get OCP usage report details from manifest file.
 
@@ -338,6 +336,7 @@ def parse_manifest(manifest_path) -> Manifest | None:
              end: DateTime
 
     """
+    manifest_path = os.path.join(report_directory, "manifest.json")
     if not os.path.exists(manifest_path):
         LOG.info(log_json(msg="no manifest available", manifest_path=manifest_path))
         return

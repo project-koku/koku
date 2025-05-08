@@ -392,7 +392,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = Path(payload_path.parent, manifest_path)
-    manifest = utils.parse_manifest(full_manifest_path)
+    manifest = utils.parse_manifest(full_manifest_path.parent)
 
     context |= {
         "request_id": request_id,

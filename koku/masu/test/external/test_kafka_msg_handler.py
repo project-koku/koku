@@ -162,6 +162,21 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.ocp_manifest_id = self.ocp_manifest.id
         self.ocp_source = baker.make("Sources", provider=self.ocp_provider)
 
+        manifest = utils.parse_manifest("koku/masu/test/data/ocp/payload2")
+        manifest.manifest_id = self.ocp_manifest_id
+
+        self.fake_payload_info = utils.PayloadInfo(
+            request_id="random request id",
+            manifest=manifest,
+            source_id=1,
+            provider_uuid=self.ocp_provider_uuid,
+            provider_type="OCP",
+            cluster_alias=self.cluster_id,
+            account="10001",
+            org_id="10001",
+            schema_name=self.schema_name,
+        )
+
     @patch("masu.external.kafka_msg_handler.listen_for_messages")
     @patch("masu.external.kafka_msg_handler.get_consumer")
     def test_listen_for_msg_loop(self, mock_consumer, mock_listen):
@@ -903,12 +918,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
             manifest_path = filename.parent.joinpath(manifest)
             self.assertTrue(os.path.isfile(manifest_path))
 
-            report_meta = utils.parse_manifest(manifest_path)
+            report_meta = utils.parse_manifest(manifest_path.parent)
             self.assertEqual(report_meta.version, "e03142a32dce56bced9dde7963859832129f1a3a")
+            self.assertEqual(report_meta.operator_version, "e03142a32dce56bced9dde7963859832129f1a3a")
             cr_data = msg_handler.process_cr(report_meta, {})
             self.assertEqual(cr_data["operator_version"], "e03142a32dce56bced9dde7963859832129f1a3a")
 
             report_meta.version = "b5a2c05255069215eb564dcc5c4ec6ca4b33325d"
+            report_meta = utils.Manifest.model_validate(report_meta.model_dump())
+            self.assertEqual(report_meta.operator_version, "costmanagement-metrics-operator:3.0.1")
             cr_data = msg_handler.process_cr(report_meta, {})
             self.assertEqual(cr_data["operator_version"], "costmanagement-metrics-operator:3.0.1")
 
@@ -921,7 +939,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_create_cost_and_usage_report_manifest(self):
         manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
-        report_meta = utils.parse_manifest(manifest)
+        report_meta = utils.parse_manifest(manifest.parent)
         manifest_id = msg_handler.create_cost_and_usage_report_manifest(self.ocp_provider_uuid, report_meta, {})
         manifest = CostUsageReportManifest.objects.get(id=manifest_id)
         self.assertEqual(manifest.assembly_id, str(report_meta.uuid))
@@ -983,7 +1001,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.ocp_manifest.operator_version = None
         self.ocp_manifest.save()
 
-        start_date = self.dh.this_month_start
         daily_files = [
             {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
             {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 1},
@@ -993,9 +1010,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         mock_divide.return_value = daily_files
 
         file_path = Path("path")
-        result = msg_handler.create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
-        )
+        result = msg_handler.create_daily_archives(self.fake_payload_info, file_path, {})
 
         self.assertCountEqual(result.keys(), expected_filenames)
 
@@ -1003,15 +1018,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_non_daily_operator_files(self, *args):
         """Test that this method returns a file list."""
-        start_date = self.dh.this_month_start
-
         file_path = Path("path")
 
         context = {"version": "1"}
         expected = [file_path]
-        result = msg_handler.create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, context=context
-        )
+        result = msg_handler.create_daily_archives(self.fake_payload_info, file_path, context)
         self.assertCountEqual(result.keys(), expected)
 
     @patch("masu.external.kafka_msg_handler.os")
@@ -1022,7 +1033,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.ocp_manifest.operator_daily_reports = True
         self.ocp_manifest.save()
 
-        start_date = self.dh.this_month_start
         daily_files = [
             {"filepath": FILE_PATH_ONE, "date": datetime.fromisoformat("2020-01-01"), "num_hours": 23},
             {"filepath": FILE_PATH_TWO, "date": datetime.fromisoformat("2020-01-02"), "num_hours": 24},
@@ -1036,9 +1046,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         mock_divide.return_value = daily_files
 
         file_path = Path("path")
-        result = msg_handler.create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
-        )
+        result = msg_handler.create_daily_archives(self.fake_payload_info, file_path, {})
 
         self.assertCountEqual(result.keys(), expected_filenames)
         self.assertDictEqual(result, expected_result)
@@ -1052,6 +1060,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         self.ocp_manifest.save()
 
         start_date = self.dh.this_month_start
+        self.fake_payload_info.manifest.date = start_date
 
         # simulate empty report file
         mock_divide.return_value = None
@@ -1060,9 +1069,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
         expected_result = {
             file_path: {"meta_reportdatestart": str(start_date.date()), "meta_reportnumhours": "0"},
         }
-        result = msg_handler.create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, file_path, self.ocp_manifest_id, start_date, {}
-        )
+
+        result = msg_handler.create_daily_archives(self.fake_payload_info, file_path, {})
 
         self.assertCountEqual(result.keys(), [file_path])
         self.assertDictEqual(result, expected_result)
