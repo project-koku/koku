@@ -252,10 +252,11 @@ OCP_REPORT_TYPES = {
 
 
 class Manifest(BaseModel):
+    model_config = ConfigDict(validate_default=True, validate_assignment=True)
     uuid: UUID4
     manifest_id: int = 0
     cluster_id: str
-    version: str
+    version: str = ""
     operator_version: str = ""
     date: datetime
     files: list[str]
@@ -303,8 +304,6 @@ class Manifest(BaseModel):
 
 
 class PayloadInfo(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
     request_id: str
     manifest: Manifest
     source_id: int

@@ -903,29 +903,29 @@ class KafkaMsgHandlerTest(MasuTestCase):
             manifest_path = filename.parent.joinpath(manifest)
             self.assertTrue(os.path.isfile(manifest_path))
 
-            report_meta = utils.get_report_details(filename.parent)
-            self.assertEqual(report_meta["version"], "e03142a32dce56bced9dde7963859832129f1a3a")
-            cr_data = msg_handler.process_cr(report_meta)
+            report_meta = utils.parse_manifest(manifest_path)
+            self.assertEqual(report_meta.version, "e03142a32dce56bced9dde7963859832129f1a3a")
+            cr_data = msg_handler.process_cr(report_meta, {})
             self.assertEqual(cr_data["operator_version"], "e03142a32dce56bced9dde7963859832129f1a3a")
 
-            report_meta["version"] = "b5a2c05255069215eb564dcc5c4ec6ca4b33325d"
-            cr_data = msg_handler.process_cr(report_meta)
+            report_meta.version = "b5a2c05255069215eb564dcc5c4ec6ca4b33325d"
+            cr_data = msg_handler.process_cr(report_meta, {})
             self.assertEqual(cr_data["operator_version"], "costmanagement-metrics-operator:3.0.1")
 
             # test that we warn when basic auth is being used:
-            report_meta["cr_status"]["authentication"]["type"] = "basic"
+            report_meta.cr_status["authentication"]["type"] = "basic"
             with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.INFO) as log:
-                msg_handler.process_cr(report_meta)
+                msg_handler.process_cr(report_meta, {})
                 self.assertEqual(len(log.output), 2)
                 self.assertIn("cluster is using basic auth", log.output[1])
 
     def test_create_cost_and_usage_report_manifest(self):
         manifest = Path("koku/masu/test/data/ocp/payload2/manifest.json")
         report_meta = utils.parse_manifest(manifest)
-        manifest_id = msg_handler.create_cost_and_usage_report_manifest(self.ocp_provider_uuid, report_meta)
+        manifest_id = msg_handler.create_cost_and_usage_report_manifest(self.ocp_provider_uuid, report_meta, {})
         manifest = CostUsageReportManifest.objects.get(id=manifest_id)
-        self.assertEqual(manifest.assembly_id, report_meta["uuid"])
-        self.assertEqual(manifest.export_datetime, report_meta["date"])
+        self.assertEqual(manifest.assembly_id, str(report_meta.uuid))
+        self.assertEqual(manifest.export_datetime, report_meta.date)
         self.assertEqual(manifest.operator_version, "e03142a32dce56bced9dde7963859832129f1a3a")
 
     def test_divide_csv_daily(self):
@@ -1085,7 +1085,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id)
+                    daily_files = msg_handler.divide_csv_daily(file_path, self.ocp_manifest_id, {})
 
                     for daily_file in daily_files:
                         with open(str(daily_file["filepath"])) as file:
