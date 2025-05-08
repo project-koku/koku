@@ -67,6 +67,7 @@ FROM
       AND lineitem_lineitemtype IN ('Usage', 'SavingsPlanCoveredUsage', 'DiscountedUsage')
       AND product_vcpu != ''
       AND strpos(lower(resourcetags), 'com_redhat_rhel') > 0
+      AND lineitem_usageaccountid = {{usage_account}}
       AND (
         {% for item in resources %}
             (

@@ -47,6 +47,7 @@ WHERE
     AND metercategory = 'Virtual Machines'
     AND json_extract_scalar(lower(additionalinfo), '$.vcpus') IS NOT NULL
     AND json_extract_scalar(lower(lower(tags)), '$.com_redhat_rhel') IS NOT NULL
+    AND (subscriptionid = {{usage_account}} or subscriptionguid = {{usage_account}})
     -- ensure there is usage
     AND ceil(quantity) > 0
     AND (

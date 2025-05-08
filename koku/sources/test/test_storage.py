@@ -344,38 +344,6 @@ class SourcesStorageTest(TestCase):
                 ),
                 "expected_response": {},
             },
-            {
-                "provider": MockProvider(
-                    source_id=4,
-                    name="OCI Provider",
-                    source_type=Provider.PROVIDER_OCI,
-                    auth={},
-                    billing_source={
-                        "data_source": {
-                            "bucket": "bucket",
-                            "bucket_namespace": "bucket-namespace",
-                            "bucket_region": "bucket-region",
-                        }
-                    },
-                    auth_header="authheader",
-                    offset=4,
-                    pending_delete=False,
-                ),
-                "expected_response": {"operation": "create", "offset": 4},
-            },
-            {
-                "provider": MockProvider(
-                    source_id=4,
-                    name="OCI Provider",
-                    source_type=Provider.PROVIDER_OCI,
-                    auth={},
-                    billing_source={"data_source": {}},
-                    auth_header="authheader",
-                    offset=1,
-                    pending_delete=False,
-                ),
-                "expected_response": {},
-            },
         ]
         for test in test_matrix:
             response = storage.screen_and_build_provider_sync_create_event(test.get("provider"))

@@ -1,6 +1,6 @@
 # What Are Cost Models?
 
-Configuring a cost model allows users to associate prices to metrics and usage, and fine-tune the costs of running their cloud. This is an essential piece of running OpenShift on Prem, because without a cost model we can generate any costs. Therefore, a majority of the features available for the cost models are related to OCP sources. However, you can still apply a markup or discount through cost models to our cloud providers (AWS, Azure, GCP, OCI).
+Configuring a cost model allows users to associate prices to metrics and usage, and fine-tune the costs of running their cloud. This is an essential piece of running OpenShift on Prem, because without a cost model we can't generate any costs. Therefore, a majority of the features available for the cost models are related to OCP sources. However, you can still apply a markup or discount through cost models to our cloud providers (AWS, Azure, GCP).
 
 
 Helpful Links:

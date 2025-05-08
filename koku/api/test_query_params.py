@@ -29,7 +29,6 @@ PROVIDERS = [
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_OCP,
     Provider.PROVIDER_GCP,
-    Provider.PROVIDER_OCI,
     Provider.OCP_AWS,
     Provider.OCP_AZURE,
     Provider.OCP_ALL,
@@ -37,7 +36,6 @@ PROVIDERS = [
 ACCESS_KEYS = {
     Provider.PROVIDER_AWS.lower(): ["aws.account", "aws.organizational_unit"],
     Provider.PROVIDER_GCP.lower(): ["gcp.account", "gcp.project"],
-    Provider.PROVIDER_OCI.lower(): ["oci.payer_tenant_id"],
     Provider.PROVIDER_AZURE.lower(): ["azure.subscription_guid"],
     Provider.PROVIDER_OCP.lower(): ["openshift.cluster", "openshift.project", "openshift.node"],
     Provider.OCP_AWS.lower(): [
@@ -609,27 +607,6 @@ class QueryParametersTests(TestCase):
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_access("subscription_guid"), [guid1, guid2])
 
-    def test_update_query_parameters_add_tenant_id_filter_obj(self):
-        """Test that if no group_by or filter is present, access is the tenant_ids available."""
-        guid1 = uuid4()
-        guid2 = uuid4()
-        test_access = {"oci.payer_tenant_id": {"read": [guid1, guid2]}}
-        fake_request = Mock(
-            spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
-            GET=Mock(urlencode=Mock(return_value="")),
-        )
-        fake_view = Mock(
-            spec=ReportView,
-            provider=self.FAKE.word(),
-            query_handler=Mock(provider=Provider.PROVIDER_OCI),
-            report=self.FAKE.word(),
-            serializer=Mock,
-            tag_providers=[],
-        )
-        params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.get_access("payer_tenant_id"), [guid1, guid2])
-
     def test_update_query_parameters_filtered_intersection(self):
         """Test that a filter by cluster filtered list causes a 403 when filtering on accounts without access."""
         fake_uri = "filter[cluster]=cluster1&" "filter[cluster]=cluster3"
@@ -891,7 +868,6 @@ class QueryParametersTests(TestCase):
             "aws.account": {"read": ["*"]},
             "aws.organizational_unit": {"read": ["*"]},
             "azure.subscription_guid": {"read": ["*"]},
-            "oci.payer_tenant_id": {"read": ["*"]},
             "openshift.cluster": {"read": ["my-ocp-cluster"]},
             "gcp.account": {"read": ["*"]},
             "gcp.project": {"read": ["*"]},

@@ -65,20 +65,6 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 lpt_dict[rid] = latest_time + timedelta(seconds=1)
         return lpt_dict
 
-    def determine_latest_processed_time_for_provider(self, rid, year, month):
-        """Determine the latest processed timestamp for a provider for a given month and year."""
-        with schema_context(self.schema):
-            last_time = SubsLastProcessed.objects.filter(
-                source_uuid=self.provider_uuid, resource_id=rid, year=year, month=month
-            ).first()
-        if last_time and last_time.latest_processed_time:
-            # the stored timestamp is the latest timestamp data was gathered for
-            # and we want to gather new data we have not processed yet
-            # so we add one second to the last timestamp to ensure the time range processed
-            # is all new data
-            return last_time.latest_processed_time + timedelta(seconds=1)
-        return None
-
     def determine_ids_for_provider(self, year, month):
         """Determine the relevant IDs to process data for this provider."""
         sql_file = f"trino_sql/{self.provider_type.lower()}/determine_ids_for_provider.sql"
@@ -127,7 +113,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             sql, sql_params=sql_params, context=self.context, log_ref="subs_determine_rids_for_provider"
         )
 
-    def gather_and_upload_for_resource_batch(self, year, month, batch, base_filename):
+    def gather_and_upload_for_resource_batch(self, year, month, batch, batch_filename, usage_account):
         """Gather the data and upload it to S3 for a batch of resource ids"""
         sql_params = {
             "source_uuid": self.provider_uuid,
@@ -135,6 +121,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             "month": month,
             "schema": self.schema,
             "resources": batch,
+            "usage_account": usage_account,
         }
         sql_file = f"trino_sql/{self.provider_type.lower()}/subs_summary.sql"
         summary_sql = pkgutil.get_data("subs", sql_file)
@@ -160,7 +147,7 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             # col[0] grabs the column names from the query results
             cols = [col[0] for col in description]
             if results:
-                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{base_filename}_{i}.csv"))
+                upload_keys.append(self.copy_data_to_subs_s3_bucket(results, cols, f"{batch_filename}_{i}.csv"))
         return upload_keys
 
     def bulk_update_latest_processed_time(self, resources, year, month):
@@ -208,8 +195,9 @@ class SUBSDataExtractor(ReportDBAccessorBase):
             )
             return []
         last_processed_dict = self.get_latest_processed_dict_for_provider(year, month)
-        base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}"
         for usage_account in usage_accounts:
+            base_filename = f"subs_{self.tracing_id}_{self.provider_uuid}_{usage_account}"
+
             resource_ids = self.get_resource_ids_for_usage_account(usage_account, year, month)
             if not resource_ids:
                 LOG.debug(
@@ -241,13 +229,17 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 batch.append({"rid": rid, "start": start_time, "end": end_time})
                 if len(batch) >= 100:
                     upload_keys.extend(
-                        self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")
+                        self.gather_and_upload_for_resource_batch(
+                            year, month, batch, f"{base_filename}_{batch_num}", usage_account
+                        )
                     )
                     batch_num += 1
                     batch = []
             if batch:
                 upload_keys.extend(
-                    self.gather_and_upload_for_resource_batch(year, month, batch, f"{base_filename}_{batch_num}")
+                    self.gather_and_upload_for_resource_batch(
+                        year, month, batch, f"{base_filename}_{batch_num}", usage_account
+                    )
                 )
             self.bulk_update_latest_processed_time(resource_ids, year, month)
         LOG.info(
