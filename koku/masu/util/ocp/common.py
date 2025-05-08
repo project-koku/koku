@@ -313,7 +313,7 @@ class PayloadInfo(BaseModel):
     schema_name: str
 
 
-def parse_manifest(report_directory) -> Manifest | None:
+def parse_manifest(report_directory) -> Manifest:
     """
     Get OCP usage report details from manifest file.
 
@@ -337,44 +337,12 @@ def parse_manifest(report_directory) -> Manifest | None:
 
     """
     manifest_path = os.path.join(report_directory, "manifest.json")
-    if not os.path.exists(manifest_path):
-        LOG.info(log_json(msg="no manifest available", manifest_path=manifest_path))
-        return
     json_string = Path(manifest_path).read_text()
     try:
         manifest = Manifest.model_validate_json(json_string)
     except ValidationError as err:
         LOG.error("unable to extract manifest data", exc_info=err)
         raise err
-
-    """
-    try:
-        with open(manifest_path) as file:
-            payload_dict = json.load(file)
-            payload_dict["date"] = parser.parse(payload_dict["date"])
-    except (OSError, KeyError) as exc:
-        LOG.error("unable to extract manifest data", exc_info=exc)
-        return {}
-
-    payload_dict["manifest_path"] = Path(manifest_path)
-    # parse start and end dates if in manifest
-    if payload_start := payload_dict.get("start"):
-        payload_dict["start"] = parser.parse(payload_start)
-        if "0001-01-01 00:00:00+00:00" not in payload_start:
-            # if we have a valid start date, set the date to the start
-            # so that a manifest created at midnight on the first of the month
-            # will associate the data with the correct reporting month
-            payload_dict["date"] = payload_dict["start"]
-    if payload_start and (payload_end := payload_dict.get("end")):
-        payload_dict["end"] = parser.parse(payload_end)
-        start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
-        end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
-        # We override the end date from the first of the next month to the end of current month
-        # We do this to prevent summary from triggering unnecessarily on the next month
-        if start.month != end.month and end.day == 1:
-            payload_dict["end"] = dh().month_end(start)
-    return payload_dict
-    """
     return manifest
 
 

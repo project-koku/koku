@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from model_bakery import baker
 from polyfactory.factories.pydantic_factory import ModelFactory
+from pydantic import ValidationError
 
 from api.provider.models import Provider
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -115,26 +116,18 @@ class OCPUtilTests(MasuTestCase):
             result = utils.match_openshift_labels(td, matched_tags)
             self.assertEqual(result, expected)
 
-    def test_get_report_details(self):
+    def test_parse_manifest(self):
         """Test that we handle manifest files properly."""
         with tempfile.TemporaryDirectory() as manifest_path:
             manifest_file = f"{manifest_path}/manifest.json"
-            with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
-                expected = "no manifest available"
-                utils.get_report_details(manifest_path)
-                self.assertTrue(any(expected in log for log in logger.output))
-
             with open(manifest_file, "w") as f:
                 data = {"key": "value"}
                 json.dump(data, f)
-            utils.get_report_details(manifest_path)
-
-            with patch("masu.util.ocp.common.open") as mock_open:
-                mock_open.side_effect = OSError
-                with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
-                    expected = "unable to extract manifest data"
-                    utils.get_report_details(manifest_path)
-                    self.assertIn(expected, logger.output[0])
+            with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
+                expected = "unable to extract manifest data"
+                with self.assertRaises(ValidationError):
+                    utils.parse_manifest(manifest_path)
+                self.assertIn(expected, logger.output[0])
 
     def test_detect_type_pod_usage(self):
         "Test that we detect the correct report type from csv"
