@@ -28,7 +28,6 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
-from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.models import OCP_ON_GCP_TEMP_MANAGED_TABLES
 from reporting.provider.all.models import TagMapping
@@ -319,9 +318,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        # Check for GCP resource level data
-        resource_level = check_resource_level(gcp_provider_uuid)
-
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         for table in OCP_ON_GCP_TEMP_MANAGED_TABLES:
@@ -342,17 +338,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
-        if resource_level:
-            sql_level = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
-            matching_type = "resource"
-        else:
-            sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
-            matching_type = "tag"
-
+        sql_filename = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
+        log_msg = "running OCP on GCP SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
-            sql_level = "reporting_ocpgcpcostlineitem_project_daily_summary_p"
+            sql_filename = "reporting_ocpgcpcostlineitem_project_daily_summary_p"
+            log_msg = "running OCP on GCP SQL managed flow"
 
-        sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_level}.sql")
+        sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_filename}.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -371,10 +363,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "node_column": node_column,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
-            "matching_type": matching_type,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg="running OCP on GCP SQL (not by node)", context=ctx))
+        LOG.info(log_json(msg=log_msg, context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):

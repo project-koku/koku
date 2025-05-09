@@ -30,7 +30,6 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
-from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
@@ -180,7 +179,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         check_aws = False
         check_azure = False
         check_gcp = False
-        resource_level = False
 
         if not self.table_exists_trino(TRINO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
@@ -194,11 +192,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return {}
         if gcp_provider_uuid or ocp_provider_uuid:
             check_gcp = self.table_exists_trino(GCP_TRINO_LINE_ITEM_DAILY_TABLE)
-            # Check for GCP resource level data
-            if gcp_provider_uuid:
-                resource_level = check_resource_level(gcp_provider_uuid)
-                if not check_gcp:
-                    return {}
+            if gcp_provider_uuid and not check_gcp:
+                return {}
         if not any([check_aws, check_azure, check_gcp]):
             return {}
 
@@ -229,7 +224,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "ocp_provider_uuid": ocp_provider_uuid,
                     "azure_provider_uuid": azure_provider_uuid,
                     "gcp_provider_uuid": gcp_provider_uuid,
-                    "resource_level": resource_level,
                 }
 
                 results = self._execute_trino_raw_sql_query(
