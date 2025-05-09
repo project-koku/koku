@@ -570,9 +570,18 @@ class AWSReportDBAccessorTest(MasuTestCase):
         Test that calling ocp on cloud populate triggers the deletes and summary sql.
         """
         matched_tags = "fake-tags"
+        with self.assertRaises(ValueError):
+            SummarySqlMetadata(
+                self.schema_name,
+                "",
+                self.aws_provider_uuid,
+                "2024-08-01",
+                "2024-08-01",
+                matched_tags,
+            )
         params = SummarySqlMetadata(
             self.schema_name,
-            [self.ocp_provider_uuid],
+            self.ocp_provider_uuid,
             self.aws_provider_uuid,
             "2024-08-01",
             "2024-08-01",

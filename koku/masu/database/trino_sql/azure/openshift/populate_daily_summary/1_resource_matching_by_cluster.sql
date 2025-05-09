@@ -32,7 +32,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_daily_temp (
 )
 WITH cte_azure_resource_names AS (
     SELECT DISTINCT resourceid
-    FROM hive.{{schema | sqlsafe}}.managed_azure_uuid_temp
+    FROM hive.{{schema | sqlsafe}}.azure_line_items
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -140,7 +140,7 @@ SELECT
     azure.year,
     azure.month,
     cast(day(azure.date) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.managed_azure_uuid_temp AS azure
+FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
 CROSS JOIN cte_enabled_tag_keys as etk
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON azure.resourceid = resource_names.resourceid

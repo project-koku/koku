@@ -21,8 +21,6 @@ from api.utils import get_months_in_date_range
 from common.queues import get_customer_queue
 from common.queues import PriorityQueue
 from common.queues import QUEUE_LIST
-from masu.processor import is_managed_ocp_cloud_summary_enabled
-from masu.processor.tasks import process_openshift_on_cloud_trino
 from masu.processor.tasks import update_summary_tables
 
 LOG = logging.getLogger(__name__)
@@ -105,29 +103,4 @@ def report_data(request):
                     provider_uuid=provider_uuid,
                 )
             )
-            # If managed flow is enabled trigger trino managed processing
-            if is_managed_ocp_cloud_summary_enabled(schema_name, provider_type):
-                tracing_id = str(async_result)
-                report = {
-                    "schema_name": schema_name,
-                    "provider_type": provider_type,
-                    "provider_uuid": provider_uuid,
-                    "tracing_id": tracing_id,
-                    "start": month[0],
-                    "end": month[1],
-                    "invoice_month": month[2],
-                }
-                ocp_async = process_openshift_on_cloud_trino.s(
-                    [report], provider_type, schema_name, provider_uuid, tracing_id, masu_api_trigger=True
-                ).apply_async(queue=queue_name or fallback_queue)
-                LOG.info(
-                    log_json(
-                        msg=f"masu managed table processing/summary queued",
-                        queue=queue_name or fallback_queue,
-                        schema=schema_name,
-                        provider_type=provider_type,
-                        provider_uuid=provider_uuid,
-                    )
-                )
-                async_results.append({f"Managed OCP on Cloud {str(month)}": str(ocp_async)})
         return Response({REPORT_DATA_KEY: async_results})

@@ -34,7 +34,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp (
 )
 WITH cte_aws_resource_names AS (
     SELECT DISTINCT lineitem_resourceid
-    FROM hive.{{schema | sqlsafe}}.managed_aws_uuid_temp
+    FROM hive.{{schema | sqlsafe}}.aws_line_items_daily
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -157,7 +157,7 @@ SELECT
     aws.year,
     aws.month,
     cast(day(aws.lineitem_usagestartdate) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.managed_aws_uuid_temp AS aws
+FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON resource_names.lineitem_resourceid = aws.lineitem_resourceid
 LEFT JOIN cte_agg_tags AS tag_matches

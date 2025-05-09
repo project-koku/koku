@@ -186,6 +186,36 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         set_value_in_cache(cache_key, matched_tags)
         return matched_tags
 
+    def get_matched_tags_single_cluster(self, ocp_provider_uuid):
+        """Get tags that match between cloud source and cluster."""
+        ctx = {
+            "schema": self.schema_name,
+            "cloud_provider_uuid": self.provider_uuid,
+            "provider_type": self.provider_type,
+            "ocp_provider_uuid": ocp_provider_uuid,
+        }
+        matched_tags = None
+        if self.has_enabled_ocp_labels:
+            enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
+            if enabled_tags:
+                LOG.info(log_json(msg="getting matching tags from Postgres", context=ctx))
+                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id)
+            if not matched_tags and enabled_tags:
+                LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+                # This flag is for disabling trino tag matching for specific customers.
+                if is_tag_processing_disabled(self.schema_name):
+                    LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
+                    return []
+                LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
+                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
+                    self.provider_uuid,
+                    [ocp_provider_uuid],
+                    self.start_date,
+                    self.end_date,
+                    invoice_month_date=self.invoice_month_date if self.invoice_month_date else self.start_date,
+                )
+        return matched_tags
+
     def create_partitioned_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename):
         """Create a parquet file for daily aggregated data for each partition."""
         date_fields = {
@@ -301,7 +331,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             "year": year,
             "month": month,
             "end_date": end_date,
-            "ocp_source_uuid": ocp_provider_uuid,
+            "ocp_provider_uuid": ocp_provider_uuid,
             "matched_tag_array": matched_tag_strs,
         }
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matached_tags_params))
@@ -311,19 +341,16 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         matched_tags_result = matched_tags_result[0][0]
         return matched_tags_result
 
-    def process_ocp_cloud_trino(self, start_date, end_date):
-        """Populate cloud_openshift_daily trino table via SQL."""
+    def process_ocp_cloud_trino(self, ocp_provider_uuid, start_date, end_date):
+        """Populate managed_cloud_openshift_daily trino table via SQL."""
         LOG.info(
             log_json(msg=f"starting OCP on {self.provider_type} managed tables processing", context=self._context)
         )
-        if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
-            return
-        matched_tags = self.get_matched_tags(ocp_provider_uuids)
+        matched_tags = self.get_matched_tags_single_cluster(ocp_provider_uuid)
         matched_tag_strs = []
         if matched_tags:
             matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-
         sql_metadata = SummarySqlMetadata(
-            self.db_accessor.schema, ocp_provider_uuids, self.provider_uuid, start_date, end_date, matched_tag_strs
+            self.db_accessor.schema, ocp_provider_uuid, self.provider_uuid, start_date, end_date, matched_tag_strs
         )
         self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)

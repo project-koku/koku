@@ -31,7 +31,6 @@ from masu.processor import is_cloud_source_processing_disabled
 from masu.processor import is_customer_large
 from masu.processor import is_source_disabled
 from masu.processor.tasks import get_report_files
-from masu.processor.tasks import process_openshift_on_cloud_trino
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import remove_expired_data
@@ -385,27 +384,8 @@ class Orchestrator:
                     queue=SUBS_EXTRACTION_QUEUE
                 )
                 LOG.info(log_json("start_manifest_processing", msg="created subs_task signature", schema=schema_name))
-                ocp_on_cloud_trino_task = process_openshift_on_cloud_trino.s(
-                    provider_type=provider_type,
-                    schema_name=schema_name,
-                    provider_uuid=provider_uuid,
-                    tracing_id=tracing_id,
-                ).set(queue=SUMMARY_QUEUE)
-                LOG.info(
-                    log_json(
-                        "start_manifest_processing",
-                        msg="created ocp_on_cloud_trino_task signature",
-                        schema=schema_name,
-                    )
-                )
-                # Note that the summary, hcs, subs, and ocp_on_cloud_trino_task will
-                # excecutue concurrently, so the order can not be garunteed.
-
-                # Within the summary task when running the update_summary_tables
-                # we populate the populate_openshift_cluster_information_tables
-                # Therefore, the tables in that function may not have any information
-                # when executing the ocp_on_cloud_trino_task on an initial run.
-                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task, ocp_on_cloud_trino_task))()
+                # Note that the summary, hcs and subs tasks will excecutue concurrently, so ordering can't be garunteed.
+                async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
                 LOG.info(
                     log_json(
                         "start_manifest_processing",

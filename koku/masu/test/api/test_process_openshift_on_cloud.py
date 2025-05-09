@@ -139,27 +139,3 @@ class ProcessOpenShiftOnCloudTest(MasuTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_process.s.return_value.apply_async.assert_called()
-
-    @patch("masu.api.process_openshift_on_cloud.process_openshift_on_cloud_trino")
-    @patch("masu.api.process_openshift_on_cloud.is_managed_ocp_cloud_processing_enabled")
-    @patch("koku.middleware.MASU")
-    def test_get_process_daily_openshift_on_cloud_trino(self, middleware, unleash, mock_task):
-        """Test the GET report_data endpoint for a provider that is daily partitioned."""
-        unleash.return_value = True
-        middleware.return_value = True
-        dh = DateHelper()
-        start_date = str(dh.this_month_start.date())
-        end_date = str(dh.this_month_end.date())
-        params = {
-            "schema": self.schema,
-            "provider_uuid": self.gcp_provider_uuid,
-            "start_date": start_date,
-            "end_date": end_date,
-        }
-        expected_key = "process_openshift_on_cloud Task IDs"
-        response = self.client.get(reverse("process_openshift_on_cloud"), params)
-        body = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(expected_key, body)
-        mock_task.s.return_value.apply_async.assert_called()
