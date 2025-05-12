@@ -1836,16 +1836,20 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         ]
         end = self.dh.today.strftime("%Y-%m-%d")
         start = self.dh.month_start(end).strftime("%Y-%m-%d")
+        tracing_id = ""
+        manifest_id = 1
         context = {
             "schema_name": self.schema,
             "provider_type": self.aws_provider.type,
             "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": "",
+            "tracing_id": tracing_id,
             "start": start,
             "end": end,
-            "manifest_id": 1,
+            "manifest_id": manifest_id,
         }
-        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end)
+        trigger_openshift_on_cloud_trino(
+            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end
+        )
         mock_chain.assert_called()
 
     @patch("masu.processor.tasks.chain")
@@ -1854,17 +1858,21 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         """Test exception is raised"""
         end = self.dh.today.strftime("%Y-%m-%d")
         start = self.dh.month_start(end).strftime("%Y-%m-%d")
+        tracing_id = ""
+        manifest_id = 1
         context = {
             "schema_name": self.schema,
             "provider_type": self.aws_provider.type,
             "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": "",
+            "tracing_id": tracing_id,
             "start": start,
             "end": end,
-            "manifest_id": 1,
+            "manifest_id": manifest_id,
         }
         mock_infra_map.side_effect = ReportSummaryUpdaterCloudError
-        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end)
+        trigger_openshift_on_cloud_trino(
+            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end
+        )
         mock_chain.assert_not_called()
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
@@ -1877,16 +1885,20 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         """Test that the process_openshift_on_cloud_trino task performs expected functions"""
         end = self.dh.today.strftime("%Y-%m-%d")
         start = self.dh.month_start(end).strftime("%Y-%m-%d")
+        tracing_id = ""
+        manifest_id = 1
         context = {
             "schema_name": self.schema,
             "provider_type": self.aws_provider.type,
             "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": "",
+            "tracing_id": tracing_id,
             "start": start,
             "end": end,
-            "manifest_id": 1,
+            "manifest_id": manifest_id,
         }
-        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end, synchronous=True)
+        trigger_openshift_on_cloud_trino(
+            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end, synchronous=True
+        )
         mock_chain.assert_called()
 
     @patch(
@@ -1902,16 +1914,20 @@ class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
         """Test that the trigger_openshift_on_cloud_trino skips without infra map"""
         end = self.dh.today.strftime("%Y-%m-%d")
         start = self.dh.month_start(end).strftime("%Y-%m-%d")
+        tracing_id = ""
+        manifest_id = 1
         context = {
             "schema_name": self.schema,
             "provider_type": self.aws_provider.type,
             "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": "",
+            "tracing_id": tracing_id,
             "start": start,
             "end": end,
-            "manifest_id": 1,
+            "manifest_id": manifest_id,
         }
-        trigger_openshift_on_cloud_trino(context, self.schema, self.aws_provider.uuid, start, end)
+        trigger_openshift_on_cloud_trino(
+            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end
+        )
         mock_chain.assert_not_called()
 
     @patch(
