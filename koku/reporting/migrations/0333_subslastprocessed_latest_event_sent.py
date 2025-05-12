@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting", "0331_remove_costsummary_project_markup_cost_and_more"),
+        ("reporting", "0332_remove_ocicomputesummarybyaccountp_source_uuid_and_more"),
     ]
 
     operations = [
