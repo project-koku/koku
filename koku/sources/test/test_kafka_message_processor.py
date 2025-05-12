@@ -425,16 +425,15 @@ class KafkaMessageProcessorTest(IamTestCase):
             _get_ocp_credentials=MagicMock(side_effect=SourcesHTTPClientError),
         ):
             for provider in Provider.PROVIDER_LIST:
-                if provider not in ["OCI", "OCI-local"]:  # TODO - remove after model migration
-                    with self.subTest(test=provider):
-                        with patch("sources.storage.get_source_type", return_value=provider):
-                            with patch.object(SourcesHTTPClient, "set_source_status") as mock_set:
-                                with patch("sources.storage.add_provider_sources_auth_info") as mock_add:
-                                    with self.assertRaises(SourcesHTTPClientError):
-                                        result = processor.save_credentials()
-                                        self.assertIsNone(result)
-                                        mock_set.assert_called_once()
-                                        mock_add.assert_not_called()
+                with self.subTest(test=provider):
+                    with patch("sources.storage.get_source_type", return_value=provider):
+                        with patch.object(SourcesHTTPClient, "set_source_status") as mock_set:
+                            with patch("sources.storage.add_provider_sources_auth_info") as mock_add:
+                                with self.assertRaises(SourcesHTTPClientError):
+                                    result = processor.save_credentials()
+                                    self.assertIsNone(result)
+                                    mock_set.assert_called_once()
+                                    mock_add.assert_not_called()
 
     def test_save_billing_source(self):
         """Test save billing source calls add_provider_sources_billing_info."""

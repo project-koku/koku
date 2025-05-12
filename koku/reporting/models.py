@@ -98,18 +98,6 @@ from reporting.provider.gcp.openshift.models import OCPGCPTagsSummary
 from reporting.provider.models import SubsIDMap
 from reporting.provider.models import SubsLastProcessed
 from reporting.provider.models import TenantAPIProvider
-from reporting.provider.oci.models import OCIComputeSummaryByAccountP
-from reporting.provider.oci.models import OCIComputeSummaryP
-from reporting.provider.oci.models import OCICostEntryBill
-from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
-from reporting.provider.oci.models import OCICostSummaryByAccountP
-from reporting.provider.oci.models import OCICostSummaryByServiceP
-from reporting.provider.oci.models import OCICostSummaryP
-from reporting.provider.oci.models import OCIDatabaseSummaryP
-from reporting.provider.oci.models import OCINetworkSummaryP
-from reporting.provider.oci.models import OCIStorageSummaryByAccountP
-from reporting.provider.oci.models import OCIStorageSummaryP
-from reporting.provider.oci.models import OCITagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
@@ -123,7 +111,6 @@ from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
 from reporting.provider.ocp.models import OCPVolumeSummaryP
 from reporting.user_settings.models import UserSettings
-
 
 # These are partitioned tables
 OCP_ON_ALL_PERSPECTIVES = (
