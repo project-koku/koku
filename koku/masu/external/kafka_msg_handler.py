@@ -418,6 +418,10 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     context["provider_type"] = provider.type
     context["schema"] = schema_name
 
+    # set the account and org_id based on the provider if the kafka msg don't contain them
+    context["account"] = context["account"] or provider.account.get("account_id")
+    context["org_id"] = context["org_id"] or provider.account.get("org_id")
+
     payload = utils.PayloadInfo(
         request_id=request_id,
         manifest=manifest,
@@ -553,8 +557,8 @@ def handle_message(kmsg):
     """
     value = json.loads(kmsg.value().decode("utf-8"))
     request_id = value.get("request_id", "no_request_id")
-    account = value.get("account", "no_account")
-    org_id = value.get("org_id", "no_org_id")
+    account = value.get("account")
+    org_id = value.get("org_id")
     context = {"account": account, "org_id": org_id}
     try:
         msg = f"Extracting Payload for msg: {str(value)}"
