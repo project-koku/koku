@@ -18,6 +18,7 @@ from typing import Self
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from packaging.version import Version
+from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import field_validator
@@ -258,11 +259,11 @@ class Manifest(BaseModel):
     cluster_id: str
     version: str = ""
     operator_version: str = ""
-    date: datetime
+    date: AwareDatetime
     files: list[str]
     resource_optimization_files: list[str] = []
-    start: datetime | None = None
-    end: datetime | None = None
+    start: AwareDatetime | None = None
+    end: AwareDatetime | None = None
     certified: bool = False
     daily_reports: bool = False
     cr_status: dict = {}
