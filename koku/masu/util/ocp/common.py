@@ -12,13 +12,14 @@ from decimal import Decimal
 from enum import Enum
 from math import ceil
 from pathlib import Path
+from typing import Annotated
 from typing import Any
 from typing import Self
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from packaging.version import Version
-from pydantic import AwareDatetime
+from pydantic import AfterValidator
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import field_validator
@@ -252,6 +253,12 @@ OCP_REPORT_TYPES = {
 }
 
 
+ForceAwareDatetime = Annotated[
+    datetime,
+    AfterValidator(lambda x: x if x.tzinfo else x.replace(tzinfo=UTC)),
+]
+
+
 class Manifest(BaseModel):
     model_config = ConfigDict(validate_default=True, validate_assignment=True)
     uuid: UUID4
@@ -259,11 +266,11 @@ class Manifest(BaseModel):
     cluster_id: str
     version: str = ""
     operator_version: str = ""
-    date: AwareDatetime
+    date: ForceAwareDatetime
     files: list[str]
     resource_optimization_files: list[str] = []
-    start: AwareDatetime | None = None
-    end: AwareDatetime | None = None
+    start: ForceAwareDatetime | None = None
+    end: ForceAwareDatetime | None = None
     certified: bool = False
     daily_reports: bool = False
     cr_status: dict = {}
