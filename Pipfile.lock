@@ -684,11 +684,11 @@
                 "grpc"
             ],
             "hashes": [
-                "sha256:810a63ac95f3c441b7c0e43d344e372887f62ce9071ba972eacf32672e072de9",
-                "sha256:81718493daf06d96d6bc76a91c23874dbf2fac0adbbf542831b805ee6e974696"
+                "sha256:9826900d88358ad3ac8978ad324e46793ad8137efe6d48ec51e259c0c40e3000",
+                "sha256:ec279085923652b0d2e4c72fd6bb926ee17e9c960f0b8a472df146a42493957e"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==2.24.2"
+            "version": "==2.25.0rc1"
         },
         "google-api-python-client": {
             "hashes": [
@@ -2808,11 +2808,11 @@
                 "grpc"
             ],
             "hashes": [
-                "sha256:810a63ac95f3c441b7c0e43d344e372887f62ce9071ba972eacf32672e072de9",
-                "sha256:81718493daf06d96d6bc76a91c23874dbf2fac0adbbf542831b805ee6e974696"
+                "sha256:9826900d88358ad3ac8978ad324e46793ad8137efe6d48ec51e259c0c40e3000",
+                "sha256:ec279085923652b0d2e4c72fd6bb926ee17e9c960f0b8a472df146a42493957e"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==2.24.2"
+            "version": "==2.25.0rc1"
         },
         "google-auth": {
             "hashes": [
