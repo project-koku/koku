@@ -1260,30 +1260,3 @@ def validate_daily_data(schema, start_date, end_date, provider_uuid, ocp_on_clou
         data_validator.check_data_integrity()
     else:
         LOG.info(log_json(msg="skipping validation, disabled for schema", context=context))
-
-
-@celery_app.task(
-    name="masu.processor.tasks.update_managed_openshift_on_cloud",
-    queue=SummaryQueue.DEFAULT,
-)
-def populate_openshift_on_cloud_managed_tables(
-    schema_name,
-    ocp_provider_uuid,
-    infra_provider_uuid,
-    infra_provider_type,
-    start_date,
-    end_date,
-    manifest_id=None,
-    tracing_id=None,
-    context=None,
-):
-    """Task to populate initial ocp on cloud managed tables"""
-    context["ocp_provider_uuid"] = ocp_provider_uuid
-    context["start_date"] = start_date
-    context["end_date"] = end_date
-    LOG.info(log_json(tracing_id, msg="managed table trino processing started", context=context))
-    processor = OCPCloudParquetReportProcessor(
-        schema_name, "", infra_provider_uuid, infra_provider_type, manifest_id, context
-    )
-    processor.process_ocp_cloud_trino(ocp_provider_uuid, start_date, end_date)
-    LOG.info(log_json(tracing_id, msg="managed table trino processing complete", context=context))
