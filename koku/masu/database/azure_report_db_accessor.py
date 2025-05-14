@@ -24,6 +24,7 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_azure
 from masu.processor import is_managed_ocp_cloud_summary_enabled
+from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
@@ -31,6 +32,7 @@ from reporting.models import OCP_ON_AZURE_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
@@ -299,6 +301,18 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             node_column = "node_capacity_memory_gigabyte_hours"
         sql_file = "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AZURE):
+            # We have to populate the ocp on cloud managed tables prior to executing this file
+            sql_metadata = SummarySqlMetadata(
+                self.schema,
+                openshift_provider_uuid,
+                azure_provider_uuid,
+                start_date,
+                end_date,
+                self._get_matched_tags_strings(
+                    bill_id, azure_provider_uuid, openshift_provider_uuid, start_date, end_date
+                ),
+            )
+            self.populate_ocp_on_cloud_daily_trino(sql_metadata)
             sql_file = "trino_sql/azure/openshift/reporting_ocpazurecostlineitem_project_daily_summary_p.sql"
         sql = pkgutil.get_data("masu.database", sql_file)
         sql = sql.decode("utf-8")
@@ -441,6 +455,34 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on Azure", schema=self.schema))
                 return False
         return True
+
+    def _get_matched_tags_strings(self, bill_id, azure_provider_uuid, ocp_provider_uuid, start_date, end_date):
+        """Returns the matched tags"""
+        ctx = {
+            "schema": self.schema,
+            "bill_id": bill_id,
+            "azure_provider_uuid": azure_provider_uuid,
+            "ocp_provider_uuid": ocp_provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+        matched_tags = []
+        with schema_context(self.schema):
+            enabled_tags = self.check_for_matching_enabled_keys()
+            if EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists() and enabled_tags:
+                matched_tags = self.get_openshift_on_cloud_matched_tags(bill_id)
+        if not matched_tags and enabled_tags:
+            LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+            if is_tag_processing_disabled(self.schema):
+                LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
+                return []
+            LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
+            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
+                azure_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month=None
+            )
+        if matched_tags:
+            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+        return matched_tags
 
     def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
         """Populate the managed_azure_openshift_daily trino table for OCP on Azure.

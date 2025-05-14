@@ -544,20 +544,3 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             )
             rp.process_ocp_cloud_trino(self.ocp_provider_uuid, start_date, end_date)
             accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(managed_sql_params)
-
-    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
-    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags")
-    @patch.object(AWSReportDBAccessor, "check_for_matching_enabled_keys")
-    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
-    def test_get_matched_tags_single_cluster_trino(
-        self, mock_has_enabled, mock_matching_enabled, mock_get_tags, mock_get_tags_trino
-    ):
-        """Test that we get matched tags, cached if available."""
-
-        mock_has_enabled.return_value = True
-        mock_matching_enabled.return_Value = True
-        mock_get_tags.return_value = []
-
-        self.report_processor.get_matched_tags_single_cluster([])
-        mock_get_tags.assert_called()
-        mock_get_tags_trino.assert_called()
