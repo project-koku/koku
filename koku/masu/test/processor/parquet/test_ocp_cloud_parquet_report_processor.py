@@ -2,7 +2,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-from unittest.mock import ANY
 from unittest.mock import patch
 
 import pandas as pd
@@ -19,7 +18,6 @@ from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
-from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
@@ -513,34 +511,3 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         """Assert that report_status exists and is not None."""
         self.assertIsNotNone(self.report_processor.report_status)
         self.assertIsInstance(self.report_processor.report_status, CostUsageReportStatus)
-
-    def test_process_ocp_cloud_trino(self):
-        """Test that processing ocp on cloud via trino calls the expected functions."""
-        start_date = "2024-08-01"
-        end_date = "2024-08-05"
-        matched_tags = []
-        managed_sql_params = SummarySqlMetadata(
-            ANY, self.ocp_provider_uuid, self.aws_provider_uuid, start_date, end_date, matched_tags
-        )
-        with patch(
-            (
-                "masu.processor.parquet.ocp_cloud_parquet_report_processor"
-                ".OCPCloudParquetReportProcessor.get_ocp_provider_uuids_tuple"
-            ),
-            return_value=self.ocp_provider_uuid,
-        ), patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.get_matched_tags",
-            return_value=matched_tags,
-        ), patch(
-            "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.db_accessor"
-        ) as accessor:
-            rp = OCPCloudParquetReportProcessor(
-                schema_name=self.schema,
-                report_path=self.report_path,
-                provider_uuid=self.aws_provider_uuid,
-                provider_type=Provider.PROVIDER_AWS_LOCAL,
-                manifest_id=self.manifest_id,
-                context={"request_id": self.request_id, "start_date": self.start_date, "create_table": True},
-            )
-            rp.process_ocp_cloud_trino(self.ocp_provider_uuid, start_date, end_date)
-            accessor.populate_ocp_on_cloud_daily_trino.assert_called_with(managed_sql_params)
