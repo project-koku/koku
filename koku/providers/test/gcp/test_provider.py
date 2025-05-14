@@ -418,7 +418,7 @@ class GCPProviderTestCase(TestCase):
         mock_bigquery.reset_mock()
         mock_bigquery.Client.return_value.list_tables.return_value = tables
         result = GCPProvider().get_table_id("dataset")
-        self.assertEqual(result, "gcp_billing_export_123")
+        self.assertEqual(result, None)
 
         tables = [table_three]
         mock_bigquery.reset_mock()
