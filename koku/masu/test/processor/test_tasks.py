@@ -16,7 +16,6 @@ from decimal import Decimal
 from unittest import skip
 from unittest.mock import ANY
 from unittest.mock import call
-from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
@@ -56,7 +55,6 @@ from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import normalize_table_options
-from masu.processor.tasks import populate_openshift_on_cloud_managed_tables
 from masu.processor.tasks import process_daily_openshift_on_cloud
 from masu.processor.tasks import process_openshift_on_cloud
 from masu.processor.tasks import record_all_manifest_files
@@ -65,7 +63,6 @@ from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import remove_expired_trino_partitions
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
-from masu.processor.tasks import trigger_openshift_on_cloud_trino
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
@@ -1818,141 +1815,3 @@ class TestRemoveStaleTenants(MasuTestCase):
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
             self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
-
-
-class TestProcessOpenshiftOnCloudTrino(MasuTestCase):
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
-    @patch("masu.processor.tasks.chain")
-    def test_process_openshift_on_cloud_trino(
-        self,
-        mock_chain,
-        mock_infra_map,
-    ):
-        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
-        mock_infra_map = MagicMock()
-        mock_infra_map.items.return_value = [
-            ("ocp_uuid1", ("aws_uuid", "AWS")),
-            ("ocp_uuid2", ("aws_uuid", "AWS")),
-        ]
-        end = self.dh.today.strftime("%Y-%m-%d")
-        start = self.dh.month_start(end).strftime("%Y-%m-%d")
-        tracing_id = ""
-        manifest_id = 1
-        context = {
-            "schema_name": self.schema,
-            "provider_type": self.aws_provider.type,
-            "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": tracing_id,
-            "start": start,
-            "end": end,
-            "manifest_id": manifest_id,
-        }
-        trigger_openshift_on_cloud_trino(
-            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end
-        )
-        mock_chain.assert_called()
-
-    @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.report_summary_updater.ReportSummaryUpdater.get_openshift_on_cloud_infra_map")
-    def test_process_openshift_on_cloud_trino_exception(self, mock_infra_map, mock_chain):
-        """Test exception is raised"""
-        end = self.dh.today.strftime("%Y-%m-%d")
-        start = self.dh.month_start(end).strftime("%Y-%m-%d")
-        tracing_id = ""
-        manifest_id = 1
-        context = {
-            "schema_name": self.schema,
-            "provider_type": self.aws_provider.type,
-            "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": tracing_id,
-            "start": start,
-            "end": end,
-            "manifest_id": manifest_id,
-        }
-        mock_infra_map.side_effect = ReportSummaryUpdaterCloudError
-        trigger_openshift_on_cloud_trino(
-            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end
-        )
-        mock_chain.assert_not_called()
-
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
-    @patch("masu.processor.tasks.chain")
-    def test_process_openshift_on_cloud_trino_synchronous(
-        self,
-        mock_chain,
-        mock_infra_map,
-    ):
-        """Test that the process_openshift_on_cloud_trino task performs expected functions"""
-        end = self.dh.today.strftime("%Y-%m-%d")
-        start = self.dh.month_start(end).strftime("%Y-%m-%d")
-        tracing_id = ""
-        manifest_id = 1
-        context = {
-            "schema_name": self.schema,
-            "provider_type": self.aws_provider.type,
-            "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": tracing_id,
-            "start": start,
-            "end": end,
-            "manifest_id": manifest_id,
-        }
-        trigger_openshift_on_cloud_trino(
-            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end, synchronous=True
-        )
-        mock_chain.assert_called()
-
-    @patch(
-        "masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino",
-        return_value=None,
-    )
-    @patch("masu.processor.tasks.chain")
-    def test_trigger_openshift_on_cloud_trino_no_infra_map(
-        self,
-        mock_chain,
-        mock_infra_map,
-    ):
-        """Test that the trigger_openshift_on_cloud_trino skips without infra map"""
-        end = self.dh.today.strftime("%Y-%m-%d")
-        start = self.dh.month_start(end).strftime("%Y-%m-%d")
-        tracing_id = ""
-        manifest_id = 1
-        context = {
-            "schema_name": self.schema,
-            "provider_type": self.aws_provider.type,
-            "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": tracing_id,
-            "start": start,
-            "end": end,
-            "manifest_id": manifest_id,
-        }
-        trigger_openshift_on_cloud_trino(
-            context, self.schema, self.aws_provider.uuid, manifest_id, tracing_id, start, end
-        )
-        mock_chain.assert_not_called()
-
-    @patch(
-        "masu.processor.parquet.ocp_cloud_parquet_report_processor.OCPCloudParquetReportProcessor.process_ocp_cloud_trino"  # noqa E501
-    )
-    def test_populate_openshift_on_cloud_managed_tables(self, mock_processor):
-        """Test populate_openshift_on_cloud_managed_tables task"""
-        end = self.dh.today.strftime("%Y-%m-%d")
-        start = self.dh.month_start(end).strftime("%Y-%m-%d")
-        context = {
-            "schema_name": self.schema,
-            "provider_type": self.aws_provider.type,
-            "provider_uuid": str(self.aws_provider.uuid),
-            "tracing_id": "",
-            "start_date": start,
-            "end_date": end,
-            "manifest_id": 1,
-        }
-        populate_openshift_on_cloud_managed_tables(
-            self.schema,
-            self.ocp_provider_uuid,
-            self.aws_provider.uuid,
-            self.aws_provider.type,
-            start,
-            end,
-            context=context,
-        )
-        mock_processor.assert_called()

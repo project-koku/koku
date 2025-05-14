@@ -151,6 +151,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
     def get_matched_tags(self, ocp_provider_uuids):
         """Get tags that match between OCP and the cloud source."""
+        # Note this is getting deprecated for the _get_matched_tags
+        # method inside of the db accessors when we transition over to trino.
         # Get matching tags
         cache_key = build_matching_tags_key(self.schema_name, self.provider_type)
         matched_tags = get_value_from_cache(cache_key)
