@@ -371,7 +371,7 @@ objects:
               fieldPath: metadata.name
         - name: ROS_OCP_API
           value: ${ROS_OCP_API}
-        image: quay.io/cloudservices/ubi8-nginx-124
+        image: registry.access.redhat.com/ubi9/nginx-124
         livenessProbe:
           failureThreshold: 5
           httpGet:

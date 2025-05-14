@@ -10,7 +10,7 @@
       private:
         enabled: false
     podSpec:
-      image: quay.io/cloudservices/ubi8-nginx-124
+      image: registry.access.redhat.com/ubi9/nginx-124
       command:
         - nginx
         - "-g"
