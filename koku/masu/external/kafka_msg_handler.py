@@ -79,9 +79,7 @@ def get_data_frame(file_path: os.PathLike):
 
 
 def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict):
-    """
-    Split local file into daily content.
-    """
+    """Split local file into daily content."""
     data_frame = get_data_frame(file_path)
 
     report_type, _ = utils.detect_type(file_path)
@@ -120,23 +118,8 @@ def divide_csv_daily(file_path: os.PathLike, manifest_id: int, hour_dict: dict):
     return daily_files
 
 
-def create_daily_archives(
-    payload_info: utils.PayloadInfo,
-    filepath: Path,
-    context,
-):
-    """
-    Create daily CSVs from incoming report and archive to S3.
-
-    Args:
-        tracing_id (str): The tracing id
-        account (str): The account number
-        provider_uuid (str): The uuid of a provider
-        filepath (PosixPath): The full path name of the file
-        manifest_id (int): The manifest identifier
-        start_date (Datetime): The start datetime of incoming report
-        context (Dict): Logging context dictionary
-    """
+def create_daily_archives(payload_info: utils.PayloadInfo, filepath: Path, context):
+    """Create daily CSVs from incoming report and archive to S3."""
     manifest = payload_info.manifest
     cur_manifest = CostUsageReportManifest.objects.get(id=manifest.manifest_id)
     daily_file_names = {}
@@ -179,20 +162,7 @@ def create_daily_archives(
 
 
 def process_cr(manifest: utils.Manifest, context: dict) -> dict:
-    """
-    Process the manifest info.
-
-    Args:
-        report_meta (Dict): The metadata from the manifest
-
-    Returns:
-        manifest_info (Dict): Dictionary containing the following:
-            airgapped: (Bool or None)
-            version: (str or None)
-            certified: (Bool or None)
-            channel: (str or None)
-            errors: (Dict or None)
-    """
+    """Process the manifest cr-status info."""
     LOG.info(log_json(manifest.uuid, msg="processing the manifest", context=context))
 
     manifest_info = {
@@ -266,17 +236,7 @@ def delivery_callback(err, msg):
 
 
 def download_payload(request_id, url, context):
-    """
-    Download the payload from ingress to temporary location.
-
-        Args:
-        request_id (String): Identifier associated with the payload
-        url (String): URL path to payload in the Insights upload service..
-        context (Dict): Context for logging (account, etc)
-
-        Returns:
-        Tuple: temp_file (os.PathLike)
-    """
+    """Download the payload from ingress to temporary location."""
     # Create temporary directory for initial file staging and verification in the
     # OpenShift PVC directory so that any failures can be triaged in the event
     # the pod goes down.
@@ -307,17 +267,7 @@ def download_payload(request_id, url, context):
 
 
 def extract_payload_contents(request_id, tarball_path, context):
-    """
-    Extract the payload contents into a temporary location.
-
-        Args:
-        request_id (String): Identifier associated with the payload
-        tarball_path (os.PathLike): the path to the payload file to extract
-        context (Dict): Context for logging (account, etc)
-
-        Returns:
-            (String): path to manifest file
-    """
+    """Extract the payload contents into a temporary location."""
     # Extract tarball into temp directory
 
     if not os.path.isfile(tarball_path):
@@ -368,24 +318,6 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
        added to the report_meta context dictionary for that file.
     5. Report file context dictionaries that require processing is added to a list which will be
        passed to the report processor.  All context from report_meta is used by the processor.
-
-    Args:
-        url (String): URL path to payload in the Insights upload service..
-        request_id (String): Identifier associated with the payload
-        context (Dict): Context for logging (account, etc)
-
-    Returns:
-        [dict]: keys: value
-                files: [String],
-                date: DateTime,
-                cluster_id: String
-                manifest_path: String,
-                provider_uuid: String,
-                provider_type: String
-                schema_name: String
-                manifest_id: Integer
-                current_file: String
-
     """
     payload_path = download_payload(request_id, url, context)
     manifest_path, payload_files = extract_payload_contents(request_id, payload_path, context)
@@ -500,14 +432,6 @@ def send_confirmation(request_id, status):  # pragma: no cover
     When a new file lands for topic 'hccm' we must validate it
     so that it will be made permanently available to other
     apps listening on the 'platform.upload.available' topic.
-
-    Args:
-        request_id (String): Request ID for file being confirmed.
-        status (String): Either 'success' or 'failure'
-
-    Returns:
-        None
-
     """
     producer = get_producer()
     validation = {"request_id": request_id, "validation": status}
@@ -536,24 +460,6 @@ def handle_message(kmsg):
     In the future if we want to maintain a URL to our report files
     in the upload service we could look for hashes for files that
     we have previously validated on the hccm topic.
-
-
-    Args:
-        kmsg - Upload Service message containing usage payload information.
-
-    Returns:
-        (String, [dict]) - String: Upload Service confirmation status
-                         [dict]: keys: value
-                                 files: [String],
-                                 date: DateTime,
-                                 cluster_id: String
-                                 manifest_path: String,
-                                 provider_uuid: String,
-                                 provider_type: String
-                                 schema_name: String
-                                 manifest_id: Integer
-                                 current_file: String
-
     """
     value = json.loads(kmsg.value().decode("utf-8"))
     request_id = value.get("request_id", "no_request_id")
@@ -578,21 +484,7 @@ def handle_message(kmsg):
 
 
 def summarize_manifest(report_meta, manifest_uuid):
-    """
-    Kick off manifest summary when all report files have completed line item processing.
-
-    Args:
-        manifest_uuid (string) - The id associated with the payload manifest
-        report (Dict) - keys: value
-                        schema_name: String,
-                        manifest_id: Integer,
-                        provider_uuid: String,
-                        provider_type: String,
-
-    Returns:
-        Celery Async UUID.
-
-    """
+    """Kick off manifest summary when all report files have completed line item processing."""
     manifest_id = report_meta.get("manifest_id")
     schema = report_meta.get("schema_name")
     start_date = report_meta.get("start")
@@ -691,22 +583,6 @@ def process_report(request_id, report):
     If the service goes down in the middle of processing (SIGTERM) we do not want a
     stray kafka commit to prematurely commit the message before processing has been
     complete.
-
-    Args:
-        request_id (Str): The request id
-        report (Dict) - keys: value
-                        request_id: String,
-                        account: String,
-                        schema_name: String,
-                        manifest_id: Integer,
-                        provider_uuid: String,
-                        provider_type: String,
-                        current_file: String,
-                        date: DateTime
-
-    Returns:
-        True if line item report processing is complete.
-
     """
     schema_name = report.get("schema_name")
     manifest_id = report.get("manifest_id")
@@ -743,14 +619,6 @@ def report_metas_complete(report_metas):
     in process_messages, a dictionary value "process_complete" is added to the
     report metadata dictionary for a report file.  This must be True for it to be
     considered processed.
-
-    Args:
-        report_metas (list) - List of report metadata dictionaries needed for line item
-        processing.
-
-    Returns:
-        True if all report files for the payload have completed line item processing.
-
     """
     return all(report_meta.get("process_complete") for report_meta in report_metas)
 
@@ -765,13 +633,6 @@ def process_messages(msg):
     3. Check if all reports have been processed for the manifest and if so, kick off
        the celery worker task to summarize.
     4. Send payload validation status to ingress service.
-
-    Args:
-        msg (ConsumerRecord) - Message from kafka hccm topic.
-
-    Returns:
-        None
-
     """
     process_complete = False
     status, report_metas, manifest_uuid = handle_message(msg)
@@ -861,13 +722,6 @@ def listen_for_messages(msg, consumer):
     Upon successful processing the kafka message is manually committed.  Manual
     commits are used so we can use the message queue to store unprocessed messages
     to make the service more tolerant of SIGTERM events.
-
-    Args:
-        consumer - (Consumer): kafka consumer for HCCM ingress topic.
-
-    Returns:
-        None
-
     """
     offset = msg.offset()
     partition = msg.partition()
@@ -896,13 +750,7 @@ def listen_for_messages(msg, consumer):
 
 
 def koku_listener_thread():  # pragma: no cover
-    """
-    Configure Listener listener thread.
-
-    Returns:
-        None
-
-    """
+    """Configure Listener listener thread."""
     if is_kafka_connected():  # Check that Kafka is running
         LOG.info("Kafka is running.")
 
@@ -913,16 +761,7 @@ def koku_listener_thread():  # pragma: no cover
 
 
 def initialize_kafka_handler():  # pragma: no cover
-    """
-    Start Listener thread.
-
-    Args:
-        None
-
-    Returns:
-        None
-
-    """
+    """Start Listener thread."""
     if Config.KAFKA_CONNECT:
         event_loop_thread = threading.Thread(target=koku_listener_thread)
         event_loop_thread.daemon = True
