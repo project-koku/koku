@@ -320,7 +320,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return []
             LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
             matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
-                gcp_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month=None
+                gcp_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month_date=start_date
             )
         if matched_tags:
             return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
