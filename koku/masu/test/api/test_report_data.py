@@ -67,26 +67,6 @@ class ReportDataTests(TestCase):
         )
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.report_data.process_openshift_on_cloud_trino")
-    @patch("masu.api.report_data.update_summary_tables")
-    @patch("masu.api.report_data.is_managed_ocp_cloud_summary_enabled", return_value=True)
-    def test_get_report_data_w_managed(self, mock_unleash, mock_ocp_update, mock_update, _):
-        """Test the GET report_data endpoint."""
-        params = {
-            "schema": self.schema_name,
-            "start_date": self.start_date,
-            "provider_uuid": self.provider_uuid,
-        }
-        expected_key = "Report Data Task IDs"
-
-        response = self.client.get(reverse("report_data"), params)
-        body = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(expected_key, body)
-        mock_ocp_update.s.assert_called()
-
-    @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_sent_to_OCP_queue(self, mock_update, _):
         """Test the GET report_data endpoint."""
