@@ -10,7 +10,7 @@
       private:
         enabled: false
     podSpec:
-      image: quay.io/cloudservices/ubi8-nginx-124
+      image: ${NGINX_IMAGE}:${NGINX_IMAGE_TAG}
       command:
         - nginx
         - "-g"
@@ -105,3 +105,18 @@
     name: ROS_OCP_API
     required: true
     value: 'koku-api-writes'  # Defaults to the Koku API for standalone deployments where ROS isn't deployed -- https://stackoverflow.com/q/32845674
+
+- op: add
+  path: /parameters/-
+  value:
+    description: Image tag
+    name: NGINX_IMAGE_TAG
+    required: true
+    value: latest
+- op: add
+  path: /parameters/-
+  value:
+    description: Image
+    name: NGINX_IMAGE
+    required: true
+    value: registry.access.redhat.com/ubi9/nginx-124

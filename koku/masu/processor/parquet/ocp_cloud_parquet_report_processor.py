@@ -4,7 +4,6 @@
 #
 #
 """Processor to filter cost data for OpenShift and store as parquet."""
-import json
 import logging
 import pkgutil
 from functools import cached_property
@@ -29,7 +28,6 @@ from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
-from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
@@ -151,6 +149,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
     def get_matched_tags(self, ocp_provider_uuids):
         """Get tags that match between OCP and the cloud source."""
+        # Note this is getting deprecated for the _get_matched_tags
+        # method inside of the db accessors when we transition over to trino.
         # Get matching tags
         cache_key = build_matching_tags_key(self.schema_name, self.provider_type)
         matched_tags = get_value_from_cache(cache_key)
@@ -301,7 +301,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             "year": year,
             "month": month,
             "end_date": end_date,
-            "ocp_source_uuid": ocp_provider_uuid,
+            "ocp_provider_uuid": ocp_provider_uuid,
             "matched_tag_array": matched_tag_strs,
         }
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matached_tags_params))
@@ -310,20 +310,3 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         )
         matched_tags_result = matched_tags_result[0][0]
         return matched_tags_result
-
-    def process_ocp_cloud_trino(self, start_date, end_date):
-        """Populate cloud_openshift_daily trino table via SQL."""
-        LOG.info(
-            log_json(msg=f"starting OCP on {self.provider_type} managed tables processing", context=self._context)
-        )
-        if not (ocp_provider_uuids := self.get_ocp_provider_uuids_tuple()):
-            return
-        matched_tags = self.get_matched_tags(ocp_provider_uuids)
-        matched_tag_strs = []
-        if matched_tags:
-            matched_tag_strs = [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
-
-        sql_metadata = SummarySqlMetadata(
-            self.db_accessor.schema, ocp_provider_uuids, self.provider_uuid, start_date, end_date, matched_tag_strs
-        )
-        self.db_accessor.populate_ocp_on_cloud_daily_trino(sql_metadata)
