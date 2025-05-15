@@ -7,20 +7,31 @@ import json
 import logging
 import os
 from datetime import datetime
+from datetime import UTC
 from decimal import Decimal
 from enum import Enum
+from math import ceil
 from pathlib import Path
+from typing import Annotated
+from typing import Any
+from typing import Self
 
 import pandas as pd
-from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from packaging.version import Version
+from pydantic import AfterValidator
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import field_validator
+from pydantic import model_validator
+from pydantic import UUID4
+from pydantic import ValidationError
+from pydantic import ValidationInfo
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper as dh
-
 
 LOG = logging.getLogger(__name__)
 
@@ -242,7 +253,75 @@ OCP_REPORT_TYPES = {
 }
 
 
-def get_report_details(report_directory):
+ForceAwareDatetime = Annotated[
+    datetime,
+    AfterValidator(lambda x: x if x.tzinfo else x.replace(tzinfo=UTC)),
+]
+
+
+class Manifest(BaseModel):
+    model_config = ConfigDict(validate_default=True, validate_assignment=True)
+    uuid: UUID4
+    manifest_id: int = 0
+    cluster_id: str
+    version: str = ""
+    operator_version: str = ""
+    date: ForceAwareDatetime
+    files: list[str]
+    resource_optimization_files: list[str] = []
+    start: ForceAwareDatetime | None = None
+    end: ForceAwareDatetime | None = None
+    certified: bool = False
+    daily_reports: bool = False
+    cr_status: dict = {}
+    hours_per_day: dict = {}
+
+    @field_validator("operator_version", mode="after")
+    @classmethod
+    def get_operator_version(cls, value: str, info: ValidationInfo) -> str:
+        v = info.data["version"]
+        return OPERATOR_VERSIONS.get(v, v)
+
+    @model_validator(mode="after")
+    def validate_start_and_end(self) -> Self:
+        if not (self.start and self.end):
+            return self
+        if self.start.month != self.end.month and self.end.day == 1:
+            # We override the end date from the first of the next month to the end of current month
+            # We do this to prevent summary from triggering unnecessarily on the next month
+            self.end = dh().month_end(self.start)
+        return self
+
+    def model_post_init(self, context: Any, /) -> None:
+        if not (self.start and self.end):
+            return
+        hours_per_day = {}
+        current_date = self.start.date()
+        while current_date <= self.end.date():
+            start_of_day = datetime.combine(current_date, datetime.min.time(), tzinfo=UTC)
+            end_of_day = datetime.combine(current_date + relativedelta(days=1), datetime.min.time(), tzinfo=UTC)
+            start = max(self.start, start_of_day)
+            end = min(self.end, end_of_day)
+            duration = end - start
+            hours = duration.total_seconds() / 3600
+            hours_per_day[current_date.strftime("%Y-%m-%d")] = ceil(hours)
+            current_date += relativedelta(days=1)
+        self.hours_per_day = hours_per_day
+
+
+class PayloadInfo(BaseModel):
+    request_id: str
+    manifest: Manifest
+    source_id: int
+    provider_uuid: UUID4
+    provider_type: str
+    cluster_alias: str
+    account: str
+    org_id: str
+    schema_name: str
+
+
+def parse_manifest(report_directory) -> Manifest:
     """
     Get OCP usage report details from manifest file.
 
@@ -265,36 +344,14 @@ def get_report_details(report_directory):
              end: DateTime
 
     """
-    manifest_path = f"{report_directory}/manifest.json"
-    if not os.path.exists(manifest_path):
-        LOG.info(log_json(msg="no manifest available", manifest_path=manifest_path))
-        return {}
+    manifest_path = os.path.join(report_directory, "manifest.json")
+    json_string = Path(manifest_path).read_text()
     try:
-        with open(manifest_path) as file:
-            payload_dict = json.load(file)
-            payload_dict["date"] = parser.parse(payload_dict["date"])
-    except (OSError, KeyError) as exc:
-        LOG.error("unable to extract manifest data", exc_info=exc)
-        return {}
-
-    payload_dict["manifest_path"] = Path(manifest_path)
-    # parse start and end dates if in manifest
-    if payload_start := payload_dict.get("start"):
-        payload_dict["start"] = parser.parse(payload_start)
-        if "0001-01-01 00:00:00+00:00" not in payload_start:
-            # if we have a valid start date, set the date to the start
-            # so that a manifest created at midnight on the first of the month
-            # will associate the data with the correct reporting month
-            payload_dict["date"] = payload_dict["start"]
-    if payload_start and (payload_end := payload_dict.get("end")):
-        payload_dict["end"] = parser.parse(payload_end)
-        start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
-        end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
-        # We override the end date from the first of the next month to the end of current month
-        # We do this to prevent summary from triggering unnecessarily on the next month
-        if start.month != end.month and end.day == 1:
-            payload_dict["end"] = dh().month_end(start)
-    return payload_dict
+        manifest = Manifest.model_validate_json(json_string)
+    except ValidationError as err:
+        LOG.error("unable to extract manifest data", exc_info=err)
+        raise err
+    return manifest
 
 
 def month_date_range(for_date_time):
