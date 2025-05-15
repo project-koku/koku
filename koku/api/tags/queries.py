@@ -231,12 +231,12 @@ class TagQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filter_obj)
                         filters.add(q_filter)
                         if filter_key == "key":
-                            child_keys = self.find_child_keys(item)
-                            if child_keys:
+                            if child_keys := self.find_child_keys(item):
                                 child_filt_obj = self.filter_map.get("child_keys")
-                            QueryFilter(parameter=child_keys, logical_operator="or")
-                            child_filter = QueryFilter(parameter=child_keys, logical_operator="or", **child_filt_obj)
-                            filters.add(child_filter)
+                                child_filter = QueryFilter(
+                                    parameter=child_keys, logical_operator="or", **child_filt_obj
+                                )
+                                filters.add(child_filter)
 
             access = self.parameters.get_access(filter_key)
             filt = self.filter_map.get(filter_key)
