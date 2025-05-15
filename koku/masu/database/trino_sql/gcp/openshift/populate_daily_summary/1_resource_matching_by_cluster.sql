@@ -41,7 +41,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
 )
 WITH cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
-    FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
         AND month = {{month}}
@@ -150,7 +150,7 @@ SELECT gcp.row_uuid,
     gcp.year,
     gcp.month,
     cast(day(gcp.usage_start_time) as varchar) as day
-FROM hive.{{schema | sqlsafe}}.managed_gcp_uuid_temp AS gcp
+FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 CROSS JOIN cte_enabled_tag_keys as etk
 LEFT JOIN cte_matchable_resource_names AS resource_names
     ON gcp.resource_name = resource_names.resource_name
