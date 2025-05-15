@@ -615,3 +615,52 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_report_period.return_value = None
         self.accessor.populate_ocp_on_cloud_daily_trino(mparams)
         mock_partition_delete.assert_not_called()
+
+    def test_get_matched_tags_strings_postgres(self):
+        """Test fetching match tag strings via postgres."""
+        tags = ['"app": "mobile"']
+        result = self.accessor._get_matched_tags_strings(
+            1, self.gcp_provider_uuid, self.ocp_provider_uuid, "2022-04-01", "2022-04-10"
+        )
+        self.assertEqual(tags, result)
+
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino")
+    def test_get_matched_tags_strings_trino(self, mock_postgres_tags, mock_trino_tags):
+        """Test fetching match tag strings via trino."""
+        tags = ['"app"']
+        mock_trino_tags.return_value = {"app"}
+        start = self.dh.this_month_start
+        end = self.dh.this_month_end
+        result = self.accessor._get_matched_tags_strings(1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual(tags, result)
+
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags_trino",
+        return_value=[],
+    )
+    def test_get_matched_tags_strings_no_tags(self, mock_postgres_tags, mock_trino_tags):
+        """Test fetching match tag with no tags returned."""
+        start = self.dh.this_month_start
+        end = self.dh.this_month_end
+        result = self.accessor._get_matched_tags_strings(1, self.gcp_provider_uuid, self.ocp_provider_uuid, start, end)
+        self.assertEqual([], result)
+
+    @patch(
+        "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
+        return_value=None,
+    )
+    @patch("masu.database.gcp_report_db_accessor.is_tag_processing_disabled", return_value=True)
+    def test_get_matched_tags_strings_trino_disabled(self, mock_postgres_tags, mock_unleash):
+        """Test fetching match tag strings."""
+        result = self.accessor._get_matched_tags_strings(
+            1, self.gcp_provider_uuid, self.ocp_provider_uuid, "2022-04-01", "2022-04-10"
+        )
+        self.assertEqual([], result)
