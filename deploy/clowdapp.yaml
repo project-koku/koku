@@ -371,7 +371,7 @@ objects:
               fieldPath: metadata.name
         - name: ROS_OCP_API
           value: ${ROS_OCP_API}
-        image: quay.io/cloudservices/ubi8-nginx-124
+        image: ${NGINX_IMAGE}:${NGINX_IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -5667,6 +5667,14 @@ parameters:
   name: ROS_OCP_API
   required: true
   value: koku-api-writes
+- description: Image tag
+  name: NGINX_IMAGE_TAG
+  required: true
+  value: latest
+- description: Image
+  name: NGINX_IMAGE
+  required: true
+  value: registry.access.redhat.com/ubi9/nginx-124
 - displayName: Minimum replicas
   name: LISTENER_REPLICAS
   required: true
