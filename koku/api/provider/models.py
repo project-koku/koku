@@ -211,6 +211,7 @@ class Provider(models.Model):
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
     additional_context = JSONField(null=True, default=dict)
+    test_migration = JSONField(null=True, default=dict)
 
     objects = ProviderObjectsManager()
     polling_objects = ProviderObjectsPollingManager()
