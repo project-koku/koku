@@ -92,7 +92,8 @@ class TagQueryHandler(QueryHandler):
     def tag_mapping_provider_type(self):
         return (
             Provider.PROVIDER_OCP
-            if self.provider in [Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_AZURE, Provider.OCP_GCP]
+            if self.provider
+            in [Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_AZURE, Provider.OCP_GCP, Provider.OCP_ALL]
             else self.provider
         )
 
@@ -358,6 +359,8 @@ class TagQueryHandler(QueryHandler):
 
     def tag_mapping_wrapper(self, data):
         """Wraps the get tags logic and applies tag mappings to it."""
+        if not data:
+            return data
         row_keys = [kv_pair.get("key") for kv_pair in data]
         with tenant_context(self.tenant):
             tag_mappings = TagMapping.objects.filter(
@@ -365,26 +368,30 @@ class TagQueryHandler(QueryHandler):
             ).values("child__key", "parent__key")
 
         child_to_parent = {tag_map["child__key"]: tag_map["parent__key"] for tag_map in tag_mappings}
+        if not child_to_parent:
+            return data
 
-        deduplicate_keys = defaultdict(lambda: {"values": set(), "enabled": False})
-        found_children = []
+        additional_fields = list({"values", "key"}.symmetric_difference(set(data[0].keys())))
+        default_fields_dict = {"values": set()}
+        for additional_field in additional_fields:
+            default_fields_dict[additional_field] = False
+
+        deduplicate_keys = defaultdict(lambda: copy.deepcopy(default_fields_dict))
         for row in data:
             key = row.get("key")
             if parent_key := child_to_parent.get(key):
-                found_children.append(key)
                 key = parent_key
             deduplicate_keys[key]["values"].update(row["values"])
-            deduplicate_keys[key]["enabled"] = row["enabled"]
+            for additional_field in additional_fields:
+                deduplicate_keys[key][additional_field] = row.get(additional_field)
 
         # This is where we deduplicate & sort the values
-        final_data_list = [
-            {
-                "key": key,
-                "values": sorted(list(data["values"]), reverse=self.order_direction == "desc"),
-                "enabled": data["enabled"],
-            }
-            for key, data in deduplicate_keys.items()
-        ]
+        final_data_list = []
+        for key, data in deduplicate_keys.items():
+            row = {"key": key, "values": sorted(list(data["values"]), reverse=self.order_direction == "desc")}
+            for additional_field in additional_fields:
+                row[additional_field] = data[additional_field]
+            final_data_list.append(row)
         return final_data_list
 
     def get_tags(self):
