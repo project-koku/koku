@@ -24,6 +24,7 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_aws
 from masu.processor import is_managed_ocp_cloud_summary_enabled
+from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
@@ -31,6 +32,7 @@ from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
+from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
@@ -222,6 +224,34 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day} from {table}",
                 )
 
+    def _get_matched_tags_strings(self, bill_id, aws_provider_uuid, ocp_provider_uuid, start_date, end_date):
+        """Returns the matched tags"""
+        ctx = {
+            "schema": self.schema,
+            "bill_id": bill_id,
+            "aws_provider_uuid": aws_provider_uuid,
+            "ocp_provider_uuid": ocp_provider_uuid,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+        matched_tags = []
+        with schema_context(self.schema):
+            enabled_tags = self.check_for_matching_enabled_keys()
+            if EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_OCP).exists() and enabled_tags:
+                matched_tags = self.get_openshift_on_cloud_matched_tags(bill_id)
+        if not matched_tags and enabled_tags:
+            LOG.info(log_json(msg="matched tags not available via Postgres", context=ctx))
+            if is_tag_processing_disabled(self.schema):
+                LOG.info(log_json(msg="trino tag matching disabled for customer", context=ctx))
+                return []
+            LOG.info(log_json(msg="getting matching tags from Trino", context=ctx))
+            matched_tags = self.get_openshift_on_cloud_matched_tags_trino(
+                aws_provider_uuid, [ocp_provider_uuid], start_date, end_date, invoice_month=None
+            )
+        if matched_tags:
+            return [json.dumps(match).replace("{", "").replace("}", "") for match in matched_tags]
+        return matched_tags
+
     def populate_ocp_on_aws_cost_daily_summary_trino(
         self,
         start_date,
@@ -261,7 +291,21 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         unattributed_storage = is_feature_unattributed_storage_enabled_aws(self.schema)
 
         sql_file = "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql"
+        msg = "running OCP on AWS SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
+            # We have to populate the ocp on cloud managed tables prior to executing this file
+            msg = "running OCP on AWS Managed table SQL"
+            sql_metadata = SummarySqlMetadata(
+                self.schema,
+                openshift_provider_uuid,
+                aws_provider_uuid,
+                start_date,
+                end_date,
+                self._get_matched_tags_strings(
+                    bill_id, aws_provider_uuid, openshift_provider_uuid, start_date, end_date
+                ),
+            )
+            self.populate_ocp_on_cloud_daily_trino(sql_metadata)
             sql_file = "trino_sql/aws/openshift/reporting_ocpawscostlineitem_project_daily_summary_p.sql"
         sql = pkgutil.get_data("masu.database", sql_file)
         sql = sql.decode("utf-8")
@@ -282,7 +326,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "unattributed_storage": unattributed_storage,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
+        LOG.info(log_json(msg=msg, context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
@@ -504,36 +548,31 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         LOG.info(log_json(msg="Preparing tables for OCP on AWS flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
-        for ocp_provider_uuid in sql_metadata.ocp_provider_uuids:
-            self.delete_ocp_on_aws_hive_partition_by_day(
-                sql_metadata.days_tup,
-                sql_metadata.cloud_provider_uuid,
-                ocp_provider_uuid,
-                sql_metadata.year,
-                sql_metadata.month,
-                TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
-            )
-            # Resource Matching
-            resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
-                f"{managed_path}/1_resource_matching_by_cluster.sql",
-                {
-                    "ocp_provider_uuid": ocp_provider_uuid,
-                    "matched_tag_array": self.find_openshift_keys_expected_values(ocp_provider_uuid, sql_metadata),
+        self.delete_ocp_on_aws_hive_partition_by_day(
+            sql_metadata.days_tup,
+            sql_metadata.cloud_provider_uuid,
+            sql_metadata.ocp_provider_uuid,
+            sql_metadata.year,
+            sql_metadata.month,
+            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
+        )
+        # Resource Matching
+        resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
+            f"{managed_path}/1_resource_matching_by_cluster.sql",
+            {
+                "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
+            },
+        )
+        self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
+        # Data Transformations for Daily Summary
+        daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
+            f"{managed_path}/2_summarize_data_by_cluster.sql",
+            {
+                **sql_metadata.build_cost_model_params(),
+                **{
+                    "unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema),
                 },
-            )
-            self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
-            # Data Transformations for Daily Summary
-            daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
-                f"{managed_path}/2_summarize_data_by_cluster.sql",
-                {
-                    **sql_metadata.build_cost_model_params(ocp_provider_uuid),
-                    **{
-                        "ocp_provider_uuid": ocp_provider_uuid,
-                        "unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema),
-                    },
-                },
-            )
-            LOG.info(
-                log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params)
-            )
-            self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
+            },
+        )
+        LOG.info(log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params))
+        self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
