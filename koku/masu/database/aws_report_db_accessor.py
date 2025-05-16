@@ -291,8 +291,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         unattributed_storage = is_feature_unattributed_storage_enabled_aws(self.schema)
 
         sql_file = "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql"
+        msg = "running OCP on AWS SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
             # We have to populate the ocp on cloud managed tables prior to executing this file
+            msg = "running OCP on AWS Manged table SQL"
             sql_metadata = SummarySqlMetadata(
                 self.schema,
                 openshift_provider_uuid,
@@ -324,7 +326,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "unattributed_storage": unattributed_storage,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
+        LOG.info(log_json(msg=msg, context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
