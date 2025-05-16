@@ -73,6 +73,7 @@ ENV \
 
 # copy the src files into the workdir
 COPY . .
+RUN ls -la koku/reporting/migrations/
 RUN mv licenses/ /
 
 # create the koku user
