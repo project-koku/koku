@@ -89,13 +89,19 @@ class TagQueryHandler(QueryHandler):
         self.default_ordering = {"values": "asc"}
 
     @property
-    def tag_mapping_provider_type(self):
-        return (
-            Provider.PROVIDER_OCP
-            if self.provider
-            in [Provider.PROVIDER_OCP, Provider.OCP_AWS, Provider.OCP_AZURE, Provider.OCP_GCP, Provider.OCP_ALL]
-            else self.provider
-        )
+    def tag_map_provider_types(self):
+        mapping = {
+            Provider.OCP_ALL: [
+                Provider.PROVIDER_AWS,
+                Provider.PROVIDER_AZURE,
+                Provider.PROVIDER_GCP,
+                Provider.PROVIDER_OCP,
+            ],
+            Provider.OCP_AWS: [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP],
+            Provider.OCP_AZURE: [Provider.PROVIDER_AZURE, Provider.PROVIDER_OCP],
+            Provider.OCP_GCP: [Provider.PROVIDER_GCP, Provider.PROVIDER_OCP],
+        }
+        return mapping.get(self.provider, [self.provider])
 
     def _get_key_filter(self):
         """
@@ -266,7 +272,7 @@ class TagQueryHandler(QueryHandler):
         """Returns the children tags for a tag mapping parent."""
         with tenant_context(self.tenant):
             child_keys = TagMapping.objects.filter(
-                parent__key=key, parent__provider_type=self.tag_mapping_provider_type
+                parent__key=key, parent__provider_type__in=self.tag_map_provider_types
             ).values_list("child__key", flat=True)
         return child_keys
 
@@ -351,7 +357,7 @@ class TagQueryHandler(QueryHandler):
 
         # Removes keys used as children in the tag mapping
         with tenant_context(self.tenant):
-            child_keys = TagMapping.objects.filter(child__provider_type=self.tag_mapping_provider_type).values_list(
+            child_keys = TagMapping.objects.filter(child__provider_type__in=self.tag_map_provider_types).values_list(
                 "child__key", flat=True
             )
 
@@ -364,7 +370,7 @@ class TagQueryHandler(QueryHandler):
         row_keys = [kv_pair.get("key") for kv_pair in data]
         with tenant_context(self.tenant):
             tag_mappings = TagMapping.objects.filter(
-                child__provider_type=self.tag_mapping_provider_type, child__key__in=row_keys
+                child__provider_type__in=self.tag_map_provider_types, child__key__in=row_keys
             ).values("child__key", "parent__key")
 
         child_to_parent = {tag_map["child__key"]: tag_map["parent__key"] for tag_map in tag_mappings}
