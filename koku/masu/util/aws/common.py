@@ -524,7 +524,7 @@ def get_s3_resource(access_key, secret_key, region, endpoint_url=settings.S3_END
     return aws_session.resource("s3", endpoint_url=endpoint_url, config=config)
 
 
-def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, context=None):
+def copy_data_to_s3_bucket(tracing_id, path, filename, data, metadata=None, context=None):
     """
     Copies data to s3 bucket file
     """
@@ -541,13 +541,13 @@ def copy_data_to_s3_bucket(request_id, path, filename, data, metadata=None, cont
         upload.upload_fileobj(data, ExtraArgs=extra_args)
     except (EndpointConnectionError, ClientError) as err:
         msg = "unable to copy data to bucket"
-        LOG.info(log_json(request_id, msg=msg, context=context, upload_key=upload_key), exc_info=err)
+        LOG.info(log_json(tracing_id, msg=msg, context=context, upload_key=upload_key), exc_info=err)
         raise UploadError(msg)
     return upload
 
 
 def copy_local_report_file_to_s3_bucket(
-    request_id, s3_path, full_file_path, local_filename, manifest_id, context=None
+    tracing_id, s3_path, full_file_path, local_filename, manifest_id, context=None
 ):
     """
     Copies local report file to s3 bucket
@@ -558,7 +558,7 @@ def copy_local_report_file_to_s3_bucket(
         LOG.info(f"copy_local_report_file_to_s3_bucket: {s3_path} {full_file_path}")
         metadata = {"manifestid": str(manifest_id)}
         with open(full_file_path, "rb") as fin:
-            copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, metadata, context)
+            copy_data_to_s3_bucket(tracing_id, s3_path, local_filename, fin, metadata, context)
 
 
 def _get_s3_objects(s3_path):
