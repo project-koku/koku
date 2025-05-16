@@ -82,6 +82,7 @@ snakeviz = "*"
 tblib = ">=1.6"
 tox = ">=3.0"
 watchdog = ">=2.1.1"
+polyfactory = "*"
 
 [requires]
 python_version = "3.11"

@@ -300,7 +300,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
         sql_file = "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql"
+        msg = "running OCP on Azure SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AZURE):
+            msg = "running OCP on Azure Managed table SQL"
             # We have to populate the ocp on cloud managed tables prior to executing this file
             sql_metadata = SummarySqlMetadata(
                 self.schema,
@@ -334,7 +336,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
         }
         ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg="running OCP on Azure SQL", context=ctx))
+        LOG.info(log_json(msg=msg, context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, bill_ids=None):
