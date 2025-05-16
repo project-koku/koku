@@ -302,7 +302,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_file = "trino_sql/reporting_ocpazurecostlineitem_daily_summary.sql"
         msg = "running OCP on Azure SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AZURE):
-            msg = "running OCP on Azure Manged table SQL"
+            msg = "running OCP on Azure Managed table SQL"
             # We have to populate the ocp on cloud managed tables prior to executing this file
             sql_metadata = SummarySqlMetadata(
                 self.schema,

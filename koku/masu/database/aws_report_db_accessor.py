@@ -294,7 +294,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         msg = "running OCP on AWS SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
             # We have to populate the ocp on cloud managed tables prior to executing this file
-            msg = "running OCP on AWS Manged table SQL"
+            msg = "running OCP on AWS Managed table SQL"
             sql_metadata = SummarySqlMetadata(
                 self.schema,
                 openshift_provider_uuid,
