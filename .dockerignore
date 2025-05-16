@@ -11,6 +11,7 @@
 !scripts/
 
 # keep the test files out of the final image
+# WARNING - This will also remove any file that contains test in the name like latest.
 **/*test*
 **/__pycache__
 **/*.log
