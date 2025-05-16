@@ -168,6 +168,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     tags = JSONField(null=True)
     cost_category = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
+    test = JSONField(null=True)
 
 
 class AWSCostEntryLineItemSummaryByEC2ComputeP(models.Model):
