@@ -274,7 +274,7 @@ class TagQueryHandler(QueryHandler):
             child_keys = TagMapping.objects.filter(
                 parent__key=key, parent__provider_type__in=self.tag_map_provider_types
             ).values_list("child__key", flat=True)
-        return child_keys
+            return list(child_keys)
 
     def _set_operator_specified_filters(self, operator):
         """Set any filters using AND instead of OR."""
@@ -354,14 +354,11 @@ class TagQueryHandler(QueryHandler):
                 tag_keys_query = tag_keys_query.exclude(exclusion).values(*select_cols).distinct().all()
 
                 tag_keys.update({tag.get("key") for tag in tag_keys_query})
-
-        # Removes keys used as children in the tag mapping
-        with tenant_context(self.tenant):
+            # Removes keys used as children in the tag mapping
             child_keys = TagMapping.objects.filter(child__provider_type__in=self.tag_map_provider_types).values_list(
                 "child__key", flat=True
             )
-
-        return [tag for tag in tag_keys if tag not in list(child_keys)]
+            return [tag for tag in tag_keys if tag not in list(child_keys)]
 
     def tag_mapping_wrapper(self, data):
         """Wraps the get tags logic and applies tag mappings to it."""
@@ -373,9 +370,9 @@ class TagQueryHandler(QueryHandler):
                 child__provider_type__in=self.tag_map_provider_types, child__key__in=row_keys
             ).values("child__key", "parent__key")
 
-        child_to_parent = {tag_map["child__key"]: tag_map["parent__key"] for tag_map in tag_mappings}
-        if not child_to_parent:
-            return data
+            child_to_parent = {tag_map["child__key"]: tag_map["parent__key"] for tag_map in tag_mappings}
+            if not child_to_parent:
+                return data
 
         additional_fields = list({"values", "key"}.symmetric_difference(set(data[0].keys())))
         default_fields_dict = {"values": set()}
