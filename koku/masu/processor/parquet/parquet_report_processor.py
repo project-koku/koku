@@ -453,7 +453,7 @@ class ParquetReportProcessor:
 
             self.prepare_parquet_s3(Path(csv_filename))
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
-                msg = "could not establish report type"
+                msg = "Unknown report type, skipping file processing"
                 LOG.warning(
                     log_json(
                         self.tracing_id,
@@ -462,7 +462,7 @@ class ParquetReportProcessor:
                         filename=csv_filename,
                     )
                 )
-                raise ParquetReportProcessorError(msg)
+                return parquet_base_filename, daily_data_frames
 
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
