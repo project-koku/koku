@@ -360,7 +360,7 @@ class TagQueryHandler(QueryHandler):
             )
             return [tag for tag in tag_keys if tag not in list(child_keys)]
 
-    def tag_mapping_wrapper(self, data):
+    def apply_tag_mappings(self, data):
         """Wraps the get tags logic and applies tag mappings to it."""
         if not data:
             return data
@@ -398,6 +398,12 @@ class TagQueryHandler(QueryHandler):
         return final_data_list
 
     def get_tags(self):
+        """A wrapper that applies the tag mapping logic to the get_tags"""
+        data = self._get_tags()
+        final_data = self.apply_tag_mappings(data)
+        return final_data
+
+    def _get_tags(self):
         """Get a list of tags and values to validate filters.
         Return a list of dictionaries containing the tag keys.
         If OCP, these dicationaries will return as:
@@ -553,7 +559,7 @@ class TagQueryHandler(QueryHandler):
             )
             query_data = tag_data
         else:
-            tag_data = self.tag_mapping_wrapper(self.get_tags())
+            tag_data = self.get_tags()
             query_data = sorted(tag_data, key=lambda k: k["key"], reverse=self.order_direction == "desc")
 
         self.query_data = query_data
