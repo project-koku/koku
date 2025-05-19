@@ -291,6 +291,14 @@ class TestParquetReportProcessor(MasuTestCase):
             self.report_processor.convert_to_parquet()
             self.assertIn(expected, " ".join(logger.output))
 
+        exp_msg = "Unknown report type, skipping file processing"
+        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch(
+            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", new=None
+        ), patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"):
+            with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="WARNING") as logger:
+                self.report_processor_ocp.convert_to_parquet()
+                self.assertIn(exp_msg, " ".join(logger.output))
+
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
             ParquetReportProcessor,
             "convert_csv_to_parquet",
