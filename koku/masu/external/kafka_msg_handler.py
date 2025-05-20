@@ -139,7 +139,7 @@ def create_daily_archives(payload_info: utils.PayloadInfo, filepath: Path, conte
     for daily_file in daily_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
-            payload_info.account,
+            payload_info.trino_schema,
             payload_info.provider_type,
             payload_info.provider_uuid,
             daily_file.get("date"),
@@ -346,13 +346,14 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         shutil.rmtree(payload_path.parent)
         return None, manifest.uuid
     provider: Provider = source.provider
-    schema_name = provider.account.get("schema_name")
+    schema_name: str = provider.account.get("schema_name")
     context["provider_type"] = provider.type
     context["schema"] = schema_name
 
     # set the account and org_id based on the provider if the kafka msg don't contain them
-    context["account"] = context["account"] or provider.account.get("account_id")
     context["org_id"] = context["org_id"] or provider.account.get("org_id")
+    # for anemic accounts, use `no_account`
+    context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
 
     payload = utils.PayloadInfo(
         request_id=request_id,
@@ -361,9 +362,10 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         provider_uuid=provider.uuid,
         provider_type=provider.type,
         cluster_alias=provider.name,
-        account=context["account"],
+        account_id=context["account"],
         org_id=context["org_id"],
-        schema_name=provider.account.get("schema_name"),
+        schema_name=schema_name,
+        trino_schema=schema_name,
     )
 
     # Create directory tree for report.
