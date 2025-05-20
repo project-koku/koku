@@ -172,9 +172,10 @@ class KafkaMsgHandlerTest(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
             provider_type="OCP",
             cluster_alias=self.cluster_id,
-            account="10001",
+            account_id="10001",
             org_id="10001",
             schema_name=self.schema_name,
+            trino_schema=self.schema_name,
         )
 
     @patch("masu.external.kafka_msg_handler.listen_for_messages")
