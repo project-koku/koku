@@ -393,7 +393,7 @@ class TagQueryHandler(QueryHandler):
         for key, _data in deduplicate_keys.items():
             row = {"key": key, "values": sorted(list(_data["values"]), reverse=self.order_direction == "desc")}
             for additional_field in additional_fields:
-                row[additional_field] = data[additional_field]
+                row[additional_field] = _data[additional_field]
             final_data_list.append(row)
         return final_data_list
 
