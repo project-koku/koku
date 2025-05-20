@@ -321,6 +321,11 @@ class PayloadInfo(BaseModel):
     schema_name: str
     trino_schema: str
 
+    @field_validator("trino_schema", mode="after")
+    @classmethod
+    def get_trino_schema(cls, value: str) -> str:
+        return value.lstrip("acct")
+
 
 def parse_manifest(report_directory) -> Manifest:
     """

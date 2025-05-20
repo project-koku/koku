@@ -362,10 +362,10 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         provider_uuid=provider.uuid,
         provider_type=provider.type,
         cluster_alias=provider.name,
-        account=context["account"],
+        account_id=context["account"],
         org_id=context["org_id"],
         schema_name=schema_name,
-        trino_schema=schema_name.lstrip("acct"),
+        trino_schema=schema_name,
     )
 
     # Create directory tree for report.
