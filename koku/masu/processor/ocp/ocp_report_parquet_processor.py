@@ -45,6 +45,21 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "volume_request_storage_byte_seconds",
             "persistentvolumeclaim_capacity_byte_seconds",
             "persistentvolumeclaim_capacity_bytes",
+            "vm_uptime_total_seconds",
+            "vm_cpu_limit_core_seconds",
+            "vm_cpu_request_cores",
+            "vm_cpu_request_core_seconds",
+            "vm_cpu_request_sockets",
+            "vm_cpu_request_socket_seconds",
+            "vm_cpu_request_threads",
+            "vm_cpu_request_thread_seconds",
+            "vm_cpu_usage_total_seconds",
+            "vm_memory_limit_bytes",
+            "vm_memory_limit_byte_seconds",
+            "vm_memory_request_bytes",
+            "vm_memory_request_byte_seconds",
+            "vm_memory_usage_byte_seconds",
+            "vm_disk_allocated_size_byte_seconds",
         ]
         date_columns = ["report_period_start", "report_period_end", "interval_start", "interval_end"]
         column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}

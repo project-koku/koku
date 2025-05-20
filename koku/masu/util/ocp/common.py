@@ -44,6 +44,7 @@ class OCPReportTypes(Enum):
     STORAGE = 2
     NODE_LABELS = 3
     NAMESPACE_LABELS = 4
+    VM_USAGE = 5
 
 
 OPERATOR_VERSIONS = {
@@ -214,6 +215,73 @@ NAMESPACE_GROUP_BY = ["namespace", "namespace_labels"]
 
 NAMESPACE_AGG = {"report_period_start": ["max"], "report_period_end": ["max"]}
 
+VM_USAGE_COLUMNS = {
+    "report_period_start",
+    "report_period_end",
+    "interval_start",
+    "interval_end",
+    "node",
+    "namespace",
+    "vm_name",
+    "vm_instance_type",
+    "vm_os",
+    "vm_guest_os_arch",
+    "vm_guest_os_name",
+    "vm_guest_os_version_id",
+    "vm_uptime_total_seconds",
+    "vm_cpu_limit_cores",
+    "vm_cpu_limit_core_seconds",
+    "vm_cpu_request_cores",
+    "vm_cpu_request_core_seconds",
+    "vm_cpu_request_sockets",
+    "vm_cpu_request_socket_seconds",
+    "vm_cpu_request_threads",
+    "vm_cpu_request_thread_seconds",
+    "vm_cpu_usage_total_seconds",
+    "vm_memory_limit_bytes",
+    "vm_memory_limit_byte_seconds",
+    "vm_memory_request_bytes",
+    "vm_memory_request_byte_seconds",
+    "vm_memory_usage_byte_seconds",
+    "vm_device",
+    "vm_volume_mode",
+    "vm_persistentvolumeclaim_name",
+    "vm_disk_allocated_size_byte_seconds",
+    "vm_labels",
+}
+
+VM_GROUP_BY = ["namespace", "node", "vm_name", "vm_labels"]
+
+VM_AGG = {
+    "report_period_start": ["max"],
+    "report_period_end": ["max"],
+    "resource_id": ["max"],
+    "vm_instance_type": ["max"],
+    "vm_os": ["max"],
+    "vm_guest_os_arch": ["max"],
+    "vm_guest_os_name": ["max"],
+    "vm_guest_os_version_id": ["max"],
+    "vm_uptime_total_seconds": ["sum"],
+    "vm_cpu_limit_cores": ["sum"],
+    "vm_cpu_limit_core_seconds": ["sum"],
+    "vm_cpu_request_cores": ["sum"],
+    "vm_cpu_request_core_seconds": ["sum"],
+    "vm_cpu_request_sockets": ["sum"],
+    "vm_cpu_request_socket_seconds": ["sum"],
+    "vm_cpu_request_threads": ["sum"],
+    "vm_cpu_request_thread_seconds": ["sum"],
+    "vm_cpu_usage_total_seconds": ["sum"],
+    "vm_memory_limit_bytes": ["sum"],
+    "vm_memory_limit_byte_seconds": ["sum"],
+    "vm_memory_request_bytes": ["sum"],
+    "vm_memory_request_byte_seconds": ["sum"],
+    "vm_memory_usage_byte_seconds": ["sum"],
+    "vm_device": ["max"],
+    "vm_volume_mode": ["max"],
+    "vm_persistentvolumeclaim_name": ["max"],
+    "vm_disk_allocated_size_byte_seconds": ["sum"],
+}
+
 # new_required_columns are columns that appear in new operator reports.
 # today, we cannot guarantee that all reports received will contain all
 # of these new columns, so this field is used to add the necessary columns
@@ -248,6 +316,13 @@ OCP_REPORT_TYPES = {
         "enum": OCPReportTypes.NAMESPACE_LABELS,
         "group_by": NAMESPACE_GROUP_BY,
         "agg": NAMESPACE_AGG,
+        "new_required_columns": {},
+    },
+    "vm_usage": {
+        "columns": VM_USAGE_COLUMNS,
+        "enum": OCPReportTypes.VM_USAGE,
+        "group_by": VM_GROUP_BY,
+        "agg": VM_AGG,
         "new_required_columns": {},
     },
 }
