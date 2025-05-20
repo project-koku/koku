@@ -351,8 +351,9 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
     context["schema"] = schema_name
 
     # set the account and org_id based on the provider if the kafka msg don't contain them
-    context["account"] = context["account"] or provider.account.get("account_id")
     context["org_id"] = context["org_id"] or provider.account.get("org_id")
+    # for anemic accounts, use `no_acount`
+    context["account"] = context["account"] or provider.account.get("account_id") or "no_account"
 
     payload = utils.PayloadInfo(
         request_id=request_id,
