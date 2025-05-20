@@ -316,9 +316,10 @@ class PayloadInfo(BaseModel):
     provider_uuid: UUID4
     provider_type: str
     cluster_alias: str
-    account: str
+    account_id: str
     org_id: str
     schema_name: str
+    trino_schema: str
 
 
 def parse_manifest(report_directory) -> Manifest:

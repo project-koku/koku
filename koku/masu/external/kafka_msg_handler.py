@@ -139,7 +139,7 @@ def create_daily_archives(payload_info: utils.PayloadInfo, filepath: Path, conte
     for daily_file in daily_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
-            payload_info.account,
+            payload_info.trino_schema,
             payload_info.provider_type,
             payload_info.provider_uuid,
             daily_file.get("date"),
@@ -346,7 +346,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         shutil.rmtree(payload_path.parent)
         return None, manifest.uuid
     provider: Provider = source.provider
-    schema_name = provider.account.get("schema_name")
+    schema_name: str = provider.account.get("schema_name")
     context["provider_type"] = provider.type
     context["schema"] = schema_name
 
@@ -364,7 +364,8 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
         cluster_alias=provider.name,
         account=context["account"],
         org_id=context["org_id"],
-        schema_name=provider.account.get("schema_name"),
+        schema_name=schema_name,
+        trino_schema=schema_name.lstrip("acct"),
     )
 
     # Create directory tree for report.

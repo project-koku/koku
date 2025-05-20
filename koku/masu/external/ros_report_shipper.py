@@ -64,7 +64,7 @@ class ROSReportShipper:
         self.schema_name = payload_info.schema_name
 
         self.metadata = {
-            "account": payload_info.account,
+            "account": payload_info.account_id,
             "org_id": payload_info.org_id,
             "source_id": self.source_id,
             "provider_uuid": self.provider_uuid,
