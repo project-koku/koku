@@ -379,7 +379,7 @@ class TagQueryHandler(QueryHandler):
         for additional_field in additional_fields:
             default_fields_dict[additional_field] = False
 
-        deduplicate_keys = defaultdict(lambda: copy.deepcopy(default_fields_dict))
+        deduplicate_keys = defaultdict(lambda: default_fields_dict.copy())
         for row in data:
             key = row.get("key")
             if parent_key := child_to_parent.get(key):
@@ -390,8 +390,8 @@ class TagQueryHandler(QueryHandler):
 
         # This is where we deduplicate & sort the values
         final_data_list = []
-        for key, data in deduplicate_keys.items():
-            row = {"key": key, "values": sorted(list(data["values"]), reverse=self.order_direction == "desc")}
+        for key, _data in deduplicate_keys.items():
+            row = {"key": key, "values": sorted(list(_data["values"]), reverse=self.order_direction == "desc")}
             for additional_field in additional_fields:
                 row[additional_field] = data[additional_field]
             final_data_list.append(row)
@@ -400,8 +400,7 @@ class TagQueryHandler(QueryHandler):
     def get_tags(self):
         """A wrapper that applies the tag mapping logic to the get_tags"""
         data = self._get_tags()
-        final_data = self.apply_tag_mappings(data)
-        return final_data
+        return self.apply_tag_mappings(data)
 
     def _get_tags(self):
         """Get a list of tags and values to validate filters.

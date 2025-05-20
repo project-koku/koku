@@ -167,7 +167,7 @@ class AWSTagQueryHandlerTest(IamTestCase):
         tag_map = {}
         with tenant_context(self.tenant):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
-            self.assertGreaterEqual(len(enabled_tags), 2)
+            self.assertGreaterEqual(len(enabled_tags), 3)
             tag_map["parent_key"] = enabled_tags[0].key
             tag_map["child_0_key"] = enabled_tags[1].key
             tag_map["child_1_key"] = enabled_tags[2].key
