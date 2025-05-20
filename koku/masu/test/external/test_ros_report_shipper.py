@@ -37,9 +37,10 @@ class TestROSReportShipper(TestCase):
             provider_uuid=cls.provider_uuid,
             provider_type="OCP",
             cluster_alias=cls.cluster_alias,
-            account=cls.account_id,
+            account_id=cls.account_id,
             org_id=cls.org_id,
             schema_name=cls.schema_name,
+            trino_schema=cls.schema_name,
         )
         test_context = {
             "account": cls.account_id,
