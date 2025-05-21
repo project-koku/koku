@@ -5,13 +5,16 @@
 """Query Handling for Tags."""
 import copy
 import logging
+from collections import defaultdict
 
 from django.db.models import Q
 from django_tenants.utils import tenant_context
 
+from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from reporting.provider.all.models import TagMapping
 from reporting.provider.ocp.models import OpenshiftCostCategoryNamespace
 
 LOG = logging.getLogger(__name__)
@@ -59,6 +62,7 @@ class TagQueryHandler(QueryHandler):
     FILTER_MAP = {
         "key": {"field": "key", "operation": "icontains", "composition_key": "key_filter"},
         "value": {"field": "value", "operation": "icontains", "composition_key": "value_filter"},
+        "child_keys": {"field": "key", "operation": "in", "composition_key": "key_filter"},
     }
 
     def __init__(self, parameters):
@@ -83,6 +87,21 @@ class TagQueryHandler(QueryHandler):
             if not self.parameters.get_filter("value"):
                 self.query_filter = self._get_key_filter()
         self.default_ordering = {"values": "asc"}
+
+    @property
+    def tag_map_provider_types(self):
+        mapping = {
+            Provider.OCP_ALL: [
+                Provider.PROVIDER_AWS,
+                Provider.PROVIDER_AZURE,
+                Provider.PROVIDER_GCP,
+                Provider.PROVIDER_OCP,
+            ],
+            Provider.OCP_AWS: [Provider.PROVIDER_AWS, Provider.PROVIDER_OCP],
+            Provider.OCP_AZURE: [Provider.PROVIDER_AZURE, Provider.PROVIDER_OCP],
+            Provider.OCP_GCP: [Provider.PROVIDER_GCP, Provider.PROVIDER_OCP],
+        }
+        return mapping.get(self.provider, [self.provider])
 
     def _get_key_filter(self):
         """
@@ -218,6 +237,13 @@ class TagQueryHandler(QueryHandler):
                     for item in filter_value:
                         q_filter = QueryFilter(parameter=item, **filter_obj)
                         filters.add(q_filter)
+                        if filter_key == "key":
+                            if child_keys := self.find_child_keys(item):
+                                child_filt_obj = self.filter_map.get("child_keys")
+                                child_filter = QueryFilter(
+                                    parameter=child_keys, logical_operator="or", **child_filt_obj
+                                )
+                                filters.add(child_filter)
 
             access = self.parameters.get_access(filter_key)
             filt = self.filter_map.get(filter_key)
@@ -241,6 +267,14 @@ class TagQueryHandler(QueryHandler):
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
+
+    def find_child_keys(self, key):
+        """Returns the children tags for a tag mapping parent."""
+        with tenant_context(self.tenant):
+            child_keys = TagMapping.objects.filter(
+                parent__key=key, parent__provider_type__in=self.tag_map_provider_types
+            ).values_list("child__key", flat=True)
+            return list(child_keys)
 
     def _set_operator_specified_filters(self, operator):
         """Set any filters using AND instead of OR."""
@@ -320,10 +354,55 @@ class TagQueryHandler(QueryHandler):
                 tag_keys_query = tag_keys_query.exclude(exclusion).values(*select_cols).distinct().all()
 
                 tag_keys.update({tag.get("key") for tag in tag_keys_query})
+            # Removes keys used as children in the tag mapping
+            child_keys = TagMapping.objects.filter(child__provider_type__in=self.tag_map_provider_types).values_list(
+                "child__key", flat=True
+            )
+            return [tag for tag in tag_keys if tag not in list(child_keys)]
 
-        return list(tag_keys)
+    def apply_tag_mappings(self, data):
+        """Wraps the get tags logic and applies tag mappings to it."""
+        if not data:
+            return data
+        row_keys = [kv_pair.get("key") for kv_pair in data]
+        with tenant_context(self.tenant):
+            tag_mappings = TagMapping.objects.filter(
+                child__provider_type__in=self.tag_map_provider_types, child__key__in=row_keys
+            ).values("child__key", "parent__key")
+
+            child_to_parent = {tag_map["child__key"]: tag_map["parent__key"] for tag_map in tag_mappings}
+            if not child_to_parent:
+                return data
+
+        additional_fields = list({"values", "key"}.symmetric_difference(set(data[0].keys())))
+        default_fields_dict = {"values": set()}
+        for additional_field in additional_fields:
+            default_fields_dict[additional_field] = False
+
+        deduplicate_keys = defaultdict(lambda: copy.deepcopy(default_fields_dict))
+        for row in data:
+            key = row.get("key")
+            if parent_key := child_to_parent.get(key):
+                key = parent_key
+            deduplicate_keys[key]["values"].update(row["values"])
+            for additional_field in additional_fields:
+                deduplicate_keys[key][additional_field] = row.get(additional_field)
+
+        # This is where we deduplicate & sort the values
+        final_data_list = []
+        for key, _data in deduplicate_keys.items():
+            row = {"key": key, "values": sorted(list(_data["values"]), reverse=self.order_direction == "desc")}
+            for additional_field in additional_fields:
+                row[additional_field] = _data[additional_field]
+            final_data_list.append(row)
+        return final_data_list
 
     def get_tags(self):
+        """A wrapper that applies the tag mapping logic to the get_tags"""
+        data = self._get_tags()
+        return self.apply_tag_mappings(data)
+
+    def _get_tags(self):
         """Get a list of tags and values to validate filters.
         Return a list of dictionaries containing the tag keys.
         If OCP, these dicationaries will return as:
