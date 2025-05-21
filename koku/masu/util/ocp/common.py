@@ -223,6 +223,7 @@ VM_USAGE_COLUMNS = {
     "node",
     "namespace",
     "vm_name",
+    "resource_id",
     "vm_instance_type",
     "vm_os",
     "vm_guest_os_arch",

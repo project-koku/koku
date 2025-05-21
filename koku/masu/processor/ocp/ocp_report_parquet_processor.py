@@ -46,6 +46,7 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
             "persistentvolumeclaim_capacity_byte_seconds",
             "persistentvolumeclaim_capacity_bytes",
             "vm_uptime_total_seconds",
+            "vm_cpu_limit_cores",
             "vm_cpu_limit_core_seconds",
             "vm_cpu_request_cores",
             "vm_cpu_request_core_seconds",

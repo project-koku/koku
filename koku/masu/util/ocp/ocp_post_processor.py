@@ -110,6 +110,7 @@ class OCPPostProcessor:
             "volume_request_storage_byte_seconds": safe_float,
             "persistentvolumeclaim_usage_byte_seconds": safe_float,
             "vm_uptime_total_seconds": safe_float,
+            "vm_cpu_limit_cores": safe_float,
             "vm_cpu_limit_core_seconds": safe_float,
             "vm_cpu_request_cores": safe_float,
             "vm_cpu_request_core_seconds": safe_float,
