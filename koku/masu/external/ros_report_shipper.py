@@ -17,7 +17,6 @@ from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from kafka_utils.utils import ROS_TOPIC
-from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -101,11 +100,8 @@ class ROSReportShipper:
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
-        if (
-            not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context)
-            and not settings.ENABLE_ROS_DEBUG
-        ):
-            msg = "ROS report handling gated by unleash - not sending kafka msg"
+        if not settings.ENABLE_ROS_DEBUG:
+            msg = "ROS report handling disabled - not sending kafka msg"
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
