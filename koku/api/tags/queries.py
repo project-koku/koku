@@ -379,7 +379,7 @@ class TagQueryHandler(QueryHandler):
         for additional_field in additional_fields:
             default_fields_dict[additional_field] = False
 
-        deduplicate_keys = defaultdict(lambda: default_fields_dict.copy())
+        deduplicate_keys = defaultdict(lambda: copy.deepcopy(default_fields_dict))
         for row in data:
             key = row.get("key")
             if parent_key := child_to_parent.get(key):
