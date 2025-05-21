@@ -100,7 +100,7 @@ class ROSReportShipper:
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
-        if not settings.ENABLE_ROS_DEBUG:
+        if settings.DISABLE_ROS_MSG:
             msg = "ROS report handling disabled - not sending kafka msg"
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
