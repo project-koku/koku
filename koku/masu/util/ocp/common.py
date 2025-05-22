@@ -23,6 +23,7 @@ from pydantic import AfterValidator
 from pydantic import BaseModel
 from pydantic import BeforeValidator
 from pydantic import ConfigDict
+from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 from pydantic import UUID4
@@ -270,8 +271,8 @@ class Manifest(BaseModel):
     version: str = ""
     operator_version: str = ""
     date: ForceAwareDatetime
-    files: NoneToList
-    resource_optimization_files: NoneToList
+    files: NoneToList = Field(default_factory=[])
+    resource_optimization_files: NoneToList = Field(default_factory=[])
     start: ForceAwareDatetime | None = None
     end: ForceAwareDatetime | None = None
     certified: bool = False
