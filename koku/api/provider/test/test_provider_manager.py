@@ -829,29 +829,21 @@ class ProviderManagerTest(IamTestCase):
             additional_context_updated = manager_updated_ver.get_additional_context()
             self.assertEqual(additional_context_updated.get("operator_update_available"), False)
 
-            # Scenario 2a: Operator version just below the threshold ("3.3.2")
-            provider.manifest.operator_version = "3.3.2"
-            provider.manifest.save()
+            # Scenario 2a: Operator version just below cpu core cost model threshold ("3.3.2")
+            provider.additional_context = {"operator_version": "3.3.2"}
+            provider.save()
             manager_below_threshold = ProviderManager(provider.uuid)
             additional_context_below = manager_below_threshold.get_additional_context()
             self.assertEqual(additional_context_below.get("operator_version"), "3.3.2")
             self.assertEqual(additional_context_below.get("vm_cpu_core_cost_model_support"), False)
 
             # Scenario 2b: Operator version exactly at the threshold ("3.3.3")
-            provider.manifest.operator_version = "3.3.3"
-            provider.manifest.save()
+            provider.additional_context = {"operator_version": "3.3.3"}
+            provider.save()
             manager_at_threshold = ProviderManager(provider.uuid)
             additional_context_at = manager_at_threshold.get_additional_context()
             self.assertEqual(additional_context_at.get("operator_version"), "3.3.3")
             self.assertEqual(additional_context_at.get("vm_cpu_core_cost_model_support"), True)
-
-            # Scenario 2c: Operator version well below the threshold ("3.0.0")
-            provider.manifest.operator_version = "3.0.0"
-            provider.manifest.save()
-            manager_well_below = ProviderManager(provider.uuid)
-            additional_context_well_below = manager_well_below.get_additional_context()
-            self.assertEqual(additional_context_well_below.get("operator_version"), "3.0.0")
-            self.assertEqual(additional_context_well_below.get("vm_cpu_core_cost_model_support"), False)
 
             # Scenario 3: Provider has existing additional_context
             provider.additional_context = {"existing_key": "existing_value"}
