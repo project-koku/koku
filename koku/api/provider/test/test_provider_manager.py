@@ -789,6 +789,102 @@ class ProviderManagerTest(IamTestCase):
         infrastructure_info = manager.get_infrastructure_info()
         self.assertEqual(infrastructure_info, {})
 
+    def test_get_additional_context_ocp_with_manifest(self):
+        """Test get_additional_context for an OCP provider with manifest data."""
+        credentials = {"cluster_id": "cluster_id_ocp_context"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
+        provider = Provider.objects.create(
+            name="ocp_provider_for_context",
+            type=Provider.PROVIDER_OCP,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+        )
+        manifest = baker.make(
+            CostUsageReportManifest,
+            provider=provider,
+            billing_period_start_datetime=DateHelper().this_month_start,
+            operator_version="4.7.0",
+            operator_airgapped=False,
+            operator_certified=True,
+        )
+
+        with patch("api.provider.provider_manager.utils.get_latest_operator_version") as mock_latest_version:
+            # Scenario 1: Current version is not the latest
+            mock_latest_version.return_value = "4.8.0"
+            manager = ProviderManager(provider.uuid)
+            additional_context = manager.get_additional_context()
+
+            self.assertIsNotNone(manager.manifest, "Manifest should be loaded by ProviderManager")
+            self.assertEqual(manager.manifest.id, manifest.id)
+            self.assertEqual(additional_context.get("operator_version"), "4.7.0")
+            self.assertEqual(additional_context.get("operator_airgapped"), False)
+            self.assertEqual(additional_context.get("operator_certified"), True)
+            self.assertEqual(additional_context.get("operator_update_available"), True)
+            self.assertEqual(additional_context.get("vm_cpu_core_cost_model_support"), True)
+
+            # Scenario 2: Current version is the latest
+            mock_latest_version.return_value = "4.7.0"
+            manager_updated_ver = ProviderManager(provider.uuid)
+            additional_context_updated = manager_updated_ver.get_additional_context()
+            self.assertEqual(additional_context_updated.get("operator_update_available"), False)
+
+            # Scenario 3: Provider has existing additional_context
+            provider.additional_context = {"existing_key": "existing_value"}
+            provider.save()
+
+            mock_latest_version.return_value = "4.8.0"
+            manager_with_existing_context = ProviderManager(provider.uuid)
+            additional_context_with_existing = manager_with_existing_context.get_additional_context()
+
+            self.assertEqual(additional_context_with_existing.get("existing_key"), "existing_value")
+            self.assertEqual(additional_context_with_existing.get("operator_version"), "4.7.0")
+            self.assertEqual(additional_context_with_existing.get("operator_update_available"), True)
+
+    def test_get_additional_context_ocp_no_manifest(self):
+        """Test get_additional_context for an OCP provider without manifest data."""
+        credentials = {"cluster_id": "cluster_id_ocp_no_manifest"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
+        provider = Provider.objects.create(
+            name="ocp_provider_no_manifest",
+            type=Provider.PROVIDER_OCP,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=provider_authentication,
+            additional_context={"initial_key": "initial_value"},
+        )
+        # No manifest created for this provider
+
+        manager = ProviderManager(provider.uuid)  # Manifest will be None
+        self.assertIsNone(manager.manifest, "Manifest should be None for this provider")
+
+        additional_context = manager.get_additional_context()
+        self.assertEqual(additional_context.get("initial_key"), "initial_value")
+        self.assertIsNone(additional_context.get("operator_version"))
+        self.assertIsNone(additional_context.get("operator_update_available"))
+
+    def test_get_additional_context_non_ocp_provider(self):
+        """Test get_additional_context for a non-OCP provider."""
+        aws_credentials = {"account_id": "123456789012"}
+        aws_provider_authentication = ProviderAuthentication.objects.create(credentials=aws_credentials)
+        aws_provider = Provider.objects.create(
+            name="aws_provider_for_context",
+            type=Provider.PROVIDER_AWS,
+            created_by=self.user,
+            customer=self.customer,
+            authentication=aws_provider_authentication,
+            additional_context={"aws_specific": "some_value"},
+        )
+        baker.make(
+            CostUsageReportManifest,
+            provider=aws_provider,
+            billing_period_start_datetime=DateHelper().this_month_start,
+        )
+        manager = ProviderManager(aws_provider.uuid)
+        additional_context = manager.get_additional_context()
+        self.assertEqual(additional_context.get("aws_specific"), "some_value")
+        self.assertIsNone(additional_context.get("operator_version"))
+
     @patch("api.provider.provider_manager.ProviderManager.is_removable_by_user", return_value=False)
     def test_remove_not_removeable(self, _):
         """Test error raised if user without capability tries to remove a provider."""
