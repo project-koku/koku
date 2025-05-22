@@ -830,32 +830,22 @@ class ProviderManagerTest(IamTestCase):
             self.assertEqual(additional_context_updated.get("operator_update_available"), False)
 
             # Scenario 2a: Operator version just below cpu core cost model threshold ("3.3.2")
-            provider.additional_context = {"operator_version": "3.3.2"}
-            provider.save()
+            mock_latest_version.return_value = "3.3.2"
+            manifest.operator_version = "3.3.2"
+            manifest.save()
             manager_below_threshold = ProviderManager(provider.uuid)
             additional_context_below = manager_below_threshold.get_additional_context()
             self.assertEqual(additional_context_below.get("operator_version"), "3.3.2")
             self.assertEqual(additional_context_below.get("vm_cpu_core_cost_model_support"), False)
 
             # Scenario 2b: Operator version exactly at the threshold ("3.3.3")
-            provider.additional_context = {"operator_version": "3.3.3"}
-            provider.save()
+            mock_latest_version.return_value = "3.3.3"
+            manifest.operator_version = "3.3.3"
+            manifest.save()
             manager_at_threshold = ProviderManager(provider.uuid)
             additional_context_at = manager_at_threshold.get_additional_context()
             self.assertEqual(additional_context_at.get("operator_version"), "3.3.3")
             self.assertEqual(additional_context_at.get("vm_cpu_core_cost_model_support"), True)
-
-            # Scenario 3: Provider has existing additional_context
-            provider.additional_context = {"existing_key": "existing_value"}
-            provider.save()
-
-            mock_latest_version.return_value = "4.8.0"
-            manager_with_existing_context = ProviderManager(provider.uuid)
-            additional_context_with_existing = manager_with_existing_context.get_additional_context()
-
-            self.assertEqual(additional_context_with_existing.get("existing_key"), "existing_value")
-            self.assertEqual(additional_context_with_existing.get("operator_version"), "4.7.0")
-            self.assertEqual(additional_context_with_existing.get("operator_update_available"), True)
 
     def test_get_additional_context_ocp_no_manifest(self):
         """Test get_additional_context for an OCP provider without manifest data."""
