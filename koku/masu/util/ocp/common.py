@@ -21,6 +21,7 @@ from dateutil.relativedelta import relativedelta
 from packaging.version import Version
 from pydantic import AfterValidator
 from pydantic import BaseModel
+from pydantic import BeforeValidator
 from pydantic import ConfigDict
 from pydantic import field_validator
 from pydantic import model_validator
@@ -258,6 +259,8 @@ ForceAwareDatetime = Annotated[
     AfterValidator(lambda x: x if x.tzinfo else x.replace(tzinfo=UTC)),
 ]
 
+NoneToList = Annotated[list[str], BeforeValidator(lambda x: [] if x is None else x)]
+
 
 class Manifest(BaseModel):
     model_config = ConfigDict(validate_default=True, validate_assignment=True)
@@ -267,8 +270,8 @@ class Manifest(BaseModel):
     version: str = ""
     operator_version: str = ""
     date: ForceAwareDatetime
-    files: list[str]
-    resource_optimization_files: list[str] | None = []
+    files: NoneToList
+    resource_optimization_files: NoneToList
     start: ForceAwareDatetime | None = None
     end: ForceAwareDatetime | None = None
     certified: bool = False
@@ -281,13 +284,6 @@ class Manifest(BaseModel):
     def get_operator_version(cls, value: str, info: ValidationInfo) -> str:
         v = info.data["version"]
         return OPERATOR_VERSIONS.get(v, v)
-
-    @field_validator("resource_optimization_files", mode="after")
-    @classmethod
-    def get_resource_optimization_files(cls, value: list[str] | None) -> list:
-        if value is None:
-            value = []
-        return value
 
     @model_validator(mode="after")
     def validate_start_and_end(self) -> Self:
