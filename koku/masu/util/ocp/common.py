@@ -268,7 +268,7 @@ class Manifest(BaseModel):
     operator_version: str = ""
     date: ForceAwareDatetime
     files: list[str]
-    resource_optimization_files: list[str] = []
+    resource_optimization_files: list[str] | None = []
     start: ForceAwareDatetime | None = None
     end: ForceAwareDatetime | None = None
     certified: bool = False
@@ -281,6 +281,13 @@ class Manifest(BaseModel):
     def get_operator_version(cls, value: str, info: ValidationInfo) -> str:
         v = info.data["version"]
         return OPERATOR_VERSIONS.get(v, v)
+
+    @field_validator("resource_optimization_files", mode="after")
+    @classmethod
+    def get_resource_optimization_files(cls, value: list[str] | None) -> list:
+        if value is None:
+            value = []
+        return value
 
     @model_validator(mode="after")
     def validate_start_and_end(self) -> Self:
