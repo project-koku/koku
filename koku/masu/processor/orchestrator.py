@@ -358,7 +358,6 @@ class Orchestrator:
             log_json(
                 "start_manifest_processing",
                 msg="created manifest list",
-                report_tasks=report_tasks,
                 summarize_reports=self._summarize_reports,
                 schema=schema_name,
             )
