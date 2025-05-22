@@ -50,7 +50,6 @@ requests = ">=2.32.0"
 sentry-sdk = ">=0.13"
 statsmodels = ">=0.12"
 trino = "*"
-unleashclient = "<5"  # new version breaks for unknown reason
 whitenoise = ">=5.0"
 pydantic = ">=2"
 sqlparse = "*"
@@ -59,6 +58,7 @@ adbc-driver-postgresql = "*"
 packaging = "*"
 psycopg2-binary = "*"
 watchtower = "*"
+unleashclient = "*"
 
 [dev-packages]
 argh = ">=0.26.2"

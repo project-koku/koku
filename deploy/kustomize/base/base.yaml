@@ -605,9 +605,8 @@ parameters:
   displayName: Enable SUBS Debug
   name: ENABLE_SUBS_DEBUG
   value: "False"
-- description: Enable ROS Kafka Debug
-  displayName: Enable ROS Debug
-  name: ENABLE_ROS_DEBUG
+- description: Disable ROS Kafka messages
+  name: DISABLE_ROS_MSG
   value: "False"
 - description: Enable SUBS Provider Types for Processing
   displayname: Enable SUBS Provider Types

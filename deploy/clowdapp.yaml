@@ -452,8 +452,8 @@ objects:
           value: ${S3_ROS_BUCKET_NAME}
         - name: ROS_URL_EXPIRATION
           value: ${ROS_URL_EXPIRATION}
-        - name: ENABLE_ROS_DEBUG
-          value: ${ENABLE_ROS_DEBUG}
+        - name: DISABLE_ROS_MSG
+          value: ${DISABLE_ROS_MSG}
         - name: PARQUET_PROCESSING_BATCH_SIZE
           value: ${PARQUET_PROCESSING_BATCH_SIZE}
         - name: TRINO_DATE_STEP
@@ -5579,9 +5579,8 @@ parameters:
   displayName: Enable SUBS Debug
   name: ENABLE_SUBS_DEBUG
   value: "False"
-- description: Enable ROS Kafka Debug
-  displayName: Enable ROS Debug
-  name: ENABLE_ROS_DEBUG
+- description: Disable ROS Kafka messages
+  name: DISABLE_ROS_MSG
   value: "False"
 - description: Enable SUBS Provider Types for Processing
   displayname: Enable SUBS Provider Types
