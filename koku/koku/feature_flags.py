@@ -35,7 +35,7 @@ class KokuUnleashClient(UnleashClient):
         self.fl_job.remove()
         if self.metric_job:
             self.metric_job.remove()
-        self.scheduler.shutdown()
+        self.unleash_scheduler.shutdown()
 
 
 headers = {}
