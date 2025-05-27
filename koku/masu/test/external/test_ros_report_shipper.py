@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from botocore.exceptions import EndpointConnectionError
 from django.test import TestCase
+from django.test.utils import override_settings
 from model_bakery import baker
 
 from api.utils import DateHelper
@@ -60,7 +61,7 @@ class TestROSReportShipper(TestCase):
         actual = self.ros_shipper.ros_s3_path
         self.assertEqual(expected, actual)
 
-    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=True)
+    @override_settings(DISABLE_ROS_MSG=False)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
@@ -71,18 +72,18 @@ class TestROSReportShipper(TestCase):
         mock_ros_msg.assert_called_once()
         mock_kafka_msg.assert_called_once()
 
-    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=False)
+    @override_settings(DISABLE_ROS_MSG=True)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
-    def test_process_manifest_reports_unleash_gate(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
+    def test_process_manifest_reports_gated(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
         """Tests that process_manifest_reports flows as expected with unleash gating."""
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
         mock_report_copy.assert_called_once()
         mock_ros_msg.assert_not_called()
         mock_kafka_msg.assert_not_called()
 
-    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=True)
+    @override_settings(DISABLE_ROS_MSG=False)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
