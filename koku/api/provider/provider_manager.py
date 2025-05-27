@@ -224,7 +224,7 @@ class ProviderManager:
             latest_version = utils.get_latest_operator_version()
             current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
             base_additional_context["operator_update_available"] = current_version != latest_version
-            base_additional_context["vm_cpu_core_cost_model_support"] = Version(current_version) >= Version("3.3.3")
+            base_additional_context["vm_cpu_core_cost_model_support"] = Version(current_version) >= Version("4.0.0")
         return base_additional_context
 
     def is_removable_by_user(self, current_user):
