@@ -116,6 +116,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         start_date = DateHelper().parse_to_date(sql_params["start_date"])
         sql_params["year"] = start_date.strftime("%Y")
         sql_params["month"] = start_date.strftime("%m")
+        sql_params["openshift_vm_usage_line_items_daily"] = trino_table_exists(
+            self.schema, "openshift_vm_usage_line_items_daily"
+        )
         pvc_to_vm_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/pvc_to_vm_name_mapping.sql")
         pvc_to_vm_sql = pvc_to_vm_sql.decode("utf-8")
         rows = self._execute_trino_multipart_sql_query(pvc_to_vm_sql, bind_params=sql_params)
