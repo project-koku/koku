@@ -168,13 +168,11 @@ class AWSTagQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
             self.assertGreaterEqual(len(enabled_tags), 3)
-            parent_key = enabled_tags[0].key
-            tag_map["parent_key"] = parent_key
+            tag_map["parent_key"] = enabled_tags[0].key
             tag_map["child_0_key"] = enabled_tags[1].key
             tag_map["child_1_key"] = enabled_tags[2].key
             TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[1])
             TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[2])
-            AWSTagsSummary.objects.filter(key=parent_key).delete()
         parent_key = tag_map["parent_key"]
         url = f"?filter[key]={parent_key}"
         query_params = self.mocked_query_params(url, AWSTagView)
@@ -188,3 +186,23 @@ class AWSTagQueryHandlerTest(IamTestCase):
         results = {r.get("key"): r.get("values") for r in handler.get_tags()}
         self.assertIn(parent_key, results)
         self.assertEqual(sorted(results[parent_key]), sorted(expected_all_values))
+
+    def test_tag_mapping_children_keys_key_only(self):
+        """Test the key only parameter"""
+        tag_map = {}
+        with tenant_context(self.tenant):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
+            self.assertGreaterEqual(len(enabled_tags), 3)
+            parent_key = enabled_tags[0].key
+            tag_map["parent_key"] = parent_key
+            tag_map["child_0_key"] = enabled_tags[1].key
+            tag_map["child_1_key"] = enabled_tags[2].key
+            TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[1])
+            TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[2])
+            AWSTagsSummary.objects.filter(key=parent_key).delete()
+        query_params = self.mocked_query_params("?key_only=true", AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        self.assertIn(tag_map["parent_key"], tag_keys)
+        self.assertNotIn(tag_map["child_0_key"], tag_keys)
+        self.assertNotIn(tag_map["child_1_key"], tag_keys)
