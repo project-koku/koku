@@ -354,11 +354,16 @@ class TagQueryHandler(QueryHandler):
                 tag_keys_query = tag_keys_query.exclude(exclusion).values(*select_cols).distinct().all()
 
                 tag_keys.update({tag.get("key") for tag in tag_keys_query})
-            # Removes keys used as children in the tag mapping
-            child_keys = TagMapping.objects.filter(child__provider_type__in=self.tag_map_provider_types).values_list(
-                "child__key", flat=True
-            )
-            return [tag for tag in tag_keys if tag not in list(child_keys)]
+            # We remove the child keys and ensure parents are returned
+            relationship_keys = TagMapping.objects.filter(
+                child__provider_type__in=self.tag_map_provider_types
+            ).values_list("child__key", "parent__key")
+            child_keys = set()
+            parent_keys = set()
+            for child_key, parent_key in relationship_keys:
+                child_keys.add(child_key)
+                parent_keys.add(parent_key)
+        return list((parent_keys - tag_keys) | (tag_keys - child_keys))
 
     def apply_tag_mappings(self, data):
         """Wraps the get tags logic and applies tag mappings to it."""
