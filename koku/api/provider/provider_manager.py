@@ -14,6 +14,7 @@ from django.db.models.signals import post_delete
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django_tenants.utils import tenant_context
+from packaging.version import InvalidVersion
 from packaging.version import Version
 
 from api.common import log_json
@@ -224,7 +225,11 @@ class ProviderManager:
             latest_version = utils.get_latest_operator_version()
             current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
             base_additional_context["operator_update_available"] = current_version != latest_version
-            base_additional_context["vm_cpu_core_cost_model_support"] = Version(current_version) >= Version("4.0.0")
+            try:
+                is_supported = Version(current_version) >= Version("4.0.0")
+            except InvalidVersion:
+                is_supported = False
+            base_additional_context["vm_cpu_core_cost_model_support"] = is_supported
         return base_additional_context
 
     def is_removable_by_user(self, current_user):
