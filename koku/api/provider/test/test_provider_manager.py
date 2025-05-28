@@ -838,13 +838,13 @@ class ProviderManagerTest(IamTestCase):
             self.assertEqual(additional_context_below.get("operator_version"), "3.3.2")
             self.assertEqual(additional_context_below.get("vm_cpu_core_cost_model_support"), False)
 
-            # Scenario 2b: Operator version exactly at the threshold ("3.3.3")
-            mock_latest_version.return_value = "3.3.3"
-            manifest.operator_version = "3.3.3"
+            # Scenario 2b: Operator version exactly at the threshold ("4.0.0")
+            mock_latest_version.return_value = "4.0.0"
+            manifest.operator_version = "4.0.0"
             manifest.save()
             manager_at_threshold = ProviderManager(provider.uuid)
             additional_context_at = manager_at_threshold.get_additional_context()
-            self.assertEqual(additional_context_at.get("operator_version"), "3.3.3")
+            self.assertEqual(additional_context_at.get("operator_version"), "4.0.0")
             self.assertEqual(additional_context_at.get("vm_cpu_core_cost_model_support"), True)
 
     def test_get_additional_context_ocp_no_manifest(self):
