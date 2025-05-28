@@ -68,8 +68,8 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_cost_model or ocp_source_raw"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
-        export RESERVATION_TIMEOUT="6h15m"
-        export IQE_CJI_TIMEOUT="6h"
+        export RESERVATION_TIMEOUT="7h15m"
+        export IQE_CJI_TIMEOUT="7h"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
