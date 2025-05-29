@@ -1152,7 +1152,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test populate virtualization storage costs.
         """
-        table_exists.side_effect = [True, True]
+        table_exists.side_effect = [True, True, True]
         mock_description.return_value = ([[True]], None)
         trino_query.return_value = [[None]]
         sql_params = {"start_date": self.start_date}
@@ -1166,7 +1166,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test populate virtualization storage costs.
         """
-        table_exists.side_effect = [True, True]
+        table_exists.side_effect = [True, True, True]
         mock_description.return_value = ([[True]], None)
         trino_query.return_value = []
         sql_params = {"start_date": self.start_date}
@@ -1180,7 +1180,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test populate virtualization storage costs.
         """
-        table_exists.side_effect = [True, False]
+        table_exists.side_effect = [True, False, False]
         mock_description.return_value = ([[True]], None)
         trino_query.return_value = []
         sql_params = {"start_date": self.start_date}
@@ -1197,7 +1197,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """
         Test populate virtualization storage costs.
         """
-        table_exists.side_effect = [True, True]
+        table_exists.side_effect = [True, True, False]
         mock_description.return_value = ([[True]], None)
         trino_query.return_value = [[{"'example': 'True'"}]]
         sql_params = {
