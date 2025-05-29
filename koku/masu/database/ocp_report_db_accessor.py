@@ -126,8 +126,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         # populate temp table
         population_temp_table_file = "populate_vm_tmp_table.sql"
-        # if trino_table_exists(self.schema, "openshift_vm_usage_line_items_daily"):
-        #     population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
+        if trino_table_exists(self.schema, "openshift_vm_usage_line_items_daily"):
+            population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
         populate_temp_table_sql = pkgutil.get_data(
             "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
         )
