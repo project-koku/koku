@@ -7,6 +7,7 @@ import json
 from datetime import date
 from unittest.mock import Mock
 from unittest.mock import patch
+from uuid import uuid4
 
 from dateutil import parser
 from django.db import IntegrityError
@@ -846,6 +847,15 @@ class ProviderManagerTest(IamTestCase):
             additional_context_at = manager_at_threshold.get_additional_context()
             self.assertEqual(additional_context_at.get("operator_version"), "4.0.0")
             self.assertEqual(additional_context_at.get("vm_cpu_core_cost_model_support"), True)
+
+            # Scenario 3: Invalid version
+            invalid_version = str(uuid4())
+            mock_latest_version.return_value = invalid_version
+            manifest.operator_version = invalid_version
+            manifest.save()
+            manager_at_threshold = ProviderManager(provider.uuid)
+            additional_context_at = manager_at_threshold.get_additional_context()
+            self.assertEqual(additional_context_at.get("vm_cpu_core_cost_model_support"), False)
 
     def test_get_additional_context_ocp_no_manifest(self):
         """Test get_additional_context for an OCP provider without manifest data."""
