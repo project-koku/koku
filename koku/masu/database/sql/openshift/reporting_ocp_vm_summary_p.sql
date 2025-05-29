@@ -4,28 +4,36 @@ WHERE usage_start >= {{start_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-WITH second_to_last_day AS (
-    SELECT DISTINCT usage_start::date AS day
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-    WHERE usage_start >= {{start_date}}::date
-        AND usage_start <= {{end_date}}::date
-        AND source_uuid = {{source_uuid}}
-        AND pod_request_cpu_core_hours IS NOT NULL
-    ORDER BY day DESC
-    OFFSET 1 LIMIT 1  -- Get the second-to-last day
-),
-cte_latest_resources AS (
+WITH cte_latest_pod_labels AS (
     SELECT DISTINCT ON (vm_name)
         all_labels->>'vm_kubevirt_io_name' AS vm_name,
-        pod_request_cpu_core_hours AS cpu_request_hours,
-        pod_request_memory_gigabyte_hours AS memory_request_hours,
-        node as node_name,
-        pod_labels as labels
+        pod_labels as pod_labels
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-    WHERE usage_start::date = (SELECT day FROM second_to_last_day)
+    WHERE usage_start::date = (
+        SELECT DISTINCT usage_start::date AS day
+        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+        WHERE usage_start >= {{start_date}}::date
+            AND usage_start <= {{end_date}}::date
+            AND source_uuid = {{source_uuid}}
+            AND pod_request_cpu_core_hours IS NOT NULL
+        ORDER BY day DESC
+        OFFSET 1 LIMIT 1
+    )
         AND pod_request_cpu_core_hours IS NOT NULL
         AND all_labels ? 'vm_kubevirt_io_name'
     ORDER BY vm_name, usage_start DESC
+),
+cte_latest_resources as (
+    SELECT
+        latest.vm_name as vm_name,
+        max(latest.cpu_request) as cpu_request_hours,
+        max(latest.mem_request) as memory_request_hours,
+        max(latest.node) as node_name,
+        labels.pod_labels as labels
+    FROM cte_latest_pod_labels as labels
+    INNER JOIN {{schema | sqlsafe}}.{{temp_table | sqlsafe}} as latest
+    ON labels.vm_name = latest.vm_name
+    GROUP BY latest.vm_name, labels.pod_labels
 )
 INSERT INTO {{schema | sqlsafe}}.reporting_ocp_vm_summary_p (
     id,

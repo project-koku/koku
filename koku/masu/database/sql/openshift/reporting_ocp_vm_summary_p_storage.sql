@@ -24,14 +24,7 @@
     persistentvolumeclaim_usage_gigabyte_months,
     storageclass
 )
- WITH cte_pvc_to_vm_mapping as (
-    SELECT
-        key as pvc_name,
-        value as vm_name
-    FROM
-        jsonb_each_text({{pvc_to_vm_json_str}})
- ),
-latest_vm_pod_labels as (
+WITH latest_vm_pod_labels as (
     SELECT DISTINCT vm_name, pod_labels from {{schema | sqlsafe}}.reporting_ocp_vm_summary_p
     WHERE pod_labels IS NOT NULL
         AND usage_start >= {{start_date}}::date
@@ -59,7 +52,7 @@ latest_storage_data AS (
         END as combined_labels,
         map.vm_name as vm_name
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN cte_pvc_to_vm_mapping AS map
+    JOIN {{schema | sqlsafe}}.{{temp_table | sqlsafe}} AS map
         ON map.pvc_name = ocp.persistentvolumeclaim
     LEFT JOIN latest_vm_pod_labels as vm_labels
         ON map.vm_name = vm_labels.vm_name
