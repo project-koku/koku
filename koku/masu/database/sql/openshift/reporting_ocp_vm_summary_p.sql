@@ -31,7 +31,7 @@ cte_latest_resources as (
         max(latest.node) as node_name,
         labels.pod_labels as labels
     FROM cte_latest_pod_labels as labels
-    INNER JOIN {{schema | sqlsafe}}.{{temp_table | sqlsafe}} as latest
+    INNER JOIN {{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}} as latest
     ON labels.vm_name = latest.vm_name
     GROUP BY latest.vm_name, labels.pod_labels
 )

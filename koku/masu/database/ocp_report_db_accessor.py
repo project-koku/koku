@@ -9,6 +9,7 @@ import logging
 import os
 import pkgutil
 import uuid
+from uuid import uuid4
 
 from dateutil.parser import parse
 from django.db import IntegrityError
@@ -116,9 +117,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["year"] = start_date.strftime("%Y")
         sql_params["month"] = start_date.strftime("%m")
         # create the temp table
-        sql_params["temp_table"] = "tmp_vm_latest_{}_{}_{}".format(
-            str(sql_params["source_uuid"]).replace("-", "_"), sql_params["month"], sql_params["year"]
-        )
+        sql_params["uuid"] = str(uuid4()).replace("-", "_")
         create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
         create_temp_table_sql = create_temp_table_sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(
@@ -137,10 +136,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", f"sql/openshift/{VM_UI_SUMMARY_TABLE}.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
-        sql = pkgutil.get_data("masu.database", "sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
-        sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params, operation="INSERT")
-        # TODO: Drop temp table
+        storage_sql = pkgutil.get_data("masu.database", "sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
+        storage_sql = storage_sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            "reporting_ocp_vm_summary_p", storage_sql, sql_params, operation="INSERT"
+        )
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.

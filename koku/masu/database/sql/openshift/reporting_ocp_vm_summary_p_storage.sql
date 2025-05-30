@@ -52,7 +52,7 @@ latest_storage_data AS (
         END as combined_labels,
         map.vm_name as vm_name
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    JOIN {{schema | sqlsafe}}.{{temp_table | sqlsafe}} AS map
+    JOIN {{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}} AS map
         ON map.pvc_name = ocp.persistentvolumeclaim
     LEFT JOIN latest_vm_pod_labels as vm_labels
         ON map.vm_name = vm_labels.vm_name
@@ -96,3 +96,5 @@ WHERE usage_start >= {{start_date}}::date
     AND namespace IS DISTINCT FROM 'Network unattributed'
     AND namespace IS DISTINCT FROM 'Storage unattributed'
 GROUP BY storage.combined_labels, cluster_alias, cluster_id, namespace, vm_name, cost_model_rate_type, ocp.persistentvolumeclaim;
+
+DROP TABLE {{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}};

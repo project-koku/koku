@@ -1,7 +1,7 @@
-DELETE FROM postgres.{{schema | sqlsafe}}.{{temp_table | sqlsafe}}
+DELETE FROM postgres.{{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}}
 WHERE 1 = 1;
 
-INSERT INTO postgres.{{schema | sqlsafe}}.{{temp_table | sqlsafe}} (
+INSERT INTO postgres.{{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}} (
     vm_name,
     node,
     pvc_name,
