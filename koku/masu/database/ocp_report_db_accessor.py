@@ -123,7 +123,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._prepare_and_execute_raw_sql_query(
             "create temp virtualization table", create_temp_table_sql, sql_params, operation="DELETE/INSERT"
         )
-        # populate temp table
+        # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
         population_temp_table_file = "populate_vm_tmp_table.sql"
         if trino_table_exists(self.schema, "openshift_vm_usage_line_items_daily"):
             population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
