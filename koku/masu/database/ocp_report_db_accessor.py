@@ -9,6 +9,7 @@ import logging
 import os
 import pkgutil
 import uuid
+from uuid import uuid4
 
 from dateutil.parser import parse
 from django.db import IntegrityError
@@ -43,6 +44,7 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
+from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -97,11 +99,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
-        self._populate_virtualization_storage_costs(sql_params)
+        self._populate_virtualization_ui_summary_table(sql_params)
 
-    def _populate_virtualization_storage_costs(self, sql_params):
+    def _populate_virtualization_ui_summary_table(self, sql_params):
         """
-        Add storage costs for virtualization.
+        Populates the virtualization ui table.
         """
         trino_query_requirements = [
             self.schema_exists_trino(),
@@ -111,27 +113,29 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ]
         if not all(trino_query_requirements):
             return
-        # We utillize the pod name in trino parquet files to build
-        # a mapping of pvcs to vm_names.
         start_date = DateHelper().parse_to_date(sql_params["start_date"])
         sql_params["year"] = start_date.strftime("%Y")
         sql_params["month"] = start_date.strftime("%m")
-        pvc_to_vm_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/pvc_to_vm_name_mapping.sql")
-        pvc_to_vm_sql = pvc_to_vm_sql.decode("utf-8")
-        rows = self._execute_trino_multipart_sql_query(pvc_to_vm_sql, bind_params=sql_params)
-        try:
-            pvc_to_vm_json_str = rows[0][0]
-        except IndexError:
-            return
-        if not pvc_to_vm_json_str:
-            return
-
-        # Utilize the mapping in the postgresql insert
-        sql_params["pvc_to_vm_json_str"] = pvc_to_vm_json_str
-        sql = pkgutil.get_data("masu.database", "sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
+        # create the temp table
+        sql_params["uuid"] = str(uuid4()).replace("-", "_")
+        create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
+        create_temp_table_sql = create_temp_table_sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            "create temp virtualization table", create_temp_table_sql, sql_params, operation="DELETE/INSERT"
+        )
+        # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
+        population_temp_table_file = "populate_vm_tmp_table.sql"
+        if trino_table_exists(self.schema, "openshift_vm_usage_line_items_daily"):
+            population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
+        populate_temp_table_sql = pkgutil.get_data(
+            "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
+        )
+        populate_temp_table_sql.decode("utf8")
+        self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
+        # populate vm UI table
+        sql = pkgutil.get_data("masu.database", f"sql/openshift/{VM_UI_SUMMARY_TABLE}.sql")
         sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params, operation="INSERT")
-        return True
+        self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.

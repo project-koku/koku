@@ -53,8 +53,10 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_p",
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
-    "reporting_ocp_vm_summary_p",
 )
+
+# Note the reporting_ocp_vm_summary_p is populated separately.
+VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
 
 
 class OCPUsageReportPeriod(models.Model):

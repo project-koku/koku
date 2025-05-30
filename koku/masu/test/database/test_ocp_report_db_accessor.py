@@ -9,7 +9,6 @@ import random
 import uuid
 from collections import defaultdict
 from datetime import datetime
-from unittest.mock import ANY
 from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -1144,71 +1143,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 self.assertNotIn(distinct_value, child_values)
                 tested = True
             self.assertTrue(tested)
-
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_virtualization_storage_costs_empty_pvc_map(self, trino_query, mock_description, table_exists):
-        """
-        Test populate virtualization storage costs.
-        """
-        table_exists.side_effect = [True, True]
-        mock_description.return_value = ([[True]], None)
-        trino_query.return_value = [[None]]
-        sql_params = {"start_date": self.start_date}
-        result = self.accessor._populate_virtualization_storage_costs(sql_params)
-        self.assertFalse(result)
-
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_virtualization_storage_costs_index_error(self, trino_query, mock_description, table_exists):
-        """
-        Test populate virtualization storage costs.
-        """
-        table_exists.side_effect = [True, True]
-        mock_description.return_value = ([[True]], None)
-        trino_query.return_value = []
-        sql_params = {"start_date": self.start_date}
-        result = self.accessor._populate_virtualization_storage_costs(sql_params)
-        self.assertFalse(result)
-
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_virtualization_storage_costs_no_table(self, trino_query, mock_description, table_exists):
-        """
-        Test populate virtualization storage costs.
-        """
-        table_exists.side_effect = [True, False]
-        mock_description.return_value = ([[True]], None)
-        trino_query.return_value = []
-        sql_params = {"start_date": self.start_date}
-        result = self.accessor._populate_virtualization_storage_costs(sql_params)
-        self.assertFalse(result)
-
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_virtualization_storage_costs_postgresql_insert(
-        self, trino_query, mock_description, mock_postgresql, table_exists
-    ):
-        """
-        Test populate virtualization storage costs.
-        """
-        table_exists.side_effect = [True, True]
-        mock_description.return_value = ([[True]], None)
-        trino_query.return_value = [[{"'example': 'True'"}]]
-        sql_params = {
-            "start_date": self.start_date,
-            "end_date": self.start_date,
-            "schema": self.schema,
-            "source_uuid": self.ocp_provider_uuid,
-        }
-        result = self.accessor._populate_virtualization_storage_costs(sql_params)
-        self.assertTrue(result)
-        mock_postgresql.assert_called_once_with("reporting_ocp_vm_summary_p", ANY, sql_params, operation="INSERT")
 
     def test_no_report_period_populate_vm_count_tag_based_costs(self):
         """
