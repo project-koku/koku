@@ -293,4 +293,5 @@ WHERE usage_start >= {{start_date}}::date
     AND namespace IS DISTINCT FROM 'Storage unattributed'
 GROUP BY storage.combined_labels, cluster_alias, cluster_id, namespace, vm_name, cost_model_rate_type, ocp.persistentvolumeclaim;
 
+TRUNCATE TABLE {{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}};
 DROP TABLE {{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}};
