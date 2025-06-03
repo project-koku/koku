@@ -130,7 +130,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         populate_temp_table_sql = pkgutil.get_data(
             "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
         )
-        populate_temp_table_sql.decode("utf8")
+        populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
         self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
         # populate vm UI table
         sql = pkgutil.get_data("masu.database", f"sql/openshift/{VM_UI_SUMMARY_TABLE}.sql")
