@@ -18,8 +18,8 @@ FROM (
     SELECT
         vm.vm_name,
         vm.node,
-        sum(vm.vm_cpu_request_core_seconds) / 3600.0 as cpu_request,
-        sum(vm.vm_memory_request_byte_seconds) / 3600.0 * power(2, -30) as mem_request
+        max(vm.vm_cpu_request_cores) as cpu_request,
+        max(vm.vm_memory_request_bytes) * power(2, -30) as mem_request
     FROM openshift_vm_usage_line_items as vm
     WHERE source = {{source_uuid | string}}
     AND vm.year={{year}}
