@@ -1,6 +1,3 @@
-DELETE FROM postgres.{{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}}
-WHERE 1 = 1;
-
 INSERT INTO postgres.{{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}} (
     vm_name,
     node,
@@ -34,7 +31,7 @@ FROM (
                 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
                 WHERE usage_start >= DATE({{start_date}})
                     AND usage_start <= DATE({{end_date}})
-                    AND source_uuid = {{source_uuid}}
+                    AND CAST(source_uuid AS VARCHAR) = {{source_uuid | string}}
                     AND pod_request_cpu_core_hours IS NOT NULL
                 ORDER BY day DESC
                 OFFSET 1 LIMIT 1

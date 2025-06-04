@@ -1,6 +1,3 @@
-DELETE FROM postgres.{{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}}
-WHERE 1 = 1;
-
 INSERT INTO postgres.{{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}} (
     vm_name,
     node,
@@ -20,20 +17,20 @@ FROM (
         vm.node,
         max(vm.vm_cpu_request_cores) as cpu_request,
         max(vm.vm_memory_request_bytes) * power(2, -30) as mem_request
-    FROM openshift_vm_usage_line_items as vm
+    FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items as vm
     WHERE source = {{source_uuid | string}}
     AND vm.year={{year}}
     AND vm.month={{month}}
     AND vm.interval_start = (
         SELECT MAX(interval_start)
-        FROM openshift_vm_usage_line_items
+        FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items
         WHERE source = {{source_uuid | string}}
         AND year = {{year}}
         AND month = {{month}}
     )
     GROUP BY vm.vm_name, vm.node
 ) as latest
-INNER JOIN openshift_vm_usage_line_items as pvc
+INNER JOIN hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items as pvc
 ON pvc.vm_name = latest.vm_name
 WHERE pvc.source = {{source_uuid | string}}
 AND pvc.year = {{year}}
