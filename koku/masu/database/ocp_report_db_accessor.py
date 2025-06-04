@@ -117,11 +117,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql_params["year"] = start_date.strftime("%Y")
         sql_params["month"] = start_date.strftime("%m")
         # create the temp table
-        sql_params["uuid"] = str(uuid4()).replace("-", "_")
+        sql_params["uuid"] = str(uuid4().hex)
         create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
         create_temp_table_sql = create_temp_table_sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(
-            "create temp virtualization table", create_temp_table_sql, sql_params, operation="DELETE/INSERT"
+            "create temp virtualization table", create_temp_table_sql, sql_params, operation="CREATE"
         )
         # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
         population_temp_table_file = "populate_vm_tmp_table.sql"
