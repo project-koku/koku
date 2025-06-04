@@ -125,7 +125,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
         population_temp_table_file = "populate_vm_tmp_table.sql"
-        vm_report_table = "openshift_vm_usage_line_items_daily"
+        vm_report_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["vm_usage"]
         if trino_table_exists(self.schema, vm_report_table):
             source_uuid = sql_params.get("source_uuid")
             source_sql = f"""
