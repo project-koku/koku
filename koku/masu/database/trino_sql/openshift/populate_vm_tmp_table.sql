@@ -40,7 +40,7 @@ FROM (
         AND pod_request_cpu_core_hours IS NOT NULL
         AND json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') IS NOT NULL
 ) AS latest
-INNER JOIN (
+LEFT JOIN (
     SELECT
         storage.persistentvolumeclaim AS pvc_name,
         json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') AS vm_name
