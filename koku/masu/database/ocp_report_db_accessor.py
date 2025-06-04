@@ -125,8 +125,19 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
         population_temp_table_file = "populate_vm_tmp_table.sql"
-        if trino_table_exists(self.schema, "openshift_vm_usage_line_items_daily"):
-            population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
+        vm_report_table = "openshift_vm_usage_line_items_daily"
+        if trino_table_exists(self.schema, vm_report_table):
+            source_uuid = sql_params.get("source_uuid")
+            source_sql = f"""
+                SELECT count(*) from hive.{self.schema}."{vm_report_table}$partitions"
+                WHERE source = '{source_uuid}'
+                """
+            source_available = self._execute_trino_raw_sql_query(
+                source_sql,
+                log_ref=f"Checking if source is in {vm_report_table}",
+            )[0][0]
+            if source_available:
+                population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
         populate_temp_table_sql = pkgutil.get_data(
             "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
         )
