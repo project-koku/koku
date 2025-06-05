@@ -423,7 +423,9 @@ class ModelBakeryDataLoader(DataLoader):
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query"
         ), patch("masu.database.ocp_report_db_accessor.trino_table_exists"), patch(
             "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_raw_sql_query_with_description"
-        ) as mock_description_sql:
+        ) as mock_description_sql, patch(
+            "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._populate_virtualization_ui_summary_table"
+        ):
             mock_description_sql.return_value = ([], [])
             with OCPReportDBAccessor(self.schema) as accessor:
                 accessor.populate_unit_test_tag_data(report_period_ids, self.first_start_date, self.last_end_date)
@@ -438,6 +440,9 @@ class ModelBakeryDataLoader(DataLoader):
                         synchronous=True,
                     )
                 accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
+                accessor.populate_unit_test_virt_ui_table(
+                    report_period_ids, self.first_start_date, self.last_end_date, provider.uuid
+                )
 
         populate_ocp_topology(self.schema, provider, cluster_id)
 
