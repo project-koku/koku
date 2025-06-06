@@ -20,6 +20,9 @@ metadata:
   name: koku-pr
 
 spec:
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-koku
+
   params:
     - name: git-url
       value: '{{ source_url }}'
