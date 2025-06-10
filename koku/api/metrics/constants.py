@@ -225,6 +225,22 @@ COST_MODEL_METRIC_MAP = [
     },
     {
         "source_type": "OCP",
+        "metric": "vm_core_cost_per_hour",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "core-hour",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "vm_core_cost_per_month",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "core-month",
+        "default_cost_type": "Infrastructure",
+    },
+    {
+        "source_type": "OCP",
         "metric": "cluster_core_cost_per_hour",
         "label_metric": "Cluster",
         "label_measurement": "Count",
