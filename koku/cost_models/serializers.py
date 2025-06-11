@@ -321,7 +321,7 @@ class RateSerializer(serializers.Serializer):
             data["tag_rates"] = tag_rates
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in metric_constants.STANDARD_METRIC_CHOICES:
+        if data.get("metric").get("name") not in metric_constants.METRIC_CHOICES:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
 

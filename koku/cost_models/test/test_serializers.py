@@ -390,7 +390,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test the display data helper function for OpenShift metrics."""
         serializer = CostModelSerializer(data=None)
 
-        for metric_choice in metric_constants.STANDARD_METRIC_CHOICES:
+        for metric_choice in metric_constants.METRIC_CHOICES:
             response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice)
             self.assertIsNotNone(response.get("label_measurement_unit"))
             self.assertIsNotNone(response.get("label_measurement"))
