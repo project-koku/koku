@@ -62,9 +62,8 @@ class CostModelDBAccessor:
             metric_name = rate.get("metric", {}).get("name")
             metric_cost_type = rate.pop("cost_type", None)
             if not metric_cost_type:
-                for default_metric in metric_constants.COST_MODEL_METRIC_MAP:
-                    if metric_name == default_metric.get("metric"):
-                        metric_cost_type = default_metric.get("default_cost_type")
+                if default_metric := metric_constants.get_cost_model_metrics_map().get(metric_name):
+                    metric_cost_type = default_metric.get("default_cost_type")
             if metric_name in metric_rate_map.keys():
                 metric_mapping = metric_rate_map.get(metric_name)
                 if metric_cost_type in metric_mapping.get("tiered_rates", {}).keys():
@@ -133,9 +132,8 @@ class CostModelDBAccessor:
             metric_name = rate.get("metric", {}).get("name")
             metric_cost_type = rate.pop("cost_type", None)
             if not metric_cost_type:
-                for default_metric in metric_constants.COST_MODEL_METRIC_MAP:
-                    if metric_name == default_metric.get("metric"):
-                        metric_cost_type = default_metric.get("default_cost_type")
+                if default_metric := metric_constants.get_cost_model_metrics_map().get(metric_name):
+                    metric_cost_type = default_metric.get("default_cost_type")
             tag_rates_list = []
             tag = rate.get("tag_rates")
             tag_rate_dict = {}

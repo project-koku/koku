@@ -21,6 +21,12 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
+def is_cost_6356_enabled():
+    return UNLEASH_CLIENT.is_enabled(
+        "cost-management.backend.cost-6356-vm-cost-model-metrics", fallback_function=fallback_development_true
+    )
+
+
 def is_feature_unattributed_storage_enabled_azure(account):
     """Should unattributed storage feature be enabled."""
     unleash_flag = "cost-management.backend.unattributed_storage"

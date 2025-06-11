@@ -3,7 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Constants file."""
+import copy
+
 from api.models import Provider
+from masu.processor import is_cost_6356_enabled
 
 """Model for our cost model metric map."""
 OCP_METRIC_CPU_CORE_USAGE_HOUR = "cpu_core_usage_per_hour"
@@ -35,26 +38,26 @@ DEFAULT_DISTRIBUTION_TYPE = CPU
 INFRASTRUCTURE_COST_TYPE = "Infrastructure"
 SUPPLEMENTARY_COST_TYPE = "Supplementary"
 
-METRIC_CHOICES = (
-    (OCP_METRIC_CPU_CORE_USAGE_HOUR, OCP_METRIC_CPU_CORE_USAGE_HOUR),
-    (OCP_METRIC_CPU_CORE_REQUEST_HOUR, OCP_METRIC_CPU_CORE_REQUEST_HOUR),
-    (OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR),
-    (OCP_METRIC_MEM_GB_USAGE_HOUR, OCP_METRIC_MEM_GB_USAGE_HOUR),
-    (OCP_METRIC_MEM_GB_REQUEST_HOUR, OCP_METRIC_MEM_GB_REQUEST_HOUR),
-    (OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR),
-    (OCP_METRIC_STORAGE_GB_USAGE_MONTH, OCP_METRIC_STORAGE_GB_USAGE_MONTH),
-    (OCP_METRIC_STORAGE_GB_REQUEST_MONTH, OCP_METRIC_STORAGE_GB_REQUEST_MONTH),
-    (OCP_NODE_CORE_HOUR, OCP_NODE_CORE_HOUR),
-    (OCP_NODE_MONTH, OCP_NODE_MONTH),
-    (OCP_NODE_CORE_MONTH, OCP_NODE_CORE_MONTH),
-    (OCP_CLUSTER_MONTH, OCP_CLUSTER_MONTH),
-    (OCP_CLUSTER_CORE_HOUR, OCP_CLUSTER_CORE_HOUR),
-    (OCP_CLUSTER_HOUR, OCP_CLUSTER_HOUR),
-    (OCP_PVC_MONTH, OCP_PVC_MONTH),
-    (OCP_VM_MONTH, OCP_VM_MONTH),
-    (OCP_VM_HOUR, OCP_VM_HOUR),
-    (OCP_VM_CORE_MONTH, OCP_VM_CORE_MONTH),
-    (OCP_VM_CORE_HOUR, OCP_VM_CORE_HOUR),
+STANDARD_METRIC_CHOICES = (
+    OCP_METRIC_CPU_CORE_USAGE_HOUR,
+    OCP_METRIC_CPU_CORE_REQUEST_HOUR,
+    OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR,
+    OCP_METRIC_MEM_GB_USAGE_HOUR,
+    OCP_METRIC_MEM_GB_REQUEST_HOUR,
+    OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR,
+    OCP_METRIC_STORAGE_GB_USAGE_MONTH,
+    OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
+    OCP_NODE_CORE_HOUR,
+    OCP_NODE_MONTH,
+    OCP_NODE_CORE_MONTH,
+    OCP_CLUSTER_MONTH,
+    OCP_CLUSTER_CORE_HOUR,
+    OCP_CLUSTER_HOUR,
+    OCP_PVC_MONTH,
+    OCP_VM_MONTH,
+    OCP_VM_HOUR,
+    OCP_VM_CORE_MONTH,
+    OCP_VM_CORE_HOUR,
 )
 
 COST_TYPE_CHOICES = (
@@ -98,8 +101,8 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_GCP: "Google Cloud Platform",
 }
 
-COST_MODEL_METRIC_MAP = [
-    {
+COST_MODEL_METRIC_MAP = {
+    "cpu_core_usage_per_hour": {
         "source_type": "OCP",
         "metric": "cpu_core_usage_per_hour",
         "label_metric": "CPU",
@@ -107,7 +110,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "core-hours",
         "default_cost_type": "Supplementary",
     },
-    {
+    "cpu_core_request_per_hour": {
         "source_type": "OCP",
         "metric": "cpu_core_request_per_hour",
         "label_metric": "CPU",
@@ -115,7 +118,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "core-hours",
         "default_cost_type": "Supplementary",
     },
-    {
+    "cpu_core_effective_usage_per_hour": {
         "source_type": "OCP",
         "metric": "cpu_core_effective_usage_per_hour",
         "label_metric": "CPU",
@@ -123,7 +126,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "core-hours",
         "default_cost_type": "Supplementary",
     },
-    {
+    "memory_gb_usage_per_hour": {
         "source_type": "OCP",
         "metric": "memory_gb_usage_per_hour",
         "label_metric": "Memory",
@@ -131,7 +134,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "GiB-hours",
         "default_cost_type": "Supplementary",
     },
-    {
+    "memory_gb_request_per_hour": {
         "source_type": "OCP",
         "metric": "memory_gb_request_per_hour",
         "label_metric": "Memory",
@@ -139,7 +142,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "GiB-hours",
         "default_cost_type": "Supplementary",
     },
-    {
+    "memory_gb_effective_usage_per_hour": {
         "source_type": "OCP",
         "metric": "memory_gb_effective_usage_per_hour",
         "label_metric": "Memory",
@@ -147,7 +150,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "GiB-hours",
         "default_cost_type": "Supplementary",
     },
-    {
+    "storage_gb_usage_per_month": {
         "source_type": "OCP",
         "metric": "storage_gb_usage_per_month",
         "label_metric": "Storage",
@@ -155,7 +158,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "GiB-month",
         "default_cost_type": "Supplementary",
     },
-    {
+    "storage_gb_request_per_month": {
         "source_type": "OCP",
         "metric": "storage_gb_request_per_month",
         "label_metric": "Storage",
@@ -163,7 +166,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "GiB-month",
         "default_cost_type": "Supplementary",
     },
-    {
+    "node_core_cost_per_hour": {
         "source_type": "OCP",
         "metric": "node_core_cost_per_hour",
         "label_metric": "Node",
@@ -171,7 +174,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "core-hour",
         "default_cost_type": "Infrastructure",
     },
-    {
+    "node_cost_per_month": {
         "source_type": "OCP",
         "metric": "node_cost_per_month",
         "label_metric": "Node",
@@ -179,7 +182,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "node-month",
         "default_cost_type": "Infrastructure",
     },
-    {
+    "node_core_cost_per_month": {
         "source_type": "OCP",
         "metric": "node_core_cost_per_month",
         "label_metric": "Node",
@@ -187,7 +190,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "core-month",
         "default_cost_type": "Infrastructure",
     },
-    {
+    "cluster_cost_per_month": {
         "source_type": "OCP",
         "metric": "cluster_cost_per_month",
         "label_metric": "Cluster",
@@ -195,7 +198,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "cluster-month",
         "default_cost_type": "Infrastructure",
     },
-    {
+    "cluster_cost_per_hour": {
         "source_type": "OCP",
         "metric": "cluster_cost_per_hour",
         "label_metric": "Cluster",
@@ -203,7 +206,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "cluster-hour",
         "default_cost_type": "Infrastructure",
     },
-    {
+    "pvc_cost_per_month": {
         "source_type": "OCP",
         "metric": "pvc_cost_per_month",
         "label_metric": "Persistent volume claims",
@@ -211,7 +214,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "pvc-month",
         "default_cost_type": "Infrastructure",
     },
-    {
+    "vm_cost_per_month": {
         "source_type": "OCP",
         "metric": "vm_cost_per_month",
         "label_metric": "Virtual Machine",
@@ -219,7 +222,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "vm-month",
         "default_cost_type": "Infrastructure",
     },
-    {
+    "vm_cost_per_hour": {
         "source_type": "OCP",
         "metric": "vm_cost_per_hour",
         "label_metric": "Virtual Machine",
@@ -227,23 +230,7 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "vm-hour",
         "default_cost_type": "Infrastructure",
     },
-    {
-        "source_type": "OCP",
-        "metric": "vm_core_cost_per_month",
-        "label_metric": "Virtual Machine",
-        "label_measurement": "Count",
-        "label_measurement_unit": "core-month",
-        "default_cost_type": "Infrastructure",
-    },
-    {
-        "source_type": "OCP",
-        "metric": "vm_core_cost_per_hour",
-        "label_metric": "Virtual Machine",
-        "label_measurement": "Count",
-        "label_measurement_unit": "core-hour",
-        "default_cost_type": "Infrastructure",
-    },
-    {
+    "cluster_core_cost_per_hour": {
         "source_type": "OCP",
         "metric": "cluster_core_cost_per_hour",
         "label_metric": "Cluster",
@@ -251,7 +238,34 @@ COST_MODEL_METRIC_MAP = [
         "label_measurement_unit": "core-hour",
         "default_cost_type": "Infrastructure",
     },
-]
+}
+
+UNLEASH_METRICS_COST_6356 = {
+    "vm_core_cost_per_month": {
+        "source_type": "OCP",
+        "metric": "vm_core_cost_per_month",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "core-month",
+        "default_cost_type": "Infrastructure",
+    },
+    "vm_core_cost_per_hour": {
+        "source_type": "OCP",
+        "metric": "vm_core_cost_per_hour",
+        "label_metric": "Virtual Machine",
+        "label_measurement": "Count",
+        "label_measurement_unit": "core-hour",
+        "default_cost_type": "Infrastructure",
+    },
+}
+
+
+def get_cost_model_metrics_map():
+    map_copy = copy.deepcopy(COST_MODEL_METRIC_MAP)
+    if is_cost_6356_enabled():
+        map_copy |= copy.deepcopy(UNLEASH_METRICS_COST_6356)
+    return map_copy
+
 
 PLATFORM_COST = "platform_cost"
 PLATFORM_COST_DEFAULT = True

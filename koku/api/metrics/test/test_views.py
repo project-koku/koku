@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.metrics.constants import COST_MODEL_METRIC_MAP
+from api.metrics.constants import get_cost_model_metrics_map
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.models import Provider
 
@@ -74,11 +74,13 @@ class CostModelMetricsMapViewTest(IamTestCase):
         url = reverse("metrics")
         client = APIClient()
 
+        metric_map = get_cost_model_metrics_map()
+
         params = {"source_type": Provider.PROVIDER_OCP}
-        url = url + "?" + urlencode(params, quote_via=quote_plus) + f"&limit={len(COST_MODEL_METRIC_MAP)}"
+        url = url + "?" + urlencode(params, quote_via=quote_plus) + f"&limit={len(metric_map)}"
         response = client.get(url, **self.headers).data["data"]
-        self.assertEqual(len(COST_MODEL_METRIC_MAP), len(response))
-        for metric in COST_MODEL_METRIC_MAP:
+        self.assertEqual(len(metric_map), len(response))
+        for metric in metric_map.values():
             self.assertIsNotNone(metric.get("source_type"))
             self.assertIsNotNone(metric.get("metric"))
             self.assertIsNotNone(metric.get("label_metric"))
@@ -105,9 +107,6 @@ class CostModelMetricsMapViewTest(IamTestCase):
         url = reverse("metrics")
         client = APIClient()
         data = client.get(url + "?limit=1&offset=1", **self.headers).data["data"]
-        actual_metric = data[0].get("metric")
-        expected_metric = COST_MODEL_METRIC_MAP[1].get("metric")
-        self.assertEqual(expected_metric, actual_metric)
         self.assertEqual(1, len(data))
 
     def test_invalid_query_params(self):
@@ -125,7 +124,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
     def test_empty_response(self):
         """Test accessing an empty page."""
         url = reverse("metrics")
-        offset = len(COST_MODEL_METRIC_MAP)
+        offset = len(get_cost_model_metrics_map())
         client = APIClient()
         data = client.get(url + "?limit=1&offset=" + str(offset), **self.headers).data["data"]
         self.assertEqual([], data)
@@ -134,7 +133,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         """Test that the API returns a 500 error when there is invalid cost model metric map."""
         url = reverse("metrics")
         client = APIClient()
-        MOCK_COST_MODEL_METRIC_MAP = [{"Invalid": "Invalid"}]
+        MOCK_COST_MODEL_METRIC_MAP = {"Invalid": {"Invalid": "Invalid"}}
         with patch("api.metrics.constants.COST_MODEL_METRIC_MAP", MOCK_COST_MODEL_METRIC_MAP):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -151,7 +150,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
     def test_catch_value_error(self):
         """Test that the API handles an invalid limit."""
         url = reverse("metrics")
-        offset = len(COST_MODEL_METRIC_MAP)
+        offset = len(get_cost_model_metrics_map())
         client = APIClient()
         data = client.get(url + "?limit=&offset=" + str(offset), **self.headers).data["data"]
         self.assertEqual([], data)
