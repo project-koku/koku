@@ -1144,16 +1144,16 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 tested = True
             self.assertTrue(tested)
 
-    def test_no_report_period_populate_vm_count_tag_based_costs(self):
+    def test_no_report_period_populate_vm_tag_based_costs(self):
         """
         Test that if a valid report period is not found.
         """
         with self.accessor as acc:
-            result = acc.populate_vm_count_tag_based_costs("1970-10-01", "1970-10-31", self.ocp_provider_uuid, {})
+            result = acc.populate_vm_tag_based_costs("1970-10-01", "1970-10-31", self.ocp_provider_uuid, {})
             self.assertFalse(result)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    def test_monthly_populate_vm_count_tag_based_costs(self, mock_psql):
+    def test_monthly_populate_vm_tag_based_costs(self, mock_psql):
         """Test monthly populated of vm count tag based costs."""
         tag_price_list = {
             metric_constants.OCP_VM_MONTH: {
@@ -1176,13 +1176,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
             }
         }
         with self.accessor as acc:
-            acc.populate_vm_count_tag_based_costs(
+            acc.populate_vm_tag_based_costs(
                 self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
             )
             mock_psql.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_hourly_populate_vm_count_tag_based_costs(self, mock_trino):
+    def test_hourly_populate_vm_tag_based_costs(self, mock_trino):
         """Test hourly populated of vm count tag based costs."""
         tag_price_list = {
             metric_constants.OCP_VM_HOUR: {
@@ -1205,7 +1205,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             }
         }
         with self.accessor as acc:
-            acc.populate_vm_count_tag_based_costs(
+            acc.populate_vm_tag_based_costs(
                 self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
             )
             mock_trino.assert_called()
@@ -1220,7 +1220,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             }
         }
         with self.accessor as acc:
-            acc.populate_vm_count_tag_based_costs(
+            acc.populate_vm_tag_based_costs(
                 self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
             )
             mock_psql.assert_not_called()

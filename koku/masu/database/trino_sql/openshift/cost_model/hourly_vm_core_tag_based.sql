@@ -12,6 +12,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     pod_labels,
     all_labels,
     source_uuid,
+    monthly_cost_type,
     cost_model_rate_type,
     cost_model_cpu_cost,
     cost_category_id
@@ -71,8 +72,21 @@ SELECT
     lids.pod_labels,
     lids.all_labels,
     lids.source_uuid,
+    'Tag' AS monthly_cost_type,
     {{rate_type}} AS cost_model_rate_type,
-    max(vm_usage.vm_interval_hours) * max(vm_usage.vm_cpu_cores) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
+    {%- if value_rates is defined %}
+    CASE
+        {%- for value, rate in value_rates.items() %}
+        WHEN json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
+        THEN max(vm_usage.vm_cpu_cores) * CAST({{rate}} AS DECIMAL(33, 15)) * max(vm_usage.vm_interval_hours)
+        {%- endfor %}
+        {%- if default_rate is defined %}
+        ELSE max(vm_usage.vm_cpu_cores) * CAST({{default_rate}} AS DECIMAL(33, 15)) * max(vm_usage.vm_interval_hours)
+        {%- endif %}
+    END AS cost_model_cpu_cost,
+    {%- else %}
+    max(vm_usage.vm_cpu_cores) * CAST({{default_rate}} AS DECIMAL(33, 15)) * max(vm_usage.vm_interval_hours) AS cost_model_cpu_cost,
+    {%- endif %}
     lids.cost_category_id
 FROM
     postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
@@ -80,16 +94,26 @@ JOIN
     vm_usage_summary AS vm_usage
     ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vm_usage.vm_name
     AND lids.usage_start = vm_usage.interval_day
-JOIN
+LEFT JOIN
     latest_vm_node_info AS latest
     ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = latest.name_of_vm
-WHERE usage_start >= DATE({{start_date}})
-    AND usage_start <= DATE({{end_date}})
-    AND report_period_id = {{report_period_id}}
+WHERE
+    lids.usage_start >= DATE({{start_date}})
+    AND lids.usage_start <= DATE({{end_date}})
+    AND lids.report_period_id = {{report_period_id}}
     AND lids.data_source = 'Pod'
     AND lids.pod_usage_cpu_core_hours IS NOT NULL
     AND lids.pod_request_cpu_core_hours IS NOT NULL
     AND lids.monthly_cost_type IS NULL
+{%- if default_rate is defined %}
+    AND json_extract(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') IS NOT NULL
+{%- else %}
+    AND (
+        {%- for value, rate in value_rates.items() %}
+            {%- if not loop.first %} OR {%- endif %} json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
+        {%- if loop.last %} ) {%- endif %}
+        {%- endfor %}
+{%- endif %}
 GROUP BY
     lids.usage_start,
     lids.usage_end,
