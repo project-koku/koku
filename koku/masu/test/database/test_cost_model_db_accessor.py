@@ -16,13 +16,17 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
 
+def get_cost_type_defaults():
+    return {
+        metric: value["default_cost_type"] for metric, value in metric_constants.get_cost_model_metrics_map().items()
+    }
+
+
 def build_rates():
     """Returns rate_list to use to build cost model and mapping of expected values."""
     # Get defaults from constants.py
-    cost_type_defaults = dict()
-    for metric in metric_constants.COST_MODEL_METRIC_MAP:
-        cost_type_defaults[metric["metric"]] = metric["default_cost_type"]
-    mapping = dict()
+    cost_type_defaults = get_cost_type_defaults()
+    mapping = {}
     rates = []
     metric_names = [
         "cpu_core_usage_per_hour",
@@ -198,11 +202,7 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
 
     def build_tag_rates(self):
         """Returns rate_list to use to build cost model and mapping of expected values."""
-        # Get defaults from constants.py
-        cost_type_defaults = dict()
-        for metric in metric_constants.COST_MODEL_METRIC_MAP:
-            cost_type_defaults[metric["metric"]] = metric["default_cost_type"]
-        mapping = dict()
+        mapping = {}
         rates = []
         metric_names = [
             "cpu_core_usage_per_hour",

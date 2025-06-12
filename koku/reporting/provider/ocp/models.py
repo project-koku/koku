@@ -102,6 +102,7 @@ class OCPUsageLineItemDailySummary(models.Model):
         ("PVC", "PVC"),
         ("Tag", "Tag"),
         ("OCP_VM", "OCP_VM"),
+        ("OCP_VM_CORE", "OCP_VM_CORE"),
     )
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
@@ -109,6 +110,7 @@ class OCPUsageLineItemDailySummary(models.Model):
         "Cluster": "cluster_cost_per_month",
         "PVC": "pvc_cost_per_month",
         "OCP_VM": "vm_cost_per_month",
+        "OCP_VM_CORE": "vm_core_cost_per_month",
     }
     DISTRIBUTION_COST_TYPES = ["cpu", "memory", "pvc"]
 
