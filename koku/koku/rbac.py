@@ -16,7 +16,6 @@ from api.query_handler import WILDCARD
 from koku.configurator import CONFIGURATOR
 from koku.env import ENVIRONMENT
 
-
 LOG = logging.getLogger(__name__)
 RBAC_CONNECTION_ERROR_COUNTER = Counter("rbac_connection_errors", "Number of RBAC ConnectionErros.")
 PROTOCOL = "protocol"
@@ -35,7 +34,6 @@ RESOURCE_TYPES = OrderedDict(
         ("openshift.project", ["read"]),
         ("cost_model", ["read", "write"]),
         ("settings", ["read", "write"]),
-        ("ibm.account", ["read"]),
     ]
 )
 
