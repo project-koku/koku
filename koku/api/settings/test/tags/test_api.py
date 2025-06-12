@@ -24,7 +24,6 @@ class TagsSettings(IamTestCase):
             Provider.PROVIDER_AWS,
             Provider.PROVIDER_AZURE,
             Provider.PROVIDER_GCP,
-            Provider.PROVIDER_OCI,
         )
         combo = tuple(itertools.product(self.providers, self.keys))
         self.total_record_length = len(combo)

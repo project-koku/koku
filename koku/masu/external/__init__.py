@@ -28,8 +28,3 @@ AWS_REGIONS = [
     "eu-west-3",
     "sa-east-1",
 ]
-
-OCI_REGIONS = [
-    "us-ashburn-1",
-    "uk-london-1",
-]

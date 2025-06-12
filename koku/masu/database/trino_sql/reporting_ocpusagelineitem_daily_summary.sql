@@ -306,6 +306,7 @@ FROM (
         AND li.month = {{month}}
         AND li.interval_start >= {{start_date}}
         AND li.interval_start < date_add('day', 1, {{end_date}})
+        AND li.node != ''
     GROUP BY date(li.interval_start),
         li.namespace,
         li.node,

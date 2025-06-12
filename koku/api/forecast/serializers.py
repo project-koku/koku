@@ -72,10 +72,6 @@ class AzureCostForecastParamSerializer(ForecastParamSerializer):
     """Azure Cost Forecast Serializer."""
 
 
-class OCICostForecastParamSerializer(ForecastParamSerializer):
-    """OCI Cost Forecast Serializer."""
-
-
 class OCPCostForecastParamSerializer(ForecastParamSerializer):
     """OCP Cost Forecast Serializer."""
 

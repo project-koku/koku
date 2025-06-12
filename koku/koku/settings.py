@@ -23,8 +23,6 @@ from zoneinfo import ZoneInfo
 
 import boto3
 from corsheaders.defaults import default_headers
-from oci import config
-from oci.exceptions import ConfigFileNotFound
 
 from . import database
 from . import sentry  # noqa: F401
@@ -609,17 +607,6 @@ SKIP_MINIO_DATA_DELETION = ENVIRONMENT.bool("SKIP_MINIO_DATA_DELETION", default=
 PARQUET_PROCESSING_BATCH_SIZE = ENVIRONMENT.int("PARQUET_PROCESSING_BATCH_SIZE", default=200000)
 PANDAS_COLUMN_BATCH_SIZE = ENVIRONMENT.int("PANDAS_COLUMN_BATCH_SIZE", default=250)
 
-
-# The oci config requires `user`, `key_file`, `fingerprint`, `tenancy`, and `region`.
-# The OCI_SHARED_CREDENTIALS_FILE contains all but the key_file and region. The key_file
-# comes from the OCI_CLI_KEY_FILE env var, and the region comes from the user created Source.
-OCI_CONFIG = {}
-try:
-    OCI_CONFIG = config.from_file(file_location=ENVIRONMENT.get_value("OCI_SHARED_CREDENTIALS_FILE", default=""))
-    OCI_CONFIG["key_file"] = ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="")
-except ConfigFileNotFound:
-    logging.exception("OCI configuration not found")
-
 # Trino Settings
 TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
@@ -691,7 +678,7 @@ ENABLE_SUBS_DEBUG = ENVIRONMENT.bool("ENABLE_SUBS_DEBUG", default=False)
 ENABLE_SUBS_PROVIDER_TYPES = ENVIRONMENT.list("ENABLE_SUBS_PROVIDER_TYPES", default=["AWS"])
 
 # ROS debugging
-ENABLE_ROS_DEBUG = ENVIRONMENT.bool("ENABLE_ROS_DEBUG", default=False)
+DISABLE_ROS_MSG = ENVIRONMENT.bool("DISABLE_ROS_MSG", default=False)
 
 # Delay Celery Tasks Timeout
 DELAYED_TASK_TIME = ENVIRONMENT.int("DELAYED_TASK_TIME", default=3600)

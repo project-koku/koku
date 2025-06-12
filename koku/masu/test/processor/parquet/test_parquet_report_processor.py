@@ -21,7 +21,6 @@ from masu.config import Config
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
-from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.processor.parquet.parquet_report_processor import CSV_EXT
 from masu.processor.parquet.parquet_report_processor import CSV_GZIP_EXT
@@ -34,7 +33,6 @@ from masu.util.aws.aws_post_processor import AWSPostProcessor
 from masu.util.aws.common import RECOMMENDED_COLUMNS
 from masu.util.azure.azure_post_processor import AzurePostProcessor
 from masu.util.gcp.gcp_post_processor import GCPPostProcessor
-from masu.util.oci.oci_post_processor import OCIPostProcessor
 from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportManifest
@@ -223,11 +221,6 @@ class TestParquetReportProcessor(MasuTestCase):
                 "expected": GCPPostProcessor,
             },
             {
-                "provider_uuid": str(self.oci_provider_uuid),
-                "provider_type": Provider.PROVIDER_OCI,
-                "expected": OCIPostProcessor,
-            },
-            {
                 "provider_uuid": str(self.ocp_provider_uuid),
                 "provider_type": Provider.PROVIDER_OCP,
                 "expected": OCPPostProcessor,
@@ -297,6 +290,14 @@ class TestParquetReportProcessor(MasuTestCase):
         ) as logger:
             self.report_processor.convert_to_parquet()
             self.assertIn(expected, " ".join(logger.output))
+
+        exp_msg = "Unknown report type, skipping file processing"
+        with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch(
+            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.report_type", new=None
+        ), patch("masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.prepare_parquet_s3"):
+            with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="WARNING") as logger:
+                self.report_processor_ocp.convert_to_parquet()
+                self.assertIn(exp_msg, " ".join(logger.output))
 
         with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""), patch.object(
             ParquetReportProcessor,
@@ -468,20 +469,6 @@ class TestParquetReportProcessor(MasuTestCase):
                 "provider_type": Provider.PROVIDER_GCP,
                 "patch": (GCPReportParquetProcessor, "create_bill"),
             },
-            {
-                "provider_uuid": str(self.oci_provider_uuid),
-                "provider_type": Provider.PROVIDER_OCI,
-                "report_file": "usage.csv",
-                "patch": (OCIReportParquetProcessor, "create_bill"),
-                "daily": False,
-            },
-            {
-                "provider_uuid": str(self.oci_provider_uuid),
-                "provider_type": Provider.PROVIDER_OCI,
-                "report_file": "usage.csv",
-                "patch": (OCIReportParquetProcessor, "create_bill"),
-                "daily": True,
-            },
         ]
         output_file = "local_path/file.parquet"
 
@@ -491,8 +478,6 @@ class TestParquetReportProcessor(MasuTestCase):
         for test in test_matrix:
             if test.get("provider_type") == Provider.PROVIDER_OCP:
                 mock_report_type.return_value = "pod_usage"
-            elif test.get("provider_type") == Provider.PROVIDER_OCI:
-                mock_report_type.return_value = "usage"
             else:
                 mock_report_type.return_value = None
             provider_uuid = test.get("provider_uuid")

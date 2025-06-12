@@ -59,7 +59,6 @@ class OrchestratorTest(MasuTestCase):
         self.azure_data_source = self.azure_provider.billing_source.data_source
         self.gcp_credentials = self.gcp_provider.authentication.credentials
         self.gcp_data_source = self.gcp_provider.billing_source.data_source
-        self.oci_data_source = self.oci_provider.billing_source.data_source
         self.ocp_credentials = [name[0] for name in Provider.objects.values_list("authentication__credentials")]
         self.ocp_data_source = {}
         self.mock_accounts = [

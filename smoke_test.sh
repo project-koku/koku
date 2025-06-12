@@ -27,7 +27,6 @@ SMOKE_NAMESPACE=$NAMESPACE
 
 oc get secret koku-aws -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
 oc get secret koku-gcp -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
-oc get secret koku-oci -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
 
 IQE_IBUTSU_SOURCE="cost-ephemeral-${IMAGE_TAG}"
 

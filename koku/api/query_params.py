@@ -58,7 +58,6 @@ class QueryParameters:
             (Provider.PROVIDER_AWS, "org_unit_id", "aws.organizational_unit"),
         ],
         "azure": [(Provider.PROVIDER_AZURE, "subscription_guid", "azure.subscription_guid")],
-        "oci": [(Provider.PROVIDER_OCI, "payer_tenant_id", "oci.payer_tenant_id")],
         "ocp": [
             (Provider.PROVIDER_OCP, "cluster", "openshift.cluster", True),
             (Provider.PROVIDER_OCP, "node", "openshift.node", False),
@@ -184,7 +183,7 @@ class QueryParameters:
         if "all" in provider_list:
             for p, v in self.provider_resource_list.items():
                 # Do not include GCP & IBM for OCP-on-All until OCP on GCP and IBM is implemented.
-                if "OCI" in v[0] or "IBM" in v[0]:
+                if "IBM" in v[0]:
                     continue
                 access.extend(v)
         else:

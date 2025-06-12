@@ -11,7 +11,6 @@ from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
-from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParquetSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
@@ -89,11 +88,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         """Test that the AzureReportParquetSummaryUpdater is returned."""
         updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
         self.assertIsInstance(updater._updater, AzureReportParquetSummaryUpdater)
-
-    def test_oci_parquet_summary_updater(self):
-        """Test that the OCIReportParquetSummaryUpdater is returned."""
-        updater = ReportSummaryUpdater(self.schema, self.oci_provider_uuid)
-        self.assertIsInstance(updater._updater, OCIReportParquetSummaryUpdater)
 
     @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")

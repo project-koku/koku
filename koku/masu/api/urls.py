@@ -92,7 +92,7 @@ urlpatterns = [
     path("db-performance/explain-query/", explain_query, name="explain_query"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
-    path("invalidate_cache", invalidate_cache, name="invalidate_cache"),
+    path("invalidate_cache/", invalidate_cache, name="invalidate_cache"),
 ]
 
 if settings.DEBUG:

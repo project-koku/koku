@@ -9,7 +9,6 @@ from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from reporting.models import SubsLastProcessed
-from reporting.models import TenantAPIProvider
 from subs.subs_data_extractor import SUBSDataExtractor
 from subs.test import SUBSTestCase
 
@@ -48,40 +47,6 @@ class TestSUBSDataExtractor(SUBSTestCase):
         )
         actual = self.extractor.subs_s3_path
         self.assertEqual(expected, actual)
-
-    def test_determine_latest_processed_time_for_provider_with_return_value(self):
-        """Test determining the last processed time with a return value returns the expected value"""
-        with schema_context(self.schema):
-            year = "2023"
-            month = "06"
-            rid = "12345"
-            base_time = datetime.datetime(2023, 6, 3, 15, tzinfo=datetime.timezone.utc)
-            SubsLastProcessed.objects.create(
-                source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid),
-                resource_id=rid,
-                year=year,
-                month=month,
-                latest_processed_time=base_time,
-            ).save()
-        # we add 1 second to the latest processed time to ensure the records are new
-        expected = base_time + timedelta(seconds=1)
-        actual = self.extractor.determine_latest_processed_time_for_provider(rid, year, month)
-        self.assertEqual(actual, expected)
-
-    def test_determine_latest_processed_time_for_provider_without_return_value(self):
-        """Test determining the last processed time with no return gives back None"""
-        with schema_context(self.schema):
-            year = "2023"
-            month = "05"
-            rid = "56789"
-            SubsLastProcessed.objects.create(
-                source_uuid=TenantAPIProvider.objects.get(uuid=self.aws_provider.uuid),
-                resource_id=rid,
-                year=year,
-                month=month,
-            ).save()
-        actual = self.extractor.determine_latest_processed_time_for_provider(rid, year, month)
-        self.assertIsNone(actual)
 
     @patch("subs.subs_data_extractor.SUBSDataExtractor._execute_trino_raw_sql_query")
     def test_determine_row_count(self, mock_trino):

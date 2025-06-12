@@ -16,6 +16,7 @@ TRINO_LINE_ITEM_TABLE_MAP = {
     "storage_usage": "openshift_storage_usage_line_items",
     "node_labels": "openshift_node_labels_line_items",
     "namespace_labels": "openshift_namespace_labels_line_items",
+    "vm_usage": "openshift_vm_usage_line_items",
 }
 
 TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
@@ -23,6 +24,7 @@ TRINO_LINE_ITEM_TABLE_DAILY_MAP = {
     "storage_usage": "openshift_storage_usage_line_items_daily",
     "node_labels": "openshift_node_labels_line_items_daily",
     "namespace_labels": "openshift_namespace_labels_line_items_daily",
+    "vm_usage": "openshift_vm_usage_line_items_daily",
 }
 
 VIEWS = (
@@ -51,8 +53,10 @@ UI_SUMMARY_TABLES = (
     "reporting_ocp_network_summary_p",
     "reporting_ocp_network_summary_by_node_p",
     "reporting_ocp_network_summary_by_project_p",
-    "reporting_ocp_vm_summary_p",
 )
+
+# Note the reporting_ocp_vm_summary_p is populated separately.
+VM_UI_SUMMARY_TABLE = "reporting_ocp_vm_summary_p"
 
 
 class OCPUsageReportPeriod(models.Model):
@@ -603,7 +607,9 @@ class OCPCostSummaryByProjectP(models.Model):
     usage_end = models.DateField(null=False)
     infrastructure_usage_cost = JSONField(null=True)
     infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     infrastructure_project_monthly_cost = JSONField(null=True)
     supplementary_usage_cost = JSONField(null=True)
     supplementary_project_monthly_cost = JSONField(null=True)

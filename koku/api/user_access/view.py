@@ -38,7 +38,6 @@ class AccessMapping:
     azure: tuple[str] = ("azure.subscription_guid",)
     gcp: tuple[str, str] = ("gcp.account", "gcp.project")
     ibm: tuple[str] = ("ibm.account",)
-    oci: tuple[str] = ("oci.payer_tenant_id",)
     ocp: tuple[str, str, str] = ("openshift.cluster", "openshift.node", "openshift.project")
     cost_model: tuple[str] = ("cost_model",)
     settings: tuple[str] = ("settings",)

@@ -39,7 +39,6 @@ jinjasql2 = "*"
 kombu = "<5.3"  # https://issues.redhat.com/browse/COST-3997
 msrestazure = "*"
 numpy = {version = "*", markers = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'"}
-oci = "*"
 pandas = "<2.3"
 prometheus-client = ">=0.7"
 psutil = ">=5.6"
@@ -51,7 +50,6 @@ requests = ">=2.32.0"
 sentry-sdk = ">=0.13"
 statsmodels = ">=0.12"
 trino = "*"
-unleashclient = "<5"  # new version breaks for unknown reason
 whitenoise = ">=5.0"
 pydantic = ">=2"
 sqlparse = "*"
@@ -60,6 +58,7 @@ adbc-driver-postgresql = "*"
 packaging = "*"
 psycopg2-binary = "*"
 watchtower = "*"
+unleashclient = "*"
 
 [dev-packages]
 argh = ">=0.26.2"
@@ -83,6 +82,7 @@ snakeviz = "*"
 tblib = ">=1.6"
 tox = ">=3.0"
 watchdog = ">=2.1.1"
+polyfactory = "*"
 
 [requires]
 python_version = "3.11"

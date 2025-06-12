@@ -65,20 +65,6 @@ class SUBSDataExtractor(ReportDBAccessorBase):
                 lpt_dict[rid] = latest_time + timedelta(seconds=1)
         return lpt_dict
 
-    def determine_latest_processed_time_for_provider(self, rid, year, month):
-        """Determine the latest processed timestamp for a provider for a given month and year."""
-        with schema_context(self.schema):
-            last_time = SubsLastProcessed.objects.filter(
-                source_uuid=self.provider_uuid, resource_id=rid, year=year, month=month
-            ).first()
-        if last_time and last_time.latest_processed_time:
-            # the stored timestamp is the latest timestamp data was gathered for
-            # and we want to gather new data we have not processed yet
-            # so we add one second to the last timestamp to ensure the time range processed
-            # is all new data
-            return last_time.latest_processed_time + timedelta(seconds=1)
-        return None
-
     def determine_ids_for_provider(self, year, month):
         """Determine the relevant IDs to process data for this provider."""
         sql_file = f"trino_sql/{self.provider_type.lower()}/determine_ids_for_provider.sql"

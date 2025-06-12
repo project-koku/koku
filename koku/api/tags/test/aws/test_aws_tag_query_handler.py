@@ -3,13 +3,19 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWS Report Queries."""
+from itertools import chain
+
+from django.contrib.postgres.aggregates import ArrayAgg
 from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Provider
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
 from reporting.models import AWSTagsSummary
+from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSTagsValues
 
 
@@ -156,3 +162,47 @@ class AWSTagQueryHandlerTest(IamTestCase):
         result = handler.get_tag_values()
         self.assertEqual(result[0].get("key"), expected.get("key"))
         self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+
+    def test_tag_mapping_children_keys(self):
+        tag_map = {}
+        with tenant_context(self.tenant):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
+            self.assertGreaterEqual(len(enabled_tags), 3)
+            tag_map["parent_key"] = enabled_tags[0].key
+            tag_map["child_0_key"] = enabled_tags[1].key
+            tag_map["child_1_key"] = enabled_tags[2].key
+            TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[1])
+            TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[2])
+        parent_key = tag_map["parent_key"]
+        url = f"?filter[key]={parent_key}"
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
+        with tenant_context(self.tenant):
+            expected_values_keys = [tag_map["parent_key"], tag_map["child_0_key"], tag_map["child_1_key"]]
+            values_agg = AWSTagsSummary.objects.filter(key__in=expected_values_keys).aggregate(
+                all_values=ArrayAgg("values")
+            )
+            expected_all_values = list(set(chain.from_iterable(values_agg["all_values"] or [])))
+        results = {r.get("key"): r.get("values") for r in handler.get_tags()}
+        self.assertIn(parent_key, results)
+        self.assertEqual(sorted(results[parent_key]), sorted(expected_all_values))
+
+    def test_tag_mapping_children_keys_key_only(self):
+        """Test the key only parameter"""
+        tag_map = {}
+        with tenant_context(self.tenant):
+            enabled_tags = EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AWS, enabled=True)
+            self.assertGreaterEqual(len(enabled_tags), 3)
+            parent_key = enabled_tags[0].key
+            tag_map["parent_key"] = parent_key
+            tag_map["child_0_key"] = enabled_tags[1].key
+            tag_map["child_1_key"] = enabled_tags[2].key
+            TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[1])
+            TagMapping.objects.create(parent=enabled_tags[0], child=enabled_tags[2])
+            AWSTagsSummary.objects.filter(key=parent_key).delete()
+        query_params = self.mocked_query_params("?key_only=true", AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        self.assertIn(tag_map["parent_key"], tag_keys)
+        self.assertNotIn(tag_map["child_0_key"], tag_keys)
+        self.assertNotIn(tag_map["child_1_key"], tag_keys)

@@ -17,7 +17,6 @@ from api.utils import DateHelper
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from kafka_utils.utils import ROS_TOPIC
-from koku.feature_flags import UNLEASH_CLIENT
 from masu.config import Config as masu_config
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
@@ -50,30 +49,26 @@ class ROSReportShipper:
 
     def __init__(
         self,
-        provider,
-        report_meta,
-        b64_identity,
-        context,
+        payload_info: utils.PayloadInfo,
+        b64_identity: str,
+        context: dict,
     ):
-        self.provider = provider
         self.b64_identity = b64_identity
-        self.manifest_id = report_meta["manifest_id"]
+        self.manifest_id = payload_info.manifest.manifest_id
         self.context = context | {"manifest_id": self.manifest_id}
-        self.source_id = str(report_meta["source_id"])
-        self.provider_uuid = str(report_meta["provider_uuid"])
-        self.request_id = report_meta["request_id"]
-        self.schema_name = report_meta["schema_name"]
-        version = report_meta.get("version")
+        self.source_id = str(payload_info.source_id)
+        self.provider_uuid = str(payload_info.provider_uuid)
+        self.cluster_alias = payload_info.cluster_alias
+        self.request_id = payload_info.request_id
+        self.schema_name = payload_info.schema_name
+
         self.metadata = {
-            "account": context["account"],
-            "org_id": context["org_id"],
+            "account": payload_info.account_id,
+            "org_id": payload_info.org_id,
             "source_id": self.source_id,
             "provider_uuid": self.provider_uuid,
-            "cluster_uuid": report_meta["cluster_id"],
-            "operator_version": utils.OPERATOR_VERSIONS.get(
-                version,
-                version,  # if version is not defined in OPERATOR_VERSIONS, fallback to what is in the report-meta
-            ),
+            "cluster_uuid": payload_info.manifest.cluster_id,
+            "operator_version": payload_info.manifest.operator_version,
         }
         self.s3_client = get_ros_s3_client()
         self.dh = DateHelper()
@@ -105,11 +100,8 @@ class ROSReportShipper:
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
-        if (
-            not UNLEASH_CLIENT.is_enabled("cost-management.backend.ros-data-processing", self.context)
-            and not settings.ENABLE_ROS_DEBUG
-        ):
-            msg = "ROS report handling gated by unleash - not sending kafka msg"
+        if settings.DISABLE_ROS_MSG:
+            msg = "ROS report handling disabled - not sending kafka msg"
             LOG.info(log_json(self.request_id, msg=msg, context=self.context))
             return
 
@@ -149,7 +141,7 @@ class ROSReportShipper:
         ros_json = {
             "request_id": self.request_id,
             "b64_identity": self.b64_identity,
-            "metadata": self.metadata | {"cluster_alias": self.provider.name},
+            "metadata": self.metadata | {"cluster_alias": self.cluster_alias},
             "files": presigned_urls,
             "object_keys": upload_keys,
         }

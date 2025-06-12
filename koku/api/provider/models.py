@@ -117,12 +117,10 @@ class Provider(models.Model):
     PROVIDER_OCP = "OCP"
     PROVIDER_AZURE = "Azure"
     PROVIDER_GCP = "GCP"
-    PROVIDER_OCI = "OCI"
     # Local Providers are for local development and testing
     PROVIDER_AWS_LOCAL = "AWS-local"
     PROVIDER_AZURE_LOCAL = "Azure-local"
     PROVIDER_GCP_LOCAL = "GCP-local"
-    PROVIDER_OCI_LOCAL = "OCI-local"
     # The following constants are not provider types
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
@@ -134,11 +132,9 @@ class Provider(models.Model):
         "ocp": PROVIDER_OCP,
         "azure": PROVIDER_AZURE,
         "gcp": PROVIDER_GCP,
-        "oci": PROVIDER_OCI,
         "aws-local": PROVIDER_AWS_LOCAL,
         "azure-local": PROVIDER_AZURE_LOCAL,
         "gcp-local": PROVIDER_GCP_LOCAL,
-        "oci-local": PROVIDER_OCI_LOCAL,
         "ocp-aws": OCP_AWS,
         "ocp-azure": OCP_AZURE,
     }
@@ -148,21 +144,17 @@ class Provider(models.Model):
         (PROVIDER_OCP, PROVIDER_OCP),
         (PROVIDER_AZURE, PROVIDER_AZURE),
         (PROVIDER_GCP, PROVIDER_GCP),
-        (PROVIDER_OCI, PROVIDER_OCI),
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
-        (PROVIDER_OCI_LOCAL, PROVIDER_OCI_LOCAL),
     )
     CLOUD_PROVIDER_CHOICES = (
         (PROVIDER_AWS, PROVIDER_AWS),
         (PROVIDER_AZURE, PROVIDER_AZURE),
         (PROVIDER_GCP, PROVIDER_GCP),
-        (PROVIDER_OCI, PROVIDER_OCI),
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
-        (PROVIDER_OCI_LOCAL, PROVIDER_OCI_LOCAL),
     )
 
     # These lists are intended for use for provider type checking
