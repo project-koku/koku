@@ -4,7 +4,6 @@ from django.db import models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("reporting", "0331_remove_costsummary_project_markup_cost_and_more"),
     ]
@@ -19,11 +18,9 @@ class Migration(migrations.Migration):
                     ("OCP", "OCP"),
                     ("Azure", "Azure"),
                     ("GCP", "GCP"),
-                    ("OCI", "OCI"),
                     ("AWS-local", "AWS-local"),
                     ("Azure-local", "Azure-local"),
                     ("GCP-local", "GCP-local"),
-                    ("OCI-local", "OCI-local"),
                 ],
                 max_length=50,
             ),
