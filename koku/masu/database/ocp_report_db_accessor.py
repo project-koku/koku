@@ -511,7 +511,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         cost_type_file = cost_type_file_mapping.get(cost_type)
         if not cost_type_file:
-            LOG.error(f"Invalid cost_type: {cost_type} for OCP provider. Skipping populate_monthly_cost_sql update")
+            LOG.warning(f"Invalid cost_type: {cost_type} for OCP provider. Skipping populate_monthly_cost_sql update")
             return
 
         table_name = self._table_map["line_item_daily_summary"]
