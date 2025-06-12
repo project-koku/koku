@@ -18,10 +18,10 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     cost_category_id
 )
 WITH
-    max_interval_data AS (
+    vm_max_interval AS (
         SELECT
-            max(interval_start) AS max_interval_start,
-            vm_name
+            vm_name,
+            max(interval_start) AS max_interval_start
         FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items
         WHERE
             source = {{source_uuid | string}}
@@ -30,36 +30,60 @@ WITH
         GROUP BY
             vm_name
     ),
-    node_info AS (
+    latest_vm_node_info AS (
         SELECT
-            latest.node AS name_of_node,
-            latest.resource_id AS resource_id,
-            latest.vm_name AS name_of_vm
-        FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items AS latest
-        INNER JOIN max_interval_data AS max
-            ON max.max_interval_start = latest.interval_start
-            AND max.vm_name = latest.vm_name
+           node_info.vm_name as name_of_vm,
+           node_info.node AS node_name,
+           node_info.resource_id AS resource_id
+        FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items AS node_info
+        INNER JOIN vm_max_interval AS vmi
+            ON node_info.vm_name = vmi.vm_name
+            AND node_info.interval_start = vmi.max_interval_start
         WHERE
-            latest.source = {{source_uuid | string}}
-            AND latest.year = {{year}}
-            AND latest.month = {{month}}
+           node_info.source = {{source_uuid | string}}
+            AND node_info.year = {{year}}
+            AND node_info.month = {{month}}
     ),
-    vm_resource_summary AS (
+    vm_usage_summary AS (
         SELECT
             vm_map.vm_cpu_request_cores AS vm_cpu_cores,
-            max(DATE(vm_map.interval_start)) AS interval_day,
-            vm_map.vm_name AS vm_name,
-            max(node.name_of_node) AS node_name,
-            max(node.resource_id) AS resource_id
-        FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items_daily AS vm_map
-        INNER JOIN node_info AS node
-            ON node.name_of_vm = vm_map.vm_name
+            DATE(vm_map.interval_start) AS interval_day,
+            vm_map.vm_name AS vm_name
+        FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items AS vm_map
         WHERE
             vm_map.source = {{source_uuid | string}}
             AND vm_map.year = {{year}}
             AND vm_map.month = {{month}}
         GROUP BY
-            1, vm_map.vm_name
+            1, 2, vm_map.vm_name
+    ),
+    latest_vm_labels AS (
+        SELECT
+            json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') AS vm_name,
+            CAST(
+                REDUCE(
+                    ARRAY_AGG(
+                        map_concat(
+                            COALESCE(CAST(lids.pod_labels AS map(varchar, varchar)), MAP()),
+                            COALESCE(CAST(lids.all_labels AS map(varchar, varchar)), MAP())
+                        )
+                    ),
+                    MAP(),
+                    (s, x) -> map_concat(s, x),
+                    s -> s
+                )
+            AS JSON) AS combined_labels
+        FROM
+            postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+        JOIN vm_max_interval as max
+            ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = max.vm_name
+            AND DATE(lids.usage_start) = DATE(max.max_interval_start)
+        WHERE lids.report_period_id = {{report_period_id}}
+            AND lids.data_source = 'Pod'
+            AND lids.pod_usage_cpu_core_hours IS NOT NULL
+            AND lids.pod_request_cpu_core_hours IS NOT NULL
+            AND lids.monthly_cost_type IS NULL
+        GROUP BY json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name')
     )
 SELECT
     uuid(),
@@ -70,24 +94,29 @@ SELECT
     lids.usage_start,
     lids.usage_end,
     lids.namespace,
-    max(vmhrs.node_name) AS node,
-    max(vmhrs.resource_id) AS resource_id,
-    lids.pod_labels,
-    lids.all_labels,
+    max(latest.node_name) AS node,
+    max(latest.resource_id) AS resource_id,
+    labels.combined_labels as pod_labels,
+    labels.combined_labels as all_labels,
     lids.source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    max(vmhrs.vm_cpu_cores) * CAST({{ default_rate }} AS DECIMAL(33, 15)) / {{amortized_denominator}} AS cost_model_cpu_cost,
+    max(vm_usage.vm_cpu_cores) * CAST({{rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
     {{cost_type}} AS monthly_cost_type,
     lids.cost_category_id
 FROM
     postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-INNER JOIN
-    vm_resource_summary AS vmhrs
-    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
-WHERE
-    lids.usage_start >= DATE({{start_date}})
-    AND lids.usage_start <= DATE({{end_date}})
-    AND lids.report_period_id = {{report_period_id}}
+JOIN
+    vm_usage_summary AS vm_usage
+    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vm_usage.vm_name
+    AND lids.usage_start = vm_usage.interval_day
+JOIN
+    latest_vm_node_info AS latest
+    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = latest.name_of_vm
+JOIN latest_vm_labels as labels
+    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = labels.vm_name
+WHERE usage_start >= DATE({{start_date}})
+    AND usage_start <= DATE({{end_date}})
+    AND report_period_id = {{report_period_id}}
     AND lids.data_source = 'Pod'
     AND lids.pod_usage_cpu_core_hours IS NOT NULL
     AND lids.pod_request_cpu_core_hours IS NOT NULL
@@ -101,6 +130,5 @@ GROUP BY
     lids.namespace,
     lids.data_source,
     lids.cost_category_id,
-    lids.pod_labels,
-    lids.all_labels
-HAVING max(vmhrs.vm_cpu_cores) * CAST({{ default_rate }} AS DECIMAL(33, 15)) / {{amortized_denominator}} > 0;
+    labels.combined_labels
+;

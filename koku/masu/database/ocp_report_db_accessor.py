@@ -567,6 +567,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
         if "trino_sql/" in cost_type_file:
+            start_date = DateHelper().parse_to_date(sql_params["start_date"])
+            sql_params["year"] = start_date.strftime("%Y")
+            sql_params["month"] = start_date.strftime("%m")
             self._execute_trino_multipart_sql_query(insert_sql, bind_params=sql_params)
         else:
             self._prepare_and_execute_raw_sql_query(table_name, insert_sql, sql_params, operation="INSERT")
