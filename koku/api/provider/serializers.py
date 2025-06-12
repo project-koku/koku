@@ -94,16 +94,6 @@ class GCPAuthenticationSerializer(ProviderAuthenticationSerializer):
         return validate_field(creds, fields, key)
 
 
-class IBMAuthenticationSerializer(ProviderAuthenticationSerializer):
-    """IBM auth serializer."""
-
-    def validate_credentials(self, creds):
-        """Validate credentials field."""
-        key = "iam_token"
-        fields = ["iam_token"]
-        return validate_field(creds, fields, key)
-
-
 class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """OCP auth serializer."""
 
@@ -166,16 +156,6 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
             raise serializers.ValidationError(error_obj(key, message))
 
         return data
-
-
-class IBMBillingSourceSerializer(ProviderBillingSourceSerializer):
-    """IBM billing source serializer."""
-
-    def validate_data_source(self, data_source):
-        """Validate data_source field."""
-        key = "provider.data_source"
-        fields = ["enterprise_id"]
-        return validate_field(data_source, fields, key)
 
 
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):

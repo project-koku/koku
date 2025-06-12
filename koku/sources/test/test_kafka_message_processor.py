@@ -374,21 +374,6 @@ class KafkaMessageProcessorTest(IamTestCase):
                         self.assertEqual(result, test.get("expected"))
                         mock_details_save.assert_called_once()
 
-    def test_save_sources_details_unknown_source_type(self):
-        """Test save_source_details does not call storage method."""
-        provider_list = [Provider.PROVIDER_IBM, "unknown"]
-        event = choice(EVENT_LIST)
-        msg = msg_generator(event)
-        processor = KafkaMessageProcessor(msg, event, COST_MGMT_APP_TYPE_ID)
-        for provider in provider_list:
-            mock_details = mock_details_generator(provider, FAKER.name(), uuid4(), FAKER.pyint())
-            with self.subTest(test=f"(provider={provider}, mock_details={mock_details.__dict__})"):
-                with patch.object(KafkaMessageProcessor, "get_source_details", return_value=mock_details):
-                    with patch("sources.storage.add_provider_sources_details") as mock_details_save:
-                        result = processor.save_sources_details()
-                        self.assertIsNone(result)
-                        mock_details_save.assert_not_called()
-
     def test_save_credentials(self):
         """Test save credentials calls add_provider_sources_auth_info."""
         event = choice(EVENT_LIST)

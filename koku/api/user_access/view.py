@@ -19,6 +19,7 @@ from api.common.pagination import ListPaginator
 
 LOG = logging.getLogger(__name__)
 
+
 # Backwards Compatability Statement:
 # This endpoint currently supports a type param to show permissions
 # for a single access key. Currently this param has a different
@@ -37,7 +38,6 @@ class AccessMapping:
     aws: tuple[str, str] = ("aws.account", "aws.organizational_unit")
     azure: tuple[str] = ("azure.subscription_guid",)
     gcp: tuple[str, str] = ("gcp.account", "gcp.project")
-    ibm: tuple[str] = ("ibm.account",)
     ocp: tuple[str, str, str] = ("openshift.cluster", "openshift.node", "openshift.project")
     cost_model: tuple[str] = ("cost_model",)
     settings: tuple[str] = ("settings",)
@@ -46,7 +46,7 @@ class AccessMapping:
     def __post_init__(self):
         result = []
         for field in dataclasses.fields(self):
-            if field.name in ["any", "cost_model", "settings", "ibm"]:
+            if field.name in ["any", "cost_model", "settings"]:
                 continue
 
             result.extend(getattr(self, field.name))
@@ -75,7 +75,7 @@ class UIFeatureAccess:
             a user has access to specific features of the UI.
     """
 
-    PRERELEASE = ["ibm"]
+    PRERELEASE = []
 
     def __init__(self, access, admin_user):
         """Class Constructor.

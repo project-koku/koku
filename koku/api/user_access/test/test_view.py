@@ -19,7 +19,6 @@ def build_rbac_permissions(rbac_dict):
         "aws.organizational_unit": {"read": []},
         "gcp.account": {"read": []},
         "gcp.project": {"read": []},
-        "ibm.account": {"read": []},
         "azure.subscription_guid": {"read": []},
         "openshift.cluster": {"read": []},
         "openshift.node": {"read": []},
@@ -36,7 +35,7 @@ def build_expected_ouput(testing_dict=None, default_access=False, default_write=
         testing_dict = {}
 
     expected_output = []
-    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "ibm", "azure", "cost_model", "settings"]
+    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "azure", "cost_model", "settings"]
     for key in matrix_keys:
         test_info = testing_dict.get(key, {})
         expected_format = {
@@ -218,29 +217,6 @@ class UserAccessViewTest(IamTestCase):
             with self.subTest(result=result):
                 self.assertIn(result, expected_output)
 
-    @RbacPermissions(build_rbac_permissions({"ibm.account": {"read": ["*"]}}))
-    @override_settings(ENABLE_PRERELEASE_FEATURES=True)
-    def test_ibm_view_account_wildcard_with_pre_release_features(self):
-        """Test user-access view with ibm account read wildcard permission and pre_release env=true."""
-        url = reverse("user-access")
-        response = self.client.get(url, **self.headers)
-        testing_matrix = {"ibm": {"access": True}}
-        expected_output = build_expected_ouput(testing_matrix)
-        for result in response.data.get("data"):
-            with self.subTest(result=result):
-                self.assertIn(result, expected_output)
-
-    @RbacPermissions(build_rbac_permissions({"ibm.account": {"read": ["*"]}}))
-    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
-    def test_ibm_view_account_wildcard_with_pre_release_features_false(self):
-        """Test user-access view with ibm account read wildcard permission and pre_release env=false."""
-        url = reverse("user-access")
-        response = self.client.get(url, **self.headers)
-        expected_output = build_expected_ouput()
-        for result in response.data.get("data"):
-            with self.subTest(result=result):
-                self.assertIn(result, expected_output)
-
     @RbacPermissions(build_rbac_permissions({"azure.subscription_guid": {"read": ["*"]}}))
     def test_azure_view_read(self):
         """Test user-access view with azure subscription read wildcard permission."""
@@ -273,25 +249,11 @@ class UserAccessViewTest(IamTestCase):
             with self.subTest(result=result):
                 self.assertIn(result, expected_output)
 
-    @override_settings(ENABLE_PRERELEASE_FEATURES=False)
-    def test_view_as_org_admin_prerelease_features_off(self):
-        """Test user-access view as an org admin."""
-        url = reverse("user-access")
-        response = self.client.get(url, **self.headers)
-        # ibm is a prerelease feature
-        expected_output = build_expected_ouput(
-            {"ibm": {"access": False, "write": False}}, default_access=True, default_write=True
-        )
-        for result in response.data.get("data"):
-            with self.subTest(result=result):
-                self.assertIn(result, expected_output)
-
     @override_settings(ENABLE_PRERELEASE_FEATURES=True)
     def test_view_as_org_admin_prerelease_features_on(self):
         """Test user-access view as an org admin."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
-        # ibm is a prerelease feature
         expected_output = build_expected_ouput(default_access=True, default_write=True)
         for result in response.data.get("data"):
             with self.subTest(result=result):
