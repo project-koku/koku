@@ -487,6 +487,17 @@ GROUP BY partitions.year, partitions.month, partitions.source
             LOG.info(log_json(msg=log_msg, context=sql_params))
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
 
+    def _delete_monthly_cost_model_data(self, sql_params, ctx):
+        delete_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql")
+        delete_sql = delete_sql.decode("utf-8")
+        if sql_params.get("rate_type"):
+            LOG.info(log_json(msg="removing monthly costs", context=ctx))
+        else:
+            LOG.info(log_json(msg="removing stale monthly costs", context=ctx))
+        self._prepare_and_execute_raw_sql_query(
+            self._table_map["line_item_daily_summary"], delete_sql, sql_params, operation="DELETE"
+        )
+
     def populate_monthly_cost_sql(self, cost_type, rate_type, rate, start_date, end_date, distribution, provider_uuid):
         """
         Populate the monthly cost of a customer.
@@ -503,11 +514,12 @@ GROUP BY partitions.year, partitions.month, partitions.source
             provider_uuid (str): The str of the provider UUID
         """
         cost_type_file_mapping = {
-            "Node": "monthly_cost_cluster_and_node.sql",
-            "Node_Core_Month": "monthly_cost_cluster_and_node.sql",
-            "Cluster": "monthly_cost_cluster_and_node.sql",
-            "PVC": "monthly_cost_persistentvolumeclaim.sql",
-            "OCP_VM": "monthly_cost_virtual_machine.sql",
+            "Node": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
+            "Node_Core_Month": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
+            "Cluster": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
+            "PVC": "sql/openshift/cost_model/monthly_cost_persistentvolumeclaim.sql",
+            "OCP_VM": "sql/openshift/cost_model/monthly_cost_virtual_machine.sql",
+            "OCP_VM_CORE": "trino_sql/openshift/cost_model/monthly_vm_core.sql",
         }
         cost_type_file = cost_type_file_mapping.get(cost_type)
         if not cost_type_file:
@@ -531,35 +543,33 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 )
             )
             return
-        report_period_id = report_period.id
+
         if not rate:
-            LOG.info(log_json(msg="removing monthly costs", context=ctx))
-            self.delete_line_item_daily_summary_entries_for_date_range_raw(
-                provider_uuid,
-                start_date,
-                end_date,
-                table=OCPUsageLineItemDailySummary,
-                filters={"report_period_id": report_period_id, "monthly_cost_type": cost_type},
-                null_filters={"cost_model_rate_type": "IS NOT NULL"},
+            self._delete_monthly_cost_model_data(
+                {"schema": self.schema, "report_period_id": report_period.id, "cost_type": cost_type}, ctx
             )
-            # We cleared out existing data, but there is no new to calculate.
             return
 
-        sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/{cost_type_file}")
-        sql = sql.decode("utf-8")
+        # Insert
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
             "source_uuid": provider_uuid,
-            "report_period_id": report_period_id,
+            "report_period_id": report_period.id,
             "rate": rate,
             "cost_type": cost_type,
             "rate_type": rate_type,
             "distribution": distribution,
         }
+        self._delete_monthly_cost_model_data(sql_params, ctx)
+        insert_sql = pkgutil.get_data("masu.database", cost_type_file)
+        insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        if "trino_sql/" in cost_type_file:
+            self._execute_trino_multipart_sql_query(insert_sql, bind_params=sql_params)
+        else:
+            self._prepare_and_execute_raw_sql_query(table_name, insert_sql, sql_params, operation="INSERT")
 
     def populate_tag_cost_sql(
         self, cost_type, rate_type, tag_key, case_dict, start_date, end_date, distribution, provider_uuid
