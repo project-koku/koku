@@ -126,8 +126,6 @@ class TestCostUsageReportStatus(MasuTestCase):
             Provider.PROVIDER_AWS: self.aws_provider,
             Provider.PROVIDER_AZURE: self.azure_provider,
             Provider.PROVIDER_GCP: self.gcp_provider,
-            Provider.PROVIDER_OCI: self.oci_provider,
-            Provider.PROVIDER_OCP: self.ocp_provider,
         }
         count = 0
         for test_provider_type, test_provider in test_matrix.items():

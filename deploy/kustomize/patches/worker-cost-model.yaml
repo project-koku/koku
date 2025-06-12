@@ -33,12 +33,6 @@
           value: ${AWS_SHARED_CREDENTIALS_FILE}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
-        - name: OCI_SHARED_CREDENTIALS_FILE
-          value: ${OCI_SHARED_CREDENTIALS_FILE}
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: "true"
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -162,9 +156,6 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
-      - name: oci-credentials
-        mountPath: /etc/oci
-        readOnly: true
       - name: tmp-data
         mountPath: ${TMP_DIR}
       volumes:
@@ -184,14 +175,6 @@
           items:
             - key: gcp-credentials
               path: gcp-credentials.json
-      - name: oci-credentials
-        secret:
-          secretName: koku-oci
-          items:
-            - key: oci-credentials
-              path: oci-credentials.pem
-            - key: oci-config
-              path: oci-config
 
 - op: add
   path: /parameters/-

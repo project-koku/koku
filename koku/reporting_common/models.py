@@ -54,7 +54,7 @@ class CostUsageReportManifest(models.Model):
     operator_daily_reports = models.BooleanField(null=True, default=False)
     cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
-    # report_tracker is additional context for OCI/GCP/OCP for managing file counts and file names
+    # report_tracker is additional context for GCP/OCP for managing file counts and file names
     report_tracker = models.JSONField(default=dict, null=True)
     # s3_parquet_cleared_tracker is additional parquet context for OCP daily operator payloads
     s3_parquet_cleared_tracker = models.JSONField(default=dict, null=True)

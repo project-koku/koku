@@ -85,23 +85,6 @@ class AzureCostForecastViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-class OCICostForecastViewTest(IamTestCase):
-    """Tests the OCICostForecastView."""
-
-    def setUp(self):
-        """Set up the rate view tests."""
-        super().setUp()
-        caches[CacheEnum.rbac].clear()
-
-    @RbacPermissions({"oci.payer_tenant_id": {"read": ["*"]}})
-    def test_get_forecast(self):
-        """Test that gettng a forecast works."""
-        url = reverse("oci-cost-forecasts")
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-
 class OCPCostForecastViewTest(IamTestCase):
     """Tests the OCPCostForecastView."""
 

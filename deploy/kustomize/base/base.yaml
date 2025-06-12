@@ -285,11 +285,6 @@ parameters:
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
-- name: OCI_SHARED_CREDENTIALS_FILE
-  value: "/etc/oci/oci-config"
-- name: OCI_CLI_KEY_FILE
-  description: OCI Credentials Location
-  value: "/etc/oci/oci-credentials.pem"
 - name: GLITCHTIP_SECRET_NAME
   description: secret containing Glitchtip (or Sentry) credentials
   value: koku-sentry
@@ -610,9 +605,8 @@ parameters:
   displayName: Enable SUBS Debug
   name: ENABLE_SUBS_DEBUG
   value: "False"
-- description: Enable ROS Kafka Debug
-  displayName: Enable ROS Debug
-  name: ENABLE_ROS_DEBUG
+- description: Disable ROS Kafka messages
+  name: DISABLE_ROS_MSG
   value: "False"
 - description: Enable SUBS Provider Types for Processing
   displayname: Enable SUBS Provider Types

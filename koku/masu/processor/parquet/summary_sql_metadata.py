@@ -18,7 +18,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 @dataclass
 class SummarySqlMetadata:
     schema: str
-    ocp_provider_uuids: List[str]
+    ocp_provider_uuid: str
     cloud_provider_uuid: str
     start_date: date
     end_date: date
@@ -29,8 +29,8 @@ class SummarySqlMetadata:
 
     def __post_init__(self):
         self._check_date_parameters_format()
-        if not self.ocp_provider_uuids:
-            raise ValueError("ocp_provider_uuids must not be empty.")
+        if not self.ocp_provider_uuid:
+            raise ValueError("ocp_provider_uuid must not be empty.")
         if len(self.cloud_provider_uuid) == 0:
             raise ValueError("cloud_provider_uuid must not be empty.")
         if self.start_date > self.end_date:
@@ -51,7 +51,7 @@ class SummarySqlMetadata:
         self.year = self.start_date.strftime("%Y")
         self.month = self.start_date.strftime("%m")
 
-    def build_cost_model_params(self, ocp_provider_uuid):
+    def build_cost_model_params(self):
         """Set summary parameters based off cost model"""
         cost_model_params = {}
         with CostModelDBAccessor(self.schema, self.cloud_provider_uuid) as cost_model_accessor:
@@ -59,7 +59,7 @@ class SummarySqlMetadata:
             markup_value = Decimal(markup.get("value", 0)) / 100
             cost_model_params["markup"] = markup_value or 0
 
-        with CostModelDBAccessor(self.schema, ocp_provider_uuid) as cost_model_accessor:
+        with CostModelDBAccessor(self.schema, self.ocp_provider_uuid) as cost_model_accessor:
             cost_model_params["distribution"] = cost_model_accessor.distribution_info.get(
                 "distribution_type", DEFAULT_DISTRIBUTION_TYPE
             )
@@ -82,7 +82,7 @@ class SummarySqlMetadata:
             "month": self.month,
             "year": self.year,
             "matched_tag_strs": self.matched_tag_strs,
-            "ocp_provider_uuids": self.ocp_provider_uuids,
+            "ocp_provider_uuid": self.ocp_provider_uuid,
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,
@@ -100,7 +100,7 @@ class SummarySqlMetadata:
             "month": self.month,
             "year": self.year,
             "matched_tag_strs": self.matched_tag_strs,
-            "ocp_provider_uuids": self.ocp_provider_uuids,
+            "ocp_provider_uuid": self.ocp_provider_uuid,
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,

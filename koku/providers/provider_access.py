@@ -16,8 +16,6 @@ from providers.azure.provider import AzureProvider
 from providers.azure_local.provider import AzureLocalProvider
 from providers.gcp.provider import GCPProvider
 from providers.gcp_local.provider import GCPLocalProvider
-from providers.oci.provider import OCIProvider
-from providers.oci_local.provider import OCILocalProvider
 from providers.ocp.provider import OCPProvider
 
 LOG = logging.getLogger(__name__)
@@ -45,8 +43,6 @@ class ProviderAccessor:
         services = {
             Provider.PROVIDER_AWS: AWSProvider,
             Provider.PROVIDER_AWS_LOCAL: AWSLocalProvider,
-            Provider.PROVIDER_OCI: OCIProvider,
-            Provider.PROVIDER_OCI_LOCAL: OCILocalProvider,
             Provider.PROVIDER_AZURE_LOCAL: AzureLocalProvider,
             Provider.PROVIDER_OCP: OCPProvider,
             Provider.PROVIDER_AZURE: AzureProvider,

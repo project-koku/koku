@@ -55,7 +55,7 @@ def get_month_start_from_report(report):
         start_date = parser.parse(report.get("start"))
         return DateHelper().month_start_utc(start_date)
     else:
-        # GCP and OCI set report start and report end, AWS/Azure do not
+        # GCP sets report start and report end, AWS/Azure do not
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(report.get("manifest_id"))
             return manifest.billing_period_start_datetime if manifest else None

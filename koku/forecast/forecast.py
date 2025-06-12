@@ -39,7 +39,6 @@ from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.provider_map import AzureProviderMap
 from api.report.gcp.openshift.provider_map import OCPGCPProviderMap
 from api.report.gcp.provider_map import GCPProviderMap
-from api.report.oci.provider_map import OCIProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
@@ -661,10 +660,3 @@ class GCPForecast(Forecast):
 
     provider = Provider.PROVIDER_GCP
     provider_map_class = GCPProviderMap
-
-
-class OCIForecast(Forecast):
-    """OCI forecasting class."""
-
-    provider = Provider.PROVIDER_OCI
-    provider_map_class = OCIProviderMap

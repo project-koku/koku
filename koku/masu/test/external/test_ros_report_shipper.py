@@ -7,10 +7,13 @@ from unittest.mock import patch
 
 from botocore.exceptions import EndpointConnectionError
 from django.test import TestCase
+from django.test.utils import override_settings
 from model_bakery import baker
 
 from api.utils import DateHelper
 from masu.external.ros_report_shipper import ROSReportShipper
+from masu.test.util.ocp.test_common import ManifestFactory
+from masu.util.ocp import common as utils
 
 
 class TestROSReportShipper(TestCase):
@@ -26,23 +29,28 @@ class TestROSReportShipper(TestCase):
         cls.cluster_id = "ros-ocp-cluster-test"
         cls.account_id = "1234"
         cls.org_id = "5678"
-        test_report_meta = {
-            "cluster_id": cls.cluster_id,
-            "manifest_id": "300",
-            "source_id": cls.source_id,
-            "provider_uuid": cls.provider_uuid,
-            "request_id": cls.request_id,
-            "schema_name": cls.schema_name,
-        }
+        cls.cluster_alias = "ROS Shipper Testing"
+        cls.manifest = ManifestFactory.build(manifest_id=300, cluster_id=cls.cluster_id)
+        payload = utils.PayloadInfo(
+            request_id=cls.request_id,
+            manifest=cls.manifest,
+            source_id=cls.source_id,
+            provider_uuid=cls.provider_uuid,
+            provider_type="OCP",
+            cluster_alias=cls.cluster_alias,
+            account_id=cls.account_id,
+            org_id=cls.org_id,
+            schema_name=cls.schema_name,
+            trino_schema=cls.schema_name,
+        )
         test_context = {
             "account": cls.account_id,
             "org_id": cls.org_id,
         }
-        cls.provider = baker.make("Provider", uuid=cls.provider_uuid, name="my-source-name")
+        cls.provider = baker.make("Provider", uuid=cls.provider_uuid, name=cls.cluster_alias)
         with patch("masu.external.ros_report_shipper.get_ros_s3_client"):
             cls.ros_shipper = ROSReportShipper(
-                cls.provider,
-                test_report_meta,
+                payload,
                 cls.b64_identity,
                 test_context,
             )
@@ -53,7 +61,7 @@ class TestROSReportShipper(TestCase):
         actual = self.ros_shipper.ros_s3_path
         self.assertEqual(expected, actual)
 
-    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=True)
+    @override_settings(DISABLE_ROS_MSG=False)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
@@ -64,18 +72,18 @@ class TestROSReportShipper(TestCase):
         mock_ros_msg.assert_called_once()
         mock_kafka_msg.assert_called_once()
 
-    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=False)
+    @override_settings(DISABLE_ROS_MSG=True)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
-    def test_process_manifest_reports_unleash_gate(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
+    def test_process_manifest_reports_gated(self, mock_kafka_msg, mock_ros_msg, mock_report_copy, *args):
         """Tests that process_manifest_reports flows as expected with unleash gating."""
         self.ros_shipper.process_manifest_reports([("report1", "path1")])
         mock_report_copy.assert_called_once()
         mock_ros_msg.assert_not_called()
         mock_kafka_msg.assert_not_called()
 
-    @patch("masu.external.ros_report_shipper.UNLEASH_CLIENT.is_enabled", return_value=True)
+    @override_settings(DISABLE_ROS_MSG=False)
     @patch("masu.external.ros_report_shipper.ROSReportShipper.copy_local_report_file_to_ros_s3_bucket")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.build_ros_msg")
     @patch("masu.external.ros_report_shipper.ROSReportShipper.send_kafka_message")
@@ -117,8 +125,8 @@ class TestROSReportShipper(TestCase):
                 "source_id": self.source_id,
                 "provider_uuid": self.provider_uuid,
                 "cluster_uuid": self.cluster_id,
-                "operator_version": None,
-                "cluster_alias": "my-source-name",
+                "operator_version": self.manifest.operator_version,
+                "cluster_alias": self.cluster_alias,
             },
             "files": ["report1_url"],
             "object_keys": ["path1"],

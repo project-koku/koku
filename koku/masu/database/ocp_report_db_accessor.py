@@ -9,6 +9,7 @@ import logging
 import os
 import pkgutil
 import uuid
+from uuid import uuid4
 
 from dateutil.parser import parse
 from django.db import IntegrityError
@@ -30,7 +31,6 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
-from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import TRINO_LINE_ITEM_DAILY_TABLE as AWS_TRINO_LINE_ITEM_DAILY_TABLE
@@ -44,6 +44,7 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
+from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
 LOG = logging.getLogger(__name__)
 
@@ -98,11 +99,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
-        self._populate_virtualization_storage_costs(sql_params)
+        self._populate_virtualization_ui_summary_table(sql_params)
 
-    def _populate_virtualization_storage_costs(self, sql_params):
+    def _populate_virtualization_ui_summary_table(self, sql_params):
         """
-        Add storage costs for virtualization.
+        Populates the virtualization ui table.
         """
         trino_query_requirements = [
             self.schema_exists_trino(),
@@ -112,27 +113,40 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ]
         if not all(trino_query_requirements):
             return
-        # We utillize the pod name in trino parquet files to build
-        # a mapping of pvcs to vm_names.
         start_date = DateHelper().parse_to_date(sql_params["start_date"])
         sql_params["year"] = start_date.strftime("%Y")
         sql_params["month"] = start_date.strftime("%m")
-        pvc_to_vm_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/pvc_to_vm_name_mapping.sql")
-        pvc_to_vm_sql = pvc_to_vm_sql.decode("utf-8")
-        rows = self._execute_trino_multipart_sql_query(pvc_to_vm_sql, bind_params=sql_params)
-        try:
-            pvc_to_vm_json_str = rows[0][0]
-        except IndexError:
-            return
-        if not pvc_to_vm_json_str:
-            return
-
-        # Utilize the mapping in the postgresql insert
-        sql_params["pvc_to_vm_json_str"] = pvc_to_vm_json_str
-        sql = pkgutil.get_data("masu.database", "sql/openshift/reporting_ocp_vm_summary_p_storage.sql")
+        # create the temp table
+        sql_params["uuid"] = str(uuid4().hex)
+        create_temp_table_sql = pkgutil.get_data("masu.database", "sql/openshift/create_virtualization_tmp_table.sql")
+        create_temp_table_sql = create_temp_table_sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            "create temp virtualization table", create_temp_table_sql, sql_params, operation="CREATE"
+        )
+        # This pathway won't be needed if/when we require users to utilize 4.0.0 operator
+        population_temp_table_file = "populate_vm_tmp_table.sql"
+        vm_report_table = TRINO_LINE_ITEM_TABLE_DAILY_MAP["vm_usage"]
+        if trino_table_exists(self.schema, vm_report_table):
+            source_uuid = sql_params.get("source_uuid")
+            source_sql = f"""
+                SELECT count(*) from hive.{self.schema}."{vm_report_table}$partitions"
+                WHERE source = '{source_uuid}'
+                """
+            source_available = self._execute_trino_raw_sql_query(
+                source_sql,
+                log_ref=f"Checking if source is in {vm_report_table}",
+            )[0][0]
+            if source_available:
+                population_temp_table_file = "populate_vm_tmp_table_with_vm_report.sql"
+        populate_temp_table_sql = pkgutil.get_data(
+            "masu.database", f"trino_sql/openshift/{population_temp_table_file}"
+        )
+        populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
+        self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
+        # populate vm UI table
+        sql = pkgutil.get_data("masu.database", f"sql/openshift/{VM_UI_SUMMARY_TABLE}.sql")
         sql = sql.decode("utf-8")
-        self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params, operation="INSERT")
-        return True
+        self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
 
     def update_line_item_daily_summary_with_tag_mapping(self, start_date, end_date, report_period_ids=None):
         """Maps child keys to parent key.
@@ -180,7 +194,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         check_aws = False
         check_azure = False
         check_gcp = False
-        resource_level = False
 
         if not self.table_exists_trino(TRINO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
@@ -194,11 +207,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return {}
         if gcp_provider_uuid or ocp_provider_uuid:
             check_gcp = self.table_exists_trino(GCP_TRINO_LINE_ITEM_DAILY_TABLE)
-            # Check for GCP resource level data
-            if gcp_provider_uuid:
-                resource_level = check_resource_level(gcp_provider_uuid)
-                if not check_gcp:
-                    return {}
+            if gcp_provider_uuid and not check_gcp:
+                return {}
         if not any([check_aws, check_azure, check_gcp]):
             return {}
 
@@ -229,7 +239,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     "ocp_provider_uuid": ocp_provider_uuid,
                     "azure_provider_uuid": azure_provider_uuid,
                     "gcp_provider_uuid": gcp_provider_uuid,
-                    "resource_level": resource_level,
                 }
 
                 results = self._execute_trino_raw_sql_query(
@@ -1199,6 +1208,23 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "schema": self.schema,
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
+
+    def populate_unit_test_virt_ui_table(self, report_period_ids, start_date, end_date, source_uuid):
+        """
+        This method populates the vm table
+        """
+        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_virt_ui.sql")
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_ids": report_period_ids,
+            "schema": self.schema,
+            "pod_request_cpu_core_hours": 1,
+            "pod_request_mem_core_hours": 4,
+            "source_uuid": source_uuid,
+        }
+        self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params)
 
     def populate_vm_count_tag_based_costs(self, start_date, end_date, provider_uuid, tag_based_price_list):
         """Populate the VM count tag based costs.

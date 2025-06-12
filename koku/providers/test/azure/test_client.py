@@ -5,6 +5,7 @@
 """Test Azure Client Class."""
 import random
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
@@ -112,7 +113,7 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        with patch.object(StorageManagementClient, "storage_accounts", return_value=None):
+        with patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock):
             cloud_account = obj.cloud_storage_account(resource_group_name, storage_account_name)
             self.assertTrue(isinstance(cloud_account, BlobServiceClient))
 

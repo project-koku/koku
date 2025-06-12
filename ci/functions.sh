@@ -58,8 +58,6 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
     elif grep -E "gcp-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
-    elif grep -E "oci-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
     elif grep -E "ocp-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="(test_api_ocp or test_api_cost_model_ocp or aws_ingest_single or aws_ingest_multi) and not ocp_on_gcp and not ocp_on_azure and not ocp_on_cloud"
         export IQE_MARKER_EXPRESSION="cost_smoke and not cost_exclude_ocp_smokes"
@@ -70,8 +68,8 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
         export IQE_FILTER_EXPRESSION="test_api_cost_model or ocp_source_raw"
     elif grep -E "full-run-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
-        export RESERVATION_TIMEOUT="6h15m"
-        export IQE_CJI_TIMEOUT="6h"
+        export RESERVATION_TIMEOUT="7h15m"
+        export IQE_CJI_TIMEOUT="7h"
     elif grep -E "smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
@@ -96,7 +94,6 @@ function run_smoke_tests_stage() {
 
     oc get secret koku-aws -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
     oc get secret koku-gcp -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
-    oc get secret koku-oci -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
 
     bonfire deploy \
         ${APP_NAME} \

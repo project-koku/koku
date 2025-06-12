@@ -20,7 +20,6 @@ def build_rbac_permissions(rbac_dict):
         "gcp.account": {"read": []},
         "gcp.project": {"read": []},
         "azure.subscription_guid": {"read": []},
-        "oci.payer_tenant_id": {"read": []},
         "openshift.cluster": {"read": []},
         "openshift.node": {"read": []},
         "openshift.project": {"read": []},
@@ -235,17 +234,6 @@ class UserAccessViewTest(IamTestCase):
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
         testing_matrix = {"any": {"access": True}, "azure": {"access": True}}
-        expected_output = build_expected_ouput(testing_matrix)
-        for result in response.data.get("data"):
-            with self.subTest(result=result):
-                self.assertIn(result, expected_output)
-
-    @RbacPermissions(build_rbac_permissions({"oci.payer_tenant_id": {"read": ["*"]}}))
-    def test_oci_view_wildcard(self):
-        """Test user-access view with oci tenant wildcard permission."""
-        url = reverse("user-access")
-        response = self.client.get(url, **self.headers)
-        testing_matrix = {"any": {"access": True}, "oci": {"access": True}}
         expected_output = build_expected_ouput(testing_matrix)
         for result in response.data.get("data"):
             with self.subTest(result=result):

@@ -42,7 +42,6 @@ def create_expected_access(access_dict=None, default_write=None, default_read=No
         "openshift.cluster": default_read,
         "openshift.node": default_read,
         "openshift.project": default_read,
-        "oci.payer_tenant_id": default_read,
     }
     return default | access_dict
 
