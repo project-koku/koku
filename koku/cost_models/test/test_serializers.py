@@ -391,7 +391,7 @@ class CostModelSerializerTest(IamTestCase):
         serializer = CostModelSerializer(data=None)
 
         for metric_choice in metric_constants.METRIC_CHOICES:
-            response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice[0])
+            response = serializer._get_metric_display_data(Provider.PROVIDER_OCP, metric_choice)
             self.assertIsNotNone(response.get("label_measurement_unit"))
             self.assertIsNotNone(response.get("label_measurement"))
             self.assertIsNotNone(response.get("label_metric"))
