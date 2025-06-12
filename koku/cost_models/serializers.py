@@ -213,8 +213,8 @@ class RateSerializer(serializers.Serializer):
     @property
     def metric_map(self):
         """Return a metric map dictionary with default values."""
-        metrics = deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
-        return {metric.get("metric"): metric.get("default_cost_type") for metric in metrics}
+        metrics = metric_constants.get_cost_model_metrics_map()
+        return {metric: value.get("default_cost_type") for metric, value in metrics.items()}
 
     @staticmethod
     def _convert_to_decimal(rate):
@@ -321,7 +321,7 @@ class RateSerializer(serializers.Serializer):
             data["tag_rates"] = tag_rates
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in [metric for metric, _ in metric_constants.METRIC_CHOICES]:
+        if data.get("metric").get("name") not in metric_constants.METRIC_CHOICES:
             error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
             raise serializers.ValidationError(error_msg)
 
@@ -430,13 +430,13 @@ class CostModelSerializer(BaseSerializer):
     def metric_map(self):
         """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
-        metric_map = deepcopy(metric_constants.COST_MODEL_METRIC_MAP)
-        for metric in metric_map:
+        metric_map = metric_constants.get_cost_model_metrics_map()
+        for metric, value in metric_map.items():
             try:
-                metric_map_by_source[metric.get("source_type")][metric.get("metric")] = metric
-            except TypeError:
+                metric_map_by_source[value["source_type"]][metric] = value
+            except KeyError as e:
                 LOG.error("Invalid Cost Model Metric Map", exc_info=True)
-                raise CostModelMetricMapJSONException("Internal Server Error.")
+                raise CostModelMetricMapJSONException("Internal Server Error.") from e
         return metric_map_by_source
 
     @property

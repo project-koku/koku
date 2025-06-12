@@ -73,14 +73,14 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_qa:approved||label_Mapping-B:B
+                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_qa:approved|label_Mapping-B:B
               volumes:
                 - volume:
                   volume_name: pvc-volume_2
                   csi_volume_handle: vol-12345673
                   storage_class: gp3-csi
                   volume_request_gig: 20
-                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta||label_Mapping-B:B
+                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:delta|label_Mapping-B:B
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: catalog_pod_name2_data
