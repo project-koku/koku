@@ -46,8 +46,8 @@ from yaml import safe_load
 
 BASEDIR = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_CONFIG = BASEDIR + "/test_customer.yaml"
-SUPPORTED_SOURCES_REAL = ["AWS", "Azure", "OCP", "GCP", "OCI"]
-SUPPORTED_SOURCES = SUPPORTED_SOURCES_REAL + ["AWS-local", "Azure-local", "GCP-local", "OCI-local"]
+SUPPORTED_SOURCES_REAL = ["AWS", "Azure", "OCP", "GCP"]
+SUPPORTED_SOURCES = SUPPORTED_SOURCES_REAL + ["AWS-local", "Azure-local", "GCP-local"]
 
 SLEEP = 60
 

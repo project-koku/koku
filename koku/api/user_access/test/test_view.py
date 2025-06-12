@@ -35,7 +35,7 @@ def build_expected_ouput(testing_dict=None, default_access=False, default_write=
         testing_dict = {}
 
     expected_output = []
-    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "oci", "azure", "cost_model", "settings"]
+    matrix_keys = ["any", "aws", "ocp", "azure", "gcp", "azure", "cost_model", "settings"]
     for key in matrix_keys:
         test_info = testing_dict.get(key, {})
         expected_format = {
