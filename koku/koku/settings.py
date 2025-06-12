@@ -58,7 +58,6 @@ ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
 
 ALLOWED_HOSTS = ["*"]
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -342,7 +341,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/2.0/topics/i18n/
 
@@ -562,7 +560,6 @@ KOKU_DEFAULT_COST_TYPE = ENVIRONMENT.get_value("KOKU_DEFAULT_COST_TYPE", default
 KOKU_DEFAULT_TIMEZONE = ENVIRONMENT.get_value("KOKU_DEFAULT_TIMEZONE", default="UTC")
 KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value("KOKU_DEFAULT_LOCALE", default="en_US.UTF-8")
 
-
 # Cors Setup
 # See https://github.com/ottoyiu/django-cors-headers
 CORS_ORIGIN_ALLOW_ALL = True
@@ -612,9 +609,6 @@ TRINO_HOST = ENVIRONMENT.get_value("TRINO_HOST", default=None)
 TRINO_PORT = ENVIRONMENT.get_value("TRINO_PORT", default=None)
 TRINO_DATE_STEP = ENVIRONMENT.int("TRINO_DATE_STEP", default=5)
 TRINO_S3A_OR_S3 = ENVIRONMENT.get_value("TRINO_S3A_OR_S3", default="s3a")
-
-# IBM Settings
-IBM_SERVICE_URL = ENVIRONMENT.get_value("IBM_SERVICE_URL", default="https://enterprise.cloud.ibm.com")
 
 # Time to wait between cold storage retrieval for data export. Default is 3 hours
 COLD_STORAGE_RETRIVAL_WAIT_TIME = ENVIRONMENT.int("COLD_STORAGE_RETRIVAL_WAIT_TIME", default=10800)
