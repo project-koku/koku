@@ -33,8 +33,6 @@ google-auth = ">=1.22.1"
 google-cloud-bigquery = ">=2.2.0"
 google-cloud-storage = "*"
 gunicorn = "*"
-ibm-cloud-sdk-core = ">=3.5.2"
-ibm-platform-services = ">=0.17.8"
 jinjasql2 = "*"
 kombu = "<5.3"  # https://issues.redhat.com/browse/COST-3997
 msrestazure = "*"
