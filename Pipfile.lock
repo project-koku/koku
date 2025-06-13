@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b8099c8f8b37eb13826b55d71bf9adf470f19daed3b8415f44f53d09dc456196"
+            "sha256": "5c621fe03db3daa125f5064582baeea6098dc8a4c79676dc3f90b3f99fb40b5d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -878,24 +878,6 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==0.22.0"
-        },
-        "ibm-cloud-sdk-core": {
-            "hashes": [
-                "sha256:28eb70379977bac15318a07634e4b56d9de671186090d8accec180b77ffb7969",
-                "sha256:96b4b4deefc7b72874ef44545362e63ee3a7d6a4c82e68f36c482c8033683ab3"
-            ],
-            "index": "pypi",
-            "markers": "python_version >= '3.9'",
-            "version": "==3.24.1"
-        },
-        "ibm-platform-services": {
-            "hashes": [
-                "sha256:a8865d5d0e6078a4f9edeb4945b0454b4495514b1054eb22f2cf53309dfb347b",
-                "sha256:fc35ab5bc93d5a9ad3ce42e2c44210b6fa146a243a3acc18b3ad1be417f66557"
-            ],
-            "index": "pypi",
-            "markers": "python_version >= '3.9'",
-            "version": "==0.66.1"
         },
         "idna": {
             "hashes": [
