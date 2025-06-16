@@ -30,7 +30,7 @@ function set_label_flags() {
     if ! grep -q 'run-jenkins-tests' <<< "$PR_LABELS"; then
         echo "[INFO] PR is not labeled to run Jenkins tests. Skipping Jenkins pipeline."
         SKIP_PR_CHECK='true'
-        EXIT_CODE=1
+        EXIT_CODE=0
         return 0
     fi
 
