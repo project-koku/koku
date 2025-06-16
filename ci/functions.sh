@@ -18,7 +18,6 @@ function get_pr_labels() {
 }
 
 function set_label_flags() {
-
     local PR_LABELS
 
     if ! PR_LABELS=$(get_pr_labels); then
@@ -26,17 +25,21 @@ function set_label_flags() {
         return 1
     fi
 
-    if ! grep -E 'lgtm|pr-check-build|.*smoke-tests|ok-to-skip-smokes|run-konflux-tests' <<< "$PR_LABELS"; then
+    echo "[INFO] PR labels found: $PR_LABELS"
+
+    if ! grep -q 'run-jenkins-tests' <<< "$PR_LABELS"; then
+        echo "[INFO] PR is not labeled to run Jenkins tests. Skipping Jenkins pipeline."
         SKIP_PR_CHECK='true'
         EXIT_CODE=1
-        echo "PR check skipped"
-    elif grep -E 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
-        SKIP_PR_CHECK='true'
+        return 0
+    fi
+
+    echo "[INFO] PR is labeled to run Jenkins tests. Proceeding..."
+
+    if grep -q 'ok-to-skip-smokes' <<< "$PR_LABELS"; then
+        SKIP_SMOKE_TESTS='true'
         echo "smokes not required"
-    elif grep -E 'run-konflux-tests' <<< "$PR_LABELS"; then
-        SKIP_PR_CHECK='true'
-        echo "Skipping test run since PR is labled to run tests in Konflux."
-    elif ! grep -E '.*smoke-tests' <<< "$PR_LABELS"; then
+    elif ! grep -q '.*smoke-tests' <<< "$PR_LABELS"; then
         echo "WARNING! No smoke-tests labels found!, PR smoke tests will be skipped"
         SKIP_SMOKE_TESTS='true'
         EXIT_CODE=2
