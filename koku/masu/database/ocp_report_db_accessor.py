@@ -546,7 +546,14 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         if not rate:
             self._delete_monthly_cost_model_data(
-                {"schema": self.schema, "report_period_id": report_period.id, "cost_type": cost_type}, ctx
+                {
+                    "schema": self.schema,
+                    "report_period_id": report_period.id,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "cost_type": cost_type,
+                },
+                ctx,
             )
             return
 
