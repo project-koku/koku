@@ -22,6 +22,7 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.database.sql_runner import ReportingAWSCatagorySummary
 from masu.processor import is_feature_unattributed_storage_enabled_aws
 from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor import is_tag_processing_disabled
@@ -144,11 +145,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_category_summary_table(self, bill_ids, start_date, end_date):
         """Populate the category key values table."""
-        table_name = self._table_map["category_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/reporting_awscategory_summary.sql")
-        sql = sql.decode("utf-8")
+        # table_name = self._table_map["category_summary"]
+        # sql = pkgutil.get_data("masu.database", "sql/reporting_awscategory_summary.sql")
+        # sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
+        ReportingAWSCatagorySummary.execute(self.schema, sql_params=sql_params)
+        # self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
