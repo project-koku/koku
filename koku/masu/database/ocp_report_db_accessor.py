@@ -544,17 +544,19 @@ GROUP BY partitions.year, partitions.month, partitions.source
             )
             return
 
+        # always delete existing cost-type data
+        self._delete_monthly_cost_model_data(
+            {
+                "schema": self.schema,
+                "report_period_id": report_period.id,
+                "start_date": start_date,
+                "end_date": end_date,
+                "cost_type": cost_type,
+            },
+            ctx,
+        )
         if not rate:
-            self._delete_monthly_cost_model_data(
-                {
-                    "schema": self.schema,
-                    "report_period_id": report_period.id,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "cost_type": cost_type,
-                },
-                ctx,
-            )
+            # since we don't have a rate, we have no new costs to calculate.
             return
 
         # Insert
@@ -569,7 +571,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "rate_type": rate_type,
             "distribution": distribution,
         }
-        self._delete_monthly_cost_model_data(sql_params, ctx)
         insert_sql = pkgutil.get_data("masu.database", cost_type_file)
         insert_sql = insert_sql.decode("utf-8")
         LOG.info(log_json(msg="populating monthly costs", context=ctx))

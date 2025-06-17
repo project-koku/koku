@@ -980,7 +980,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with self.accessor as acc:
             acc.populate_usage_costs(
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
-                {metric_constants.OCP_VM_HOUR: 1},
+                {metric_constants.OCP_VM_HOUR: 1, metric_constants.OCP_VM_CORE_HOUR: 2},
                 metric_constants.DEFAULT_DISTRIBUTION_TYPE,
                 self.dh.this_month_start,
                 self.dh.this_month_end,
