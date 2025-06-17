@@ -143,7 +143,7 @@ class QueryParameters:
             return key
         for prefix in prefix_list:
             if key.startswith(prefix):
-                return key[len(prefix):]
+                return key[len(prefix) :]
 
     def _configure_access_params(self, caller):
         """Configure access for the appropriate providers."""
@@ -304,9 +304,9 @@ class QueryParameters:
                 access_list = self.parameters.get("access").get(filter_key)
 
             if (
-                    "org_unit_id" in filters
-                    and access_key == "aws.account"
-                    and set(org_unit_filter).issubset(org_unit_access_list)
+                "org_unit_id" in filters
+                and access_key == "aws.account"
+                and set(org_unit_filter).issubset(org_unit_access_list)
             ):
                 account_group_by = group_by.get(filter_key, [])
                 org_unit_accts = self._get_org_unit_account_hierarchy(org_unit_access_list)
@@ -366,16 +366,14 @@ class QueryParameters:
         with tenant_context(self.tenant):
             # Step 1: load EnabledTagKeys
             enabled_keys = (
-                EnabledTagKeys.objects
-                .filter(provider_type__in=self.tag_providers)
+                EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers)
                 .values_list("key", flat=True)
                 .distinct()
             )
             self.tag_keys.update(enabled_keys)
             # Step 2: add parent keys from TagMapping
             parent_keys = (
-                TagMapping.objects
-                .filter(parent__provider_type__in=self.tag_providers)
+                TagMapping.objects.filter(parent__provider_type__in=self.tag_providers)
                 .values_list("parent__key", flat=True)
                 .distinct()
             )
