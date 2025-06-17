@@ -149,7 +149,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # sql = pkgutil.get_data("masu.database", "sql/reporting_awscategory_summary.sql")
         # sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
-        ReportingAWSCatagorySummary.execute(self.schema, sql_params=sql_params)
+        ReportingAWSCatagorySummary(**sql_params).execute(self.schema, sql_params=sql_params)
         # self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
