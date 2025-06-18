@@ -1872,7 +1872,15 @@ objects:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        maxReplicaCount: ${WORKER_DOWNLOAD_MAX_REPLICAS}
+        minReplicaCount: 1
+        triggers:
+        - metadata:
+            query: koku:celery:${WORKER_DOWNLOAD_WORKER_QUEUE}
+            threshold: "25"
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -5900,6 +5908,10 @@ parameters:
   name: WORKER_DOWNLOAD_REPLICAS
   required: true
   value: "2"
+- displayName: Maximum replicas
+  name: WORKER_DOWNLOAD_MAX_REPLICAS
+  required: true
+  value: "10"
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_DOWNLOAD
   required: true

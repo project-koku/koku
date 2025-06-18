@@ -180,6 +180,16 @@
             - key: gcp-credentials
               path: gcp-credentials.json
 
+    autoScaler:
+      maxReplicaCount: ${WORKER_DOWNLOAD_MAX_REPLICAS}
+      minReplicaCount:  1
+      triggers:
+      - type: prometheus
+        metadata:
+          threshold: '25'
+          query: koku:celery:${WORKER_DOWNLOAD_WORKER_QUEUE}
+
+
 - op: add
   path: /parameters/-
   value:
@@ -187,6 +197,13 @@
     name: WORKER_DOWNLOAD_REPLICAS
     required: true
     value: '2'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Maximum replicas
+    name: WORKER_DOWNLOAD_MAX_REPLICAS
+    required: true
+    value: '10'
 - op: add
   path: /parameters/-
   value:
