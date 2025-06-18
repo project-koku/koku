@@ -4,7 +4,7 @@
 #
 """Test the Cost Model serializers."""
 from api.metrics import constants as metric_constants
-from cost_models.sql_parameters import VMCountParams
+from cost_models.sql_parameters import VMParams
 from masu.test import MasuTestCase
 
 
@@ -13,7 +13,7 @@ class CostModelSQLParameterTest(MasuTestCase):
 
     def test_invalid_dates(self):
         with self.assertRaises(ValueError):
-            VMCountParams(
+            VMParams(
                 schema=self.schema_name,
                 start_date=str(self.dh.this_month_end),
                 end_date=str(self.dh.this_month_start),
@@ -43,7 +43,7 @@ class CostModelSQLParameterTest(MasuTestCase):
                 },
             }
         }
-        params = VMCountParams(
+        params = VMParams(
             schema=self.schema_name,
             start_date=str(self.dh.this_month_start.date()),
             end_date=str(self.dh.this_month_end.date()),
@@ -78,7 +78,7 @@ class CostModelSQLParameterTest(MasuTestCase):
                 },
             }
         }
-        params = VMCountParams(
+        params = VMParams(
             schema=self.schema_name,
             start_date=str(self.dh.this_month_start.date()),
             end_date=str(self.dh.this_month_end.date()),
@@ -94,7 +94,7 @@ class CostModelSQLParameterTest(MasuTestCase):
     def test_no_tag_based_rates(self):
         """Test no tag based rates"""
         tag_price_list = {}
-        params = VMCountParams(
+        params = VMParams(
             schema=self.schema_name,
             start_date=str(self.dh.this_month_start.date()),
             end_date=str(self.dh.this_month_end.date()),

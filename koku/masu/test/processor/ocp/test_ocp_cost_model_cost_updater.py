@@ -195,6 +195,28 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 self.assertEqual(row.get("memory_cost"), 0)
                 self.assertEqual(row.get("volume_cost"), 0)
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_monthly_cost_infrastructure_trino_connector(self, mock_cost_accessor, mock_db_accessor):
+        """Test OCP charge for monthly costs is updated thru trino connector."""
+        node_cost = random.randrange(1, 200)
+        infrastructure_rates = {"vm_core_cost_per_month": node_cost}
+        mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
+        mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
+        mock_cost_accessor.return_value.__enter__.return_value.distribution_info = self.distribution_info
+        with schema_context(self.schema):
+            usage_period = (
+                OCPUsageReportPeriod.objects.filter(provider_id=self.provider_uuid)
+                .order_by("-report_period_start")
+                .first()
+            )
+
+        start_date = usage_period.report_period_start.date()
+        end_date = usage_period.report_period_end.date() - relativedelta(days=1)
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_monthly_cost(start_date, end_date)
+        mock_db_accessor.assert_called_once()
+
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_supplementary(self, mock_cost_accessor):
         """Test OCP charge for monthly costs is updated."""

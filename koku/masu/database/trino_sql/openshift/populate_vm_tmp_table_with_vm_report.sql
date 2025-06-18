@@ -15,8 +15,10 @@ FROM (
     SELECT
         vm.vm_name,
         vm.node,
-        max(vm.vm_cpu_request_cores) as cpu_request,
-        max(vm.vm_memory_request_bytes) * power(2, -30) as mem_request
+        -- do not blindly copy multiplying by 24. This value is for compatibility with the API
+        -- where 24 is divided out.
+        max(vm.vm_cpu_request_cores) * 24 as cpu_request,
+        max(vm.vm_memory_request_bytes) * power(2, -30) * 24 as mem_request
     FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items as vm
     WHERE source = {{source_uuid | string}}
     AND vm.year={{year}}
