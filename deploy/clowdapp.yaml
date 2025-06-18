@@ -1873,7 +1873,7 @@ objects:
         public:
           enabled: false
     - autoScaler:
-        maxReplicaCount: ${WORKER_DOWNLOAD_MAX_REPLICAS}
+        maxReplicaCount: ${{WORKER_DOWNLOAD_MAX_REPLICAS}}
         minReplicaCount: 1
         triggers:
         - metadata:

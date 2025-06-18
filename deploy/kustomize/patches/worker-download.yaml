@@ -181,7 +181,7 @@
               path: gcp-credentials.json
 
     autoScaler:
-      maxReplicaCount: ${WORKER_DOWNLOAD_MAX_REPLICAS}
+      maxReplicaCount: ${{WORKER_DOWNLOAD_MAX_REPLICAS}}
       minReplicaCount:  1
       triggers:
       - type: prometheus
