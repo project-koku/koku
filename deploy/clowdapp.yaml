@@ -1874,7 +1874,7 @@ objects:
           enabled: false
     - autoScaler:
         maxReplicaCount: ${{WORKER_DOWNLOAD_MAX_REPLICAS}}
-        minReplicaCount: 1
+        minReplicaCount: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
         triggers:
         - metadata:
             query: koku:celery:${WORKER_DOWNLOAD_WORKER_QUEUE}
@@ -5904,7 +5904,7 @@ parameters:
   required: true
   value: cost_model_penalty
 - displayName: Minimum replicas
-  name: WORKER_DOWNLOAD_REPLICAS
+  name: WORKER_DOWNLOAD_MIN_REPLICAS
   required: true
   value: "2"
 - displayName: Maximum replicas
