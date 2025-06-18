@@ -2053,7 +2053,6 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
         private:
           enabled: false

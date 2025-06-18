@@ -5,7 +5,7 @@
     metadata:
       annotations:
         ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
-    replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
+    # replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
     webServices:
       public:
         enabled: false
