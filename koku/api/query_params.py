@@ -37,6 +37,7 @@ from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
+from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -363,10 +364,20 @@ class QueryParameters:
             # we also do not need to fetch the tags if a tag prefix is not in the URL
             return
         with tenant_context(self.tenant):
-            for prov in self.tag_providers:
-                self.tag_keys.update(
-                    EnabledTagKeys.objects.filter(provider_type=prov).values_list("key", flat=True).distinct()
-                )
+            # Step 1: load EnabledTagKeys
+            enabled_keys = (
+                EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers)
+                .values_list("key", flat=True)
+                .distinct()
+            )
+            self.tag_keys.update(enabled_keys)
+            # Step 2: add parent keys from TagMapping
+            parent_keys = (
+                TagMapping.objects.filter(parent__provider_type__in=self.tag_providers)
+                .values_list("parent__key", flat=True)
+                .distinct()
+            )
+            self.tag_keys.update(parent_keys)
         if not self.tag_keys:
             # in case there are no tag keys in the models.
             return
