@@ -907,7 +907,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(download_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:download_xl_queue",
               "interval": "",
               "legendFormat": "Queue Size",
               "range": true,
@@ -989,7 +989,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(download_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:download_xl_queue",
               "range": true,
               "refId": "A"
             }
@@ -1101,7 +1101,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(summary_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:summary_xl_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -1182,7 +1182,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(summary_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:summary_xl_queue",
               "range": true,
               "refId": "A"
             }
@@ -2057,7 +2057,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(ocp_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:ocp_xl_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -2138,7 +2138,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(ocp_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:ocp_xl_queue",
               "range": true,
               "refId": "A"
             }
@@ -2250,7 +2250,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(cost_model_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:cost_model_xl_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -2331,7 +2331,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(cost_model_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:cost_model_xl_queue",
               "range": true,
               "refId": "A"
             }
@@ -3205,7 +3205,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(priority_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:priority_xl_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -3286,7 +3286,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(priority_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:priority_xl_queue",
               "range": true,
               "refId": "A"
             }
@@ -3398,7 +3398,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(refresh_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:refresh_xl_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -3479,7 +3479,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(refresh_xl_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:refresh_xl_queue",
               "range": true,
               "refId": "A"
             }
