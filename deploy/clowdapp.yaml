@@ -1878,7 +1878,7 @@ objects:
         triggers:
         - metadata:
             query: koku:celery:${WORKER_DOWNLOAD_WORKER_QUEUE}
-            threshold: "25"
+            threshold: ${WORKER_DOWNLOAD_TRIGGER_THRESHOLD}
           type: prometheus
       metadata:
         annotations:
@@ -5911,6 +5911,10 @@ parameters:
   name: WORKER_DOWNLOAD_MAX_REPLICAS
   required: true
   value: "10"
+- displayName: Trigger threshold
+  name: WORKER_DOWNLOAD_TRIGGER_THRESHOLD
+  required: true
+  value: "25"
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_DOWNLOAD
   required: true
