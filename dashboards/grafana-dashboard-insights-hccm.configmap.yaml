@@ -1294,7 +1294,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(download_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:download_penalty_queue",
               "interval": "",
               "legendFormat": "Queue Size",
               "range": true,
@@ -1376,7 +1376,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(download_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:download_penalty_queue",
               "range": true,
               "refId": "A"
             }
@@ -1488,7 +1488,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(summary_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:summary_penalty_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -1569,7 +1569,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(summary_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:summary_penalty_queue",
               "range": true,
               "refId": "A"
             }
@@ -2443,7 +2443,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(ocp_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:ocp_penalty_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -2524,7 +2524,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(ocp_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:ocp_penalty_queue",
               "range": true,
               "refId": "A"
             }
@@ -2636,7 +2636,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(cost_model_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:cost_model_penalty_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -2717,7 +2717,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(cost_model_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:cost_model_penalty_queue",
               "range": true,
               "refId": "A"
             }
@@ -3591,7 +3591,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(priority_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:priority_penalty_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -3672,7 +3672,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(priority_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:priority_penalty_queue",
               "range": true,
               "refId": "A"
             }
@@ -3784,7 +3784,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(refresh_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:refresh_penalty_queue",
               "legendFormat": "Queue Size",
               "range": true,
               "refId": "A"
@@ -3865,7 +3865,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(refresh_penalty_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:refresh_penalty_queue",
               "range": true,
               "refId": "A"
             }
@@ -3977,7 +3977,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(subs_transmission_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:subs_transmission_queue",
               "range": true,
               "refId": "A"
             }
@@ -4057,7 +4057,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(subs_transmission_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:subs_transmission_queue",
               "range": true,
               "refId": "A"
             }
@@ -4169,7 +4169,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(subs_extraction_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:subs_extraction_queue",
               "range": true,
               "refId": "A"
             }
@@ -4249,7 +4249,7 @@ data:
                 "uid": "${Datasource}"
               },
               "editorMode": "code",
-              "expr": "max(subs_extraction_backlog{namespace=\"${namespace}\", pod=~\".+worker.+\"})",
+              "expr": "koku:celery:subs_extraction_queue",
               "range": true,
               "refId": "A"
             }
