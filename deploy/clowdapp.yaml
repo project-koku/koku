@@ -1873,6 +1873,10 @@ objects:
         public:
           enabled: false
     - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_DOWNLOAD_FALLBACK_REPLICAS}}
         maxReplicaCount: ${{WORKER_DOWNLOAD_MAX_REPLICAS}}
         minReplicaCount: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
         triggers:
@@ -5911,6 +5915,10 @@ parameters:
   name: WORKER_DOWNLOAD_MAX_REPLICAS
   required: true
   value: "10"
+- displayName: Fallback replicas
+  name: WORKER_DOWNLOAD_FALLBACK_REPLICAS
+  required: true
+  value: "2"
 - displayName: Trigger threshold
   name: WORKER_DOWNLOAD_TRIGGER_THRESHOLD
   required: true

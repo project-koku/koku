@@ -182,6 +182,10 @@
     autoScaler:
       maxReplicaCount: ${{WORKER_DOWNLOAD_MAX_REPLICAS}}
       minReplicaCount: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
+      fallback:
+        failureThreshold: 3
+        replicas: ${{WORKER_DOWNLOAD_FALLBACK_REPLICAS}}
+        behavior: "currentReplicasIfHigher"
       triggers:
       - type: prometheus
         metadata:
@@ -203,6 +207,13 @@
     name: WORKER_DOWNLOAD_MAX_REPLICAS
     required: true
     value: '10'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Fallback replicas
+    name: WORKER_DOWNLOAD_FALLBACK_REPLICAS
+    required: true
+    value: '2'
 - op: add
   path: /parameters/-
   value:
