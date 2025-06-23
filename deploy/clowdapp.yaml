@@ -5914,7 +5914,7 @@ parameters:
 - displayName: Trigger threshold
   name: WORKER_DOWNLOAD_TRIGGER_THRESHOLD
   required: true
-  value: "2"
+  value: "0.5"
 - displayName: Trigger query
   name: WORKER_DOWNLOAD_TRIGGER_QUERY
   required: true
