@@ -185,8 +185,8 @@
       triggers:
       - type: prometheus
         metadata:
-          query: koku:celery:${WORKER_DOWNLOAD_WORKER_QUEUE}
-          threshold: ${{WORKER_DOWNLOAD_TRIGGER_THRESHOLD}}
+          query: ${WORKER_DOWNLOAD_TRIGGER_QUERY}
+          threshold: ${WORKER_DOWNLOAD_TRIGGER_THRESHOLD}
 
 
 - op: add
@@ -210,6 +210,14 @@
     name: WORKER_DOWNLOAD_TRIGGER_THRESHOLD
     required: true
     value: '25.0'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Trigger query
+    name: WORKER_DOWNLOAD_TRIGGER_QUERY
+    required: true
+    # value: 'koku:celery:download'
+    value: 'max(download_backlog{pod=~".+worker.+"})'
 - op: add
   path: /parameters/-
   value:
