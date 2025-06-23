@@ -5906,7 +5906,7 @@ parameters:
 - displayName: Minimum replicas
   name: WORKER_DOWNLOAD_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
 - displayName: Maximum replicas
   name: WORKER_DOWNLOAD_MAX_REPLICAS
   required: true
@@ -5914,7 +5914,7 @@ parameters:
 - displayName: Trigger threshold
   name: WORKER_DOWNLOAD_TRIGGER_THRESHOLD
   required: true
-  value: "25.0"
+  value: "2"
 - displayName: Trigger query
   name: WORKER_DOWNLOAD_TRIGGER_QUERY
   required: true
