@@ -1878,7 +1878,7 @@ objects:
         triggers:
         - metadata:
             query: koku:celery:${WORKER_DOWNLOAD_WORKER_QUEUE}
-            threshold: ${WORKER_DOWNLOAD_TRIGGER_THRESHOLD}
+            threshold: ${{WORKER_DOWNLOAD_TRIGGER_THRESHOLD}}
           type: prometheus
       metadata:
         annotations:
