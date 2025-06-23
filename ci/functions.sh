@@ -93,7 +93,7 @@ function is_pull_request() {
 function run_smoke_tests_stage() {
     _install_bonfire_tools
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration ${RESERVATION_TIMEOUT})
+    export NAMESPACE=$(bonfire namespace reserve --duration ${RESERVATION_TIMEOUT} --pool prometheus)
 
     oc get secret koku-aws -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
     oc get secret koku-gcp -o yaml -n ephemeral-base | grep -v '^\s*namespace:\s' | oc apply --namespace=${NAMESPACE} -f -
