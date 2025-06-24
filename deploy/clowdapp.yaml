@@ -5926,7 +5926,7 @@ parameters:
 - displayName: Trigger query
   name: WORKER_DOWNLOAD_TRIGGER_QUERY
   required: true
-  value: koku:celery:download
+  value: koku:celery:download_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_DOWNLOAD
   required: true

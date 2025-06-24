@@ -227,7 +227,7 @@
     displayName: Trigger query
     name: WORKER_DOWNLOAD_TRIGGER_QUERY
     required: true
-    value: 'koku:celery:download'
+    value: 'koku:celery:download_queue'
 - op: add
   path: /parameters/-
   value:
