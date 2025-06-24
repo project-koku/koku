@@ -213,22 +213,21 @@
     displayName: Fallback replicas
     name: WORKER_DOWNLOAD_FALLBACK_REPLICAS
     required: true
-    value: '2'
+    value: '3'
 - op: add
   path: /parameters/-
   value:
     displayName: Trigger threshold
     name: WORKER_DOWNLOAD_TRIGGER_THRESHOLD
     required: true
-    value: '0.5'
+    value: '19.5'
 - op: add
   path: /parameters/-
   value:
     displayName: Trigger query
     name: WORKER_DOWNLOAD_TRIGGER_QUERY
     required: true
-    # value: 'koku:celery:download'
-    value: 'max(download_backlog{pod=~".+worker.+"})'
+    value: 'koku:celery:download'
 - op: add
   path: /parameters/-
   value:
