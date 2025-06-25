@@ -245,7 +245,7 @@ class ReportManifestDBAccessor:
             update_fields = ["s3_parquet_cleared"]
         manifest.save(update_fields=update_fields)
 
-    def set_manifest_daily_start_date(self, manifest_id, date):
+    def set_manifest_daily_start_date(self, manifest_id: int, date: datetime):
         """
         Mark manifest processing daily archive start date.
         Used to prevent grabbing different starts from partial processed data

@@ -22,7 +22,6 @@ from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.config import Config
 from reporting.user_settings.models import UserSettings
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -494,18 +493,48 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
+def get_datetime(date: str | datetime.datetime | None) -> datetime.datetime | None:
+    """Convert a string or datetime to a UTC datetime object.
+
+    Args:
+        date: A date string, datetime object, or None
+
+    Returns:
+        A datetime object in UTC timezone, or None if input is None
+
+    Raises:
+        ValueError: If the input string cannot be parsed as a date
+    """
+    if date is None:
+        return None
+
+    if isinstance(date, str):
+        return parser.parse(date).astimezone(tz=settings.UTC)
+
+    if isinstance(date, datetime.datetime):
+        # If it's timezone-naive, assume it's UTC
+        if date.tzinfo is None:
+            return date.replace(tzinfo=settings.UTC)
+        # If it has timezone info, convert to UTC
+        return date.astimezone(tz=settings.UTC)
+
+    raise TypeError(f"Expected str, datetime, or None, got {type(date)}")
+
+
 def get_months_in_date_range(
-    report: dict[str, str] = None, start: str = None, end: str = None, invoice_month: str = None
+    report: dict[str, str] = None,
+    start: str | datetime.datetime | None = None,
+    end: str | datetime.datetime | None = None,
+    invoice_month: str = None,
 ) -> list[tuple[str, str]]:
     """returns the month periods in a given date range from report"""
 
     dh = DateHelper()
-    date_format = "%Y-%m-%d"
     invoice_date_format = "%Y%m"
 
     # Converting inputs to datetime objects
-    dt_start = parser.parse(start).astimezone(tz=settings.UTC) if start else None
-    dt_end = parser.parse(end).astimezone(tz=settings.UTC) if end else None
+    dt_start = get_datetime(start)
+    dt_end = get_datetime(end)
     # invoice_date_format not supported by dateutil parser
     dt_invoice_month = (
         datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=settings.UTC)
@@ -514,14 +543,14 @@ def get_months_in_date_range(
     )
 
     if report:
-        manifest_start = report.get("start")
-        manifest_end = report.get("end")
+        manifest_start = get_datetime(report.get("start"))
+        manifest_end = get_datetime(report.get("end"))
         manifest_invoice_month = report.get("invoice_month")
 
         if manifest_start and manifest_end:
             LOG.info(f"using start: {manifest_start} and end: {manifest_end} dates from manifest")
-            dt_start = parser.parse(manifest_start).astimezone(tz=settings.UTC)
-            dt_end = parser.parse(manifest_end).astimezone(tz=settings.UTC)
+            dt_start = manifest_start
+            dt_end = manifest_end
             if manifest_invoice_month:
                 LOG.info(f"using invoice_month: {manifest_invoice_month}")
                 dt_invoice_month = datetime.datetime.strptime(manifest_invoice_month, invoice_date_format).replace(
@@ -539,8 +568,8 @@ def get_months_in_date_range(
         # For report_data masu API
         return [
             (
-                dt_start.strftime(date_format),
-                dt_end.strftime(date_format),
+                dt_start,
+                dt_end,
                 dt_invoice_month.strftime(invoice_date_format),
             )
         ]
@@ -556,8 +585,8 @@ def get_months_in_date_range(
     if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
         return [
             (
-                dt_start.strftime(date_format),
-                dt_end.strftime(date_format),
+                dt_start,
+                dt_end,
                 dt_invoice_month.strftime(invoice_date_format) if dt_invoice_month else None,
             )
         ]
@@ -573,8 +602,8 @@ def get_months_in_date_range(
     # Format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
     return [
         (
-            start.strftime(date_format),
-            end.strftime(date_format),
+            start,
+            end,
             invoice_month,  # Invoice month is really only for GCP
         )
         for start, end in months
