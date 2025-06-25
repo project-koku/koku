@@ -1872,7 +1872,19 @@ objects:
           enabled: false
         public:
           enabled: false
-    - metadata:
+    - autoScaler:
+        fallback:
+          behavior: currentReplicasIfHigher
+          failureThreshold: 3
+          replicas: ${{WORKER_DOWNLOAD_FALLBACK_REPLICAS}}
+        maxReplicaCount: ${{WORKER_DOWNLOAD_MAX_REPLICAS}}
+        minReplicaCount: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
+        triggers:
+        - metadata:
+            query: ${WORKER_DOWNLOAD_TRIGGER_QUERY}
+            threshold: ${WORKER_DOWNLOAD_TRIGGER_THRESHOLD}
+          type: prometheus
+      metadata:
         annotations:
           ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses
             1 pod at times for cost saving purposes
@@ -2045,7 +2057,6 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_DOWNLOAD_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -5897,9 +5908,25 @@ parameters:
   required: true
   value: cost_model_penalty
 - displayName: Minimum replicas
-  name: WORKER_DOWNLOAD_REPLICAS
+  name: WORKER_DOWNLOAD_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
+- displayName: Maximum replicas
+  name: WORKER_DOWNLOAD_MAX_REPLICAS
+  required: true
+  value: "10"
+- displayName: Fallback replicas
+  name: WORKER_DOWNLOAD_FALLBACK_REPLICAS
+  required: true
+  value: "3"
+- displayName: Trigger threshold
+  name: WORKER_DOWNLOAD_TRIGGER_THRESHOLD
+  required: true
+  value: "19.5"
+- displayName: Trigger query
+  name: WORKER_DOWNLOAD_TRIGGER_QUERY
+  required: true
+  value: koku:celery:download_queue
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_DOWNLOAD
   required: true
