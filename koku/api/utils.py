@@ -493,11 +493,11 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def get_datetime(date: str | datetime.datetime | None) -> datetime.datetime | None:
-    """Convert a string or datetime to a UTC datetime object.
+def get_datetime(date: str | datetime.datetime | datetime.date | None) -> datetime.datetime | None:
+    """Convert a string, date, or datetime to a UTC datetime object.
 
     Args:
-        date: A date string, datetime object, or None
+        date: A date string, datetime object, date object, or None
 
     Returns:
         A datetime object in UTC timezone, or None if input is None
@@ -518,7 +518,11 @@ def get_datetime(date: str | datetime.datetime | None) -> datetime.datetime | No
         # If it has timezone info, convert to UTC
         return date.astimezone(tz=settings.UTC)
 
-    raise TypeError(f"Expected str, datetime, or None, got {type(date)}")
+    if isinstance(date, datetime.date):
+        # Convert date to datetime at midnight UTC
+        return datetime.datetime(date.year, date.month, date.day, tzinfo=settings.UTC)
+
+    raise TypeError(f"Expected str, datetime, date, or None, got {type(date)}")
 
 
 def get_months_in_date_range(

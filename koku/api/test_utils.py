@@ -397,10 +397,19 @@ class GetDateTimeTest(unittest.TestCase):
             get_datetime({})
 
     def test_get_datetime_with_date_object(self):
-        """Test get_datetime with date object raises TypeError."""
+        """Test get_datetime with date object converts to datetime at midnight UTC."""
         date_obj = datetime.date(2023, 5, 15)
-        with self.assertRaises(TypeError):
-            get_datetime(date_obj)
+        result = get_datetime(date_obj)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.hour, 0)
+        self.assertEqual(result.minute, 0)
+        self.assertEqual(result.second, 0)
+        self.assertEqual(result.microsecond, 0)
 
     def test_get_datetime_preserves_precision(self):
         """Test get_datetime preserves microsecond precision."""
