@@ -21,6 +21,7 @@ from api.utils import DateHelper
 from api.utils import get_account_settings
 from api.utils import get_cost_type
 from api.utils import get_currency
+from api.utils import get_datetime
 from api.utils import get_months_in_date_range
 from api.utils import materialized_view_month_start
 from api.utils import merge_dicts
@@ -299,6 +300,133 @@ class GeneralUtilsTest(IamTestCase):
             else:
                 settings = query_settings.settings
                 self.assertEqual(get_account_settings(self.request_context["request"]), settings)
+
+
+class GetDateTimeTest(unittest.TestCase):
+    """Test the get_datetime util function."""
+
+    def test_get_datetime_with_none(self):
+        """Test get_datetime with None input returns None."""
+        result = get_datetime(None)
+        self.assertIsNone(result)
+
+    def test_get_datetime_with_string_iso_format(self):
+        """Test get_datetime with ISO format string."""
+        date_string = "2023-05-15T14:30:00+00:00"
+        result = get_datetime(date_string)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.hour, 14)
+        self.assertEqual(result.minute, 30)
+
+    def test_get_datetime_with_string_simple_date(self):
+        """Test get_datetime with simple date string."""
+        date_string = "2023-05-15"
+        result = get_datetime(date_string)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+
+    def test_get_datetime_with_string_different_timezone(self):
+        """Test get_datetime with string in different timezone."""
+        date_string = "2023-05-15T14:30:00-05:00"
+        result = get_datetime(date_string)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        # Should be converted to UTC (19:30)
+        self.assertEqual(result.hour, 19)
+        self.assertEqual(result.minute, 30)
+
+    def test_get_datetime_with_timezone_aware_datetime(self):
+        """Test get_datetime with timezone-aware datetime object."""
+        import pytz
+
+        eastern = pytz.timezone("US/Eastern")
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 0, tzinfo=eastern)
+        result = get_datetime(dt)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        # Should be converted to UTC from Eastern time
+        self.assertNotEqual(result.hour, 14)  # Should be different due to timezone conversion
+
+    def test_get_datetime_with_timezone_naive_datetime(self):
+        """Test get_datetime with timezone-naive datetime object."""
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 0)
+        result = get_datetime(dt)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.hour, 14)
+        self.assertEqual(result.minute, 30)
+
+    def test_get_datetime_with_utc_datetime(self):
+        """Test get_datetime with UTC datetime object."""
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 0, tzinfo=settings.UTC)
+        result = get_datetime(dt)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result, dt)  # Should be unchanged
+
+    def test_get_datetime_with_invalid_string(self):
+        """Test get_datetime with invalid date string raises ValueError."""
+        with self.assertRaises(ValueError):
+            get_datetime("invalid-date-string")
+
+    def test_get_datetime_with_invalid_type(self):
+        """Test get_datetime with invalid type raises TypeError."""
+        with self.assertRaises(TypeError):
+            get_datetime(12345)
+
+        with self.assertRaises(TypeError):
+            get_datetime([])
+
+        with self.assertRaises(TypeError):
+            get_datetime({})
+
+    def test_get_datetime_with_date_object(self):
+        """Test get_datetime with date object raises TypeError."""
+        date_obj = datetime.date(2023, 5, 15)
+        with self.assertRaises(TypeError):
+            get_datetime(date_obj)
+
+    def test_get_datetime_preserves_precision(self):
+        """Test get_datetime preserves microsecond precision."""
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 45, 123456, tzinfo=settings.UTC)
+        result = get_datetime(dt)
+
+        self.assertEqual(result.microsecond, 123456)
+
+    def test_get_datetime_with_various_string_formats(self):
+        """Test get_datetime with various string formats."""
+        test_cases = [
+            "2023-05-15T14:30:00Z",
+            "2023-05-15 14:30:00",
+            "2023/05/15 14:30:00",
+            "May 15, 2023 2:30 PM",
+            "2023-05-15T14:30:00.123456Z",
+        ]
+
+        for date_string in test_cases:
+            with self.subTest(date_string=date_string):
+                result = get_datetime(date_string)
+                self.assertIsInstance(result, datetime.datetime)
+                self.assertEqual(result.tzinfo, settings.UTC)
+                self.assertEqual(result.year, 2023)
+                self.assertEqual(result.month, 5)
+                self.assertEqual(result.day, 15)
 
 
 class GetMonthsInDateRangeTest(unittest.TestCase):

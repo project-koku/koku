@@ -68,8 +68,9 @@ def process_openshift_on_cloud(request):  # noqa: C901
         errmsg = f"You must provide a cloud provider UUID from {Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST}."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+    dh = DateHelper()
     if provider.type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-        invoice_month = DateHelper().invoice_month_from_bill_date(start_date)
+        invoice_month = dh.invoice_month_from_bill_date(start_date)
         months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
     else:
         months = get_months_in_date_range(start=start_date, end=end_date)
@@ -85,8 +86,8 @@ def process_openshift_on_cloud(request):  # noqa: C901
             "tracing_id": tracing_id,
         }
         if provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            bill_end = DateHelper().month_end(bill_date)
-            bill_start = DateHelper().month_start(bill_date)
+            bill_end = dh.month_end(bill_date)
+            bill_start = dh.month_start(bill_date)
             start = ciso8601.parse_datetime(start_date).astimezone(tz=settings.UTC)
             end = ciso8601.parse_datetime(end_date).astimezone(tz=settings.UTC) if end_date else bill_end
             params["start_date"] = max(start, bill_start)
