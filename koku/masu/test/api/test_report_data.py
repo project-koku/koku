@@ -25,10 +25,10 @@ class ReportDataTests(TestCase):
     def setUp(self):
         """Create test case setup."""
         super().setUp()
-        dh = DateHelper()
-        self.start_date_time = dh.today.date()
-        self.start_date = dh.today.date().strftime("%Y-%m-%d")
-        self.invoice = dh.gcp_find_invoice_months_in_date_range(dh.today, dh.tomorrow)[0]
+        self.dh = DateHelper()
+        self.start_date_time = self.dh.today.date()
+        self.start_date = self.start_date_time.strftime("%Y-%m-%d")
+        self.invoice = self.dh.gcp_find_invoice_months_in_date_range(self.dh.today, self.dh.tomorrow)[0]
 
         self.provider_type = Provider.PROVIDER_AWS_LOCAL
         p = Provider.objects.filter(type=self.provider_type).first()
@@ -59,8 +59,8 @@ class ReportDataTests(TestCase):
             params["schema"],
             self.provider_type,
             params["provider_uuid"],
-            params["start_date"],
-            DateHelper().today.date().strftime("%Y-%m-%d"),
+            self.dh.today,
+            self.dh.today,
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=True,
             invoice_month=None,
@@ -87,8 +87,8 @@ class ReportDataTests(TestCase):
             params["schema"],
             self.provider_type,
             params["provider_uuid"],
-            params["start_date"],
-            DateHelper().today.date().strftime("%Y-%m-%d"),
+            self.dh.today,
+            self.dh.today,
             queue_name=OCPQueue.DEFAULT,
             ocp_on_cloud=True,
             invoice_month=None,
@@ -115,8 +115,8 @@ class ReportDataTests(TestCase):
                 params["schema"],
                 self.provider_type,
                 params["provider_uuid"],
-                params["start_date"],
-                DateHelper().today.date().strftime("%Y-%m-%d"),
+                self.dh.today,
+                self.dh.today,
                 queue_name=PriorityQueue.XL,
                 ocp_on_cloud=True,
                 invoice_month=None,
@@ -230,7 +230,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_with_end_date(self, mock_update, _):
         """Test GET report_data endpoint with end date."""
-        start_date = DateHelper().today
+        start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
         multiple_calls = start_date.month != end_date.month
 
@@ -247,8 +247,8 @@ class ReportDataTests(TestCase):
                 params["schema"],
                 self.provider_type,
                 params["provider_uuid"],
-                params["start_date"],
-                params["end_date"],
+                self.dh.today,
+                end_date,
                 queue_name=PriorityQueue.DEFAULT,
                 ocp_on_cloud=True,
                 invoice_month=None,
@@ -261,8 +261,8 @@ class ReportDataTests(TestCase):
                     params["schema"],
                     self.provider_type,
                     params["provider_uuid"],
-                    params["start_date"],
-                    params["start_date"],
+                    self.dh.today,
+                    self.dh.today,
                     queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
                     invoice_month=None,
@@ -271,8 +271,8 @@ class ReportDataTests(TestCase):
                     params["schema"],
                     self.provider_type,
                     params["provider_uuid"],
-                    params["end_date"],
-                    params["end_date"],
+                    end_date,
+                    end_date,
                     queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
                     invoice_month=None,
@@ -306,8 +306,8 @@ class ReportDataTests(TestCase):
             params["schema"],
             self.provider_type,
             params["provider_uuid"],
-            params["start_date"],
-            DateHelper().today.date().strftime("%Y-%m-%d"),
+            self.dh.today,
+            self.dh.today,
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month=None,
@@ -334,8 +334,8 @@ class ReportDataTests(TestCase):
             params["schema"],
             self.gcp_provider_type,
             params["provider_uuid"],
-            params["start_date"],
-            DateHelper().today.date().strftime("%Y-%m-%d"),
+            self.dh.today,
+            self.dh.today,
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month=self.invoice,
@@ -363,8 +363,8 @@ class ReportDataTests(TestCase):
             params["schema"],
             self.gcp_provider_type,
             params["provider_uuid"],
-            params["end_date"],
-            DateHelper().today.date().strftime("%Y-%m-%d"),
+            self.dh.today,
+            self.dh.today,
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month=self.invoice,
@@ -374,7 +374,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_gcp_invoice_month(self, mock_update, _):
         """Test the GET report_data endpoint."""
-        end_date = DateHelper().this_month_end.date().strftime("%Y-%m-%d")
+        end_date = self.dh.this_month_end.date().strftime("%Y-%m-%d")
         params = {
             "schema": self.schema_name,
             "start_date": self.start_date,
@@ -394,8 +394,8 @@ class ReportDataTests(TestCase):
             params["schema"],
             self.gcp_provider_type,
             params["provider_uuid"],
-            self.start_date,
-            end_date,
+            self.dh.today,
+            self.dh.this_month_end,
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
             invoice_month="202209",

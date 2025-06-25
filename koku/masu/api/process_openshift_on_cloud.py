@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for report_data endpoint."""
-# flake8: noqa
 import logging
 from uuid import uuid4
 
 import ciso8601
+from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -34,7 +34,7 @@ REPORT_DATA_KEY = "process_openshift_on_cloud Task IDs"
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def process_openshift_on_cloud(request):
+def process_openshift_on_cloud(request):  # noqa: C901
     """Update OCP on Cloud report summary tables in the database."""
     async_results = []
     params = request.query_params
@@ -74,7 +74,7 @@ def process_openshift_on_cloud(request):
     else:
         months = get_months_in_date_range(start=start_date, end=end_date)
 
-    bill_dates = [ciso8601.parse_datetime(month[0]).replace(day=1).strftime("%Y-%m-%d") for month in months]
+    bill_dates = [month[0].replace(day=1) for month in months]
 
     for bill_date in bill_dates:
         tracing_id = str(uuid4())
@@ -87,8 +87,8 @@ def process_openshift_on_cloud(request):
         if provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             bill_end = DateHelper().month_end(bill_date)
             bill_start = DateHelper().month_start(bill_date)
-            start = ciso8601.parse_datetime(start_date).date()
-            end = ciso8601.parse_datetime(end_date).date() if end_date else bill_end
+            start = ciso8601.parse_datetime(start_date).astimezone(tz=settings.UTC)
+            end = ciso8601.parse_datetime(end_date).astimezone(tz=settings.UTC) if end_date else bill_end
             params["start_date"] = max(start, bill_start)
             params["end_date"] = min(bill_end, end)
             LOG.info("Triggering process_daily_openshift_on_cloud task with params:")

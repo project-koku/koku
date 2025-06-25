@@ -526,7 +526,7 @@ def get_months_in_date_range(
     start: str | datetime.datetime | None = None,
     end: str | datetime.datetime | None = None,
     invoice_month: str = None,
-) -> list[tuple[str, str]]:
+) -> list[tuple[datetime.datetime, datetime.datetime, str]]:
     """returns the month periods in a given date range from report"""
 
     dh = DateHelper()
