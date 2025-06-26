@@ -629,8 +629,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Our parquet table month partitions are based on invoice month not usage date
         # This means we need to account for crossover data during our matching logic
         prepare_params["invoice_months"] = [
-            self.start_date.strftime("%m"),
-            dh.bill_month_from_date(dh.previous_month(self.start_date)),
+            sql_metadata.month,
+            dh.bill_month_from_date(dh.previous_month(sql_metadata.start_date)),
         ]
         LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
