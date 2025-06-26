@@ -172,7 +172,7 @@ class DateHelperTest(TestCase):
 
     def test_list_days(self):
         """Test the list_days method."""
-        first = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        first = datetime.datetime.now().date().replace(day=1)
         second = first.replace(day=2)
         third = first.replace(day=3)
         expected = [first, second, third]
@@ -254,7 +254,7 @@ class DateHelperTest(TestCase):
 
     def test_list_days_params_as_strings(self):
         """Test the list_days method."""
-        first = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        first = datetime.datetime.now().date().replace(day=1)
         second = first.replace(day=2)
         third = first.replace(day=3)
         expected = [first, second, third]

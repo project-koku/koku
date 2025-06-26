@@ -4,6 +4,7 @@
 #
 """Report manifest database accessor for cost usage reports."""
 import logging
+from datetime import date
 from datetime import datetime
 
 from django.db import transaction
@@ -245,12 +246,11 @@ class ReportManifestDBAccessor:
             update_fields = ["s3_parquet_cleared"]
         manifest.save(update_fields=update_fields)
 
-    def set_manifest_daily_start_date(self, manifest_id: int, date: datetime):
+    def set_manifest_daily_start_date(self, manifest_id: int, date_input: date) -> date | None:
         """
         Mark manifest processing daily archive start date.
         Used to prevent grabbing different starts from partial processed data
         """
-        date.replace(tzinfo=None)
         # Be race condition aware
         with transaction.atomic():
             # Check one last time another worker has not set this already
@@ -259,11 +259,11 @@ class ReportManifestDBAccessor:
                 return check_processing_date
             manifest = CostUsageReportManifest.objects.select_for_update().get(id=manifest_id)
             if manifest:
-                manifest.daily_archive_start_date = date
+                manifest.daily_archive_start_date = date_input
                 manifest.save(update_fields=["daily_archive_start_date"])
-                return date
+                return date_input
 
-    def get_manifest_daily_start_date(self, manifest_id):
+    def get_manifest_daily_start_date(self, manifest_id: int) -> date | None:
         """
         Get manifest processing daily archive start date.
         Used to prevent grabbing different starts from partial processed data
@@ -271,7 +271,7 @@ class ReportManifestDBAccessor:
         manifest = self.get_manifest_by_id(manifest_id)
         if manifest:
             if manifest.daily_archive_start_date:
-                return manifest.daily_archive_start_date.replace(tzinfo=None)
+                return manifest.daily_archive_start_date.date()
 
     def update_and_get_day_file(self, day, manifest_id):
         with transaction.atomic():
