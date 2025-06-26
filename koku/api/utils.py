@@ -493,7 +493,7 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def get_datetime(date: str | datetime.datetime | datetime.date | None) -> datetime.datetime | None:
+def to_utc_datetime(date: str | datetime.datetime | datetime.date | None) -> datetime.datetime | None:
     """Convert a string, date, or datetime to a UTC datetime object.
 
     Args:
@@ -530,15 +530,15 @@ def get_months_in_date_range(
     start: str | datetime.datetime | None = None,
     end: str | datetime.datetime | None = None,
     invoice_month: str = None,
-) -> list[tuple[datetime.datetime, datetime.datetime, str]]:
+) -> list[tuple[datetime.datetime, datetime.datetime, str | None]]:
     """returns the month periods in a given date range from report"""
 
     dh = DateHelper()
     invoice_date_format = "%Y%m"
 
     # Converting inputs to datetime objects
-    dt_start = get_datetime(start)
-    dt_end = get_datetime(end)
+    dt_start = to_utc_datetime(start)
+    dt_end = to_utc_datetime(end)
     # invoice_date_format not supported by dateutil parser
     dt_invoice_month = (
         datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=settings.UTC)
@@ -547,8 +547,8 @@ def get_months_in_date_range(
     )
 
     if report:
-        manifest_start = get_datetime(report.get("start"))
-        manifest_end = get_datetime(report.get("end"))
+        manifest_start = to_utc_datetime(report.get("start"))
+        manifest_end = to_utc_datetime(report.get("end"))
         manifest_invoice_month = report.get("invoice_month")
 
         if manifest_start and manifest_end:
@@ -566,8 +566,8 @@ def get_months_in_date_range(
             dt_end = dh.today
 
     elif dt_invoice_month:
-        dt_start = dh.today if not dt_start else dt_start
-        dt_end = dh.today if not dt_end else dt_end
+        dt_start = dt_start or dh.today
+        dt_end = dt_end or dh.today
 
         # For report_data masu API
         return [
@@ -603,7 +603,6 @@ def get_months_in_date_range(
     last_month = months[-1]
     months[-1] = (last_month[0], dt_end)
 
-    # Format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
     return [
         (
             start,
