@@ -276,12 +276,13 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
 @celery_app.task(name="masu.processor.tasks.get_report_files", queue=DownloadQueue.DEFAULT, bind=True)  # noqa: C901
 def get_report_files(  # noqa: C901
     self,
-    customer_name,
-    authentication,
-    billing_source,
-    provider_type,
-    schema_name,
-    provider_uuid,
+    provider: Provider,
+    # customer_name,
+    # authentication,
+    # billing_source,
+    # provider_type,
+    # schema_name,
+    # provider_uuid,
     report_month,
     report_context,
     tracing_id,
@@ -307,24 +308,25 @@ def get_report_files(  # noqa: C901
         None
 
     """
-    if is_source_disabled(provider_uuid):
+    if is_source_disabled(provider.uuid):
         return
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
+    customer_name = provider.customer.schema_name
     context = {"schema": customer_name}
     if customer_name.startswith("acct"):
-        context["account"] = customer_name[4:]
+        context["account"] = customer_name[4:]  # noqa: F841
     else:
         context["org_id"] = customer_name[3:]
-    context["provider_uuid"] = provider_uuid
-    context["provider_type"] = provider_type
+    context["provider_uuid"] = provider.uuid
+    context["provider_type"] = provider.type
     try:
-        worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+        worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider.type).inc()
         month = report_month
         if isinstance(report_month, str):
             month = parser.parse(report_month)
         report_file = report_context.get("key")
-        cache_key = f"{provider_uuid}:{report_file}"
+        cache_key = f"{provider.uuid}:{report_file}"
         WorkerCache().add_task_to_cache(cache_key)
         # Get the task ID and add it to the report_context for tracking
         report_context["task_id"] = get_report_files.request.id
@@ -333,16 +335,16 @@ def get_report_files(  # noqa: C901
             report_dict = _get_report_files(
                 tracing_id,
                 customer_name,
-                authentication,
-                billing_source,
-                provider_type,
-                provider_uuid,
+                provider.authentication.credentials,
+                provider.billing_source.data_source,
+                provider.type,
+                provider.uuid,
                 month,
                 report_context,
                 ingress_reports,
             )
         except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
-            worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+            worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider.type).inc()
             WorkerCache().remove_task_from_cache(cache_key)
             LOG.warning(log_json(tracing_id, msg=str(err), context=context), exc_info=err)
             ReportManifestDBAccessor().update_manifest_state(
@@ -360,9 +362,9 @@ def get_report_files(  # noqa: C901
             return
 
         report_meta = {
-            "schema_name": schema_name,
-            "provider_type": provider_type,
-            "provider_uuid": provider_uuid,
+            "schema_name": customer_name,
+            "provider_type": provider.type,
+            "provider_uuid": provider.uuid,
             "manifest_id": report_dict.get("manifest_id"),
             "tracing_id": tracing_id,
             "start": report_dict.get("start"),
@@ -374,18 +376,18 @@ def get_report_files(  # noqa: C901
 
         try:
             LOG.info(log_json(tracing_id, msg="processing starting", context=context))
-            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider.type).inc()
 
             report_dict["tracing_id"] = tracing_id
-            report_dict["provider_type"] = provider_type
+            report_dict["provider_type"] = provider.type
 
             # The real processing (convert to parquet and push to S3) happens in _process_report_file
             result = _process_report_file(
-                schema_name, provider_type, report_dict, ingress_reports, ingress_reports_uuid
+                customer_name, provider.type, report_dict, ingress_reports, ingress_reports_uuid
             )
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
-            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+            worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider.type).inc()
             LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
             ReportManifestDBAccessor().update_manifest_state(
                 ManifestStep.PROCESSING, ManifestState.FAILED, report_context["manifest_id"]
@@ -403,7 +405,7 @@ def get_report_files(  # noqa: C901
         if not result:
             LOG.info(log_json(tracing_id, msg="no report files processed, skipping summary", context=context))
             # update provider even when there are no new reports so we continue polling
-            if provider := Provider.objects.filter(uuid=provider_uuid).first():
+            if provider := Provider.objects.filter(uuid=provider.uuid).first():
                 provider.set_data_updated_timestamp()
             return None
 
@@ -412,7 +414,7 @@ def get_report_files(  # noqa: C901
         LOG.warning(log_json(tracing_id, msg=f"Report downloader Warning: {err}", context=context), exc_info=err)
         WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
-        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider.type).inc()
         LOG.error(log_json(tracing_id, msg=f"Unknown downloader exception: {err}", context=context), exc_info=err)
         WorkerCache().remove_task_from_cache(cache_key)
 
@@ -860,9 +862,9 @@ def update_all_summary_tables(start_date, end_date=None):
     for account in all_accounts:
         log_statement = (
             f"Gathering data for for\n"
-            f' schema_name: {account.get("schema_name")}\n'
-            f' provider: {account.get("provider_type")}\n'
-            f' account (provider uuid): {account.get("provider_uuid")}'
+            f" schema_name: {account.get('schema_name')}\n"
+            f" provider: {account.get('provider_type')}\n"
+            f" account (provider uuid): {account.get('provider_uuid')}"
         )
         LOG.info(log_statement)
         schema_name = account.get("schema_name")
@@ -1165,9 +1167,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
     )
     for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
         query_sql = (
-            f"SELECT * FROM {table_name}"
-            f" {where_clause} "
-            f"OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+            f"SELECT * FROM {table_name} {where_clause} OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
         )
         results, columns = execute_trino_query(schema_name, query_sql)
         data_frame = pd.DataFrame(data=results, columns=columns)

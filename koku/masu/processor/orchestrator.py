@@ -200,12 +200,14 @@ class Orchestrator:
 
     def start_manifest_processing(  # noqa: C901
         self,
-        customer_name,
-        credentials,
-        data_source,
-        provider_type,
-        schema_name,
-        provider_uuid,
+        provider: Provider,
+        # customer_name,
+        # credentials,
+        # data_source,
+        # provider_type,
+        # schema_name,
+        # provider_uuid,
+        *,
         report_month,
         **kwargs,
     ):
@@ -228,6 +230,7 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
+        schema_name = provider.customer.schema_name
         # Switching initial ingest to use priority queue for QE tests based on QE_SCHEMA flag
         if self.queue_name is not None and self.provider_uuid is not None:
             SUMMARY_QUEUE = self.queue_name
@@ -239,11 +242,11 @@ class Orchestrator:
             HCS_Q = HCS_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
-            customer_name=customer_name,
-            credentials=credentials,
-            data_source=data_source,
-            provider_type=provider_type,
-            provider_uuid=provider_uuid,
+            customer_name=provider.customer.schema_name,
+            credentials=provider.authentication.credentials,
+            data_source=provider.billing_source.data_source,
+            provider_type=provider.type,
+            provider_uuid=provider.uuid,
             report_name=None,
             ingress_reports=self.ingress_reports,
         )
@@ -295,7 +298,7 @@ class Orchestrator:
                     )
                     continue
 
-                cache_key = f"{provider_uuid}:{report_file}"
+                cache_key = f"{provider.uuid}:{report_file}"
                 if self.worker_cache.task_is_running(cache_key):
                     LOG.info(
                         log_json(
@@ -311,7 +314,7 @@ class Orchestrator:
                 report_context["request_id"] = tracing_id
 
                 if (
-                    provider_type
+                    provider.type
                     in [
                         Provider.PROVIDER_OCP,
                         Provider.PROVIDER_GCP,
@@ -325,10 +328,10 @@ class Orchestrator:
                     report_context["create_table"] = True
 
                 # this is used to create bills for previous months on GCP
-                if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+                if provider.type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
                     if assembly_id := manifest.get("assembly_id"):
                         report_month = assembly_id.split("|")[0]
-                elif provider_type == Provider.PROVIDER_OCP:
+                elif provider.type == Provider.PROVIDER_OCP:
                     # The report month is used in the metadata of OCP files in s3.
                     # Setting the report_month to the start date allows us to
                     # delete the correct data for daily operator files
@@ -338,12 +341,13 @@ class Orchestrator:
                 LOG.info(log_json(tracing_id, msg="queueing download", schema=schema_name))
                 report_tasks.append(
                     get_report_files.s(
-                        customer_name,
-                        credentials,
-                        data_source,
-                        provider_type,
-                        schema_name,
-                        provider_uuid,
+                        provider,
+                        # customer_name,
+                        # credentials,
+                        # data_source,
+                        # provider_type,
+                        # schema_name,
+                        # provider_uuid,
                         report_month,
                         report_context,
                         tracing_id=tracing_id,
@@ -379,9 +383,9 @@ class Orchestrator:
                     )
                 )
                 # data source contains fields from applications.extra and metered is the key that gates subs processing.
-                subs_task = extract_subs_data_from_reports.s(data_source.get("metered", "")).set(
-                    queue=SUBS_EXTRACTION_QUEUE
-                )
+                subs_task = extract_subs_data_from_reports.s(
+                    provider.billing_source.data_source.get("metered", "")
+                ).set(queue=SUBS_EXTRACTION_QUEUE)
                 LOG.info(log_json("start_manifest_processing", msg="created subs_task signature", schema=schema_name))
                 # Note that the summary, hcs and subs tasks will excecutue concurrently, so ordering can't be garunteed.
                 async_id = chord(report_tasks, group(summary_task, hcs_task, subs_task))()
@@ -449,7 +453,7 @@ class Orchestrator:
                         tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid
                     )
                 )
-                _, reports_tasks_queued = self.start_manifest_processing(**account)
+                _, reports_tasks_queued = self.start_manifest_processing(provider, report_month=month)
                 LOG.info(
                     log_json(
                         tracing_id,
@@ -487,7 +491,10 @@ class Orchestrator:
             except Exception as err:
                 # Broad exception catching is important here because any errors thrown can
                 # block all subsequent account processing.
-                LOG.error(f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.")
+                LOG.error(
+                    f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.",
+                    exc_info=err,
+                )
                 continue
 
     def prepare_continuous_report_sources(self, provider: Provider):
@@ -511,7 +518,7 @@ class Orchestrator:
             LOG.info(
                 log_json(tracing_id, msg="starting manifest processing", schema=schema, provider_uuid=provider.uuid)
             )
-            _, reports_tasks_queued = self.start_manifest_processing(**account)
+            _, reports_tasks_queued = self.start_manifest_processing(provider, report_month=start_date)
             LOG.info(
                 log_json(
                     tracing_id,
@@ -525,7 +532,9 @@ class Orchestrator:
         except Exception as err:
             # Broad exception catching is important here because any errors thrown can
             # block all subsequent account processing.
-            LOG.error(f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.")
+            LOG.error(
+                f"Unexpected manifest processing error for provider: {provider.uuid}. Error: {str(err)}.", exc_info=err
+            )
 
     def remove_expired_report_data(self, simulate=False):
         """

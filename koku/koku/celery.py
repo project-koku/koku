@@ -13,8 +13,11 @@ from celery.schedules import ParseException
 from celery.signals import celeryd_after_setup
 from celery.signals import worker_process_init
 from celery.signals import worker_process_shutdown
+from django.apps import apps
 from django.conf import settings
+from django.db.models import Model
 from kombu.exceptions import OperationalError
+from kombu.utils.json import register_type
 
 from .database import FKViolation
 from koku import sentry  # noqa: F401
@@ -24,6 +27,15 @@ from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
 
 LOG = logging.getLogger(__name__)
+
+
+# Allow serialization of django models:
+register_type(
+    Model,
+    "model",
+    lambda o: [o._meta.label, o.pk],
+    lambda o: apps.get_model(o[0]).objects.get(pk=o[1]),
+)
 
 
 class LogErrorsTask(Task):  # pragma: no cover
