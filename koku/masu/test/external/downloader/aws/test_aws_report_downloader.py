@@ -654,9 +654,9 @@ class AWSReportDownloaderTest(MasuTestCase):
         expected_interval = "identity/TimeInterval"
         expected_cols = copy.deepcopy(utils.RECOMMENDED_COLUMNS) | copy.deepcopy(utils.OPTIONAL_COLS)
         expected_cols |= {"costCategory/qe_source", "costCategory/name", "costCategory/cost_env"}
-        start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
-        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2, tzinfo=None)
-        expected_date = self.dh.this_month_start.replace(year=2023, month=6, day=1, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
+        end_date = self.dh.this_month_start.replace(year=2023, month=6, day=2).date()
+        expected_date = self.dh.this_month_start.replace(year=2023, month=6, day=1).date()
         with patch(
             "masu.external.downloader.aws.aws_report_downloader.check_provider_setup_complete", return_Value=True
         ):
@@ -743,7 +743,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
 
-        start_date = self.dh.this_month_start.replace(year=2023, month=9, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=9).date()
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
         )
@@ -759,7 +759,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
         )
