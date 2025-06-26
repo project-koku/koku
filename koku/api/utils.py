@@ -289,30 +289,28 @@ class DateHelper:
         return n_days
 
     def list_days(self, start_date, end_date):
-        """Return a list of days from the start date til the end date.
+        """Return a list of dates from the start date til the end date.
 
         Args:
             start_date    (DateTime) starting datetime
             end_date      (DateTime) ending datetime
         Returns:
-            (List[DateTime]): A list of days from the start date to end date
+            (List[DateTime]): A list of dates between the start date and end date inclusive
 
         """
-        end_midnight = end_date
-        start_midnight = start_date
         if isinstance(start_date, str):
-            start_midnight = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = ciso8601.parse_datetime(start_date).date()
         if isinstance(end_date, str):
-            end_midnight = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, second=0, microsecond=0)
-        if isinstance(end_date, datetime.datetime):
-            end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = ciso8601.parse_datetime(end_date).date()
         if isinstance(start_date, datetime.datetime):
-            start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        days = (end_midnight - start_midnight + self.one_day).days
+            start_date = start_date.date()
+        if isinstance(end_date, datetime.datetime):
+            end_date = end_date.date()
+        days = (end_date - start_date + self.one_day).days
 
         # built-in range(start, end, step) requires (start < end) == True
         day_range = range(days, 0) if days < 0 else range(days)
-        return [start_midnight + datetime.timedelta(i) for i in day_range]
+        return [start_date + datetime.timedelta(i) for i in day_range]
 
     def list_months(self, start_date, end_date):
         """Return a list of months from the start date til the end date.

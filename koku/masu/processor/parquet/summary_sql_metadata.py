@@ -4,8 +4,6 @@ from dataclasses import field
 from datetime import date
 from decimal import Decimal
 from typing import Any
-from typing import Dict
-from typing import List
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -22,7 +20,7 @@ class SummarySqlMetadata:
     cloud_provider_uuid: str
     start_date: date
     end_date: date
-    matched_tag_strs: List[str]
+    matched_tag_strs: list[str]
     days_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
@@ -65,7 +63,7 @@ class SummarySqlMetadata:
             )
         return cost_model_params
 
-    def build_params(self, requested_keys: List[str]) -> Dict[str, Any]:
+    def build_params(self, requested_keys: list[str]) -> dict[str, Any]:
         """
         Builds and returns a dictionary of parameters based on requested keys.
 
