@@ -158,7 +158,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
     def populate_ocp_on_aws_ui_summary_tables_trino(
-        self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, tables=OCPAWS_UI_SUMMARY_TABLES
+            self, start_date, end_date, openshift_provider_uuid, aws_provider_uuid, tables=OCPAWS_UI_SUMMARY_TABLES
     ):
         """Populate our UI summary tables (formerly materialized views)."""
         year = start_date.strftime("%Y")
@@ -191,7 +191,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
     def delete_ocp_on_aws_hive_partition_by_day(
-        self, days, aws_source, ocp_source, year, month, table="reporting_ocpawscostlineitem_project_daily_summary"
+            self, days, aws_source, ocp_source, year, month, table="reporting_ocpawscostlineitem_project_daily_summary"
     ):
         """Deletes partitions individually for each day in days list."""
         if self.schema_exists_trino() and self.table_exists_trino(table):
@@ -253,15 +253,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return matched_tags
 
     def populate_ocp_on_aws_cost_daily_summary_trino(
-        self,
-        start_date,
-        end_date,
-        openshift_provider_uuid,
-        aws_provider_uuid,
-        report_period_id,
-        bill_id,
-        markup_value,
-        distribution,
+            self,
+            start_date,
+            end_date,
+            openshift_provider_uuid,
+            aws_provider_uuid,
+            report_period_id,
+            bill_id,
+            markup_value,
+            distribution,
     ):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
@@ -360,7 +360,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         with schema_context(self.schema):
             # Early return check to see if they have any tag mappings set.
             if not TagMapping.objects.filter(
-                Q(child__provider_type=Provider.PROVIDER_AWS) | Q(child__provider_type=Provider.PROVIDER_OCP)
+                    Q(child__provider_type=Provider.PROVIDER_AWS) | Q(child__provider_type=Provider.PROVIDER_OCP)
             ).exists():
                 LOG.debug("No tag mappings for AWS.")
                 return
@@ -372,7 +372,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(
-            self._table_map["reporting_ocpawscostlineitem_daily_summary_p"], sql, sql_params
+            self._table_map["ocp_on_aws_daily_summary"], sql, sql_params
         )
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
@@ -460,7 +460,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return [json.loads(result[0]) for result in results]
 
     def get_openshift_on_cloud_matched_tags_trino(
-        self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
+            self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpaws_matched_tags.sql")
