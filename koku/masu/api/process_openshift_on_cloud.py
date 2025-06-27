@@ -7,7 +7,6 @@ import logging
 from uuid import uuid4
 
 import ciso8601
-from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -86,10 +85,10 @@ def process_openshift_on_cloud(request):  # noqa: C901
             "tracing_id": tracing_id,
         }
         if provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            bill_end = dh.month_end(bill_date)
-            bill_start = dh.month_start(bill_date)
-            start = ciso8601.parse_datetime(start_date).astimezone(tz=settings.UTC)
-            end = ciso8601.parse_datetime(end_date).astimezone(tz=settings.UTC) if end_date else bill_end
+            bill_end = dh.month_end(bill_date).date()
+            bill_start = dh.month_start(bill_date).date()
+            start = ciso8601.parse_datetime(start_date).date()
+            end = ciso8601.parse_datetime(end_date).date() if end_date else bill_end
             params["start_date"] = max(start, bill_start)
             params["end_date"] = min(bill_end, end)
             LOG.info("Triggering process_daily_openshift_on_cloud task with params:")

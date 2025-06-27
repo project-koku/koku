@@ -3,44 +3,32 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """VM count dataclass"""
-from dataclasses import dataclass
 from datetime import date
+from typing import Self
+from uuid import UUID
 
-from dateutil.parser import parse
-from django.conf import settings
+from pydantic import BaseModel
+from pydantic import model_validator
+from pydantic import ValidationError
 
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper as dh
 
 
-@dataclass
-class VMParams:
+class VMParams(BaseModel):
     """Data class to manage parameters for VM count queries."""
 
     schema: str
     start_date: date
     end_date: date
-    source_uuid: str
+    source_uuid: UUID
     report_period_id: int
 
-    def __post_init__(self):
-        """Performs post-initialization validation and parameter generation.
-
-        Validates date parameters and raises an error if start_date is after end_date.
-
-        Raises:
-            ValueError: If start_date is after end_date.
-        """
-        self._check_date_parameters_format()
+    @model_validator(mode="after")
+    def validate_start_and_end(self) -> Self:
         if self.start_date > self.end_date:
-            raise ValueError("start_date cannot be after end_date.")
-
-    def _check_date_parameters_format(self):
-        """Checks to make sure the date parameters are in the correct format"""
-        if type(self.start_date) == str:
-            self.start_date = parse(self.start_date).astimezone(tz=settings.UTC)
-        if type(self.end_date) == str:
-            self.end_date = parse(self.end_date).astimezone(tz=settings.UTC)
+            raise ValidationError("start_date cannot be after end_date")
+        return self
 
     def _create_base_parameters(self):
         """Creates a dictionary of base SQL parameters.

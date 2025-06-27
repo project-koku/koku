@@ -15,8 +15,8 @@ class CostModelSQLParameterTest(MasuTestCase):
         with self.assertRaises(ValueError):
             VMParams(
                 schema=self.schema_name,
-                start_date=str(self.dh.this_month_end),
-                end_date=str(self.dh.this_month_start),
+                start_date=self.dh.this_month_end.date(),
+                end_date=self.dh.this_month_start.date(),
                 source_uuid=self.ocp_provider_uuid,
                 report_period_id=1,
             )
@@ -45,8 +45,8 @@ class CostModelSQLParameterTest(MasuTestCase):
         }
         params = VMParams(
             schema=self.schema_name,
-            start_date=str(self.dh.this_month_start.date()),
-            end_date=str(self.dh.this_month_end.date()),
+            start_date=self.dh.this_month_start.date(),
+            end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )
@@ -80,8 +80,8 @@ class CostModelSQLParameterTest(MasuTestCase):
         }
         params = VMParams(
             schema=self.schema_name,
-            start_date=str(self.dh.this_month_start.date()),
-            end_date=str(self.dh.this_month_end.date()),
+            start_date=self.dh.this_month_start.date(),
+            end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )
@@ -96,8 +96,8 @@ class CostModelSQLParameterTest(MasuTestCase):
         tag_price_list = {}
         params = VMParams(
             schema=self.schema_name,
-            start_date=str(self.dh.this_month_start.date()),
-            end_date=str(self.dh.this_month_end.date()),
+            start_date=self.dh.this_month_start.date(),
+            end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )
