@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
+from pydantic import ValidationError
+
 from api.metrics import constants as metric_constants
 from cost_models.sql_parameters import VMParams
 from masu.test import MasuTestCase
@@ -12,7 +14,7 @@ class CostModelSQLParameterTest(MasuTestCase):
     """Tests for Cost Model Manager."""
 
     def test_invalid_dates(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             VMParams(
                 schema=self.schema_name,
                 start_date=self.dh.this_month_end.date(),

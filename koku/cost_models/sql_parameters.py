@@ -9,7 +9,6 @@ from uuid import UUID
 
 from pydantic import BaseModel
 from pydantic import model_validator
-from pydantic import ValidationError
 
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper as dh
@@ -27,7 +26,7 @@ class VMParams(BaseModel):
     @model_validator(mode="after")
     def validate_start_and_end(self) -> Self:
         if self.start_date > self.end_date:
-            raise ValidationError("start_date cannot be after end_date")
+            raise ValueError("start_date cannot be after end_date")
         return self
 
     def _create_base_parameters(self):
