@@ -554,7 +554,7 @@ class TestAWSUtils(MasuTestCase):
         metadata_key = "manifestid"
         metadata_value = "manifest_id"
         context = {"account": self.account_id, "provider_type": self.aws_provider.type}
-        start_date = self.dh.this_month_start.replace(tzinfo=None)
+        start_date = self.dh.this_month_start.date()
         s3_csv_path = get_path_prefix(
             self.account_id, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, Config.CSV_DATA_TYPE
         )
@@ -584,7 +584,7 @@ class TestAWSUtils(MasuTestCase):
         prov_uuid = self.gcp_provider_uuid
         prov_type = self.gcp_provider.type
         context = {"account": self.account_id, "provider_type": prov_type}
-        start_date = self.dh.this_month_start.replace(tzinfo=None)
+        start_date = self.dh.this_month_start.date()
         s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
         expected_key = "not_matching_key"
         mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
@@ -804,8 +804,8 @@ class TestAWSUtils(MasuTestCase):
     @patch("masu.util.aws.common.get_s3_resource")
     def test_get_or_clear_daily_s3_by_date(self, mock_resource):
         """test getting daily archive start date"""
-        start_date = self.dh.this_month_start.replace(year=2019, month=7, day=1, tzinfo=None)
-        end_date = self.dh.this_month_start.replace(year=2019, month=7, day=2, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2019, month=7, day=1).date()
+        end_date = self.dh.this_month_start.replace(year=2019, month=7, day=2).date()
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.get_manifest_daily_start_date",
             return_value=None,

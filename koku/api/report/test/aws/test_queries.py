@@ -14,6 +14,7 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
@@ -2275,7 +2276,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""
-        today = datetime.utcnow()
+        today = datetime.now(tz=settings.UTC)
         yesterday = today - timedelta(days=1)
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -3386,7 +3387,6 @@ class AWSQueryHandlerTest(IamTestCase):
         self.assertEqual(result, expected_output)
 
     def test_format_ec2_response_csv(self):
-
         query_params = self.mocked_query_params("", AWSEC2ComputeView)
         handler = AWSReportQueryHandler(query_params)
         handler.is_csv_output = True

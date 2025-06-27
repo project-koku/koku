@@ -3,7 +3,7 @@ FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 WHERE ( sku_description LIKE '%RedHat%'
     OR sku_description LIKE '%Red Hat%'
     OR  service_description LIKE '%Red Hat%')
-    AND source = {{provider_uuid}}
+    AND source = {{provider_uuid | string}}
     AND year = {{year}}
     AND month = {{month}}
     AND usage_start_time >= {{date}}

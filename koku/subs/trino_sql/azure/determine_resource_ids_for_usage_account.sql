@@ -16,7 +16,7 @@ FROM (
    FROM
      hive.{{schema | sqlsafe}}.azure_line_items
    WHERE
-    source={{source_uuid}}
+    source={{source_uuid | string}}
     AND year={{year}}
     AND month={{month}}
     AND metercategory = 'Virtual Machines'
@@ -27,7 +27,7 @@ FROM (
         SELECT
             DISTINCT resource_id
         FROM postgres.{{schema | sqlsafe}}.reporting_subs_last_processed_time
-        WHERE source_uuid != cast({{source_uuid}} as uuid)
+        WHERE source_uuid != {{source_uuid}}
             AND year={{year}}
             AND month={{month}}
     )

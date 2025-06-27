@@ -24,6 +24,7 @@ from api.utils import get_currency
 from api.utils import get_months_in_date_range
 from api.utils import materialized_view_month_start
 from api.utils import merge_dicts
+from api.utils import to_utc_datetime
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.config import Config
@@ -171,7 +172,7 @@ class DateHelperTest(TestCase):
 
     def test_list_days(self):
         """Test the list_days method."""
-        first = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        first = datetime.datetime.now().date().replace(day=1)
         second = first.replace(day=2)
         third = first.replace(day=3)
         expected = [first, second, third]
@@ -253,7 +254,7 @@ class DateHelperTest(TestCase):
 
     def test_list_days_params_as_strings(self):
         """Test the list_days method."""
-        first = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        first = datetime.datetime.now().date().replace(day=1)
         second = first.replace(day=2)
         third = first.replace(day=3)
         expected = [first, second, third]
@@ -301,6 +302,142 @@ class GeneralUtilsTest(IamTestCase):
                 self.assertEqual(get_account_settings(self.request_context["request"]), settings)
 
 
+class GetDateTimeTest(unittest.TestCase):
+    """Test the to_utc_datetime util function."""
+
+    def test_to_utc_datetime_with_none(self):
+        """Test to_utc_datetime with None input returns None."""
+        result = to_utc_datetime(None)
+        self.assertIsNone(result)
+
+    def test_to_utc_datetime_with_string_iso_format(self):
+        """Test to_utc_datetime with ISO format string."""
+        date_string = "2023-05-15T14:30:00+00:00"
+        result = to_utc_datetime(date_string)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.hour, 14)
+        self.assertEqual(result.minute, 30)
+
+    def test_to_utc_datetime_with_string_simple_date(self):
+        """Test to_utc_datetime with simple date string."""
+        date_string = "2023-05-15"
+        result = to_utc_datetime(date_string)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+
+    def test_to_utc_datetime_with_string_different_timezone(self):
+        """Test to_utc_datetime with string in different timezone."""
+        date_string = "2023-05-15T14:30:00-05:00"
+        result = to_utc_datetime(date_string)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        # Should be converted to UTC (19:30)
+        self.assertEqual(result.hour, 19)
+        self.assertEqual(result.minute, 30)
+
+    def test_to_utc_datetime_with_timezone_aware_datetime(self):
+        """Test to_utc_datetime with timezone-aware datetime object."""
+        import pytz
+
+        eastern = pytz.timezone("US/Eastern")
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 0, tzinfo=eastern)
+        result = to_utc_datetime(dt)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        # Should be converted to UTC from Eastern time
+        self.assertNotEqual(result.hour, 14)  # Should be different due to timezone conversion
+
+    def test_to_utc_datetime_with_timezone_naive_datetime(self):
+        """Test to_utc_datetime with timezone-naive datetime object."""
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 0)
+        result = to_utc_datetime(dt)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.hour, 14)
+        self.assertEqual(result.minute, 30)
+
+    def test_to_utc_datetime_with_utc_datetime(self):
+        """Test to_utc_datetime with UTC datetime object."""
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 0, tzinfo=settings.UTC)
+        result = to_utc_datetime(dt)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result, dt)  # Should be unchanged
+
+    def test_to_utc_datetime_with_invalid_string(self):
+        """Test to_utc_datetime with invalid date string raises ValueError."""
+        with self.assertRaises(ValueError):
+            to_utc_datetime("invalid-date-string")
+
+    def test_to_utc_datetime_with_invalid_type(self):
+        """Test to_utc_datetime with invalid type raises TypeError."""
+        with self.assertRaises(TypeError):
+            to_utc_datetime(12345)
+
+        with self.assertRaises(TypeError):
+            to_utc_datetime([])
+
+        with self.assertRaises(TypeError):
+            to_utc_datetime({})
+
+    def test_to_utc_datetime_with_date_object(self):
+        """Test to_utc_datetime with date object converts to datetime at midnight UTC."""
+        date_obj = datetime.date(2023, 5, 15)
+        result = to_utc_datetime(date_obj)
+
+        self.assertIsInstance(result, datetime.datetime)
+        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.hour, 0)
+        self.assertEqual(result.minute, 0)
+        self.assertEqual(result.second, 0)
+        self.assertEqual(result.microsecond, 0)
+
+    def test_to_utc_datetime_preserves_precision(self):
+        """Test to_utc_datetime preserves microsecond precision."""
+        dt = datetime.datetime(2023, 5, 15, 14, 30, 45, 123456, tzinfo=settings.UTC)
+        result = to_utc_datetime(dt)
+
+        self.assertEqual(result.microsecond, 123456)
+
+    def test_to_utc_datetime_with_various_string_formats(self):
+        """Test to_utc_datetime with various string formats."""
+        test_cases = [
+            "2023-05-15T14:30:00Z",
+            "2023-05-15 14:30:00",
+            "2023/05/15 14:30:00",
+            "May 15, 2023 2:30 PM",
+            "2023-05-15T14:30:00.123456Z",
+        ]
+
+        for date_string in test_cases:
+            with self.subTest(date_string=date_string):
+                result = to_utc_datetime(date_string)
+                self.assertIsInstance(result, datetime.datetime)
+                self.assertEqual(result.tzinfo, settings.UTC)
+                self.assertEqual(result.year, 2023)
+                self.assertEqual(result.month, 5)
+                self.assertEqual(result.day, 15)
+
+
 class GetMonthsInDateRangeTest(unittest.TestCase):
     """Test the get_months_in_date_range util."""
 
@@ -320,8 +457,8 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """Test that calling get_months_in_date_range with report only returns list of month tuples"""
 
         mock_dh_today.return_value = self.start_date
-        expected_start = self.start_date.strftime("%Y-%m-%d")
-        expected_end = self.end_date.strftime("%Y-%m-%d")
+        expected_start = self.start_date
+        expected_end = self.end_date
         test_report = {
             "schema": "org1234567",
             "start": expected_start,
@@ -348,8 +485,8 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_start = (self.start_date - datetime.timedelta(days=2)).strftime("%Y-%m-%d")
-        expected_end = self.start_date.strftime("%Y-%m-%d")
+        expected_start = self.start_date - datetime.timedelta(days=2)
+        expected_end = self.start_date
         expected_months = [(expected_start, expected_end, None)]
 
         returned_months = get_months_in_date_range(test_report)
@@ -370,7 +507,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_date_2 = self.first_of_year.strftime("%Y-%m-%d")
+        expected_date_2 = self.first_of_year
         expected_months = [(expected_date_2, expected_date_2, None)]
 
         returned_months = get_months_in_date_range(test_report)
@@ -391,8 +528,8 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
             "schema": "org1234567",
             "provider_uuid": "f3da28f7-00c7-43ba-a1de-f0be0b9d6060",
         }
-        expected_date = self.first_of_month.strftime("%Y-%m-%d")
-        expected_months = [(expected_date, end_date.strftime("%Y-%m-%d"), None)]
+        expected_date = self.first_of_month
+        expected_months = [(expected_date, end_date, None)]
 
         returned_months = get_months_in_date_range(test_report)
 
@@ -409,7 +546,7 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
 
         mock_dh_today.return_value = self.start_date
         invoice_month = self.start_date.strftime("%Y%m")
-        expected_date = self.start_date.strftime("%Y-%m-%d")
+        expected_date = self.start_date
         expected_months = [(expected_date, expected_date, invoice_month)]
 
         returned_months = get_months_in_date_range(
@@ -427,14 +564,14 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """
 
         invoice_month = self.start_date.strftime("%Y%m")
-        expected_start = self.start_date.strftime("%Y-%m-%d")
-        expected_end = self.end_date.strftime("%Y-%m-%d")
+        expected_start = self.start_date
+        expected_end = self.end_date
         expected_months = [(expected_start, expected_end, invoice_month)]
 
         returned_months = get_months_in_date_range(
             report=None,
-            start=expected_start,
-            end=expected_end,
+            start=expected_start.strftime("%Y-%m-%d"),
+            end=expected_end.strftime("%Y-%m-%d"),
             invoice_month=invoice_month,
         )
 
@@ -449,11 +586,15 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         """
 
         mock_dh_today.return_value = self.start_date
-        expected_start = self.start_date.strftime("%Y-%m-%d")
-        expected_end = self.end_date.strftime("%Y-%m-%d")
+        expected_start = self.start_date
+        expected_end = self.end_date
         expected_months = [(expected_start, expected_end, None)]
 
-        returned_months = get_months_in_date_range(report=None, start=expected_start, end=expected_end)
+        returned_months = get_months_in_date_range(
+            report=None,
+            start=expected_start.strftime("%Y-%m-%d"),
+            end=expected_end.strftime("%Y-%m-%d"),
+        )
 
         mock_dh_today.assert_called()
         self.assertEqual(returned_months, expected_months)
@@ -469,12 +610,12 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         Config.INITIAL_INGEST_NUM_MONTHS = 0
         mock_dh_today.return_value = self.start_date
-        expected_start = self.start_date.strftime("%Y-%m-01")
-        expected_end = self.end_date.strftime("%Y-%m-%d")
+        expected_start = self.start_date.replace(day=1)
+        expected_end = self.end_date
         expected_months = [(expected_start, expected_end, None)]
 
         returned_months = get_months_in_date_range(
-            report=None, start=self.early_start_date.strftime("%Y-%m-%d"), end=self.end_date.strftime("%Y-%m-%d")
+            report=None, start=self.early_start_date.strftime("%Y-%m-%d"), end=self.end_date
         )
 
         Config.INITIAL_INGEST_NUM_MONTHS = initial_month_qty
@@ -493,8 +634,8 @@ class GetMonthsInDateRangeTest(unittest.TestCase):
         initial_month_qty = Config.INITIAL_INGEST_NUM_MONTHS
         Config.INITIAL_INGEST_NUM_MONTHS = 0
         mock_dh_today.return_value = self.start_date
-        expected_start = self.start_date.strftime("%Y-%m-01")
-        expected_end = self.start_date.strftime("%Y-%m-%d")
+        expected_start = self.start_date.replace(day=1)
+        expected_end = self.start_date
         expected_months = [(expected_start, expected_end, None)]
 
         returned_months = get_months_in_date_range(

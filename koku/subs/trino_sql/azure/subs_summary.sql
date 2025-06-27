@@ -41,7 +41,7 @@ SELECT
 FROM
     hive.{{schema | sqlsafe}}.azure_line_items
 WHERE
-    source = {{ source_uuid }}
+    source = {{ source_uuid | string }}
     AND year = {{ year }}
     AND month = {{ month }}
     AND metercategory = 'Virtual Machines'

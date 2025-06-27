@@ -99,7 +99,7 @@ def create_daily_archives(
         context (Dict): Logging context dictionary
     """
     base_name = base_filename.split(".")[0]
-    end_date = DateHelper().now.replace(tzinfo=None)
+    end_date = DateHelper().now.date()
     daily_file_names = []
     batch_date_range = set()
     s3_csv_path = com_utils.get_path_prefix(

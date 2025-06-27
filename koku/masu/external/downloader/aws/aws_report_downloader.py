@@ -115,7 +115,7 @@ def create_daily_archives(  # noqa C901
         context (Dict): Logging context dictionary
     """
     base_name = s3_filename.split(".")[0]
-    end_date = DateHelper().now.replace(tzinfo=None)
+    end_date = DateHelper().now.date()
     daily_file_names = []
     dates = set()
     s3_csv_path = com_utils.get_path_prefix(
@@ -138,7 +138,7 @@ def create_daily_archives(  # noqa C901
                 intervals = data_frame[time_interval].unique()
                 for interval in intervals:
                     date = interval.split("T")[0]
-                    csv_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+                    csv_date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
                     # Adding end here so we dont bother to process future incomplete days (saving plan data)
                     if csv_date >= process_date and csv_date <= end_date:
                         dates.add(date)

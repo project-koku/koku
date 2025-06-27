@@ -708,7 +708,13 @@ GROUP BY partitions.year, partitions.month, partitions.source
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
-            param_builder = VMParams(self.schema, start_date, end_date, provider_uuid, report_period_id)
+            param_builder = VMParams(
+                schema=self.schema,
+                start_date=start_date,
+                end_date=end_date,
+                source_uuid=provider_uuid,
+                report_period_id=report_period_id,
+            )
             hourly_params = {"rate_type": rate_type, "hourly_rate": ocp_vm_hour_rate}
             vm_hour_params = param_builder.build_parameters(hourly_params)
             sql = pkgutil.get_data(
@@ -718,7 +724,13 @@ GROUP BY partitions.year, partitions.month, partitions.source
             self._execute_trino_multipart_sql_query(sql, bind_params=vm_hour_params)
 
         if ocp_vm_core_hour_rate := rates.get(metric_constants.OCP_VM_CORE_HOUR):
-            param_builder = VMParams(self.schema, start_date, end_date, provider_uuid, report_period_id)
+            param_builder = VMParams(
+                schema=self.schema,
+                start_date=start_date,
+                end_date=end_date,
+                source_uuid=provider_uuid,
+                report_period_id=report_period_id,
+            )
             hourly_params = {"rate_type": rate_type, "hourly_rate": ocp_vm_core_hour_rate}
             vm_hour_params = param_builder.build_parameters(hourly_params)
             sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_vm_core.sql").decode(
@@ -1283,7 +1295,13 @@ GROUP BY partitions.year, partitions.month, partitions.source
             return
 
         for metric_name, file_path in metric_file_path.items():
-            vm_count_params = VMParams(self.schema, start_date, end_date, provider_uuid, report_period.id)
+            vm_count_params = VMParams(
+                schema=self.schema,
+                start_date=start_date,
+                end_date=end_date,
+                source_uuid=provider_uuid,
+                report_period_id=report_period.id,
+            )
             param_list = vm_count_params.build_tag_based_rate_parameters(tag_based_price_list, metric_name)
             if not param_list:
                 continue

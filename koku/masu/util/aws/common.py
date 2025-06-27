@@ -581,18 +581,16 @@ def get_or_clear_daily_s3_by_date(csv_s3_path, provider_uuid, start_date, end_da
         return processing_date
     processing_date = start_date
     try:
-        s3_date = None
+        s3_date = datetime.date.min
         for obj_summary in _get_s3_objects(csv_s3_path):
             existing_object = obj_summary.Object()
-            date = datetime.datetime.strptime(existing_object.key.split(f"{csv_s3_path}/")[1].split("_")[0], DATE_FMT)
-            if not s3_date:
-                s3_date = date
-            else:
-                if date > s3_date:
-                    s3_date = date
+            date_in_filename = datetime.datetime.strptime(
+                existing_object.key.split(f"{csv_s3_path}/")[1].split("_")[0], DATE_FMT
+            ).date()
+            s3_date = max(s3_date, date_in_filename)
         # AWS bills savings plans ahead of time, make sure we dont only process future dates
-        if s3_date:
-            process_date = s3_date if s3_date < end_date else end_date
+        if s3_date != datetime.date.min:
+            process_date = min(s3_date, end_date)
             processing_date = (
                 process_date - datetime.timedelta(days=3) if process_date.day > 3 else process_date.replace(day=1)
             )
@@ -823,16 +821,16 @@ def clear_s3_files(
     )
     s3_prefixes = []
     dh = DateHelper()
-    list_datetimes = dh.list_days(start_date, dh.now.replace(tzinfo=None))
+    list_dates = dh.list_days(start_date, dh.now.date())
     og_path = "/"
     if provider_type == "GCP":
         og_path += f"{invoice_month}_"
         # GCP openshift data is partitioned by day
         day = start_date.strftime("%d")
         parquet_ocp_on_cloud_path_s3 += f"/day={day}"
-        list_datetimes = [start_date]
-    for date_time in list_datetimes:
-        path = f"{og_path}{date_time.date()}"
+        list_dates = [start_date]
+    for _date in list_dates:
+        path = f"{og_path}{_date}"
         s3_prefixes.append(csv_s3_path + path)
         s3_prefixes.append(parquet_path_s3 + path)
         s3_prefixes.append(parquet_daily_path_s3 + path)

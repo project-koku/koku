@@ -5,7 +5,7 @@ SELECT
 FROM
   hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 WHERE
-  source = {{provider_uuid}}
+  source = {{provider_uuid | string}}
   AND year = {{year}}
   AND month = {{month}}
   AND date >= {{date}}
