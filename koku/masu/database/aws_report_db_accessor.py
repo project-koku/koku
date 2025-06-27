@@ -367,6 +367,13 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_daily_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_project_daily_summary"], sql, sql_params)
+        sql = pkgutil.get_data(
+            "masu.database", "sql/aws/openshift/ocpaws_tag_mapping_update_costlineitem_daily_summary.sql"
+        )
+        sql = sql.decode("utf-8")
+        self._prepare_and_execute_raw_sql_query(
+            self._table_map["reporting_ocpawscostlineitem_daily_summary_p"], sql, sql_params
+        )
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
