@@ -44,7 +44,7 @@ WITH cte_gcp_resource_names AS (
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
-        AND month in {{invoice_months}}
+        AND month in ({{month}}, {{previous_month}})
         AND usage_start_time >= {{start_date}}
         AND usage_start_time < date_add('day', 1, {{end_date}})
 ),

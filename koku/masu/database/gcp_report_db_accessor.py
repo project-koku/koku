@@ -624,14 +624,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         prepare_sql, prepare_params = sql_metadata.prepare_template(
             f"{managed_path}/0_prepare_daily_summary_tables.sql"
         )
-        dh = DateHelper()
-        # GCP has crossover data meaning usage 2025-06-01 could be in 202505 partition
-        # Our parquet table month partitions are based on invoice month not usage date
-        # This means we need to account for crossover data during our matching logic
-        prepare_params["invoice_months"] = [
-            sql_metadata.month,
-            dh.bill_month_from_date(sql_metadata.start_date.replace(month=sql_metadata.start_date.month - 1)),
-        ]
         LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
         with OCPReportDBAccessor(sql_metadata.schema) as accessor:
@@ -659,6 +651,12 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             {
                 "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
             },
+        )
+        # GCP has crossover data meaning usage 2025-06-01 could be in 202505 partition
+        # Our parquet table month partitions are based on invoice month not usage date
+        # This means we need to account for crossover data during our matching logic
+        resource_matching_params["previous_month"] = DateHelper().bill_month_from_date(
+            sql_metadata.start_date.replace(month=sql_metadata.start_date.month - 1)
         )
         self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
         # Data Transformation for Daily Summary
