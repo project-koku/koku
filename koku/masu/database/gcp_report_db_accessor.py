@@ -658,6 +658,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         resource_matching_params["previous_month"] = DateHelper().bill_month_from_date(
             sql_metadata.start_date.replace(month=sql_metadata.start_date.month - 1)
         )
+        LOG.info(log_json(msg="Resource matching for OCP on GCP flow", **resource_matching_params))
         self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
         # Data Transformation for Daily Summary
         daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
