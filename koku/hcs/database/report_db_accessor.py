@@ -68,7 +68,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 raise HCSTableNotFoundError(table)
 
             sql_params = {
-                "provider_uuid": str(provider_uuid),
+                "provider_uuid": provider_uuid,
                 "year": date.strftime("%Y"),
                 "month": date.strftime("%m"),
                 "date": date,
