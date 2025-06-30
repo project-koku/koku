@@ -337,15 +337,17 @@ class DateHelper:
             current = next_month
         return months
 
-    def list_month_tuples(self, start_date, end_date):
+    def list_month_tuples(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> list[tuple[datetime.date, datetime.date]]:
         """Return a list of month range tuples with precise start/end dates.
 
         The first tuple uses the actual start_date, the last tuple uses the actual end_date,
         and middle months (if any) use full month boundaries.
 
         Args:
-            start_date    (DateTime) starting datetime
-            end_date      (DateTime) ending datetime
+            start_date    (datetime.date) starting datetime
+            end_date      (datetime.date) ending datetime
         Returns:
             List((datetime.date, datetime.date)): A list of (start, end) tuples for each month period
 
@@ -354,8 +356,8 @@ class DateHelper:
             return []
 
         months = []
-        current_start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        final_end = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        current_start = to_date(start_date)
+        final_end = to_date(end_date)
 
         while current_start <= final_end:
             # Calculate the end of current month
@@ -369,14 +371,14 @@ class DateHelper:
                 # Last partial month - use the actual end date
                 period_end = final_end
 
-            months.append((current_start.date(), period_end.date()))
+            months.append((current_start, period_end))
 
             # If we've reached the final month, break
             if period_end >= final_end:
                 break
 
             # Move to start of next month
-            current_start = self.next_month(current_start)
+            current_start = current_start + relativedelta(day=31) + relativedelta(days=1)
 
         return months
 
@@ -513,36 +515,32 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def to_utc_datetime(date: str | datetime.datetime | datetime.date | None) -> datetime.datetime | None:
-    """Convert a string, date, or datetime to a UTC datetime object.
+def to_date(date_input: str | datetime.datetime | datetime.date | None) -> datetime.date | None:
+    """Convert a string, date, or datetime to a date object.
 
     Args:
-        date: A date string, datetime object, date object, or None
+        date_input: A date string, datetime object, date object, or None
 
     Returns:
-        A datetime object in UTC timezone, or None if input is None
+        A date object, or None if input is None
 
     Raises:
         ValueError: If the input string cannot be parsed as a date
+        TypeError: If the input type is not supported
     """
-    if date is None:
+    if date_input is None:
         return None
 
-    if isinstance(date, str):
-        return parser.parse(date).astimezone(tz=settings.UTC)
+    if isinstance(date_input, str):
+        return parser.parse(date_input).date()
 
-    if isinstance(date, datetime.datetime):
-        # If it's timezone-naive, assume it's UTC
-        if date.tzinfo is None:
-            return date.replace(tzinfo=settings.UTC)
-        # If it has timezone info, convert to UTC
-        return date.astimezone(tz=settings.UTC)
+    if isinstance(date_input, datetime.datetime):
+        return date_input.date()
 
-    if isinstance(date, datetime.date):
-        # Convert date to datetime at midnight UTC
-        return datetime.datetime(date.year, date.month, date.day, tzinfo=settings.UTC)
+    if isinstance(date_input, datetime.date):
+        return date_input
 
-    raise TypeError(f"Expected str, datetime, date, or None, got {type(date)}")
+    raise TypeError(f"Expected str, datetime, date, or None, got {type(date_input)}")
 
 
 def get_months_in_date_range(
@@ -554,10 +552,11 @@ def get_months_in_date_range(
 ) -> list[tuple[datetime.datetime, datetime.datetime, str | None]]:
     """returns the month periods in a given date range from report"""
     dh = DateHelper()
+    today_date = dh.today.date()
 
     # Converting inputs to datetime objects
-    dt_start = to_utc_datetime(start)
-    dt_end = to_utc_datetime(end)
+    dt_start = to_date(start)
+    dt_end = to_date(end)
 
     dt_invoice_month = invoice_month
 
@@ -568,26 +567,26 @@ def get_months_in_date_range(
                 LOG.info(f"using invoice_month: {dt_invoice_month}")
         else:
             LOG.info("generating start and end dates for manifest")
-            dt_start = dh.today - datetime.timedelta(days=2) if dh.today.date().day > 2 else dh.today.replace(day=1)
-            dt_end = dh.today
+            dt_start = today_date - datetime.timedelta(days=2) if today_date.day > 2 else today_date.replace(day=1)
+            dt_end = today_date
 
     elif dt_invoice_month:
-        dt_start = dt_start or dh.today
-        dt_end = dt_end or dh.today
+        dt_start = dt_start or today_date
+        dt_end = dt_end or today_date
 
         # For report_data masu API
-        return [(dt_start.date(), dt_end.date(), dt_invoice_month)]
+        return [(dt_start, dt_end, dt_invoice_month)]
 
     # Grabbing ingest delta for initial ingest/summary
-    summary_month = (dh.today - relativedelta(months=Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
+    summary_month = (today_date - relativedelta(months=Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
     if not dt_start or dt_start < summary_month:
         dt_start = summary_month.replace(day=1)
 
     if not dt_end or dt_end < summary_month:
-        dt_end = dh.today
+        dt_end = today_date
 
     if report and dt_invoice_month:
-        return [(dt_start.date(), dt_end.date(), dt_invoice_month)]
+        return [(dt_start, dt_end, dt_invoice_month)]
 
     months = dh.list_month_tuples(dt_start, dt_end)
     return [(start, end, dt_invoice_month) for start, end in months]

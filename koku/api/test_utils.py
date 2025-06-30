@@ -24,7 +24,7 @@ from api.utils import get_currency
 from api.utils import get_months_in_date_range
 from api.utils import materialized_view_month_start
 from api.utils import merge_dicts
-from api.utils import to_utc_datetime
+from api.utils import to_date
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.config import Config
@@ -356,140 +356,152 @@ class GeneralUtilsTest(IamTestCase):
                 self.assertEqual(get_account_settings(self.request_context["request"]), settings)
 
 
-class GetDateTimeTest(unittest.TestCase):
-    """Test the to_utc_datetime util function."""
+class ToDateTest(unittest.TestCase):
+    """Test the to_date util function."""
 
-    def test_to_utc_datetime_with_none(self):
-        """Test to_utc_datetime with None input returns None."""
-        result = to_utc_datetime(None)
+    def test_to_date_with_none(self):
+        """Test to_date with None input returns None."""
+        result = to_date(None)
         self.assertIsNone(result)
 
-    def test_to_utc_datetime_with_string_iso_format(self):
-        """Test to_utc_datetime with ISO format string."""
+    def test_to_date_with_string_iso_format(self):
+        """Test to_date with ISO format string."""
         date_string = "2023-05-15T14:30:00+00:00"
-        result = to_utc_datetime(date_string)
+        result = to_date(date_string)
 
-        self.assertIsInstance(result, datetime.datetime)
-        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertIsInstance(result, datetime.date)
         self.assertEqual(result.year, 2023)
         self.assertEqual(result.month, 5)
         self.assertEqual(result.day, 15)
-        self.assertEqual(result.hour, 14)
-        self.assertEqual(result.minute, 30)
 
-    def test_to_utc_datetime_with_string_simple_date(self):
-        """Test to_utc_datetime with simple date string."""
+    def test_to_date_with_string_simple_date(self):
+        """Test to_date with simple date string."""
         date_string = "2023-05-15"
-        result = to_utc_datetime(date_string)
+        result = to_date(date_string)
 
-        self.assertIsInstance(result, datetime.datetime)
-        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertIsInstance(result, datetime.date)
         self.assertEqual(result.year, 2023)
         self.assertEqual(result.month, 5)
         self.assertEqual(result.day, 15)
 
-    def test_to_utc_datetime_with_string_different_timezone(self):
-        """Test to_utc_datetime with string in different timezone."""
+    def test_to_date_with_string_different_timezone(self):
+        """Test to_date with string in different timezone returns correct date."""
         date_string = "2023-05-15T14:30:00-05:00"
-        result = to_utc_datetime(date_string)
+        result = to_date(date_string)
 
-        self.assertIsInstance(result, datetime.datetime)
-        self.assertEqual(result.tzinfo, settings.UTC)
-        # Should be converted to UTC (19:30)
-        self.assertEqual(result.hour, 19)
-        self.assertEqual(result.minute, 30)
+        self.assertIsInstance(result, datetime.date)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
 
-    def test_to_utc_datetime_with_timezone_aware_datetime(self):
-        """Test to_utc_datetime with timezone-aware datetime object."""
+    def test_to_date_with_timezone_aware_datetime(self):
+        """Test to_date with timezone-aware datetime object."""
         import pytz
 
         eastern = pytz.timezone("US/Eastern")
         dt = datetime.datetime(2023, 5, 15, 14, 30, 0, tzinfo=eastern)
-        result = to_utc_datetime(dt)
+        result = to_date(dt)
 
-        self.assertIsInstance(result, datetime.datetime)
-        self.assertEqual(result.tzinfo, settings.UTC)
-        # Should be converted to UTC from Eastern time
-        self.assertNotEqual(result.hour, 14)  # Should be different due to timezone conversion
+        self.assertIsInstance(result, datetime.date)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
 
-    def test_to_utc_datetime_with_timezone_naive_datetime(self):
-        """Test to_utc_datetime with timezone-naive datetime object."""
+    def test_to_date_with_timezone_naive_datetime(self):
+        """Test to_date with timezone-naive datetime object."""
         dt = datetime.datetime(2023, 5, 15, 14, 30, 0)
-        result = to_utc_datetime(dt)
+        result = to_date(dt)
 
-        self.assertIsInstance(result, datetime.datetime)
-        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertIsInstance(result, datetime.date)
         self.assertEqual(result.year, 2023)
         self.assertEqual(result.month, 5)
         self.assertEqual(result.day, 15)
-        self.assertEqual(result.hour, 14)
-        self.assertEqual(result.minute, 30)
 
-    def test_to_utc_datetime_with_utc_datetime(self):
-        """Test to_utc_datetime with UTC datetime object."""
+    def test_to_date_with_utc_datetime(self):
+        """Test to_date with UTC datetime object."""
         dt = datetime.datetime(2023, 5, 15, 14, 30, 0, tzinfo=settings.UTC)
-        result = to_utc_datetime(dt)
+        result = to_date(dt)
 
-        self.assertIsInstance(result, datetime.datetime)
-        self.assertEqual(result.tzinfo, settings.UTC)
-        self.assertEqual(result, dt)  # Should be unchanged
-
-    def test_to_utc_datetime_with_invalid_string(self):
-        """Test to_utc_datetime with invalid date string raises ValueError."""
-        with self.assertRaises(ValueError):
-            to_utc_datetime("invalid-date-string")
-
-    def test_to_utc_datetime_with_invalid_type(self):
-        """Test to_utc_datetime with invalid type raises TypeError."""
-        with self.assertRaises(TypeError):
-            to_utc_datetime(12345)
-
-        with self.assertRaises(TypeError):
-            to_utc_datetime([])
-
-        with self.assertRaises(TypeError):
-            to_utc_datetime({})
-
-    def test_to_utc_datetime_with_date_object(self):
-        """Test to_utc_datetime with date object converts to datetime at midnight UTC."""
-        date_obj = datetime.date(2023, 5, 15)
-        result = to_utc_datetime(date_obj)
-
-        self.assertIsInstance(result, datetime.datetime)
-        self.assertEqual(result.tzinfo, settings.UTC)
+        self.assertIsInstance(result, datetime.date)
         self.assertEqual(result.year, 2023)
         self.assertEqual(result.month, 5)
         self.assertEqual(result.day, 15)
-        self.assertEqual(result.hour, 0)
-        self.assertEqual(result.minute, 0)
-        self.assertEqual(result.second, 0)
-        self.assertEqual(result.microsecond, 0)
 
-    def test_to_utc_datetime_preserves_precision(self):
-        """Test to_utc_datetime preserves microsecond precision."""
-        dt = datetime.datetime(2023, 5, 15, 14, 30, 45, 123456, tzinfo=settings.UTC)
-        result = to_utc_datetime(dt)
+    def test_to_date_with_invalid_string(self):
+        """Test to_date with invalid date string raises ValueError."""
+        with self.assertRaises(ValueError):
+            to_date("invalid-date-string")
 
-        self.assertEqual(result.microsecond, 123456)
+    def test_to_date_with_invalid_type(self):
+        """Test to_date with invalid type raises TypeError."""
+        with self.assertRaises(TypeError):
+            to_date(12345)
 
-    def test_to_utc_datetime_with_various_string_formats(self):
-        """Test to_utc_datetime with various string formats."""
+        with self.assertRaises(TypeError):
+            to_date([])
+
+        with self.assertRaises(TypeError):
+            to_date({})
+
+        with self.assertRaises(TypeError):
+            to_date(123.45)
+
+    def test_to_date_with_date_object(self):
+        """Test to_date with date object returns the same date object."""
+        date_obj = datetime.date(2023, 5, 15)
+        result = to_date(date_obj)
+
+        self.assertIsInstance(result, datetime.date)
+        self.assertEqual(result, date_obj)
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 5)
+        self.assertEqual(result.day, 15)
+
+    def test_to_date_preserves_date_ignores_time(self):
+        """Test to_date ignores time components and only returns date."""
+        test_cases = [
+            (datetime.datetime(2023, 5, 15, 23, 59, 59), datetime.date(2023, 5, 15)),
+            (datetime.datetime(2023, 5, 15, 0, 0, 0), datetime.date(2023, 5, 15)),
+            (datetime.datetime(2023, 5, 15, 12, 30, 45), datetime.date(2023, 5, 15)),
+        ]
+
+        for dt_input, expected_date in test_cases:
+            with self.subTest(dt_input=dt_input):
+                result = to_date(dt_input)
+                self.assertEqual(result, expected_date)
+
+    def test_to_date_with_various_string_formats(self):
+        """Test to_date with various string formats."""
         test_cases = [
             "2023-05-15T14:30:00Z",
             "2023-05-15 14:30:00",
             "2023/05/15 14:30:00",
             "May 15, 2023 2:30 PM",
             "2023-05-15T14:30:00.123456Z",
+            "2023-05-15",
+            "05/15/2023",
         ]
 
         for date_string in test_cases:
             with self.subTest(date_string=date_string):
-                result = to_utc_datetime(date_string)
-                self.assertIsInstance(result, datetime.datetime)
-                self.assertEqual(result.tzinfo, settings.UTC)
+                result = to_date(date_string)
+                self.assertIsInstance(result, datetime.date)
                 self.assertEqual(result.year, 2023)
                 self.assertEqual(result.month, 5)
                 self.assertEqual(result.day, 15)
+
+    def test_to_date_with_edge_dates(self):
+        """Test to_date with edge case dates like leap years and year boundaries."""
+        test_cases = [
+            ("2024-02-29", datetime.date(2024, 2, 29)),  # Leap year
+            ("2023-12-31", datetime.date(2023, 12, 31)),  # End of year
+            ("2024-01-01", datetime.date(2024, 1, 1)),  # Start of year
+        ]
+
+        for date_string, expected_date in test_cases:
+            with self.subTest(date_string=date_string):
+                result = to_date(date_string)
+                self.assertEqual(result, expected_date)
 
 
 class GetMonthsInDateRangeTest(unittest.TestCase):
