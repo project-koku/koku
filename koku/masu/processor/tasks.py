@@ -496,7 +496,12 @@ def summarize_reports(  # noqa: C901
 
             LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
 
-            months = get_months_in_date_range(report)
+            months = get_months_in_date_range(
+                start=report.get("start"),
+                end=report.get("end"),
+                invoice_month=report.get("invoice_month"),
+                report=True,
+            )
             for month in months:
                 update_summary_tables.s(
                     schema_name,

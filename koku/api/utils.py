@@ -15,7 +15,6 @@ from django.conf import settings
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
-from api.provider.models import Provider
 from api.settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
@@ -339,27 +338,46 @@ class DateHelper:
         return months
 
     def list_month_tuples(self, start_date, end_date):
-        """Return a list of tuples of datetimes.
-        Like (first day of the month, last day of the month)
-        from the start date til the end date.
+        """Return a list of month range tuples with precise start/end dates.
+
+        The first tuple uses the actual start_date, the last tuple uses the actual end_date,
+        and middle months (if any) use full month boundaries.
 
         Args:
             start_date    (DateTime) starting datetime
             end_date      (DateTime) ending datetime
         Returns:
-            List((DateTime, DateTime)): A list of months from the start date to end date
+            List((datetime.date, datetime.date)): A list of (start, end) tuples for each month period
 
         """
-        months = []
-        dt_first = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        end_midnight = end_date.replace(hour=23, minute=59, second=59, microsecond=0)
+        if start_date > end_date:
+            return []
 
-        current = dt_first
-        while current < end_midnight:
-            num_days = self.days_in_month(current)
-            months.append((current, current.replace(day=num_days)))
-            next_month = current.replace(day=num_days) + self.one_day
-            current = next_month
+        months = []
+        current_start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        final_end = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        while current_start <= final_end:
+            # Calculate the end of current month
+            current_month_end = self.month_end(current_start)
+
+            # Determine the actual end date for this period
+            if current_month_end <= final_end:
+                # Full month or partial month ending before final_end
+                period_end = current_month_end
+            else:
+                # Last partial month - use the actual end date
+                period_end = final_end
+
+            months.append((current_start.date(), period_end.date()))
+
+            # If we've reached the final month, break
+            if period_end >= final_end:
+                break
+
+            # Move to start of next month
+            current_start = self.next_month(current_start)
+
         return months
 
     def days_in_month(self, date, year=None, month=None):
@@ -528,40 +546,26 @@ def to_utc_datetime(date: str | datetime.datetime | datetime.date | None) -> dat
 
 
 def get_months_in_date_range(
-    report: dict[str, str] = None,
     start: str | datetime.datetime | None = None,
     end: str | datetime.datetime | None = None,
-    invoice_month: str = None,
+    invoice_month: str | None = None,
+    *,
+    report: bool = False,
 ) -> list[tuple[datetime.datetime, datetime.datetime, str | None]]:
     """returns the month periods in a given date range from report"""
-
     dh = DateHelper()
-    invoice_date_format = "%Y%m"
 
     # Converting inputs to datetime objects
     dt_start = to_utc_datetime(start)
     dt_end = to_utc_datetime(end)
-    # invoice_date_format not supported by dateutil parser
-    dt_invoice_month = (
-        datetime.datetime.strptime(invoice_month, invoice_date_format).replace(tzinfo=settings.UTC)
-        if invoice_month
-        else None
-    )
+
+    dt_invoice_month = invoice_month
 
     if report:
-        manifest_start = to_utc_datetime(report.get("start"))
-        manifest_end = to_utc_datetime(report.get("end"))
-        manifest_invoice_month = report.get("invoice_month")
-
-        if manifest_start and manifest_end:
-            LOG.info(f"using start: {manifest_start} and end: {manifest_end} dates from manifest")
-            dt_start = manifest_start
-            dt_end = manifest_end
-            if manifest_invoice_month:
-                LOG.info(f"using invoice_month: {manifest_invoice_month}")
-                dt_invoice_month = datetime.datetime.strptime(manifest_invoice_month, invoice_date_format).replace(
-                    tzinfo=settings.UTC
-                )
+        if dt_start and dt_end:
+            LOG.info(f"using start: {dt_start} and end: {dt_end} dates from manifest")
+            if dt_invoice_month:
+                LOG.info(f"using invoice_month: {dt_invoice_month}")
         else:
             LOG.info("generating start and end dates for manifest")
             dt_start = dh.today - datetime.timedelta(days=2) if dh.today.date().day > 2 else dh.today.replace(day=1)
@@ -572,13 +576,7 @@ def get_months_in_date_range(
         dt_end = dt_end or dh.today
 
         # For report_data masu API
-        return [
-            (
-                dt_start,
-                dt_end,
-                dt_invoice_month.strftime(invoice_date_format),
-            )
-        ]
+        return [(dt_start.date(), dt_end.date(), dt_invoice_month)]
 
     # Grabbing ingest delta for initial ingest/summary
     summary_month = (dh.today - relativedelta(months=Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
@@ -588,28 +586,8 @@ def get_months_in_date_range(
     if not dt_end or dt_end < summary_month:
         dt_end = dh.today
 
-    if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-        return [
-            (
-                dt_start,
-                dt_end,
-                dt_invoice_month.strftime(invoice_date_format) if dt_invoice_month else None,
-            )
-        ]
+    if report and dt_invoice_month:
+        return [(dt_start.date(), dt_end.date(), dt_invoice_month)]
 
     months = dh.list_month_tuples(dt_start, dt_end)
-    # The order is fragile here. For one item lists, months[0] == months[-1].
-    first_month = months[0]
-    months[0] = (dt_start, first_month[1])
-
-    last_month = months[-1]
-    months[-1] = (last_month[0], dt_end)
-
-    return [
-        (
-            start,
-            end,
-            invoice_month,  # Invoice month is really only for GCP
-        )
-        for start, end in months
-    ]
+    return [(start, end, dt_invoice_month) for start, end in months]
