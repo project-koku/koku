@@ -269,9 +269,8 @@ class ReportManifestDBAccessor:
         Used to prevent grabbing different starts from partial processed data
         """
         manifest = self.get_manifest_by_id(manifest_id)
-        if manifest:
-            if manifest.daily_archive_start_date:
-                return manifest.daily_archive_start_date.date()
+        if manifest and manifest.daily_archive_start_date:
+            return manifest.daily_archive_start_date.date()
 
     def update_and_get_day_file(self, day, manifest_id):
         with transaction.atomic():

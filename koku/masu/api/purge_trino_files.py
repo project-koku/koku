@@ -81,19 +81,19 @@ def purge_trino_files(request):  # noqa: C901
     if start_date and end_date:
         invoice_month = str(DateHelper().invoice_month_from_bill_date(bill_date))
         dates = DateHelper().list_days(start_date, end_date)
-        path = None
+        path = ["/"]
         if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-            path = f"/{invoice_month}_"
+            path.append(f"{invoice_month}_")
         s3_csv_path = []
         s3_parquet_path = []
         s3_daily_parquet_path = []
         s3_daily_openshift_path = []
         for date in dates:
-            path = path + f"{date}" if path else f"/{date}"
-            s3_csv_path.append(pq_processor_object.csv_path_s3 + path)
-            s3_parquet_path.append(pq_processor_object.parquet_path_s3 + path)
-            s3_daily_parquet_path.append(pq_processor_object.parquet_daily_path_s3 + path)
-            s3_daily_openshift_path.append(pq_processor_object.parquet_ocp_on_cloud_path_s3 + path)
+            path.append(f"{date}")
+            s3_csv_path.append("".join([pq_processor_object.csv_path_s3] + path))
+            s3_parquet_path.append("".join([pq_processor_object.parquet_path_s3] + path))
+            s3_daily_parquet_path.append("".join([pq_processor_object.parquet_daily_path_s3] + path))
+            s3_daily_openshift_path.append("".join([pq_processor_object.parquet_ocp_on_cloud_path_s3] + path))
         path_info = {
             "s3_csv_path": s3_csv_path,
             "s3_parquet_path": s3_parquet_path,

@@ -109,7 +109,7 @@ class ParquetReportProcessor:
     @property
     def provider_uuid(self):
         """The provider UUID."""
-        return str(self._provider_uuid)
+        return self._provider_uuid
 
     @property
     def provider_type(self):
@@ -283,7 +283,7 @@ class ParquetReportProcessor:
 
     @property
     def local_path(self):
-        local_path = Path(Config.TMP_DIR, self.account, self.provider_uuid)
+        local_path = Path(Config.TMP_DIR, self.account, str(self.provider_uuid))
         local_path.mkdir(parents=True, exist_ok=True)
         return local_path
 
