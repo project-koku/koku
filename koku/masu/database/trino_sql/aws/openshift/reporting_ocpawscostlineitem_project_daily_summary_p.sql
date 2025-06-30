@@ -1,4 +1,9 @@
 -- insert managed table data into postgres table
+WITH enabled_keys AS (
+    SELECT key
+    FROM postgres.{{schema | sqlsafe}}.enabledtagkeys
+    WHERE enabled = true AND provider_type IN ('AWS', 'OCP')
+)
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
     uuid,
@@ -84,7 +89,11 @@ SELECT uuid(),
     calculated_amortized_cost,
     markup_cost_amortized,
     json_parse(pod_labels),
-    json_parse(tags),
+    (
+        SELECT jsonb_object_agg(k, v)
+        FROM jsonb_each_text(json_parse(tags)) AS t(k, v)
+        WHERE k IN (SELECT key FROM enabled_keys)
+    ) AS tags,
     json_parse(aws_cost_category),
     cost_category_id,
     cast(source as UUID)
