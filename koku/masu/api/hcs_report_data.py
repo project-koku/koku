@@ -23,7 +23,6 @@ from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data
 from hcs.tasks import HCS_QUEUE
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -77,19 +76,6 @@ def hcs_report_data(request):
         )
         end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=settings.UTC) if end_date else DateHelper().today
         months = DateHelper().list_month_tuples(start_date, end_date)
-        num_months = len(months)
-        first_month = months[0]
-        months[0] = (start_date, first_month[1])
-
-        last_month = months[num_months - 1]
-        months[num_months - 1] = (last_month[0], end_date)
-
-        # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
-        for i, month in enumerate(months):
-            start, end = month
-            start_date = start.date().strftime("%Y%m%d")
-            end_date = end.date().strftime("%Y%m%d")
-            months[i] = (start_date, end_date)
 
         for month in months:
             async_result = collect_hcs_report_data.s(
