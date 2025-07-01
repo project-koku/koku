@@ -37,7 +37,7 @@ with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
       from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
      where enabled = true
-     and provider_type IN ('AWS', 'OCP')
+     and provider_type IN ('Azure', 'OCP')
 )
 SELECT uuid(),
     {{report_period_id | sqlsafe}} as report_period_id,
