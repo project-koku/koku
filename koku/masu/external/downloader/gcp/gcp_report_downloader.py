@@ -426,7 +426,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Helper to build query select statement."""
         columns_list = GCP_COLUMN_LIST.copy()
         columns_list = [
-            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels", "credits") else col
+            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
             for col in columns_list
         ]
         columns_list.append("DATE(_PARTITIONTIME) as partition_date")

@@ -7,6 +7,7 @@ import ciso8601
 import pandas as pd
 
 from api.models import Provider
+from masu.processor import is_gcp_credits_in_json
 from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
@@ -83,11 +84,12 @@ class GCPPostProcessor:
         "usage.unit",
         "usage.amount_in_pricing_units",
         "usage.pricing_unit",
-        "credits",
         "invoice.month",
         "cost_type",
         "partition_date",
     }
+
+
 
     def __init__(self, schema):
         self.schema = schema
@@ -117,7 +119,8 @@ class GCPPostProcessor:
             "currency_conversion_rate": safe_float,
             "usage.amount": safe_float,
             "usage.amount_in_pricing_units": safe_float,
-            "credits": process_gcp_credits,
+            "credits.amount": safe_float,
+            "credits": process_gcp_credits, # This is needed to support OG filter flow temperarily
         }
         csv_converters = {
             col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
@@ -133,10 +136,17 @@ class GCPPostProcessor:
         if data_frame.empty:
             return data_frame
 
-        # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
         rollup_frame = data_frame.copy()
-        rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
-        rollup_frame["daily_credits"] = rollup_frame["credits"].apply(lambda x: x.get("amount") or 0.0)
+        if is_gcp_credits_in_json(self.schema):
+            # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
+            # We need this flag to support filter flow until customers move away from credits as json
+            rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
+            rollup_frame["credits_amount"] = rollup_frame["credits"].apply(lambda x: x.get("amount") or 0.0)
+            rollup_frame["daily_credits"] = rollup_frame["credits"].apply(lambda x: x.get("amount") or 0.0)
+        else:
+            # We need to populate old and new column for 3 months before removing old column
+            rollup_frame["daily_credits"] = rollup_frame["credits_amount"]
+
         resource_df = rollup_frame.get("resource_name")
         try:
             if not resource_df:
@@ -171,6 +181,7 @@ class GCPPostProcessor:
                 "currency": ["max"],
                 "cost": ["sum"],
                 "daily_credits": ["sum"],
+                "credits_amount": ["sum"],
                 "resource_global_name": ["max"],
             }
         )

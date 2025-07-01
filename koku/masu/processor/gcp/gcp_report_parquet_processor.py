@@ -23,8 +23,7 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             "currency_conversion_rate",
             "usage_amount",
             "usage_amount_in_pricing_units",
-            "credit_amount",
-            "daily_credits",
+            "credits_amount",
         ]
         date_columns = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
         boolean_columns = ["ocp_matched"]

@@ -138,7 +138,7 @@ SELECT gcp.row_uuid,
     cast(gcp.usage_amount_in_pricing_units AS decimal(24,9)) as usage_amount,
     gcp.currency,
     cast(gcp.cost AS decimal(24,9)) as unblended_cost,
-    gcp.daily_credits as credit_amount,
+    coalesce(gcp.credits_amount, gcp.daily_credits) as credit_amount,
     gcp.resource_global_name,
     CASE WHEN resource_names.resource_name IS NOT NULL
         THEN TRUE

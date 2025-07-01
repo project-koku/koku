@@ -200,3 +200,10 @@ def is_status_api_update_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
+
+
+def is_gcp_credits_in_json(account):  # pragma: no cover
+    """Flag to enable the processing of a GCP credit json field."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_gcp_credits_in_json", context)
