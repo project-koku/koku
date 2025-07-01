@@ -38,10 +38,72 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_d
     invoice_month
 )
 with cte_pg_enabled_keys as (
-    select array_agg(key order by key) as keys
+    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
       from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
      where enabled = true
      and provider_type IN ('GCP', 'OCP')
+),
+filtered_data as (
+    SELECT
+        cluster_id,
+        cluster_alias,
+        data_source,
+        namespace,
+        node,
+        persistentvolumeclaim,
+        persistentvolume,
+        storageclass,
+        cast(
+            map_filter(
+                cast(json_parse(pod_labels) as map(varchar, varchar)),
+                (k,v) -> contains(pek.keys, k)
+            ) as json
+        ) AS enabled_labels,
+        resource_id,
+        date(usage_start) as usage_start,
+        account_id,
+        project_id,
+        project_name,
+        instance_type,
+        service_id,
+        service_alias,
+        CASE
+            WHEN upper(data_transfer_direction) = 'IN' THEN
+                -- GCP uses gibibyte but we are tracking this field in gigabytes
+                CASE unit
+                    WHEN 'gibibyte' THEN usage_amount * 1.07374
+                    ELSE usage_amount
+                END
+            ELSE 0
+        END as infrastructure_data_in_gigabytes,
+        CASE
+            WHEN upper(data_transfer_direction) = 'OUT' THEN
+                -- GCP uses gibibyte but we are tracking this field in gigabytes
+                CASE unit
+                    WHEN 'gibibyte' THEN usage_amount * 1.07374
+                    ELSE usage_amount
+                END
+            ELSE 0
+        END as infrastructure_data_out_gigabytes,
+        data_transfer_direction as data_transfer_direction,
+        sku_id,
+        sku_alias,
+        region,
+        unit,
+        usage_amount,
+        currency,
+        unblended_cost,
+        markup_cost,
+        cost_category_id,
+        credit_amount,
+        invoice_month
+    FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary
+    CROSS JOIN cte_pg_enabled_keys AS pek
+    WHERE source = {{cloud_provider_uuid}}
+        AND ocp_source = {{ocp_provider_uuid}}
+        AND year = {{year}}
+        AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND day IN {{days | inclause}}
 )
 SELECT
     uuid(),
@@ -54,15 +116,10 @@ SELECT
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    cast(
-        map_filter(
-            cast(json_parse(pod_labels) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-     ) AS pod_labels,
+    fd.enabled_labels as pod_labels,
     resource_id,
-    date(usage_start),
-    date(usage_start) as usage_end,
+    fd.usage_start as usage_start,
+    fd.usage_start as usage_end,
     max({{bill_id}}) as cost_entry_bill_id,
     account_id,
     project_id,
@@ -70,24 +127,8 @@ SELECT
     instance_type,
     service_id,
     service_alias,
-    SUM(CASE
-        WHEN upper(data_transfer_direction) = 'IN' THEN
-            -- GCP uses gibibyte but we are tracking this field in gigabytes
-            CASE unit
-                WHEN 'gibibyte' THEN usage_amount * 1.07374
-                ELSE usage_amount
-            END
-        ELSE 0
-    END) as infrastructure_data_in_gigabytes,
-    SUM(CASE
-        WHEN upper(data_transfer_direction) = 'OUT' THEN
-            -- GCP uses gibibyte but we are tracking this field in gigabytes
-            CASE unit
-                WHEN 'gibibyte' THEN usage_amount * 1.07374
-                ELSE usage_amount
-            END
-        ELSE 0
-    END) as infrastructure_data_out_gigabytes,
+    SUM(fd.infrastructure_data_in_gigabytes) as infrastructure_data_in_gigabytes,
+    SUM(fd.infrastructure_data_out_gigabytes) as infrastructure_data_out_gigabytes,
     MAX(data_transfer_direction) as data_transfer_direction,
     sku_id,
     sku_alias,
@@ -97,23 +138,12 @@ SELECT
     currency,
     SUM(unblended_cost),
     SUM(markup_cost),
-    cast(
-        map_filter(
-            cast(json_parse(pod_labels) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-     ) AS tags,
+    fd.enabled_labels as tags,
     cost_category_id,
-    cast(source as UUID),
+    cast({{cloud_provider_uuid}} as UUID),
     SUM(credit_amount),
     invoice_month
-FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary as pds
-CROSS JOIN cte_pg_enabled_keys AS pek
-WHERE source = {{cloud_provider_uuid}}
-    AND ocp_source = {{ocp_provider_uuid}}
-    AND year = {{year}}
-    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
-    AND day IN {{days | inclause}}
+FROM filtered_data as fd
 GROUP BY
     usage_start,
     cluster_id,
@@ -123,12 +153,7 @@ GROUP BY
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    cast(
-        map_filter(
-            cast(json_parse(pod_labels) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-     ),
+    fd.enabled_labels,
     resource_id,
     account_id,
     project_id,
@@ -142,6 +167,5 @@ GROUP BY
     region,
     unit,
     cost_category_id,
-    source,
     invoice_month,
     currency;
