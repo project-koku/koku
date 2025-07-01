@@ -295,10 +295,10 @@ class DateHelper:
         """Return a list of days from the start date til the end date.
 
         Args:
-            start_date    (DateTime) starting datetime
-            end_date      (DateTime) ending datetime
+            start_date    starting date
+            end_date      ending date
         Returns:
-            (List[DateTime]): A list of days from the start date to end date
+            (List[datetime.date]): A list of days from the start date to end date
 
         """
         if isinstance(start_date, str):
@@ -346,11 +346,11 @@ class DateHelper:
         and middle months (if any) use full month boundaries.
 
         Args:
-            start_date    (datetime.date) starting datetime
-            end_date      (datetime.date) ending datetime
-        Returns:
-            List((datetime.date, datetime.date)): A list of (start, end) tuples for each month period
+            start_date (datetime.date): Starting date
+            end_date (datetime.date): Ending date
 
+        Returns:
+            list[tuple[datetime.date, datetime.date]]: A list of (start, end) tuples for each month period
         """
         if start_date > end_date:
             return []
@@ -519,10 +519,11 @@ def to_date(date_input: str | datetime.datetime | datetime.date | None) -> datet
     """Convert a string, date, or datetime to a date object.
 
     Args:
-        date_input: A date string, datetime object, date object, or None
+        date_input (str | datetime.datetime | datetime.date | None):
+            A date string, datetime object, date object, or None
 
     Returns:
-        A date object, or None if input is None
+        datetime.date | None: A date object, or None if input is None
 
     Raises:
         ValueError: If the input string cannot be parsed as a date
@@ -549,12 +550,23 @@ def get_months_in_date_range(
     invoice_month: str | None = None,
     *,
     report: bool = False,
-) -> list[tuple[datetime.datetime, datetime.datetime, str | None]]:
-    """returns the month periods in a given date range from report"""
+) -> list[tuple[datetime.date, datetime.date, str | None]]:
+    """Return the month periods in a given date range from report.
+
+    Args:
+        start (str | datetime.datetime | None): Start date/datetime or date string
+        end (str | datetime.datetime | None): End date/datetime or date string
+        invoice_month (str | None): Invoice month string in YYYYMM format
+        report (bool): Whether this is for report processing
+
+    Returns:
+        list[tuple[datetime.date, datetime.date, str | None]]: List of month period tuples
+            with (start_date, end_date, invoice_month)
+    """
     dh = DateHelper()
     today_date = dh.today.date()
 
-    # Converting inputs to datetime objects
+    # Converting inputs to date objects
     dt_start = to_date(start)
     dt_end = to_date(end)
 
