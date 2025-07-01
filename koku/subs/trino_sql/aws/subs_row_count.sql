@@ -2,7 +2,7 @@ SELECT count(*)
     FROM
       hive.{{schema | sqlsafe}}.aws_line_items
     WHERE
-      source = {{ source_uuid }}
+      source = {{ source_uuid | string }}
       AND year = {{ year }}
       AND month = {{ month }}
       AND lineitem_productcode = 'AmazonEC2'

@@ -496,7 +496,12 @@ def summarize_reports(  # noqa: C901
 
             LOG.info(log_json(tracing_id, msg="report to summarize", context=report))
 
-            months = get_months_in_date_range(report)
+            months = get_months_in_date_range(
+                start=report.get("start"),
+                end=report.get("end"),
+                invoice_month=report.get("invoice_month"),
+                report=True,
+            )
             for month in months:
                 update_summary_tables.s(
                     schema_name,
@@ -860,9 +865,9 @@ def update_all_summary_tables(start_date, end_date=None):
     for account in all_accounts:
         log_statement = (
             f"Gathering data for for\n"
-            f' schema_name: {account.get("schema_name")}\n'
-            f' provider: {account.get("provider_type")}\n'
-            f' account (provider uuid): {account.get("provider_uuid")}'
+            f" schema_name: {account.get('schema_name')}\n"
+            f" provider: {account.get('provider_type')}\n"
+            f" account (provider uuid): {account.get('provider_uuid')}"
         )
         LOG.info(log_statement)
         schema_name = account.get("schema_name")
@@ -1165,9 +1170,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
     )
     for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
         query_sql = (
-            f"SELECT * FROM {table_name}"
-            f" {where_clause} "
-            f"OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+            f"SELECT * FROM {table_name} {where_clause} OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
         )
         results, columns = execute_trino_query(schema_name, query_sql)
         data_frame = pd.DataFrame(data=results, columns=columns)
@@ -1220,7 +1223,7 @@ def process_daily_openshift_on_cloud(
             provider_uuid,
             provider_type,
             0,
-            context={"tracing_id": tracing_id, "start_date": day.date(), "invoice_month": invoice_month},
+            context={"tracing_id": tracing_id, "start_date": day, "invoice_month": invoice_month},
         )
         daily_s3_path = get_path_prefix(
             processor.account,
