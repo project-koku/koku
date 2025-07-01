@@ -584,6 +584,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
             DateHelper().today,
             DateHelper().tomorrow,
             matched_tags,
+            1,
+            1,
         )
         self.accessor.populate_ocp_on_cloud_daily_trino(mparams)
         mock_partition_delete.assert_called_with(
@@ -611,6 +613,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
             DateHelper().today,
             DateHelper().tomorrow,
             matched_tags,
+            1,
+            1,
         )
         mock_report_period.return_value = None
         self.accessor.populate_ocp_on_cloud_daily_trino(mparams)
