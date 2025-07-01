@@ -104,6 +104,6 @@ CROSS JOIN cte_pg_enabled_keys AS pek
 WHERE source = {{aws_source_uuid}}
     AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}
-    AND lpad(month, 2, '0') = {{month}}
+    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN {{days | inclause}}
 ;
