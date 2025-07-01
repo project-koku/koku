@@ -283,7 +283,7 @@ class ParquetReportProcessor:
 
     @property
     def local_path(self):
-        local_path = Path(Config.TMP_DIR, self.account, self.provider_uuid)
+        local_path = Path(Config.TMP_DIR, self.account, str(self.provider_uuid))
         local_path.mkdir(parents=True, exist_ok=True)
         return local_path
 
@@ -330,7 +330,6 @@ class ParquetReportProcessor:
             )
 
     def prepare_parquet_s3(self, filename: os.PathLike):
-
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
@@ -446,7 +445,6 @@ class ParquetReportProcessor:
             return parquet_base_filename, daily_data_frames
 
         for csv_filename in file_list:
-
             # set start date based on data in the file being processed:
             if self.provider_type == Provider.PROVIDER_OCP:
                 self.start_date = self.ocp_files_to_process[csv_filename.stem]["meta_reportdatestart"]

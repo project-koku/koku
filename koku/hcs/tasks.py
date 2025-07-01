@@ -176,10 +176,10 @@ def collect_hcs_report_data(
     dh = DateHelper()
 
     if start_date is None:
-        start_date = dh.today - datetime.timedelta(days=2)
+        start_date = dh.today.date() - datetime.timedelta(days=2)
 
     if end_date is None:
-        end_date = dh.today
+        end_date = dh.today.date()
 
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
