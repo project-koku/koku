@@ -37,28 +37,14 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_d
     credit_amount,
     invoice_month
 )
-WITH collapsed_labels as (
-    SELECT
-        pds.row_uuid,
-        CAST(
-            MAP_FILTER(
-                MAP_AGG(t.pod_label_key, t.pod_label_value),
-                (k, v) -> k IS NOT NULL
-            ) AS JSON
-        ) AS consolidated_pod_label
-    FROM
-        hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary AS pds
-    LEFT JOIN UNNEST(CAST(JSON_PARSE(pds.pod_labels) AS MAP(VARCHAR, VARCHAR))) AS t(pod_label_key, pod_label_value) ON TRUE
-    WHERE
-        pds.pod_labels IS NOT NULL AND pds.pod_labels != '{}'
-    AND pds.ocp_source = {{ocp_provider_uuid}}
-    AND pds.year = {{year}}
-    AND pds.month = {{month}}
-    AND pds.source = {{cloud_provider_uuid}}
-    GROUP BY
-        pds.row_uuid
+with cte_pg_enabled_keys as (
+    select array_agg(key order by key) as keys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+     where enabled = true
+     and provider_type IN ('GCP', 'OCP')
 )
-SELECT uuid(),
+SELECT
+    uuid(),
     max({{report_period_id}}) as report_period_id,
     cluster_id,
     max(cluster_alias) as cluster_alias,
@@ -68,7 +54,12 @@ SELECT uuid(),
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    clabels.consolidated_pod_label as pod_labels,
+    cast(
+        map_filter(
+            cast(json_parse(pod_labels) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) AS pod_labels,
     resource_id,
     date(usage_start),
     date(usage_start) as usage_end,
@@ -106,14 +97,18 @@ SELECT uuid(),
     currency,
     SUM(unblended_cost),
     SUM(markup_cost),
-    clabels.consolidated_pod_label as tags,
+    cast(
+        map_filter(
+            cast(json_parse(pod_labels) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) AS tags,
     cost_category_id,
     cast(source as UUID),
     SUM(credit_amount),
     invoice_month
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary as pds
-LEFT JOIN collapsed_labels as clabels
-    ON pds.row_uuid = clabels.row_uuid
+CROSS JOIN cte_pg_enabled_keys AS pek
 WHERE source = {{cloud_provider_uuid}}
     AND ocp_source = {{ocp_provider_uuid}}
     AND year = {{year}}
@@ -128,7 +123,12 @@ GROUP BY
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    clabels.consolidated_pod_label,
+    cast(
+        map_filter(
+            cast(json_parse(pod_labels) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ),
     resource_id,
     account_id,
     project_id,
@@ -144,5 +144,4 @@ GROUP BY
     cost_category_id,
     source,
     invoice_month,
-    currency
-;
+    currency;
