@@ -1,9 +1,4 @@
 -- insert managed table data into postgres table
-WITH enabled_keys AS (
-    SELECT key
-    FROM postgres.{{schema | sqlsafe}}.enabledtagkeys
-    WHERE enabled = true AND provider_type IN ('AWS', 'OCP')
-)
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
     uuid,
@@ -47,6 +42,12 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     cost_category_id,
     source_uuid
 )
+with cte_pg_enabled_keys as (
+    select array_agg(key order by key) as keys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+     where enabled = true
+     and provider_type IN ('AWS', 'OCP')
+)
 SELECT uuid(),
     {{report_period_id | sqlsafe}} as report_period_id,
     cluster_id,
@@ -89,18 +90,20 @@ SELECT uuid(),
     calculated_amortized_cost,
     markup_cost_amortized,
     json_parse(pod_labels),
-    (
-        SELECT jsonb_object_agg(k, v)
-        FROM jsonb_each_text(json_parse(tags)) AS t(k, v)
-        WHERE k IN (SELECT key FROM enabled_keys)
-    ) AS tags,
+    cast(
+        map_filter(
+            cast(json_parse(tags) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) AS tags,
     json_parse(aws_cost_category),
     cost_category_id,
     cast(source as UUID)
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary
+CROSS JOIN cte_pg_enabled_keys AS pek
 WHERE source = {{aws_source_uuid}}
     AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}
-    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND lpad(month, 2, '0') = {{month}}
     AND day IN {{days | inclause}}
 ;
