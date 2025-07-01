@@ -40,26 +40,65 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     cost_category_id,
     source_uuid
 )
-WITH collapsed_labels as (
-    SELECT
-        pds.row_uuid,
-        CAST(
-            MAP_FILTER(
-                MAP_AGG(t.pod_label_key, t.pod_label_value),
-                (k, v) -> k IS NOT NULL
-            ) AS JSON
-        ) AS consolidated_pod_label
-    FROM
-        hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary AS pds
-    LEFT JOIN UNNEST(CAST(JSON_PARSE(pds.pod_labels) AS MAP(VARCHAR, VARCHAR))) AS t(pod_label_key, pod_label_value) ON TRUE
-    WHERE
-        pds.pod_labels IS NOT NULL AND pds.pod_labels != '{}'
-    AND pds.ocp_source = {{ocp_provider_uuid}}
-    AND pds.year = {{year}}
-    AND pds.month = {{month}}
-    AND pds.source = {{cloud_provider_uuid}}
-    GROUP BY
-        pds.row_uuid
+with cte_pg_enabled_keys as (
+    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+     where enabled = true
+     and provider_type IN ('AWS', 'OCP')
+),
+filtered_data as (
+    SELECT cluster_id,
+    cast(
+        map_filter(
+            cast(json_parse(tags) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) AS enabled_labels,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    date(usage_start) as usage_start,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    account_alias_id,
+    availability_zone,
+    region,
+    unit,
+    usage_amount,
+    CASE
+        WHEN upper(data_transfer_direction) = 'IN' THEN usage_amount
+        ELSE 0
+    END AS infrastructure_data_in_gigabytes,
+    CASE
+        WHEN upper(data_transfer_direction) = 'OUT' THEN usage_amount
+        ELSE 0
+    END AS infrastructure_data_out_gigabytes,
+    data_transfer_direction,
+    currency_code,
+    unblended_cost,
+    markup_cost,
+    blended_cost,
+    markup_cost_blended,
+    savingsplan_effective_cost,
+    markup_cost_savingsplan,
+    calculated_amortized_cost,
+    markup_cost_amortized,
+    json_parse(aws_cost_category) as aws_cost_category,
+    cost_category_id
+FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary
+CROSS JOIN cte_pg_enabled_keys AS pek
+WHERE source = {{cloud_provider_uuid}}
+    AND ocp_source = {{ocp_provider_uuid}}
+    AND year = {{year}}
+    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND day IN {{days | inclause}}
 )
 SELECT
     uuid(),
@@ -73,8 +112,8 @@ SELECT
     persistentvolume,
     storageclass,
     resource_id,
-    date(usage_start),
-    date(usage_end) as usage_end,
+    fd.usage_start as usage_start,
+    fd.usage_start as usage_end,
     product_code,
     product_family,
     instance_type,
@@ -85,14 +124,8 @@ SELECT
     region,
     unit,
     SUM(usage_amount) as usage_amount,
-    SUM(CASE
-        WHEN upper(data_transfer_direction) = 'IN' THEN usage_amount
-        ELSE 0
-    END) AS infrastructure_data_in_gigabytes,
-    SUM(CASE
-        WHEN upper(data_transfer_direction) = 'OUT' THEN usage_amount
-        ELSE 0
-    END) AS infrastructure_data_out_gigabytes,
+    SUM(fd.infrastructure_data_in_gigabytes) as infrastructure_data_in_gigabytes,
+    SUM(fd.infrastructure_data_out_gigabytes) as infrastructure_data_out_gigabytes,
     data_transfer_direction,
     MAX(currency_code) as currency_code,
     SUM(unblended_cost) as unblended_cost,
@@ -103,22 +136,14 @@ SELECT
     SUM(markup_cost_savingsplan) as markup_cost_savingsplan,
     SUM(calculated_amortized_cost) as calculated_amortized_cost,
     SUM(markup_cost_amortized) as markup_cost_amortized,
-    clabels.consolidated_pod_label as pod_labels,
-    clabels.consolidated_pod_label as tags,
-    json_parse(aws_cost_category),
+    fd.enabled_labels as pod_labels,
+    fd.enabled_labels as tags,
+    fd.aws_cost_category as aws_cost_category,
     cost_category_id,
-    cast(source as UUID) as source_uuid
-FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary as pds
-LEFT JOIN collapsed_labels as clabels
-    ON pds.row_uuid = clabels.row_uuid
-WHERE source = {{cloud_provider_uuid}}
-    AND ocp_source = {{ocp_provider_uuid}}
-    AND year = {{year}}
-    AND lpad(month, 2, '0') = {{month}}
-    AND day IN {{days | inclause}}
+    cast({{cloud_provider_uuid}} as UUID) as source_uuid
+FROM filtered_data as fd
 GROUP BY
-    usage_start,
-    usage_end,
+    fd.usage_start,
     cluster_id,
     data_source,
     namespace,
@@ -136,7 +161,6 @@ GROUP BY
     unit,
     data_transfer_direction,
     currency_code,
-    clabels.consolidated_pod_label,
-    json_parse(aws_cost_category),
-    cost_category_id,
-    source;
+    fd.enabled_labels,
+    fd.aws_cost_category,
+    cost_category_id;
