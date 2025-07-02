@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for report_data endpoint."""
-# flake8: noqa
 import logging
 from uuid import uuid4
 
@@ -34,7 +33,7 @@ REPORT_DATA_KEY = "process_openshift_on_cloud Task IDs"
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def process_openshift_on_cloud(request):
+def process_openshift_on_cloud(request):  # noqa: C901
     """Update OCP on Cloud report summary tables in the database."""
     async_results = []
     params = request.query_params
@@ -68,13 +67,14 @@ def process_openshift_on_cloud(request):
         errmsg = f"You must provide a cloud provider UUID from {Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST}."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+    dh = DateHelper()
     if provider.type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-        invoice_month = DateHelper().invoice_month_from_bill_date(start_date)
+        invoice_month = dh.invoice_month_from_bill_date(start_date)
         months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
     else:
         months = get_months_in_date_range(start=start_date, end=end_date)
 
-    bill_dates = [ciso8601.parse_datetime(month[0]).replace(day=1).strftime("%Y-%m-%d") for month in months]
+    bill_dates = [month[0].replace(day=1) for month in months]
 
     for bill_date in bill_dates:
         tracing_id = str(uuid4())
@@ -85,8 +85,8 @@ def process_openshift_on_cloud(request):
             "tracing_id": tracing_id,
         }
         if provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            bill_end = DateHelper().month_end(bill_date)
-            bill_start = DateHelper().month_start(bill_date)
+            bill_end = dh.month_end(bill_date)
+            bill_start = dh.month_start(bill_date)
             start = ciso8601.parse_datetime(start_date).date()
             end = ciso8601.parse_datetime(end_date).date() if end_date else bill_end
             params["start_date"] = max(start, bill_start)

@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Cost Model serializers."""
+from pydantic import ValidationError
+
 from api.metrics import constants as metric_constants
 from cost_models.sql_parameters import VMParams
 from masu.test import MasuTestCase
@@ -12,11 +14,11 @@ class CostModelSQLParameterTest(MasuTestCase):
     """Tests for Cost Model Manager."""
 
     def test_invalid_dates(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             VMParams(
                 schema=self.schema_name,
-                start_date=str(self.dh.this_month_end),
-                end_date=str(self.dh.this_month_start),
+                start_date=self.dh.this_month_end.date(),
+                end_date=self.dh.this_month_start.date(),
                 source_uuid=self.ocp_provider_uuid,
                 report_period_id=1,
             )
@@ -45,8 +47,8 @@ class CostModelSQLParameterTest(MasuTestCase):
         }
         params = VMParams(
             schema=self.schema_name,
-            start_date=str(self.dh.this_month_start.date()),
-            end_date=str(self.dh.this_month_end.date()),
+            start_date=self.dh.this_month_start.date(),
+            end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )
@@ -80,8 +82,8 @@ class CostModelSQLParameterTest(MasuTestCase):
         }
         params = VMParams(
             schema=self.schema_name,
-            start_date=str(self.dh.this_month_start.date()),
-            end_date=str(self.dh.this_month_end.date()),
+            start_date=self.dh.this_month_start.date(),
+            end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )
@@ -96,8 +98,8 @@ class CostModelSQLParameterTest(MasuTestCase):
         tag_price_list = {}
         params = VMParams(
             schema=self.schema_name,
-            start_date=str(self.dh.this_month_start.date()),
-            end_date=str(self.dh.this_month_end.date()),
+            start_date=self.dh.this_month_start.date(),
+            end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
             report_period_id=1,
         )

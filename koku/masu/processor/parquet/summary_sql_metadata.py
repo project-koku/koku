@@ -4,8 +4,6 @@ from dataclasses import field
 from datetime import date
 from decimal import Decimal
 from typing import Any
-from typing import Dict
-from typing import List
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -22,7 +20,7 @@ class SummarySqlMetadata:
     cloud_provider_uuid: str
     start_date: date
     end_date: date
-    matched_tag_strs: List[str]
+    matched_tag_strs: list[str]
     bill_id: int
     report_period_id: int
     days_tup: tuple = field(init=False)
@@ -41,9 +39,9 @@ class SummarySqlMetadata:
 
     def _check_date_parameters_format(self):
         """Checks to make sure the date parameters are in the correct format"""
-        if type(self.start_date) == str:
+        if isinstance(self.start_date, str):
             self.start_date = parse(self.start_date).astimezone(tz=settings.UTC)
-        if type(self.end_date) == str:
+        if isinstance(self.end_date, str):
             self.end_date = parse(self.end_date).astimezone(tz=settings.UTC)
 
     def _generate_sql_params(self):
@@ -67,7 +65,7 @@ class SummarySqlMetadata:
             )
         return cost_model_params
 
-    def build_params(self, requested_keys: List[str]) -> Dict[str, Any]:
+    def build_params(self, requested_keys: list[str]) -> dict[str, Any]:
         """
         Builds and returns a dictionary of parameters based on requested keys.
 
