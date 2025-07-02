@@ -34,7 +34,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project
     source_uuid
 )
 with cte_pg_enabled_keys as (
-    select array_agg(key order by key) as keys
+    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
       from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
      where enabled = true
      and provider_type IN ('Azure', 'OCP')
