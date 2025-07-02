@@ -15,7 +15,6 @@ from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
 
 LOG = logging.getLogger(__name__)
-pd.options.mode.chained_assignment = None
 
 
 RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export_resource"

@@ -685,4 +685,5 @@ AZURE_COST_MGMT_CLIENT_API_VERSION = ENVIRONMENT.get_value(
 # Data validation
 VALIDATION_RANGE = ENVIRONMENT.int("VALIDATION_RANGE", default=5)
 
-pd.options.mode.copy_on_write = "warn"
+pd.options.mode.copy_on_write = True
+pd.options.mode.chained_assignment = "raise"

@@ -59,7 +59,6 @@ def process_gcp_credits(credit_string: str) -> str:
 
 
 class GCPPostProcessor:
-
     INGRESS_REQUIRED_COLUMNS = {
         "billing_account_id",
         "service.id",
@@ -125,7 +124,7 @@ class GCPPostProcessor:
         csv_converters.update({col: str for col in col_names if col not in csv_converters})
         return csv_converters, panda_kwargs
 
-    def _generate_daily_data(self, data_frame):
+    def _generate_daily_data(self, data_frame: pd.DataFrame) -> pd.DataFrame:
         """
         Generate daily data.
         """
@@ -134,19 +133,15 @@ class GCPPostProcessor:
             return data_frame
 
         # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
-        rollup_frame = data_frame.copy()
-        rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
-        rollup_frame["daily_credits"] = rollup_frame["credits"].apply(lambda x: x.get("amount") or 0.0)
-        resource_df = rollup_frame.get("resource_name")
-        try:
-            if not resource_df:
-                rollup_frame["resource_name"] = ""
-                rollup_frame["resource_global_name"] = ""
-        except Exception:
-            if not resource_df.any():
-                rollup_frame["resource_name"] = ""
-                rollup_frame["resource_global_name"] = ""
-        daily_data_frame = rollup_frame.groupby(
+        daily_data_frame = data_frame.copy()
+        # daily_data_frame["credits"] = daily_data_frame["credits"].apply(json.loads)
+        daily_data_frame["daily_credits"] = daily_data_frame["credits"].apply(
+            lambda x: json.loads(x).get("amount") or 0.0
+        )
+        if not daily_data_frame.get("resource_name"):
+            daily_data_frame["resource_name"] = ""
+            daily_data_frame["resource_global_name"] = ""
+        daily_data_frame = daily_data_frame.groupby(
             [
                 "invoice_month",
                 "billing_account_id",
