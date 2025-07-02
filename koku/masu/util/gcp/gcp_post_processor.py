@@ -138,7 +138,7 @@ class GCPPostProcessor:
         daily_data_frame["daily_credits"] = daily_data_frame["credits"].apply(
             lambda x: json.loads(x).get("amount") or 0.0
         )
-        if not daily_data_frame.get("resource_name"):
+        if not daily_data_frame.get("resource_name", default=pd.Series(dtype=str)).any():
             daily_data_frame["resource_name"] = ""
             daily_data_frame["resource_global_name"] = ""
         daily_data_frame = daily_data_frame.groupby(
