@@ -186,12 +186,15 @@ SELECT cast(uuid() as varchar) as uuid,
             THEN  'Hrs'
         WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
             THEN  'GB-Mo'
-        WHEN split_part(unitofmeasure, ' ', 2) != ''
+        WHEN split_part(azure.unitofmeasure, ' ', 2) != '' AND split_part(azure.unitofmeasure, ' ', 3) = ''
             THEN  split_part(unitofmeasure, ' ', 2)
         ELSE unitofmeasure
     END) as unit_of_measure,
-    sum(azure.quantity * (CASE
-        WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$') AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines') AND NOT split_part(unitofmeasure, ' ', 2) = ''
+    sum(azure.quantity * (
+        CASE
+            WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$')
+                AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
+                AND NOT split_part(unitofmeasure, ' ', 2) = ''
             THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
             ELSE 1
         END)
@@ -265,12 +268,15 @@ SELECT cast(uuid() as varchar) as uuid,
             THEN  'Hrs'
         WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
             THEN  'GB-Mo'
-        WHEN split_part(unitofmeasure, ' ', 2) != ''
+        WHEN split_part(unitofmeasure, ' ', 2) != '' AND split_part(unitofmeasure, ' ', 3) = ''
             THEN  split_part(unitofmeasure, ' ', 2)
         ELSE unitofmeasure
     END) as unit_of_measure,
-    sum(azure.quantity * (CASE
-        WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$') AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines') AND NOT split_part(unitofmeasure, ' ', 2) = ''
+    sum(azure.quantity * (
+        CASE
+            WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$')
+                AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
+                AND NOT split_part(unitofmeasure, ' ', 2) = ''
             THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
             ELSE 1
         END)

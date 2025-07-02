@@ -112,12 +112,15 @@ SELECT
             THEN  'Hrs'
         WHEN split_part(azure.unitofmeasure, ' ', 2) = 'GB/Month'
             THEN  'GB-Mo'
-        WHEN split_part(azure.unitofmeasure, ' ', 2) != ''
+        WHEN split_part(azure.unitofmeasure, ' ', 2) != '' AND split_part(azure.unitofmeasure, ' ', 3) = ''
             THEN  split_part(azure.unitofmeasure, ' ', 2)
         ELSE azure.unitofmeasure
     END as unit_of_measure,
-    (azure.quantity * (CASE
-        WHEN regexp_like(split_part(azure.unitofmeasure, ' ', 1), '^\d+(\.\d+)?$') AND NOT (azure.unitofmeasure = '100 Hours' AND azure.metercategory='Virtual Machines') AND NOT split_part(azure.unitofmeasure, ' ', 2) = ''
+    (azure.quantity * (
+        CASE
+            WHEN regexp_like(split_part(azure.unitofmeasure, ' ', 1), '^\d+(\.\d+)?$')
+                AND NOT (azure.unitofmeasure = '100 Hours' AND azure.metercategory='Virtual Machines')
+                AND NOT split_part(azure.unitofmeasure, ' ', 2) = ''
             THEN cast(split_part(azure.unitofmeasure, ' ', 1) as INTEGER)
             ELSE 1
         END)
