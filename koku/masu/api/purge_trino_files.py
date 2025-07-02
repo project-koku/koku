@@ -20,7 +20,6 @@ from masu.celery.tasks import purge_manifest_records
 from masu.celery.tasks import purge_s3_files
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -90,8 +89,7 @@ def purge_trino_files(request):  # noqa: C901
         s3_daily_parquet_path = []
         s3_daily_openshift_path = []
         for date in dates:
-            path = path + f"{date}" if path else f"/{date.date()}"
-            date = date.date()
+            path = path + f"{date}" if path else f"/{date}"
             s3_csv_path.append(pq_processor_object.csv_path_s3 + path)
             s3_parquet_path.append(pq_processor_object.parquet_path_s3 + path)
             s3_daily_parquet_path.append(pq_processor_object.parquet_daily_path_s3 + path)

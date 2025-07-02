@@ -220,7 +220,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         }
         for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
             infra_provider_uuid = infra_tuple[0]
-            if infra_provider_uuid != self.provider_uuid:
+            if str(infra_provider_uuid) != str(self.provider_uuid):
                 continue
             ctx |= {
                 "ocp_provider_uuid": ocp_provider_uuid,

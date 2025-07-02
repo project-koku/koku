@@ -13,13 +13,13 @@ https://docs.djangoproject.com/en/2.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/2.0/ref/settings/
 """
+import datetime
 import logging
 import os
 import re
 import sys
 from enum import StrEnum
 from json import JSONDecodeError
-from zoneinfo import ZoneInfo
 
 import boto3
 from corsheaders.defaults import default_headers
@@ -348,7 +348,7 @@ LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
 
-UTC = ZoneInfo("UTC")
+UTC = datetime.UTC
 
 USE_I18N = True
 

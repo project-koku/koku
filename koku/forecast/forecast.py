@@ -46,7 +46,6 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
-
 LOG = logging.getLogger(__name__)
 COST_FIELD_NAMES = ["total_cost", "infrastructure_cost", "supplementary_cost"]
 ZERO_RESULT = [{}, 0, [0]]
@@ -268,7 +267,7 @@ class Forecast:
         days = self.dh.list_days(
             datetime.combine(date_list[0], self.dh.midnight), datetime.combine(date_list[-1], self.dh.midnight)
         )
-        out = [i for i, day in enumerate(days) if day.date() in date_list]
+        out = [i for i, day in enumerate(days) if day in date_list]
         return out
 
     def _remove_outliers(self, data):

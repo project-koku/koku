@@ -79,7 +79,7 @@ class MockAzureService:
         elif report_path == self.bad_report_path:
             mock_export = BadExport()
         else:
-            message = f"No cost report found in container {container_name} for " f"path {report_path}."
+            message = f"No cost report found in container {container_name} for path {report_path}."
             raise AzureCostReportNotFound(message)
         return mock_export
 
@@ -419,7 +419,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             f"{temp_dir}/2020-09-11_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
             f"{temp_dir}/2020-09-22_manifestid-{manifest_id}_basefile-{file}_batch-0.csv",
         ]
-        start_date = self.dh.this_month_start.replace(year=2020, month=9, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2020, month=9).date()
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
             return_value=start_date,
@@ -447,7 +447,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        start_date = self.dh.this_month_start.replace(year=2019, month=7, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2019, month=7).date()
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
             return_value=start_date,
@@ -467,7 +467,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        start_date = self.dh.this_month_start.replace(year=2023, month=6, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=6).date()
 
         with patch(
             "masu.database.report_manifest_db_accessor.ReportManifestDBAccessor.set_manifest_daily_start_date",
@@ -498,7 +498,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = []
-        start_date = self.dh.this_month_start.replace(year=2020, month=7, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2020, month=7).date()
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
         )
@@ -517,7 +517,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
         expected_daily_files = []
-        start_date = self.dh.this_month_start.replace(year=2020, month=7, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2020, month=7).date()
         daily_file_names, date_range = create_daily_archives(
             "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
         )
@@ -539,9 +539,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        start_date = self.dh.this_month_start.replace(year=2123, month=12, tzinfo=None)
-        end_date = self.dh.this_month_start.replace(year=2123, month=12, day=2, tzinfo=None)
-        expected_date = self.dh.this_month_start.replace(year=2123, month=12, day=1, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2123, month=12).date()
+        end_date = self.dh.this_month_start.replace(year=2123, month=12, day=2).date()
+        expected_date = self.dh.this_month_start.replace(year=2123, month=12, day=1).date()
         mock_daily_start.return_value = expected_date
         with patch(
             "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_Value=True
@@ -562,9 +562,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
-        start_date = self.dh.this_month_start.replace(year=2023, month=9, tzinfo=None)
-        end_date = self.dh.this_month_start.replace(year=2023, month=9, day=2, tzinfo=None)
-        expected_date = self.dh.this_month_start.replace(year=2023, month=9, day=1, tzinfo=None)
+        start_date = self.dh.this_month_start.replace(year=2023, month=9).date()
+        end_date = self.dh.this_month_start.replace(year=2023, month=9, day=2).date()
+        expected_date = self.dh.this_month_start.replace(year=2023, month=9, day=1).date()
         with patch(
             "masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_Value=True
         ):
