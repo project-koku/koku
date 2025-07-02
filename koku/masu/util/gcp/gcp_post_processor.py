@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import ciso8601
 import pandas as pd
+import numpy as np
 
 from api.models import Provider
 from masu.processor import is_gcp_credits_in_json
@@ -143,7 +144,7 @@ class GCPPostProcessor:
             rollup_frame["daily_credits"] = rollup_frame["credits"].apply(lambda x: x.get("amount") or 0.0)
         else:
             # We need to populate old and new column for 3 months before removing old column
-            rollup_frame["daily_credits"] = rollup_frame["credits_amount"]
+            rollup_frame["daily_credits"] = rollup_frame["credits_amount"].astype(np.float64)
 
         resource_df = rollup_frame.get("resource_name")
         try:

@@ -56,7 +56,13 @@ SELECT uuid() as uuid,
     cast(sum(cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     invoice_month,
-    sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount
+    -- We need to support the old json field until the new column is populated for our 3 month window.
+    sum(
+        COALESCE(
+            CAST(credits_amount AS DECIMAL(24,9)),
+            CAST(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0') AS DECIMAL(24,9))
+        )
+    ) AS credit_amount
 FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 CROSS JOIN
     cte_pg_enabled_keys as pek
