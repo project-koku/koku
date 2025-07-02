@@ -200,7 +200,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
 
             matched_tag = tag_subset.apply(match_openshift_labels, args=(matched_tags,))
             data_frame["matched_tag"] = matched_tag
-            data_frame["matched_tag"].fillna(value="", inplace=True)
+            data_frame["matched_tag"] = data_frame["matched_tag"].fillna(value="")
         else:
             data_frame["tag_matched"] = False
             data_frame["matched_tag"] = ""

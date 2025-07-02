@@ -171,7 +171,7 @@ class GCPPostProcessor:
         )
         columns = daily_data_frame.columns.droplevel(1)
         daily_data_frame.columns = columns
-        daily_data_frame.reset_index(inplace=True)
+        daily_data_frame = daily_data_frame.reset_index()
 
         # Add a unique identifer that we can use for deduplicating
         daily_data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(daily_data_frame))]
