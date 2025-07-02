@@ -109,7 +109,7 @@ class ParquetReportProcessor:
     @property
     def provider_uuid(self):
         """The provider UUID."""
-        return self._provider_uuid
+        return str(self._provider_uuid)
 
     @property
     def provider_type(self):
