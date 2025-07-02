@@ -429,6 +429,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
             for col in columns_list
         ]
+        columns_list.append("credits[OFFSET(0)].amount as credits_amount")
         columns_list.append("DATE(_PARTITIONTIME) as partition_date")
         return ",".join(columns_list)
 
@@ -485,6 +486,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 raise GCPReportDownloaderError(msg) from e
             try:
                 column_list = GCP_COLUMN_LIST.copy()
+                column_list.append("credits_amount")
                 column_list.append("partition_date")
                 for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
                     full_local_path = self._get_local_file_path(directory_path, partition_date, i)

@@ -52,7 +52,7 @@ class GCPProvider(ProviderInterface):
         table_columns = set()
         for col in table.schema:
             # A few columns we json parse which means we need the col.name not the field.name
-            if col.field_type == "RECORD" and col.name not in ["credits", "labels", "system_labels"]:
+            if col.field_type == "RECORD" and col.name not in ["labels", "system_labels"]:
                 for field in col.fields:
                     table_columns.add(f"{col.name}.{field.name}")
             else:

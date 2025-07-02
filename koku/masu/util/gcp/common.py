@@ -46,7 +46,6 @@ GCP_COLUMN_LIST = [
     "usage.unit",
     "usage.amount_in_pricing_units",
     "usage.pricing_unit",
-    "credits.amount",
     "invoice.month",
     "cost_type",
     "resource.name",

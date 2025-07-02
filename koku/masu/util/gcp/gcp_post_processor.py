@@ -89,8 +89,6 @@ class GCPPostProcessor:
         "partition_date",
     }
 
-
-
     def __init__(self, schema):
         self.schema = schema
         self.enabled_tag_keys = set()
@@ -119,8 +117,8 @@ class GCPPostProcessor:
             "currency_conversion_rate": safe_float,
             "usage.amount": safe_float,
             "usage.amount_in_pricing_units": safe_float,
-            "credits.amount": safe_float,
-            "credits": process_gcp_credits, # This is needed to support OG filter flow temperarily
+            "credits_amount": safe_float,
+            "credits": process_gcp_credits,  # This is needed to support OG filter flow temperarily
         }
         csv_converters = {
             col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
