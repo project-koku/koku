@@ -10,5 +10,5 @@ WHERE source={{source_uuid | string}}
     SELECT
       DISTINCT usage_id
     FROM postgres.{{schema | sqlsafe}}.reporting_subs_id_map
-    WHERE source_uuid!= cast({{source_uuid}} as uuid)
+    WHERE source_uuid!=cast({{source_uuid}} as uuid)
   )
