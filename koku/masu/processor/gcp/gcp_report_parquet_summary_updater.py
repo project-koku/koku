@@ -112,7 +112,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_line_item_daily_summary_table_trino(
                     start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month_date
                 )
-                accessor.populate_enabled_tag_keys(start, end, bill_ids)
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date, invoice_month_date)
