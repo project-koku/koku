@@ -37,6 +37,12 @@ CURRENCIES = [
         "description": "CNY (CN\u00a5) - Chinese Yuan",
     },
     {
+        "code": "CZK",
+        "name": "Czech Koruna",
+        "symbol": "K\u010d",
+        "description": "CZK (K\u010d) - Czech Koruna",
+    },
+    {
         "code": "DKK",
         "name": "Danish Krone",
         "symbol": "DKK",
