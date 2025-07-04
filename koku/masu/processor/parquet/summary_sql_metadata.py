@@ -21,6 +21,8 @@ class SummarySqlMetadata:
     start_date: date
     end_date: date
     matched_tag_strs: list[str]
+    bill_id: int
+    report_period_id: int
     days_tup: tuple = field(init=False)
     year: str = field(init=False)
     month: str = field(init=False)
@@ -84,6 +86,8 @@ class SummarySqlMetadata:
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,
+            "report_period_id": self.report_period_id,
+            "bill_id": self.bill_id,
         }
         return {key: base_params[key] for key in requested_keys}
 
@@ -102,6 +106,8 @@ class SummarySqlMetadata:
             "cloud_provider_uuid": self.cloud_provider_uuid,
             "days_tup": self.days_tup,
             "days": self.days_tup,
+            "report_period_id": self.report_period_id,
+            "bill_id": self.bill_id,
         }
         for key, value in extra_params.items():
             base_params[key] = value
