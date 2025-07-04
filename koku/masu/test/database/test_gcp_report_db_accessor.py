@@ -32,7 +32,6 @@ from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
-from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import TRINO_OCP_GCP_DAILY_SUMMARY_TABLE
 from reporting_common.models import CostUsageReportManifest
@@ -189,20 +188,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
             start_date, end_date, self.gcp_test_provider_uuid, self.ocp_test_provider_uuid
         )
         mock_trino.assert_called()
-
-    def test_populate_enabled_tag_keys(self):
-        """Test that enabled tag keys are populated."""
-        start_date = self.dh.this_month_start.date()
-        end_date = self.dh.this_month_end.date()
-
-        bills = self.accessor.bills_for_provider_uuid(self.gcp_provider_uuid, start_date)
-        with schema_context(self.schema):
-            GCPTagsSummary.objects.all().delete()
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).delete()
-            bill_ids = [bill.id for bill in bills]
-            self.assertEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).count(), 0)
-            self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_GCP).count(), 0)
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, GCPCostEntryLineItemDailySummary)

@@ -209,28 +209,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             scan_range["end"] = max(end_dates)
             return scan_range
 
-    def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
-        """Populate the enabled tag key table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
-
-        Returns
-            (None)
-        """
-        table_name = "reporting_enabledtagkeys"
-        sql = pkgutil.get_data("masu.database", "sql/reporting_gcpenabledtagkeys.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
     def populate_gcp_topology_information_tables(self, provider, start_date, end_date, invoice_month_date):
         """Populate the GCP topology table."""
         ctx = {
