@@ -92,6 +92,7 @@ generators:
       start_date: {{start_date}}
       end_date: {{end_date}}
       meter_id: 55555555-4444-3333-2222-111111111120
+      meter_cache: {"55555555-4444-3333-2222-111111111120": ["Blob Storage", "Tiered Block Blob", "Hot RA-GRS Data Stored", "100 GB/Month"]}
       resource_location: "US North Central"
       instance_id:  '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/disks/azure_compute1_OSDisk'
       amount: 10
