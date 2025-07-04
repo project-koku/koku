@@ -65,7 +65,6 @@ def create_enabled_categories(schema, enabled_keys):
 
 
 class AWSPostProcessor:
-
     ALL_RESOURCE_TAG_PREFIX = "resourceTags/"
     RESOURCE_TAG_USER_PREFIX = "resourceTags/user:"
     COST_CATEGORY_PREFIX = "costCategory/"
@@ -239,7 +238,7 @@ class AWSPostProcessor:
         )
         columns = daily_data_frame.columns.droplevel(1)
         daily_data_frame.columns = columns
-        daily_data_frame.reset_index(inplace=True)
+        daily_data_frame = daily_data_frame.reset_index()
         daily_data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(daily_data_frame))]
         return daily_data_frame
 

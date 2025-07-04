@@ -988,12 +988,11 @@ class ReportQueryHandler(QueryHandler):
         for sort_term, none_sort_term in zip(sort_terms, none_sort_terms):
             # use a dictionary to uniquify the list and maintain the correct order
             ordered_list = dict.fromkeys([entry.get(sort_term) or none_sort_term for entry in ordered_data]).keys()
-            df.fillna(value={sort_term: none_sort_term}, inplace=True)
-            df[sort_term] = df[sort_term].astype(CategoricalDtype(ordered_list, ordered=True))
+            df[sort_term] = df[sort_term].fillna(none_sort_term).astype(CategoricalDtype(ordered_list, ordered=True))
         bys = list(reversed(sort_terms + ["date"]))
-        df.sort_values(by=bys, inplace=True)
+        df = df.sort_values(by=bys)
         for sort_term, none_sort_term in zip(sort_terms, none_sort_terms):
-            df.replace({sort_term: {none_sort_term: None}}, inplace=True)
+            df[sort_term] = df[sort_term].replace({none_sort_term: None})
         return df.to_dict("records")
 
     def _order_by(self, data, order_fields):
@@ -1190,13 +1189,15 @@ class ReportQueryHandler(QueryHandler):
         data_frame = pd.DataFrame(data_list)
 
         rank_data_frame = pd.DataFrame(ranks)
-        rank_data_frame.drop(columns=["cost_total", "cost_total_distributed", "usage"], inplace=True, errors="ignore")
+        rank_data_frame = rank_data_frame.drop(
+            columns=["cost_total", "cost_total_distributed", "usage"], errors="ignore"
+        )
 
         # Determine what to get values for in our rank data frame
         if self.is_aws and "account" in group_by:
             drop_columns.add("account_alias")
         if self.is_aws and "account" not in group_by:
-            rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
+            rank_data_frame = rank_data_frame.drop(columns=["account_alias"], errors="ignore")
 
         agg_fields = {}
         for col in [col for col in self.report_annotations if "units" in col]:
@@ -1206,7 +1207,7 @@ class ReportQueryHandler(QueryHandler):
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
         aggs.columns = columns
-        aggs.reset_index(inplace=True)
+        aggs = aggs.reset_index()
         aggs = aggs.replace({np.nan: None})
         rank_data_frame = rank_data_frame.merge(aggs, on=group_by)
 
@@ -1229,11 +1230,11 @@ class ReportQueryHandler(QueryHandler):
         if self.is_aws and "account" in group_by:
             account_aliases = data_frame[["account", "account_alias"]]
             account_aliases = account_aliases.drop_duplicates(subset="account")
-        data_frame.drop(columns=drop_columns, inplace=True, errors="ignore")
+        data_frame = data_frame.drop(columns=drop_columns, errors="ignore")
         data_frame = data_frame.merge(ranks_by_day, how="right", on=merge_on)
 
         if self.is_aws and "account" in group_by:
-            data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
+            data_frame = data_frame.drop(columns=["account_alias"], errors="ignore")
             data_frame = data_frame.merge(account_aliases, on="account", how="left")
 
         if is_offset:
@@ -1252,7 +1253,7 @@ class ReportQueryHandler(QueryHandler):
         # Replace NaN with 0
         numeric_columns = [col for col in self.report_annotations if "unit" not in col]
         fill_values = {column: 0 for column in numeric_columns}
-        data_frame.fillna(value=fill_values, inplace=True)
+        data_frame = data_frame.fillna(value=fill_values)
 
         # Finally replace any remaining NaN with None for JSON compatibility
         data_frame = data_frame.replace({np.nan: None})
@@ -1281,7 +1282,7 @@ class ReportQueryHandler(QueryHandler):
         others_data_frame = others_data_frame.groupby(groups, dropna=True).agg(aggs, axis=1)
         columns = others_data_frame.columns.droplevel(1)
         others_data_frame.columns = columns
-        others_data_frame.reset_index(inplace=True)
+        others_data_frame = others_data_frame.reset_index()
 
         # Add back columns
         other_str = "Others" if other_count > 1 else "Other"
