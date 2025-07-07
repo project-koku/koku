@@ -53,6 +53,12 @@ filtered_data as (
             cast(json_parse(tags) as map(varchar, varchar)),
             (k,v) -> contains(pek.keys, k)
         ) as json
+     ) AS enabled_tags,
+    cast(
+        map_filter(
+            cast(json_parse(pod_labels) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
      ) AS enabled_labels,
     cluster_alias,
     data_source,
@@ -137,7 +143,7 @@ SELECT
     SUM(calculated_amortized_cost) as calculated_amortized_cost,
     SUM(markup_cost_amortized) as markup_cost_amortized,
     fd.enabled_labels as pod_labels,
-    fd.enabled_labels as tags,
+    fd.enabled_tags as tags,
     fd.aws_cost_category as aws_cost_category,
     cost_category_id,
     cast({{cloud_provider_uuid}} as UUID) as source_uuid
@@ -162,5 +168,6 @@ GROUP BY
     data_transfer_direction,
     currency_code,
     fd.enabled_labels,
+    fd.enabled_tags,
     fd.aws_cost_category,
     cost_category_id;

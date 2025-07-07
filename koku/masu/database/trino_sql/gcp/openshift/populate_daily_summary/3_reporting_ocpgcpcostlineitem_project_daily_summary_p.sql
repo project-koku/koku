@@ -59,6 +59,12 @@ filtered_data as (
                 (k,v) -> contains(pek.keys, k)
             ) as json
         ) AS enabled_labels,
+        cast(
+            map_filter(
+                cast(json_parse(tags) as map(varchar, varchar)),
+                (k,v) -> contains(pek.keys, k)
+            ) as json
+        ) AS enabled_tags,
         resource_id,
         date(usage_start) as usage_start,
         account_id,
@@ -138,7 +144,7 @@ SELECT
     currency,
     SUM(unblended_cost),
     SUM(markup_cost),
-    fd.enabled_labels as tags,
+    fd.enabled_tags as tags,
     cost_category_id,
     cast({{cloud_provider_uuid}} as UUID),
     SUM(credit_amount),
@@ -154,6 +160,7 @@ GROUP BY
     persistentvolume,
     storageclass,
     fd.enabled_labels,
+    fd.enabled_tags,
     resource_id,
     account_id,
     project_id,

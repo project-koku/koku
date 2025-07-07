@@ -78,6 +78,12 @@ filtered_data as (
                 cast(json_parse(tags) as map(varchar, varchar)),
                 (k,v) -> contains(pek.keys, k)
             ) as json
+        ) AS enabled_tags,
+        cast(
+            map_filter(
+                cast(json_parse(pod_labels) as map(varchar, varchar)),
+                (k,v) -> contains(pek.keys, k)
+            ) as json
         ) AS enabled_labels,
         cost_category_id
     FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary
@@ -117,7 +123,7 @@ SELECT
     MAX(currency) as currency,
     SUM(pretax_cost) as pretax_cost,
     SUM(markup_cost) as markup_cost,
-    fd.enabled_labels as tags,
+    fd.enabled_tags as tags,
     cost_category_id,
     cast({{cloud_provider_uuid}} as UUID) as source_uuid
 FROM filtered_data as fd
@@ -131,6 +137,7 @@ GROUP BY
     persistentvolume,
     storageclass,
     fd.enabled_labels,
+    fd.enabled_tags,
     resource_id,
     subscription_guid,
     instance_type,
