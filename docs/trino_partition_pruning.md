@@ -78,7 +78,7 @@ This results in Trino reading more data than necessary from S3, increasing I/O a
 
 ### Maximizing Partition Pruning for Optimal Performance
 
-To fully leverage Trino's partition pruning capabilities, you should always include direct filters on the partition columns (`source`, `year`, `month`, `day`) in your `WHERE` clause, in addition to any other specific filtering criteria.
+To fully leverage Trino's partition pruning capabilities, you should always include as many as possible direct filters on the partition columns (`source`, `year`, `month`, `day`) in your `WHERE` clause, in addition to any other specific filtering criteria.
 
 This behavior will avoid scanning any partitions (folders in s3) that do not match the specified month and year leading to:
 1. Significantly reduced data scanned from s3
