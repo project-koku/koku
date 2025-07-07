@@ -273,6 +273,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        # Default to cpu distribution
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
@@ -289,7 +290,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         unattributed_storage = is_feature_unattributed_storage_enabled_aws(self.schema)
 
+        sql_file = "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql"
+        msg = "running OCP on AWS SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
+            # We have to populate the ocp on cloud managed tables prior to executing this file
+            msg = "running OCP on AWS Managed table SQL"
             sql_metadata = SummarySqlMetadata(
                 self.schema,
                 openshift_provider_uuid,
@@ -299,13 +304,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._get_matched_tags_strings(
                     bill_id, aws_provider_uuid, openshift_provider_uuid, start_date, end_date
                 ),
-                bill_id,
-                report_period_id,
             )
             self.populate_ocp_on_cloud_daily_trino(sql_metadata)
-            return
-
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
+            sql_file = "trino_sql/aws/openshift/reporting_ocpawscostlineitem_project_daily_summary_p.sql"
+        sql = pkgutil.get_data("masu.database", sql_file)
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -324,7 +326,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "unattributed_storage": unattributed_storage,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
+        LOG.info(log_json(msg=msg, context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
@@ -574,10 +576,3 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         LOG.info(log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params))
         self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
-        # Insert into postgresql
-        psql_insert, psql_params = sql_metadata.prepare_template(
-            f"{managed_path}/3_reporting_ocpawscostlineitem_project_daily_summary_p.sql",
-            {"unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema)},
-        )
-        LOG.info(log_json(msg="running OCP on AWS SQL managed flow", **psql_params))
-        self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)
