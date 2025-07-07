@@ -39,6 +39,12 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_d
     credit_amount,
     invoice_month
 )
+with cte_pg_enabled_keys as (
+    select array['vm_kubevirt_io_name'] || array_agg(key order by key) as keys
+      from postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
+     where enabled = true
+     and provider_type IN ('GCP', 'OCP')
+)
 SELECT uuid(),
     {{report_period_id}} as report_period_id,
     cluster_id,
@@ -87,12 +93,18 @@ SELECT uuid(),
     currency,
     unblended_cost,
     markup_cost,
-    json_parse(tags),
+        cast(
+        map_filter(
+            cast(json_parse(tags) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) AS tags,
     cost_category_id,
     cast(source as UUID),
     credit_amount,
     invoice_month
 FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary
+CROSS JOIN cte_pg_enabled_keys AS pek
 WHERE source = {{gcp_source_uuid}}
     AND ocp_source = {{ocp_source_uuid}}
     AND year = {{year}}
