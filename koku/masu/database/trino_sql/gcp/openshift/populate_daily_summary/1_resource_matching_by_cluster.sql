@@ -39,12 +39,20 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
     month,
     day
 )
-WITH cte_gcp_resource_names AS (
+WITH cte_months AS (
+    SELECT
+    DISTINCT month
+    FROM gcp_line_items_daily
+    WHERE usage_start_time > {{start_date}}
+    AND usage_start_time <= {{end_date}}
+    AND year = {{year}}
+),
+cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
-        AND month in ({{month}}, {{previous_month}})
+        AND month in (SELECT month FROM cte_months)
         AND usage_start_time >= {{start_date}}
         AND usage_start_time < date_add('day', 1, {{end_date}})
 ),
@@ -97,14 +105,6 @@ cte_enabled_tag_keys AS (
     FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
     WHERE enabled = TRUE
         AND provider_type = 'GCP'
-),
-cte_months AS (
-    SELECT
-    DISTINCT month
-    FROM gcp_line_items_daily
-    WHERE usage_start_time > {{start_date}}
-    AND usage_start_time <= {{start_date}}
-    AND year = {{year}}
 )
 SELECT gcp.row_uuid,
     gcp.invoice_month,
