@@ -111,12 +111,12 @@ def match_openshift_resources_and_labels(df, cluster_topologies, matched_tags):
         volumes = list(filter(None, cluster_topology.get("persistent_volumes", [])))
         matchable_resources = nodes + volumes
 
-        if not df["resource.name"].eq("").all():
+        if not df["resource_name"].eq("").all():
             LOG.info("Matching OpenShift on GCP by resource ID.")
             if not matchable_resources:
                 continue
             df.loc[
-                df["resource.name"].str.contains("|".join(matchable_resources)), "ocp_source_uuid"
+                df["resource_name"].str.contains("|".join(matchable_resources)), "ocp_source_uuid"
             ] = cluster_topology.get("provider_uuid")
         else:
             LOG.info("Matching OpenShift on GCP by labels.")
@@ -142,11 +142,13 @@ def match_openshift_resources_and_labels(df, cluster_topologies, matched_tags):
             tag_values.update(tag.values())
 
         df["tag_matched"] = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
-        any_tag_matched = df["tag_matched"].any()
 
-        if any_tag_matched:
+        if df["tag_matched"].any():
             df["matched_tag"] = (
-                df.loc[df["tag_matched"], "tags"].apply(match_openshift_labels, args=(matched_tags,)).fillna(value="")
+                df.loc[df["tag_matched"], "labels"]
+                .str.lower()
+                .apply(match_openshift_labels, args=(matched_tags,))
+                .fillna(value="")
             )
 
             LOG.info("Matching OpenShift on GCP tags.")
