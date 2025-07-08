@@ -367,26 +367,6 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
-    def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
-        """Populate the enabled tag key table.
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            bill_ids (list) A list of bill IDs.
-        Returns
-            (None)
-        """
-        table_name = "reporting_enabledtagkeys"
-        sql = pkgutil.get_data("masu.database", "sql/reporting_azureenabledtagkeys.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
     def get_openshift_on_cloud_matched_tags(self, azure_bill_id):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_matched_tags.sql")
