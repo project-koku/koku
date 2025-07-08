@@ -98,7 +98,7 @@ cte_enabled_tag_keys AS (
     WHERE enabled = TRUE
         AND provider_type = 'GCP'
 ),
-cte_array_months AS (
+cte_months AS (
     SELECT
     DISTINCT month
     FROM gcp_line_items_daily
@@ -169,7 +169,7 @@ LEFT JOIN cte_agg_tags AS tag_matches
     AND resource_names.resource_name IS NULL
 WHERE gcp.source = {{cloud_provider_uuid}}
     AND gcp.year = {{year}}
-    AND gcp.month in (SELECT month FROM cte_array_months)
+    AND gcp.month in (SELECT month FROM cte_months)
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tags IS NOT NULL);
