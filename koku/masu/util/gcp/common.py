@@ -7,7 +7,6 @@ import datetime
 import logging
 import uuid
 
-import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -98,20 +97,12 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     return bills
 
 
-def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):
+def match_openshift_resources_and_labels(df, cluster_topologies, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
-    tags = data_frame["labels"]
-    tags = tags.str.lower()
-    resource_id_df = data_frame.get("resource_name")
-    match_by_resource_id = resource_id_df.any()
+    tags = df["labels"].str.lower()
 
     # instantiate an empty column which can be updated over each topology
-    data_frame["ocp_source_uuid"] = ""
-
-    # use this column to track matched ocp sources. only rows where this column
-    # is True will update the `ocp_source_uuid` column. After iterating the
-    # topologies, this tmp column is dropped.
-    tmp_match_col_name = "tmp_ocp_matched"
+    df["ocp_source_uuid"] = ""
 
     for cluster_topology in cluster_topologies:
         cluster_id = cluster_topology.get("cluster_id", "")
@@ -120,66 +111,48 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
         volumes = list(filter(None, cluster_topology.get("persistent_volumes", [])))
         matchable_resources = nodes + volumes
 
-        if match_by_resource_id:
+        if not df["resource.name"].eq("").all():
             LOG.info("Matching OpenShift on GCP by resource ID.")
             if not matchable_resources:
                 continue
-            ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
+            df.loc[
+                df["resource.name"].str.contains("|".join(matchable_resources)), "ocp_source_uuid"
+            ] = cluster_topology.get("provider_uuid")
         else:
             LOG.info("Matching OpenShift on GCP by labels.")
             cluster_strings = [
                 f"kubernetes-io-cluster-{cluster_identifier}" for cluster_identifier in (cluster_id, cluster_alias)
             ]
-            ocp_matched = tags.str.contains("|".join(cluster_strings))
-
-        # Add in OCP Cluster these resources matched to
-        data_frame[tmp_match_col_name] = ocp_matched
-        data_frame.loc[data_frame[tmp_match_col_name], "ocp_source_uuid"] = cluster_topology.get("provider_uuid")
+            df.loc[tags.str.contains("|".join(cluster_strings)), "ocp_source_uuid"] = cluster_topology.get(
+                "provider_uuid"
+            )
 
     # Consildate the columns per cluster into a single column
-    data_frame["ocp_matched"] = data_frame["ocp_source_uuid"].str.len() > 0
-    data_frame = data_frame.drop(columns=tmp_match_col_name, errors="ignore")
+    df["ocp_matched"] = df["ocp_source_uuid"].str.len() > 0
 
-    special_case_tag_matched = tags.str.contains(
-        "|".join(
-            [
-                "openshift_cluster",
-                "openshift_project",
-                "openshift_node",
-            ]
-        )
-    )
-    data_frame["special_case_tag_matched"] = special_case_tag_matched
+    df["special_case_tag_matched"] = tags.str.contains("openshift_cluster|openshift_project|openshift_node")
+
+    df["tag_matched"] = False
+    df["matched_tag"] = ""
     if matched_tags:
-        tag_keys = []
-        tag_values = []
+        tag_keys = set()
+        tag_values = set()
         for tag in matched_tags:
-            tag_keys.extend(list(tag.keys()))
-            tag_values.extend(list(tag.values()))
+            tag_keys.update(tag.keys())
+            tag_values.update(tag.values())
 
-        tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
-        data_frame["tag_matched"] = tag_matched
-        any_tag_matched = tag_matched.any()
+        df["tag_matched"] = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
+        any_tag_matched = df["tag_matched"].any()
 
         if any_tag_matched:
-            tag_df = pd.concat([tags, tag_matched], axis=1)
-            tag_df.columns = ("tags", "tag_matched")
-            tag_subset = tag_df[tag_df.tag_matched == True].tags  # noqa: E712
+            df["matched_tag"] = (
+                df.loc[df["tag_matched"], "tags"].apply(match_openshift_labels, args=(matched_tags,)).fillna(value="")
+            )
 
             LOG.info("Matching OpenShift on GCP tags.")
 
-            matched_tag = tag_subset.apply(match_openshift_labels, args=(matched_tags,))
-            data_frame["matched_tag"] = matched_tag
-            data_frame["matched_tag"] = data_frame["matched_tag"].fillna(value="")
-        else:
-            data_frame["matched_tag"] = ""
-    else:
-        data_frame["tag_matched"] = False
-        data_frame["matched_tag"] = ""
-    openshift_matched_data_frame = data_frame[
-        (data_frame["ocp_matched"] == True)  # noqa: E712
-        | (data_frame["special_case_tag_matched"] == True)  # noqa: E712
-        | (data_frame["matched_tag"] != "")  # noqa: E712
+    openshift_matched_data_frame = df[
+        df["ocp_matched"] | df["special_case_tag_matched"] | (df["matched_tag"].str.len() > 0)
     ]
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
