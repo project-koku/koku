@@ -24,7 +24,6 @@ from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor import is_tag_processing_disabled
@@ -346,10 +345,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
             node_column = "node_capacity_memory_gigabyte_hours"
 
-        sql_filename = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
-        log_msg = "running OCP on GCP SQL"
         if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_GCP):
-            # We have to populate the ocp on cloud managed tables prior to executing this file
             sql_metadata = SummarySqlMetadata(
                 self.schema,
                 openshift_provider_uuid,
@@ -359,12 +355,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 self._get_matched_tags_strings(
                     bill_id, gcp_provider_uuid, openshift_provider_uuid, start_date, end_date
                 ),
+                bill_id,
+                report_period_id,
             )
             self.populate_ocp_on_cloud_daily_trino(sql_metadata)
-            sql_filename = "reporting_ocpgcpcostlineitem_project_daily_summary_p"
-            log_msg = "running OCP on GCP SQL managed flow"
-
-        sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{sql_filename}.sql")
+            return
+        sql = pkgutil.get_data(
+            "masu.database", "trino_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary_resource_id.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -385,7 +383,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
         }
         ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg=log_msg, context=ctx))
+        LOG.info(log_json(msg="running OCP on GCP SQL", context=ctx))
         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
@@ -604,17 +602,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
-        with OCPReportDBAccessor(sql_metadata.schema) as accessor:
-            report_period = accessor.report_periods_for_provider_uuid(
-                sql_metadata.ocp_provider_uuid, sql_metadata.start_date
-            )
-            ctx = sql_metadata.build_params(
-                ["schema", "cloud_provider_uuid", "start_date", "end_date", "ocp_provider_uuid"]
-            )
-            if not report_period:
-                LOG.info(log_json(msg="no report period available", context=ctx))
-                return
-            report_period_id = report_period.id
         self.delete_ocp_on_gcp_hive_partition_by_day(
             sql_metadata.days_tup,
             sql_metadata.cloud_provider_uuid,
@@ -644,8 +631,13 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/2_summarize_data_by_cluster.sql",
             {
                 **sql_metadata.build_cost_model_params(),
-                **{"report_period_id": report_period_id},
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on gcp daily summary", **daily_summary_params))
         self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
+        # Insert into postgresql
+        psql_insert, psql_params = sql_metadata.prepare_template(
+            f"{managed_path}/3_reporting_ocpgcpcostlineitem_project_daily_summary_p.sql",
+        )
+        LOG.info(log_json(msg="running OCP on GCP SQL managed flow", **psql_params))
+        self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)
