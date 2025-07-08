@@ -23,8 +23,6 @@ Let's illustrate the importance of partition awareness with a common debugging s
 
 ### Data Partitioning Structures
 
-Let's say you are debugging a customer issue where the customer has reported a higher than expected cost for the OCP on GCP flow and you want to find all rows where the ocp on cloud cost is higher for the month of may than the original cost.
-
 Consider our key tables and their partitioning schemas:
 
 GCP Tables:
