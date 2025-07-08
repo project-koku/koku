@@ -169,19 +169,17 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     data_frame["special_case_tag_matched"] = False
     tags = data_frame["tags"]
     if not tags.eq("").all():
-        tags_lower = tags.str.lower()
         LOG.info("Matching OpenShift on Azure by tags.")
-        special_case_tag_matched = tags_lower.str.contains(
-            "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+        data_frame["special_case_tag_matched"] = tags.str.lower().str.contains(
+            "openshift_cluster|openshift_project|openshift_node"
         )
-        data_frame["special_case_tag_matched"] = special_case_tag_matched
 
     if matched_tags:
-        tag_keys = []
-        tag_values = []
+        tag_keys = set()
+        tag_values = set()
         for tag in matched_tags:
-            tag_keys.extend(list(tag.keys()))
-            tag_values.extend(list(tag.values()))
+            tag_keys.update(tag.keys())
+            tag_values.update(tag.values())
 
         any_tag_matched = None
         if not tags.eq("").all():
@@ -190,8 +188,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
             any_tag_matched = tag_matched.any()
 
         if any_tag_matched:
-            tag_df = pd.concat([tags, tag_matched], axis=1)
-            tag_df.columns = ("tags", "tag_matched")
+            tag_df = pd.concat({"tags": tags, "tag_matched": tag_matched}, axis=1)
             tag_subset = tag_df[tag_df.tag_matched == True].tags  # noqa: E712
 
             LOG.info("Matching OpenShift on Azure tags.")
