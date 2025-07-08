@@ -464,6 +464,8 @@ class AzureReportDBAccessorTest(MasuTestCase):
             "2024-08-01",
             "2024-08-05",
             matched_tags,
+            1,
+            1,
         )
 
         self.accessor.populate_ocp_on_cloud_daily_trino(params)
