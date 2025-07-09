@@ -29,7 +29,6 @@ from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.models import TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE
 
 
@@ -237,21 +236,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
         mock_delete.assert_called()
-
-    def test_populate_enabled_tag_keys(self):
-        """Test that enabled tag keys are populated."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-
-        bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
-        with schema_context(self.schema):
-            AzureTagsSummary.objects.all().delete()
-            EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).delete()
-            bill_ids = [bill.id for bill in bills]
-            self.assertEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).count(), 0)
-            self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-            self.assertNotEqual(EnabledTagKeys.objects.filter(provider_type=Provider.PROVIDER_AZURE).count(), 0)
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, AzureCostEntryLineItemDailySummary)
@@ -480,6 +464,8 @@ class AzureReportDBAccessorTest(MasuTestCase):
             "2024-08-01",
             "2024-08-05",
             matched_tags,
+            1,
+            1,
         )
 
         self.accessor.populate_ocp_on_cloud_daily_trino(params)

@@ -39,12 +39,20 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
     month,
     day
 )
-WITH cte_gcp_resource_names AS (
+WITH cte_months AS (
+    SELECT
+    DISTINCT month
+    FROM gcp_line_items_daily
+    WHERE usage_start_time > {{start_date}}
+    AND usage_start_time <= {{end_date}}
+    AND year = {{year}}
+),
+cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     WHERE source = {{cloud_provider_uuid}}
         AND year = {{year}}
-        AND month = {{month}}
+        AND month in (SELECT month FROM cte_months)
         AND usage_start_time >= {{start_date}}
         AND usage_start_time < date_add('day', 1, {{end_date}})
 ),
@@ -148,7 +156,9 @@ SELECT gcp.row_uuid,
     gcp.source as source,
     {{ocp_provider_uuid}} as ocp_source,
     gcp.year,
-    gcp.month,
+    -- GCP has crossover data and some current month data can land in the previous month partition
+    -- The month partition needs to match usage_start_month for correct ocp/gcp correlation
+    CAST(FORMAT_DATETIME(usage_start_time, 'MM') AS VARCHAR(2)) AS month,
     cast(day(gcp.usage_start_time) as varchar) as day
 FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
 CROSS JOIN cte_enabled_tag_keys as etk
@@ -159,7 +169,7 @@ LEFT JOIN cte_agg_tags AS tag_matches
     AND resource_names.resource_name IS NULL
 WHERE gcp.source = {{cloud_provider_uuid}}
     AND gcp.year = {{year}}
-    AND gcp.month= {{month}}
+    AND gcp.month in (SELECT month FROM cte_months)
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tags IS NOT NULL);
