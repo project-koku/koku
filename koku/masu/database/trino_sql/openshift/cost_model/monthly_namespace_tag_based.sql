@@ -33,7 +33,7 @@ WITH filtered_data as (
         {%- endif %}
         CAST(map_filter(
             CAST(json_parse(nsp.namespace_labels) AS MAP(VARCHAR, VARCHAR)),
-            (k, v) -> json_extract_scalar(nsp.namespace_labels, '$.{{ tag_key|sqlsafe }}') IS NOT NULL -- Check if the key 'k' contains the substring 'cats'
+            (k, v) -> json_extract_scalar(nsp.namespace_labels, '$.{{ tag_key|sqlsafe }}') IS NOT NULL
         ) AS JSON) AS filtered_namespace_labels,
         ouds.cluster_id,
         ouds.cluster_alias,
