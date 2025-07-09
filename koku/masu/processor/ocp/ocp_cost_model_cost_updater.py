@@ -556,8 +556,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 report_accessor.populate_vm_tag_based_costs(
                     start_date, end_date, self._provider.uuid, self.tag_based_price_list
                 )
-                report_accessor.populate_namespace_monthly_tag_based_costs(
-                    start_date, end_date, self._provider.uuid, self.tag_based_price_list
-                )
+                # report_accessor.populate_namespace_monthly_tag_based_costs(
+                #     start_date, end_date, self._provider.uuid, self.tag_based_price_list
+                # )
 
         self.distribute_costs_and_update_ui_summary(start_date, end_date)
