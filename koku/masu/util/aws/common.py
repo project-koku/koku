@@ -13,6 +13,7 @@ import uuid
 from itertools import chain
 
 import boto3
+import pandas as pd
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
@@ -861,7 +862,9 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     )
 
 
-def match_openshift_resources_and_labels(df, cluster_topologies, matched_tags):
+def match_openshift_resources_and_labels(
+    df: pd.DataFrame, cluster_topologies: list[dict], matched_tags: list[dict]
+) -> pd.DataFrame:
     """Filter a dataframe to the subset that matches an OpenShift source."""
     resource_ids = chain.from_iterable(
         cluster_topology.get("resource_ids", []) for cluster_topology in cluster_topologies

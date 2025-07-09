@@ -190,11 +190,11 @@ class AWSPostProcessor:
         ]
         return csv_converters, panda_kwargs
 
-    def _generate_daily_data(self, data_frame):
+    def _generate_daily_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Generate daily data.
         """
-        daily_data_frame = data_frame.groupby(
+        daily_df = df.groupby(
             [
                 "lineitem_resourceid",
                 pd.Grouper(key="lineitem_usagestartdate", freq="D"),
@@ -236,11 +236,11 @@ class AWSPostProcessor:
                 "product_memory": ["max"],
             }
         )
-        columns = daily_data_frame.columns.droplevel(1)
-        daily_data_frame.columns = columns
-        daily_data_frame = daily_data_frame.reset_index()
-        daily_data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(daily_data_frame))]
-        return daily_data_frame
+        columns = daily_df.columns.droplevel(1)
+        daily_df.columns = columns
+        daily_df = daily_df.reset_index()
+        daily_df["row_uuid"] = daily_df.apply(lambda _: str(uuid4()), axis=1)
+        return daily_df
 
     def process_dataframe(self, data_frame):
         """Process dataframe."""
