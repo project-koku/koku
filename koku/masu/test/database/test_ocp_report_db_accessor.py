@@ -1149,7 +1149,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         Test that if a valid report period is not found.
         """
         with self.accessor as acc:
-            result = acc.populate_vm_tag_based_costs("1970-10-01", "1970-10-31", self.ocp_provider_uuid, {})
+            result = acc.populate_tag_based_costs("1970-10-01", "1970-10-31", self.ocp_provider_uuid, {})
             self.assertFalse(result)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
@@ -1176,7 +1176,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             }
         }
         with self.accessor as acc:
-            acc.populate_vm_tag_based_costs(
+            acc.populate_tag_based_costs(
                 self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
             )
             mock_psql.assert_called()
@@ -1205,7 +1205,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             }
         }
         with self.accessor as acc:
-            acc.populate_vm_tag_based_costs(
+            acc.populate_tag_based_costs(
                 self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
             )
             mock_trino.assert_called()
@@ -1220,7 +1220,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             }
         }
         with self.accessor as acc:
-            acc.populate_vm_tag_based_costs(
+            acc.populate_tag_based_costs(
                 self.start_date, self.dh.this_month_end, self.ocp_provider_uuid, tag_price_list
             )
             mock_psql.assert_not_called()

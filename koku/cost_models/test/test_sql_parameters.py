@@ -6,7 +6,7 @@
 from pydantic import ValidationError
 
 from api.metrics import constants as metric_constants
-from cost_models.sql_parameters import VMParams
+from cost_models.sql_parameters import TagBasedParams
 from masu.test import MasuTestCase
 
 
@@ -15,7 +15,7 @@ class CostModelSQLParameterTest(MasuTestCase):
 
     def test_invalid_dates(self):
         with self.assertRaises(ValidationError):
-            VMParams(
+            TagBasedParams(
                 schema=self.schema_name,
                 start_date=self.dh.this_month_end.date(),
                 end_date=self.dh.this_month_start.date(),
@@ -45,7 +45,7 @@ class CostModelSQLParameterTest(MasuTestCase):
                 },
             }
         }
-        params = VMParams(
+        params = TagBasedParams(
             schema=self.schema_name,
             start_date=self.dh.this_month_start.date(),
             end_date=self.dh.this_month_end.date(),
@@ -80,7 +80,7 @@ class CostModelSQLParameterTest(MasuTestCase):
                 },
             }
         }
-        params = VMParams(
+        params = TagBasedParams(
             schema=self.schema_name,
             start_date=self.dh.this_month_start.date(),
             end_date=self.dh.this_month_end.date(),
@@ -96,7 +96,7 @@ class CostModelSQLParameterTest(MasuTestCase):
     def test_no_tag_based_rates(self):
         """Test no tag based rates"""
         tag_price_list = {}
-        params = VMParams(
+        params = TagBasedParams(
             schema=self.schema_name,
             start_date=self.dh.this_month_start.date(),
             end_date=self.dh.this_month_end.date(),

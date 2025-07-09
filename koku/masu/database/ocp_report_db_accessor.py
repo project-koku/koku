@@ -24,7 +24,7 @@ from api.metrics import constants as metric_constants
 from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
-from cost_models.sql_parameters import VMParams
+from cost_models.sql_parameters import TagBasedParams
 from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -708,7 +708,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
-            param_builder = VMParams(
+            param_builder = TagBasedParams(
                 schema=self.schema,
                 start_date=start_date,
                 end_date=end_date,
@@ -724,7 +724,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             self._execute_trino_multipart_sql_query(sql, bind_params=vm_hour_params)
 
         if ocp_vm_core_hour_rate := rates.get(metric_constants.OCP_VM_CORE_HOUR):
-            param_builder = VMParams(
+            param_builder = TagBasedParams(
                 schema=self.schema,
                 start_date=start_date,
                 end_date=end_date,
@@ -1269,7 +1269,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params)
 
-    def populate_vm_tag_based_costs(self, start_date, end_date, provider_uuid, tag_based_price_list):
+    def populate_tag_based_costs(self, start_date, end_date, provider_uuid, tag_based_price_list):
         """Populate the VM count tag based costs.
 
         This method populates the daily summary table with tag-based costs for
@@ -1297,7 +1297,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             return
 
         for metric_name, file_path in metric_file_path.items():
-            vm_count_params = VMParams(
+            vm_count_params = TagBasedParams(
                 schema=self.schema,
                 start_date=start_date,
                 end_date=end_date,
@@ -1320,31 +1320,3 @@ GROUP BY partitions.year, partitions.month, partitions.source
                         sql_params,
                         operation="INSERT",
                     )
-
-    # def populate_namespace_monthly_tag_based_costs(self, start_date, end_date, provider_uuid, tag_based_price_list):
-    #     """Populate monthly namespace tag based costs if supplied in cost model.
-
-    #     This method populates the daily summary table with tag-based costs for
-    #     namespace based on tag.
-    #     """
-    #     report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-    #     if not report_period:
-    #         return
-    #     namespace_params = VMParams(
-    #         schema=self.schema,
-    #         start_date=start_date,
-    #         end_date=end_date,
-    #         source_uuid=provider_uuid,
-    #         report_period_id=report_period.id,
-    #     )
-    #     param_list = namespace_params.build_tag_based_rate_parameters(
-    #         tag_based_price_list, metric_constants.OCP_NAMESPACE_MONTH
-    #     )
-    #     if not param_list:
-    #         return
-    #     sql = pkgutil.get_data(
-    #         "masu.database", "trino_sql/openshift/cost_model/monthly_namespace_tag_based.sql"
-    #     ).decode("utf-8")
-    #     for sql_params in param_list:
-    #         LOG.info("populating monthly namespace tag based costs")
-    #         self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)

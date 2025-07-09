@@ -14,7 +14,7 @@ from api.metrics import constants as metric_constants
 from api.utils import DateHelper as dh
 
 
-class VMParams(BaseModel):
+class TagBasedParams(BaseModel):
     """Data class to manage parameters for VM count queries."""
 
     schema: str
