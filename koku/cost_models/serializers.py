@@ -23,6 +23,7 @@ from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
 MARKUP_CHOICES = (("percent", "%"),)
+TAG_RATE_ONLY = (metric_constants.OCP_NAMESPACE_MONTH,)
 LOG = logging.getLogger(__name__)
 
 
@@ -313,6 +314,15 @@ class RateSerializer(serializers.Serializer):
 
     def validate(self, data):
         """Validate that a rate must be defined."""
+        metric_name = data.get("metric").get("name")
+        if metric_name in TAG_RATE_ONLY:
+            if data.get("tiered_rates"):
+                error_msg = f"{metric_name} is only available as a tag based rate."
+                raise serializers.ValidationError(error_msg)
+        if metric_name not in metric_constants.METRIC_CHOICES:
+            error_msg = f"{metric_name} is an invalid metric"
+            raise serializers.ValidationError(error_msg)
+
         tiered_rates = self.validate_tiered_rates(data.get("tiered_rates", []))
         tag_rates = self.validate_tag_rates(data.get("tag_rates", {}))
         if tiered_rates:
@@ -321,11 +331,7 @@ class RateSerializer(serializers.Serializer):
             data["tag_rates"] = tag_rates
 
         rate_keys_str = ", ".join(str(rate_key) for rate_key in self.RATE_TYPES)
-        if data.get("metric").get("name") not in metric_constants.METRIC_CHOICES:
-            error_msg = "{} is an invalid metric".format(data.get("metric").get("name"))
-            raise serializers.ValidationError(error_msg)
-
-        data["cost_type"] = self.validate_cost_type(data.get("metric").get("name"), data.get("cost_type"))
+        data["cost_type"] = self.validate_cost_type(metric_name, data.get("cost_type"))
 
         if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
             if tiered_rates == [] and tag_rates == {}:

@@ -1318,3 +1318,31 @@ GROUP BY partitions.year, partitions.month, partitions.source
                         sql_params,
                         operation="INSERT",
                     )
+
+    def populate_namespace_monthly_tag_based_costs(self, start_date, end_date, provider_uuid, tag_based_price_list):
+        """Populate monthly namespace tag based costs if supplied in cost model.
+
+        This method populates the daily summary table with tag-based costs for
+        namespace based on tag.
+        """
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        if not report_period:
+            return
+        namespace_params = VMParams(
+            schema=self.schema,
+            start_date=start_date,
+            end_date=end_date,
+            source_uuid=provider_uuid,
+            report_period_id=report_period.id,
+        )
+        param_list = namespace_params.build_tag_based_rate_parameters(
+            tag_based_price_list, metric_constants.OCP_NAMESPACE_MONTH
+        )
+        if not param_list:
+            return
+        sql = pkgutil.get_data(
+            "masu.database", "trino_sql/openshift/cost_model/monthly_namespace_tag_based.sql"
+        ).decode("utf-8")
+        for sql_params in param_list:
+            LOG.info("populating monthly namespace tag based costs")
+            self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)

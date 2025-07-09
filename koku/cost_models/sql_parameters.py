@@ -73,7 +73,11 @@ class VMParams(BaseModel):
         for rate_type, rate_list in tag_rates.items():
             for tag_rate in rate_list:
                 tag_based_params = {"rate_type": rate_type, "tag_key": tag_rate.get("tag_key")}
-                if metric_name in [metric_constants.OCP_VM_MONTH, metric_constants.OCP_VM_CORE_MONTH]:
+                if metric_name in [
+                    metric_constants.OCP_VM_MONTH,
+                    metric_constants.OCP_VM_CORE_MONTH,
+                    metric_constants.OCP_NAMESPACE_MONTH,
+                ]:
                     tag_based_params["amortized_denominator"] = dh().days_in_month(self.start_date)
                     tag_based_params["cost_type"] = "Tag"
                 if default_rate := tag_rate.get("tag_key_default", None):

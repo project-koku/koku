@@ -543,10 +543,11 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._update_usage_costs(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
-        # only update based on tag rates if there are tag rates
-        # this also lets costs get removed if there is no tiered rate and then add to them if there is a tag_rate
+        self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
         if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
-            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+            # only update based on tag rates if there are tag rates
+            # this also lets costs get removed if there is no tiered rate
+            # and then add to them if there is a tag_rate
             self._update_tag_usage_costs(start_date, end_date)
             self._update_tag_usage_default_costs(start_date, end_date)
             self._update_monthly_tag_based_cost(start_date, end_date)
@@ -555,7 +556,8 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 report_accessor.populate_vm_tag_based_costs(
                     start_date, end_date, self._provider.uuid, self.tag_based_price_list
                 )
-        if not (self._tag_infra_rates or self._tag_supplementary_rates):
-            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+                report_accessor.populate_namespace_monthly_tag_based_costs(
+                    start_date, end_date, self._provider.uuid, self.tag_based_price_list
+                )
 
         self.distribute_costs_and_update_ui_summary(start_date, end_date)
