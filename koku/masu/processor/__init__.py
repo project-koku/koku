@@ -27,6 +27,14 @@ def is_cost_6356_enabled():
     )
 
 
+def is_fractional_hours_vm_cost_enabled(schema_name):
+    return UNLEASH_CLIENT.is_enabled(
+        "cost-management.backend.enable_fractional_hours_vm_cost",
+        context={"schema": schema_name},
+        fallback_function=fallback_development_true,
+    )
+
+
 def is_feature_unattributed_storage_enabled_azure(account):
     """Should unattributed storage feature be enabled."""
     unleash_flag = "cost-management.backend.unattributed_storage"

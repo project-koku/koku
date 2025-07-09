@@ -30,14 +30,19 @@ SELECT uuid(),
     all_labels,
     source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    max(vmhrs.vm_interval_hours) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
+    {% if use_fractional_hours %}
+        max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{hourly_rate}} AS DECIMAL(33, 15)) AS cost_model_cpu_cost,
+    {% else %}
+        max(vmhrs.vm_interval_hours) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
+    {% endif %}
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN (
     SELECT
         json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') as vm_name,
         DATE(pod_usage.interval_start) as interval_day,
-        count(pod_usage.interval_start) AS vm_interval_hours
+        count(pod_usage.interval_start) AS vm_interval_hours,
+        sum(pod_usage.vm_uptime_total_seconds) AS vm_uptime_total_seconds
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
     WHERE strpos(pod_usage.pod_labels, 'vm_kubevirt_io_name') != 0
         AND source = {{source_uuid}}
