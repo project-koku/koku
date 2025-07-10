@@ -51,7 +51,11 @@ JOIN (
     SELECT
         json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') as vm_name,
         DATE(pod_usage.interval_start) as interval_day,
+        {% if use_fractional_hours %}
+        sum(pod_usage.vm_uptime_total_seconds) / 3600 AS vm_interval_hours
+        {% else %}
         count(pod_usage.interval_start) AS vm_interval_hours
+        {% endif %}
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
     WHERE strpos(pod_usage.pod_labels, 'vm_kubevirt_io_name') != 0
         AND source = {{source_uuid}}
