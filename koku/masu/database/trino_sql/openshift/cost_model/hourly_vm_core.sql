@@ -1,3 +1,21 @@
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
+    resource_id,
+    pod_labels,
+    all_labels,
+    source_uuid,
+    cost_model_rate_type,
+    cost_model_cpu_cost,
+    cost_category_id
+)
 WITH
     vm_max_interval AS (
         SELECT
