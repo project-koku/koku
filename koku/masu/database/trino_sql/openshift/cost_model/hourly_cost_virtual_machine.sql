@@ -37,6 +37,7 @@ SELECT uuid(),
     {% endif %}
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+{%- if use_fractional_hours %}
 JOIN (
     SELECT
         vm_name,
@@ -51,6 +52,22 @@ JOIN (
 ) AS vmhrs
     ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
     AND DATE(vmhrs.interval_day) = lids.usage_start
+{%- else %}
+JOIN (
+    SELECT
+        json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') as vm_name,
+        DATE(interval_start) as interval_day,
+        count(interval_start) AS vm_interval_hours
+    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items
+    WHERE strpos(pod_labels, 'vm_kubevirt_io_name') != 0
+      AND source = {{source_uuid}}
+      AND year = {{year}}
+      AND month = {{month}}
+    GROUP BY 1, 2
+) AS vmhrs
+    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
+    AND DATE(vmhrs.interval_day) = lids.usage_start
+{%- endif %}
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
     AND report_period_id = {{report_period_id}}
