@@ -787,7 +787,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 self.assertFalse(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
-    
+
     def test_extract_payload_outside_retention(self):
         """Test to verify extracting payload is skipped if data is old."""
         payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
