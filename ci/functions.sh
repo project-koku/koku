@@ -122,8 +122,6 @@ function run_smoke_tests_stage() {
     echo "Running E2E tests with IQE:"
     echo "IQE_MARKER_EXPRESSION: '$IQE_MARKER_EXPRESSION'"
     echo "IQE_FILTER_EXPRESSION: '$IQE_FILTER_EXPRESSION'"
-    export IQE_IMAGE_TAG="cost-management-2388-b1ad2c10"
-
 
     source $CICD_ROOT/cji_smoke_test.sh
 }
