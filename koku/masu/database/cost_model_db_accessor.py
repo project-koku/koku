@@ -5,13 +5,68 @@
 """Database accessor for OCP rate data."""
 import copy
 import logging
+from enum import StrEnum
 
 from django.db import transaction
+from pydantic import BaseModel
+from pydantic import computed_field
 
 from api.metrics import constants as metric_constants
 from cost_models.models import CostModel
 
 LOG = logging.getLogger(__name__)
+
+
+class CostType(StrEnum):
+    INFRASTRUCTURE = "Infrastructure"
+    SUPPLEMENTARY = "Supplementary"
+
+
+class MetricName(BaseModel):
+    name: str
+
+
+class TieredRate(BaseModel):
+    value: float
+    unit: str
+
+
+class MetricTieredRate(BaseModel):
+    metric: MetricName
+    tiered_rates: list[TieredRate]
+    cost_type: CostType
+
+
+class TagValue(BaseModel):
+    unit: str
+    value: float
+    default: bool
+    tag_value: str
+    description: str
+
+
+class TagRates(BaseModel):
+    tag_key: str
+    tag_values: list[TagValue]
+
+
+class MetricTagRate(BaseModel):
+    metric: MetricName
+    tag_rates: TagRates
+    cost_type: CostType
+
+    @computed_field(return_type=float | None)
+    @property
+    def tag_key_default_rate(self):
+        for tag_value in self.tag_rates.tag_values:
+            if tag_value.default:
+                return tag_value.value
+        return None
+
+
+class PriceListModel(BaseModel):
+    tiered_rates: list[MetricTieredRate]
+    tag_rates: list[MetricTagRate]
 
 
 class CostModelDBAccessor:
@@ -50,6 +105,19 @@ class CostModelDBAccessor:
         return self._cost_model
 
     @property
+    def price_list_models(self):
+        """Return the rates definied on this cost model."""
+        tiered_rates = []
+        tag_rates = []
+        for rate in self.cost_model.rates:
+            if rate.get("tiered_rates"):
+                tiered_rates.append(MetricTieredRate.model_validate(rate))
+            elif rate.get("tag_rates"):
+                tag_rates.append(MetricTagRate.model_validate(rate))
+
+        return PriceListModel(tiered_rates=tiered_rates, tag_rates=tag_rates)
+
+    @property
     def price_list(self):
         """Return the rates definied on this cost model."""
         metric_rate_map = {}
@@ -82,6 +150,8 @@ class CostModelDBAccessor:
                 format_tiered_rates = {f"{metric_cost_type}": rate.get("tiered_rates")}
                 rate["tiered_rates"] = format_tiered_rates
                 metric_rate_map[metric_name] = rate
+        # price_list_models = self.price_list_models
+
         return metric_rate_map
 
     @property

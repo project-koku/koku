@@ -255,6 +255,56 @@
                 }
             ],
             "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "vm_core_cost_per_hour"
+            },
+            "tag_rates": {
+                "tag_key": "version",
+                "tag_values": [
+                    {
+                        "unit": "USD",
+                        "value": 5,
+                        "default": false,
+                        "tag_value": "fedora",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 5,
+                        "default": false,
+                        "tag_value": "rhel",
+                        "description": ""
+                    }
+                ]
+            },
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "vm_core_cost_per_hour"
+            },
+            "tag_rates": {
+                "tag_key": "version",
+                "tag_values": [
+                    {
+                        "unit": "USD",
+                        "value": 5000,
+                        "default": false,
+                        "tag_value": "fedora",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 5000,
+                        "default": false,
+                        "tag_value": "rhel",
+                        "description": ""
+                    }
+                ]
+            },
+            "cost_type": "Infrastructure"
         }
     ]
 }

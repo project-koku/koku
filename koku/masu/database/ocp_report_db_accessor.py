@@ -709,7 +709,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
             param_builder = VMParams(
-                schema=self.schema,
+                schema_name=self.schema,
                 start_date=start_date,
                 end_date=end_date,
                 source_uuid=provider_uuid,
@@ -725,7 +725,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         if ocp_vm_core_hour_rate := rates.get(metric_constants.OCP_VM_CORE_HOUR):
             param_builder = VMParams(
-                schema=self.schema,
+                schema_name=self.schema,
                 start_date=start_date,
                 end_date=end_date,
                 source_uuid=provider_uuid,
@@ -1296,7 +1296,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         for metric_name, file_path in metric_file_path.items():
             vm_count_params = VMParams(
-                schema=self.schema,
+                schema_name=self.schema,
                 start_date=start_date,
                 end_date=end_date,
                 source_uuid=provider_uuid,

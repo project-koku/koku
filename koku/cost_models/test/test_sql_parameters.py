@@ -16,7 +16,7 @@ class CostModelSQLParameterTest(MasuTestCase):
     def test_invalid_dates(self):
         with self.assertRaises(ValidationError):
             VMParams(
-                schema=self.schema_name,
+                schema_name=self.schema_name,
                 start_date=self.dh.this_month_end.date(),
                 end_date=self.dh.this_month_start.date(),
                 source_uuid=self.ocp_provider_uuid,
@@ -46,7 +46,7 @@ class CostModelSQLParameterTest(MasuTestCase):
             }
         }
         params = VMParams(
-            schema=self.schema_name,
+            schema_name=self.schema_name,
             start_date=self.dh.this_month_start.date(),
             end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
@@ -81,7 +81,7 @@ class CostModelSQLParameterTest(MasuTestCase):
             }
         }
         params = VMParams(
-            schema=self.schema_name,
+            schema_name=self.schema_name,
             start_date=self.dh.this_month_start.date(),
             end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,
@@ -97,7 +97,7 @@ class CostModelSQLParameterTest(MasuTestCase):
         """Test no tag based rates"""
         tag_price_list = {}
         params = VMParams(
-            schema=self.schema_name,
+            schema_name=self.schema_name,
             start_date=self.dh.this_month_start.date(),
             end_date=self.dh.this_month_end.date(),
             source_uuid=self.ocp_provider_uuid,

@@ -8,6 +8,7 @@ from typing import Self
 from uuid import UUID
 
 from pydantic import BaseModel
+from pydantic import Field
 from pydantic import model_validator
 
 from api.metrics import constants as metric_constants
@@ -17,7 +18,7 @@ from api.utils import DateHelper as dh
 class VMParams(BaseModel):
     """Data class to manage parameters for VM count queries."""
 
-    schema: str
+    schema_name: str = Field(serialization_alias="schema")
     start_date: date
     end_date: date
     source_uuid: UUID
@@ -40,7 +41,7 @@ class VMParams(BaseModel):
             "end_date": str(self.end_date),
             "year": self.start_date.strftime("%Y"),
             "month": self.start_date.strftime("%m"),
-            "schema": self.schema,
+            "schema": self.schema_name,
             "source_uuid": str(self.source_uuid),
             "report_period_id": self.report_period_id,
         }
