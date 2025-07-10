@@ -543,18 +543,20 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         self._update_usage_costs(start_date, end_date)
         self._update_markup_cost(start_date, end_date)
         self._update_monthly_cost(start_date, end_date)
-        self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
+        # only update based on tag rates if there are tag rates
+        # this also lets costs get removed if there is no tiered rate and then add to them if there is a tag_rate
         if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
-            # only update based on tag rates if there are tag rates
-            # this also lets costs get removed if there is no tiered rate
-            # and then add to them if there is a tag_rate
+            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
             self._update_tag_usage_costs(start_date, end_date)
             self._update_tag_usage_default_costs(start_date, end_date)
             self._update_monthly_tag_based_cost(start_date, end_date)
             self._update_node_hour_tag_based_cost(start_date, end_date)
             with OCPReportDBAccessor(self._schema) as report_accessor:
+                cluster_params = {"cluster_id": self._cluster_id, "cluster_alias": self._cluster_alias}
                 report_accessor.populate_tag_based_costs(
-                    start_date, end_date, self._provider.uuid, self.metric_to_tag_params_map
+                    start_date, end_date, self._provider.uuid, self.metric_to_tag_params_map, cluster_params
                 )
+        if not (self._tag_infra_rates or self._tag_supplementary_rates):
+            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
 
         self.distribute_costs_and_update_ui_summary(start_date, end_date)

@@ -1263,12 +1263,13 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params)
 
-    def populate_tag_based_costs(self, start_date, end_date, provider_uuid, metric_to_tag_params_map):
-        """Populate the VM count tag based costs.
+    def populate_tag_based_costs(self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params):
+        """Populate the tag based costs.
 
         This method populates the daily summary table with tag-based costs for
-        virtual machine counts, handling both hourly and monthly costs.
+        the metrics highlighted in the metadata section.
         """
+        monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
 
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {
@@ -1278,12 +1279,12 @@ GROUP BY partitions.year, partitions.month, partitions.source
             metric_constants.OCP_VM_MONTH: {
                 "log_msg": "populating monthly VM tag based costs",
                 "file_path": "sql/openshift/cost_model/monthly_cost_virtual_machine.sql",
-                "monthly": True,
+                "metric_params": monthly_params,
             },
             metric_constants.OCP_VM_CORE_MONTH: {
                 "log_msg": "populating monthly VM Core based costs",
                 "file_path": "trino_sql/openshift/cost_model/monthly_vm_core_tag_based.sql",
-                "monthly": True,
+                "metric_params": monthly_params,
             },
             metric_constants.OCP_VM_CORE_HOUR: {
                 "log_msg": "populating hourly VM Core based costs",
@@ -1293,6 +1294,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 "log_msg": "populating monthly namespace tag costs",
                 "file_path": "trino_sql/openshift/cost_model/monthly_namespace_tag_based.sql",
                 "monthly": True,
+                "metric_params": {**monthly_params, **cluster_params},
             },
         }
 
@@ -1312,19 +1314,18 @@ GROUP BY partitions.year, partitions.month, partitions.source
             param_list = metric_to_tag_params_map.get(name)
             if not param_list:
                 continue
-            for context_params in param_list:
-                if metadata.get("monthly"):
-                    context_params["amortized_denominator"] = DateHelper().days_in_month(start_date)
-                    context_params["cost_type"] = "Tag"
-                sql_params = param_builder.build_parameters(context_params)
+            for tag_params in param_list:
+                if metric_params := metadata.get("metric_params"):
+                    tag_params.update(metric_params)
+                final_sql_params = param_builder.build_parameters(context_params=tag_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
                 LOG.info(log_json(msg=metadata["log_msg"]))
                 if "trino_sql/" in metadata["file_path"]:
-                    self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+                    self._execute_trino_multipart_sql_query(sql, bind_params=final_sql_params)
                 else:
                     self._prepare_and_execute_raw_sql_query(
                         self._table_map["line_item_daily_summary"],
                         sql,
-                        sql_params,
+                        final_sql_params,
                         operation="INSERT",
                     )

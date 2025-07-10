@@ -81,8 +81,8 @@ node_count as (
 SELECT
     uuid(),
     {{report_period_id}} AS report_period_id,
-    Coalesce(fd.cluster_id, 'No-Cluster'),
-    fd.cluster_alias,
+    {{cluster_id}} as cluster_id,
+    {{cluster_alias}} as cluster_alias,
     'Pod' as data_source,
     fd.usage_start,
     fd.usage_start as usage_end,
