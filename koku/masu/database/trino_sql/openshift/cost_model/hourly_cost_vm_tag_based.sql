@@ -36,35 +36,62 @@ SELECT uuid(),
     CASE
         {%- for value, rate in value_rates.items() %}
         WHEN json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
-        THEN max(vmhrs.vm_interval_hours) * CAST({{rate}} as DECIMAL(33, 15))
+        THEN
+            {%- if use_fractional_hours %}
+            max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{rate}} AS DECIMAL(33, 15))
+            {%- else %}
+            max(vmhrs.vm_interval_hours) * CAST({{rate}} as DECIMAL(33, 15))
+            {%- endif %}
         {%- endfor %}
         {%- if default_rate is defined %}
-        ELSE max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15))
+        ELSE
+            {%- if use_fractional_hours %}
+            max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{default_rate}} AS DECIMAL(33, 15))
+            {%- else %}
+            max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15))
+            {%- endif %}
         {%- endif %}
     END as cost_model_cpu_cost,
     {%- else %}
-    max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
+        {%- if use_fractional_hours %}
+        max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{default_rate}} AS DECIMAL(33, 15)) AS cost_model_cpu_cost,
+        {%- else %}
+        max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
+        {%- endif %}
     {%- endif %}
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+{%- if use_fractional_hours %}
 JOIN (
     SELECT
-        json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') as vm_name,
-        DATE(pod_usage.interval_start) as interval_day,
-        {% if use_fractional_hours %}
-        sum(pod_usage.vm_uptime_total_seconds) / 3600 AS vm_interval_hours
-        {% else %}
-        count(pod_usage.interval_start) AS vm_interval_hours
-        {% endif %}
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
-    WHERE strpos(pod_usage.pod_labels, 'vm_kubevirt_io_name') != 0
-        AND source = {{source_uuid}}
-        AND year = {{year}}
-        AND month = {{month}}
+        vm_name,
+        DATE(interval_start) AS interval_day,
+        count(interval_start) AS vm_interval_hours,
+        sum(vm_uptime_total_seconds) AS vm_uptime_total_seconds
+    FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items
+    WHERE source = {{source_uuid}}
+      AND year = {{year}}
+      AND month = {{month}}
     GROUP BY 1, 2
 ) AS vmhrs
     ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
     AND DATE(vmhrs.interval_day) = lids.usage_start
+{%- else %}
+JOIN (
+    SELECT
+        json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') AS vm_name,
+        DATE(interval_start) AS interval_day,
+        count(interval_start) AS vm_interval_hours
+    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items
+    WHERE strpos(pod_labels, 'vm_kubevirt_io_name') != 0
+      AND source = {{source_uuid}}
+      AND year = {{year}}
+      AND month = {{month}}
+    GROUP BY 1, 2
+) AS vmhrs
+    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
+    AND DATE(vmhrs.interval_day) = lids.usage_start
+{%- endif %}
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
     AND report_period_id = {{report_period_id}}
