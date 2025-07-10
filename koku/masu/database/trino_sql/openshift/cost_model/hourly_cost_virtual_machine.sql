@@ -39,15 +39,14 @@ SELECT uuid(),
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 JOIN (
     SELECT
-        json_extract_scalar(pod_usage.pod_labels, '$.vm_kubevirt_io_name') as vm_name,
-        DATE(pod_usage.interval_start) as interval_day,
-        count(pod_usage.interval_start) AS vm_interval_hours,
-        sum(pod_usage.vm_uptime_total_seconds) AS vm_uptime_total_seconds
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items pod_usage
-    WHERE strpos(pod_usage.pod_labels, 'vm_kubevirt_io_name') != 0
-        AND source = {{source_uuid}}
-        AND year = {{year}}
-        AND month = {{month}}
+        vm_name,
+        DATE(interval_start) as interval_day,
+        count(interval_start) AS vm_interval_hours,
+        sum(vm_uptime_total_seconds) AS vm_uptime_total_seconds
+    FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items
+    WHERE source = {{source_uuid}}
+      AND year = {{year}}
+      AND month = {{month}}
     GROUP BY 1, 2
 ) AS vmhrs
     ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
