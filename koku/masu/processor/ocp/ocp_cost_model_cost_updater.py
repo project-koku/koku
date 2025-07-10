@@ -49,7 +49,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 metric_constants.DISTRIBUTION_TYPE, metric_constants.DEFAULT_DISTRIBUTION_TYPE
             )
             self._distribution_info = cost_model_accessor.distribution_info
-            self.tag_based_price_list = cost_model_accessor.tag_based_price_list
+            self.metric_to_tag_params_map = cost_model_accessor.metric_to_tag_params_map
 
     def _build_node_tag_cost_case_statements(  # noqa: C901
         self, rate_dict, start_date, default_rate_dict={}, unallocated=False, node_core="", amortized=True
@@ -554,7 +554,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._update_node_hour_tag_based_cost(start_date, end_date)
             with OCPReportDBAccessor(self._schema) as report_accessor:
                 report_accessor.populate_tag_based_costs(
-                    start_date, end_date, self._provider.uuid, self.tag_based_price_list
+                    start_date, end_date, self._provider.uuid, self.metric_to_tag_params_map
                 )
 
         self.distribute_costs_and_update_ui_summary(start_date, end_date)
