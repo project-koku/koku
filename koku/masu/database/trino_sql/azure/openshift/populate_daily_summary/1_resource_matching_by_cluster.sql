@@ -108,15 +108,23 @@ SELECT
     azure.subscriptionname as subscription_name,
     azure.resourcelocation as resource_location,
     CASE
-        WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
+        WHEN split_part(azure.unitofmeasure, ' ', 2) = 'Hours'
             THEN  'Hrs'
-        WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
+        WHEN split_part(azure.unitofmeasure, ' ', 2) = 'GB/Month'
             THEN  'GB-Mo'
-        WHEN split_part(unitofmeasure, ' ', 2) != ''
-            THEN  split_part(unitofmeasure, ' ', 2)
-        ELSE unitofmeasure
+        WHEN split_part(azure.unitofmeasure, ' ', 2) != '' AND split_part(azure.unitofmeasure, ' ', 3) = ''
+            THEN  split_part(azure.unitofmeasure, ' ', 2)
+        ELSE azure.unitofmeasure
     END as unit_of_measure,
-    azure.quantity as usage_quantity,
+    (azure.quantity * (
+        CASE
+            WHEN regexp_like(split_part(azure.unitofmeasure, ' ', 1), '^\d+(\.\d+)?$')
+                AND NOT (azure.unitofmeasure = '100 Hours' AND azure.metercategory='Virtual Machines')
+                AND NOT split_part(azure.unitofmeasure, ' ', 2) = ''
+            THEN cast(split_part(azure.unitofmeasure, ' ', 1) as INTEGER)
+            ELSE 1
+        END)
+    ) as usage_quantity,
     coalesce(nullif(azure.billingcurrencycode, ''), azure.billingcurrency) as currency,
     azure.costinbillingcurrency as pretax_cost,
     azure.date,

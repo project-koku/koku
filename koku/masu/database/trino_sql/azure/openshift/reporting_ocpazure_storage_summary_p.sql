@@ -20,7 +20,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazure_storage_summary_p (
         max(cluster_id) as cluster_id,
         max(cluster_alias) as cluster_alias,
         subscription_guid,
-        max(subscription_name),
+        max(subscription_name) as subscription_name,
         service_name,
         sum(usage_quantity) as usage_quantity,
         max(unit_of_measure) as unit_of_measure,
