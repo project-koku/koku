@@ -728,11 +728,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     "fake_identity",
                                     {"account": "1234", "org_id": "5678"},
                                 )
-                                expected_path = "{}/{}/{}/".format(
-                                    Config.INSIGHTS_LOCAL_REPORT_DIR,
-                                    "16b9a60d-0774-4102-9028-bd28d6c38ac2",
-                                    "21230801-21230901",
-                                )
+                                expected_path = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/16b9a60d-0774-4102-9028-bd28d6c38ac2/21230801-21230901"
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
