@@ -348,7 +348,7 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
 
     dh = DateHelper()
     manifest_end = manifest.end or dh.month_end(manifest.date)
-    if manifest_end < dh.relative_month_end(-3):
+    if manifest_end < dh.relative_month_end(-Config.MASU_RETAIN_NUM_MONTHS):
         msg = f"Recieved OCP data outside our retention period for {manifest.cluster_id}, skipping processing"
         LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         shutil.rmtree(payload_path.parent)
