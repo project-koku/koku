@@ -48,11 +48,7 @@ WITH
             vm_map.vm_cpu_request_cores AS vm_cpu_cores,
             DATE(vm_map.interval_start) AS interval_day,
             vm_map.vm_name AS vm_name,
-            {% if use_fractional_hours %}
-                sum(vm_map.vm_uptime_total_seconds) AS vm_interval_hours
-            {% else %}
-                count(vm_map.interval_start) AS vm_interval_hours
-            {% endif %}
+            sum(vm_map.vm_uptime_total_seconds) AS vm_interval_hours
         FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items AS vm_map
         WHERE
             vm_map.source = {{source_uuid | string}}
@@ -104,11 +100,7 @@ SELECT
     labels.combined_labels as all_labels,
     lids.source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    {% if use_fractional_hours %}
-        max(vm_usage.vm_interval_hours) / 3600 * max(vm_usage.vm_cpu_cores) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
-    {% else %}
-        max(vm_usage.vm_interval_hours) * max(vm_usage.vm_cpu_cores) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
-    {% endif %}
+    max(vm_usage.vm_interval_hours) / 3600 * max(vm_usage.vm_cpu_cores) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
     lids.cost_category_id
 FROM
     postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
