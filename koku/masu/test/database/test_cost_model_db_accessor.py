@@ -146,6 +146,10 @@ class CostModelDBAccessorTest(MasuTestCase):
                 expected_value = self.expected[cost_type][metric_name]
                 self.assertEqual(result_sup_rates[metric_name], expected_value)
 
+    def test_params_with_no_tag_params(self):
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            self.assertFalse(cost_model_accessor.metric_to_tag_params_map)
+
 
 class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     """Test Cases for the CostModelDBAccessor object."""
@@ -189,6 +193,10 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             self.assertFalse(markup)
+
+    def test_params_with_no_cost_model(self):
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            self.assertFalse(cost_model_accessor.metric_to_tag_params_map)
 
 
 class CostModelDBAccessorTagRatesTest(MasuTestCase):
@@ -338,6 +346,24 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
                 }
                 self.assertEqual(result_suppla_rates.get(metric_name), expected_dict)
                 self.assertEqual(expected_cost_type, cost_type)
+
+    def test_tag_rates_params_map(self):
+        with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
+            test_params = cost_model_accessor.metric_to_tag_params_map
+            for metric, metric_data in test_params.items():
+                metric_data = test_params.get(metric)
+                self.assertIsInstance(metric_data, list)
+                self.assertEqual(len(metric_data), 2)  # one rate per cost type in mapping
+                for tag_rate_param in metric_data:
+                    rate_type = tag_rate_param.get("rate_type")
+                    self.assertIsNotNone(rate_type)
+                    expected_metadata = self.mapping.get(metric, {}).get(rate_type)
+                    self.assertEqual(tag_rate_param.get("default_rate"), expected_metadata.get("default_value"))
+                    self.assertEqual(tag_rate_param.get("tag_key"), expected_metadata.get("tag_key"))
+                    tag_param_value_rates = tag_rate_param.get("value_rates")
+                    self.assertIsNotNone(tag_param_value_rates)
+                    for result_key, result_value in tag_param_value_rates.items():
+                        self.assertEqual(result_value, expected_metadata.get("tag_values", {}).get(result_key))
 
 
 class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):

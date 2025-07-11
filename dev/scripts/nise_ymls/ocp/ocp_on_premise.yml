@@ -11,6 +11,7 @@ generators:
           memory_gig: 16
           namespaces:
             Toronto:
+              namespace_labels: cats:sushi
               pods:
                 - pod:
                   pod_name: pod_name1
@@ -33,6 +34,7 @@ generators:
                     labels: label_environment:Production|label_app:OpenCart|label_version:Production|label_storageclass:gold|label_dashed-key-on-prem:dashed-value
                     capacity_gig: 20
             Raleigh:
+              namespace_labels: cats:nilla
               pods:
                 - pod:
                   pod_name: pod_name2
@@ -268,7 +270,11 @@ generators:
           cpu_cores: 4
           memory_gig: 16
           namespaces:
+            emptynamespace:
+              namespace_labels: cats:cinnamon
+              pods:
             Dubai:
+              namespace_labels: cats:fries
               pods:
                 - pod:
                   pod_name: pod_name11

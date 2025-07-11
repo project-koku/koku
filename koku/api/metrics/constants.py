@@ -28,6 +28,7 @@ OCP_VM_MONTH = "vm_cost_per_month"
 OCP_VM_HOUR = "vm_cost_per_hour"
 OCP_VM_CORE_MONTH = "vm_core_cost_per_month"
 OCP_VM_CORE_HOUR = "vm_core_cost_per_hour"
+OCP_NAMESPACE_MONTH = "namespace_per_month"
 
 CPU = "cpu"
 MEM = "memory"
@@ -56,6 +57,7 @@ METRIC_CHOICES = (
     OCP_PVC_MONTH,
     OCP_VM_MONTH,
     OCP_VM_HOUR,
+    OCP_NAMESPACE_MONTH,
     OCP_VM_CORE_MONTH,
     OCP_VM_CORE_HOUR,
 )
@@ -237,6 +239,14 @@ COST_MODEL_METRIC_MAP = {
         "label_metric": "Cluster",
         "label_measurement": "Count",
         "label_measurement_unit": "core-hour",
+        "default_cost_type": "Infrastructure",
+    },
+    "namespace_per_month": {
+        "source_type": "OCP",
+        "metric": "namespace_per_month",
+        "label_metric": "Namespace",
+        "label_measurement": "Count",
+        "label_measurement_unit": "namespace-month",
         "default_cost_type": "Infrastructure",
     },
 }
