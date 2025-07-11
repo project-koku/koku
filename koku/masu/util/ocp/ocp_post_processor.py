@@ -155,7 +155,7 @@ class OCPPostProcessor:
         columns = daily_data_frame.columns.droplevel(1)
         daily_data_frame.columns = columns
 
-        daily_data_frame.reset_index(inplace=True)
+        daily_data_frame = daily_data_frame.reset_index()
 
         for col, dtype in report["new_required_columns"].items():
             if col not in daily_data_frame:
