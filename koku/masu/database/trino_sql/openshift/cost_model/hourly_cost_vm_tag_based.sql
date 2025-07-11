@@ -36,16 +36,14 @@ SELECT uuid(),
     CASE
         {%- for value, rate in value_rates.items() %}
         WHEN json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
-        THEN
-            max(vmhrs.vm_interval_hours) * CAST({{rate}} as DECIMAL(33, 15))
+        THEN max(vmhrs.vm_interval_hours) * CAST({{rate}} as DECIMAL(33, 15))
         {%- endfor %}
         {%- if default_rate is defined %}
-        ELSE
-            max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15))
+        ELSE max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15))
         {%- endif %}
     END as cost_model_cpu_cost,
     {%- else %}
-        max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
+    max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
     {%- endif %}
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
