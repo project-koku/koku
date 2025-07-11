@@ -1269,6 +1269,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
         This method populates the daily summary table with tag-based costs for
         the metrics highlighted in the metadata section.
         """
+        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+        if not report_period:
+            return
+
         monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
 
         metric_metadata = {
@@ -1297,10 +1301,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 "metric_params": {**monthly_params, **cluster_params},
             },
         }
-
-        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-        if not report_period:
-            return
 
         param_builder = BaseCostModelParams(
             schema_name=self.schema,
