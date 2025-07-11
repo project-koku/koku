@@ -22,6 +22,7 @@ from enum import StrEnum
 from json import JSONDecodeError
 
 import boto3
+import pandas as pd
 from corsheaders.defaults import default_headers
 
 from . import database
@@ -683,3 +684,6 @@ AZURE_COST_MGMT_CLIENT_API_VERSION = ENVIRONMENT.get_value(
 
 # Data validation
 VALIDATION_RANGE = ENVIRONMENT.int("VALIDATION_RANGE", default=5)
+
+pd.options.mode.copy_on_write = True
+pd.options.mode.chained_assignment = "raise"
