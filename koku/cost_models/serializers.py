@@ -315,10 +315,10 @@ class RateSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate that a rate must be defined."""
         metric_name = data.get("metric").get("name")
-        if metric_name in TAG_RATE_ONLY:
-            if data.get("tiered_rates"):
-                error_msg = f"{metric_name} is only available as a tag based rate."
-                raise serializers.ValidationError(error_msg)
+        if metric_name in TAG_RATE_ONLY and data.get("tiered_rates"):
+            error_msg = f"{metric_name} is only available as a tag based rate."
+            raise serializers.ValidationError(error_msg)
+
         if metric_name not in metric_constants.METRIC_CHOICES:
             error_msg = f"{metric_name} is an invalid metric"
             raise serializers.ValidationError(error_msg)
