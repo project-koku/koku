@@ -37,27 +37,15 @@ SELECT uuid(),
         {%- for value, rate in value_rates.items() %}
         WHEN json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
         THEN
-            {%- if use_fractional_hours %}
-            max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{rate}} AS DECIMAL(33, 15))
-            {%- else %}
             max(vmhrs.vm_interval_hours) * CAST({{rate}} as DECIMAL(33, 15))
-            {%- endif %}
         {%- endfor %}
         {%- if default_rate is defined %}
         ELSE
-            {%- if use_fractional_hours %}
-            max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{default_rate}} AS DECIMAL(33, 15))
-            {%- else %}
             max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15))
-            {%- endif %}
         {%- endif %}
     END as cost_model_cpu_cost,
     {%- else %}
-        {%- if use_fractional_hours %}
-        max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{default_rate}} AS DECIMAL(33, 15)) AS cost_model_cpu_cost,
-        {%- else %}
         max(vmhrs.vm_interval_hours) * CAST({{default_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
-        {%- endif %}
     {%- endif %}
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
@@ -66,8 +54,7 @@ JOIN (
     SELECT
         vm_name,
         DATE(interval_start) AS interval_day,
-        count(interval_start) AS vm_interval_hours,
-        sum(vm_uptime_total_seconds) AS vm_uptime_total_seconds
+        sum(vm_uptime_total_seconds) / 3600 AS vm_interval_hours
     FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items
     WHERE source = {{source_uuid}}
       AND year = {{year}}
