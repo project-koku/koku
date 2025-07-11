@@ -124,7 +124,7 @@ class AzurePostProcessor:
                 unique_tags.update(json.loads(tags_json))
         self.enabled_tag_keys.update(unique_tags)
         # Add a unique identifer that we can use for deduplicating
-        data_frame["row_uuid"] = [str(uuid4()) for _ in range(len(data_frame))]
+        data_frame["row_uuid"] = data_frame.apply(lambda _: str(uuid4()), axis=1)
         return data_frame, self._generate_daily_data(data_frame)
 
     def finalize_post_processing(self):
