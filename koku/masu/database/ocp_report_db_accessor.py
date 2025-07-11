@@ -1270,7 +1270,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         the metrics highlighted in the metadata section.
         """
         report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-        if not report_period:
+        if not report_period or not metric_to_tag_params_map:
             return
 
         monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
