@@ -30,11 +30,7 @@ SELECT uuid(),
     all_labels,
     source_uuid,
     {{rate_type}} AS cost_model_rate_type,
-    {% if use_fractional_hours %}
-        max(vmhrs.vm_uptime_total_seconds) / 3600 * CAST({{hourly_rate}} AS DECIMAL(33, 15)) AS cost_model_cpu_cost,
-    {% else %}
-        max(vmhrs.vm_interval_hours) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
-    {% endif %}
+    max(vmhrs.vm_interval_hours) * CAST({{hourly_rate}} as DECIMAL(33, 15)) AS cost_model_cpu_cost,
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 {%- if use_fractional_hours %}
@@ -42,8 +38,7 @@ JOIN (
     SELECT
         vm_name,
         DATE(interval_start) as interval_day,
-        count(interval_start) AS vm_interval_hours,
-        sum(vm_uptime_total_seconds) AS vm_uptime_total_seconds
+        sum(vm_uptime_total_seconds) / 3600 AS vm_interval_hours
     FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items
     WHERE source = {{source_uuid}}
       AND year = {{year}}
