@@ -29,7 +29,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_fractional_hours_vm_cost_enabled
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -707,6 +706,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        use_fractional_hours = self.table_exists_trino("openshift_vm_usage_line_items")
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
             param_builder = VMParams(
@@ -719,7 +719,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             hourly_params = {
                 "rate_type": rate_type,
                 "hourly_rate": ocp_vm_hour_rate,
-                "use_fractional_hours": is_fractional_hours_vm_cost_enabled(self.schema),
+                "use_fractional_hours": use_fractional_hours(),
             }
             vm_hour_params = param_builder.build_parameters(hourly_params)
             sql = pkgutil.get_data(
@@ -739,7 +739,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             hourly_params = {
                 "rate_type": rate_type,
                 "hourly_rate": ocp_vm_core_hour_rate,
-                "use_fractional_hours": is_fractional_hours_vm_cost_enabled(self.schema),
+                "use_fractional_hours": use_fractional_hours(),
             }
             vm_hour_params = param_builder.build_parameters(hourly_params)
             sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_vm_core.sql").decode(
