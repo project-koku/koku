@@ -43,6 +43,7 @@ from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
+from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
@@ -1307,7 +1308,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 continue
 
             sql = pkgutil.get_data("masu.database", file_path).decode("utf-8")
-            use_fractional_hours = self.table_exists_trino("openshift_vm_usage_line_items")
+            use_fractional_hours = self.table_exists_trino(TRINO_LINE_ITEM_TABLE_MAP.get("vm_usage"))
             for sql_params in param_list:
                 if "hourly_" in file_path:
                     sql_params["use_fractional_hours"] = use_fractional_hours
