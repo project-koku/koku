@@ -43,6 +43,7 @@ from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
+from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
@@ -706,7 +707,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-        use_fractional_hours = self.table_exists_trino("openshift_vm_usage_line_items")
+        use_fractional_hours = self.table_exists_trino(TRINO_LINE_ITEM_TABLE_MAP.get("vm_usage"))
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
             param_builder = VMParams(
