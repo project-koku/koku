@@ -29,7 +29,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from koku.trino_database import TrinoStatementExecError
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_fractional_hours_vm_cost_enabled
 from masu.util.common import filter_dictionary
 from masu.util.common import trino_table_exists
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -1295,7 +1294,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
         if not report_period:
             return
 
-        use_fractional_hours = is_fractional_hours_vm_cost_enabled(self.schema)
         for metric_name, file_path in metric_file_path.items():
             vm_count_params = VMParams(
                 schema=self.schema,
@@ -1309,6 +1307,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 continue
 
             sql = pkgutil.get_data("masu.database", file_path).decode("utf-8")
+            use_fractional_hours = self.table_exists_trino("openshift_vm_usage_line_items")
             for sql_params in param_list:
                 if "hourly_" in file_path:
                     sql_params["use_fractional_hours"] = use_fractional_hours
