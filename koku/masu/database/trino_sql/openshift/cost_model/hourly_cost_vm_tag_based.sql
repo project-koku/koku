@@ -47,8 +47,8 @@ SELECT uuid(),
     {%- endif %}
     cost_category_id
 FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
-{%- if use_fractional_hours %}
 JOIN (
+    {%- if use_fractional_hours %}
     SELECT
         vm_name,
         DATE(interval_start) AS interval_day,
@@ -58,11 +58,7 @@ JOIN (
       AND year = {{year}}
       AND month = {{month}}
     GROUP BY 1, 2
-) AS vmhrs
-    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
-    AND DATE(vmhrs.interval_day) = lids.usage_start
-{%- else %}
-JOIN (
+    {%- else %}
     SELECT
         json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') AS vm_name,
         DATE(interval_start) AS interval_day,
@@ -73,10 +69,10 @@ JOIN (
       AND year = {{year}}
       AND month = {{month}}
     GROUP BY 1, 2
+    {%- endif %}
 ) AS vmhrs
-    ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
-    AND DATE(vmhrs.interval_day) = lids.usage_start
-{%- endif %}
+ON json_extract_scalar(lids.pod_labels, '$.vm_kubevirt_io_name') = vmhrs.vm_name
+   AND DATE(vmhrs.interval_day) = lids.usage_start
 WHERE usage_start >= DATE({{start_date}})
     AND usage_start <= DATE({{end_date}})
     AND report_period_id = {{report_period_id}}
