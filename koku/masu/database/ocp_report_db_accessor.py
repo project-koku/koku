@@ -43,7 +43,6 @@ from reporting.provider.ocp.models import OCPPVC
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_DAILY_MAP
-from reporting.provider.ocp.models import TRINO_LINE_ITEM_TABLE_MAP
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 from reporting.provider.ocp.models import VM_UI_SUMMARY_TABLE
 
