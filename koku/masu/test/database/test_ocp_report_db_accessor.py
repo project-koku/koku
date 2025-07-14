@@ -1153,7 +1153,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.assertFalse(result)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    def test_monthly_populate_vm_tag_based_costs(self, mock_psql):
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
+    def test_monthly_populate_vm_tag_based_costs(self, mock_trino_exists, mock_psql):
         """Test monthly populated of vm count tag based costs."""
         tag_price_list = {
             metric_constants.OCP_VM_MONTH: {
@@ -1182,7 +1183,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             mock_psql.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_hourly_populate_vm_tag_based_costs(self, mock_trino):
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
+    def test_hourly_populate_vm_tag_based_costs(self, mock_trino_exists, mock_trino):
         """Test hourly populated of vm count tag based costs."""
         tag_price_list = {
             metric_constants.OCP_VM_HOUR: {
