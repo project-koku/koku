@@ -39,29 +39,22 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp (
     month,
     day
 )
-WITH cte_years AS (
-    SELECT
-    DISTINCT year
-    FROM gcp_line_items_daily
-    WHERE usage_start_time >= {{start_date}}
-    AND usage_start_time <= {{end_date}}
-    AND source = {{cloud_provider_uuid}}
-),
-WITH cte_months AS (
-    SELECT
-    DISTINCT month
-    FROM gcp_line_items_daily
-    WHERE usage_start_time >= {{start_date}}
+WITH cte_usage_date_partitions as (
+    select
+        year,
+        month
+    from gcp_line_items_daily
+    where usage_start_time >= {{start_date}}
     AND usage_start_time <= {{end_date}}
     AND year in (SELECT year FROM cte_years)
     AND source = {{cloud_provider_uuid}}
+    group by year, month
 ),
 cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
+    JOIN cte_usage_date_partitions AS ym ON year = ym.year AND month = ym.month
     WHERE source = {{cloud_provider_uuid}}
-        AND year in (SELECT year FROM cte_years)
-        AND month in (SELECT month FROM cte_months)
         AND usage_start_time >= {{start_date}}
         AND usage_start_time < date_add('day', 1, {{end_date}})
 ),
@@ -176,9 +169,8 @@ LEFT JOIN cte_matchable_resource_names AS resource_names
 LEFT JOIN cte_agg_tags AS tag_matches
     ON any_match(tag_matches.matched_tags, x->strpos(labels, x) != 0)
     AND resource_names.resource_name IS NULL
+JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
 WHERE gcp.source = {{cloud_provider_uuid}}
-    AND gcp.year in (SELECT year FROM cte_years)
-    AND gcp.month in (SELECT month FROM cte_months)
     AND gcp.usage_start_time >= {{start_date}}
     AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tags IS NOT NULL);
