@@ -373,7 +373,7 @@ class QueryParameters:
             self.tag_keys.update(enabled_keys)
             # Step 2: add parent keys from TagMapping
             parent_keys = (
-                TagMapping.objects.filter(parent__provider_type__in=self.tag_providers)
+                TagMapping.objects.filter(child__key__in=list(enabled_keys))
                 .values_list("parent__key", flat=True)
                 .distinct()
             )
