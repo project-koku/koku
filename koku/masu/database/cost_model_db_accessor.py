@@ -142,7 +142,8 @@ class CostModelDBAccessor:
                     tag_rate_param["default_rate"] = float(tag_value.get("value"))
                 else:
                     kv_pairs_rates[tag_value.get("tag_value")] = float(tag_value.get("value"))
-            tag_rate_param["value_rates"] = kv_pairs_rates
+            if kv_pairs_rates:
+                tag_rate_param["value_rates"] = kv_pairs_rates
             tag_rate_list.append({metric_name: tag_rate_param})
         metric_map = defaultdict(list)
         for item in tag_rate_list:

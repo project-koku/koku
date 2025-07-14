@@ -18,7 +18,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
 WITH filtered_data as (
     select
         nsp.namespace,
-        {%- if value_rates is defined %}
+        {%- if value_rates is defined and value_rates %}
         CASE
             {%- for value, rate in value_rates.items() %}
             WHEN json_extract_scalar(nsp.namespace_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}

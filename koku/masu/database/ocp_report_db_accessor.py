@@ -711,6 +711,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
             metric_constants.OCP_VM_HOUR: {
                 "file_path": "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql",
                 "log_msg": "populating virtual machine hourly costs",
+                "metric_params": {
+                    "use_fractional_hours": trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+                },
             },
             metric_constants.OCP_VM_CORE_HOUR: {
                 "file_path": "trino_sql/openshift/cost_model/hourly_vm_core.sql",
@@ -728,7 +731,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 source_uuid=provider_uuid,
                 report_period_id=report_period_id,
             )
-            sql_params = param_builder.build_parameters({"rate_type": rate_type, "hourly_rate": hourly_rate})
+            context_params = {"rate_type": rate_type, "hourly_rate": hourly_rate}
+            if metric_params := metadata.get("metric_params"):
+                context_params.update(metric_params)
+            sql_params = param_builder.build_parameters(context_params=context_params)
             sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
             LOG.info(log_json(msg=metadata["log_msg"], context=sql_params))
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
@@ -1297,7 +1303,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             metric_constants.OCP_VM_CORE_HOUR: {
                 "log_msg": "populating hourly VM Core based costs",
                 "file_path": "trino_sql/openshift/cost_model/hourly_vm_core_tag_based.sql",
-                "metric_params": fractional_hour_params,
             },
             metric_constants.OCP_NAMESPACE_MONTH: {
                 "log_msg": "populating monthly namespace tag costs",
@@ -1325,7 +1330,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     context_params = tag_params.copy()
                 final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
-                LOG.info(log_json(msg=metadata["log_msg"]))
+                LOG.info(log_json(msg=metadata["log_msg"]), context=context_params)
                 if "trino_sql/" in metadata["file_path"]:
                     self._execute_trino_multipart_sql_query(sql, bind_params=final_sql_params)
                 else:
