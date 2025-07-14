@@ -364,20 +364,13 @@ class QueryParameters:
             # we also do not need to fetch the tags if a tag prefix is not in the URL
             return
         with tenant_context(self.tenant):
-            # Step 1: load EnabledTagKeys
-            enabled_keys = (
-                EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers)
-                .values_list("key", flat=True)
-                .distinct()
-            )
-            self.tag_keys.update(enabled_keys)
-            # Step 2: add parent keys from TagMapping
-            parent_keys = (
-                TagMapping.objects.filter(child__key__in=list(enabled_keys))
-                .values_list("parent__key", flat=True)
-                .distinct()
-            )
-            self.tag_keys.update(parent_keys)
+            # Step 1: get enabled tag keys
+            enabled_keys = EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers).distinct()
+            # Step 2: get parent keys of enabled child keys
+            parent_keys = TagMapping.objects.filter(child__in=enabled_keys).distinct()
+
+            self.tag_keys.update(enabled_keys.values_list("key", flat=True))
+            self.tag_keys.update(parent_keys.values_list("parent__key", flat=True))
         if not self.tag_keys:
             # in case there are no tag keys in the models.
             return
