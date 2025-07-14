@@ -718,7 +718,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             },
         }
         for metric_name, metadata in vm_usage_metadata.items():
-            hourly_rate = rates.get(metric_constants.OCP_VM_HOUR)
+            hourly_rate = rates.get(metric_name)
             if not hourly_rate:
                 continue
             param_builder = BaseCostModelParams(
@@ -1315,9 +1315,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
             if not param_list:
                 continue
             for tag_params in param_list:
+                context_params = {**tag_params}
                 if metric_params := metadata.get("metric_params"):
-                    tag_params.update(metric_params)
-                final_sql_params = param_builder.build_parameters(context_params=tag_params)
+                    context_params.update(metric_params)
+                final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
                 LOG.info(log_json(msg=metadata["log_msg"]))
                 if "trino_sql/" in metadata["file_path"]:
