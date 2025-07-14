@@ -153,9 +153,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
             self.no_manifest_file = no_manifest_file.read()
         with open("./koku/masu/test/data/ocp/ros_payload.tar.gz", "rb") as ros_payload_file:
             self.ros_tarball_file = ros_payload_file.read()
+        with open("./koku/masu/test/data/ocp/outside_retention_payload.tar.gz", "rb") as retention_payload_file:
+            self.retention_tarball_file = retention_payload_file.read()
 
         self.cluster_id = "my-ocp-cluster-1"
-        self.date_range = "20190201-20190301"
+        self.date_range = "21190201-21190301"
         self.manifest_id = "1234"
 
         self.ocp_manifest = CostUsageReportManifest.objects.filter(cluster_id__isnull=True).first()
@@ -726,10 +728,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                     "fake_identity",
                                     {"account": "1234", "org_id": "5678"},
                                 )
-                                expected_path = "{}/{}/{}/".format(
-                                    Config.INSIGHTS_LOCAL_REPORT_DIR,
-                                    "16b9a60d-0774-4102-9028-bd28d6c38ac2",
-                                    "20230801-20230901",
+                                expected_path = (
+                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/"
+                                    "16b9a60d-0774-4102-9028-bd28d6c38ac2/21230801-21230901"
                                 )
                                 self.assertTrue(os.path.isdir(expected_path))
                                 shutil.rmtree(fake_dir)
@@ -773,6 +774,37 @@ class KafkaMsgHandlerTest(MasuTestCase):
                             "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
                         ):
                             with patch("masu.external.kafka_msg_handler.record_report_status"):
+                                msg_handler.extract_payload(
+                                    payload_url,
+                                    "test_request_id",
+                                    "fake_identity",
+                                    {"account": "1234", "org_id": "5678"},
+                                )
+                                expected_path = (
+                                    f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{self.cluster_id}/{self.date_range}/"
+                                )
+                                self.assertFalse(os.path.isdir(expected_path))
+                                shutil.rmtree(fake_dir)
+                                shutil.rmtree(fake_data_dir)
+
+    def test_extract_payload_outside_retention(self):
+        """Test to verify extracting payload is skipped if data is old."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.retention_tarball_file)
+
+            fake_dir = tempfile.mkdtemp()
+            fake_data_dir = tempfile.mkdtemp()
+            with patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir):
+                with patch.object(Config, "TMP_DIR", fake_dir):
+                    with patch(
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
+                    ):
+                        with patch(
+                            "masu.external.kafka_msg_handler.create_cost_and_usage_report_manifest", return_value=1
+                        ):
+                            with patch("masu.external.kafka_msg_handler.record_report_status", returns=None):
                                 msg_handler.extract_payload(
                                     payload_url,
                                     "test_request_id",
