@@ -739,7 +739,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
             hourly_params = {
                 "rate_type": rate_type,
                 "hourly_rate": ocp_vm_core_hour_rate,
-                "use_fractional_hours": use_fractional_hours,
             }
             vm_hour_params = param_builder.build_parameters(hourly_params)
             sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_vm_core.sql").decode(
