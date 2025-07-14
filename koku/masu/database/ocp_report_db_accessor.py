@@ -1330,7 +1330,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     context_params = tag_params.copy()
                 final_sql_params = param_builder.build_parameters(context_params=context_params)
                 sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
-                LOG.info(log_json(msg=metadata["log_msg"]), context=context_params)
+                LOG.info(log_json(msg=metadata["log_msg"], context=context_params))
                 if "trino_sql/" in metadata["file_path"]:
                     self._execute_trino_multipart_sql_query(sql, bind_params=final_sql_params)
                 else:
