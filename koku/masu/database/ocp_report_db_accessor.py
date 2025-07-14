@@ -1315,7 +1315,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 continue
 
             sql = pkgutil.get_data("masu.database", file_path).decode("utf-8")
+            use_fractional_hours = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
             for sql_params in param_list:
+                if "hourly_" in file_path:
+                    sql_params["use_fractional_hours"] = use_fractional_hours
                 LOG.info(log_json(msg=log_msg_mapping.get(metric_name)))
                 if "trino_sql/" in file_path:
                     self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
