@@ -5,6 +5,7 @@
 """Database accessor for OCP rate data."""
 import copy
 import logging
+from collections import defaultdict
 
 from django.db import transaction
 
@@ -118,6 +119,37 @@ class CostModelDBAccessor:
     def get_rates(self, value):
         """Get the rates."""
         return self.price_list.get(value)
+
+    @property
+    def metric_to_tag_params_map(self):
+        """Returns the tag rate parameters"""
+        if not self.cost_model:
+            return {}
+        tag_rate_list = []
+        all_rates = copy.deepcopy(self.cost_model.rates)
+        for rate in all_rates:
+            tag_rate_param = {}
+            tag_rate = rate.get("tag_rates")
+            if not tag_rate:
+                continue
+            metric_name = rate.get("metric", {}).get("name")
+            default_cost_type = self.cost_model_metric_map[metric_name]["default_cost_type"]
+            tag_rate_param["rate_type"] = rate.get("cost_type", default_cost_type)
+            tag_rate_param["tag_key"] = tag_rate.get("tag_key")
+            kv_pairs_rates = {}
+            for tag_value in tag_rate.get("tag_values"):
+                if tag_value.get("default"):
+                    tag_rate_param["default_rate"] = float(tag_value.get("value"))
+                else:
+                    kv_pairs_rates[tag_value.get("tag_value")] = float(tag_value.get("value"))
+            if kv_pairs_rates:
+                tag_rate_param["value_rates"] = kv_pairs_rates
+            tag_rate_list.append({metric_name: tag_rate_param})
+        metric_map = defaultdict(list)
+        for item in tag_rate_list:
+            for metric_name, params in item.items():
+                metric_map[metric_name].append(params)
+        return metric_map
 
     @property  # noqa: C901
     def tag_based_price_list(self):  # noqa: C901
