@@ -51,8 +51,8 @@ WITH cte_usage_date_partitions as (
 ),
 cte_gcp_resource_names AS (
     SELECT DISTINCT resource_name
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
-    JOIN cte_usage_date_partitions AS ym ON year = ym.year AND month = ym.month
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
+    JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
     WHERE source = {{cloud_provider_uuid}}
         AND usage_start_time >= {{start_date}}
         AND usage_start_time < date_add('day', 1, {{end_date}})
