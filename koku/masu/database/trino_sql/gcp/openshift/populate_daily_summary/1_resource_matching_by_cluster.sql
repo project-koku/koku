@@ -46,7 +46,6 @@ WITH cte_usage_date_partitions as (
     from gcp_line_items_daily
     where usage_start_time >= {{start_date}}
     AND usage_start_time <= {{end_date}}
-    AND year in (SELECT year FROM cte_years)
     AND source = {{cloud_provider_uuid}}
     group by year, month
 ),
