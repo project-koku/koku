@@ -347,7 +347,7 @@ class ReportQueryHandlerTest(IamTestCase):
             f"group_by[and:tag:{term}]={second}"
         )
         with patch("reporting.provider.all.models.EnabledTagKeys.objects") as mock_tags:
-            mock_tags.filter.return_value.values_list.return_value.distinct.return_value = [self.mock_tag_key]
+            mock_tags.filter.return_value.distinct.return_value.values_list.return_value = [self.mock_tag_key]
             params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)
@@ -386,7 +386,7 @@ class ReportQueryHandlerTest(IamTestCase):
             f"group_by[or:tag:{term}]={second}"
         )
         with patch("reporting.provider.all.models.EnabledTagKeys.objects") as mock_tags:
-            mock_tags.filter.return_value.values_list.return_value.distinct.return_value = [self.mock_tag_key]
+            mock_tags.filter.return_value.distinct.return_value.values_list.return_value = [self.mock_tag_key]
             params = self.mocked_query_params(url, self.mock_view)
         mapper = {"filter": [{}], "filters": {term: {"field": term, "operation": operation}}}
         rqh = create_test_handler(params, mapper=mapper)

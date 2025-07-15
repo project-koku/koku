@@ -103,7 +103,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         mock_markup.assert_not_called()
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_usage_costs(self, mock_cost_accessor):
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
+    def test_update_usage_costs(self, mock_trino_exists, mock_cost_accessor):
         """Test that usage costs are updated for infrastructure and supplementary."""
         infrastructure_rates = {
             "cpu_core_usage_per_hour": 0.0070000000,

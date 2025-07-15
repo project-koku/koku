@@ -706,6 +706,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
+        use_fractional_hours = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
 
         if ocp_vm_hour_rate := rates.get(metric_constants.OCP_VM_HOUR):
             param_builder = VMParams(
@@ -715,7 +716,11 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 source_uuid=provider_uuid,
                 report_period_id=report_period_id,
             )
-            hourly_params = {"rate_type": rate_type, "hourly_rate": ocp_vm_hour_rate}
+            hourly_params = {
+                "rate_type": rate_type,
+                "hourly_rate": ocp_vm_hour_rate,
+                "use_fractional_hours": use_fractional_hours,
+            }
             vm_hour_params = param_builder.build_parameters(hourly_params)
             sql = pkgutil.get_data(
                 "masu.database", "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql"
@@ -731,7 +736,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 source_uuid=provider_uuid,
                 report_period_id=report_period_id,
             )
-            hourly_params = {"rate_type": rate_type, "hourly_rate": ocp_vm_core_hour_rate}
+            hourly_params = {
+                "rate_type": rate_type,
+                "hourly_rate": ocp_vm_core_hour_rate,
+            }
             vm_hour_params = param_builder.build_parameters(hourly_params)
             sql = pkgutil.get_data("masu.database", "trino_sql/openshift/cost_model/hourly_vm_core.sql").decode(
                 "utf-8"
@@ -1307,7 +1315,10 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 continue
 
             sql = pkgutil.get_data("masu.database", file_path).decode("utf-8")
+            use_fractional_hours = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
             for sql_params in param_list:
+                if "hourly_" in file_path:
+                    sql_params["use_fractional_hours"] = use_fractional_hours
                 LOG.info(log_json(msg=log_msg_mapping.get(metric_name)))
                 if "trino_sql/" in file_path:
                     self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)

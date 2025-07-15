@@ -49,7 +49,7 @@ WITH
             vm_map.vm_cpu_request_cores AS vm_cpu_cores,
             DATE(vm_map.interval_start) AS interval_day,
             vm_map.vm_name AS vm_name,
-            count(vm_map.interval_start) AS vm_interval_hours
+            sum(vm_map.vm_uptime_total_seconds) / 3600 AS vm_interval_hours
         FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items AS vm_map
         WHERE
             vm_map.source = {{source_uuid | string}}
