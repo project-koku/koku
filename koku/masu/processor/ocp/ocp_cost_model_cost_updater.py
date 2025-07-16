@@ -49,7 +49,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 metric_constants.DISTRIBUTION_TYPE, metric_constants.DEFAULT_DISTRIBUTION_TYPE
             )
             self._distribution_info = cost_model_accessor.distribution_info
-            self.tag_based_price_list = cost_model_accessor.tag_based_price_list
+            self.metric_to_tag_params_map = cost_model_accessor.metric_to_tag_params_map
 
     def _build_node_tag_cost_case_statements(  # noqa: C901
         self, rate_dict, start_date, default_rate_dict={}, unallocated=False, node_core="", amortized=True
@@ -302,7 +302,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 # openshift_resource_type i.e. Cluster, Node, PVC
                 # monthly_cost_metric i.e. node_cost_per_month, cluster_cost_per_month, pvc_cost_per_month
                 if monthly_cost_metric in [
-                    metric_constants.OCP_VM_MONTH,  # special handling in populate_vm_tag_based_costs
+                    metric_constants.OCP_VM_MONTH,
                     metric_constants.OCP_CLUSTER_MONTH,  # Cluster monthly rates do not support tag based rating
                 ]:
                     continue
@@ -552,8 +552,9 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._update_monthly_tag_based_cost(start_date, end_date)
             self._update_node_hour_tag_based_cost(start_date, end_date)
             with OCPReportDBAccessor(self._schema) as report_accessor:
-                report_accessor.populate_vm_tag_based_costs(
-                    start_date, end_date, self._provider.uuid, self.tag_based_price_list
+                cluster_params = {"cluster_id": self._cluster_id, "cluster_alias": self._cluster_alias}
+                report_accessor.populate_tag_based_costs(
+                    start_date, end_date, self._provider.uuid, self.metric_to_tag_params_map, cluster_params
                 )
         if not (self._tag_infra_rates or self._tag_supplementary_rates):
             self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)

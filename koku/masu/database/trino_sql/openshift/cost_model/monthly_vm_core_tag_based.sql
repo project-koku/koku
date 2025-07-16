@@ -73,7 +73,7 @@ SELECT
     lids.source_uuid,
     'Tag' AS monthly_cost_type,
     {{rate_type}} AS cost_model_rate_type,
-    {%- if value_rates is defined %}
+    {%- if value_rates is defined and value_rates %}
     CASE
         {%- for value, rate in value_rates.items() %}
         WHEN json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}
