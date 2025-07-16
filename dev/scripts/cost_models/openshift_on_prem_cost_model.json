@@ -258,7 +258,7 @@
         },
         {
             "metric": {
-                "name": "namespace_per_month"
+                "name": "project_per_month"
             },
             "tag_rates": {
                 "tag_key": "cats",

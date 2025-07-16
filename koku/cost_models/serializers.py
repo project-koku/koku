@@ -23,7 +23,7 @@ from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
 MARKUP_CHOICES = (("percent", "%"),)
-TAG_RATE_ONLY = (metric_constants.OCP_NAMESPACE_MONTH,)
+TAG_RATE_ONLY = (metric_constants.OCP_PROJECT_MONTH,)
 LOG = logging.getLogger(__name__)
 
 
