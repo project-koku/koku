@@ -1305,8 +1305,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
                 "file_path": "trino_sql/openshift/cost_model/hourly_vm_core_tag_based.sql",
             },
             metric_constants.OCP_PROJECT_MONTH: {
-                "log_msg": "populating monthly namespace tag costs",
-                "file_path": "trino_sql/openshift/cost_model/monthly_namespace_tag_based.sql",
+                "log_msg": "populating monthly project tag costs",
+                "file_path": "trino_sql/openshift/cost_model/monthly_project_tag_based.sql",
                 "metric_params": {**monthly_params, **cluster_params},
             },
         }
