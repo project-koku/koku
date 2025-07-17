@@ -4,7 +4,7 @@ WHERE usage_start >= {{start_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-cte_latest_pod_labels AS (
+WITH cte_latest_pod_labels AS (
     -- Selects pod labels from the second-to-last day with valid VM data.
     -- If only one day matches, that day is used instead.
     -- Prevents failures in test environments with limited data.
