@@ -5,22 +5,29 @@ WHERE usage_start >= {{start_date}}::date
 ;
 
 WITH cte_latest_pod_labels AS (
+    -- Selects pod labels from the second-to-last day with valid VM data.
+    -- If only one day matches, that day is used instead.
+    -- Prevents failures in test environments with limited data.
     SELECT DISTINCT ON (vm_name)
         all_labels->>'vm_kubevirt_io_name' AS vm_name,
         pod_labels as pod_labels
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start::date = (
-        SELECT DISTINCT usage_start::date AS day
-        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-        WHERE usage_start >= {{start_date}}::date
-            AND usage_start <= {{end_date}}::date
-            AND source_uuid = {{source_uuid}}
-            AND pod_request_cpu_core_hours IS NOT NULL
-        ORDER BY day DESC
-        OFFSET 1 LIMIT 1
+        SELECT day FROM (
+            SELECT DISTINCT usage_start::date AS day
+            FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+            WHERE usage_start >= {{start_date}}::date
+                AND usage_start <= {{end_date}}::date
+                AND source_uuid = {{source_uuid}}
+                AND pod_request_cpu_core_hours IS NOT NULL
+            ORDER BY day DESC
+            LIMIT 2
+        ) latest_days
+        ORDER BY day
+        LIMIT 1
     )
-        AND pod_request_cpu_core_hours IS NOT NULL
-        AND all_labels ? 'vm_kubevirt_io_name'
+    AND pod_request_cpu_core_hours IS NOT NULL
+    AND all_labels ? 'vm_kubevirt_io_name'
     ORDER BY vm_name, usage_start DESC
 ),
 cte_latest_resources as (
@@ -228,14 +235,21 @@ WITH latest_vm_pod_labels as (
         AND source_uuid = {{source_uuid}}
 ),
 second_to_last_day AS (
-    SELECT DISTINCT usage_start::date AS day
-    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-    WHERE usage_start >= {{start_date}}::date
-        AND usage_start <= {{end_date}}::date
-        AND source_uuid = {{source_uuid}}
-        AND persistentvolumeclaim IS NOT NULL
-    ORDER BY day DESC
-    OFFSET 1 LIMIT 1  -- Get the second-to-last day
+    -- Selects the second-to-last day.
+    -- If only one day matches, that day is returned instead.
+    -- This prevents the query from breaking when the dataset is small (tests).
+    SELECT day FROM (
+        SELECT DISTINCT usage_start::date AS day
+        FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+        WHERE usage_start >= {{start_date}}::date
+            AND usage_start <= {{end_date}}::date
+            AND source_uuid = {{source_uuid}}
+            AND persistentvolumeclaim IS NOT NULL
+        ORDER BY day DESC
+        LIMIT 2
+    ) latest_days
+    ORDER BY day
+    LIMIT 1
 ),
 latest_storage_data AS (
     SELECT DISTINCT ON (persistentvolumeclaim)
