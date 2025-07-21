@@ -70,6 +70,7 @@ WHERE usage_start >= DATE({{start_date}})
     AND pod_usage_cpu_core_hours IS NOT NULL
     AND pod_request_cpu_core_hours IS NOT NULL
     AND monthly_cost_type IS NULL
+    AND cost_model_rate_type IS NULL
 GROUP BY usage_start,
     usage_end,
     source_uuid,
