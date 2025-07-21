@@ -46,6 +46,7 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from api.utils import safe_column_alias
 
 LOG = logging.getLogger(__name__)
 
@@ -696,7 +697,9 @@ class ReportQueryHandler(QueryHandler):
         if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
-                db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                raw_key = strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                safe_key = safe_column_alias(raw_key)
+                db_name = f"{aws_category_column}__{safe_key}"
                 aws_category = str.encode(aws_category)
                 aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
                 group_pos = self.parameters.url_data.index(aws_category)
