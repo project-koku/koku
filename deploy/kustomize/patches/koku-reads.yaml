@@ -13,7 +13,7 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: SCHEMA_SUFFIX
+        - name: SCHEMA_SUFFI
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
