@@ -608,4 +608,4 @@ def safe_column_alias(alias: str) -> str:
     """
     Sanitize column alias to be SQL-safe (no spaces, quotes, etc.).
     """
-    return alias.replace(" ", "_").replace('"', "").replace(";", "").replace("--", "")
+    return alias.replace(" ", "_").replace("/", "_").replace('"', "").replace(";", "").replace("--", "")

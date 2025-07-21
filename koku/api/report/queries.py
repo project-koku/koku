@@ -684,8 +684,8 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            sanitized_tag = sanitize_tag(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
+            safe_tag = safe_column_alias(original_tag)
+            tag_db_name = self._mapper.tag_column + "__" + safe_tag
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
             group_pos = self.parameters.url_data.index(encoded_tag_url)
             group_by.append((tag_db_name, group_pos))
