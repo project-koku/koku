@@ -952,8 +952,6 @@ class ReportQueryHandler(QueryHandler):
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
-        print(f"[DEBUG] groups: {groups}, group_index: {group_index}, current group: {groups[group_index]}")
-
         groups_len = len(groups)
         if not groups or group_index >= groups_len:
             pack = self._mapper.PACK_DEFINITIONS
