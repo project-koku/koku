@@ -1253,6 +1253,7 @@ class OCPReportViewTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
+        print("group_by_key:", group_by_key)
 
         url = reverse("reports-openshift-cpu")
         client = APIClient()
