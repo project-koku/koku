@@ -688,9 +688,12 @@ class ReportQueryHandler(QueryHandler):
             sanitized_tag = sanitize_tag(original_tag)
             tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
-            group_pos = next((idx for idx, val in enumerate(self.parameters.url_data) if encoded_tag_url in val), None)
 
-            group_by.append((tag_db_name, group_pos))
+            group_pos = next((idx for idx, val in enumerate(self.parameters.url_data) if encoded_tag_url in val), None)
+            if group_pos is not None:
+                group_by.append((tag_db_name, group_pos))
+            else:
+                LOG.warning("Tag '%s' not found in url_data. Ignoring.", encoded_tag_url)
         return group_by
 
     def _get_aws_category_group_by(self):
