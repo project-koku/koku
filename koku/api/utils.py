@@ -6,6 +6,7 @@
 import calendar
 import datetime
 import logging
+import re
 from datetime import timedelta
 
 import ciso8601
@@ -608,4 +609,4 @@ def safe_column_alias(alias: str) -> str:
     """
     Sanitize column alias to be SQL-safe (no spaces, quotes, etc.).
     """
-    return alias.replace(" ", "_").replace("/", "_").replace('"', "").replace(";", "").replace("--", "")
+    return re.sub(r"[^a-zA-Z0-9_]", "_", alias)
