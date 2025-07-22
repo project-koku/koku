@@ -684,10 +684,10 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            raw_key = strip_prefix(tag, TAG_PREFIX)
-            decoded_key = unquote(raw_key)
-            safe_key = safe_column_alias(decoded_key)
-            tag_db_name = f"{self._mapper.tag_column}__{safe_key}"
+            original_tag = strip_prefix(tag, TAG_PREFIX)
+            decoded_tag = unquote(original_tag)
+            safe_tag = safe_column_alias(decoded_tag)
+            tag_db_name = f"{self._mapper.tag_column}__{safe_tag}"
 
             # Try to find the position of the tag in the original URL parameters
             group_pos = None
@@ -709,11 +709,11 @@ class ReportQueryHandler(QueryHandler):
         if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
-                raw_key = strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
-                decoded_key = unquote(raw_key)
-                safe_key = safe_column_alias(decoded_key)
-                db_name = f"{aws_category_column}__{safe_key}"
-                encoded_url_key = quote(decoded_key, safe=URL_ENCODED_SAFE)
+                original_tag = strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                decoded_tag = unquote(original_tag)
+                safe_tag = safe_column_alias(decoded_tag)
+                db_name = f"{aws_category_column}__{safe_tag}"
+                encoded_url_key = quote(decoded_tag, safe=URL_ENCODED_SAFE)
                 group_pos = self.parameters.url_data.index(encoded_url_key)
                 group_by.append((db_name, group_pos))
         return group_by
