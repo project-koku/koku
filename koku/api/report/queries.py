@@ -960,13 +960,18 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         out_data = []
-        label = "values"
         group_type = groups[group_index]
         next_group_index = group_index + 1
 
         if next_group_index < groups_len:
-            label = groups[next_group_index] + "s"
-            label = self._clean_prefix_grouping_labels(label)
+            next_group = groups[next_group_index]
+            label = self._clean_prefix_grouping_labels(next_group + "s")
+        else:
+            if group_type.startswith("tags__"):
+                raw_tag = group_type.split("__", 1)[1]
+                label = raw_tag + "s"  # ex.: apps → apps
+            else:
+                label = "values"
 
         for group, group_value in data.items():
             group_title = self._clean_prefix_grouping_labels(group_type)
