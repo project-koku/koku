@@ -18,6 +18,7 @@ from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote
 from urllib.parse import quote_from_bytes
+from urllib.parse import unquote
 
 import ciso8601
 import numpy as np
@@ -683,11 +684,22 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            original_tag = strip_prefix(tag, TAG_PREFIX)
-            safe_tag = safe_column_alias(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + safe_tag
-            encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
-            group_pos = self.parameters.url_data.index(encoded_tag_url)
+            raw_key = strip_prefix(tag, TAG_PREFIX)
+            decoded_key = unquote(raw_key)
+            safe_key = safe_column_alias(decoded_key)
+            tag_db_name = f"{self._mapper.tag_column}__{safe_key}"
+
+            # Try to find the position of the tag in the original URL parameters
+            group_pos = None
+            for idx, param in enumerate(self.parameters.url_data):
+                if unquote(param) == tag:
+                    group_pos = idx
+                    break
+            # If the tag is not found, skip this group_by entry
+            if group_pos is None:
+                LOG.warning(f"Could not resolve tag position for: {tag}")
+                continue
+
             group_by.append((tag_db_name, group_pos))
         return group_by
 
@@ -698,11 +710,11 @@ class ReportQueryHandler(QueryHandler):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
                 raw_key = strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
-                safe_key = safe_column_alias(raw_key)
+                decoded_key = unquote(raw_key)
+                safe_key = safe_column_alias(decoded_key)
                 db_name = f"{aws_category_column}__{safe_key}"
-                aws_category = str.encode(aws_category)
-                aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
-                group_pos = self.parameters.url_data.index(aws_category)
+                encoded_url_key = quote(decoded_key, safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(encoded_url_key)
                 group_by.append((db_name, group_pos))
         return group_by
 
