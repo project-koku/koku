@@ -120,7 +120,10 @@ WHERE usage_start >= DATE({{start_date}})
     AND lids.pod_usage_cpu_core_hours IS NOT NULL
     AND lids.pod_request_cpu_core_hours IS NOT NULL
     AND lids.monthly_cost_type IS NULL
-    AND lids.cost_model_rate_type IS NULL
+    AND (
+        lids.cost_model_rate_type IS NULL
+        OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+    )
 GROUP BY
     lids.usage_start,
     lids.usage_end,

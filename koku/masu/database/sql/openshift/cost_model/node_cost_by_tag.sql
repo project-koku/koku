@@ -55,6 +55,10 @@ WHERE usage_start >= {{start_date}}::date
     AND data_source = 'Pod'
     AND pod_labels ? {{tag_key}}
     AND monthly_cost_type IS NULL
+    AND (
+        lids.cost_model_rate_type IS NULL
+        OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+    )
     AND node_capacity_cpu_core_hours IS NOT NULL
     AND node_capacity_cpu_core_hours != 0
     AND cluster_capacity_cpu_core_hours IS NOT NULL
