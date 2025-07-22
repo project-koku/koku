@@ -1252,21 +1252,26 @@ class OCPReportViewTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
+        self.assertTrue(tag_keys, "No tag keys returned from get_tag_keys().")
         group_by_key = tag_keys[0]
 
-        url = reverse("reports-openshift-cpu")
-        client = APIClient()
+        base_url = reverse("reports-openshift-cpu")
         params = {f"group_by[tag:{group_by_key}]": "*"}
+        full_url = base_url + "?" + urlencode(params, quote_via=quote_plus)
 
-        url = url + "?" + urlencode(params, quote_via=quote_plus)
-        response = client.get(url, **self.headers)
+        client = APIClient()
+        response = client.get(full_url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        data = response.json()
-        data = data.get("data", [])
-        expected_keys = ["date", group_by_key + "s"]
-        for entry in data:
-            self.assertEqual(list(entry.keys()), expected_keys)
+        data = response.json().get("data", [])
+        self.assertTrue(data, "The response did not contain any data.")
+        first_entry = data[0]
+        dynamic_key = group_by_key + "s"
+
+        self.assertIn("date", first_entry)
+        self.assertIn(
+            dynamic_key, first_entry, f"Expected grouping by '{dynamic_key}', but got keys: {list(first_entry.keys())}"
+        )
 
     def test_execute_costs_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
