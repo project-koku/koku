@@ -1266,7 +1266,7 @@ class OCPReportViewTest(IamTestCase):
         data = data.get("data", [])
         expected_keys = ["date", group_by_key + "s"]
         for entry in data:
-            self.assertIn(expected_keys[1], entry.keys())
+            self.assertEqual(list(entry.keys()), expected_keys)
 
     def test_execute_costs_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
