@@ -969,7 +969,7 @@ class ReportQueryHandler(QueryHandler):
         else:
             if group_type.startswith("tags__"):
                 raw_tag = group_type.split("__", 1)[1]
-                label = raw_tag + "s"  # ex.: apps → apps
+                label = raw_tag + "s"
             else:
                 label = "values"
 
