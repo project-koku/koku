@@ -685,8 +685,8 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            safe_tag = safe_column_alias(original_tag)
-            tag_db_name = f"{self._mapper.tag_column}__{safe_tag}"
+            sanitized_tag = sanitize_tag(original_tag)
+            tag_db_name = f"{self._mapper.tag_column}__{sanitized_tag}"
             group_pos = None
             for idx, param in enumerate(self.parameters.url_data):
                 if unquote(param) == tag:
@@ -696,7 +696,7 @@ class ReportQueryHandler(QueryHandler):
                 LOG.warning(f"Could not resolve tag position for: {tag}")
                 continue
 
-            group_by.append((tag_db_name, group_pos))
+            group_by.append((tag_db_name, group_pos, original_tag))
         return group_by
 
     def _get_aws_category_group_by(self):
