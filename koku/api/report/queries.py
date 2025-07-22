@@ -685,20 +685,10 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            decoded_tag = unquote(original_tag)
-            safe_tag = safe_column_alias(decoded_tag)
-            tag_db_name = f"{self._mapper.tag_column}__{safe_tag}"
-
-            # Try to find the position of the tag in the original URL parameters
-            group_pos = None
-            for idx, param in enumerate(self.parameters.url_data):
-                if unquote(param) == tag:
-                    group_pos = idx
-                    break
-            # If the tag is not found, skip this group_by entry
-            if group_pos is None:
-                LOG.warning(f"Could not resolve tag position for: {tag}")
-                continue
+            sanitized_tag = sanitize_tag(original_tag)
+            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
+            encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
+            group_pos = self.parameters.url_data.index(encoded_tag_url)
 
             group_by.append((tag_db_name, group_pos))
         return group_by
@@ -960,18 +950,13 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         out_data = []
+        label = "values"
         group_type = groups[group_index]
         next_group_index = group_index + 1
 
         if next_group_index < groups_len:
-            next_group = groups[next_group_index]
-            label = self._clean_prefix_grouping_labels(next_group + "s")
-        else:
-            if group_type.startswith("tags__"):
-                raw_tag = group_type.split("__", 1)[1]
-                label = raw_tag
-            else:
-                label = "values"
+            label = groups[next_group_index] + "s"
+            label = self._clean_prefix_grouping_labels(label)
 
         for group, group_value in data.items():
             group_title = self._clean_prefix_grouping_labels(group_type)
