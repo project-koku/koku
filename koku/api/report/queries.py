@@ -108,28 +108,27 @@ def sanitize_tag(tag):
     return sanitized_tag
 
 
-def resolve_tag_value_aliases(data_dict, alias_lookup):
+def restore_tag_alias(value, alias_lookup, prefix="No-"):
     """
-    Restore tag values that have been aliased with underscores back to their original names.
-
+    Restore the original tag value from an alias.
     Example:
         "Tirea_app_group" → "Tirea/app-group"
         "No-Tirea_app_group" → "No-Tirea/app-group"
     """
-    updated = {}
-    for key, value in data_dict.items():
-        if isinstance(value, str):
-            if value.startswith("No-"):
-                safe = value[len("No-") :]
-                original = alias_lookup.get(safe)
-                if original:
-                    updated[key] = f"No-{original}"
-                    continue
-            original = alias_lookup.get(value)
-            if original:
-                updated[key] = original
-    data_dict.update(updated)
-    return data_dict
+    if not isinstance(value, str):
+        return value
+
+    if value.startswith(prefix):
+        key = value[len(prefix) :]
+        original = alias_lookup.get(key)
+        if original:
+            return f"{prefix}{original}"
+    else:
+        original = alias_lookup.get(value)
+        if original:
+            return original
+
+    return value
 
 
 class ReportQueryHandler(QueryHandler):
@@ -160,6 +159,8 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
 
         self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
+        self._tag_alias_lookup = {}
+        self._tag_plural_alias_lookup = {}
 
     @cached_property
     def query_table_access_keys(self):
@@ -959,7 +960,7 @@ class ReportQueryHandler(QueryHandler):
         new_data = {}
         for data_key in data.keys():
             clean_prefix = self._clean_prefix_grouping_labels(data_key, all_pack_keys)
-            if hasattr(self, "_tag_alias_lookup"):
+            if self._tag_alias_lookup:
                 tag_original = self._tag_alias_lookup.get(clean_prefix)
                 if tag_original:
                     clean_prefix = tag_original
@@ -970,8 +971,9 @@ class ReportQueryHandler(QueryHandler):
             if data.get(del_key):
                 del data[del_key]
         data.update(new_data)
-        if hasattr(self, "_tag_alias_lookup"):
-            data = resolve_tag_value_aliases(data, self._tag_alias_lookup)
+        for key, val in data.items():
+            if isinstance(val, str):
+                data[key] = restore_tag_alias(val, self._tag_alias_lookup)
         return data
 
     def _transform_data(self, groups, group_index, data):
@@ -998,10 +1000,9 @@ class ReportQueryHandler(QueryHandler):
             if "__" in group_type:
                 prefix, tag_key = group_type.split("__", 1)
                 if prefix == self._mapper.tag_column:
-                    original_tag = self._tag_alias_lookup.get(tag_key)
-                    if original_tag:
+                    if original_tag := self._tag_alias_lookup.get(tag_key):
                         group_title = original_tag
-            group_label = self._restore_group_label(group_title, group)
+            group_label = restore_tag_alias(group, self._tag_alias_lookup)
             if group is None:
                 group_label = f"No-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
