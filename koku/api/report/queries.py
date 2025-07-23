@@ -1484,7 +1484,9 @@ class ReportQueryHandler(QueryHandler):
         """Restore the group label if it has a safe alias."""
         if not isinstance(group, str):
             return group
-        for safe_tag, original_tag in self._tag_alias_lookup.items():
+
+        tag_lookup = getattr(self, "_tag_alias_lookup", {})
+        for safe_tag, original_tag in tag_lookup.items():
             if original_tag == group_title:
                 if group.startswith("No-") and group[len("No-") :] == safe_tag:
                     return f"No-{original_tag}"
