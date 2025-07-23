@@ -118,16 +118,12 @@ def restore_tag_alias(value, alias_lookup, prefix="No-"):
     if not isinstance(value, str):
         return value
 
+    # Avoid restoring if the prefix was already part of the original value
     if value.startswith(prefix):
-        key = value[len(prefix) :]
-        original = alias_lookup.get(key)
-        if original:
+        if (original := alias_lookup.get(value[len(prefix) :])) and not original.startswith(prefix):
             return f"{prefix}{original}"
-    else:
-        original = alias_lookup.get(value)
-        if original:
-            return original
-
+    elif original := alias_lookup.get(value):
+        return original
     return value
 
 
@@ -708,8 +704,6 @@ class ReportQueryHandler(QueryHandler):
         """Create list of tag-based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
-        self._tag_alias_lookup = {}
-        self._tag_plural_alias_lookup = {}
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
@@ -992,7 +986,7 @@ class ReportQueryHandler(QueryHandler):
         if next_group_index < groups_len:
             label = groups[next_group_index] + "s"
             label = self._clean_prefix_grouping_labels(label)
-            if hasattr(self, "_tag_plural_alias_lookup"):
+            if self._tag_plural_alias_lookup:
                 label = self._tag_plural_alias_lookup.get(label, label)
 
         for group, group_value in data.items():
@@ -1480,17 +1474,3 @@ class ReportQueryHandler(QueryHandler):
                 list(query_data), key=lambda x: (x.get("delta_value", 0), x.get("delta_percent", 0)), reverse=reverse
             )
         return query_data
-
-    def _restore_group_label(self, group_title, group):
-        """Restore the group label if it has a safe alias."""
-        if not isinstance(group, str):
-            return group
-
-        tag_lookup = getattr(self, "_tag_alias_lookup", {})
-        for safe_tag, original_tag in tag_lookup.items():
-            if original_tag == group_title:
-                if group.startswith("No-") and group[len("No-") :] == safe_tag:
-                    return f"No-{original_tag}"
-                if group == safe_tag:
-                    return original_tag
-        return group
