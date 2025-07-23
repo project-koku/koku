@@ -108,6 +108,30 @@ def sanitize_tag(tag):
     return sanitized_tag
 
 
+def resolve_tag_value_aliases(data_dict, alias_lookup):
+    """
+    Restore tag values that have been aliased with underscores back to their original names.
+
+    Example:
+        "Tirea_app_group" → "Tirea/app-group"
+        "No-Tirea_app_group" → "No-Tirea/app-group"
+    """
+    updated = {}
+    for key, value in data_dict.items():
+        if isinstance(value, str):
+            if value.startswith("No-"):
+                safe = value[len("No-") :]
+                original = alias_lookup.get(safe)
+                if original:
+                    updated[key] = f"No-{original}"
+                    continue
+            original = alias_lookup.get(value)
+            if original:
+                updated[key] = original
+    data_dict.update(updated)
+    return data_dict
+
+
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
@@ -946,17 +970,8 @@ class ReportQueryHandler(QueryHandler):
                 del data[del_key]
         data.update(new_data)
         if hasattr(self, "_tag_alias_lookup"):
-            for key in data.keys():
-                value = data[key]
-                if isinstance(value, str) and value.startswith("No-"):
-                    safe_value = value[len("No-") :]
-                    original_value = self._tag_alias_lookup.get(safe_value)
-                    if original_value:
-                        data[key] = f"No-{original_value}"
-                elif isinstance(value, str):
-                    original_value = self._tag_alias_lookup.get(value)
-                    if original_value:
-                        data[key] = original_value
+            data = resolve_tag_value_aliases(data, self._tag_alias_lookup)
+
         return data
 
     def _transform_data(self, groups, group_index, data):
