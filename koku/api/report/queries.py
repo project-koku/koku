@@ -680,23 +680,22 @@ class ReportQueryHandler(QueryHandler):
         return group_by
 
     def _get_tag_group_by(self):
+        """Create list of tag-based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
-        url_param_list = str(self.parameters.url_data).split("&")
+        self._tag_alias_lookup = {}
+        self._tag_plural_alias_lookup = {}
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            sanitized_tag = sanitize_tag(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
+            group_pos = self.parameters.url_data.index(encoded_tag_url)
+            safe_tag = safe_column_alias(original_tag)
+            tag_db_name = self._mapper.tag_column + "__" + safe_tag
 
-            for idx, val in enumerate(url_param_list):
-                if encoded_tag_url in val:
-                    group_pos = idx
-                    break
-            else:
-                raise ValueError(f"Expected tag '{encoded_tag_url}' not found in url_data: {self.parameters.url_data}")
-
-            group_by.append((tag_db_name, group_pos))
+            # Store the original tag and plural alias for later use
+            self._tag_alias_lookup[safe_tag] = original_tag
+            self._tag_plural_alias_lookup[safe_tag + "s"] = original_tag + "s"
+            group_by.append((tag_db_name, group_pos, original_tag))
         return group_by
 
     def _get_aws_category_group_by(self):
@@ -910,8 +909,6 @@ class ReportQueryHandler(QueryHandler):
                         new_key = group_info.get("key")
                         if data.get(group_key):
                             if isinstance(data[group_key], str):
-                                # This if is to overwrite the "cost": "No-cost"
-                                # that is provided by the order_by function.
                                 data[group_key] = {}
                         else:
                             data[group_key] = {}
@@ -937,6 +934,10 @@ class ReportQueryHandler(QueryHandler):
         new_data = {}
         for data_key in data.keys():
             clean_prefix = self._clean_prefix_grouping_labels(data_key, all_pack_keys)
+            if hasattr(self, "_tag_alias_lookup"):
+                tag_original = self._tag_alias_lookup.get(clean_prefix)
+                if tag_original:
+                    clean_prefix = tag_original
             if clean_prefix != data_key:
                 new_data[clean_prefix] = data[data_key]
                 delete_keys.append(data_key)
@@ -944,6 +945,18 @@ class ReportQueryHandler(QueryHandler):
             if data.get(del_key):
                 del data[del_key]
         data.update(new_data)
+        if hasattr(self, "_tag_alias_lookup"):
+            for key in data.keys():
+                value = data[key]
+                if isinstance(value, str) and value.startswith("No-"):
+                    safe_value = value[len("No-") :]
+                    original_value = self._tag_alias_lookup.get(safe_value)
+                    if original_value:
+                        data[key] = f"No-{original_value}"
+                elif isinstance(value, str):
+                    original_value = self._tag_alias_lookup.get(value)
+                    if original_value:
+                        data[key] = original_value
         return data
 
     def _transform_data(self, groups, group_index, data):
@@ -959,14 +972,21 @@ class ReportQueryHandler(QueryHandler):
         label = "values"
         group_type = groups[group_index]
         next_group_index = group_index + 1
-
         if next_group_index < groups_len:
             label = groups[next_group_index] + "s"
             label = self._clean_prefix_grouping_labels(label)
+            if hasattr(self, "_tag_plural_alias_lookup"):
+                label = self._tag_plural_alias_lookup.get(label, label)
 
         for group, group_value in data.items():
             group_title = self._clean_prefix_grouping_labels(group_type)
-            group_label = group
+            if "__" in group_type:
+                prefix, tag_key = group_type.split("__", 1)
+                if prefix == self._mapper.tag_column:
+                    original_tag = self._tag_alias_lookup.get(tag_key)
+                    if original_tag:
+                        group_title = original_tag
+            group_label = self._restore_group_label(group_title, group)
             if group is None:
                 group_label = f"No-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
@@ -1444,3 +1464,15 @@ class ReportQueryHandler(QueryHandler):
                 list(query_data), key=lambda x: (x.get("delta_value", 0), x.get("delta_percent", 0)), reverse=reverse
             )
         return query_data
+
+    def _restore_group_label(self, group_title, group):
+        """Restore the group label if it has a safe alias."""
+        if not isinstance(group, str):
+            return group
+        for safe_tag, original_tag in self._tag_alias_lookup.items():
+            if original_tag == group_title:
+                if group.startswith("No-") and group[len("No-") :] == safe_tag:
+                    return f"No-{original_tag}"
+                if group == safe_tag:
+                    return original_tag
+        return group
