@@ -949,6 +949,7 @@ class ReportQueryHandler(QueryHandler):
                     value = data.get(key)
                     if value is not None and units is not None:
                         data[key] = {"value": value, "units": units}
+
             if units is not None:
                 del data[key_units]
             for key in remove_keys:
@@ -971,7 +972,6 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         if hasattr(self, "_tag_alias_lookup"):
             data = resolve_tag_value_aliases(data, self._tag_alias_lookup)
-
         return data
 
     def _transform_data(self, groups, group_index, data):
