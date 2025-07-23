@@ -10,7 +10,6 @@ import uuid
 from enum import Enum
 from itertools import chain
 
-import pandas as pd
 from django_tenants.utils import schema_context
 
 from api.models import Provider
@@ -149,7 +148,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     return bills
 
 
-def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched_tags):
+def match_openshift_resources_and_labels(df, cluster_topologies, matched_tags):
     """Filter a dataframe to the subset that matches an OpenShift source."""
     nodes = chain.from_iterable(cluster_topology.get("nodes", []) for cluster_topology in cluster_topologies)
     volumes = chain.from_iterable(
@@ -160,58 +159,41 @@ def match_openshift_resources_and_labels(data_frame, cluster_topologies, matched
     )
     matchable_resources = [*nodes, *volumes, *csi_volume_handles]
     matchable_resources = [x for x in matchable_resources if x is not None and x != ""]
-    data_frame["resource_id_matched"] = False
-    resource_id_df = data_frame["resourceid"]
-
-    if not resource_id_df.eq("").all():
+    matchable_resources = "|".join(matchable_resources)
+    df["resource_id_matched"] = False
+    if not df["resourceid"].eq("").all():
         LOG.info("Matching OpenShift on Azure by resource ID.")
-        resource_id_matched = resource_id_df.str.contains("|".join(matchable_resources))
-        data_frame["resource_id_matched"] = resource_id_matched
+        df["resource_id_matched"] = df["resourceid"].str.contains(matchable_resources)
 
-    data_frame["special_case_tag_matched"] = False
-    tags = data_frame["tags"]
-    if not tags.eq("").all():
-        tags_lower = tags.str.lower()
+    df["special_case_tag_matched"] = False
+    if not df["tags"].eq("").all():
         LOG.info("Matching OpenShift on Azure by tags.")
-        special_case_tag_matched = tags_lower.str.contains(
-            "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+        df["special_case_tag_matched"] = (
+            df["tags"].str.lower().str.contains("openshift_cluster|openshift_project|openshift_node")
         )
-        data_frame["special_case_tag_matched"] = special_case_tag_matched
 
+    df["tag_matched"] = False
+    df["matched_tag"] = ""
     if matched_tags:
-        tag_keys = []
-        tag_values = []
+        tag_keys = set()
+        tag_values = set()
         for tag in matched_tags:
-            tag_keys.extend(list(tag.keys()))
-            tag_values.extend(list(tag.values()))
+            tag_keys.update(tag.keys())
+            tag_values.update(tag.values())
 
-        any_tag_matched = None
-        if not tags.eq("").all():
-            tag_matched = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
-            data_frame["tag_matched"] = tag_matched
-            any_tag_matched = tag_matched.any()
+        if not df["tags"].eq("").all():
+            tag_keys_re = "|".join(tag_keys)
+            tag_values_re = "|".join(tag_values)
+            df["tag_matched"] = df["tags"].str.contains(tag_keys_re) & df["tags"].str.contains(tag_values_re)
 
-        if any_tag_matched:
-            tag_df = pd.concat([tags, tag_matched], axis=1)
-            tag_df.columns = ("tags", "tag_matched")
-            tag_subset = tag_df[tag_df.tag_matched == True].tags  # noqa: E712
-
+        if df["tag_matched"].any():
             LOG.info("Matching OpenShift on Azure tags.")
+            df["matched_tag"] = (
+                df.loc[df["tag_matched"], "tags"].apply(match_openshift_labels, args=(matched_tags,)).fillna(value="")
+            )
 
-            matched_tag = tag_subset.apply(match_openshift_labels, args=(matched_tags,))
-            data_frame["matched_tag"] = matched_tag
-            data_frame["matched_tag"].fillna(value="", inplace=True)
-        else:
-            data_frame["tag_matched"] = False
-            data_frame["matched_tag"] = ""
-    else:
-        data_frame["tag_matched"] = False
-        data_frame["matched_tag"] = ""
-
-    openshift_matched_data_frame = data_frame[
-        (data_frame["resource_id_matched"] == True)  # noqa: E712
-        | (data_frame["special_case_tag_matched"] == True)  # noqa: E712
-        | (data_frame["matched_tag"] != "")  # noqa: E712
+    openshift_matched_data_frame = df[
+        df["resource_id_matched"] | df["special_case_tag_matched"] | (df["matched_tag"].str.len() > 0)
     ]
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)

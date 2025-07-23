@@ -49,7 +49,7 @@ WITH
             vm_map.vm_cpu_request_cores AS vm_cpu_cores,
             DATE(vm_map.interval_start) AS interval_day,
             vm_map.vm_name AS vm_name,
-            count(vm_map.interval_start) AS vm_interval_hours
+            sum(vm_map.vm_uptime_total_seconds) / 3600 AS vm_interval_hours
         FROM hive.{{schema | sqlsafe}}.openshift_vm_usage_line_items AS vm_map
         WHERE
             vm_map.source = {{source_uuid | string}}
@@ -74,7 +74,7 @@ SELECT
     lids.source_uuid,
     'Tag' AS monthly_cost_type,
     {{rate_type}} AS cost_model_rate_type,
-    {%- if value_rates is defined %}
+    {%- if value_rates is defined and value_rates %}
     CASE
         {%- for value, rate in value_rates.items() %}
         WHEN json_extract_scalar(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') = {{value}}

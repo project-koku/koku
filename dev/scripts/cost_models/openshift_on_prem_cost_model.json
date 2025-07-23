@@ -255,6 +255,45 @@
                 }
             ],
             "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "project_per_month"
+            },
+            "tag_rates": {
+                "tag_key": "cats",
+                "tag_values": [
+                    {
+                        "unit": "USD",
+                        "value": 50,
+                        "default": false,
+                        "tag_value": "nilla",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 100,
+                        "default": false,
+                        "tag_value": "sushi",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 25,
+                        "default": true,
+                        "tag_value": "fries",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 5,
+                        "default": false,
+                        "tag_value": "cinnamon",
+                        "description": ""
+                    }
+                ]
+            },
+            "cost_type": "Infrastructure"
         }
     ]
 }
