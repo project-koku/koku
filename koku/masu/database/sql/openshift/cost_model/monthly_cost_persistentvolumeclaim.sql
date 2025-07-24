@@ -109,6 +109,10 @@ WHERE lids.usage_start >= {{start_date}}::date
     AND lids.persistentvolumeclaim IS NOT NULL
     AND lids.data_source = 'Storage'
     AND monthly_cost_type IS NULL
+    AND (
+        lids.cost_model_rate_type IS NULL
+        OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+    )
     AND persistentvolumeclaim_capacity_gigabyte_months IS NOT NULL
     AND persistentvolumeclaim_capacity_gigabyte_months != 0
 GROUP BY lids.usage_start, lids.source_uuid, lids.cluster_id, lids.node, lids.namespace, lids.persistentvolumeclaim, lids.persistentvolume, lids.volume_labels, vc.pvc_count, lids.cost_category_id

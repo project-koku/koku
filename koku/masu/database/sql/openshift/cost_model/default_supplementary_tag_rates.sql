@@ -84,6 +84,10 @@ FROM (
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
     WHERE lids.cluster_id = {{cluster_id}}
         AND lids.usage_start >= {{start_date}}
+        AND (
+            lids.cost_model_rate_type IS NULL
+            OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+        )
         AND lids.usage_start <= {{end_date}}
         AND lids.{{labels_field | sqlsafe}} ? {{tag_key}}
         {% for pair in k_v_pair %}
