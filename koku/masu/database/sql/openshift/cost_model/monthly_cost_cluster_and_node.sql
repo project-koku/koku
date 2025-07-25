@@ -109,5 +109,9 @@ WHERE usage_start >= {{start_date}}::date
     AND node_capacity_cpu_core_hours != 0
     AND cluster_capacity_cpu_core_hours IS NOT NULL
     AND cluster_capacity_cpu_core_hours != 0
+    AND (
+            lids.cost_model_rate_type IS NULL
+            OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+        )
 GROUP BY usage_start, source_uuid, cluster_id, node, namespace, pod_labels, cost_category_id
 ;
