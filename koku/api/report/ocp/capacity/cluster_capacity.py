@@ -178,7 +178,9 @@ class ClusterCapacity:
         if not self.count_annotations:
             return False
 
-        node_instance_counts = self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations)
+        node_instance_counts = (
+            self.query.values(*["usage_start", "node"]).annotate(**self.count_annotations).filter(node__isnull=False)
+        )
 
         self._aggregate_capacity_count_by_cluster(node_instance_counts)
         self._aggregate_capacity_count_by_date(node_instance_counts)

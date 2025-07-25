@@ -66,7 +66,11 @@ class NodeCapacity:
         Creates and populates the capacity dataclass.
         """
         cap_key = list(self.capacity_annotations.keys())[0]
-        node_capacity_counts = self.query.values(*["usage_start", "node"]).annotate(**self.capacity_annotations)
+        node_capacity_counts = (
+            self.query.values(*["usage_start", "node"])
+            .annotate(**self.capacity_annotations)
+            .filter(node__isnull=False)
+        )
 
         # Count each node once. Use max capacity count if a node has multiple values
 
