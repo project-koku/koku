@@ -235,7 +235,7 @@ class ReportQueryHandler(QueryHandler):
         aws_category_parameters = []
         parameters = self.parameters.get(parameter_key, {})
         for filt in parameters:
-            if AWS_CATEGORY_PREFIX.replace(":", "") in filt and filt in self._aws_category:
+            if AWS_CATEGORY_PREFIX in filt and filt in self._aws_category:
                 aws_category_parameters.append(filt)
         return aws_category_parameters
 
@@ -693,10 +693,10 @@ class ReportQueryHandler(QueryHandler):
     def _get_aws_category_group_by(self):
         """Return list of aws_category based group by parameters."""
         group_by = []
-        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
+        if self._mapper.provider_map.get("aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
-            for aws_category in groups:
-                db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+            for idx, aws_category in enumerate(groups):
+                db_name = f"aws_category_{idx}"
                 aws_category = str.encode(aws_category)
                 aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
                 group_pos = self.parameters.url_data.index(aws_category)

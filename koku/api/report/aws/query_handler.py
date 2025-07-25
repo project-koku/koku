@@ -12,6 +12,7 @@ from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
+from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
@@ -89,14 +90,23 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         prefix_removed_parameters_list = list(
-            map(
-                lambda x: x if ":" not in x else x.split(":", maxsplit=1)[1],
-                self.parameters.get("group_by", {}).keys(),
-            )
+            x.split(":", maxsplit=1)[-1] for x in self.parameters.get("group_by", {}).keys()
         )
-        for q_param, db_field in fields.items():
-            if q_param in prefix_removed_parameters_list:
-                annotations[q_param] = F(db_field)
+        for param in prefix_removed_parameters_list:
+            if db_field := fields.get(param):
+                annotations[param] = F(db_field)
+        # prefixes = [("aws_category", "cost_category"), ("tag", "tag")]
+        # get the jsonfield prefixed fields from the group_by parameters
+        cats = self.get_aws_category_keys(parameter_key="group_by")
+        for i, c in enumerate(cats):
+            annotations[f"aws_category_{i}"] = KT(f"cost_category__{c.removeprefix('aws_category:')}")
+        # tags = self.get_tag_group_by_keys(parameter_key="group_by")
+        # for i, t in enumerate(tags):
+        #     annotations[f"tag_{i}"] = KT(f"tag__{t.strip('tag:')}")
+
+        # for q_param, db_field in fields.items():
+        #     if q_param in prefix_removed_parameters_list:
+        #         annotations[q_param] = F(db_field)
         return annotations
 
     def _contains_disabled_aws_category_keys(self):
