@@ -794,11 +794,9 @@ class ReportQueryHandler(QueryHandler):
 
         return out_data
 
-    def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = []):
-        """build grouping prefix"""
-        if not (group.startswith("INTERNAL_tags_") or group.startswith("INTERNAL_aws_category_")):
-            return group
-
+    @cached_property
+    def _clean_prefix_lookups(self):
+        """Build lookups for clean_prefix_grouping_labels."""
         lookups = {tag_db_name: (original_tag, TAG_PREFIX) for tag_db_name, _, original_tag in self._tag_group_by}
         lookups.update(
             {
@@ -806,11 +804,18 @@ class ReportQueryHandler(QueryHandler):
                 for aws_category_db_name, _, original_aws_category in self._aws_category_group_by
             }
         )
+        return lookups
+
+    def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = []):
+        """build grouping prefix"""
+        if not (group.startswith("INTERNAL_tags_") or group.startswith("INTERNAL_aws_category_")):
+            return group
+
         check_pack_prefix = None
         suffix = "s" if group.endswith("s") else ""
         group = group.removesuffix("s")
-        if group in lookups:
-            group, check_pack_prefix = lookups[group]
+        if group in self._clean_prefix_lookups:
+            group, check_pack_prefix = self._clean_prefix_lookups[group]
         if check_pack_prefix and group in all_pack_keys:
             group = check_pack_prefix + group
 
