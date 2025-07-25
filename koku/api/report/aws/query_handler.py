@@ -97,12 +97,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 annotations[param] = F(db_field)
         # prefixes = [("aws_category", "cost_category"), ("tag", "tag")]
         # get the jsonfield prefixed fields from the group_by parameters
-        cats = self.get_aws_category_keys(parameter_key="group_by")
-        for i, c in enumerate(cats):
-            annotations[f"aws_category_{i}"] = KT(f"cost_category__{c.split('aws_category:', maxsplit=1)[-1]}")
-        tags = self.get_tag_group_by_keys()
-        for i, t in enumerate(tags):
-            annotations[f"tag_{i}"] = KT(f"{self._mapper.tag_column}__{t.split('tag:', maxsplit=1)[-1]}")
+        for cat_db_name, _, original_cat in self._aws_category_group_by:
+            annotations[cat_db_name] = KT(f"cost_category__{original_cat}")
+        for tag_db_name, _, original_tag in self._tag_group_by:
+            annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
         # for q_param, db_field in fields.items():
         #     if q_param in prefix_removed_parameters_list:

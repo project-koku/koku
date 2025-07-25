@@ -111,10 +111,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
             if group_by_fields.get(group_key):
                 for q_param, db_field in group_by_fields[group_key].items():
                     annotations[q_param] = Concat(db_field, Value(""))
-        tags = self.get_tag_group_by_keys()
-        for i, t in enumerate(tags):
-            annotations[f"tag_{i}"] = KT(f"{self._mapper.tag_column}__{t.split('tag:', maxsplit=1)[-1]}")
-
+        for tag_db_name, _, original_tag in self._tag_group_by:
+            annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
         return annotations
 
     def _format_query_response(self):

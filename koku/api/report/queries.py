@@ -651,9 +651,9 @@ class ReportQueryHandler(QueryHandler):
                 if (item, group_pos) not in group_by:
                     group_by.append((item, group_pos))
 
-        tag_group_by = self._get_tag_group_by()
+        tag_group_by = self._tag_group_by
         group_by.extend(tag_group_by)
-        group_by.extend(self._get_aws_category_group_by())
+        group_by.extend(self._aws_category_group_by)
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
 
@@ -667,29 +667,31 @@ class ReportQueryHandler(QueryHandler):
 
         return group_by
 
-    def _get_tag_group_by(self):
+    @cached_property
+    def _tag_group_by(self) -> list[tuple[str, int, str]]:
         """Create list of tag-based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
-        for idx, tag in enumerate(tag_groups):
+        for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            tag_db_name = f"tag_{idx}"
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
             group_pos = self.parameters.url_data.index(encoded_tag_url)
-            group_by.append((tag_db_name, group_pos))
+            tag_db_name = f"INTERNAL_{self._mapper.tag_column}_{group_pos}"
+            group_by.append((tag_db_name, group_pos, original_tag))
         return group_by
 
-    def _get_aws_category_group_by(self):
+    @cached_property
+    def _aws_category_group_by(self) -> list[tuple[str, int, str]]:
         """Return list of aws_category based group by parameters."""
         group_by = []
-        if self._mapper.provider_map.get("aws_category_column"):
+        if col := self._mapper.provider_map.get("aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
-            for idx, aws_category in enumerate(groups):
-                db_name = f"aws_category_{idx}"
+            for aws_category in groups:
                 aws_category = str.encode(aws_category)
                 aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
                 group_pos = self.parameters.url_data.index(aws_category)
-                group_by.append((db_name, group_pos))
+                db_name = f"INTERNAL_{col}_{group_pos}"
+                group_by.append((db_name, group_pos, aws_category))
         return group_by
 
     @cached_property
@@ -792,19 +794,27 @@ class ReportQueryHandler(QueryHandler):
 
         return out_data
 
-    def _clean_prefix_grouping_labels(self, group, all_pack_keys=[]):
+    def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = []):
         """build grouping prefix"""
+        if not (group.startswith("INTERNAL_tags_") or group.startswith("INTERNAL_aws_category_")):
+            return group
+
+        lookups = {tag_db_name: (original_tag, TAG_PREFIX) for tag_db_name, _, original_tag in self._tag_group_by}
+        lookups.update(
+            {
+                aws_category_db_name: (original_aws_category, AWS_CATEGORY_PREFIX)
+                for aws_category_db_name, _, original_aws_category in self._aws_category_group_by
+            }
+        )
         check_pack_prefix = None
-        prefix_mapping = {TAG_PREFIX: self._mapper.tag_column}
-        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
-            prefix_mapping[AWS_CATEGORY_PREFIX] = aws_category_column
-        for prefix, db_column in prefix_mapping.items():
-            if group.startswith(db_column + "__"):
-                group = group[len(db_column + "__") :]  # noqa
-                check_pack_prefix = prefix
+        suffix = "s" if group.endswith("s") else ""
+        group = group.removesuffix("s")
+        if group in lookups:
+            group, check_pack_prefix = lookups[group]
         if check_pack_prefix and group in all_pack_keys:
             group = check_pack_prefix + group
-        return group
+
+        return group + suffix
 
     def _apply_group_null_label(self, data, groupby=None):
         """Apply any no-{group} labels needed before grouping data.

@@ -448,8 +448,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_monthly_start_and_end_volume_group_bys(self):
         """Test the volume capacities of a monthly volume report with various group bys"""
         base_url = (
-            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"
-            f"&filter[resolution]=monthly"
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
         )
         group_bys = [
             ["cluster"],
@@ -509,8 +508,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_node_capacity_monthly_start_and_end_volume_group_bys(self):
         """Test the volume capacities of a monthly volume report with various group bys"""
         base_url = (
-            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"
-            f"&filter[resolution]=monthly"
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
         )
         group_bys = [
             ["node"],
@@ -866,7 +864,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = f"?group_by[tag:{group_by_key}]={group_by_value}"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        group_by = handler._get_tag_group_by()
+        group_by = handler._tag_group_by()
         group = group_by[0]
         expected = "pod_labels__" + group_by_key
         self.assertEqual(len(group_by), 1)
