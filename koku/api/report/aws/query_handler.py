@@ -22,6 +22,7 @@ from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import AWS_MARKUP_COST
 from api.report.queries import ReportQueryHandler
 from api.report.queries import strip_prefix
+from api.utils import safe_column_alias
 from reporting.provider.aws.models import AWSEnabledCategoryKeys
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -96,7 +97,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         )
         for q_param, db_field in fields.items():
             if q_param in prefix_removed_parameters_list:
-                annotations[q_param] = F(db_field)
+                alias = safe_column_alias(q_param)
+                annotations[alias] = F(db_field)
         return annotations
 
     def _contains_disabled_aws_category_keys(self):

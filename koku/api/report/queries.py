@@ -18,6 +18,7 @@ from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote
 from urllib.parse import quote_from_bytes
+from urllib.parse import unquote
 
 import ciso8601
 import numpy as np
@@ -46,6 +47,7 @@ from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
+from api.utils import safe_column_alias
 
 LOG = logging.getLogger(__name__)
 
@@ -106,6 +108,25 @@ def sanitize_tag(tag):
     return sanitized_tag
 
 
+def restore_tag_alias(value, alias_lookup, prefix="No-"):
+    """
+    Restore the original tag value from an alias.
+    Example:
+        "Tirea_app_group" → "Tirea/app-group"
+        "No-Tirea_app_group" → "No-Tirea/app-group"
+    """
+    if not isinstance(value, str):
+        return value
+
+    # Avoid restoring if the prefix was already part of the original value
+    if value.startswith(prefix):
+        if (original := alias_lookup.get(value[len(prefix) :])) and not original.startswith(prefix):
+            return f"{prefix}{original}"
+    elif original := alias_lookup.get(value):
+        return original
+    return value
+
+
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
@@ -134,6 +155,8 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
 
         self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
+        self._tag_alias_lookup = {}
+        self._tag_plural_alias_lookup = {}
 
     @cached_property
     def query_table_access_keys(self):
@@ -683,11 +706,15 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            sanitized_tag = sanitize_tag(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
             group_pos = self.parameters.url_data.index(encoded_tag_url)
-            group_by.append((tag_db_name, group_pos))
+            safe_tag = safe_column_alias(original_tag)
+            tag_db_name = self._mapper.tag_column + "__" + safe_tag
+
+            # Store the original tag and plural alias for later use
+            self._tag_alias_lookup[safe_tag] = original_tag
+            self._tag_plural_alias_lookup[safe_tag + "s"] = original_tag + "s"
+            group_by.append((tag_db_name, group_pos, original_tag))
         return group_by
 
     def _get_aws_category_group_by(self):
@@ -696,10 +723,12 @@ class ReportQueryHandler(QueryHandler):
         if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
-                db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
-                aws_category = str.encode(aws_category)
-                aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
-                group_pos = self.parameters.url_data.index(aws_category)
+                original_tag = strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                decoded_tag = unquote(original_tag)
+                safe_tag = safe_column_alias(decoded_tag)
+                db_name = f"{aws_category_column}__{safe_tag}"
+                encoded_url_key = quote(decoded_tag, safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(encoded_url_key)
                 group_by.append((db_name, group_pos))
         return group_by
 
@@ -899,8 +928,6 @@ class ReportQueryHandler(QueryHandler):
                         new_key = group_info.get("key")
                         if data.get(group_key):
                             if isinstance(data[group_key], str):
-                                # This if is to overwrite the "cost": "No-cost"
-                                # that is provided by the order_by function.
                                 data[group_key] = {}
                         else:
                             data[group_key] = {}
@@ -917,6 +944,7 @@ class ReportQueryHandler(QueryHandler):
                     value = data.get(key)
                     if value is not None and units is not None:
                         data[key] = {"value": value, "units": units}
+
             if units is not None:
                 del data[key_units]
             for key in remove_keys:
@@ -926,6 +954,10 @@ class ReportQueryHandler(QueryHandler):
         new_data = {}
         for data_key in data.keys():
             clean_prefix = self._clean_prefix_grouping_labels(data_key, all_pack_keys)
+            if self._tag_alias_lookup:
+                tag_original = self._tag_alias_lookup.get(clean_prefix)
+                if tag_original:
+                    clean_prefix = tag_original
             if clean_prefix != data_key:
                 new_data[clean_prefix] = data[data_key]
                 delete_keys.append(data_key)
@@ -933,6 +965,9 @@ class ReportQueryHandler(QueryHandler):
             if data.get(del_key):
                 del data[del_key]
         data.update(new_data)
+        for key, val in data.items():
+            if isinstance(val, str):
+                data[key] = restore_tag_alias(val, self._tag_alias_lookup)
         return data
 
     def _transform_data(self, groups, group_index, data):
@@ -948,14 +983,20 @@ class ReportQueryHandler(QueryHandler):
         label = "values"
         group_type = groups[group_index]
         next_group_index = group_index + 1
-
         if next_group_index < groups_len:
             label = groups[next_group_index] + "s"
             label = self._clean_prefix_grouping_labels(label)
+            if self._tag_plural_alias_lookup:
+                label = self._tag_plural_alias_lookup.get(label, label)
 
         for group, group_value in data.items():
             group_title = self._clean_prefix_grouping_labels(group_type)
-            group_label = group
+            if "__" in group_type:
+                prefix, tag_key = group_type.split("__", 1)
+                if prefix == self._mapper.tag_column:
+                    if original_tag := self._tag_alias_lookup.get(tag_key):
+                        group_title = original_tag
+            group_label = restore_tag_alias(group, self._tag_alias_lookup)
             if group is None:
                 group_label = f"No-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
