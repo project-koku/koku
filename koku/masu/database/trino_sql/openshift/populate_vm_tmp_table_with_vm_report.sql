@@ -37,6 +37,4 @@ ON pvc.vm_name = latest.vm_name
 WHERE pvc.source = {{source_uuid | string}}
 AND pvc.year = {{year}}
 AND pvc.month = {{month}}
-AND pvc.vm_persistentvolumeclaim_name IS NOT NULL
-AND pvc.vm_persistentvolumeclaim_name != ''
 GROUP BY latest.vm_name, latest.node, pvc.vm_persistentvolumeclaim_name
