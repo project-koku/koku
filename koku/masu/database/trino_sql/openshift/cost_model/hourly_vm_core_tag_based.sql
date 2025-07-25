@@ -104,7 +104,10 @@ WHERE
     AND lids.data_source = 'Pod'
     AND lids.pod_usage_cpu_core_hours IS NOT NULL
     AND lids.pod_request_cpu_core_hours IS NOT NULL
-    AND lids.monthly_cost_type IS NULL
+    AND (
+        lids.cost_model_rate_type IS NULL
+        OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+    )
 {%- if default_rate is defined %}
     AND json_extract(lids.pod_labels, '$.{{ tag_key|sqlsafe }}') IS NOT NULL
 {%- else %}

@@ -63,6 +63,10 @@ WHERE usage_start >= {{start_date}}::date
     AND pod_request_cpu_core_hours IS NOT NULL
     AND pod_request_cpu_core_hours != 0
     AND monthly_cost_type IS NULL
+    AND (
+        lids.cost_model_rate_type IS NULL
+        OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+    )
     {%- if default_rate is defined %}
     AND all_labels ? {{tag_key}}
     {%- elif value_rates is defined %}

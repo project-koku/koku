@@ -156,6 +156,10 @@ WHERE lids.usage_start >= {{start_date}}
     AND lids.source_uuid = {{source_uuid}}
     AND lids.report_period_id = {{report_period_id}}
     AND lids.namespace IS NOT NULL
+    AND (
+        lids.cost_model_rate_type IS NULL
+        OR lids.cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+    )
 GROUP BY lids.usage_start,
     lids.cluster_id,
     lids.node,
