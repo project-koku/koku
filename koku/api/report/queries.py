@@ -681,10 +681,11 @@ class ReportQueryHandler(QueryHandler):
         """Create list of tag-based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
-        for tag in tag_groups:
+        for idx, tag in enumerate(tag_groups):
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            sanitized_tag = sanitize_tag(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
+            # sanitized_tag = sanitize_tag(original_tag)
+            # tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
+            tag_db_name = f"tag_{idx}"
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
             group_pos = self.parameters.url_data.index(encoded_tag_url)
             group_by.append((tag_db_name, group_pos))

@@ -100,9 +100,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         cats = self.get_aws_category_keys(parameter_key="group_by")
         for i, c in enumerate(cats):
             annotations[f"aws_category_{i}"] = KT(f"cost_category__{c.removeprefix('aws_category:')}")
-        # tags = self.get_tag_group_by_keys(parameter_key="group_by")
-        # for i, t in enumerate(tags):
-        #     annotations[f"tag_{i}"] = KT(f"tag__{t.strip('tag:')}")
+        tags = self.get_tag_group_by_keys()
+        for i, t in enumerate(tags):
+            annotations[f"tag_{i}"] = KT(f"{self._mapper.tag_column}__{t.removeprefix('tag:')}")
 
         # for q_param, db_field in fields.items():
         #     if q_param in prefix_removed_parameters_list:
