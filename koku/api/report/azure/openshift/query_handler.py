@@ -8,6 +8,7 @@ import copy
 from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Value
+from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
@@ -62,6 +63,10 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 annotations["project"] = Coalesce(F("cost_category__name"), F("namespace"), output_field=CharField())
             else:
                 annotations["project"] = F("namespace")
+
+        tags = self.get_tag_group_by_keys()
+        for i, t in enumerate(tags):
+            annotations[f"tag_{i}"] = KT(f"{self._mapper.tag_column}__{t.split('tag:', maxsplit=1)[-1]}")
 
         return annotations
 

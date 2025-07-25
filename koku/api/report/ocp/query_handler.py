@@ -17,6 +17,7 @@ from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Value
 from django.db.models import When
+from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
@@ -141,6 +142,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 self.report_annotations.update(
                     self._mapper.report_type_map.get("capacity_aggregate", {}).get("node", {})
                 )
+        tags = self.get_tag_group_by_keys()
+        for i, t in enumerate(tags):
+            annotations[f"tag_{i}"] = KT(f"{self._mapper.tag_column}__{t.split('tag:', maxsplit=1)[-1]}")
 
         return annotations
 
