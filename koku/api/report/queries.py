@@ -808,7 +808,10 @@ class ReportQueryHandler(QueryHandler):
 
     def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = []):
         """build grouping prefix"""
-        if not (group.startswith("INTERNAL_tags_") or group.startswith("INTERNAL_aws_category_")):
+        if not (
+            group.startswith(f"INTERNAL_{self._mapper.tag_column}_")
+            or group.startswith(f"INTERNAL_{self._mapper.provider_map.get('aws_category_column')}_")
+        ):
             return group
 
         check_pack_prefix = None
@@ -1060,7 +1063,7 @@ class ReportQueryHandler(QueryHandler):
 
         return sorted_data
 
-    def get_tag_order_by(self, tag):
+    def get_tag_order_by(self, tag_column, tag_value):
         """Generate an OrderBy clause forcing JSON column->key to be used.
 
         This is only for helping to create a Window() for purposes of grouping
@@ -1074,8 +1077,7 @@ class ReportQueryHandler(QueryHandler):
             OrderBy: A Django OrderBy clause using raw SQL
 
         """
-        descending = True if self.order_direction == "desc" else False
-        tag_column, tag_value = tag.split("__")
+        descending = self.order_direction == "desc"
         return OrderBy(RawSQL(f"{tag_column} -> %s", (tag_value,)), descending=descending)
 
     def _percent_delta(self, a, b):
@@ -1135,7 +1137,10 @@ class ReportQueryHandler(QueryHandler):
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
         if tag_column in gb[0]:
-            rank_orders.append(self.get_tag_order_by(gb[0]))
+            for tag_gb in self._tag_group_by:
+                if gb[0] == tag_gb[0]:
+                    rank_orders.append(self.get_tag_order_by(tag_column, tag_gb[2]))
+                    break
 
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")

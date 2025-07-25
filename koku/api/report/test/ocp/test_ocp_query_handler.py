@@ -864,7 +864,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = f"?group_by[tag:{group_by_key}]={group_by_value}"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        group_by = handler._tag_group_by()
+        group_by = handler._tag_group_by
         group = group_by[0]
         expected = "pod_labels__" + group_by_key
         self.assertEqual(len(group_by), 1)
