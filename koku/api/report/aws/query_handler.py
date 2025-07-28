@@ -95,16 +95,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
         for param in prefix_removed_parameters_list:
             if db_field := fields.get(param):
                 annotations[param] = F(db_field)
-        # prefixes = [("aws_category", "cost_category"), ("tag", "tag")]
-        # get the jsonfield prefixed fields from the group_by parameters
-        for cat_db_name, _, original_cat in self._aws_category_group_by:
-            annotations[cat_db_name] = KT(f"{self._mapper.aws_category_column}__{original_cat}")
+
+        if hasattr(self._mapper, "aws_category_column"):
+            for cat_db_name, _, original_cat in self._aws_category_group_by:
+                annotations[cat_db_name] = KT(f"{self._mapper.aws_category_column}__{original_cat}")
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 
-        # for q_param, db_field in fields.items():
-        #     if q_param in prefix_removed_parameters_list:
-        #         annotations[q_param] = F(db_field)
         return annotations
 
     def _contains_disabled_aws_category_keys(self):

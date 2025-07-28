@@ -83,6 +83,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
+
         return annotations
 
     def _format_query_response(self):

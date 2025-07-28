@@ -144,6 +144,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 )
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
+
         return annotations
 
     @cached_property
