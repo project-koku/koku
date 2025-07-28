@@ -83,6 +83,10 @@ WITH cte_node_cost as (
             AND source_uuid = {{source_uuid}}
             AND node IS NOT NULL
             AND node != ''
+            AND (
+                cost_model_rate_type IS NULL
+                OR cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+            )
         GROUP BY usage_start, node
     )
 )
