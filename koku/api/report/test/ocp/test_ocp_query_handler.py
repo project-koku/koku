@@ -866,23 +866,25 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPReportQueryHandler(query_params)
         group_by = handler._tag_group_by
         group = group_by[0]
-        expected = "pod_labels__" + group_by_key
+        expected = f"INTERNAL_{handler._mapper.tag_column}_{group[1]}"
         self.assertEqual(len(group_by), 1)
         self.assertEqual(group[0], expected)
+        self.assertEqual(group[2], group_by_key)
 
     def test_get_tag_order_by(self):
         """Verify that a propery order by is returned."""
-        tag = "pod_labels__key"
-        expected_param = (tag.split("__")[1],)
+        column = "pod_labels"
+        value = "key"
+        expected_param = (value,)
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        result = handler.get_tag_order_by(tag)
+        result = handler.get_tag_order_by(column, value)
         expression = result.expression
 
         self.assertIsInstance(result, OrderBy)
-        self.assertEqual(expression.sql, "pod_labels -> %s")
+        self.assertEqual(expression.sql, f"{column} -> %s")
         self.assertEqual(expression.params, expected_param)
 
     def test_filter_by_infrastructure_ocp_on_aws(self):

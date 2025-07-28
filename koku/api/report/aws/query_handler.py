@@ -98,7 +98,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # prefixes = [("aws_category", "cost_category"), ("tag", "tag")]
         # get the jsonfield prefixed fields from the group_by parameters
         for cat_db_name, _, original_cat in self._aws_category_group_by:
-            annotations[cat_db_name] = KT(f"cost_category__{original_cat}")
+            annotations[cat_db_name] = KT(f"{self._mapper.aws_category_column}__{original_cat}")
         for tag_db_name, _, original_tag in self._tag_group_by:
             annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
 

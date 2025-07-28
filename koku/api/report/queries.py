@@ -17,7 +17,6 @@ from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote
-from urllib.parse import quote_from_bytes
 
 import ciso8601
 import numpy as np
@@ -271,16 +270,16 @@ class ReportQueryHandler(QueryHandler):
         )
         # aws_category prefixed filters
         aws_category_exclusion_composed = None
-        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
+        if hasattr(self._mapper, "aws_category_column"):
             aws_category_filters = self.get_aws_category_keys("filter")
             aws_category_group_by = self.get_aws_category_keys("group_by")
             aws_category_filters.extend(aws_category_group_by)
             filter_collection = self._set_prefix_based_filters(
-                filter_collection, aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
+                filter_collection, self._mapper.aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
             )
             aws_category_exclude_filters = self.get_aws_category_keys("exclude")
             aws_category_exclusion_composed = self._set_prefix_based_exclusions(
-                aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
+                self._mapper.aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
             )
 
         composed_filters = filter_collection.compose()
@@ -684,14 +683,14 @@ class ReportQueryHandler(QueryHandler):
     def _aws_category_group_by(self) -> list[tuple[str, int, str]]:
         """Return list of aws_category based group by parameters."""
         group_by = []
-        if col := self._mapper.provider_map.get("aws_category_column"):
+        if hasattr(self._mapper, "aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
-                aws_category = str.encode(aws_category)
-                aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
-                group_pos = self.parameters.url_data.index(aws_category)
-                db_name = f"INTERNAL_{col}_{group_pos}"
-                group_by.append((db_name, group_pos, aws_category))
+                original_aws_category = strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                encoded_aws_category = quote(original_aws_category, safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(encoded_aws_category)
+                db_name = f"INTERNAL_{self._mapper.aws_category_column}_{group_pos}"
+                group_by.append((db_name, group_pos, original_aws_category))
         return group_by
 
     @cached_property
@@ -808,10 +807,10 @@ class ReportQueryHandler(QueryHandler):
 
     def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = []):
         """build grouping prefix"""
-        if not (
-            group.startswith(f"INTERNAL_{self._mapper.tag_column}_")
-            or group.startswith(f"INTERNAL_{self._mapper.provider_map.get('aws_category_column')}_")
-        ):
+        internal_prefixes = [f"INTERNAL_{self._mapper.tag_column}_"]
+        if hasattr(self._mapper, "aws_category_column"):
+            internal_prefixes.append(f"INTERNAL_{self._mapper.aws_category_column}_")
+        if not any(group.startswith(prefix) for prefix in internal_prefixes):
             return group
 
         check_pack_prefix = None
