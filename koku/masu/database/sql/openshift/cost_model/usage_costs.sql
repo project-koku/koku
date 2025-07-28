@@ -83,6 +83,10 @@ WITH cte_node_cost as (
             AND source_uuid = {{source_uuid}}
             AND node IS NOT NULL
             AND node != ''
+            AND (
+                cost_model_rate_type IS NULL
+                OR cost_model_rate_type NOT IN ('Infrastructure', 'Supplementary')
+            )
         GROUP BY usage_start, node
     )
 )
@@ -96,7 +100,21 @@ SELECT uuid_generate_v4(),
     lids.namespace,
     lids.node,
     max(lids.resource_id) as resource_id,
-    lids.pod_labels,
+    lids.pod_labels || (
+        -- Explicitly listing parameters to ensure values are correctly substituted
+        ' {
+            "cpu_core_usage_per_hour": {{ cpu_usage_rate | tojson }},
+            "cpu_core_request_per_hour": {{ cpu_request_rate | tojson }},
+            "cpu_core_effective_usage_per_hour": {{ cpu_effective_rate | tojson }},
+            "node_core_cost_per_hour": {{ node_core_hour_rate | tojson }},
+            "cluster_core_cost_per_hour": {{ cluster_core_hour_rate | tojson }},
+            "memory_gb_usage_per_hour": {{ memory_usage_rate | tojson }},
+            "memory_gb_request_per_hour": {{ memory_request_rate | tojson }},
+            "memory_gb_effective_usage_per_hour": {{ memory_effective_rate | tojson }},
+            "storage_gb_usage_per_month": {{ volume_usage_rate | tojson }},
+            "storage_gb_request_per_month": {{ volume_request_rate | tojson }}
+        } '
+    )::jsonb,
     NULL as pod_usage_cpu_core_hours,
     NULL as pod_request_cpu_core_hours,
     NULL as pod_effective_usage_cpu_core_hours,

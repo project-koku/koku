@@ -29,7 +29,11 @@ SELECT uuid_generate_v4(),
     namespace,
     node,
     max(resource_id) AS resource_id,
-    pod_labels,
+    {%- if default_rate is defined %}
+    pod_labels || '{"metric": "vm_cost_per_month_tag"}'::jsonb,
+    {% else %}
+    pod_labels || '{"metric": "vm_cost_per_month"}'::jsonb,
+    {% endif %}
     all_labels,
     source_uuid,
     {{rate_type}} AS cost_model_rate_type,

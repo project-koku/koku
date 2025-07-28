@@ -711,9 +711,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             metric_constants.OCP_VM_HOUR: {
                 "file_path": "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql",
                 "log_msg": "populating virtual machine hourly costs",
-                "metric_params": {
-                    "use_fractional_hours": trino_table_exists(self.schema, "openshift_vm_usage_line_items")
-                },
+                "metric_params": {"use_fractional_hours": False},
             },
             metric_constants.OCP_VM_CORE_HOUR: {
                 "file_path": "trino_sql/openshift/cost_model/hourly_vm_core.sql",
@@ -1280,9 +1278,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             return
 
         monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
-        fractional_hour_params = {
-            "use_fractional_hours": trino_table_exists(self.schema, "openshift_vm_usage_line_items")
-        }
+        fractional_hour_params = {"use_fractional_hours": False}
 
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {

@@ -68,7 +68,7 @@ SELECT
     lids.namespace,
     max(latest.node_name) AS node,
     max(latest.resource_id) AS resource_id,
-    lids.pod_labels,
+    json_parse('{"metric": "vm_core_cost_per_month_tag"}'),
     lids.all_labels,
     lids.source_uuid,
     'Tag' AS monthly_cost_type,

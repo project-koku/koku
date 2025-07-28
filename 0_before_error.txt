@@ -1,0 +1,54 @@
+       cpu_cost       |     memory_cost      |    volume_cost     | monthly_cost_type |     namespace      |     node     | usage_start |                                                                                                                                                                                                              pod_labels
+----------------------+----------------------+--------------------+-------------------+--------------------+--------------+-------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Volume Costs = original_cost * 10
+    0.000000000000000 |    0.000000000000000 | 16.129032258064516 | PVC               | smoke_test         | node-tests   | 2025-07-28  | {"metric": "pvc_cost_per_month_tag"}
+    0.000000000000000 |    0.000000000000000 | 16.129032258064516 | PVC               | smoke_test         | node-tests-2 | 2025-07-28  | {"metric": "pvc_cost_per_month_tag"}
+    0.000000000000000 |    0.000000000000000 | 15.322580645161300 | Tag               | smoke_test         | node-tests   | 2025-07-28  |
+    0.000000000000000 |    0.000000000000000 | 20.430107526881700 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  |
+# VM Costs = original_cost * 10 * 3
+  684.000000000000000 |                      |                    | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"metric": "vm_core_cost_per_hour_tag"}
+  855.000000000000000 |                      |                    | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"metric": "vm_core_cost_per_hour_tag"}
+   38.709677419354840 |                      |                    | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"metric": "vm_core_cost_per_month_tag"}
+   48.387096774193550 |                      |                    | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"metric": "vm_core_cost_per_month_tag"}
+  285.000000000000000 |                      |                    | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"metric": "vm_cost_per_hour_tag"}
+  285.000000000000000 |                      |                    | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"metric": "vm_cost_per_hour_tag"}
+   14.516129032258065 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "vm_cost_per_month_tag", "vm_kubevirt_io_name": "firstcostmodelvm"}
+   14.516129032258065 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "vm_cost_per_month_tag", "vm_kubevirt_io_name": "secondcostmodelvm"}
+
+# Cluster Costs = original_cost * 10
+  117.302052785923754 |    0.000000000000000 |  0.000000000000000 | Cluster           | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "cluster_cost_per_month", "vm_kubevirt_io_name": "firstcostmodelvm"}
+  146.627565982404692 |    0.000000000000000 |  0.000000000000000 | Cluster           | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "cluster_cost_per_month", "vm_kubevirt_io_name": "secondcostmodelvm"}
+   29.325513196480938 |    0.000000000000000 |  0.000000000000000 | Cluster           | Worker unallocated | node-tests   | 2025-07-28  |
+   29.325513196480938 |    0.000000000000000 |  0.000000000000000 | Cluster           | Worker unallocated | node-tests-2 | 2025-07-28  |
+
+
+# USAGE RATES CPU COSTS = original_cost * 10
+ 1272.012987012987013 |    0.000000000000000 |  0.000000000000000 |                   | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "vm_kubevirt_io_name": "secondcostmodelvm", "cpu_core_usage_per_hour": 0, "node_core_cost_per_hour": 0, "memory_gb_usage_per_hour": 0, "cpu_core_request_per_hour": 0, "cluster_core_cost_per_hour": "13.0000000000", "memory_gb_request_per_hour": 0, "storage_gb_usage_per_month": 0, "storage_gb_request_per_month": 0, "cpu_core_effective_usage_per_hour": 0, "memory_gb_effective_usage_per_hour": 0}
+ 1018.481283422459893 |    0.000000000000000 |  0.000000000000000 |                   | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "vm_kubevirt_io_name": "firstcostmodelvm", "cpu_core_usage_per_hour": 0, "node_core_cost_per_hour": 0, "memory_gb_usage_per_hour": 0, "cpu_core_request_per_hour": 0, "cluster_core_cost_per_hour": "13.0000000000", "memory_gb_request_per_hour": 0, "storage_gb_usage_per_month": 0, "storage_gb_request_per_month": 0, "cpu_core_effective_usage_per_hour": 0, "memory_gb_effective_usage_per_hour": 0}
+  760.000000000000000 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "cpu_core_effective_usage_per_hour"}
+  760.000000000000000 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "cpu_core_request_per_hour"}
+  380.000000000000000 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "cpu_core_usage_per_hour"}
+  950.000000000000000 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "cpu_core_effective_usage_per_hour_default", "vm_kubevirt_io_name": "secondcostmodelvm"}
+  950.000000000000000 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "cpu_core_request_per_hour_default", "vm_kubevirt_io_name": "secondcostmodelvm"}
+  570.000000000000000 |    0.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "cpu_core_usage_per_hour_default", "vm_kubevirt_io_name": "secondcostmodelvm"}
+- 1272.013 + 1018.48 + 760 + 760 + 380 + 950 + 950 + 570
+-> 6660.493
+
+6826.18181818 - 6660.493 = 165.68881818
+
+Expected costs = 682.618181818 * 10 = 6826.18181818
+
+## USAGE RATES Memory COSTS = original_costs * 10
+    0.000000000000000 | 5700.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "memory_gb_effective_usage_per_hour"}
+    0.000000000000000 |  570.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "memory_gb_request_per_hour"}
+    0.000000000000000 |  190.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests   | 2025-07-28  | {"app": "ratetesting", "metric": "memory_gb_usage_per_hour"}
+    0.000000000000000 | 7600.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "memory_gb_effective_usage_per_hour_default", "vm_kubevirt_io_name": "secondcostmodelvm"}
+    0.000000000000000 |  760.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "memory_gb_request_per_hour_default", "vm_kubevirt_io_name": "secondcostmodelvm"}
+    0.000000000000000 |  380.000000000000000 |  0.000000000000000 | Tag               | smoke_test         | node-tests-2 | 2025-07-28  | {"app": "metrictesting", "metric": "memory_gb_usage_per_hour_default", "vm_kubevirt_io_name": "secondcostmodelvm"}
+  5700 + 570 + 190 + 7600 + 760 + 380 = 15200
+Memory costs looks correct cause it is exactly 10x the original costs
+
+# Worker Unallocated = ???
+
+  254.402597402597403 |    0.000000000000000 |  0.000000000000000 |                   | Worker unallocated | node-tests-2 | 2025-07-28  |
+  254.620320855614973 |    0.000000000000000 |  0.000000000000000 |                   | Worker unallocated | node-tests   | 2025-07-28  |

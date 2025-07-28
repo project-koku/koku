@@ -75,7 +75,7 @@ cte_filtered_data AS (
         lids.namespace,
         lids.node,
         max(lids.resource_id) as resource_id,
-        NULL::jsonb as pod_labels,
+        '{"metric": "pvc_cost_per_month_tag"}'::jsonb as pod_labels,
         NULL::decimal as pod_usage_cpu_core_hours,
         NULL::decimal as pod_request_cpu_core_hours,
         NULL::decimal as pod_effective_usage_cpu_core_hours,

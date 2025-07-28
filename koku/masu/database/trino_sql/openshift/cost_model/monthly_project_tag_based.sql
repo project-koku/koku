@@ -88,7 +88,7 @@ SELECT
     fd.usage_start as usage_end,
     fd.namespace,
     fd.node,
-    fd.filtered_namespace_labels as pod_labels,
+    json_parse('{"metric": "project_per_month"}') as pod_labels,
     fd.filtered_namespace_labels as all_labels,
     CAST({{source_uuid}} AS uuid),
     'Tag' AS monthly_cost_type,

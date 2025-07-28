@@ -69,7 +69,7 @@ FROM (
         lids.persistentvolume,
         lids.storageclass,
         lids.source_uuid,
-        lids.{{labels_field | sqlsafe}},
+        lids.{{labels_field | sqlsafe}} || '{"file": "default_supplementary_tag_rates.sql"}'::jsonb,
         CASE
             WHEN {{metric}}='cpu_core_usage_per_hour' THEN sum(lids.pod_usage_cpu_core_hours)
             WHEN {{metric}}='cpu_core_request_per_hour' THEN sum(lids.pod_request_cpu_core_hours)

@@ -52,7 +52,24 @@ SELECT uuid_generate_v4() as uuid,
         ELSE 0.0
     END as cost_model_volume_cost,
     'Infrastructure' as cost_model_rate_type,
-    {{labels_field | sqlsafe}},
+    CASE
+            WHEN {{metric}}='cpu_core_usage_per_hour'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "cpu_core_usage_per_hour_default"}'::jsonb
+            WHEN {{metric}}='cpu_core_request_per_hour'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "cpu_core_request_per_hour_default"}'::jsonb
+            WHEN {{metric}}='cpu_core_effective_usage_per_hour'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "cpu_core_effective_usage_per_hour_default"}'::jsonb
+            WHEN {{metric}}='memory_gb_usage_per_hour'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "memory_gb_usage_per_hour_default"}'::jsonb
+            WHEN {{metric}}='memory_gb_request_per_hour'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "memory_gb_request_per_hour_default"}'::jsonb
+            WHEN {{metric}}='memory_gb_effective_usage_per_hour'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "memory_gb_effective_usage_per_hour_default"}'::jsonb
+            WHEN {{metric}}='storage_gb_usage_per_month'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "storage_gb_usage_per_month_default"}'::jsonb
+            WHEN {{metric}}='storage_gb_request_per_month'
+                THEN {{labels_field | sqlsafe}}::jsonb || '{"metric": "storage_gb_request_per_month_default"}'::jsonb
+        END,
     {{labels_field | sqlsafe}} as all_labels,
     'Tag' as monthly_cost_type, -- We are borrowing the monthly field here, although this is a daily usage cost
     cost_category_id

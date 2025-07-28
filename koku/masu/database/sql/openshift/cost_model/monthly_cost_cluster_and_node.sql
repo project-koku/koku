@@ -51,7 +51,15 @@ SELECT uuid_generate_v4(),
     lids.namespace,
     node,
     max(resource_id) as resource_id,
-    pod_labels,
+    CASE
+        WHEN {{cost_type}} = 'Cluster'
+            THEN pod_labels || '{"metric": "cluster_cost_per_month"}'::jsonb
+        WHEN {{cost_type}} = 'Node' AND {{distribution}} = 'cpu'
+            THEN pod_labels || '{"metric": "node_cost_per_month"}'::jsonb
+        WHEN {{cost_type}} = 'Node_Core_Month' AND {{distribution}} = 'cpu'
+            THEN pod_labels || '{"metric": "node_core_cost_per_month"}'::jsonb
+        ELSE pod_labels || '{"metric": "unknown"}'::jsonb
+    END,
     pod_labels as all_labels,
     NULL as pod_usage_cpu_core_hours,
     NULL as pod_request_cpu_core_hours,

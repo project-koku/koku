@@ -96,7 +96,7 @@ SELECT
     lids.namespace,
     max(latest.node_name) AS node,
     max(latest.resource_id) AS resource_id,
-    labels.combined_labels as pod_labels,
+    json_parse('{"file": "vm_core_cost_per_hour"}') as pod_labels,
     labels.combined_labels as all_labels,
     lids.source_uuid,
     {{rate_type}} AS cost_model_rate_type,
