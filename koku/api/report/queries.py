@@ -796,16 +796,12 @@ class ReportQueryHandler(QueryHandler):
     @cached_property
     def _clean_prefix_lookups(self):
         """Build lookups for clean_prefix_grouping_labels."""
-        lookups = {tag_db_name: (original_tag, TAG_PREFIX) for tag_db_name, _, original_tag in self._tag_group_by}
-        lookups.update(
-            {
-                aws_category_db_name: (original_aws_category, AWS_CATEGORY_PREFIX)
-                for aws_category_db_name, _, original_aws_category in self._aws_category_group_by
-            }
-        )
-        return lookups
+        return {tag_db_name: (original_tag, TAG_PREFIX) for tag_db_name, _, original_tag in self._tag_group_by} | {
+            aws_category_db_name: (original_aws_category, AWS_CATEGORY_PREFIX)
+            for aws_category_db_name, _, original_aws_category in self._aws_category_group_by
+        }
 
-    def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = []):
+    def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = None):
         """build grouping prefix"""
         internal_prefixes = [f"INTERNAL_{self._mapper.tag_column}_"]
         if hasattr(self._mapper, "aws_category_column"):
@@ -813,6 +809,7 @@ class ReportQueryHandler(QueryHandler):
         if not any(group.startswith(prefix) for prefix in internal_prefixes):
             return group
 
+        all_pack_keys = all_pack_keys or []
         check_pack_prefix = None
         suffix = "s" if group.endswith("s") else ""
         group = group.removesuffix("s")
@@ -1103,7 +1100,6 @@ class ReportQueryHandler(QueryHandler):
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
         gb = group_by_value if group_by_value else ["date"]
-        tag_column = self._mapper.tag_column
         rank_orders = []
 
         rank_annotations = {}
@@ -1135,10 +1131,10 @@ class ReportQueryHandler(QueryHandler):
                 }
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
-        if tag_column in gb[0]:
+        if self._mapper.tag_column in gb[0]:
             for tag_gb in self._tag_group_by:
                 if gb[0] == tag_gb[0]:
-                    rank_orders.append(self.get_tag_order_by(tag_column, tag_gb[2]))
+                    rank_orders.append(self.get_tag_order_by(self._mapper.tag_column, tag_gb[2]))
                     break
 
         if self.order_field == "subscription_name":
