@@ -566,10 +566,12 @@ class OCPAWSReportViewTest(IamTestCase):
         data = response.json()
         data = data.get("data", [])
         # default ordered by usage
-        previous_tag_usage = data[0].get(plural_key, [])[0].get("values", [{}])[0].get("usage", {}).get("value")
-        for entry in data[0].get(plural_key, []):
-            current_tag_usage = entry.get("values", [{}])[0].get("usage", {}).get("value")
-            if "Other" not in entry.get(group_by_key):
+        entries = data[0].get(plural_key, [])
+        self.assertTrue(entries)
+        previous_tag_usage = entries[0].get("usage", {}).get("value")
+        for entry in entries:
+            current_tag_usage = entry.get("usage", {}).get("value")
+            if current_tag_usage is not None and "Other" not in entry.get(group_by_key, ""):
                 self.assertTrue(current_tag_usage <= previous_tag_usage)
                 previous_tag_usage = current_tag_usage
 
