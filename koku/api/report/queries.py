@@ -708,10 +708,8 @@ class ReportQueryHandler(QueryHandler):
             original_tag = strip_prefix(tag, TAG_PREFIX)
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
             group_pos = self.parameters.url_data.index(encoded_tag_url)
+            tag_db_name = f"{self._mapper.tag_column}__{original_tag}"
             safe_tag = safe_column_alias(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + safe_tag
-
-            # Store the original tag and plural alias for later use
             self._tag_alias_lookup[safe_tag] = original_tag
             self._tag_plural_alias_lookup[safe_tag + "s"] = original_tag + "s"
             group_by.append((tag_db_name, group_pos, original_tag))
@@ -980,22 +978,26 @@ class ReportQueryHandler(QueryHandler):
             return data
 
         out_data = []
-        label = "values"
         group_type = groups[group_index]
         next_group_index = group_index + 1
         if next_group_index < groups_len:
-            label = groups[next_group_index] + "s"
-            label = self._clean_prefix_grouping_labels(label)
-            if self._tag_plural_alias_lookup:
-                label = self._tag_plural_alias_lookup.get(label, label)
+            next_group = groups[next_group_index]
+            label = self._clean_prefix_grouping_labels(next_group + "s")
+            label = self._tag_plural_alias_lookup.get(label, label)
+        else:
+            if group_type.startswith("tags__"):
+                raw_tag = group_type.split("__", 1)[1]
+                label = self._tag_plural_alias_lookup.get(raw_tag + "s", raw_tag + "s")
+            else:
+                label = "values"
 
         for group, group_value in data.items():
             group_title = self._clean_prefix_grouping_labels(group_type)
             if "__" in group_type:
                 prefix, tag_key = group_type.split("__", 1)
                 if prefix == self._mapper.tag_column:
-                    if original_tag := self._tag_alias_lookup.get(tag_key):
-                        group_title = original_tag
+                    group_title = self._tag_alias_lookup.get(tag_key, tag_key)
+
             group_label = restore_tag_alias(group, self._tag_alias_lookup)
             if group is None:
                 group_label = f"No-{group_title}"
