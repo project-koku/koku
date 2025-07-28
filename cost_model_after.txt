@@ -1,0 +1,423 @@
+{
+    "meta": {
+        "count": 1,
+        "limit": 10,
+        "offset": 0
+    },
+    "links": {
+        "first": "/api/cost-management/v1/cost-models/?limit=10&offset=0",
+        "next": null,
+        "previous": null,
+        "last": "/api/cost-management/v1/cost-models/?limit=10&offset=0"
+    },
+    "data": [
+        {
+            "uuid": "0a51af68-4db9-438e-880f-dfaee2e5bbe1",
+            "name": "test_cost_model_test_cost_x_ocp_static_cluster_4",
+            "description": "CRUD smoke test sup/infra cost model",
+            "source_type": "OpenShift Container Platform",
+            "created_timestamp": "2025-07-28T21:16:47.348504Z",
+            "updated_timestamp": "2025-07-28T21:23:20.436146Z",
+            "rates": [
+                {
+                    "metric": {
+                        "name": "node_cost_per_month",
+                        "label_metric": "Node",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "node-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 500.0
+                        }
+                    ],
+                    "cost_type": "Supplementary"
+                },
+                {
+                    "metric": {
+                        "name": "node_core_cost_per_hour",
+                        "label_metric": "Node",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "core-hour"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.2
+                        }
+                    ],
+                    "cost_type": "Supplementary"
+                },
+                {
+                    "metric": {
+                        "name": "node_core_cost_per_month",
+                        "label_metric": "Node",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "core-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1010.0
+                        }
+                    ],
+                    "cost_type": "Supplementary"
+                },
+                {
+                    "metric": {
+                        "name": "cluster_cost_per_month",
+                        "label_metric": "Cluster",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "cluster-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1000.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "memory_gb_effective_usage_per_hour",
+                        "label_metric": "Memory",
+                        "label_measurement": "Effective-usage",
+                        "label_measurement_unit": "GiB-hours"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 10.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "cluster_core_cost_per_hour",
+                        "label_metric": "Cluster",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "core-hour"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.3
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "vm_cost_per_month",
+                        "label_metric": "Virtual Machine",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "vm-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 15.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "vm_cost_per_hour",
+                        "label_metric": "Virtual Machine",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "vm-hour"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 0.5
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "vm_core_cost_per_hour",
+                        "label_metric": "Virtual Machine",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "core-hour"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 0.3
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "vm_core_cost_per_month",
+                        "label_metric": "Virtual Machine",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "core-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 10.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "cluster_cost_per_hour",
+                        "label_metric": "Cluster",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "cluster-hour"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.5
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "cpu_core_usage_per_hour",
+                        "label_metric": "CPU",
+                        "label_measurement": "Usage",
+                        "label_measurement_unit": "core-hours"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "cpu_core_request_per_hour",
+                        "label_metric": "CPU",
+                        "label_measurement": "Request",
+                        "label_measurement_unit": "core-hours"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "cpu_core_effective_usage_per_hour",
+                        "label_metric": "CPU",
+                        "label_measurement": "Effective-usage",
+                        "label_measurement_unit": "core-hours"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "memory_gb_usage_per_hour",
+                        "label_metric": "Memory",
+                        "label_measurement": "Usage",
+                        "label_measurement_unit": "GiB-hours"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "memory_gb_request_per_hour",
+                        "label_metric": "Memory",
+                        "label_measurement": "Request",
+                        "label_measurement_unit": "GiB-hours"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 1.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "storage_gb_usage_per_month",
+                        "label_metric": "Storage",
+                        "label_measurement": "Usage",
+                        "label_measurement_unit": "GiB-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 10.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "storage_gb_request_per_month",
+                        "label_metric": "Storage",
+                        "label_measurement": "Request",
+                        "label_measurement_unit": "GiB-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 10.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                },
+                {
+                    "metric": {
+                        "name": "pvc_cost_per_month",
+                        "label_metric": "Persistent volume claims",
+                        "label_measurement": "Count",
+                        "label_measurement_unit": "pvc-month"
+                    },
+                    "description": "",
+                    "tiered_rates": [
+                        {
+                            "unit": "EUR",
+                            "usage": {
+                                "usage_end": null,
+                                "usage_start": null
+                            },
+                            "value": 100.0
+                        }
+                    ],
+                    "cost_type": "Infrastructure"
+                }
+            ],
+            "markup": {},
+            "distribution": "cpu",
+            "distribution_info": {
+                "distribution_type": "cpu",
+                "platform_cost": true,
+                "worker_cost": true,
+                "network_unattributed": false,
+                "storage_unattributed": false
+            },
+            "currency": "EUR",
+            "source_uuids": [],
+            "sources": [
+                {
+                    "uuid": "0c512144-1559-4cd8-82ac-b6c5458f9f28",
+                    "name": "test_cost_x_ocp_static_cluster_4",
+                    "last_processed": "2025-07-28T21:23:23.754543Z"
+                }
+            ]
+        }
+    ]
+}

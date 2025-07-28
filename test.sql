@@ -8,7 +8,6 @@ SELECT
     usage_start,
     pod_labels
 FROM reporting_ocpusagelineitem_daily_summary
-WHERE cost_model_rate_type = 'Infrastructure'
 GROUP BY
     monthly_cost_type,
     namespace,
