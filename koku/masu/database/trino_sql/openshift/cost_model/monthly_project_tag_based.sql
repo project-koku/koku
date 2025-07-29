@@ -76,7 +76,7 @@ node_count as (
         CAST(count(node) AS DECIMAL(33, 15)) as node_count,
         usage_start
     from filtered_data
-    group by namespace, node, usage_start
+    group by namespace, usage_start
 )
 SELECT
     uuid(),
