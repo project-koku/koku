@@ -77,7 +77,7 @@ class ProviderMap:
         """Return the appropriate query table for the report type."""
         report_table = self._report_type_map.get("tables", {}).get("query")
         default = self._provider_map.get("tables").get("query")
-        return report_table if report_table else default
+        return report_table or default
 
     @property
     def report_type_map(self):
@@ -94,7 +94,7 @@ class ProviderMap:
         """Return the appropriate query table for the report type."""
         report_specific_column = self._report_type_map.get("tag_column")
         default = self._provider_map.get("tag_column")
-        return report_specific_column if report_specific_column else default
+        return report_specific_column or default
 
     @property
     def cost_units_key(self):

@@ -9,6 +9,7 @@ from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.fields import CharField
+from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from django_tenants.utils import tenant_context
@@ -79,6 +80,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
+
+        for tag_db_name, _, original_tag in self._tag_group_by:
+            annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
+
         return annotations
 
     def _format_query_response(self):

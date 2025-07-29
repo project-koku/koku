@@ -579,3 +579,7 @@ class AWSProviderMap(ProviderMap):
             },
         }
         super().__init__(provider, report_type, schema_name)
+
+    @property
+    def aws_category_column(self):
+        return self.provider_map.get("aws_category_column")

@@ -17,7 +17,6 @@ from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote
-from urllib.parse import quote_from_bytes
 
 import ciso8601
 import numpy as np
@@ -94,16 +93,6 @@ def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
     if group_by_set.intersection(no_view_group_bys) or filter_set.intersection(no_view_group_bys):
         return False
     return True
-
-
-def sanitize_tag(tag):
-    """Sanitize a tag by removing unwanted characters and URL-encoding it."""
-    characters_to_sanitize = r' "\'`;'
-    table = str.maketrans(characters_to_sanitize, "_" * len(characters_to_sanitize))
-    sanitized_tag = tag.translate(table)
-    encoded_tag = str.encode(sanitized_tag)
-    sanitized_tag = quote_from_bytes(encoded_tag, safe=URL_ENCODED_SAFE)
-    return sanitized_tag
 
 
 class ReportQueryHandler(QueryHandler):
@@ -235,7 +224,7 @@ class ReportQueryHandler(QueryHandler):
         aws_category_parameters = []
         parameters = self.parameters.get(parameter_key, {})
         for filt in parameters:
-            if AWS_CATEGORY_PREFIX.replace(":", "") in filt and filt in self._aws_category:
+            if AWS_CATEGORY_PREFIX in filt and filt in self._aws_category:
                 aws_category_parameters.append(filt)
         return aws_category_parameters
 
@@ -281,16 +270,16 @@ class ReportQueryHandler(QueryHandler):
         )
         # aws_category prefixed filters
         aws_category_exclusion_composed = None
-        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
+        if hasattr(self._mapper, "aws_category_column"):
             aws_category_filters = self.get_aws_category_keys("filter")
             aws_category_group_by = self.get_aws_category_keys("group_by")
             aws_category_filters.extend(aws_category_group_by)
             filter_collection = self._set_prefix_based_filters(
-                filter_collection, aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
+                filter_collection, self._mapper.aws_category_column, aws_category_filters, AWS_CATEGORY_PREFIX
             )
             aws_category_exclude_filters = self.get_aws_category_keys("exclude")
             aws_category_exclusion_composed = self._set_prefix_based_exclusions(
-                aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
+                self._mapper.aws_category_column, aws_category_exclude_filters, AWS_CATEGORY_PREFIX
             )
 
         composed_filters = filter_collection.compose()
@@ -661,9 +650,9 @@ class ReportQueryHandler(QueryHandler):
                 if (item, group_pos) not in group_by:
                     group_by.append((item, group_pos))
 
-        tag_group_by = self._get_tag_group_by()
+        tag_group_by = self._tag_group_by
         group_by.extend(tag_group_by)
-        group_by.extend(self._get_aws_category_group_by())
+        group_by.extend(self._aws_category_group_by)
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
 
@@ -677,30 +666,31 @@ class ReportQueryHandler(QueryHandler):
 
         return group_by
 
-    def _get_tag_group_by(self):
+    @cached_property
+    def _tag_group_by(self) -> list[tuple[str, int, str]]:
         """Create list of tag-based group by parameters."""
         group_by = []
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             original_tag = strip_prefix(tag, TAG_PREFIX)
-            sanitized_tag = sanitize_tag(original_tag)
-            tag_db_name = self._mapper.tag_column + "__" + sanitized_tag
             encoded_tag_url = quote(original_tag, safe=URL_ENCODED_SAFE)
             group_pos = self.parameters.url_data.index(encoded_tag_url)
-            group_by.append((tag_db_name, group_pos))
+            tag_db_name = f"INTERNAL_{self._mapper.tag_column}_{group_pos}"
+            group_by.append((tag_db_name, group_pos, original_tag))
         return group_by
 
-    def _get_aws_category_group_by(self):
+    @cached_property
+    def _aws_category_group_by(self) -> list[tuple[str, int, str]]:
         """Return list of aws_category based group by parameters."""
         group_by = []
-        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
+        if hasattr(self._mapper, "aws_category_column"):
             groups = self.get_aws_category_keys("group_by")
             for aws_category in groups:
-                db_name = aws_category_column + "__" + strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
-                aws_category = str.encode(aws_category)
-                aws_category = quote_from_bytes(aws_category, safe=URL_ENCODED_SAFE)
-                group_pos = self.parameters.url_data.index(aws_category)
-                group_by.append((db_name, group_pos))
+                original_aws_category = strip_prefix(aws_category, AWS_CATEGORY_PREFIX)
+                encoded_aws_category = quote(original_aws_category, safe=URL_ENCODED_SAFE)
+                group_pos = self.parameters.url_data.index(encoded_aws_category)
+                db_name = f"INTERNAL_{self._mapper.aws_category_column}_{group_pos}"
+                group_by.append((db_name, group_pos, original_aws_category))
         return group_by
 
     @cached_property
@@ -803,19 +793,32 @@ class ReportQueryHandler(QueryHandler):
 
         return out_data
 
-    def _clean_prefix_grouping_labels(self, group, all_pack_keys=[]):
+    @cached_property
+    def _clean_prefix_lookups(self):
+        """Build lookups for clean_prefix_grouping_labels."""
+        return {tag_db_name: (original_tag, TAG_PREFIX) for tag_db_name, _, original_tag in self._tag_group_by} | {
+            aws_category_db_name: (original_aws_category, AWS_CATEGORY_PREFIX)
+            for aws_category_db_name, _, original_aws_category in self._aws_category_group_by
+        }
+
+    def _clean_prefix_grouping_labels(self, group: str, all_pack_keys: list[str] = None):
         """build grouping prefix"""
+        internal_prefixes = [f"INTERNAL_{self._mapper.tag_column}_"]
+        if hasattr(self._mapper, "aws_category_column"):
+            internal_prefixes.append(f"INTERNAL_{self._mapper.aws_category_column}_")
+        if not any(group.startswith(prefix) for prefix in internal_prefixes):
+            return group
+
+        all_pack_keys = all_pack_keys or []
         check_pack_prefix = None
-        prefix_mapping = {TAG_PREFIX: self._mapper.tag_column}
-        if aws_category_column := self._mapper.provider_map.get("aws_category_column"):
-            prefix_mapping[AWS_CATEGORY_PREFIX] = aws_category_column
-        for prefix, db_column in prefix_mapping.items():
-            if group.startswith(db_column + "__"):
-                group = group[len(db_column + "__") :]  # noqa
-                check_pack_prefix = prefix
+        suffix = "s" if group.endswith("s") else ""
+        group = group.removesuffix("s")
+        if group in self._clean_prefix_lookups:
+            group, check_pack_prefix = self._clean_prefix_lookups[group]
         if check_pack_prefix and group in all_pack_keys:
             group = check_pack_prefix + group
-        return group
+
+        return group + suffix
 
     def _apply_group_null_label(self, data, groupby=None):
         """Apply any no-{group} labels needed before grouping data.
@@ -1039,10 +1042,9 @@ class ReportQueryHandler(QueryHandler):
             elif TAG_PREFIX in field:
                 tag_index = field.index(TAG_PREFIX) + len(TAG_PREFIX)
                 tag = db_tag_prefix + field[tag_index:]
-                sanitized_tag = sanitize_tag(tag)
                 sorted_data = sorted(
                     sorted_data,
-                    key=lambda entry: (entry.get(sanitized_tag) is None, entry.get(sanitized_tag)),
+                    key=lambda entry: (entry.get(tag) is None, entry.get(tag)),
                     reverse=reverse,
                 )
             else:
@@ -1057,7 +1059,7 @@ class ReportQueryHandler(QueryHandler):
 
         return sorted_data
 
-    def get_tag_order_by(self, tag):
+    def get_tag_order_by(self, tag_column, tag_value):
         """Generate an OrderBy clause forcing JSON column->key to be used.
 
         This is only for helping to create a Window() for purposes of grouping
@@ -1071,10 +1073,8 @@ class ReportQueryHandler(QueryHandler):
             OrderBy: A Django OrderBy clause using raw SQL
 
         """
-        descending = True if self.order_direction == "desc" else False
-        tag_column, tag_value = tag.split("__")
-        sanitized_tag_value = sanitize_tag(tag_value)
-        return OrderBy(RawSQL(f"{tag_column} -> %s", (sanitized_tag_value,)), descending=descending)
+        descending = self.order_direction == "desc"
+        return OrderBy(RawSQL(f"{tag_column} -> %s", (tag_value,)), descending=descending)
 
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
@@ -1100,7 +1100,6 @@ class ReportQueryHandler(QueryHandler):
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
         gb = group_by_value if group_by_value else ["date"]
-        tag_column = self._mapper.tag_column
         rank_orders = []
 
         rank_annotations = {}
@@ -1132,8 +1131,11 @@ class ReportQueryHandler(QueryHandler):
                 }
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
 
-        if tag_column in gb[0]:
-            rank_orders.append(self.get_tag_order_by(gb[0]))
+        if self._mapper.tag_column in gb[0]:
+            for tag_gb in self._tag_group_by:
+                if gb[0] == tag_gb[0]:
+                    rank_orders.append(self.get_tag_order_by(self._mapper.tag_column, tag_gb[2]))
+                    break
 
         if self.order_field == "subscription_name":
             group_by_value.append("subscription_name")
