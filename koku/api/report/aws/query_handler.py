@@ -12,6 +12,7 @@ from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
+from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
 from django_tenants.utils import tenant_context
 
@@ -88,15 +89,19 @@ class AWSReportQueryHandler(ReportQueryHandler):
             annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
-        prefix_removed_parameters_list = list(
-            map(
-                lambda x: x if ":" not in x else x.split(":", maxsplit=1)[1],
-                self.parameters.get("group_by", {}).keys(),
-            )
-        )
-        for q_param, db_field in fields.items():
-            if q_param in prefix_removed_parameters_list:
-                annotations[q_param] = F(db_field)
+        prefix_removed_parameters_list = [
+            x.split(":", maxsplit=1)[-1] for x in self.parameters.get("group_by", {}).keys()
+        ]
+        for param in prefix_removed_parameters_list:
+            if db_field := fields.get(param):
+                annotations[param] = F(db_field)
+
+        if hasattr(self._mapper, "aws_category_column"):
+            for cat_db_name, _, original_cat in self._aws_category_group_by:
+                annotations[cat_db_name] = KT(f"{self._mapper.aws_category_column}__{original_cat}")
+        for tag_db_name, _, original_tag in self._tag_group_by:
+            annotations[tag_db_name] = KT(f"{self._mapper.tag_column}__{original_tag}")
+
         return annotations
 
     def _contains_disabled_aws_category_keys(self):
