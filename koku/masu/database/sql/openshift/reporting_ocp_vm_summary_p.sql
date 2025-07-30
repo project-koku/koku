@@ -267,7 +267,8 @@ latest_storage_data AS (
     LEFT JOIN latest_vm_pod_labels as vm_labels
         ON map.vm_name = vm_labels.vm_name
     WHERE usage_start::date = (SELECT day FROM second_to_last_day)
-        AND persistentvolumeclaim IS NOT NULL
+        AND ocp.persistentvolumeclaim IS NOT NULL
+        AND map.pvc_name IS NOT NULL
     ORDER BY persistentvolumeclaim, usage_start DESC
 )
 SELECT uuid_generate_v4() as id,
@@ -301,6 +302,9 @@ WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}
     AND data_source = 'Storage'
+    AND ocp.node IS NOT NULL
+    AND ocp.resource_id IS NOT NULL
+    AND ocp.persistentvolumeclaim IS NOT NULL
     AND namespace IS DISTINCT FROM 'Worker unallocated'
     AND namespace IS DISTINCT FROM 'Platform unallocated'
     AND namespace IS DISTINCT FROM 'Network unattributed'
