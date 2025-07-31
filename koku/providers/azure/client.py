@@ -9,10 +9,6 @@ from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
 from azure.storage.blob import BlobServiceClient
-from msrestazure.azure_cloud import AZURE_CHINA_CLOUD
-from msrestazure.azure_cloud import AZURE_GERMAN_CLOUD
-from msrestazure.azure_cloud import AZURE_PUBLIC_CLOUD
-from msrestazure.azure_cloud import AZURE_US_GOV_CLOUD
 
 from koku.settings import AZURE_COST_MGMT_CLIENT_API_VERSION
 
@@ -41,17 +37,7 @@ class AzureClientFactory:
         self._subscription_id = subscription_id
         self._scope = scope
         self._export_name = export_name
-
-        clouds = {
-            "china": AZURE_CHINA_CLOUD,
-            "germany": AZURE_GERMAN_CLOUD,
-            "public": AZURE_PUBLIC_CLOUD,
-            "usgov": AZURE_US_GOV_CLOUD,
-        }
-
-        self._credentials = ClientSecretCredential(
-            tenant_id, client_id, client_secret, cloud_environment=clouds.get(cloud, "public")
-        )
+        self._credentials = ClientSecretCredential(tenant_id, client_id, client_secret)
 
     @property
     def credentials(self):

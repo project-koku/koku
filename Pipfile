@@ -33,7 +33,6 @@ google-cloud-bigquery = ">=2.2.0"
 google-cloud-storage = "*"
 gunicorn = "*"
 jinjasql2 = "*"
-msrestazure = "*"
 numpy = {version = "*", markers = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'"}
 prometheus-client = ">=0.7"
 psutil = ">=5.6"

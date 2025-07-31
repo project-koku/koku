@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "dea6551c3aa79fa02d8fd8f68b467246e0951b0ad5569142b5b7aeb68c6ed61f"
+            "sha256": "9f5d28cbb5ec183a3b0f91fc85ee413b57c6c4643608476730690d51b636b8ff"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,13 +16,6 @@
         ]
     },
     "default": {
-        "adal": {
-            "hashes": [
-                "sha256:2a7451ed7441ddbc57703042204a3e30ef747478eea022c70f789fc7f084bc3d",
-                "sha256:d74f45b81317454d96e982fd1c50e6fb5c99ac2223728aea8764433a39f566f1"
-            ],
-            "version": "==1.2.7"
-        },
         "adbc-driver-manager": {
             "hashes": [
                 "sha256:160654d58240e32a0fd6906acf619623e74b1120a7842e9cfb8c3996e9a7d3f2",
@@ -1205,22 +1198,6 @@
             "markers": "python_version >= '3.9'",
             "version": "==1.3.1"
         },
-        "msrest": {
-            "hashes": [
-                "sha256:21120a810e1233e5e6cc7fe40b474eeb4ec6f757a15d7cf86702c369f9567c32",
-                "sha256:6e7661f46f3afd88b75667b7187a92829924446c7ea1d169be8c4bb7eeb788b9"
-            ],
-            "markers": "python_version >= '3.6'",
-            "version": "==0.7.1"
-        },
-        "msrestazure": {
-            "hashes": [
-                "sha256:2264493b086c2a0a82ddf5fd87b35b3fffc443819127fed992ac5028354c151e",
-                "sha256:39842007569e8c77885ace5c46e4bf2a9108fcb09b1e6efdf85b6e2c642b55d4"
-            ],
-            "index": "pypi",
-            "version": "==0.6.4.post1"
-        },
         "numpy": {
             "hashes": [
                 "sha256:07b62978075b67eee4065b166d000d457c82a1efe726cce608b9db9dd66a73a5",
@@ -1300,14 +1277,6 @@
             ],
             "markers": "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'",
             "version": "==2.3.2"
-        },
-        "oauthlib": {
-            "hashes": [
-                "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9",
-                "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1"
-            ],
-            "markers": "python_version >= '3.8'",
-            "version": "==3.3.1"
         },
         "packaging": {
             "hashes": [
@@ -1777,14 +1746,6 @@
             "index": "pypi",
             "markers": "python_version >= '3.8'",
             "version": "==2.32.4"
-        },
-        "requests-oauthlib": {
-            "hashes": [
-                "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36",
-                "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9"
-            ],
-            "markers": "python_version >= '3.4'",
-            "version": "==2.0.0"
         },
         "rsa": {
             "hashes": [
@@ -3276,12 +3237,12 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:60a3cf925dc8ff72ae1c6a802bec9c513ac9c0c6fe4ad8d326dc8a79747dda40",
-                "sha256:9f4cf6599e9108da4aab24445f7e7936217ca803736673e83f34025c33cd0d16"
+                "sha256:5d4f1ae02964849a2ba84c9b386182a38505357424155d148b7022c9daf0a967",
+                "sha256:d5f5d71efec939f54e41fbffb4072a8ea1251291fa38e49138efbae8f1fc0262"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.11'",
-            "version": "==5.1.9"
+            "version": "==5.1.10"
         },
         "kombu": {
             "hashes": [
