@@ -8,7 +8,6 @@ from azure.core.exceptions import AzureError
 from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ServiceRequestError
-from msrest.exceptions import ClientException
 from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
@@ -141,7 +140,6 @@ class AzureProvider(ProviderInterface):
             AzureError,
             AzureException,
             AzureServiceError,
-            ClientException,
             HttpResponseError,
             TypeError,
             ValueError,
@@ -212,7 +210,6 @@ class AzureProvider(ProviderInterface):
             AzureError,
             AzureException,
             AzureServiceError,
-            ClientException,
             HttpResponseError,
             TypeError,
             ValueError,
