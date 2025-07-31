@@ -9,10 +9,11 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
-from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import AzureError
+from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import ServiceRequestError
 from azure.storage.blob import BlobClient
 from azure.storage.blob import BlobServiceClient
 from azure.storage.blob import ContainerClient
@@ -367,7 +368,9 @@ class AzureServiceTest(MasuTestCase):
                 return_value=Mock(
                     spec=BlobServiceClient,
                     get_container_client=Mock(
-                        return_value=Mock(spec=ContainerClient, list_blobs=Mock(side_effect=AdalError("test error")))
+                        return_value=Mock(
+                            spec=ContainerClient, list_blobs=Mock(side_effect=ClientAuthenticationError("test error"))
+                        )
                     ),
                 )
             ),
@@ -391,7 +394,7 @@ class AzureServiceTest(MasuTestCase):
             cloud_storage_account=Mock(
                 return_value=Mock(
                     spec=BlobServiceClient,
-                    get_blob_client=Mock(side_effect=AdalError("test error")),
+                    get_blob_client=Mock(side_effect=ServiceRequestError("test error")),
                     get_container_client=Mock(
                         return_value=Mock(spec=ContainerClient, list_blobs=Mock(return_value=[mock_blob]))
                     ),
@@ -413,7 +416,9 @@ class AzureServiceTest(MasuTestCase):
                 return_value=Mock(
                     spec=BlobServiceClient,
                     get_container_client=Mock(
-                        return_value=Mock(spec=ContainerClient, list_blobs=Mock(side_effect=AdalError("test error")))
+                        return_value=Mock(
+                            spec=ContainerClient, list_blobs=Mock(side_effect=ServiceRequestError("test error"))
+                        )
                     ),
                 )
             ),
