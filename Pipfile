@@ -55,7 +55,7 @@ watchtower = "*"
 unleashclient = "*"
 kombu = "*"
 pandas = "<3.0"
-scipy = "<1.16"  # `_lazywhere` was removed in 1.16. used by statsmodels
+scipy = ">=1.16"
 
 [dev-packages]
 argh = ">=0.26.2"
