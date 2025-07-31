@@ -76,7 +76,7 @@ requests-mock = ">=1.7"
 responses = ">=0.10"
 snakeviz = "*"
 tblib = ">=1.6"
-tox = "==4.26.0"
+tox = "==4.26.0"  # requires a higher cachetools version than google-auth at the moment
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"
