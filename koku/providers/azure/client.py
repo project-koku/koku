@@ -4,9 +4,7 @@
 #
 """Azure Client Configuration."""
 from azure.identity import ClientSecretCredential
-from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.costmanagement import CostManagementClient
-from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
 from azure.storage.blob import BlobServiceClient
 
@@ -50,19 +48,9 @@ class AzureClientFactory:
         return CostManagementClient(self.credentials, api_version=AZURE_COST_MGMT_CLIENT_API_VERSION)
 
     @property
-    def resource_client(self):
-        """Return a resource client."""
-        return ResourceManagementClient(self.credentials, self.subscription_id)
-
-    @property
     def storage_client(self):
         """Get storage client with subscription and credentials."""
         return StorageManagementClient(self.credentials, self.subscription_id)
-
-    @property
-    def compute_client(self):
-        """Get compute client with subscription and credentials."""
-        return ComputeManagementClient(self.credentials, self.subscription_id)
 
     @property
     def subscription_id(self):
