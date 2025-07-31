@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-adal = "*"
 app-common-python = ">=0.2.3"
 azure-identity = "*"
 azure-mgmt-costmanagement = ">=3.0.0"
@@ -34,7 +33,6 @@ google-cloud-bigquery = ">=2.2.0"
 google-cloud-storage = "*"
 gunicorn = "*"
 jinjasql2 = "*"
-msrestazure = "*"
 numpy = {version = "*", markers = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'x86_64'"}
 prometheus-client = ">=0.7"
 psutil = ">=5.6"
@@ -57,7 +55,7 @@ watchtower = "*"
 unleashclient = "*"
 kombu = "*"
 pandas = "<3.0"
-scipy = "<1.16"  # `_lazywhere` was removed in 1.16. used by statsmodels
+scipy = ">=1.16"
 
 [dev-packages]
 argh = ">=0.26.2"
@@ -78,7 +76,7 @@ requests-mock = ">=1.7"
 responses = ">=0.10"
 snakeviz = "*"
 tblib = ">=1.6"
-tox = ">=3.0"
+tox = "==4.26.0"  # requires a higher cachetools version than google-auth at the moment
 watchdog = ">=2.1.1"
 polyfactory = "*"
 koku-nise = "*"

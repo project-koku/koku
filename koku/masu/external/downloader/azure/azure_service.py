@@ -7,13 +7,13 @@ import logging
 import typing as t
 from tempfile import NamedTemporaryFile
 
-from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import AzureError
+from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import ServiceRequestError
 from azure.storage.blob._models import BlobProperties
-from msrest.exceptions import ClientException
 
 from masu.util.azure.common import AzureBlobExtension
 from providers.azure.client import AzureClientFactory
@@ -92,7 +92,7 @@ class AzureService:
         try:
             container_client = self._cloud_storage_account.get_container_client(container_name)
             blobs = list(container_client.list_blobs(name_starts_with=report_path))
-        except (AdalError, AzureException, ClientException) as error:
+        except (ClientAuthenticationError, ServiceRequestError, AzureException) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
         except ResourceNotFoundError as Error:
             message = f"Specified container {container_name} does not exist for report path {report_path}."
@@ -127,7 +127,12 @@ class AzureService:
         try:
             container_client = self._cloud_storage_account.get_container_client(container_name)
             blob_names = list(container_client.list_blobs(name_starts_with=starts_with))
-        except (AdalError, AzureException, ClientException, ResourceNotFoundError) as ex:
+        except (
+            ClientAuthenticationError,
+            ServiceRequestError,
+            AzureException,
+            ResourceNotFoundError,
+        ) as ex:
             raise AzureServiceError(f"Unable to list blobs. Error: {ex}")
 
         if not blob_names:
@@ -200,7 +205,13 @@ class AzureService:
             blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
-        except (AdalError, AzureException, ClientException, OSError, AzureError) as error:
+        except (
+            ClientAuthenticationError,
+            ServiceRequestError,
+            AzureException,
+            OSError,
+            AzureError,
+        ) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
 
         return file_path
@@ -223,7 +234,7 @@ class AzureService:
                     "directory": report.delivery_info.destination.root_folder_path,
                 }
                 export_reports.append(report_def)
-            except (AdalError, AzureException, ClientException) as exc:
+            except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:
                 raise AzureCostReportNotFound(exc)
 
             return export_reports
@@ -244,7 +255,7 @@ class AzureService:
                         "directory": report.delivery_info.destination.root_folder_path,
                     }
                     export_reports.append(report_def)
-        except (AdalError, AzureException, ClientException) as exc:
+        except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:
             raise AzureCostReportNotFound(exc)
 
         return export_reports
