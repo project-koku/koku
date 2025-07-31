@@ -9,7 +9,6 @@ from unittest.mock import PropertyMock
 
 from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
-from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
 from azure.storage.blob import BlobServiceClient
 from django.test import TestCase
@@ -62,18 +61,6 @@ class AzureClientFactoryTestCase(TestCase):
             cloud=random.choice(self.clouds),
         )
         self.assertTrue(isinstance(obj._credentials, ClientSecretCredential))
-
-    @patch("providers.azure.client.ClientSecretCredential.get_token")
-    def test_resource_client(self, mock_get_token):
-        """Test the resource_client property."""
-        obj = AzureClientFactory(
-            subscription_id=FAKE.uuid4(),
-            tenant_id=FAKE.uuid4(),
-            client_id=FAKE.uuid4(),
-            client_secret=FAKE.word(),
-            cloud=random.choice(self.clouds),
-        )
-        self.assertTrue(isinstance(obj.resource_client, ResourceManagementClient))
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_storage_client(self, mock_get_token):
