@@ -110,7 +110,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 print("celery autodiscover tasks")
 
 # Specify the number of celery tasks to run before recycling the celery worker.
-MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=1)
+MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
 app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 
 # Timeout threshold for a worker process to startup
