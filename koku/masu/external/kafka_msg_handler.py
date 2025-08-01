@@ -46,6 +46,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.ros_report_shipper import ROSReportShipper
 from masu.processor._tasks.process import _process_report_file
+from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import record_all_manifest_files
@@ -752,8 +753,8 @@ def listen_for_messages(msg, consumer):
     except (KafkaMsgHandlerError, KombuOperationalError) as error:
         LOG.error(f"[listen_for_messages] Internal error. {type(error).__name__}: {error}. Retrying...")
         rewind_consumer_to_retry(consumer, topic_partition)
-    except ReportProcessorError as error:
-        LOG.error(f"[listen_for_messages] Report processing error: {str(error)}")
+    except (ReportProcessorError, ParquetReportProcessorError) as error:
+        LOG.warning(f"[listen_for_messages] Report processing error: {str(error)}", exc_info=error)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.commit()
     except Exception as error:
