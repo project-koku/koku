@@ -15,6 +15,7 @@ from celery.signals import worker_process_init
 from celery.signals import worker_process_shutdown
 from django.conf import settings
 from kombu.exceptions import OperationalError
+from UnleashClient.loader import load_features
 
 from .database import FKViolation
 from koku import sentry  # noqa: F401
@@ -109,7 +110,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 print("celery autodiscover tasks")
 
 # Specify the number of celery tasks to run before recycling the celery worker.
-MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
+MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=1)
 app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 
 # Timeout threshold for a worker process to startup
@@ -274,6 +275,7 @@ def init_worker(**kwargs):
 
     LOG.debug("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
+    load_features(UNLEASH_CLIENT.cache, UNLEASH_CLIENT.engine)
 
 
 @worker_process_shutdown.connect
