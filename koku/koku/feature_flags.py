@@ -7,6 +7,7 @@ import logging
 
 from django.conf import settings
 from UnleashClient import UnleashClient
+from UnleashClient.periodic_tasks import aggregate_and_send_metrics
 
 from .env import ENVIRONMENT
 
@@ -35,6 +36,19 @@ class KokuUnleashClient(UnleashClient):
         self.fl_job.remove()
         if self.metric_job:
             self.metric_job.remove()
+
+            # Flush metrics before shutting down.
+            aggregate_and_send_metrics(
+                url=self.unleash_url,
+                app_name=self.unleash_app_name,
+                connection_id=self.connection_id,
+                instance_id=self.unleash_instance_id,
+                headers=self.metrics_headers,
+                custom_options=self.unleash_custom_options,
+                request_timeout=self.unleash_request_timeout,
+                engine=self.engine,
+            )
+
         self.unleash_scheduler.shutdown()
 
 
