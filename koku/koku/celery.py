@@ -15,6 +15,7 @@ from celery.signals import worker_process_init
 from celery.signals import worker_process_shutdown
 from django.conf import settings
 from kombu.exceptions import OperationalError
+from UnleashClient.loader import load_features
 
 from .database import FKViolation
 from koku import sentry  # noqa: F401
@@ -274,6 +275,7 @@ def init_worker(**kwargs):
 
     LOG.debug("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
+    load_features(UNLEASH_CLIENT.cache, UNLEASH_CLIENT.engine)
 
 
 @worker_process_shutdown.connect
