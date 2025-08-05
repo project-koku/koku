@@ -329,7 +329,7 @@ class ParquetReportProcessor:
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
             )
 
-    def prepare_parquet_s3(self, filename: os.PathLike):
+    def prepare_parquet_s3(self, filename: Path):
         manifest_accessor = ReportManifestDBAccessor()
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
@@ -407,7 +407,6 @@ class ParquetReportProcessor:
         of temporary AWS S3 connectivity issues because it is relatively important
         for us to convert the archived data.
         """
-        parquet_base_filename = ""
 
         if self.csv_path_s3 is None or self.parquet_path_s3 is None or self.local_path is None:
             LOG.error(
@@ -420,9 +419,8 @@ class ParquetReportProcessor:
                     parquet_path=self.parquet_path_s3,
                 )
             )
-            return "", pd.DataFrame()
+            return
 
-        daily_data_frames = []
         file_list = self.file_list
 
         # Azure and AWS should now always have split daily files
@@ -442,7 +440,7 @@ class ParquetReportProcessor:
                     context=self.error_context,
                 )
             )
-            return parquet_base_filename, daily_data_frames
+            return
 
         for csv_filename in file_list:
             # set start date based on data in the file being processed:
@@ -460,10 +458,9 @@ class ParquetReportProcessor:
                         filename=csv_filename,
                     )
                 )
-                return parquet_base_filename, daily_data_frames
+                return
 
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
-            daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_frame)
             if self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
@@ -480,7 +477,7 @@ class ParquetReportProcessor:
                     )
                 )
                 raise ParquetReportProcessorError(msg)
-        return parquet_base_filename, daily_data_frames
+        return True
 
     def create_parquet_table(self, parquet_file, daily=False, partition_map=None):
         """Create parquet table."""
@@ -506,7 +503,7 @@ class ParquetReportProcessor:
                 report.set_status(message)
             raise ValidationError(message, code="Missing_columns")
 
-    def convert_csv_to_parquet(self, csv_filename: os.PathLike):  # noqa: C901
+    def convert_csv_to_parquet(self, csv_filename: Path):  # noqa: C901
         """Convert CSV file to parquet and send to S3."""
         daily_data_frames = []
         parquet_filepath = ""
@@ -678,7 +675,7 @@ class ParquetReportProcessor:
     def process(self):
         """Convert to parquet."""
         LOG.info(log_json(msg="converting csv files to parquet", context=self._context))
-        parquet_base_filename, daily_data_frames = self.convert_to_parquet()
+        result = self.convert_to_parquet()
 
         # Clean up the original downloaded file
         for f in self.file_list:
@@ -692,4 +689,4 @@ class ParquetReportProcessor:
         if os.path.exists(self.report_file):
             os.remove(self.report_file)
 
-        return parquet_base_filename, daily_data_frames
+        return result

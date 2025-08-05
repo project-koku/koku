@@ -100,8 +100,7 @@ class ReportProcessor:
         )
         LOG.info(log_json(self.tracing_id, msg=msg, context=self.context))
         try:
-            parquet_base_filename, daily_data_frames = self._processor.process()
-            return daily_data_frames != []
+            return self._processor.process()
         except ReportsAlreadyProcessed:
             report_status.update_status(CombinedChoices.DONE)
             LOG.info(log_json(msg="report already processed", context=self.context))
