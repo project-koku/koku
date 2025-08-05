@@ -31,7 +31,7 @@ class ReportProcessorTest(MasuTestCase):
         processor.process()
         mock_parquet_process.assert_called()
 
-    @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=(1, []))
+    @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=None)
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
     def test_aws_process_returns_false(self, mock_status, mock_parquet_process):
         """Test to check no data frames returned from process."""
