@@ -23,8 +23,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: RESTART_HASH
-          value: ${RESTART_HASH_ALL}_${RESTART_HASH_SOURCES_LISTENER}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SOURCES_LISTENER}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -197,5 +197,5 @@
   path: /parameters/-
   value:
     description: change this value to restart sources-listener
-    name: RESTART_HASH_SOURCES_LISTENER
+    name: REDEPLOY_HASH_SOURCES_LISTENER
     value: "000000"
