@@ -189,8 +189,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
                 LOG.info(
                     log_json(
-                        msg="cluster information not available - "
-                        "skipping OCP on Cloud summary table update for AWS",
+                        msg="cluster information not available - skipping OCP on Cloud summary table update for AWS",
                         provider_uuid=openshift_provider_uuid,
                         schema=self._schema,
                     )
@@ -322,7 +321,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             if not accessor.get_cluster_for_provider(openshift_provider_uuid):
                 LOG.info(
                     log_json(
-                        msg="cluster information not available - " "skipping OCP on Cloud summary table update",
+                        msg="cluster information not available - skipping OCP on Cloud summary table update",
                         provider_uuid=openshift_provider_uuid,
                         schema=self._schema,
                     )
@@ -382,14 +381,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             azure_bill_ids = [bill.id for bill in azure_bills]
             current_azure_bill_id = azure_bill_ids[0]
             current_ocp_report_period_id = report_period.id
-
-        with CostModelDBAccessor(self._schema, azure_provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = Decimal(markup.get("value", 0)) / 100
-
-        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-
         # OpenShift on Azure
         sql_params = {
             "schema": self._schema,
@@ -417,8 +408,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     azure_provider_uuid,
                     current_ocp_report_period_id,
                     current_azure_bill_id,
-                    markup_value,
-                    distribution,
                 )
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
