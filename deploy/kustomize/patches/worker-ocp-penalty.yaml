@@ -25,6 +25,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: RESTART_HASH
+          value: ${RESTART_HASH_ALL}_${RESTART_HASH_WORKER_OCP_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -220,3 +222,9 @@
     name: WORKER_OCP_PENALTY_WORKER_QUEUE
     required: true
     value: 'ocp_penalty'
+- op: add
+  path: /parameters/-
+  value:
+    description: change this value to restart worker-ocp-penalty
+    name: RESTART_HASH_WORKER_OCP_PENALTY
+    value: "000000"

@@ -19,6 +19,8 @@
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: RESTART_HASH
+          value: ${RESTART_HASH_ALL}_${RESTART_HASH_WORKER_SUBS_TRANSMISSION}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -204,3 +206,9 @@
     name: WORKER_SUBS_TRANSMISSION_WORKER_QUEUE
     required: true
     value: "subs_transmission"
+- op: add
+  path: /parameters/-
+  value:
+    description: change this value to restart worker-subs-transmission
+    name: RESTART_HASH_WORKER_SUBS_TRANSMISSION
+    value: "000000"
