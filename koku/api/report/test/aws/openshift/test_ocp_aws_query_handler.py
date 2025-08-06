@@ -707,16 +707,15 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_ocp_aws_category_multiple_exclude(self):
         """Test execute_query for current month on monthly filter aws_category"""
-        base_url = ["?filter[time_scope_units]=month", "&filter[time_scope_value]=-1", "&filter[resolution]=monthly"]
-        exclude_url = "".join(base_url)
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
+        exclude_url = base_url
         # build url & expected values
         expected_value = []
         filter_args = []
         for idx in [0, 1]:
             dikt = self.aws_category_tuple[idx]
             key = list(dikt.keys())[0]
-            substring = f"&exclude[or:{AWS_CATEGORY_PREFIX}{key}]={dikt[key]}"
-            exclude_url = exclude_url + substring
+            exclude_url += f"&exclude[or:{AWS_CATEGORY_PREFIX}{key}]={dikt[key]}"
             filter_args.append(
                 {
                     "usage_start__gte": self.dh.this_month_start,
@@ -726,7 +725,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             )
         aws_cat_dict = self.aws_category_tuple[0]
         aws_cat_key = list(aws_cat_dict.keys())[0]
-        group_url = "".join(base_url) + f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*"
+        group_url = base_url + f"&group_by[{AWS_CATEGORY_PREFIX}{aws_cat_key}]=*"
         results = {}
         for url in [exclude_url, group_url]:
             query_params = self.mocked_query_params(url, OCPAWSCostView, path=reverse("reports-openshift-aws-costs"))

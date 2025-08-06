@@ -18,8 +18,6 @@ LOG = logging.getLogger(__name__)
 class CostModelDBAccessor:
     """Class to interact with customer reporting tables."""
 
-    cost_model_metric_map = metric_constants.get_cost_model_metrics_map()
-
     def __init__(self, schema, provider_uuid):
         """Establish the database connection.
 
@@ -63,10 +61,7 @@ class CostModelDBAccessor:
             if not rate.get("tiered_rates"):
                 continue
             metric_name = rate.get("metric", {}).get("name")
-            metric_cost_type = rate.pop("cost_type", None)
-            if not metric_cost_type:
-                default_metric = self.cost_model_metric_map[metric_name]
-                metric_cost_type = default_metric["default_cost_type"]
+            metric_cost_type = rate["cost_type"]
             if metric_name in metric_rate_map.keys():
                 metric_mapping = metric_rate_map.get(metric_name)
                 if metric_cost_type in metric_mapping.get("tiered_rates", {}).keys():
@@ -133,8 +128,7 @@ class CostModelDBAccessor:
             if not tag_rate:
                 continue
             metric_name = rate.get("metric", {}).get("name")
-            default_cost_type = self.cost_model_metric_map[metric_name]["default_cost_type"]
-            tag_rate_param["rate_type"] = rate.get("cost_type", default_cost_type)
+            tag_rate_param["rate_type"] = rate["cost_type"]
             tag_rate_param["tag_key"] = tag_rate.get("tag_key")
             kv_pairs_rates = {}
             for tag_value in tag_rate.get("tag_values"):
@@ -164,10 +158,7 @@ class CostModelDBAccessor:
             if not rate.get("tag_rates"):
                 continue
             metric_name = rate.get("metric", {}).get("name")
-            metric_cost_type = rate.pop("cost_type", None)
-            if not metric_cost_type:
-                default_metric = self.cost_model_metric_map[metric_name]
-                metric_cost_type = default_metric["default_cost_type"]
+            metric_cost_type = rate["cost_type"]
             tag_rates_list = []
             tag = rate.get("tag_rates")
             tag_rate_dict = {}
@@ -188,13 +179,13 @@ class CostModelDBAccessor:
                 if existing_cost_dict.get(metric_cost_type):
                     existing_list = existing_cost_dict.get(metric_cost_type)
                     existing_list.extend(tag_rates_list)
-                    existing_cost_dict[f"{metric_cost_type}"] = existing_list
+                    existing_cost_dict[metric_cost_type] = existing_list
                 else:
-                    existing_cost_dict[f"{metric_cost_type}"] = tag_rates_list
+                    existing_cost_dict[metric_cost_type] = tag_rates_list
                     tag_rates["tag_rates"] = existing_cost_dict
                     metric_rate_map[metric_name] = tag_rates
             else:
-                format_tag_rates = {f"{metric_cost_type}": tag_rates_list}
+                format_tag_rates = {metric_cost_type: tag_rates_list}
                 rate["tag_rates"] = format_tag_rates
                 metric_rate_map[metric_name] = rate
         return metric_rate_map

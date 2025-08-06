@@ -25,7 +25,6 @@ from masu.api.ingress_reports import ingress_reports
 from masu.api.invalidate_cache import invalidate_cache
 from masu.api.manifest.views import ManifestStatusViewSet
 from masu.api.notifications import notification
-from masu.api.process_openshift_on_cloud import process_openshift_on_cloud
 from masu.api.purge_trino_files import purge_trino_files
 from masu.api.recheck_infra_map import recheck_infra_map
 from masu.api.report_data import report_data
@@ -39,7 +38,6 @@ from masu.api.status import get_status
 from masu.api.trino import trino_query
 from masu.api.trino import trino_ui
 from masu.api.update_cost_model_costs import update_cost_model_costs
-from masu.api.update_openshift_on_cloud import update_openshift_on_cloud
 from masu.api.update_rates import update_azure_storage_capacity
 from masu.api.update_rates import update_exchange_rates
 from masu.api.validate_data import validate_cost_data

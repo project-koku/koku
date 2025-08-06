@@ -448,8 +448,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_monthly_start_and_end_volume_group_bys(self):
         """Test the volume capacities of a monthly volume report with various group bys"""
         base_url = (
-            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"
-            f"&filter[resolution]=monthly"
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
         )
         group_bys = [
             ["cluster"],
@@ -509,8 +508,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_node_capacity_monthly_start_and_end_volume_group_bys(self):
         """Test the volume capacities of a monthly volume report with various group bys"""
         base_url = (
-            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"
-            f"&filter[resolution]=monthly"
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
         )
         group_bys = [
             ["node"],
@@ -866,25 +864,27 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = f"?group_by[tag:{group_by_key}]={group_by_value}"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        group_by = handler._get_tag_group_by()
+        group_by = handler._tag_group_by
         group = group_by[0]
-        expected = "pod_labels__" + group_by_key
+        expected = f"INTERNAL_{handler._mapper.tag_column}_{group[1]}"
         self.assertEqual(len(group_by), 1)
         self.assertEqual(group[0], expected)
+        self.assertEqual(group[2], group_by_key)
 
     def test_get_tag_order_by(self):
         """Verify that a propery order by is returned."""
-        tag = "pod_labels__key"
-        expected_param = (tag.split("__")[1],)
+        column = "pod_labels"
+        value = "key"
+        expected_param = (value,)
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        result = handler.get_tag_order_by(tag)
+        result = handler.get_tag_order_by(column, value)
         expression = result.expression
 
         self.assertIsInstance(result, OrderBy)
-        self.assertEqual(expression.sql, "pod_labels -> %s")
+        self.assertEqual(expression.sql, f"{column} -> %s")
         self.assertEqual(expression.params, expected_param)
 
     def test_filter_by_infrastructure_ocp_on_aws(self):

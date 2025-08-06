@@ -504,6 +504,13 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 table=OCPUsageLineItemDailySummary,
                 filters={"monthly_cost_type": "Tag", "report_period_id": report_period_id},
             )
+            report_accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                source_uuid,
+                start_date,
+                end_date,
+                table=OCPUsageLineItemDailySummary,
+                filters={"monthly_cost_type": "Node_Core_Hour", "report_period_id": report_period_id},
+            )
 
     def distribute_costs_and_update_ui_summary(self, start_date, end_date):
         """Distribute cost model costs and update UI summary tables"""
