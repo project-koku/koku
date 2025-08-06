@@ -5,6 +5,21 @@ INSERT INTO postgres.{{schema | sqlsafe}}.tmp_virt_{{uuid | sqlsafe}} (
     cpu_request,
     mem_request
 )
+WITH cte_second_to_last_day as (
+    SELECT day
+        FROM (
+            SELECT DISTINCT DATE(usage_start) AS day
+            FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+            WHERE usage_start >= DATE({{start_date}})
+                AND usage_start <= DATE({{end_date}})
+                AND CAST(source_uuid AS VARCHAR) = {{source_uuid | string}}
+                AND pod_request_cpu_core_hours IS NOT NULL
+            ORDER BY day DESC
+            LIMIT 2
+        ) AS  latest_days
+    ORDER BY day
+    LIMIT 1
+)
 SELECT
     latest.vm_name,
     latest.node_name,
@@ -23,20 +38,11 @@ FROM (
             ORDER BY usage_start DESC
         ) AS rn
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS summary
+    INNER JOIN cte_second_to_last_day as stld
+        ON CAST(summary.usage_start as DATE) = stld.day
     WHERE
-        CAST(usage_start AS DATE) = (
-            SELECT day
-            FROM (
-                SELECT DISTINCT DATE(usage_start) AS day
-                FROM postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-                WHERE usage_start >= DATE({{start_date}})
-                    AND usage_start <= DATE({{end_date}})
-                    AND CAST(source_uuid AS VARCHAR) = {{source_uuid | string}}
-                    AND pod_request_cpu_core_hours IS NOT NULL
-                ORDER BY day DESC
-                OFFSET 1 LIMIT 1
-            ) AS second_to_last_day
-        )
+        summary.usage_start >= DATE({{start_date}})
+        AND summary.usage_start <= DATE({{end_date}})
         AND pod_request_cpu_core_hours IS NOT NULL
         AND json_extract_scalar(pod_labels, '$.vm_kubevirt_io_name') IS NOT NULL
 ) AS latest
@@ -52,6 +58,9 @@ LEFT JOIN (
         AND pod_usage.source = storage.source
     WHERE storage.persistentvolumeclaim IS NOT NULL
         AND storage.persistentvolumeclaim != ''
+        AND storage.year = {{year}}
+        AND storage.month = {{month}}
+        AND storage.source = {{source_uuid | string}}
         AND pod_usage.year = {{year}}
         AND pod_usage.month = {{month}}
         AND pod_usage.source = {{source_uuid | string}}
