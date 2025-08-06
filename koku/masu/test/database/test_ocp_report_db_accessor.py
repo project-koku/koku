@@ -1200,3 +1200,42 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 {"cluster_id": "test", "cluster_alias": "test"},
             )
             mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test__populate_virtualization_ui_summary_table_no_trino_schema(self, mock_psql, mock_schema_exists):
+        """Test that sql is not run when the trino schema does not exist."""
+        with self.accessor as acc:
+            acc._populate_virtualization_ui_summary_table({})
+            mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, False])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test__populate_virtualization_ui_summary_table_no_trino_table(self, mock_psql, *args):
+        """Test that sql is not run when the trino table does not exist."""
+        with self.accessor as acc:
+            acc._populate_virtualization_ui_summary_table({})
+            mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, True])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test__populate_virtualization_ui_summary_table_no_sql_param(self, mock_psql, *args):
+        """Test that sql is not run when sql params are not provided."""
+        with self.accessor as acc:
+            acc._populate_virtualization_ui_summary_table({})
+            mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, True])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch(
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query",
+        side_effect=Exception,
+    )
+    def test__populate_virtualization_ui_summary_table_all_true_raise_error(self, mock_psql, *args):
+        """Test that sql is run when all requirements are met. Test uses an exception to show that sql would be run."""
+        with self.accessor as acc:
+            with self.assertRaises(Exception):
+                acc._populate_virtualization_ui_summary_table({"start_date": "1970-01-01"})
+            mock_psql.assert_called()

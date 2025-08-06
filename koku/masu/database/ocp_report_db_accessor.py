@@ -105,8 +105,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         Populates the virtualization ui table.
         """
+        if not self.schema_exists_trino():
+            return
         trino_query_requirements = [
-            self.schema_exists_trino(),
             trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily"),
             trino_table_exists(self.schema, "openshift_pod_usage_line_items_daily"),
             sql_params.get("start_date"),
