@@ -171,8 +171,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.azure_test_provider_uuid,
             current_ocp_report_period_id,
             1,
-            decimal.Decimal(0),
-            DEFAULT_DISTRIBUTION_TYPE,
         )
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
@@ -236,8 +234,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.azure_test_provider_uuid,
             current_ocp_report_period_id,
             1,
-            decimal.Decimal(0),
-            DEFAULT_DISTRIBUTION_TYPE,
         )
 
     @patch(
