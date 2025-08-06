@@ -151,6 +151,18 @@ OCP_ON_AZURE_PERSPECTIVES = (
 # These are cleaned during source delete
 TRINO_MANAGED_TABLES = {
     "reporting_ocpusagelineitem_daily_summary": "source",
+    "reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",  # COST-5881
+    "reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",  # COST-5881
+    "aws_openshift_daily_resource_matched_temp": "ocp_source",  # COST-5881
+    "aws_openshift_daily_tag_matched_temp": "ocp_source",  # COST-5881
+    "azure_openshift_daily_resource_matched_temp": "ocp_source",  # COST-5881
+    "azure_openshift_daily_tag_matched_temp": "ocp_source",  # COST-5881
+    "reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",  # COST-5881
+    "reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",  # COST-5881
+    "reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",  # COST-5881
+    "reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",  # COST-5881
+    "gcp_openshift_daily_resource_matched_temp": "ocp_source",  # COST-5881
+    "gcp_openshift_daily_tag_matched_temp": "ocp_source",  # COST-5881
     "managed_gcp_openshift_daily_temp": "ocp_source",
     "managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
     "managed_reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
