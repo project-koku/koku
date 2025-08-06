@@ -15,7 +15,6 @@ from django.db.models import Sum
 from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
-from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.models import Provider
 from api.utils import DateHelper
 from koku.trino_database import TrinoHiveMetastoreError
@@ -130,9 +129,8 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_trino.assert_called()
 
-    @patch("masu.database.azure_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
-    def test_populate_ocp_on_azure_ui_summary_tables_trino_managed(self, mock_trino, mock_unleash):
+    def test_populate_ocp_on_azure_ui_summary_tables_trino_managed(self, mock_trino):
         """Test that Trino is used to populate UI summary."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -148,7 +146,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_trino(self, mock_trino, mock_delete):
+    def test_populate_ocp_on_azure_cost_daily_summary_trino_managed(self, mock_trino, mock_delete):
         """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -158,11 +156,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             current_bill_id = bills.first().id if bills else None
 
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = float(markup.get("value", 0)) / 100
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-
         self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
             start_date,
             end_date,
@@ -170,69 +163,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.azure_provider_uuid,
             self.ocp_cluster_id,
             current_bill_id,
-            markup_value,
-            distribution,
-        )
-        mock_trino.assert_called()
-        mock_delete.assert_called()
-
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
-    @patch("masu.database.azure_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
-    def test_populate_ocp_on_azure_cost_daily_summary_trino_managed(self, mock_unleash, mock_trino, mock_delete):
-        """Test that we construst our SQL and query using Trino."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
-        with schema_context(self.schema):
-            current_bill_id = bills.first().id if bills else None
-
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = float(markup.get("value", 0)) / 100
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-
-        self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
-            start_date,
-            end_date,
-            self.ocp_provider_uuid,
-            self.azure_provider_uuid,
-            self.ocp_cluster_id,
-            current_bill_id,
-            markup_value,
-            distribution,
-        )
-        mock_trino.assert_called()
-        mock_delete.assert_called()
-
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_trino_memory_distribution(self, mock_trino, mock_delete):
-        """Test that we construst our SQL and query using Trino."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-        end_date = dh.this_month_end.date()
-
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.azure_provider.uuid)
-        with schema_context(self.schema):
-            current_bill_id = bills.first().id if bills else None
-
-        with CostModelDBAccessor(self.schema, self.aws_provider.uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = float(markup.get("value", 0)) / 100
-            distribution = "memory"
-
-        self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
-            start_date,
-            end_date,
-            self.ocp_provider_uuid,
-            self.azure_provider_uuid,
-            self.ocp_cluster_id,
-            current_bill_id,
-            markup_value,
-            distribution,
         )
         mock_trino.assert_called()
         mock_delete.assert_called()
