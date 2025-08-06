@@ -406,7 +406,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
-        invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
 
         # COST-5881: Remove this when we switch to managed flow
         trino_table = "reporting_ocpgcpcostlineitem_project_daily_summary"
@@ -415,24 +414,22 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             trino_table = "managed_reporting_ocpgcpcostlineitem_project_daily_summary"
             column_name = "source"
 
-        for invoice_month in invoice_month_list:
-            for table_name in tables:
-                sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
-                sql = sql.decode("utf-8")
-                sql_params = {
-                    "schema": self.schema,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "year": year,
-                    "month": month,
-                    "days": days_tup,
-                    "invoice_month": invoice_month,
-                    "gcp_source_uuid": gcp_provider_uuid,
-                    "ocp_source_uuid": openshift_provider_uuid,
-                    "trino_table": trino_table,
-                    "column_name": column_name,
-                }
-                self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
+        for table_name in tables:
+            sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
+            sql = sql.decode("utf-8")
+            sql_params = {
+                "schema": self.schema,
+                "start_date": start_date,
+                "end_date": end_date,
+                "year": year,
+                "month": month,
+                "days": days_tup,
+                "gcp_source_uuid": gcp_provider_uuid,
+                "ocp_source_uuid": openshift_provider_uuid,
+                "trino_table": trino_table,
+                "column_name": column_name,
+            }
+            self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
     def delete_ocp_on_gcp_hive_partition_by_day(
         self, days, gcp_source, ocp_source, year, month, table="reporting_ocpgcpcostlineitem_project_daily_summary"

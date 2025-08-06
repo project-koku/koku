@@ -28,7 +28,6 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_p (
     FROM hive.{{schema | sqlsafe}}.{{trino_table | sqlsafe}}
     WHERE {{column_name | sqlsafe}} = {{gcp_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
-        AND invoice_month = {{invoice_month}}
         AND year = {{year}}
         AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND day in {{days | inclause}}
