@@ -9,11 +9,8 @@ import logging
 import math
 import re
 import time
-import uuid
-from itertools import chain
 
 import boto3
-import pandas as pd
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
@@ -29,7 +26,6 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.util import common as utils
 from masu.util.common import get_path_prefix
-from masu.util.ocp.common import match_openshift_labels
 from reporting.models import AWSAccountAlias
 from reporting.models import AWSCostEntryBill
 
@@ -860,64 +856,3 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return delete_s3_objects_not_matching_metadata(
         request_id, s3_path, metadata_key="manifestid", metadata_value_check=manifest_id, context=context
     )
-
-
-def match_openshift_resources_and_labels(
-    df: pd.DataFrame, cluster_topologies: list[dict], matched_tags: list[dict]
-) -> pd.DataFrame:
-    """Filter a dataframe to the subset that matches an OpenShift source."""
-    resource_ids = chain.from_iterable(
-        cluster_topology.get("resource_ids", []) for cluster_topology in cluster_topologies
-    )
-    csi_volume_handles = chain.from_iterable(
-        cluster_topology.get("csi_volume_handle", []) for cluster_topology in cluster_topologies
-    )
-    matchable_resources = [*resource_ids, *csi_volume_handles]
-    matchable_resources = [x for x in matchable_resources if x is not None and x != ""]
-    matchable_resources = tuple(matchable_resources)
-    df["resource_id_matched"] = False
-    if not df["lineitem_resourceid"].eq("").all():
-        LOG.info("Matching OpenShift on AWS by resource ID.")
-        df["resource_id_matched"] = df["lineitem_resourceid"].str.endswith(matchable_resources)
-
-    df["special_case_tag_matched"] = False
-    if not df["resourcetags"].eq("").all():
-        LOG.info("Matching OpenShift on AWS by tags.")
-        df["special_case_tag_matched"] = (
-            df["resourcetags"].str.lower().str.contains("openshift_cluster|openshift_project|openshift_node")
-        )
-
-    df["tag_matched"] = False
-    df["matched_tag"] = ""
-    if matched_tags:
-        tag_keys = set()
-        tag_values = set()
-        for tag in matched_tags:
-            tag_keys.update(tag.keys())
-            tag_values.update(tag.values())
-
-        if not df["resourcetags"].eq("").all():
-            tag_keys_re = "|".join(tag_keys)
-            tag_values_re = "|".join(tag_values)
-            df["tag_matched"] = df["resourcetags"].str.contains(tag_keys_re) & df["resourcetags"].str.contains(
-                tag_values_re
-            )
-
-        if df["tag_matched"].any():
-            LOG.info("Matching OpenShift on AWS tags.")
-            df["matched_tag"] = (
-                df.loc[df["tag_matched"], "resourcetags"]
-                .apply(match_openshift_labels, args=(matched_tags,))
-                .fillna(value="")
-            )
-
-    openshift_matched_data_frame = df[
-        df["resource_id_matched"] | df["special_case_tag_matched"] | (df["matched_tag"].str.len() > 0)
-    ]
-
-    openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
-    openshift_matched_data_frame = openshift_matched_data_frame.drop(
-        columns=["special_case_tag_matched", "tag_matched"]
-    )
-
-    return openshift_matched_data_frame
