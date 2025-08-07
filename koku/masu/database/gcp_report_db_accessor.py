@@ -9,7 +9,6 @@ import logging
 import pkgutil
 import uuid
 from os import path
-from typing import Any
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
@@ -329,7 +328,43 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             bill_id,
             report_period_id,
         )
-        self.populate_ocp_on_cloud_daily_trino(sql_metadata)
+        managed_path = "trino_sql/gcp/openshift/populate_daily_summary/"
+        prepare_sql, prepare_params = sql_metadata.prepare_template(
+            f"{managed_path}/0_prepare_daily_summary_tables.sql"
+        )
+        LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
+        self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
+        self.delete_ocp_on_gcp_hive_partition_by_day(
+            sql_metadata.days_tup,
+            sql_metadata.cloud_provider_uuid,
+            sql_metadata.ocp_provider_uuid,
+            sql_metadata.year,
+            sql_metadata.month,
+        )
+        # Resource Matching
+        resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
+            f"{managed_path}/1_resource_matching_by_cluster.sql",
+            {
+                "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
+            },
+        )
+        LOG.info(log_json(msg="Resource matching for OCP on GCP flow", **resource_matching_params))
+        self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
+        # Data Transformation for Daily Summary
+        daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
+            f"{managed_path}/2_summarize_data_by_cluster.sql",
+            {
+                **sql_metadata.build_cost_model_params(),
+            },
+        )
+        LOG.info(log_json(msg="executing data transformations for ocp on gcp daily summary", **daily_summary_params))
+        self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
+        # Insert into postgresql
+        psql_insert, psql_params = sql_metadata.prepare_template(
+            f"{managed_path}/3_reporting_ocpgcpcostlineitem_project_daily_summary_p.sql",
+        )
+        LOG.info(log_json(msg="running OCP on GCP SQL managed flow", **psql_params))
+        self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
@@ -521,43 +556,3 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 LOG.info(log_json(msg="no matching enabled keys for OCP on GCP", schema=self.schema))
                 return False
         return True
-
-    def populate_ocp_on_cloud_daily_trino(self, sql_metadata: SummarySqlMetadata) -> Any:
-        """Populate the managed_gcp_openshift_daily trino table for OCP on GCP"""
-        managed_path = "trino_sql/gcp/openshift/populate_daily_summary/"
-        prepare_sql, prepare_params = sql_metadata.prepare_template(
-            f"{managed_path}/0_prepare_daily_summary_tables.sql"
-        )
-        LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
-        self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
-        self.delete_ocp_on_gcp_hive_partition_by_day(
-            sql_metadata.days_tup,
-            sql_metadata.cloud_provider_uuid,
-            sql_metadata.ocp_provider_uuid,
-            sql_metadata.year,
-            sql_metadata.month,
-        )
-        # Resource Matching
-        resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
-            f"{managed_path}/1_resource_matching_by_cluster.sql",
-            {
-                "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
-            },
-        )
-        LOG.info(log_json(msg="Resource matching for OCP on GCP flow", **resource_matching_params))
-        self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
-        # Data Transformation for Daily Summary
-        daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
-            f"{managed_path}/2_summarize_data_by_cluster.sql",
-            {
-                **sql_metadata.build_cost_model_params(),
-            },
-        )
-        LOG.info(log_json(msg="executing data transformations for ocp on gcp daily summary", **daily_summary_params))
-        self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
-        # Insert into postgresql
-        psql_insert, psql_params = sql_metadata.prepare_template(
-            f"{managed_path}/3_reporting_ocpgcpcostlineitem_project_daily_summary_p.sql",
-        )
-        LOG.info(log_json(msg="running OCP on GCP SQL managed flow", **psql_params))
-        self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)
