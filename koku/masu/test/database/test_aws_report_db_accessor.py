@@ -160,22 +160,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
-    def test_populate_ocp_on_aws_ui_summary_tables_trino(self, mock_trino):
-        """Test that Trino is used to populate UI summary."""
-        start_date = datetime.datetime.strptime("2023-05-01", "%Y-%m-%d").date()
-        end_date = datetime.datetime.strptime("2023-05-31", "%Y-%m-%d").date()
-
-        self.accessor.populate_ocp_on_aws_ui_summary_tables_trino(
-            start_date,
-            end_date,
-            self.ocp_provider_uuid,
-            self.aws_provider_uuid,
-        )
-        mock_trino.assert_called()
-
-    @patch("masu.database.aws_report_db_accessor.is_managed_ocp_cloud_summary_enabled", return_value=True)
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_trino_raw_sql_query")
-    def test_populate_ocp_on_aws_ui_summary_tables_trino_managed(self, mock_trino, mock_unleash):
+    def test_populate_ocp_on_aws_ui_summary_tables_trino_managed(self, mock_trino):
         """Test that Trino is used to populate UI summary."""
         start_date = datetime.datetime.strptime("2023-05-01", "%Y-%m-%d").date()
         end_date = datetime.datetime.strptime("2023-05-31", "%Y-%m-%d").date()
