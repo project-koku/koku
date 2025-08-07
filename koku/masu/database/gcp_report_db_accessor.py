@@ -27,7 +27,6 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
-from reporting.models import OCP_ON_GCP_TEMP_MANAGED_TABLES
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -320,15 +319,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        for table in OCP_ON_GCP_TEMP_MANAGED_TABLES:
-            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
-
-        days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_on_gcp_hive_partition_by_day(days_tup, gcp_provider_uuid, openshift_provider_uuid, year, month)
-
         sql_metadata = SummarySqlMetadata(
             self.schema,
             openshift_provider_uuid,
@@ -377,38 +367,33 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def delete_ocp_on_gcp_hive_partition_by_day(
-        self, days, gcp_source, ocp_source, year, month, table="reporting_ocpgcpcostlineitem_project_daily_summary"
-    ):
+    def delete_ocp_on_gcp_hive_partition_by_day(self, days, gcp_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
-        if self.schema_exists_trino() and self.table_exists_trino(table):
+        if self.schema_exists_trino() and self.table_exists_trino(TRINO_OCP_GCP_DAILY_SUMMARY_TABLE):
             LOG.info(
                 log_json(
                     msg="deleting Hive partitions by day",
                     schema=self.schema,
                     ocp_source=ocp_source,
                     gcp_source=gcp_source,
-                    table=table,
+                    table=TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
                     year=year,
                     month=month,
                     days=days,
                 )
             )
             for day in days:
-                if table == TRINO_OCP_GCP_DAILY_SUMMARY_TABLE:
-                    column_name = "source"
-                else:
-                    column_name = "gcp_source"
                 sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
-                        WHERE {column_name} = '{gcp_source}'
+                    DELETE FROM hive.{self.schema}.{TRINO_OCP_GCP_DAILY_SUMMARY_TABLE}
+                        WHERE source = '{gcp_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                         AND day = '{day}'"""
                 self._execute_trino_raw_sql_query(
                     sql,
-                    log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day} from {table}",
+                    context={"year": year, "month": month, "day": day, "table": TRINO_OCP_GCP_DAILY_SUMMARY_TABLE},
+                    log_ref="delete_ocp_on_gcp_hive_partition_by_day",
                 )
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
@@ -551,7 +536,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql_metadata.ocp_provider_uuid,
             sql_metadata.year,
             sql_metadata.month,
-            TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         # Resource Matching
         resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(

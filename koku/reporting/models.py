@@ -168,18 +168,3 @@ TRINO_MANAGED_TABLES = {
 EXPIRE_MANAGED_TABLES = {
     "reporting_ocpusagelineitem_daily_summary": "source",
 }
-
-# TEMP tables are cleaned during day to day processing
-OCP_ON_AWS_TEMP_MANAGED_TABLES = {
-    "reporting_ocpawscostlineitem_project_daily_summary_temp",
-    "aws_openshift_disk_capacities_temp",
-}
-
-OCP_ON_AZURE_TEMP_MANAGED_TABLES = {
-    "reporting_ocpazurecostlineitem_project_daily_summary_temp",
-    "azure_openshift_disk_capacities_temp",
-}
-
-OCP_ON_GCP_TEMP_MANAGED_TABLES = {
-    "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
-}

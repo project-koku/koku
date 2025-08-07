@@ -28,7 +28,6 @@ from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
-from reporting.models import OCP_ON_AWS_TEMP_MANAGED_TABLES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
 from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
@@ -190,38 +189,33 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
-    def delete_ocp_on_aws_hive_partition_by_day(
-        self, days, aws_source, ocp_source, year, month, table="reporting_ocpawscostlineitem_project_daily_summary"
-    ):
+    def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
-        if self.schema_exists_trino() and self.table_exists_trino(table):
+        if self.schema_exists_trino() and self.table_exists_trino(TRINO_OCP_AWS_DAILY_SUMMARY_TABLE):
             LOG.info(
                 log_json(
                     msg="deleting Hive partitions by day",
                     schema=self.schema,
                     ocp_source=ocp_source,
                     aws_source=aws_source,
-                    table=table,
+                    table=TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
                     year=year,
                     month=month,
                     days=days,
                 )
             )
             for day in days:
-                if table == TRINO_OCP_AWS_DAILY_SUMMARY_TABLE:
-                    column_name = "source"
-                else:
-                    column_name = "aws_source"
                 sql = f"""
-                    DELETE FROM hive.{self.schema}.{table}
-                        WHERE {column_name} = '{aws_source}'
+                    DELETE FROM hive.{self.schema}.{TRINO_OCP_AWS_DAILY_SUMMARY_TABLE}
+                        WHERE source = '{aws_source}'
                         AND ocp_source = '{ocp_source}'
                         AND year = '{year}'
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                         AND day = '{day}'"""
                 self._execute_trino_raw_sql_query(
                     sql,
-                    log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day} from {table}",
+                    context={"year": year, "month": month, "day": day, "table": TRINO_OCP_AWS_DAILY_SUMMARY_TABLE},
+                    log_ref="delete_ocp_on_aws_hive_partition_by_day",
                 )
 
     def _get_matched_tags_strings(self, bill_id, aws_provider_uuid, ocp_provider_uuid, start_date, end_date):
@@ -277,9 +271,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         month = start_date.strftime("%m")
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
-        self.delete_ocp_on_aws_hive_partition_by_day(days_tup, aws_provider_uuid, openshift_provider_uuid, year, month)
-        for table in OCP_ON_AWS_TEMP_MANAGED_TABLES:
-            self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
 
         pod_column = "pod_effective_usage_cpu_core_hours"
         node_column = "node_capacity_cpu_core_hours"
@@ -552,7 +543,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql_metadata.ocp_provider_uuid,
             sql_metadata.year,
             sql_metadata.month,
-            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
         )
         # Resource Matching
         resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
