@@ -22,7 +22,6 @@ from masu.processor.ocp.ocp_cloud_parquet_summary_updater import DELETE_TABLE
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import TRUNCATE_TABLE
 from masu.test import MasuTestCase
-from masu.util.ocp.common import get_cluster_id_from_provider
 
 
 class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
@@ -286,17 +285,13 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_map.return_value = {self.ocpgcp_provider_uuid: (self.gcp_provider_uuid, Provider.PROVIDER_GCP)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="org1234567", provider=self.gcp_provider, manifest=None)
         updater.update_gcp_summary_tables(self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid, start_date, end_date)
-        cluster_id = get_cluster_id_from_provider(self.ocpgcp_provider_uuid)
         mock_ocp_on_gcp.assert_called_with(
             start_date,
             end_date,
             self.ocpgcp_provider_uuid,
-            cluster_id,
             self.gcp_test_provider_uuid,
             current_ocp_report_period_id,
             1,
-            decimal.Decimal(0),
-            DEFAULT_DISTRIBUTION_TYPE,
         )
         mock_ui_summary.assert_called_with(
             start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid
@@ -357,17 +352,13 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         updater.update_gcp_summary_tables(
             self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid, str(start_date), str(end_date)
         )
-        cluster_id = get_cluster_id_from_provider(self.ocpgcp_provider_uuid)
         mock_ocp_on_gcp.assert_called_with(
             start_date,
             end_date,
             self.ocpgcp_provider_uuid,
-            cluster_id,
             self.gcp_test_provider_uuid,
             current_ocp_report_period_id,
             1,
-            decimal.Decimal(0),
-            DEFAULT_DISTRIBUTION_TYPE,
         )
         mock_ui_summary.assert_called_with(
             start_date, end_date, self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid

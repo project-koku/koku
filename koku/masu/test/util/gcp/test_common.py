@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP common util."""
-import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django_tenants.utils import schema_context
 
@@ -92,122 +91,6 @@ class TestGCPUtils(MasuTestCase):
             bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
-
-    def test_match_openshift_resources_and_labels(self):
-        """Test that OCP on GCP matching occurs."""
-        cluster_topology = [
-            {
-                "resource_ids": [],
-                "cluster_id": "ocp-gcp-cluster",
-                "cluster_alias": "my-ocp-cluster",
-                "nodes": ["id1", "id2", "id3"],
-                "projects": [],
-                "provider_uuid": "2e26f8a7-42db-4a11-a0b1-f3084cd11e60",
-            }
-        ]
-
-        matched_tags = []
-
-        # in the gcp dataframe, these are labels
-        data = [
-            {
-                "resourceid": "id1",
-                "pretaxcost": 1,
-                "resource_name": "",
-                "labels": '{"key": "value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
-            },
-            {
-                "resourceid": "id2",
-                "pretaxcost": 1,
-                "resource_name": "",
-                "labels": '{"key": "other_value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
-            },
-            {
-                "resourceid": "id3",
-                "pretaxcost": 1,
-                "resource_name": "",
-                "labels": '{"key": "other_value", "kubernetes-not-io-cluster-ocp-gcp-cluster": "owned"}',
-            },
-        ]
-
-        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
-
-        # kubernetes-io-cluster matching, 2 results should come back with no matched tags
-        self.assertEqual(matched_df.shape[0], 2)
-
-        matched_tags = [{"key": "other_value"}]
-        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
-        # tag matching
-        result = matched_df[matched_df["resourceid"] == "id2"]["matched_tag"] == '"key": "other_value"'
-        self.assertTrue(result.any(bool_only=True))
-
-        result = matched_df[matched_df["resourceid"] == "id3"]["matched_tag"] == '"key": "other_value"'
-        self.assertTrue(result.any(bool_only=True))
-
-        # Matched tags, but none that match the dataset
-        matched_tags = [{"something_else": "entirely"}]
-        matched_df = utils.match_openshift_resources_and_labels(pd.DataFrame(data), cluster_topology, matched_tags)
-
-        # kubernetes-io-cluster matching, 2 results should come back but no matched tags
-        self.assertEqual(matched_df.shape[0], 2)
-
-        # tag matching
-        self.assertFalse((matched_df["matched_tag"] != "").any())
-
-        # COST-4543 - ensure we don't fail when dropping `tmp_ocp_matched`
-        try:
-            utils.match_openshift_resources_and_labels(pd.DataFrame(data), {}, [])
-        except Exception as err:
-            self.fail(f"failed matching: {err}")
-
-    def test_match_openshift_resources(self):
-        """Test that OCP on GCP matching occurs."""
-        cluster_topology = [
-            {
-                "resource_ids": [],
-                "cluster_id": "ocp-gcp-cluster",
-                "cluster_alias": "my-ocp-cluster",
-                "nodes": ["node1", "node2", "node3"],
-                "projects": [],
-                "provider_uuid": "2e26f8a7-42db-4a11-a0b1-f3084cd11e60",
-            }
-        ]
-
-        # in the gcp dataframe, these are labels
-        data = [
-            {
-                "resourceid": "id1",
-                "pretaxcost": 1,
-                "resource_name": "node1",
-                "global_resource_name": "global_resource_1",
-                "labels": '{"key": "other_value"}',
-            },
-            {
-                "resourceid": "id2",
-                "pretaxcost": 1,
-                "resource_name": "node3",
-                "global_resource_name": "global_resource_2",
-                "labels": '{"key": "other_value"}',
-            },
-            {
-                "resourceid": "id3",
-                "pretaxcost": 1,
-                "resource_name": "node3",
-                "global_resource_name": "global_resource_3",
-                "labels": '{"key": "other_value"}',
-            },
-        ]
-
-        df = pd.DataFrame(data)
-        expected_log = "Matching OpenShift on GCP by resource ID."
-
-        # Matched tags, but none that match the dataset
-        matched_tags = [{"something_else": "entirely"}]
-        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
-            matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-            self.assertIn(expected_log, logger.output[0])
-
-        self.assertEqual(matched_df.shape[0], 3)
 
     def test_deduplicate_reports_for_gcp(self):
         """Test the deduplication of reports for gcp."""

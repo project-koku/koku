@@ -485,14 +485,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             gcp_bill_ids = [bill.id for bill in gcp_bills]
             current_gcp_bill_id = gcp_bill_ids[0]
             current_ocp_report_period_id = report_period.id
-
-        with CostModelDBAccessor(self._schema, gcp_provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = Decimal(markup.get("value", 0)) / 100
-
-        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-
         # OpenShift on GCP
         sql_params = {
             "schema": self._schema,
@@ -512,12 +504,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     start,
                     end,
                     openshift_provider_uuid,
-                    cluster_id,
                     gcp_provider_uuid,
                     current_ocp_report_period_id,
                     current_gcp_bill_id,
-                    markup_value,
-                    distribution,
                 )
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
