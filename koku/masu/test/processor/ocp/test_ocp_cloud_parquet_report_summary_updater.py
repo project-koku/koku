@@ -73,8 +73,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.aws_test_provider_uuid,
             current_ocp_report_period_id,
             1,
-            decimal.Decimal(0),
-            DEFAULT_DISTRIBUTION_TYPE,
         )
 
     @patch(
