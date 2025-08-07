@@ -5,12 +5,10 @@
 """GCP utility functions and vars."""
 import datetime
 import logging
-import uuid
 
 from django_tenants.utils import schema_context
 
 from api.models import Provider
-from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.gcp.models import GCPCostEntryBill
 
 LOG = logging.getLogger(__name__)
@@ -95,74 +93,6 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         bills = list(bills.order_by("id").all())
 
     return bills
-
-
-def match_openshift_resources_and_labels(df, cluster_topologies, matched_tags):
-    """Filter a dataframe to the subset that matches an OpenShift source."""
-    tags = df["labels"].str.lower()
-
-    # instantiate an empty column which can be updated over each topology
-    df["ocp_source_uuid"] = ""
-
-    for cluster_topology in cluster_topologies:
-        cluster_id = cluster_topology.get("cluster_id", "")
-        cluster_alias = cluster_topology.get("cluster_alias", "")
-        nodes = list(filter(None, cluster_topology.get("nodes", [])))
-        volumes = list(filter(None, cluster_topology.get("persistent_volumes", [])))
-        matchable_resources = nodes + volumes
-
-        if not df["resource_name"].eq("").all():
-            LOG.info("Matching OpenShift on GCP by resource ID.")
-            if not matchable_resources:
-                continue
-            df.loc[
-                df["resource_name"].str.contains("|".join(matchable_resources)), "ocp_source_uuid"
-            ] = cluster_topology.get("provider_uuid")
-        else:
-            LOG.info("Matching OpenShift on GCP by labels.")
-            cluster_strings = [
-                f"kubernetes-io-cluster-{cluster_identifier}" for cluster_identifier in (cluster_id, cluster_alias)
-            ]
-            df.loc[tags.str.contains("|".join(cluster_strings)), "ocp_source_uuid"] = cluster_topology.get(
-                "provider_uuid"
-            )
-
-    # Consildate the columns per cluster into a single column
-    df["ocp_matched"] = df["ocp_source_uuid"].str.len() > 0
-
-    df["special_case_tag_matched"] = tags.str.contains("openshift_cluster|openshift_project|openshift_node")
-
-    df["tag_matched"] = False
-    df["matched_tag"] = ""
-    if matched_tags:
-        tag_keys = set()
-        tag_values = set()
-        for tag in matched_tags:
-            tag_keys.update(tag.keys())
-            tag_values.update(tag.values())
-
-        df["tag_matched"] = tags.str.contains("|".join(tag_keys)) & tags.str.contains("|".join(tag_values))
-
-        if df["tag_matched"].any():
-            df["matched_tag"] = (
-                df.loc[df["tag_matched"], "labels"]
-                .str.lower()
-                .apply(match_openshift_labels, args=(matched_tags,))
-                .fillna(value="")
-            )
-
-            LOG.info("Matching OpenShift on GCP tags.")
-
-    openshift_matched_data_frame = df[
-        df["ocp_matched"] | df["special_case_tag_matched"] | (df["matched_tag"].str.len() > 0)
-    ]
-
-    openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
-    openshift_matched_data_frame = openshift_matched_data_frame.drop(
-        columns=["special_case_tag_matched", "tag_matched"]
-    )
-
-    return openshift_matched_data_frame
 
 
 def deduplicate_reports_for_gcp(report_list):
