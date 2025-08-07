@@ -5,7 +5,6 @@
 """Updates report summary tables in the database."""
 import datetime
 import logging
-from decimal import Decimal
 
 from dateutil import parser
 from django.conf import settings
@@ -13,13 +12,11 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
-from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
