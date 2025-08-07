@@ -255,11 +255,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        days = self.date_helper.list_days(start_date, end_date)
-        days_tup = tuple(str(day.day) for day in days)
-
         sql_metadata = SummarySqlMetadata(
             self.schema,
             openshift_provider_uuid,

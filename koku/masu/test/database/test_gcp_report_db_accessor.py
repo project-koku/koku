@@ -32,7 +32,6 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
-from reporting.provider.gcp.models import TRINO_OCP_GCP_DAILY_SUMMARY_TABLE
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -177,9 +176,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_gcp_cost_daily_summary_trino_managed(self, mock_trino, mock_month_delete, mock_delete):
+    def test_populate_ocp_on_gcp_cost_daily_summary_trino_managed(self, mock_trino, mock_delete):
         """Test that we construst our SQL and query using Trino."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
@@ -197,7 +195,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
             current_bill_id,
         )
         mock_trino.assert_called()
-        mock_month_delete.assert_called()
         mock_delete.assert_called()
 
     def test_get_openshift_on_cloud_matched_tags(self):
@@ -400,7 +397,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -417,7 +413,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -517,7 +512,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             mparams.year,
             mparams.month,
-            TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
 

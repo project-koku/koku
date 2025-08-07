@@ -28,7 +28,6 @@ from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -285,7 +284,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -302,7 +300,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -405,7 +402,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             params.year,
             params.month,
-            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
 

@@ -36,7 +36,6 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryLineItemSummaryByEC2ComputeP
-from reporting.provider.aws.models import TRINO_OCP_AWS_DAILY_SUMMARY_TABLE
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -266,7 +265,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -283,7 +281,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -505,7 +502,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             params.year,
             params.month,
-            TRINO_OCP_AWS_DAILY_SUMMARY_TABLE,
         )
         mock_trino.assert_called()
 
