@@ -23,7 +23,6 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.processor import is_feature_unattributed_storage_enabled_aws
-from masu.processor import is_managed_ocp_cloud_summary_enabled
 from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -166,13 +165,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days = self.date_helper.list_days(start_date, end_date)
         days_tup = tuple(str(day.day) for day in days)
 
-        # COST-5881: Remove this when we switch to managed flow
-        trino_table = "reporting_ocpawscostlineitem_project_daily_summary"
-        column_name = "aws_source"
-        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
-            trino_table = "managed_reporting_ocpawscostlineitem_project_daily_summary"
-            column_name = "source"
-
         for table_name in tables:
             sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/{table_name}.sql")
             sql = sql.decode("utf-8")
@@ -185,8 +177,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "days": days_tup,
                 "aws_source_uuid": aws_provider_uuid,
                 "ocp_source_uuid": openshift_provider_uuid,
-                "trino_table": trino_table,
-                "column_name": column_name,
             }
             self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref=f"{table_name}.sql")
 
@@ -260,8 +250,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         aws_provider_uuid,
         report_period_id,
         bill_id,
-        markup_value,
-        distribution,
     ):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
@@ -281,51 +269,17 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         for table in OCP_ON_AWS_TEMP_MANAGED_TABLES:
             self.delete_hive_partition_by_month(table, openshift_provider_uuid, year, month)
 
-        pod_column = "pod_effective_usage_cpu_core_hours"
-        node_column = "node_capacity_cpu_core_hours"
-        if distribution == "memory":
-            pod_column = "pod_effective_usage_memory_gigabyte_hours"
-            node_column = "node_capacity_memory_gigabyte_hours"
-
-        unattributed_storage = is_feature_unattributed_storage_enabled_aws(self.schema)
-
-        if is_managed_ocp_cloud_summary_enabled(self.schema, Provider.PROVIDER_AWS):
-            sql_metadata = SummarySqlMetadata(
-                self.schema,
-                openshift_provider_uuid,
-                aws_provider_uuid,
-                start_date,
-                end_date,
-                self._get_matched_tags_strings(
-                    bill_id, aws_provider_uuid, openshift_provider_uuid, start_date, end_date
-                ),
-                bill_id,
-                report_period_id,
-            )
-            self.populate_ocp_on_cloud_daily_trino(sql_metadata)
-            return
-
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpawscostlineitem_daily_summary.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "schema": self.schema,
-            "start_date": start_date,
-            "year": year,
-            "month": month,
-            "days": days_tup,
-            "end_date": end_date,
-            "aws_source_uuid": aws_provider_uuid,
-            "ocp_source_uuid": openshift_provider_uuid,
-            "bill_id": bill_id,
-            "report_period_id": report_period_id,
-            "markup": markup_value or 0,
-            "pod_column": pod_column,
-            "node_column": node_column,
-            "unattributed_storage": unattributed_storage,
-        }
-        ctx = self.extract_context_from_sql_params(sql_params)
-        LOG.info(log_json(msg="running OCP on AWS SQL", context=ctx))
-        self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+        sql_metadata = SummarySqlMetadata(
+            self.schema,
+            openshift_provider_uuid,
+            aws_provider_uuid,
+            start_date,
+            end_date,
+            self._get_matched_tags_strings(bill_id, aws_provider_uuid, openshift_provider_uuid, start_date, end_date),
+            bill_id,
+            report_period_id,
+        )
+        self.populate_ocp_on_cloud_daily_trino(sql_metadata)
 
     def back_populate_ocp_infrastructure_costs(self, start_date, end_date, report_period_id):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
@@ -567,9 +521,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/2_summarize_data_by_cluster.sql",
             {
                 **sql_metadata.build_cost_model_params(),
-                **{
-                    "unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema),
-                },
+                "unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema),
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params))

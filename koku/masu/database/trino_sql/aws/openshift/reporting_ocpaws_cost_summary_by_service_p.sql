@@ -38,8 +38,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpaws_cost_summary_by_servi
         sum(markup_cost_amortized),
         max(currency_code),
         cast({{aws_source_uuid}} as uuid) as source_uuid
-    FROM hive.{{schema | sqlsafe}}.{{trino_table | sqlsafe}}
-    WHERE {{column_name | sqlsafe}} = {{aws_source_uuid}}
+    FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary
+    WHERE source = {{aws_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
