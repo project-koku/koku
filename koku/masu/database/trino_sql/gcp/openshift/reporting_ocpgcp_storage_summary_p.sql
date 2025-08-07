@@ -33,9 +33,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_storage_summary_p (
         cast({{gcp_source_uuid}} as uuid) as source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM hive.{{schema | sqlsafe}}.{{trino_table | sqlsafe}}
+    FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary
     -- Get data for this month or last month
-    WHERE {{column_name | sqlsafe}} = {{gcp_source_uuid}}
+    WHERE source = {{gcp_source_uuid}}
         AND ocp_source = {{ocp_source_uuid}}
         AND year = {{year}}
         AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
