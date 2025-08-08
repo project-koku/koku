@@ -19,12 +19,10 @@ from django_tenants.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.models import Provider
-from api.utils import DateHelper
 from koku.trino_database import TrinoHiveMetastoreError
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
-from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
@@ -32,7 +30,6 @@ from reporting.provider.all.models import TagMapping
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPTopology
-from reporting.provider.gcp.models import TRINO_OCP_GCP_DAILY_SUMMARY_TABLE
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
@@ -177,9 +174,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_hive_partition_by_month")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_gcp_cost_daily_summary_trino_managed(self, mock_trino, mock_month_delete, mock_delete):
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._get_matched_tags_strings")
+    def test_populate_ocp_on_gcp_cost_daily_summary_trino_managed(self, mock_get_tags, mock_trino, mock_delete):
         """Test that we construst our SQL and query using Trino."""
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
@@ -187,6 +184,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider.uuid)
         with schema_context(self.schema):
             current_bill_id = bills.first().id if bills else None
+
+        mock_get_tags.return_value = "fake-tags"
 
         self.accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
             start_date,
@@ -197,7 +196,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
             current_bill_id,
         )
         mock_trino.assert_called()
-        mock_month_delete.assert_called()
         mock_delete.assert_called()
 
     def test_get_openshift_on_cloud_matched_tags(self):
@@ -400,7 +398,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -417,7 +414,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -494,32 +490,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
             ).count()
             self.assertEqual(0, actual_child_count)
-
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete):
-        """Test that calling ocp on cloud populate triggers the deletes and summary sql."""
-        matched_tags = "fake-tags"
-        mparams = SummarySqlMetadata(
-            self.schema_name,
-            self.ocp_provider_uuid,
-            self.gcp_provider_uuid,
-            DateHelper().today,
-            DateHelper().tomorrow,
-            matched_tags,
-            1,
-            1,
-        )
-        self.accessor.populate_ocp_on_cloud_daily_trino(mparams)
-        mock_partition_delete.assert_called_with(
-            mparams.days_tup,
-            self.gcp_provider_uuid,
-            self.ocp_provider_uuid,
-            mparams.year,
-            mparams.month,
-            TRINO_OCP_GCP_DAILY_SUMMARY_TABLE,
-        )
-        mock_trino.assert_called()
 
     @patch(
         "masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_openshift_on_cloud_matched_tags",
