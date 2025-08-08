@@ -824,7 +824,7 @@ def clear_s3_files(
         # GCP openshift data is partitioned by day
         day = start_date.strftime("%d")
         parquet_ocp_on_cloud_path_s3 += f"/day={day}"
-        list_dates = [start_date]
+        list_dates = [start_date.date()]
     for _date in list_dates:
         path = f"{og_path}{_date}"
         s3_prefixes.append(csv_s3_path + path)
