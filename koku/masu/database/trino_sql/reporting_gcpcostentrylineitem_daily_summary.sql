@@ -63,7 +63,7 @@ CROSS JOIN
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
-    AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'
+    AND invoice_month = '{{invoice_month | sqlsafe}}'
     AND usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
 GROUP BY billing_account_id,
