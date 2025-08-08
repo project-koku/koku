@@ -22,13 +22,11 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from masu.test import MasuTestCase
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
-from reporting.provider.azure.models import TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -146,7 +144,8 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_trino_managed(self, mock_trino, mock_delete):
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._get_matched_tags_strings")
+    def test_populate_ocp_on_azure_cost_daily_summary_trino_managed(self, mock_get_tags, mock_trino, mock_delete):
         """Test that we construst our SQL and query using Trino."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -156,6 +155,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             current_bill_id = bills.first().id if bills else None
 
+        mock_get_tags.return_value = "fake-tags"
         self.accessor.populate_ocp_on_azure_cost_daily_summary_trino(
             start_date,
             end_date,
@@ -285,7 +285,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.ocp_provider_uuid,
             "2022",
             "01",
-            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
         )
         mock_connect.assert_not_called()
 
@@ -302,7 +301,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 self.ocp_provider_uuid,
                 "2022",
                 "01",
-                TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
             )
 
         mock_connect.assert_called()
@@ -379,35 +377,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 tags__has_key=child_key, usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
             ).count()
             self.assertEqual(0, actual_child_count)
-
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.delete_ocp_on_azure_hive_partition_by_day")
-    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_ocp_on_cloud_daily_trino(self, mock_trino, mock_partition_delete):
-        """
-        Test that calling ocp on cloud populate triggers the deletes and summary sql.
-        """
-        matched_tags = "fake-tags"
-        params = SummarySqlMetadata(
-            self.schema_name,
-            self.ocp_provider_uuid,
-            self.azure_provider_uuid,
-            "2024-08-01",
-            "2024-08-05",
-            matched_tags,
-            1,
-            1,
-        )
-
-        self.accessor.populate_ocp_on_cloud_daily_trino(params)
-        mock_partition_delete.assert_called_with(
-            params.days_tup,
-            self.azure_provider_uuid,
-            self.ocp_provider_uuid,
-            params.year,
-            params.month,
-            TRINO_OCP_AZURE_DAILY_SUMMARY_TABLE,
-        )
-        mock_trino.assert_called()
 
     def test_get_matched_tags_strings_postgres(self):
         """Test fetching match tag strings via postgres."""
