@@ -583,7 +583,7 @@ class TestAWSUtils(MasuTestCase):
         prov_uuid = self.gcp_provider_uuid
         prov_type = self.gcp_provider.type
         context = {"account": self.account_id, "provider_type": prov_type}
-        start_date = self.dh.this_month_start.date()
+        start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
         expected_key = "not_matching_key"
         mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
