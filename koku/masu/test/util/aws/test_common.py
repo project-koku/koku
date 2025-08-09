@@ -14,7 +14,6 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import boto3
-import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
 from django_tenants.utils import schema_context
@@ -584,7 +583,7 @@ class TestAWSUtils(MasuTestCase):
         prov_uuid = self.gcp_provider_uuid
         prov_type = self.gcp_provider.type
         context = {"account": self.account_id, "provider_type": prov_type}
-        start_date = self.dh.this_month_start.date()
+        start_date = self.dh.this_month_start
         s3_csv_path = get_path_prefix(self.account_id, "GCP", prov_uuid, start_date, Config.CSV_DATA_TYPE)
         expected_key = "not_matching_key"
         mock_object = Mock(metadata={metadata_key: "this will be deleted"}, key=expected_key)
@@ -668,138 +667,6 @@ class TestAWSUtils(MasuTestCase):
             mock_s3.return_value.Object.return_value.upload_fileobj.side_effect = ClientError({}, "Error")
             with self.assertRaises(utils.UploadError):
                 utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-
-    def test_match_openshift_resources_and_labels(self):
-        """Test OCP on AWS data matching."""
-        cluster_topology = [
-            {
-                "resource_ids": ["id1", "id2", "id3"],
-                "cluster_id": self.ocp_cluster_id,
-                "cluster_alias": "my-ocp-cluster",
-                "nodes": [],
-                "projects": [],
-            }
-        ]
-
-        matched_tags = [{"key": "value"}]
-
-        data = [
-            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
-            {"lineitem_resourceid": "id2", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "other_value"}'},
-            {"lineitem_resourceid": "id4", "lineitem_unblendedcost": 1, "resourcetags": '{"keyz": "value"}'},
-            {"lineitem_resourceid": "id5", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
-        ]
-
-        df = pd.DataFrame(data)
-
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-
-        # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.any().any())
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.any().any())
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.empty)
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.empty)
-
-        # tag matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.any().any())
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id5"]["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.any().any())
-
-        # Matched tags, but none that match the dataset
-        matched_tags = [{"something_else": "entirely"}]
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-
-        # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.any().any())
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.any().any())
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.empty)
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.empty)
-        # tag matching
-        self.assertFalse((matched_df["matched_tag"] != "").any())
-
-        # No matched tags
-        matched_tags = []
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-
-        # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.any().any())
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id2"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.any().any())
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id3"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.empty)
-
-        result = matched_df[matched_df["lineitem_resourceid"] == "id4"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.empty)
-
-        # tag matching
-        self.assertFalse(matched_df["matched_tag"].ne("").any())
-
-    def test_match_openshift_labels_with_nan_resources(self):
-        """Test OCP on AWS data matching."""
-        cluster_topology = [
-            {
-                "resource_ids": ["id1", "id2", "id3"],
-                "cluster_id": self.ocp_cluster_id,
-                "cluster_alias": "my-ocp-cluster",
-                "nodes": [],
-                "projects": [],
-            }
-        ]
-
-        matched_tags = [{"key": "value"}]
-        data = [
-            {"lineitem_resourceid": "", "lineitem_unblendedcost": 1, "resourcetags": '{"key": "value"}'},
-        ]
-
-        df = pd.DataFrame(data)
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-
-        # tag matching
-        result = matched_df["matched_tag"] == '"key": "value"'
-        self.assertTrue(result.any().any())
-
-    def test_match_openshift_resource_with_nan_labels(self):
-        """Test OCP on AWS data matching."""
-        cluster_topology = [
-            {
-                "resource_ids": ["id1", "id2", "id3"],
-                "cluster_id": self.ocp_cluster_id,
-                "cluster_alias": "my-ocp-cluster",
-                "nodes": [],
-                "projects": [],
-            }
-        ]
-
-        matched_tags = [{"key": "value"}]
-        data = [
-            {"lineitem_resourceid": "id1", "lineitem_unblendedcost": 1, "resourcetags": ""},
-        ]
-
-        df = pd.DataFrame(data)
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-
-        # resource id matching
-        result = matched_df[matched_df["lineitem_resourceid"] == "id1"]["resource_id_matched"].eq(True)
-        self.assertTrue(result.any().any())
 
     @patch("masu.util.aws.common.get_s3_resource")
     def test_get_or_clear_daily_s3_by_date(self, mock_resource):
