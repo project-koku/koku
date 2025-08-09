@@ -56,25 +56,25 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def line_item_daily_summary_table(self):
         return GCPCostEntryLineItemDailySummary
 
-    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
+    def populate_ui_summary_tables(
+            self, start_date, end_date, source_uuid, invoice_month, tables=UI_SUMMARY_TABLES
+            ):
         """Populate our UI summary tables (formerly materialized views)."""
-        invoice_month_list = self.date_helper.gcp_find_invoice_months_in_date_range(start_date, end_date)
-        for invoice_month in invoice_month_list:
-            for table_name in tables:
-                sql = pkgutil.get_data("masu.database", f"sql/gcp/{table_name}.sql")
-                sql = sql.decode("utf-8")
-                # Extend the end date past the end of the month & add the invoice month
-                # in order to include cross over data.
-                extended_end_date = end_date + relativedelta(days=2)
-                sql_params = {
-                    "start_date": start_date,
-                    "end_date": extended_end_date,
-                    "schema": self.schema,
-                    "source_uuid": source_uuid,
-                    "invoice_month": invoice_month,
-                }
+        for table_name in tables:
+            sql = pkgutil.get_data("masu.database", f"sql/gcp/{table_name}.sql")
+            sql = sql.decode("utf-8")
+            # Extend the end date past the end of the month & add the invoice month
+            # in order to include cross over data.
+            extended_end_date = end_date + relativedelta(days=2)
+            sql_params = {
+                "start_date": start_date,
+                "end_date": extended_end_date,
+                "schema": self.schema,
+                "source_uuid": source_uuid,
+                "invoice_month": invoice_month,
+            }
 
-                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
+            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
     def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
@@ -95,7 +95,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def populate_line_item_daily_summary_table_trino(
-        self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month_date
+        self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month
     ):
         """Populate the daily aggregated summary of line items table.
 
@@ -134,6 +134,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "table": TRINO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
+            "invoice_month": invoice_month,
             "markup": markup_value or 0,
             "bill_id": bill_id,
         }

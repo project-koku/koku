@@ -10,6 +10,7 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
+from api.utils import DateHelper
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.util.gcp.common import get_bills_from_provider
@@ -81,9 +82,13 @@ class GCPCostModelCostUpdater:
                     provider_uuid=self._provider.uuid,
                 )
             )
-            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid, UI_SUMMARY_TABLES)
-            bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-            with schema_context(self._schema):
-                for bill in bills:
-                    bill.derived_cost_datetime = timezone.now()
-                    bill.save()
+            dh = DateHelper()
+            invoice_month_list = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)
+            for invoice_month in invoice_month_list:
+                accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid, invoice_month, UI_SUMMARY_TABLES)
+                invoice_month_date = dh.invoice_month_start(invoice_month).date()
+                bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
+                with schema_context(self._schema):
+                    for bill in bills:
+                        bill.derived_cost_datetime = timezone.now()
+                        bill.save()
