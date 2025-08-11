@@ -317,7 +317,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cost
+                            + self.cost_model_cpu_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
@@ -358,7 +358,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cost
+                            + self.cost_model_cpu_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
@@ -381,7 +381,7 @@ class OCPProviderMap(ProviderMap):
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cpu_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cost
+                            + self.cost_model_cpu_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
@@ -436,7 +436,7 @@ class OCPProviderMap(ProviderMap):
                             + self.cost_model_memory_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cost
+                            + self.cost_model_memory_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
@@ -479,7 +479,7 @@ class OCPProviderMap(ProviderMap):
                             + self.cost_model_memory_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cost
+                            + self.cost_model_memory_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
@@ -506,7 +506,7 @@ class OCPProviderMap(ProviderMap):
                             + self.cost_model_memory_cost,
                             "cost_total_distributed": self.cloud_infrastructure_cost
                             + self.markup_cost
-                            + self.cost_model_cost
+                            + self.cost_model_memory_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
                             + self.distributed_unattributed_storage_cost
