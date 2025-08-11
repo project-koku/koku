@@ -56,9 +56,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def line_item_daily_summary_table(self):
         return GCPCostEntryLineItemDailySummary
 
-    def populate_ui_summary_tables(
-            self, start_date, end_date, source_uuid, invoice_month, tables=UI_SUMMARY_TABLES
-            ):
+    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, invoice_month, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
             sql = pkgutil.get_data("masu.database", f"sql/gcp/{table_name}.sql")

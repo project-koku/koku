@@ -899,6 +899,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
+    @patch("masu.util.common.trino_db.connect")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")

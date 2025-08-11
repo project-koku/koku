@@ -94,7 +94,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                                 start_date=start,
                                 end_date=end,
                                 invoice_month=invoice_month,
-                                bill_id=current_bill_id
+                                bill_id=current_bill_id,
                             )
                         )
                         filters = {
