@@ -52,6 +52,8 @@ WITH filtered_data as (
         and nsp.namespace NOT LIKE 'kube-%'
         and nsp.namespace NOT LIKE 'openshift-%'
         and nsp.namespace != 'openshift'
+        and DATE(nsp.interval_start) >= DATE({{start_date}})
+        and DATE(nsp.interval_start) <= DATE({{end_date}})
         {%- if default_rate is defined %}
             AND json_extract(nsp.namespace_labels, '$.{{ tag_key|sqlsafe }}') IS NOT NULL
         {%- else %}

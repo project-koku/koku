@@ -953,6 +953,7 @@ class OCPProviderMap(ProviderMap):
                 ("node",): OCPPodSummaryByNodeP,
                 ("project",): OCPPodSummaryByProjectP,
                 ("cluster", "project"): OCPPodSummaryByProjectP,
+                ("cluster", "node"): OCPPodSummaryByNodeP,
             },
             "memory": {
                 "default": OCPPodSummaryP,
@@ -960,6 +961,7 @@ class OCPProviderMap(ProviderMap):
                 ("node",): OCPPodSummaryByNodeP,
                 ("project",): OCPPodSummaryByProjectP,
                 ("cluster", "project"): OCPPodSummaryByProjectP,
+                ("cluster", "node"): OCPPodSummaryByNodeP,
             },
             "volume": {
                 "default": OCPVolumeSummaryP,
