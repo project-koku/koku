@@ -10,7 +10,6 @@ import secrets
 import sys
 import textwrap
 import time
-import typing as t
 from datetime import datetime
 from datetime import timedelta
 
@@ -25,6 +24,7 @@ import koku.trino_database as trino_db
 from api.utils import DateHelper
 from koku.cache import build_trino_table_exists_key
 from koku.cache import delete_value_from_cache
+from reporting.models import TRINO_MANAGED_TABLES
 
 LOG = logging.getLogger(__name__)
 # External tables can be dropped as the data in S3 will persist
@@ -49,58 +49,19 @@ EXTERNAL_TABLES = {
 
 # Managed tables should be altered not dropped as we will lose all of the data
 MANAGED_TABLES = {
-    "aws_openshift_daily_resource_matched_temp",
-    "aws_openshift_daily_tag_matched_temp",
-    "azure_openshift_daily_resource_matched_temp",
-    "azure_openshift_daily_tag_matched_temp",
-    "gcp_openshift_daily_resource_matched_temp",
-    "gcp_openshift_daily_tag_matched_temp",
-    "reporting_ocpawscostlineitem_project_daily_summary",
-    "reporting_ocpawscostlineitem_project_daily_summary_temp",
-    "reporting_ocpazurecostlineitem_project_daily_summary",
-    "reporting_ocpazurecostlineitem_project_daily_summary_temp",
-    "reporting_ocpgcpcostlineitem_project_daily_summary",
-    "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
-    "reporting_ocpusagelineitem_daily_summary",
-    "aws_openshift_disk_capacities_temp",
     "managed_aws_openshift_daily_temp",
     "managed_aws_openshift_disk_capacities_temp",
     "managed_reporting_ocpawscostlineitem_project_daily_summary",
     "managed_reporting_ocpawscostlineitem_project_daily_summary_temp",
-    "azure_openshift_disk_capacities_temp",
     "managed_azure_openshift_daily_temp",
     "managed_azure_openshift_disk_capacities_temp",
     "managed_reporting_ocpazurecostlineitem_project_daily_summary",
     "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp",
-    "managed_gcp_openshift_daily",
+    "managed_gcp_openshift_daily_temp",
+    "managed_reporting_ocpgcpcostlineitem_project_daily_summary",
+    "managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp",
 }
 
-manage_table_mapping = {
-    "aws_openshift_daily_resource_matched_temp": "ocp_source",
-    "aws_openshift_daily_tag_matched_temp": "ocp_source",
-    "azure_openshift_daily_resource_matched_temp": "ocp_source",
-    "azure_openshift_daily_tag_matched_temp": "ocp_source",
-    "gcp_openshift_daily_resource_matched_temp": "ocp_source",
-    "gcp_openshift_daily_tag_matched_temp": "ocp_source",
-    "reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
-    "reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",
-    "reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
-    "reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
-    "reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
-    "reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
-    "reporting_ocpusagelineitem_daily_summary": "source",
-    "azure_openshift_disk_capacities_temp": "ocp_source",
-    "aws_openshift_disk_capacities_temp": "ocp_source",
-    "managed_aws_openshift_daily_temp": "ocp_source",
-    "managed_aws_openshift_disk_capacities_temp": "ocp_source",
-    "managed_reporting_ocpawscostlineitem_project_daily_summary": "ocp_source",
-    "managed_reporting_ocpawscostlineitem_project_daily_summary_temp": "ocp_source",
-    "managed_azure_openshift_daily_temp": "ocp_source",
-    "managed_azure_openshift_disk_capacities_temp": "ocp_source",
-    "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
-    "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
-    "managed_gcp_openshift_daily": "ocp_source",
-}
 
 VALID_CHARACTERS = re.compile(r"^[\w.-]+$")
 
@@ -147,8 +108,8 @@ class ListDropPartitions(BaseModel):
 
 
 class Action(BaseModel):
-    list_of_cols: t.Union[ListAddColumns, ListDropColumns]
-    schemas: t.Optional[list[str]] = Field(default_factory=list)
+    list_of_cols: ListAddColumns | ListDropColumns
+    schemas: list[str] | None = Field(default_factory=list)
     find_query: str
     modify_query: str
 
@@ -248,7 +209,6 @@ class DropColumnAction(Action):
 
 
 class Command(BaseCommand):
-
     help = ""
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -270,8 +230,7 @@ class Command(BaseCommand):
             "--drop-columns",
             action=JSONArgs,
             help=(
-                "a json encoded string that contains an array of "
-                "objects which must include `table` and `column` keys"
+                "a json encoded string that contains an array of objects which must include `table` and `column` keys"
             ),
             dest="columns_to_drop",
         )
@@ -336,7 +295,7 @@ def get_all_schemas() -> list[str]:
     return sorted(schemas)
 
 
-def run_trino_sql(sql, schema=None) -> list[t.Optional[list[int]]]:
+def run_trino_sql(sql, schema=None) -> list[list[int] | None]:
     retries = 8
     for n in range(1, retries + 1):
         attempt = n
@@ -492,7 +451,7 @@ def drop_expired_partitions(tables, schemas):
                 LOG.info(f"{prefix}Only supported for managed tables at the moment")
                 continue
 
-            source_column_param = manage_table_mapping[table]
+            source_column_param = TRINO_MANAGED_TABLES[table]
             if not check_table_exists(schema, table):
                 LOG.info(f"{prefix}{table} does not exist")
                 continue

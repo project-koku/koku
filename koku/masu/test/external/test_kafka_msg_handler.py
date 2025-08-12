@@ -28,6 +28,7 @@ from common.queues import OCPQueue
 from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
+from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorError
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
@@ -295,6 +296,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                 },
                 "side_effect": ReportProcessorError,
+            },
+            {
+                "test_value": {
+                    "account": "10001",
+                    "category": "tar",
+                    "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                },
+                "side_effect": ParquetReportProcessorError,
             },
         ]
         for test in test_matrix:

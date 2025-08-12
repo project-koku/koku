@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure provider."""
-from adal.adal_error import AdalError
 from azure.common import AzureException
 from azure.core.exceptions import AzureError
+from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
-from msrest.exceptions import ClientException
+from azure.core.exceptions import ServiceRequestError
 from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
@@ -135,11 +135,11 @@ class AzureProvider(ProviderInterface):
             key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))
         except (
-            AdalError,
+            ClientAuthenticationError,
+            ServiceRequestError,
             AzureError,
             AzureException,
             AzureServiceError,
-            ClientException,
             HttpResponseError,
             TypeError,
             ValueError,
@@ -205,11 +205,11 @@ class AzureProvider(ProviderInterface):
                     key = ProviderErrors.AZURE_REPORT_NOT_FOUND
                     raise serializers.ValidationError(error_obj(key, internal_message))
         except (
-            AdalError,
+            ClientAuthenticationError,
+            ServiceRequestError,
             AzureError,
             AzureException,
             AzureServiceError,
-            ClientException,
             HttpResponseError,
             TypeError,
             ValueError,

@@ -22,6 +22,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_KOKU_READS}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -196,6 +198,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_KOKU_WRITES}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -361,6 +365,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_NGINX}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -422,6 +428,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_LISTENER}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -555,6 +563,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_MASU}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -740,6 +750,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SCHEDULER}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -887,6 +899,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SOURCES_CLIENT}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -1041,6 +1055,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_SOURCES_LISTENER}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -1192,6 +1208,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_CELERY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -1361,6 +1379,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -1536,6 +1556,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -1711,6 +1733,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_COST_MODEL_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -1898,6 +1922,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -2076,6 +2102,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -2255,6 +2283,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_DOWNLOAD_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -2434,6 +2464,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -2611,6 +2643,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -2788,6 +2822,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_OCP_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -2965,6 +3001,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -3148,6 +3186,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -3331,6 +3371,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_PRIORITY_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -3514,6 +3556,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -3689,6 +3733,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -3864,6 +3910,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_REFRESH_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -4039,6 +4087,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -4218,6 +4268,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY_XL}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -4397,6 +4449,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUMMARY_PENALTY}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -4576,6 +4630,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_HCS}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -4749,6 +4805,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUBS_EXTRACTION}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -4910,6 +4968,8 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: REDEPLOY_HASH
+          value: ${REDEPLOY_HASH_ALL}_${REDEPLOY_HASH_WORKER_SUBS_TRANSMISSION}
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -5268,6 +5328,9 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/redhat-services-prod/cost-mgmt-dev-tenant/koku
+- description: change this value to restart all pods
+  name: REDEPLOY_HASH_ALL
+  value: "000000"
 - description: DEVELOPMENT ONLY - used to prevent clashing Glue databases during ephemeral
     testing
   name: SCHEMA_SUFFIX
@@ -5597,6 +5660,9 @@ parameters:
   displayname: Enable SUBS Provider Types
   name: ENABLE_SUBS_PROVIDER_TYPES
   value: AWS
+- description: change this value to restart koku-api-reads
+  name: REDEPLOY_HASH_KOKU_READS
+  value: "000000"
 - displayName: Minimum replicas
   name: KOKU_READS_REPLICAS
   required: true
@@ -5653,6 +5719,9 @@ parameters:
   name: KOKU_KOKU_LOG_LEVEL
   required: true
   value: INFO
+- description: change this value to restart koku-writes
+  name: REDEPLOY_HASH_KOKU_WRITES
+  value: "000000"
 - displayName: Minimum replicas
   name: NGINX_REPLICAS
   required: true
@@ -5685,6 +5754,9 @@ parameters:
   name: NGINX_IMAGE
   required: true
   value: registry.access.redhat.com/ubi9/nginx-124
+- description: change this value to restart nginx
+  name: REDEPLOY_HASH_NGINX
+  value: "000000"
 - displayName: Minimum replicas
   name: LISTENER_REPLICAS
   required: true
@@ -5709,6 +5781,9 @@ parameters:
   name: LISTENER_KOKU_LOG_LEVEL
   required: true
   value: INFO
+- description: change this value to restart listener
+  name: REDEPLOY_HASH_LISTENER
+  value: "000000"
 - displayName: Minimum replicas
   name: MASU_REPLICAS
   required: true
@@ -5733,6 +5808,9 @@ parameters:
   name: MASU_KOKU_LOG_LEVEL
   required: true
   value: INFO
+- description: change this value to restart masu
+  name: REDEPLOY_HASH_MASU
+  value: "000000"
 - displayName: Minimum replicas
   name: SCHEDULER_REPLICAS
   required: true
@@ -5763,6 +5841,9 @@ parameters:
 - displayName: Frequency to check sources availability (minutes)
   name: SOURCE_STATUS_SCHEDULE
   value: 0 3 * * *
+- description: change this value to restart scheduler
+  name: REDEPLOY_HASH_SCHEDULER
+  value: "000000"
 - displayName: Minimum replicas
   name: SOURCES_CLIENT_REPLICAS
   required: true
@@ -5787,6 +5868,9 @@ parameters:
   name: SOURCES_CLIENT_KOKU_LOG_LEVEL
   required: true
   value: INFO
+- description: change this value to restart sources-client
+  name: REDEPLOY_HASH_SOURCES_CLIENT
+  value: "000000"
 - displayName: Minimum replicas
   name: SOURCES_LISTENER_REPLICAS
   required: true
@@ -5811,6 +5895,9 @@ parameters:
   name: SOURCES_LISTENER_KOKU_LOG_LEVEL
   required: true
   value: INFO
+- description: change this value to restart sources-listener
+  name: REDEPLOY_HASH_SOURCES_LISTENER
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_CELERY_REPLICAS
   required: true
@@ -5835,6 +5922,9 @@ parameters:
   name: WORKER_CELERY_WORKER_QUEUE
   required: true
   value: celery
+- description: change this value to restart worker-celery
+  name: REDEPLOY_HASH_WORKER_CELERY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_COST_MODEL_REPLICAS
   required: true
@@ -5859,6 +5949,9 @@ parameters:
   name: WORKER_COST_MODEL_WORKER_QUEUE
   required: true
   value: cost_model
+- description: change this value to restart worker-cost-model
+  name: REDEPLOY_HASH_WORKER_COST_MODEL
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_COST_MODEL_XL_REPLICAS
   required: true
@@ -5883,6 +5976,9 @@ parameters:
   name: WORKER_COST_MODEL_XL_WORKER_QUEUE
   required: true
   value: cost_model_xl
+- description: change this value to restart worker-cost-model-xl
+  name: REDEPLOY_HASH_WORKER_COST_MODEL_XL
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_COST_MODEL_PENALTY_REPLICAS
   required: true
@@ -5907,6 +6003,9 @@ parameters:
   name: WORKER_COST_MODEL_PENALTY_WORKER_QUEUE
   required: true
   value: cost_model_penalty
+- description: change this value to restart worker-cost-model-penalty
+  name: REDEPLOY_HASH_WORKER_COST_MODEL_PENALTY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_DOWNLOAD_MIN_REPLICAS
   required: true
@@ -5947,6 +6046,9 @@ parameters:
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
   value: download
+- description: change this value to restart worker-download
+  name: REDEPLOY_HASH_WORKER_DOWNLOAD
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_DOWNLOAD_XL_REPLICAS
   required: true
@@ -5971,6 +6073,9 @@ parameters:
   name: WORKER_DOWNLOAD_XL_WORKER_QUEUE
   required: true
   value: download_xl
+- description: change this value to restart worker-download-xl
+  name: REDEPLOY_HASH_WORKER_DOWNLOAD_XL
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_DOWNLOAD_PENALTY_REPLICAS
   required: true
@@ -5995,6 +6100,9 @@ parameters:
   name: WORKER_DOWNLOAD_PENALTY_WORKER_QUEUE
   required: true
   value: download_penalty
+- description: change this value to restart worker-download-penalty
+  name: REDEPLOY_HASH_WORKER_DOWNLOAD_PENALTY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_OCP_REPLICAS
   required: true
@@ -6019,6 +6127,9 @@ parameters:
   name: WORKER_OCP_WORKER_QUEUE
   required: true
   value: ocp
+- description: change this value to restart worker-ocp
+  name: REDEPLOY_HASH_WORKER_OCP
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_OCP_XL_REPLICAS
   required: true
@@ -6043,6 +6154,9 @@ parameters:
   name: WORKER_OCP_XL_WORKER_QUEUE
   required: true
   value: ocp_xl
+- description: change this value to restart worker-ocp-xl
+  name: REDEPLOY_HASH_WORKER_OCP_XL
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_OCP_PENALTY_REPLICAS
   required: true
@@ -6067,6 +6181,9 @@ parameters:
   name: WORKER_OCP_PENALTY_WORKER_QUEUE
   required: true
   value: ocp_penalty
+- description: change this value to restart worker-ocp-penalty
+  name: REDEPLOY_HASH_WORKER_OCP_PENALTY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_PRIORITY_REPLICAS
   required: true
@@ -6091,6 +6208,9 @@ parameters:
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
   value: priority
+- description: change this value to restart worker-priority
+  name: REDEPLOY_HASH_WORKER_PRIORITY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_PRIORITY_XL_REPLICAS
   required: true
@@ -6115,6 +6235,9 @@ parameters:
   name: WORKER_PRIORITY_XL_WORKER_QUEUE
   required: true
   value: priority_xl
+- description: change this value to restart worker-priority-xl
+  name: REDEPLOY_HASH_WORKER_PRIORITY_XL
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_PRIORITY_PENALTY_REPLICAS
   required: true
@@ -6139,6 +6262,9 @@ parameters:
   name: WORKER_PRIORITY_PENALTY_WORKER_QUEUE
   required: true
   value: priority_penalty
+- description: change this value to restart worker-priority-penalty
+  name: REDEPLOY_HASH_WORKER_PRIORITY_PENALTY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_REFRESH_REPLICAS
   required: true
@@ -6163,6 +6289,9 @@ parameters:
   name: WORKER_REFRESH_WORKER_QUEUE
   required: true
   value: refresh
+- description: change this value to restart worker-refresh
+  name: REDEPLOY_HASH_WORKER_REFRESH
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_REFRESH_XL_REPLICAS
   required: true
@@ -6187,6 +6316,9 @@ parameters:
   name: WORKER_REFRESH_XL_WORKER_QUEUE
   required: true
   value: refresh_xl
+- description: change this value to restart worker-refresh-xl
+  name: REDEPLOY_HASH_WORKER_REFRESH_XL
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_REFRESH_PENALTY_REPLICAS
   required: true
@@ -6211,6 +6343,9 @@ parameters:
   name: WORKER_REFRESH_PENALTY_WORKER_QUEUE
   required: true
   value: refresh_penalty
+- description: change this value to restart worker-refresh-penalty
+  name: REDEPLOY_HASH_WORKER_REFRESH_PENALTY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_SUMMARY_REPLICAS
   required: true
@@ -6235,6 +6370,9 @@ parameters:
   name: WORKER_SUMMARY_WORKER_QUEUE
   required: true
   value: summary
+- description: change this value to restart worker-summary
+  name: REDEPLOY_HASH_WORKER_SUMMARY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_SUMMARY_XL_REPLICAS
   required: true
@@ -6259,6 +6397,9 @@ parameters:
   name: WORKER_SUMMARY_XL_WORKER_QUEUE
   required: true
   value: summary_xl
+- description: change this value to restart worker-summary-xl
+  name: REDEPLOY_HASH_WORKER_SUMMARY_XL
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_SUMMARY_PENALTY_REPLICAS
   required: true
@@ -6283,6 +6424,9 @@ parameters:
   name: WORKER_SUMMARY_PENALTY_WORKER_QUEUE
   required: true
   value: summary_penalty
+- description: change this value to restart worker-summary-penalty
+  name: REDEPLOY_HASH_WORKER_SUMMARY_PENALTY
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_HCS_REPLICAS
   required: true
@@ -6310,6 +6454,9 @@ parameters:
 - displayName: HCS debug
   name: ENABLE_HCS_DEBUG
   value: "False"
+- description: change this value to restart worker-hcs
+  name: REDEPLOY_HASH_WORKER_HCS
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_SUBS_EXTRACTION_REPLICAS
   required: true
@@ -6334,6 +6481,9 @@ parameters:
   name: WORKER_SUBS_EXTRACTION_WORKER_QUEUE
   required: true
   value: subs_extraction
+- description: change this value to restart worker-subs-extraction
+  name: REDEPLOY_HASH_WORKER_SUBS_EXTRACTION
+  value: "000000"
 - displayName: Minimum replicas
   name: WORKER_SUBS_TRANSMISSION_REPLICAS
   required: true
@@ -6358,3 +6508,6 @@ parameters:
   name: WORKER_SUBS_TRANSMISSION_WORKER_QUEUE
   required: true
   value: subs_transmission
+- description: change this value to restart worker-subs-transmission
+  name: REDEPLOY_HASH_WORKER_SUBS_TRANSMISSION
+  value: "000000"
