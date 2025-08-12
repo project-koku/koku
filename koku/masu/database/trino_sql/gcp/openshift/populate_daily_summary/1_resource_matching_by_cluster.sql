@@ -43,7 +43,7 @@ WITH cte_usage_date_partitions as (
     select
         year,
         month
-    from gcp_line_items_daily
+    from hive.{{schema | sqlsafe}}.gcp_line_items_daily
     where usage_start_time >= {{start_date}}
     AND usage_start_time <= {{end_date}}
     AND source = {{cloud_provider_uuid}}

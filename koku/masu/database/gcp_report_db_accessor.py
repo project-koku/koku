@@ -142,11 +142,16 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 sql, sql_params=sql_params, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
             )
 
-    def fetch_invoice_months_and_dates(self, start_date, end_date):
+    def fetch_invoice_months_and_dates(self, start_date, end_date, source_uuid):
         """Get invoice months and valid dates from date ranges."""
         sql = pkgutil.get_data("masu.database", "trino_sql/gcp/get_invoice_months_and_dates.sql")
         sql = sql.decode("utf-8")
-        sql_params = {"schema": self.schema, "start_date": start_date, "end_date": end_date}
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "source_uuid": str(source_uuid),
+            }
         return self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref="get_invoice_months_and_dates")
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
