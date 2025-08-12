@@ -67,8 +67,9 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # The problem is being they are continuious reports (not month bound)
             # We need to update/insert for both invoice months when dates cross a boundry
             with schema_context(self._schema):
-                invoice_month_list = DateHelper().gcp_find_invoice_months_in_date_range(start_date, end_date)
-                for invoice_month in invoice_month_list:
+                # Dynamically lookup invoice and date ranges from trino data
+                invoice_month_dates = accessor.fetch_invoice_months_and_dates(start_date, end_date)
+                for invoice_month, invoice_start, invoice_end in invoice_month_dates:
                     invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
                     bill_ids = [str(bill.id) for bill in bills]
@@ -80,12 +81,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                                 msg="no bill was found, skipping summarization",
                                 schema=self._schema,
                                 provider_uuid=self._provider.uuid,
-                                start_date=start_date,
+                                start_date=invoice_start,
                             )
                         )
                         continue
 
-                    for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    for start, end in date_range_pair(invoice_start, invoice_end, step=settings.TRINO_DATE_STEP):
                         LOG.info(
                             log_json(
                                 msg="updating GCP report summary tables from parquet",
