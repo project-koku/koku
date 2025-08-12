@@ -1,10 +1,10 @@
 # Copyright 2025 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
-
 """Test the GCPCostModelCostUpdater utility object."""
 from datetime import date
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from django.utils import timezone
 
@@ -33,12 +33,7 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.gcp.gcp_cost_model_cost_updater.GCPReportDBAccessor")
     @patch.object(timezone, "now")
     @patch.object(DateHelper, "invoice_month_start")
-    def test_update_summary_cost_model_costs(
-        self,
-        mock_invoice_month_start,
-        mock_timezone_now,
-        mock_accessor
-    ):
+    def test_update_summary_cost_model_costs(self, mock_invoice_month_start, mock_timezone_now, mock_accessor):
         """Test that the summary cost model update process works correctly."""
         start_date = "2023-01-01"
         end_date = "2023-01-31"
