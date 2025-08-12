@@ -45,21 +45,6 @@ EXTERNAL_TABLES = {
     "openshift_pod_usage_line_items_daily",
     "openshift_storage_usage_line_items",
     "openshift_storage_usage_line_items_daily",
-    # COST-5881: tables to remove:
-    "aws_openshift_daily_resource_matched_temp",
-    "aws_openshift_daily_tag_matched_temp",
-    "aws_openshift_disk_capacities_temp",
-    "azure_openshift_daily_resource_matched_temp",
-    "azure_openshift_daily_tag_matched_temp",
-    "azure_openshift_disk_capacities_temp",
-    "gcp_openshift_daily_resource_matched_temp",
-    "gcp_openshift_daily_tag_matched_temp",
-    "reporting_ocpawscostlineitem_project_daily_summary",
-    "reporting_ocpawscostlineitem_project_daily_summary_temp",
-    "reporting_ocpazurecostlineitem_project_daily_summary",
-    "reporting_ocpazurecostlineitem_project_daily_summary_temp",
-    "reporting_ocpgcpcostlineitem_project_daily_summary",
-    "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
 }
 
 # Managed tables should be altered not dropped as we will lose all of the data
