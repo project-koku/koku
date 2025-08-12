@@ -21,7 +21,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_unattributed_storage_enabled_azure
 from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -298,17 +297,13 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Data Transformations for Daily Summary
         daily_summary_sql, daily_summary_params = sql_metadata.prepare_template(
             f"{managed_path}/2_summarize_data_by_cluster.sql",
-            {
-                **sql_metadata.build_cost_model_params(),
-                "unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema),
-            },
+            {**sql_metadata.build_cost_model_params()},
         )
         LOG.info(log_json(msg="executing data transformations for ocp on azure daily summary", **daily_summary_params))
         self._execute_trino_multipart_sql_query(daily_summary_sql, bind_params=daily_summary_params)
         # Insert into postgresql
         psql_insert, psql_params = sql_metadata.prepare_template(
-            f"{managed_path}/3_reporting_ocpazurecostlineitem_project_daily_summary_p.sql",
-            {"unattributed_storage": is_feature_unattributed_storage_enabled_azure(self.schema)},
+            f"{managed_path}/3_reporting_ocpazurecostlineitem_project_daily_summary_p.sql"
         )
         LOG.info(log_json(msg="running OCP on Azure Managed table SQL", **psql_params))
         self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)

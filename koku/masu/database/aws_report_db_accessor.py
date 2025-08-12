@@ -21,7 +21,6 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from masu.processor import is_feature_unattributed_storage_enabled_aws
 from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
@@ -290,7 +289,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/2_summarize_data_by_cluster.sql",
             {
                 **sql_metadata.build_cost_model_params(),
-                "unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema),
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on aws daily summary", **daily_summary_params))
@@ -298,7 +296,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         # Insert into postgresql
         psql_insert, psql_params = sql_metadata.prepare_template(
             f"{managed_path}/3_reporting_ocpawscostlineitem_project_daily_summary_p.sql",
-            {"unattributed_storage": is_feature_unattributed_storage_enabled_aws(self.schema)},
         )
         LOG.info(log_json(msg="running OCP on AWS SQL managed flow", **psql_params))
         self._execute_trino_multipart_sql_query(psql_insert, bind_params=psql_params)
