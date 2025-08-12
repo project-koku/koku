@@ -68,7 +68,9 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # We need to update/insert for both invoice months when dates cross a boundry
             with schema_context(self._schema):
                 # Dynamically lookup invoice and date ranges from trino data
-                invoice_month_dates = accessor.fetch_invoice_months_and_dates(start_date, end_date, self._provider.uuid)
+                invoice_month_dates = accessor.fetch_invoice_months_and_dates(
+                    start_date, end_date, self._provider.uuid
+                )
                 for invoice_month, invoice_start, invoice_end in invoice_month_dates:
                     invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)

@@ -151,7 +151,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "source_uuid": str(source_uuid),
-            }
+        }
         return self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref="get_invoice_months_and_dates")
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):

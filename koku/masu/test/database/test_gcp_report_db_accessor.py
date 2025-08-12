@@ -142,9 +142,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         start_date = self.dh.last_month_start.date()
         end_date = self.dh.this_month_end.date()
 
-        self.accessor.fetch_invoice_months_and_dates(
-            start_date, end_date, self.gcp_provider_uuid
-        )
+        self.accessor.fetch_invoice_months_and_dates(start_date, end_date, self.gcp_provider_uuid)
         mock_trino.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
