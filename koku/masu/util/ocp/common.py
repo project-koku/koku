@@ -49,7 +49,7 @@ class OCPReportTypes(Enum):
 
 
 OPERATOR_VERSIONS = {
-    "13e8b22f7c806fce1ffb032bf81aa67c4c0f0da5": "costmanagement-metrics-operator:4.0.0",
+    "e53f9db7c6e7f995b6aa6100a580dae74162ac3c": "costmanagement-metrics-operator:4.0.0",
     "8e957a5b174639642809df0317b39593532d6fb7": "costmanagement-metrics-operator:3.3.2",
     "6b4d72a4a629527c1de086b416faf6d226fe587a": "costmanagement-metrics-operator:3.3.1",
     "8c10aa090b2be3d2aea7553ce2cb62e78844ce6f": "costmanagement-metrics-operator:3.3.0",
