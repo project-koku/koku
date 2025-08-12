@@ -11,7 +11,6 @@ from django.utils import timezone
 from api.utils import DateHelper
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
 from masu.test import MasuTestCase
-from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 
 class GCPCostModelCostUpdaterTest(MasuTestCase):
