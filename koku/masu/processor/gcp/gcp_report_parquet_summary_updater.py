@@ -69,7 +69,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             with schema_context(self._schema):
                 # Dynamically lookup invoice and date ranges from trino data
                 invoice_month_dates = accessor.fetch_invoice_months_and_dates(start_date, end_date)
-                LOG.info(f"\n\n INVOICE: {invoice_month_dates} \n\n")
                 for invoice_month, invoice_start, invoice_end in invoice_month_dates:
                     invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
