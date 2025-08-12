@@ -85,9 +85,7 @@ class GCPCostModelCostUpdater:
             dh = DateHelper()
             invoice_month_dates = accessor.fetch_invoice_months_and_dates(start_date, end_date)
             for invoice_month, start, end in invoice_month_dates:
-                accessor.populate_ui_summary_tables(
-                    start, end, self._provider.uuid, invoice_month, UI_SUMMARY_TABLES
-                )
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month, UI_SUMMARY_TABLES)
                 invoice_month_date = dh.invoice_month_start(invoice_month).date()
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
                 with schema_context(self._schema):

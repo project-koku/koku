@@ -904,8 +904,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.chain")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.fetch_invoice_months_and_dates")
     def test_update_summary_tables_remove_expired_data_gcp(
-        self, mock_infra_map, mock_select_for_update, mock_chain, *args
+        self, mock_month, mock_infra_map, mock_select_for_update, mock_chain, *args
     ):
         """Test that the update summary table task runs for GCP."""
         mock_queryset = mock_select_for_update.return_value
@@ -916,7 +917,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         manifest_id = 1
         tracing_id = "1234"
 
-        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
+        invoice_month = start_date.strftime("%Y%m")
+        mock_month.return_value = [(invoice_month, start_date, end_date)]
         update_summary_tables(
             self.schema,
             provider_type,
@@ -926,7 +928,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             tracing_id=tracing_id,
             manifest_id=manifest_id,
             synchronous=True,
-            invoice_month=invoice_month,
         )
         mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
