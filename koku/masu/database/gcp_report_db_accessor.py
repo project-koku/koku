@@ -10,7 +10,6 @@ import uuid
 from os import path
 
 from dateutil.parser import parse
-from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
