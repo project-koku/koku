@@ -11,7 +11,6 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
-from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -109,7 +108,9 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                             start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month
                         )
                         accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month)
-                        accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date, invoice_month)
+                        accessor.populate_gcp_topology_information_tables(
+                            self._provider, start_date, end_date, invoice_month
+                        )
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
             for bill in bills:
