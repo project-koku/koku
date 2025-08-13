@@ -462,6 +462,12 @@ class DateHelper:
         date_obj = bill_date.strftime("%Y%m")
         return date_obj
 
+    def get_bill_month_from_invoice(self, invoice_month):
+        """Set bill month based from GCP invoice month"""
+        year = invoice_month[:4]
+        month = invoice_month[4:]
+        return f"{year}-{month}-01"
+
     def bill_year_from_date(self, date):
         """Find the year from date."""
 

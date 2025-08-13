@@ -217,7 +217,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifests_dict: {partition_date: export_time}
             example:
                     {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
-
         """
         manifests_dict = {}
         manifests = []
@@ -256,14 +255,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             client = bigquery.Client()
             export_partition_date_query = f"""
-                SELECT DATE(_PARTITIONTIME) AS partition_date, DATETIME(max(export_time))
+                SELECT min(DATE(_PARTITIONTIME)), DATETIME(max(export_time)), invoice.month
                 FROM `{self.table_name}`
                 WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-                AND '{self.scan_end}' GROUP BY partition_date ORDER BY partition_date
+                AND '{self.scan_end}' GROUP BY invoice.month
             """
             eq_result = client.query(export_partition_date_query).result()
             for row in eq_result:
-                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC)
+                mapping[row[0]] = row[1].replace(tzinfo=settings.UTC), row[2]
         except GoogleCloudError as err:
             msg = "could not query table for partition date information"
             extra_context = {"schema": self.customer_name, "response": err.message}
@@ -276,20 +275,27 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         Generate a dict representing an analog to other providers' "manifest" files.
         """
         new_manifests = []
-        for bigquery_pd, bigquery_et in bigquery_mappings.items():
-            manifest_export_time = current_manifests.get(bigquery_pd)
-            if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
-                # if the manifest export time does not match bigquery we have new data
-                # for that partition time and new manifest should be created.
-                bill_date = bigquery_pd.replace(day=1)
-                invoice_month = bill_date.strftime("%Y%m")
-                file_name = f"{invoice_month}_{bigquery_pd}"
-                manifest_metadata = {
-                    "assembly_id": f"{bigquery_pd}|{bigquery_et}",
-                    "bill_date": bill_date,
-                    "files": [file_name],
-                }
-                new_manifests.append(manifest_metadata)
+        dh = DateHelper()
+        today = dh.today
+        for bigquery_pd, et_invoice in bigquery_mappings.items():
+            new_partition_data = set()
+            bigquery_et = et_invoice[0]
+            invoice_month = et_invoice[1]
+            for partition_day in dh.list_days(bigquery_pd, today):
+                manifest_export_time = current_manifests.get(partition_day)
+                if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
+                    # if the manifest export time does not match bigquery we have new data
+                    # for that partition time and new manifest should be created.
+                    new_partition_data.add(partition_day)
+            min_partition = sorted(new_partition_data)[0]
+            bill_date = dh.get_bill_month_from_invoice(invoice_month)
+            file_name = f"{invoice_month}_{min_partition}"
+            manifest_metadata = {
+                "assembly_id": f"{min_partition}|{bigquery_et}",
+                "bill_date": bill_date,
+                "files": [file_name],
+            }
+            new_manifests.append(manifest_metadata)
         if not new_manifests:
             msg = "no new manifests created"
             extra_context = {
@@ -467,11 +473,22 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         else:
             try:
                 filename = os.path.splitext(key)[0]
-                partition_date = filename.split("_")[-1]
+                fn_split = filename.split("_")
+                partition_date = fn_split[-1]
+                invoice_month = fn_split[0]
+                # # Capture crossover data, we could adjust the partition end dates based on crossover ranges
+                # instead of grabbing upto current time. That said this is only really an issue on initial ingest.
+                # dh = DateHelper()
+                # partition_end = dh.n_days_ahead(dh.month_end(partition_date), 2).date()
+                # query = f"""
+                #     SELECT {self.build_query_select_statement()}
+                #     FROM `{self.table_name}`
+                #     WHERE DATE(_PARTITIONTIME) BETWEEN '{partition_date}' AND '{partition_end}' AND invoice.month = '{invoice_month}'
+                #     """
                 query = f"""
                     SELECT {self.build_query_select_statement()}
                     FROM `{self.table_name}`
-                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
+                    WHERE DATE(_PARTITIONTIME) >= '{partition_date}' AND invoice.month = '{invoice_month}'
                     """
                 client = bigquery.Client()
                 query_job = client.query(query).result()
