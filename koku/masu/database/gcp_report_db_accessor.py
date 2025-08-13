@@ -60,12 +60,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         for table_name in tables:
             sql = pkgutil.get_data("masu.database", f"sql/gcp/{table_name}.sql")
             sql = sql.decode("utf-8")
-            # Extend the end date past the end of the month & add the invoice month
-            # in order to include cross over data.
-            extended_end_date = end_date + relativedelta(days=2)
             sql_params = {
                 "start_date": start_date,
-                "end_date": extended_end_date,
+                "end_date": end_date,
                 "schema": self.schema,
                 "source_uuid": source_uuid,
                 "invoice_month": invoice_month,
