@@ -708,13 +708,12 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
+        vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
                 "file_path": "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql",
                 "log_msg": "populating virtual machine hourly costs",
-                "metric_params": {
-                    "use_fractional_hours": trino_table_exists(self.schema, "openshift_vm_usage_line_items")
-                },
+                "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_CORE_HOUR: {
                 "file_path": "trino_sql/openshift/cost_model/hourly_vm_core.sql",
@@ -723,6 +722,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         for metric_name, metadata in vm_usage_metadata.items():
             hourly_rate = rates.get(metric_name)
+            if metric_name == metric_constants.OCP_VM_CORE_HOUR and not vm_table_exists:
+                continue
             if not hourly_rate:
                 continue
             param_builder = BaseCostModelParams(
