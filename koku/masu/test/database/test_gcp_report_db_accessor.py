@@ -306,9 +306,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
         """Test that we call Trino to get topology."""
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
-        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
-        invoice_month_date = self.dh.invoice_month_start(invoice_month)
-        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date, invoice_month_date)
+        invoice_month = self.dh.invoice_month_from_bill_date(start_date)
+        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date, invoice_month)
 
         mock_trino.assert_called()
 
