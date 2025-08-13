@@ -514,6 +514,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
             distribution: Choice of monthly distribution ex. memory
             provider_uuid (str): The str of the provider UUID
         """
+        if cost_type == "OCP_VM_CORE" and not trino_table_exists(self.schema, "openshift_vm_usage_line_items"):
+            return
         cost_type_file_mapping = {
             "Node": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
             "Node_Core_Month": "sql/openshift/cost_model/monthly_cost_cluster_and_node.sql",
@@ -1282,15 +1284,14 @@ GROUP BY partitions.year, partitions.month, partitions.source
             return
 
         monthly_params = {"amortized_denominator": DateHelper().days_in_month(start_date), "cost_type": "Tag"}
-        fractional_hour_params = {
-            "use_fractional_hours": trino_table_exists(self.schema, "openshift_vm_usage_line_items")
-        }
+        vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+        requires_vm_table = [metric_constants.OCP_VM_CORE_HOUR, metric_constants.OCP_VM_CORE_MONTH]
 
         metric_metadata = {
             metric_constants.OCP_VM_HOUR: {
                 "log_msg": "populating hourly VM tag based costs",
                 "file_path": "trino_sql/openshift/cost_model/hourly_cost_vm_tag_based.sql",
-                "metric_params": fractional_hour_params,
+                "metric_params": {"use_fractional_hours": vm_table_exists},
             },
             metric_constants.OCP_VM_MONTH: {
                 "log_msg": "populating monthly VM tag based costs",
@@ -1322,6 +1323,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
         )
 
         for name, metadata in metric_metadata.items():
+            if name in requires_vm_table and not vm_table_exists:
+                continue
             param_list = metric_to_tag_params_map.get(name)
             if not param_list:
                 continue
