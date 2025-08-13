@@ -21,12 +21,6 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
-def is_cost_6356_enabled():
-    return UNLEASH_CLIENT.is_enabled(
-        "cost-management.backend.cost-6356-vm-cost-model-metrics", fallback_function=fallback_development_true
-    )
-
-
 def is_purge_trino_files_enabled(account):  # pragma: no cover
     """Helper to determine if account is enabled for deleting trino files."""
     account = convert_account(account)
