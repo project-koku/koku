@@ -61,8 +61,14 @@ FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 CROSS JOIN
     cte_pg_enabled_keys as pek
 WHERE source = '{{source_uuid | sqlsafe}}'
-    AND year = '{{year | sqlsafe}}'
-    AND month = '{{month | sqlsafe}}'
+    AND (
+        month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0')
+        OR month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0')
+    )
+    AND (
+        year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR)
+        OR YEAR = CAST(EXTRACT(YEAR FROM DATE({{end_date}})) AS VARCHAR)
+    )
     AND invoice_month = '{{invoice_month | sqlsafe}}'
     AND usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
