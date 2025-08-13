@@ -49,7 +49,7 @@ WITH cte_usage_date_partitions as (
     AND source = {{cloud_provider_uuid}}
     AND (
         month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0')
-        OR month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}}) - INTERVAL '1' MONTH) AS VARCHAR), 2, '0')
+        OR month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0')
     )
     AND (
         year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR)
