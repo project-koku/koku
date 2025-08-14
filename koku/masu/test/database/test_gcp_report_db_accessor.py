@@ -137,6 +137,15 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.assertEqual(cost_entries.count(), 0)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
+    def test_fetch_invoice_months_and_dates(self, mock_trino):
+        """Test that we fetch invoice months and dates correctly querying Trino."""
+        start_date = self.dh.last_month_start.date()
+        end_date = self.dh.this_month_end.date()
+
+        self.accessor.fetch_invoice_months_and_dates(start_date, end_date, self.gcp_provider_uuid)
+        mock_trino.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
     def test_populate_line_item_daily_summary_table_trino(self, mock_trino):
         """Test that we construst our SQL and query using Trino."""
         start_date = self.dh.this_month_start.date()
@@ -297,9 +306,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
         """Test that we call Trino to get topology."""
         start_date = self.dh.this_month_start
         end_date = self.dh.this_month_end
-        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
-        invoice_month_date = self.dh.invoice_month_start(invoice_month)
-        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date, invoice_month_date)
+        invoice_month = self.dh.invoice_month_from_bill_date(start_date)
+        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date, invoice_month)
 
         mock_trino.assert_called()
 

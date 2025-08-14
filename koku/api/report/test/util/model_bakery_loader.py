@@ -315,7 +315,7 @@ class ModelBakeryDataLoader(DataLoader):
         return bills
 
     def load_gcp_data(self, linked_openshift_provider=None):
-        """Load Azure data for tests."""
+        """Load GCP data for tests."""
         bills = []
         provider_type = Provider.PROVIDER_GCP_LOCAL
         credentials = {"project_id": "test_project_id"}
@@ -330,13 +330,14 @@ class ModelBakeryDataLoader(DataLoader):
             self.create_manifest(provider, bill_date)
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
+            invoice_month = bill_date.strftime("%Y%m")
             with schema_context(self.schema):
                 days = (end_date - start_date).days + 1
                 for i, project in product(range(days), projects):
                     baker.make_recipe(
                         "api.report.test.util.gcp_daily_summary",
                         cost_entry_bill=bill,
-                        invoice_month=bill_date.strftime("%Y%m"),
+                        invoice_month=invoice_month,
                         account_id=account_id,
                         project_id=project[0],
                         project_name=project[1],
@@ -346,10 +347,13 @@ class ModelBakeryDataLoader(DataLoader):
                         currency=self.currency,
                         source_uuid=provider.uuid,
                     )
+            with GCPReportDBAccessor(self.schema) as accessor:
+                accessor.populate_ui_summary_tables(
+                    self.first_start_date, self.last_end_date, provider.uuid, invoice_month
+                )
         bill_ids = [bill.id for bill in bills]
         with GCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
-            accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         return bills
 
     def load_openshift_data(self, cluster_id, on_cloud=False):
