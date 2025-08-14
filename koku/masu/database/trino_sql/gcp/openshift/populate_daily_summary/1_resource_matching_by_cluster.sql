@@ -43,10 +43,17 @@ WITH cte_usage_date_partitions as (
     select
         year,
         month
-    from gcp_line_items_daily
+    from hive.{{schema | sqlsafe}}.gcp_line_items_daily
     where usage_start_time >= {{start_date}}
     AND usage_start_time <= {{end_date}}
     AND source = {{cloud_provider_uuid}}
+    AND (
+        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
+    )
     group by year, month
 ),
 cte_gcp_resource_names AS (
