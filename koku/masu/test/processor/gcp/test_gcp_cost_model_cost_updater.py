@@ -5,6 +5,7 @@ from datetime import date
 from datetime import datetime
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from uuid import UUID
 
 from django.utils import timezone
 
@@ -58,7 +59,7 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
 
         mock_accessor.assert_called_once_with(self.schema)
         mock_accessor.return_value.__enter__.return_value.fetch_invoice_months_and_dates.assert_called_once_with(
-            start_date, end_date
+            start_date, end_date, UUID(self.gcp_provider_uuid)
         )
         mock_accessor.return_value.__enter__.return_value.populate_ui_summary_tables.assert_called()
         mock_accessor.return_value.__enter__.return_value.bills_for_provider_uuid.assert_called()
