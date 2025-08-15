@@ -508,6 +508,7 @@ class ParquetReportProcessor:
         daily_data_frames = []
         parquet_filepath = ""
         parquet_base_filename = csv_filename.name.replace(self.file_extension, "")
+        LOG.info(f"\n\n FILENAME: {parquet_base_filename} \n\n")
         kwargs = {}
         if self.file_extension == CSV_GZIP_EXT:
             kwargs["compression"] = "gzip"
@@ -530,7 +531,7 @@ class ParquetReportProcessor:
                         continue
                     parquet_filename_suffix = f"_{i}{PARQUET_EXT}"
                     parquet_filepath = f"{self.local_path}/{parquet_base_filename}{parquet_filename_suffix}"
-                    data_frame, daily_frames = self.post_processor.process_dataframe(data_frame)
+                    data_frame, daily_frames = self.post_processor.process_dataframe(data_frame, parquet_base_filename)
                     daily_data_frames.append(daily_frames)
                     LOG.info(
                         log_json(

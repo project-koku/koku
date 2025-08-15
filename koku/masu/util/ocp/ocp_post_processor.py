@@ -5,6 +5,7 @@ import ciso8601
 import pandas as pd
 from dateutil.parser import ParserError
 
+from api.common import log_json
 from api.models import Provider
 from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import safe_float
@@ -163,7 +164,7 @@ class OCPPostProcessor:
 
         return daily_data_frame
 
-    def _remove_anomalies(self, data_frame: pd.DataFrame) -> pd.DataFrame:
+    def _remove_anomalies(self, data_frame: pd.DataFrame, filename: str) -> pd.DataFrame:
         """Removes rows with anomalous values from the DataFrame."""
 
         # The threshold for CPU and Memory seconds.
@@ -189,21 +190,16 @@ class OCPPostProcessor:
         anomalous_rows_mask = pd.Series([False] * len(data_frame), index=data_frame.index)
 
         for col, threshold in thresholds.items():
-            # Check if the column exists in the current DataFrame
             if col in data_frame.columns:
-                # Update the mask to True for any row that exceeds the threshold.
                 anomalous_rows_mask = anomalous_rows_mask | (data_frame[col] > threshold)
 
-        # Log the rows that are being dropped for future investigation.
         if anomalous_rows_mask.any():
-            dropped_data = data_frame[anomalous_rows_mask]
-            for _, row in dropped_data.iterrows():
-                LOG.warning(f"Dropping anomalous row with data: {row.to_dict()}")
+            LOG.warning(log_json(msg="Dropping anomalous rows", schema=self.schema, filename=filename))
 
         return data_frame[~anomalous_rows_mask]
 
-    def process_dataframe(self, data_frame):
-        data_frame = self._remove_anomalies(data_frame)
+    def process_dataframe(self, data_frame, filename):
+        data_frame = self._remove_anomalies(data_frame, filename)
         label_columns = {
             "pod_labels",
             "persistentvolume_labels",
