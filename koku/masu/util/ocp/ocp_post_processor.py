@@ -167,11 +167,11 @@ class OCPPostProcessor:
         """Removes rows with anomalous values from the DataFrame."""
 
         # The threshold for CPU and Memory seconds.
-        seconds_threshold = 1.0e+15  # 100 trillion seconds
+        seconds_threshold = 1.0e15  # 100 trillion seconds
         # The threshold for static storage capacity in bytes.
-        bytes_threshold = 1.0e+18    # 1 exabyte
+        bytes_threshold = 1.0e18  # 1 exabyte
         # The threshold for storage usage over time in byte-seconds.
-        byte_seconds_threshold = 1.0e+21 # 1000 exabyte-seconds
+        byte_seconds_threshold = 1.0e21  # 1000 exabyte-seconds
 
         thresholds = {
             "pod_usage_cpu_core_seconds": seconds_threshold,
