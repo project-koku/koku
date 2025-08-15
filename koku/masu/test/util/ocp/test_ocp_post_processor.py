@@ -19,6 +19,57 @@ from masu.util.ocp.ocp_post_processor import OCPPostProcessor
 class TestOCPPostProcessor(MasuTestCase):
     """Test OCP Post Processor."""
 
+    def setUp(self):
+        """Set up test environment."""
+        self.schema = "test_schema"
+        self.report_type = "pod_usage"
+        self.post_processor = OCPPostProcessor(self.schema, self.report_type)
+        self.anomalous_data = [
+            # Good data
+            {'pod_usage_cpu_core_seconds': 100, 'pod_request_cpu_core_seconds': 200, 'persistentvolumeclaim_capacity_bytes': 10e9},
+            # Bad CPU data
+            {'pod_usage_cpu_core_seconds': 1.1e+15, 'pod_request_cpu_core_seconds': 200, 'persistentvolumeclaim_capacity_bytes': 10e9},
+            # Bad PVC data
+            {'pod_usage_cpu_core_seconds': 100, 'pod_request_cpu_core_seconds': 200, 'persistentvolumeclaim_capacity_bytes': 1.1e+18},
+            # Another bad PVC data point in byte-seconds
+            {'pod_usage_cpu_core_seconds': 100, 'pod_request_cpu_core_seconds': 200, 'persistentvolumeclaim_capacity_byte_seconds': 1.1e+21},
+            # Good data with a different set of columns
+            {'pod_limit_cpu_core_seconds': 500, 'pod_usage_memory_byte_seconds': 10e9},
+            # A row with both good and bad data
+            {'pod_limit_cpu_core_seconds': 1.1e+15, 'pod_usage_memory_byte_seconds': 10e9},
+        ]
+        self.original_df = pd.DataFrame(self.anomalous_data)
+
+    def test_remove_anomalies_no_anomalies(self):
+        """Test that the function does not remove rows when there are no anomalies."""
+        safe_data = [
+            {'pod_usage_cpu_core_seconds': 100, 'pod_request_cpu_core_seconds': 200, 'persistentvolumeclaim_capacity_bytes': 10e9},
+            {'pod_usage_cpu_core_seconds': 1e+14, 'pod_request_cpu_core_seconds': 100, 'persistentvolumeclaim_capacity_bytes': 1e+17},
+        ]
+        test_df = pd.DataFrame(safe_data)
+        cleaned_df = self.post_processor._remove_anomalies(test_df)
+        self.assertEqual(len(cleaned_df), len(test_df))
+
+    def test_remove_anomalies_removes_anomalous_rows(self):
+        """Test that the function correctly removes anomalous rows."""
+        cleaned_df = self.post_processor._remove_anomalies(self.original_df)
+        self.assertEqual(len(cleaned_df), 2)
+        self.assertTrue('pod_usage_cpu_core_seconds' in cleaned_df.columns)
+        self.assertFalse(cleaned_df['pod_usage_cpu_core_seconds'].isin([1.1e+15]).any())
+        self.assertFalse(cleaned_df['persistentvolumeclaim_capacity_bytes'].isin([1.1e+18]).any())
+
+    def test_remove_anomalies_empty_dataframe(self):
+        """Test that the function works correctly with an empty dataframe."""
+        test_df = pd.DataFrame()
+        cleaned_df = self.post_processor._remove_anomalies(test_df)
+        self.assertTrue(cleaned_df.empty)
+
+    def test_process_dataframe_removes_anomalies(self):
+        """Test that the main process_dataframe method correctly calls the anomaly function."""
+        with patch.object(self.post_processor, '_generate_daily_data') as mock_generate_daily_data:
+            mock_generate_daily_data.return_value = self.original_df.copy()
+            self.post_processor.process_dataframe(self.original_df.copy())
+
     def test_ocp_generate_daily_data(self):
         """Test that OCP data is aggregated to daily."""
         usage = random.randint(1, 10)
