@@ -530,7 +530,7 @@ class ParquetReportProcessor:
                         continue
                     parquet_filename_suffix = f"_{i}{PARQUET_EXT}"
                     parquet_filepath = f"{self.local_path}/{parquet_base_filename}{parquet_filename_suffix}"
-                    data_frame, daily_frames = self.post_processor.process_dataframe(data_frame)
+                    data_frame, daily_frames = self.post_processor.process_dataframe(data_frame, parquet_base_filename)
                     daily_data_frames.append(daily_frames)
                     LOG.info(
                         log_json(

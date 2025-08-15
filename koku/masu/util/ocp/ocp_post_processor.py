@@ -5,6 +5,7 @@ import ciso8601
 import pandas as pd
 from dateutil.parser import ParserError
 
+from api.common import log_json
 from api.models import Provider
 from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import safe_float
@@ -163,7 +164,39 @@ class OCPPostProcessor:
 
         return daily_data_frame
 
-    def process_dataframe(self, data_frame):
+    def _remove_anomalies(self, data_frame: pd.DataFrame, filename: str) -> pd.DataFrame:
+        """Removes rows with anomalous values from the DataFrame."""
+
+        threshold_map = {
+            1e15: [
+                "pod_usage_cpu_core_seconds",
+                "pod_request_cpu_core_seconds",
+                "pod_limit_cpu_core_seconds",
+                "pod_usage_memory_byte_seconds",
+                "pod_request_memory_byte_seconds",
+                "pod_limit_memory_byte_seconds",
+            ],
+            1e18: ["persistentvolumeclaim_capacity_bytes"],
+            1e21: [
+                "persistentvolumeclaim_capacity_byte_seconds",
+                "volume_request_storage_byte_seconds",
+                "persistentvolumeclaim_usage_byte_seconds",
+            ],
+        }
+        thresholds = {col: thresh for thresh, cols in threshold_map.items() for col in cols}
+
+        # only consider existing cols
+        common = data_frame.columns.intersection(thresholds)
+        # build boolean mask of any col > its threshold
+        mask = data_frame[common].gt(pd.Series(thresholds)).any(axis=1)
+
+        if mask.any():
+            LOG.warning(log_json(msg="Dropping anomalous rows", schema=self.schema, filename=filename))
+
+        return data_frame.loc[~mask]
+
+    def process_dataframe(self, data_frame, filename):
+        data_frame = self._remove_anomalies(data_frame, filename)
         label_columns = {
             "pod_labels",
             "persistentvolume_labels",

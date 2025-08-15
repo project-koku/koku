@@ -242,7 +242,7 @@ class AWSPostProcessor:
         daily_df["row_uuid"] = daily_df.apply(lambda _: str(uuid4()), axis=1)
         return daily_df
 
-    def process_dataframe(self, data_frame):
+    def process_dataframe(self, data_frame, filename=None):
         """Process dataframe."""
         org_columns = data_frame.columns.unique()
         columns = []
