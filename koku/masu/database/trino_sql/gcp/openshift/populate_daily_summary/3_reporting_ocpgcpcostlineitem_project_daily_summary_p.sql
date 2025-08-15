@@ -55,12 +55,6 @@ filtered_data as (
         storageclass,
         cast(
             map_filter(
-                cast(json_parse(pod_labels) as map(varchar, varchar)),
-                (k,v) -> contains(pek.keys, k)
-            ) as json
-        ) AS enabled_labels,
-        cast(
-            map_filter(
                 cast(json_parse(tags) as map(varchar, varchar)),
                 (k,v) -> contains(pek.keys, k)
             ) as json
@@ -122,7 +116,7 @@ SELECT
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    fd.enabled_labels as pod_labels,
+    fd.enabled_tags as pod_labels,
     resource_id,
     fd.usage_start as usage_start,
     fd.usage_start as usage_end,
@@ -159,7 +153,6 @@ GROUP BY
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    fd.enabled_labels,
     fd.enabled_tags,
     resource_id,
     account_id,
