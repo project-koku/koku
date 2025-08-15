@@ -508,7 +508,6 @@ class ParquetReportProcessor:
         daily_data_frames = []
         parquet_filepath = ""
         parquet_base_filename = csv_filename.name.replace(self.file_extension, "")
-        LOG.info(f"\n\n FILENAME: {parquet_base_filename} \n\n")
         kwargs = {}
         if self.file_extension == CSV_GZIP_EXT:
             kwargs["compression"] = "gzip"

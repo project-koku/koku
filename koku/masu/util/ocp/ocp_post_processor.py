@@ -167,36 +167,33 @@ class OCPPostProcessor:
     def _remove_anomalies(self, data_frame: pd.DataFrame, filename: str) -> pd.DataFrame:
         """Removes rows with anomalous values from the DataFrame."""
 
-        # The threshold for CPU and Memory seconds.
-        seconds_threshold = 1.0e15  # 100 trillion seconds
-        # The threshold for static storage capacity in bytes.
-        bytes_threshold = 1.0e18  # 1 exabyte
-        # The threshold for storage usage over time in byte-seconds.
-        byte_seconds_threshold = 1.0e21  # 1000 exabyte-seconds
-
-        thresholds = {
-            "pod_usage_cpu_core_seconds": seconds_threshold,
-            "pod_request_cpu_core_seconds": seconds_threshold,
-            "pod_limit_cpu_core_seconds": seconds_threshold,
-            "pod_usage_memory_byte_seconds": seconds_threshold,
-            "pod_request_memory_byte_seconds": seconds_threshold,
-            "pod_limit_memory_byte_seconds": seconds_threshold,
-            "persistentvolumeclaim_capacity_bytes": bytes_threshold,
-            "persistentvolumeclaim_capacity_byte_seconds": byte_seconds_threshold,
-            "volume_request_storage_byte_seconds": byte_seconds_threshold,
-            "persistentvolumeclaim_usage_byte_seconds": byte_seconds_threshold,
+        threshold_map = {
+            1e15: [
+                "pod_usage_cpu_core_seconds",
+                "pod_request_cpu_core_seconds",
+                "pod_limit_cpu_core_seconds",
+                "pod_usage_memory_byte_seconds",
+                "pod_request_memory_byte_seconds",
+                "pod_limit_memory_byte_seconds",
+            ],
+            1e18: ["persistentvolumeclaim_capacity_bytes"],
+            1e21: [
+                "persistentvolumeclaim_capacity_byte_seconds",
+                "volume_request_storage_byte_seconds",
+                "persistentvolumeclaim_usage_byte_seconds",
+            ],
         }
+        thresholds = {col: thresh for thresh, cols in threshold_map.items() for col in cols}
 
-        anomalous_rows_mask = pd.Series([False] * len(data_frame), index=data_frame.index)
+        # only consider existing cols
+        common = data_frame.columns.intersection(thresholds)
+        # build boolean mask of any col > its threshold
+        mask = data_frame[common].gt(pd.Series(thresholds)).any(axis=1)
 
-        for col, threshold in thresholds.items():
-            if col in data_frame.columns:
-                anomalous_rows_mask = anomalous_rows_mask | (data_frame[col] > threshold)
-
-        if anomalous_rows_mask.any():
+        if mask.any():
             LOG.warning(log_json(msg="Dropping anomalous rows", schema=self.schema, filename=filename))
 
-        return data_frame[~anomalous_rows_mask]
+        return data_frame.loc[~mask]
 
     def process_dataframe(self, data_frame, filename):
         data_frame = self._remove_anomalies(data_frame, filename)
