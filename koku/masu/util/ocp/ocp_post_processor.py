@@ -168,16 +168,27 @@ class OCPPostProcessor:
         """Removes rows with anomalous values from the DataFrame."""
 
         threshold_map = {
-            1e15: [
+            # DECIMAL after calculations 3.6e21 / 3600 = 1,000,000,000,000,000,00
+            3.6e21: [
                 "pod_usage_cpu_core_seconds",
                 "pod_request_cpu_core_seconds",
                 "pod_limit_cpu_core_seconds",
+                "node_capacity_cpu_core_seconds",
+            ],
+            # DECIMAL after calculations 3.88e27 / 3600 * 2^-30 = 1,003,800,000,000,000
+            3.88e27: [
                 "pod_usage_memory_byte_seconds",
                 "pod_request_memory_byte_seconds",
                 "pod_limit_memory_byte_seconds",
+                "node_capacity_memory_byte_seconds",
             ],
-            1e18: ["persistentvolumeclaim_capacity_bytes"],
-            1e21: [
+            # DECIMAL after calculations 1.074e25 * 2^-30 = 10,000,000,000,000,000
+            1.074e25: [
+                "node_capacity_memory_bytes",
+            ],
+            # DECIMAL after calculations 1.0e18 1,000,000,000,000,000,000
+            1e18: [
+                "persistentvolumeclaim_capacity_bytes",
                 "persistentvolumeclaim_capacity_byte_seconds",
                 "volume_request_storage_byte_seconds",
                 "persistentvolumeclaim_usage_byte_seconds",
