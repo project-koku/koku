@@ -33,7 +33,7 @@ class TestOCPPostProcessor(MasuTestCase):
             },
             # Bad CPU data
             {
-                "pod_usage_cpu_core_seconds": 1.1e15,
+                "pod_usage_cpu_core_seconds": 3.7e21,
                 "pod_request_cpu_core_seconds": 200,
                 "persistentvolumeclaim_capacity_bytes": 10e9,
             },
@@ -41,18 +41,18 @@ class TestOCPPostProcessor(MasuTestCase):
             {
                 "pod_usage_cpu_core_seconds": 100,
                 "pod_request_cpu_core_seconds": 200,
-                "persistentvolumeclaim_capacity_bytes": 1.1e18,
+                "persistentvolumeclaim_capacity_bytes": 3.7e21,
             },
             # Another bad PVC data point in byte-seconds
             {
                 "pod_usage_cpu_core_seconds": 100,
                 "pod_request_cpu_core_seconds": 200,
-                "persistentvolumeclaim_capacity_byte_seconds": 1.1e21,
+                "persistentvolumeclaim_capacity_byte_seconds": 3.7e21,
             },
             # Good data with a different set of columns
             {"pod_limit_cpu_core_seconds": 500, "pod_usage_memory_byte_seconds": 10e9},
             # A row with both good and bad data
-            {"pod_limit_cpu_core_seconds": 1.1e15, "pod_usage_memory_byte_seconds": 10e9},
+            {"pod_limit_cpu_core_seconds": 3.7e21, "pod_usage_memory_byte_seconds": 10e9},
         ]
         self.original_df = pd.DataFrame(self.anomalous_data)
 
@@ -79,7 +79,7 @@ class TestOCPPostProcessor(MasuTestCase):
         cleaned_df = self.post_processor._remove_anomalies(self.original_df, "filename.csv")
         self.assertEqual(len(cleaned_df), 2)
         self.assertTrue("pod_usage_cpu_core_seconds" in cleaned_df.columns)
-        self.assertFalse(cleaned_df["pod_usage_cpu_core_seconds"].isin([1.1e15]).any())
+        self.assertFalse(cleaned_df["pod_usage_cpu_core_seconds"].isin([1.1e18]).any())
         self.assertFalse(cleaned_df["persistentvolumeclaim_capacity_bytes"].isin([1.1e18]).any())
 
     def test_remove_anomalies_empty_dataframe(self):
