@@ -14,6 +14,7 @@ from django_tenants.utils import schema_context
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
+from api.utils import get_months_in_date_range
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -491,38 +492,41 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
-        with self.db_accessor(self._schema) as accessor:
-            context = accessor.extract_context_from_sql_params(sql_params)
-            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                context["start_date"] = start
-                context["end_date"] = end
-                LOG.info(log_json(msg="updating OpenShift on GCP summary table", **context))
-                accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
-                    start,
-                    end,
-                    openshift_provider_uuid,
-                    gcp_provider_uuid,
-                    current_ocp_report_period_id,
-                    current_gcp_bill_id,
-                )
-                sql_params["start_date"] = start
-                sql_params["end_date"] = end
-                accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
-                accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
-                    start, end, openshift_provider_uuid, gcp_provider_uuid
-                )
-                accessor.populate_ocp_on_gcp_tag_information(gcp_bill_ids, start, end, current_ocp_report_period_id)
-
-            with OCPReportDBAccessor(self._schema) as ocp_accessor:
-                sql_params["source_type"] = "GCP"
-                context = ocp_accessor.extract_context_from_sql_params(sql_params)
-                LOG.info(log_json(msg="processing OCP-ALL for GCP (T)", **context))
-                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+        # This needs to run per billing month because we move usage data to the usage partition
+        months = get_months_in_date_range(start=start_date, end=end_date)
+        for month in months:
+            with self.db_accessor(self._schema) as accessor:
+                context = accessor.extract_context_from_sql_params(sql_params)
+                for start, end in date_range_pair(month[0], month[1], step=settings.TRINO_DATE_STEP):
+                    context["start_date"] = start
+                    context["end_date"] = end
+                    LOG.info(log_json(msg="updating OpenShift on GCP summary table", **context))
+                    accessor.populate_ocp_on_gcp_cost_daily_summary_trino(
+                        start,
+                        end,
+                        openshift_provider_uuid,
+                        gcp_provider_uuid,
+                        current_ocp_report_period_id,
+                        current_gcp_bill_id,
+                    )
                     sql_params["start_date"] = start
                     sql_params["end_date"] = end
-                    ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
-                    ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
-                    ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
+                    accessor.back_populate_ocp_infrastructure_costs(start, end, current_ocp_report_period_id)
+                    accessor.populate_ocp_on_gcp_ui_summary_tables_trino(
+                        start, end, openshift_provider_uuid, gcp_provider_uuid
+                    )
+                    accessor.populate_ocp_on_gcp_tag_information(gcp_bill_ids, start, end, current_ocp_report_period_id)
+
+                with OCPReportDBAccessor(self._schema) as ocp_accessor:
+                    sql_params["source_type"] = "GCP"
+                    context = ocp_accessor.extract_context_from_sql_params(sql_params)
+                    LOG.info(log_json(msg="processing OCP-ALL for GCP (T)", **context))
+                    for start, end in date_range_pair(month[0], month[1], step=settings.TRINO_DATE_STEP):
+                        sql_params["start_date"] = start
+                        sql_params["end_date"] = end
+                        ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
+                        ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
+                        ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
         LOG.info(
             log_json(
