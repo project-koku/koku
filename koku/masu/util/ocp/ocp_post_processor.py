@@ -10,6 +10,7 @@ from api.models import Provider
 from masu.util.common import populate_enabled_tag_rows_with_false
 from masu.util.common import safe_float
 from masu.util.ocp.common import OCP_REPORT_TYPES
+from masu.util.ocp.common import THRESHOLDS
 
 LOG = logging.getLogger(__name__)
 
@@ -167,30 +168,10 @@ class OCPPostProcessor:
     def _remove_anomalies(self, data_frame: pd.DataFrame, filename: str) -> pd.DataFrame:
         """Removes rows with anomalous values from the DataFrame."""
 
-        threshold_map = {
-            # 1,000,000,000,000,000,000 is a resonable value that should remove most anomlies from bad data
-            1e18: [
-                "pod_usage_cpu_core_seconds",
-                "pod_request_cpu_core_seconds",
-                "pod_limit_cpu_core_seconds",
-                "node_capacity_cpu_core_seconds",
-                "pod_usage_memory_byte_seconds",
-                "pod_request_memory_byte_seconds",
-                "pod_limit_memory_byte_seconds",
-                "node_capacity_memory_byte_seconds",
-                "node_capacity_memory_bytes",
-                "persistentvolumeclaim_capacity_bytes",
-                "persistentvolumeclaim_capacity_byte_seconds",
-                "volume_request_storage_byte_seconds",
-                "persistentvolumeclaim_usage_byte_seconds",
-            ],
-        }
-        thresholds = {col: thresh for thresh, cols in threshold_map.items() for col in cols}
-
         # only consider existing cols
-        common = data_frame.columns.intersection(thresholds)
+        common = data_frame.columns.intersection(THRESHOLDS)
         # build boolean mask of any col > its threshold
-        mask = data_frame[common].gt(pd.Series(thresholds)).any(axis=1)
+        mask = data_frame[common].gt(pd.Series(THRESHOLDS)).any(axis=1)
 
         if mask.any():
             LOG.warning(log_json(msg="Dropping anomalous rows", schema=self.schema, filename=filename))

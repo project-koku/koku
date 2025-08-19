@@ -331,6 +331,26 @@ OCP_REPORT_TYPES = {
     },
 }
 
+# 1,000,000,000,000,000,000 is a resonable value that should remove most anomlies from bad data
+THRESHOLD_MAP = {
+    1e18: [
+        "pod_usage_cpu_core_seconds",
+        "pod_request_cpu_core_seconds",
+        "pod_limit_cpu_core_seconds",
+        "node_capacity_cpu_core_seconds",
+        "pod_usage_memory_byte_seconds",
+        "pod_request_memory_byte_seconds",
+        "pod_limit_memory_byte_seconds",
+        "node_capacity_memory_byte_seconds",
+        "node_capacity_memory_bytes",
+        "persistentvolumeclaim_capacity_bytes",
+        "persistentvolumeclaim_capacity_byte_seconds",
+        "volume_request_storage_byte_seconds",
+        "persistentvolumeclaim_usage_byte_seconds",
+    ],
+}
+THRESHOLDS = {col: thresh for thresh, cols in THRESHOLD_MAP.items() for col in cols}
+
 
 ForceAwareDatetime = Annotated[
     datetime,
