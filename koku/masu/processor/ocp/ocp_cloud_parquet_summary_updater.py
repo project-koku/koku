@@ -133,10 +133,8 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 with schema_context(self._schema):
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date=month_start)
                     current_bill_id = bills.first().id if bills else None
-                LOG.info(f"\n\n FILTERS: {filters} \n\n")
                 bill_ids = current_bill_id
                 # OCPGCP can have crossover data meaning we may need to delete from multiple periods
-                LOG.info(f"\n\n START?END: {start_date, end_date} \n\n")
                 if start_date.month != end_date.month:
                     end_date_month_start = dh.month_start(end_date)
                     bills_end = accessor.bills_for_provider_uuid(self._provider.uuid, start_date=end_date_month_start)
@@ -145,7 +143,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                 filters = {
                     "cost_entry_bill_id": bill_ids
                 }  # Use cost_entry_bill_id to leverage DB index on DELETE
-                LOG.info(f"\n\n FILTERS FINAL: {filters} \n\n")
             accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                 self._provider.uuid, start_date, end_date, table=table, filters=filters
             )
@@ -444,9 +441,7 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
 
         # This needs to run per billing month because OCP data is billing period is looked up from the start date and GCP has crossover data
         months = get_months_in_date_range(start=start_date, end=end_date)
-        LOG.info(f"\n\n MONTHS: {months} \n\n")
         for month in months:
-            LOG.info(f"\n\n MONTH: {month} \n\n")
             with OCPReportDBAccessor(self._schema) as accessor:
                 report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, month[0])
                 if not report_period:

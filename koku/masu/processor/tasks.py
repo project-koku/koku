@@ -498,7 +498,6 @@ def summarize_reports(  # noqa: C901
                 report=True,
             )
             for month in months:
-                LOG.info(f"\n\n TASK MONTH?: {month} \n\n")
                 update_summary_tables.s(
                     schema_name,
                     report.get("provider_type"),

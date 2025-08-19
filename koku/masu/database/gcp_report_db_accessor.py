@@ -424,8 +424,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_GCP_DAILY_SUMMARY_TABLE},
                     log_ref="delete_ocp_on_gcp_hive_partition_by_day",
                 )
-                LOG.info(f"\n\n DAY DELETED: {year, month, day} TABLE: {TRINO_OCP_GCP_DAILY_SUMMARY_TABLE} \n\n")
-                # time.sleep(30)
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")

@@ -18,6 +18,7 @@ from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django_tenants.utils import schema_context
+from api.utils import get_months_in_date_range
 
 from api.common import log_json
 from api.metrics import constants as metric_constants
@@ -456,37 +457,40 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         distribution = distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
         table_name = self._table_map["line_item_daily_summary"]
-        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
-        if not report_period:
-            msg = "no report period for OCP provider, skipping distribution update"
-            context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": start_date}
-            LOG.info(log_json(msg=msg, context=context))
-            return
+        # This needs to run per billing month because OCP data is billing period is looked up from the start date and GCP has crossover data
+        months = get_months_in_date_range(start=start_date, end=end_date)
+        for month in months:
+            report_period = self.report_periods_for_provider_uuid(provider_uuid, month[0])
+            if not report_period:
+                msg = "no report period for OCP provider, skipping distribution update"
+                context = {"schema": self.schema, "provider_uuid": provider_uuid, "start_date": month[0]}
+                LOG.info(log_json(msg=msg, context=context))
+                return
 
-        report_period_id = report_period.id
+            report_period_id = report_period.id
 
-        for cost_model_key, file_and_default in key_to_file_mapping.items():
-            sql_file, distribute_default = file_and_default
-            populate = distribution_info.get(cost_model_key, distribute_default)
-            if populate:
-                log_msg = f"distributing {cost_model_key}"
-            else:
-                # if populate is false we only execute the delete sql.
-                log_msg = f"removing {cost_model_key} distribution"
-            sql_params = {
-                "start_date": start_date,
-                "end_date": end_date,
-                "schema": self.schema,
-                "report_period_id": report_period_id,
-                "distribution": distribution,
-                "source_uuid": provider_uuid,
-                "populate": populate,
-            }
+            for cost_model_key, file_and_default in key_to_file_mapping.items():
+                sql_file, distribute_default = file_and_default
+                populate = distribution_info.get(cost_model_key, distribute_default)
+                if populate:
+                    log_msg = f"distributing {cost_model_key}"
+                else:
+                    # if populate is false we only execute the delete sql.
+                    log_msg = f"removing {cost_model_key} distribution"
+                sql_params = {
+                    "start_date": month[0],
+                    "end_date": end_date,
+                    "schema": self.schema,
+                    "report_period_id": report_period_id,
+                    "distribution": distribution,
+                    "source_uuid": provider_uuid,
+                    "populate": populate,
+                }
 
-            sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/distribute_cost/{sql_file}")
-            sql = sql.decode("utf-8")
-            LOG.info(log_json(msg=log_msg, context=sql_params))
-            self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
+                sql = pkgutil.get_data("masu.database", f"sql/openshift/cost_model/distribute_cost/{sql_file}")
+                sql = sql.decode("utf-8")
+                LOG.info(log_json(msg=log_msg, context=sql_params))
+                self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation=f"INSERT: {log_msg}")
 
     def _delete_monthly_cost_model_data(self, sql_params, ctx):
         delete_sql = pkgutil.get_data("masu.database", "sql/openshift/cost_model/delete_monthly_cost.sql")
