@@ -331,7 +331,7 @@ OCP_REPORT_TYPES = {
     },
 }
 
-# 1,000,000,000,000,000,000 is a resonable value that should remove most anomlies from bad data
+# 1,000,000,000,000,000,000 is a reasonable value that should remove most anomalies from bad data
 THRESHOLD_MAP = {
     1e18: [
         "pod_usage_cpu_core_seconds",
