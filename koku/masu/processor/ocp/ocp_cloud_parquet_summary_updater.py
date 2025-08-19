@@ -432,69 +432,70 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
-        with OCPReportDBAccessor(self._schema) as accessor:
-            report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
-            if not report_period:
+        # This needs to run per billing month because OCP data is billing period locked and GCP has cross billing data
+        months = get_months_in_date_range(start=start_date, end=end_date)
+        for month in months:
+            with OCPReportDBAccessor(self._schema) as accessor:
+                report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, month[0])
+                if not report_period:
+                    LOG.info(
+                        log_json(
+                            msg="no report period for GCP provider",
+                            provider_uuid=openshift_provider_uuid,
+                            start_date=month[0],
+                            schema=self._schema,
+                        )
+                    )
+                    return
+                accessor.delete_infrastructure_raw_cost_from_daily_summary(
+                    openshift_provider_uuid, report_period.id, month[0], month[1]
+                )
+
+            gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, month[0], month[1])
+            if not gcp_bills:
+                # Without bill data, we cannot populate the summary table
                 LOG.info(
                     log_json(
-                        msg="no report period for GCP provider",
-                        provider_uuid=openshift_provider_uuid,
-                        start_date=start_date,
-                        schema=self._schema,
+                        msg="no GCP bill data found - skipping GCP summary table update",
+                        schema_name=self._schema,
+                        start_date=month[0],
+                        end_date=month[1],
+                        source_uuid=gcp_provider_uuid,
+                        cluster_id=cluster_id,
                     )
                 )
                 return
-            accessor.delete_infrastructure_raw_cost_from_daily_summary(
-                openshift_provider_uuid, report_period.id, start_date, end_date
-            )
-
-        gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
-        if not gcp_bills:
-            # Without bill data, we cannot populate the summary table
-            LOG.info(
-                log_json(
-                    msg="no GCP bill data found - skipping GCP summary table update",
-                    schema_name=self._schema,
-                    start_date=start_date,
-                    end_date=end_date,
-                    source_uuid=gcp_provider_uuid,
-                    cluster_id=cluster_id,
-                )
-            )
-            return
-        with schema_context(self._schema):
-            self._handle_partitions(
-                self._schema,
-                (
+            with schema_context(self._schema):
+                self._handle_partitions(
+                    self._schema,
                     (
-                        "reporting_ocpgcpcostlineitem_daily_summary_p",
-                        "reporting_ocpgcpcostlineitem_project_daily_summary_p",
-                        "reporting_ocpallcostlineitem_daily_summary_p",
-                        "reporting_ocpallcostlineitem_project_daily_summary_p",
-                        "reporting_ocpall_compute_summary_pt",
-                        "reporting_ocpall_cost_summary_pt",
-                    )
-                    + OCPGCP_UI_SUMMARY_TABLES
-                ),
-                start_date,
-                end_date,
-            )
+                        (
+                            "reporting_ocpgcpcostlineitem_daily_summary_p",
+                            "reporting_ocpgcpcostlineitem_project_daily_summary_p",
+                            "reporting_ocpallcostlineitem_daily_summary_p",
+                            "reporting_ocpallcostlineitem_project_daily_summary_p",
+                            "reporting_ocpall_compute_summary_pt",
+                            "reporting_ocpall_cost_summary_pt",
+                        )
+                        + OCPGCP_UI_SUMMARY_TABLES
+                    ),
+                    month[0],
+                    month[1],
+                )
 
-            gcp_bill_ids = [bill.id for bill in gcp_bills]
-            current_gcp_bill_id = gcp_bill_ids[0]
-            current_ocp_report_period_id = report_period.id
-        # OpenShift on GCP
-        sql_params = {
-            "schema": self._schema,
-            "start_date": start_date,
-            "end_date": end_date,
-            "source_uuid": gcp_provider_uuid,
-            "cluster_id": cluster_id,
-            "cluster_alias": cluster_alias,
-        }
-        # This needs to run per billing month because we move usage data to the usage partition
-        months = get_months_in_date_range(start=start_date, end=end_date)
-        for month in months:
+                gcp_bill_ids = [bill.id for bill in gcp_bills]
+                current_gcp_bill_id = gcp_bill_ids[0]
+                current_ocp_report_period_id = report_period.id
+            # OpenShift on GCP
+            sql_params = {
+                "schema": self._schema,
+                "start_date": month[0],
+                "end_date": month[1],
+                "source_uuid": gcp_provider_uuid,
+                "cluster_id": cluster_id,
+                "cluster_alias": cluster_alias,
+            }
+
             with self.db_accessor(self._schema) as accessor:
                 context = accessor.extract_context_from_sql_params(sql_params)
                 for start, end in date_range_pair(month[0], month[1], step=settings.TRINO_DATE_STEP):
@@ -528,14 +529,14 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                         ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
                         ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
-        LOG.info(
-            log_json(
-                msg="updating ocp_on_cloud_updated_datetime on OpenShift report periods",
-                schema=self._schema,
-                start_date=start_date,
-                end_date=end_date,
+            LOG.info(
+                log_json(
+                    msg="updating ocp_on_cloud_updated_datetime on OpenShift report periods",
+                    schema=self._schema,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
             )
-        )
-        with schema_context(self._schema):
-            report_period.ocp_on_cloud_updated_datetime = timezone.now()
-            report_period.save()
+            with schema_context(self._schema):
+                report_period.ocp_on_cloud_updated_datetime = timezone.now()
+                report_period.save()
