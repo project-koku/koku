@@ -192,7 +192,11 @@ class ReportDBAccessorBase:
                 WHERE usage_start >= {{start_date}}
                 AND usage_start <= {{end_date}}
                 {% for k, v in filters.items() -%}
-                    AND {{ k | sqlsafe }} = {{ v }}
+                    {% if v is string -%}
+                        AND {{ k | sqlsafe }} = {{ v }}
+                    {% elif v is sequence and v is not string -%}
+                        AND {{ k | sqlsafe }} IN ({% for item in v -%}'{{ item }}'{% if not loop.last %}, {% endif %}{% endfor -%})
+                    {% endif -%}
                 {% endfor -%}
                 {% for k, v in null_filters.items() -%}
                     AND {{ k | sqlsafe }} {{ v | sqlsafe }}

@@ -156,6 +156,8 @@ def trigger_ocp_on_cloud_summary(
     delete_truncate_queue = get_customer_queue(schema, RefreshQueue)
     delete_signature_list = []
     trunc_delete_map = updater._ocp_cloud_updater.determine_truncates_and_deletes(start_date, end_date)
+    LOG.info(f"\n\n OCP SUMMARY POSTGRES DELETES: {start_date, end_date} \n\n")
+    LOG.info(f"\n\n TRUNC MAP: {trunc_delete_map} \n\n")
     for table_name, operation in trunc_delete_map.items():
         delete_signature_list.append(
             delete_openshift_on_cloud_data.si(
@@ -496,6 +498,7 @@ def summarize_reports(  # noqa: C901
                 report=True,
             )
             for month in months:
+                LOG.info(f"\n\n TASK MONTH?: {month} \n\n")
                 update_summary_tables.s(
                     schema_name,
                     report.get("provider_type"),

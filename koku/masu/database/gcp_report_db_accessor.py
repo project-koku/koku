@@ -8,6 +8,7 @@ import logging
 import pkgutil
 import uuid
 from os import path
+import time
 
 from dateutil.parser import parse
 from django.db import connection
@@ -332,6 +333,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql_metadata.year,
             sql_metadata.month,
         )
+        LOG.info(f"\n\n SQL: {sql_metadata.year}, MONTH: {sql_metadata.month} \n\n")
+        # time.sleep(10)
         # Resource Matching
         resource_matching_sql, resource_matching_params = sql_metadata.prepare_template(
             f"{managed_path}/1_resource_matching_by_cluster.sql",
@@ -421,6 +424,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     context={"year": year, "month": month, "day": day, "table": TRINO_OCP_GCP_DAILY_SUMMARY_TABLE},
                     log_ref="delete_ocp_on_gcp_hive_partition_by_day",
                 )
+                LOG.info(f"\n\n DAY DELETED: {year, month, day} TABLE: {TRINO_OCP_GCP_DAILY_SUMMARY_TABLE} \n\n")
+                # time.sleep(30)
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")

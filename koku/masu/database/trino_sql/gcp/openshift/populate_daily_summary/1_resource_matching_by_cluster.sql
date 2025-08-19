@@ -163,7 +163,9 @@ SELECT gcp.row_uuid,
     array_join(filter(tag_matches.matched_tags, x -> STRPOS(labels, x ) != 0), ',') as matched_tag,
     gcp.source as source,
     {{ocp_provider_uuid}} as ocp_source,
-    gcp.year,
+    -- GCP has crossover data and some current year data can land in the previous year partition
+    -- The year partition needs to match usage_start_year for correct ocp/gcp correlation
+    CAST(FORMAT_DATETIME(usage_start_time, 'YYYY') AS VARCHAR(4)) AS year,
     -- GCP has crossover data and some current month data can land in the previous month partition
     -- The month partition needs to match usage_start_month for correct ocp/gcp correlation
     CAST(FORMAT_DATETIME(usage_start_time, 'MM') AS VARCHAR(2)) AS month,
