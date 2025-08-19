@@ -154,8 +154,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 self.assertEqual(line_item.cost_model_memory_cost, 0)
                 self.assertNotEqual(line_item.cost_model_volume_cost, 0)
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_monthly_cost_infrastructure(self, mock_cost_accessor):
+    def test_update_monthly_cost_infrastructure(self, mock_cost_accessor, _):
         """Test OCP charge for monthly costs is updated."""
         node_cost = random.randrange(1, 200)
         infrastructure_rates = {"node_cost_per_month": node_cost}
@@ -196,9 +197,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 self.assertEqual(row.get("memory_cost"), 0)
                 self.assertEqual(row.get("volume_cost"), 0)
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_monthly_cost_infrastructure_trino_connector(self, mock_cost_accessor, mock_db_accessor):
+    def test_update_monthly_cost_infrastructure_trino_connector(self, mock_cost_accessor, mock_db_accessor, _):
         """Test OCP charge for monthly costs is updated thru trino connector."""
         node_cost = random.randrange(1, 200)
         infrastructure_rates = {"vm_core_cost_per_month": node_cost}
@@ -218,8 +220,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._update_monthly_cost(start_date, end_date)
         mock_db_accessor.assert_called_once()
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
-    def test_update_monthly_cost_supplementary(self, mock_cost_accessor):
+    def test_update_monthly_cost_supplementary(self, mock_cost_accessor, _):
         """Test OCP charge for monthly costs is updated."""
         node_cost = random.randrange(1, 200)
         supplementary_rates = {"node_cost_per_month": node_cost}

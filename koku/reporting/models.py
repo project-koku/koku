@@ -149,6 +149,7 @@ OCP_ON_AZURE_PERSPECTIVES = (
 )
 
 # These are cleaned during source delete
+# Also used during the expired_data flow
 TRINO_MANAGED_TABLES = {
     "reporting_ocpusagelineitem_daily_summary": "source",
     "managed_gcp_openshift_daily_temp": "ocp_source",
@@ -162,9 +163,4 @@ TRINO_MANAGED_TABLES = {
     "managed_azure_openshift_disk_capacities_temp": "ocp_source",
     "managed_reporting_ocpazurecostlineitem_project_daily_summary_temp": "ocp_source",
     "managed_reporting_ocpazurecostlineitem_project_daily_summary": "ocp_source",
-}
-
-# These are cleaned during expired_data flow
-EXPIRE_MANAGED_TABLES = {
-    "reporting_ocpusagelineitem_daily_summary": "source",
 }
