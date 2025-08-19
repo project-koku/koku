@@ -692,20 +692,24 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "schema": self.schema,
             "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
-            "cpu_usage_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR, 0),
-            "cpu_request_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR, 0),
-            "cpu_effective_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, 0),
-            "node_core_hour_rate": rates.get(metric_constants.OCP_NODE_CORE_HOUR, 0),
-            "cluster_core_hour_rate": rates.get(metric_constants.OCP_CLUSTER_CORE_HOUR, 0),
-            "cluster_hour_rate": rates.get(metric_constants.OCP_CLUSTER_HOUR, 0),
-            "memory_usage_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR, 0),
-            "memory_request_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR, 0),
-            "memory_effective_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, 0),
-            "volume_usage_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH, 0),
-            "volume_request_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH, 0),
             "rate_type": rate_type,
             "distribution": distribution,
         }
+        usage_metrics = [
+            metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR,
+            metric_constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR,
+            metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR,
+            metric_constants.OCP_NODE_CORE_HOUR,
+            metric_constants.OCP_CLUSTER_CORE_HOUR,
+            metric_constants.OCP_CLUSTER_HOUR,
+            metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR,
+            metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR,
+            metric_constants.OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR,
+            metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH,
+            metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
+        ]
+        for usage_metric in usage_metrics:
+            sql_params[usage_metric] = rates.get(usage_metric, 0)
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
