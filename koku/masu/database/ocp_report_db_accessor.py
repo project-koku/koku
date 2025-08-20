@@ -649,9 +649,14 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg="populating tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    def _populate_vm_usage_costs(
-        self, rate_type, vm_usage_rates, start_date, end_date, provider_uuid, report_period_id
-    ):
+    def _populate_vm_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid, report_period_id):
+        vm_usage_rates = {
+            vm_metric: rates.get(vm_metric)
+            for vm_metric in metric_constants.COST_MODEL_VM_USAGE_RATES
+            if rates.get(vm_metric)
+        }
+        if not vm_usage_rates:
+            return
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
         vm_usage_metadata = {
             metric_constants.OCP_VM_HOUR: {
@@ -729,22 +734,12 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "rate_type": rate_type,
             "distribution": distribution,
         }
-        vm_metrics = {metric_constants.OCP_VM_HOUR, metric_constants.OCP_VM_CORE_HOUR}
-        standard_rates = {
-            metric: rates.get(metric, 0)
-            for metric in metric_constants.COST_MODEL_USAGE_RATES
-            if metric not in vm_metrics
-        }
-        sql_params.update(standard_rates)
+        for metric in metric_constants.COST_MODEL_USAGE_RATES:
+            sql_params[metric] = rates.get(metric, 0)
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-
-        vm_usage_rates = {vm_metric: rates.get(vm_metric) for vm_metric in vm_metrics if rates.get(vm_metric)}
-        if vm_usage_rates:
-            self._populate_vm_usage_costs(
-                rate_type, vm_usage_rates, start_date, end_date, provider_uuid, report_period_id
-            )
+        self._populate_vm_usage_costs(rate_type, rates, start_date, end_date, provider_uuid)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
