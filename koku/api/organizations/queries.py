@@ -124,14 +124,6 @@ class OrgQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
         exact_composed_filters = self._set_operator_specified_filters("exact")
         final_filters = filters.compose() & and_composed_filters & or_composed_filters & exact_composed_filters
-        # filter_list = [composed_filters, and_composed_filters, or_composed_filters]
-        # final_filters = None
-        # for filter_option in filter_list:
-        #     if filter_option:
-        #         if final_filters is not None:
-        #             final_filters = final_filters & filter_option
-        #         else:
-        #             final_filters = filter_option
 
         LOG.debug(f"_get_filter: {final_filters}")
         return final_filters
