@@ -649,12 +649,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg="populating tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    def _populate_vm_usage_costs(self, rate_type, rates, start_date, end_date, provider_uuid, report_period_id):
-        vm_usage_rates = {
-            vm_metric: rates.get(vm_metric)
-            for vm_metric in metric_constants.COST_MODEL_VM_USAGE_RATES
-            if rates.get(vm_metric)
-        }
+    def populate_vm_usage_costs(
+        self, rate_type, vm_usage_rates, start_date, end_date, provider_uuid, report_period_id
+    ):
         if not vm_usage_rates:
             return
         vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
@@ -688,27 +685,19 @@ GROUP BY partitions.year, partitions.month, partitions.source
             LOG.info(log_json(msg=metadata["log_msg"], context=sql_params))
             self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
-    def populate_usage_costs(self, rate_type, rates, distribution, start_date, end_date, provider_uuid):
+    def populate_usage_costs(
+        self, rate_type, rates, distribution, start_date, end_date, provider_uuid, report_period_id
+    ):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
         table_name = self._table_map["line_item_daily_summary"]
-        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+
         ctx = {
             "schema": self.schema,
             "provider_uuid": provider_uuid,
             "start_date": start_date,
             "end_date": end_date,
-            "report_period": report_period,
+            "report_period": report_period_id,
         }
-        if not report_period:
-            LOG.info(
-                log_json(
-                    msg="no report period for OCP provider, skipping populate_usage_costs update",
-                    context=ctx,
-                )
-            )
-            return
-        report_period_id = report_period.id
-
         if not rates:
             LOG.info(log_json(msg="removing usage costs", context=ctx))
             self.delete_line_item_daily_summary_entries_for_date_range_raw(
@@ -739,7 +728,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-        self._populate_vm_usage_costs(rate_type, rates, start_date, end_date, provider_uuid)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id
