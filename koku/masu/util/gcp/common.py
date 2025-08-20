@@ -94,6 +94,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
     return bills
 
+
 def add_label_columns(data_frame):
     label_data = False
     system_label_data = False

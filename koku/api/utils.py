@@ -580,9 +580,9 @@ def get_months_in_date_range(
 
     if not dt_start or dt_start < summary_month:
         dt_start = summary_month.replace(day=1)
-    
+
     if not dt_end or dt_end < summary_month:
         dt_end = today_date
-    
+
     months = dh.list_month_tuples(dt_start, dt_end)
     return [(start, end) for start, end in months]

@@ -6,10 +6,10 @@
 import logging
 
 import ciso8601
+from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
 from django_tenants.utils import schema_context
-from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
 from api.utils import DateHelper
