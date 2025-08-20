@@ -9,8 +9,10 @@ import ciso8601
 from django.conf import settings
 from django.utils import timezone
 from django_tenants.utils import schema_context
+from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -66,6 +68,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # The problem is being they are continuious reports (not month bound)
             # We need to update/insert for both invoice months when dates cross a boundry
             with schema_context(self._schema):
+                month_start = DateHelper().month_start(start_date)
+                if start_date == month_start:
+                    # For gcp in order to catch cross over data
+                    # we need to extend the start date by a couple of days.
+                    # this allows us to catch 2025-07-31 with invoice 202508
+                    start_date = month_start - relativedelta(days=3)
                 # Dynamically lookup invoice and date ranges from trino data
                 invoice_month_dates = accessor.fetch_invoice_months_and_dates(
                     start_date, end_date, self._provider.uuid

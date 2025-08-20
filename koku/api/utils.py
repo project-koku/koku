@@ -549,7 +549,7 @@ def get_months_in_date_range(
     end: str | datetime.datetime | None = None,
     *,
     report: bool = False,
-) -> list[tuple[datetime.date, datetime.date, str | None]]:
+) -> list[tuple[datetime.date, datetime.date]]:
     """Return the month periods in a given date range from report.
 
     Args:
@@ -558,8 +558,8 @@ def get_months_in_date_range(
         report (bool): Whether this is for report processing
 
     Returns:
-        list[tuple[datetime.date, datetime.date, str | None]]: List of month period tuples
-            with (start_date, end_date, invoice_month)
+        list[tuple[datetime.date, datetime.date]]: List of month period tuples
+            with (start_date, end_date)
     """
     dh = DateHelper()
     today_date = dh.today.date()
@@ -567,11 +567,9 @@ def get_months_in_date_range(
     # Converting inputs to date objects
     dt_start = to_date(start)
     dt_end = to_date(end)
-    LOG.info(f"\n\n IN DATES {dt_start, dt_end} \n\n")
     if report:
         if dt_start and dt_end:
             LOG.info(f"using start: {dt_start} and end: {dt_end} dates from manifest")
-            LOG.info(f"\n\n IF START>END {dt_start, dt_end} \n\n")
         else:
             LOG.info("generating start and end dates for manifest")
             dt_start = today_date - datetime.timedelta(days=2) if today_date.day > 2 else today_date.replace(day=1)
@@ -580,17 +578,11 @@ def get_months_in_date_range(
     # Grabbing ingest delta for initial ingest/summary
     summary_month = (today_date - relativedelta(months=Config.INITIAL_INGEST_NUM_MONTHS)).replace(day=1)
 
-    LOG.info(f"\n\n SUMMARY {summary_month} \n\n")
     if not dt_start or dt_start < summary_month:
         dt_start = summary_month.replace(day=1)
     
-    LOG.info(f"\n\n IF NOT START {dt_start} \n\n")
-
     if not dt_end or dt_end < summary_month:
         dt_end = today_date
     
-    LOG.info(f"\n\n IF NOT END {dt_end} \n\n")
-
     months = dh.list_month_tuples(dt_start, dt_end)
-    LOG.info(f"\n\n MONTHS {months} \n\n")
     return [(start, end) for start, end in months]
