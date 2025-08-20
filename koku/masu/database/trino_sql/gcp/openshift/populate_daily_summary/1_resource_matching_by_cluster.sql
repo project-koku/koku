@@ -44,8 +44,8 @@ WITH cte_usage_date_partitions as (
         year,
         month
     from hive.{{schema | sqlsafe}}.gcp_line_items_daily
-    where usage_start_time >= {{start_date}}
-    AND usage_start_time <= {{end_date}}
+    where usage_start_time >= {{gcp_start_date}}
+    AND usage_start_time <= {{gcp_end_date}}
     AND source = {{cloud_provider_uuid}}
     AND (
         (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0'))
@@ -61,8 +61,8 @@ cte_gcp_resource_names AS (
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
     WHERE source = {{cloud_provider_uuid}}
-        AND usage_start_time >= {{start_date}}
-        AND usage_start_time < date_add('day', 1, {{end_date}})
+        AND usage_start_time >= {{gcp_start_date}}
+        AND usage_start_time < date_add('day', 1, {{gcp_end_date}})
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
@@ -163,7 +163,9 @@ SELECT gcp.row_uuid,
     array_join(filter(tag_matches.matched_tags, x -> STRPOS(labels, x ) != 0), ',') as matched_tag,
     gcp.source as source,
     {{ocp_provider_uuid}} as ocp_source,
-    gcp.year,
+    -- GCP has crossover data and some current year data can land in the previous year partition
+    -- The year partition needs to match usage_start_year for correct ocp/gcp correlation
+    CAST(FORMAT_DATETIME(usage_start_time, 'YYYY') AS VARCHAR(4)) AS year,
     -- GCP has crossover data and some current month data can land in the previous month partition
     -- The month partition needs to match usage_start_month for correct ocp/gcp correlation
     CAST(FORMAT_DATETIME(usage_start_time, 'MM') AS VARCHAR(2)) AS month,
@@ -177,6 +179,6 @@ LEFT JOIN cte_agg_tags AS tag_matches
     AND resource_names.resource_name IS NULL
 JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
 WHERE gcp.source = {{cloud_provider_uuid}}
-    AND gcp.usage_start_time >= {{start_date}}
-    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
+    AND gcp.usage_start_time >= {{gcp_start_date}}
+    AND gcp.usage_start_time < date_add('day', 1, {{gcp_end_date}})
     AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tags IS NOT NULL);

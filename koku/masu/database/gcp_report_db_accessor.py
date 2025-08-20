@@ -7,9 +7,11 @@ import json
 import logging
 import pkgutil
 import uuid
+from datetime import datetime
 from os import path
 
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db.models import F
 from django.db.models import Q
@@ -88,6 +90,29 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""
         return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
+
+    def get_gcp_crossover_range(
+        start_date: datetime.date, end_date: datetime.date
+    ) -> tuple[datetime.date, datetime.date]:
+        """
+        Small method to get extended start and end dates when running GCP summary at a month boundary.
+        To catch cross over data we need to extend the start/end dates by a couple of days.
+        This logic allows us to catch both 2025-07-31 and 2025-09-01 with the invoice 202508.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (start_date, end_date)
+        """
+        month_start = DateHelper().month_start(start_date)
+        month_end = DateHelper().month_end(start_date)
+        if start_date == month_start:
+            start_date = month_start - relativedelta(days=3)
+        if end_date == month_end:
+            end_date = month_end + relativedelta(days=3)
+        return start_date, end_date
 
     def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month
@@ -339,6 +364,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
             },
         )
+        start_date, end_date = self.get_gcp_crossover_range(start_date, end_date)
+        sql_metadata["gcp_start_date"] = start_date
+        sql_metadata["gcp_end_date"] = end_date
         LOG.info(log_json(msg="Resource matching for OCP on GCP flow", **resource_matching_params))
         self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
         # Data Transformation for Daily Summary
