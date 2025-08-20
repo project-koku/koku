@@ -54,6 +54,9 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        # This is needed to preserve dates for OCP
+        original_start_date = start_date
+        original_end_date = end_date
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -69,57 +72,55 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # We need to update/insert for both invoice months when dates cross a boundry
             with schema_context(self._schema):
                 month_start = DateHelper().month_start(start_date)
-                original_start_date = start_date
+                month_end = DateHelper().month_end(start_date)
+                invoice_month = end_date.strftime("%Y%m")
+                # For gcp in order to catch cross over data
+                # we need to extend the start date by a couple of days.
+                # this allows us to catch 2025-07-31 with invoice 202508
+                # And 2025-09-01 with invoice 202508
                 if start_date == month_start:
-                    # For gcp in order to catch cross over data
-                    # we need to extend the start date by a couple of days.
-                    # this allows us to catch 2025-07-31 with invoice 202508
                     start_date = month_start - relativedelta(days=3)
-                # Dynamically lookup invoice and date ranges from trino data
-                invoice_month_dates = accessor.fetch_invoice_months_and_dates(
-                    start_date, end_date, self._provider.uuid
-                )
-                for invoice_month, invoice_start, invoice_end in invoice_month_dates:
-                    bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
-                    bill_ids = [str(bill.id) for bill in bills]
-                    current_bill_id = bills.first().id if bills else None
+                if end_date == month_end:
+                    end_date = month_end + relativedelta(days=3)
+                bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
+                bill_ids = [str(bill.id) for bill in bills]
+                current_bill_id = bills.first().id if bills else None
 
-                    if current_bill_id is None:
-                        LOG.info(
-                            log_json(
-                                msg="no bill was found, skipping summarization",
-                                schema=self._schema,
-                                provider_uuid=self._provider.uuid,
-                                start_date=invoice_start,
-                            )
+                if current_bill_id is None:
+                    LOG.info(
+                        log_json(
+                            msg="no bill was found, skipping summarization",
+                            schema=self._schema,
+                            provider_uuid=self._provider.uuid,
+                            start_date=start_date,
                         )
-                        continue
+                    )
 
-                    for start, end in date_range_pair(invoice_start, invoice_end, step=settings.TRINO_DATE_STEP):
-                        LOG.info(
-                            log_json(
-                                msg="updating GCP report summary tables from parquet",
-                                schema=self._schema,
-                                provider_uuid=self._provider.uuid,
-                                start_date=start,
-                                end_date=end,
-                                invoice_month=invoice_month,
-                                bill_id=current_bill_id,
-                            )
+                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                    LOG.info(
+                        log_json(
+                            msg="updating GCP report summary tables from parquet",
+                            schema=self._schema,
+                            provider_uuid=self._provider.uuid,
+                            start_date=start,
+                            end_date=end,
+                            invoice_month=invoice_month,
+                            bill_id=current_bill_id,
                         )
-                        filters = {
-                            "cost_entry_bill_id": current_bill_id
-                        }  # Use cost_entry_bill_id to leverage DB index on DELETE
-                        accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                            self._provider.uuid, start, end, filters
-                        )
-                        accessor.populate_line_item_daily_summary_table_trino(
-                            start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month
-                        )
-                        accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month)
-                        accessor.populate_gcp_topology_information_tables(
-                            self._provider, start_date, end_date, invoice_month
-                        )
+                    )
+                    filters = {
+                        "cost_entry_bill_id": current_bill_id
+                    }  # Use cost_entry_bill_id to leverage DB index on DELETE
+                    accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                        self._provider.uuid, start, end, filters
+                    )
+                    accessor.populate_line_item_daily_summary_table_trino(
+                        start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month
+                    )
+                    accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month)
+                    accessor.populate_gcp_topology_information_tables(
+                        self._provider, start_date, end_date, invoice_month
+                    )
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_tag_mapping(start_date, end_date, bill_ids)
             for bill in bills:
@@ -128,7 +129,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill.summary_data_updated_datetime = timezone.now()
                 bill.save()
 
-        return original_start_date, end_date
+        return original_start_date, original_end_date
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
