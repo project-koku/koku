@@ -80,7 +80,7 @@ def report_data(request):
                 else:
                     invoice_month = start_date[0:4] + start_date[5:7]
 
-        months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
+        months = get_months_in_date_range(start=start_date, end=end_date)
 
         for month in months:
             async_result = update_summary_tables.s(
@@ -89,7 +89,6 @@ def report_data(request):
                 provider_uuid,
                 month[0],
                 month[1],
-                invoice_month=month[2],
                 queue_name=queue_name,
                 ocp_on_cloud=ocp_on_cloud,
             ).apply_async(queue=queue_name or fallback_queue)

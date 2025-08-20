@@ -87,8 +87,8 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
 
     reports_deduplicated = []
     dedup_func_map = {
-        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
+        # Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
+        # Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
     }
 
     kwargs = {}
@@ -492,7 +492,6 @@ def summarize_reports(  # noqa: C901
             months = get_months_in_date_range(
                 start=report.get("start"),
                 end=report.get("end"),
-                invoice_month=report.get("invoice_month"),
                 report=True,
             )
             for month in months:
@@ -507,7 +506,6 @@ def summarize_reports(  # noqa: C901
                     queue_name=queue_name,
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
-                    invoice_month=month[2],
                 ).apply_async(queue=queue_name or fallback_queue)
 
 
