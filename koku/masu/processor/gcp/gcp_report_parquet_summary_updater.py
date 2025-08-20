@@ -69,6 +69,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # We need to update/insert for both invoice months when dates cross a boundry
             with schema_context(self._schema):
                 month_start = DateHelper().month_start(start_date)
+                original_start_date = start_date
                 if start_date == month_start:
                     # For gcp in order to catch cross over data
                     # we need to extend the start date by a couple of days.
@@ -127,7 +128,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill.summary_data_updated_datetime = timezone.now()
                 bill.save()
 
-        return start_date, end_date
+        return original_start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
