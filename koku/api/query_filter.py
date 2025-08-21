@@ -172,7 +172,7 @@ class QueryFilterCollection:
             logical_operator (str): 'and' or 'or' -- how to combine the filters.
 
         """
-        composed_query = None
+        composed_query = Q()
         compose_dict = defaultdict(list)
         operator = "and"
         if logical_operator == "or":
@@ -183,21 +183,16 @@ class QueryFilterCollection:
             compose_dict[filt_key].append(filt)
 
         for filter_list in compose_dict.values():
-            or_filter = None
+            or_filter = Q()
             for filter_item in filter_list:
-                if or_filter is None:
-                    or_filter = filter_item.composed_Q()
-                elif filter_item.logical_operator == "and":
-                    or_filter = or_filter & filter_item.composed_Q()
+                if filter_item.logical_operator == "and":
+                    or_filter &= filter_item.composed_Q()
                 else:
-                    or_filter = or_filter | filter_item.composed_Q()
-            if composed_query is None:
-                composed_query = or_filter
+                    or_filter |= filter_item.composed_Q()
+            if operator == "or":
+                composed_query |= or_filter
             else:
-                if operator == "or":
-                    composed_query = composed_query | or_filter
-                else:
-                    composed_query = composed_query & or_filter
+                composed_query &= or_filter
         return composed_query
 
     def __contains__(self, item):
