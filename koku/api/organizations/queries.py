@@ -17,7 +17,6 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -123,15 +122,8 @@ class OrgQueryHandler(QueryHandler):
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = filters.compose()
-        filter_list = [composed_filters, and_composed_filters, or_composed_filters]
-        final_filters = None
-        for filter_option in filter_list:
-            if filter_option:
-                if final_filters is not None:
-                    final_filters = final_filters & filter_option
-                else:
-                    final_filters = filter_option
+        exact_composed_filters = self._set_operator_specified_filters("exact")
+        final_filters = filters.compose() & and_composed_filters & or_composed_filters & exact_composed_filters
 
         LOG.debug(f"_get_filter: {final_filters}")
         return final_filters
@@ -141,10 +133,10 @@ class OrgQueryHandler(QueryHandler):
         filters = QueryFilterCollection()
         composed_filter = Q()
         for filter_key in self.SUPPORTED_FILTERS:
-            operator_key = operator + ":" + filter_key
+            operator_key = f"{operator}:{filter_key}"
             filter_value = self.parameters.get_filter(operator_key)
             logical_operator = operator
-            if filter_value and len(filter_value) < 2:
+            if filter_value and len(filter_value) < 2 and logical_operator != "exact":
                 logical_operator = "or"
             if filter_value and not OrgQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.FILTER_MAP.get(filter_key)

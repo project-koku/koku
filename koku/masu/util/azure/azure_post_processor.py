@@ -103,7 +103,7 @@ class AzurePostProcessor:
         """
         return data_frame
 
-    def process_dataframe(self, data_frame):
+    def process_dataframe(self, data_frame, filename=None):
         columns = list(data_frame)
         column_name_map = {}
 
