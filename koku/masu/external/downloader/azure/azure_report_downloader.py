@@ -30,6 +30,7 @@ from masu.util.azure import common as utils
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 DATE_FORMAT = "%Y-%m-%d"
+SUPPORTED_REPORT_TYPES = ["ActualCost", "AmortizedCost"]
 
 
 class AzureReportDownloaderError(Exception):
@@ -85,6 +86,7 @@ def create_daily_archives(
     start_date,
     context,
     ingress_reports=None,
+    report_type=None,
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -108,12 +110,13 @@ def create_daily_archives(
     process_date = get_processing_date(
         s3_csv_path, manifest_id, provider_uuid, start_date, end_date, context, tracing_id, ingress_reports
     )
+    if report_type and report_type not in SUPPORTED_REPORT_TYPES:
+        msg = f"Unsupported Azure report type: '{report_type}'. " f"Supported types are: {SUPPORTED_REPORT_TYPES}"
+        LOG.warning(log_json(msg=msg, context=context))
+        return [], {}
     time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
-    if time_interval not in ["Date", "date"]:
-        LOG.error(log_json(msg="Azure v1 reports not supported", context=context))
-        return [], {}
     try:
         with pd.read_csv(
             local_file,
@@ -179,6 +182,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.storage_only = data_source.get("storage_only")
         self.ingress_reports = ingress_reports
         self.compression = None
+        self.type = data_source.get("resource_group", {}).get("type", None)
 
         # Existing schema will start with acct and we strip that prefix for use later
         # new customers include the org prefix in case an org-id and an account number might overlap
@@ -196,6 +200,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 self.container_name = demo_info.get("container_name")
                 self.directory = demo_info.get("report_prefix")
                 self.export_name = demo_info.get("report_name")
+                self.type = demo_info.get("type")
                 self._azure_client = self._get_azure_client(credentials, data_source)
                 return
 
@@ -209,6 +214,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.export_name = export_report.get("name")
             self.container_name = export_report.get("container")
             self.directory = export_report.get("directory")
+            self.type = export_report.get("type")
 
         if self.ingress_reports:
             container = self.ingress_reports[0].split("/")[0]
@@ -461,7 +467,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ingress_reports=self.ingress_reports,
             suffix=self.compression,
         )
-
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
@@ -472,6 +477,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date,
             self.context,
             self.ingress_reports,
+            report_type=self.type,
         )
 
         msg = f"Download complete for {key}"
