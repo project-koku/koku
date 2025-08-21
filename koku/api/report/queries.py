@@ -560,7 +560,7 @@ class ReportQueryHandler(QueryHandler):
         composed_filter = Q()
 
         for q_param, filt in fields.items():
-            q_param = operator + ":" + q_param
+            q_param = f"{operator}:{q_param}"
             group_by = self.parameters.get_group_by(q_param, list())
             if check_for_exclude:
                 list_ = self.parameters.get_exclude(q_param, list())
