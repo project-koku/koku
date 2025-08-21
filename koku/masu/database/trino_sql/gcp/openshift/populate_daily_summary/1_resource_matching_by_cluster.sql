@@ -44,8 +44,8 @@ WITH cte_usage_date_partitions as (
         year,
         month
     from hive.{{schema | sqlsafe}}.gcp_line_items_daily
-    where usage_start_time >= {{gcp_start_date}}
-    AND usage_start_time <= {{gcp_end_date}}
+    where usage_start_time >= {{start_date}}
+    AND usage_start_time <= {{end_date}}
     AND source = {{cloud_provider_uuid}}
     AND (
         (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0'))
@@ -53,6 +53,8 @@ WITH cte_usage_date_partitions as (
         (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0'))
         OR
         (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}}) + INTERVAL '1' MONTH) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}}) + INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
     )
     group by year, month
 ),
@@ -61,8 +63,8 @@ cte_gcp_resource_names AS (
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
     WHERE source = {{cloud_provider_uuid}}
-        AND usage_start_time >= {{gcp_start_date}}
-        AND usage_start_time < date_add('day', 1, {{gcp_end_date}})
+        AND usage_start_time >= {{start_date}}
+        AND usage_start_time < date_add('day', 1, {{end_date}})
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
@@ -179,6 +181,6 @@ LEFT JOIN cte_agg_tags AS tag_matches
     AND resource_names.resource_name IS NULL
 JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
 WHERE gcp.source = {{cloud_provider_uuid}}
-    AND gcp.usage_start_time >= {{gcp_start_date}}
-    AND gcp.usage_start_time < date_add('day', 1, {{gcp_end_date}})
+    AND gcp.usage_start_time >= {{start_date}}
+    AND gcp.usage_start_time < date_add('day', 1, {{end_date}})
     AND (resource_names.resource_name IS NOT NULL OR tag_matches.matched_tags IS NOT NULL);

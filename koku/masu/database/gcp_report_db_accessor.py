@@ -92,6 +92,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
 
     def get_gcp_crossover_range(
+        self,
         start_date: datetime.date, end_date: datetime.date
     ) -> tuple[datetime.date, datetime.date]:
         """
@@ -364,9 +365,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
             },
         )
-        start_date, end_date = self.get_gcp_crossover_range(start_date, end_date)
-        sql_metadata["gcp_start_date"] = start_date
-        sql_metadata["gcp_end_date"] = end_date
         LOG.info(log_json(msg="Resource matching for OCP on GCP flow", **resource_matching_params))
         self._execute_trino_multipart_sql_query(resource_matching_sql, bind_params=resource_matching_params)
         # Data Transformation for Daily Summary
