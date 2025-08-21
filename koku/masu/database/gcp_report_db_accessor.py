@@ -91,29 +91,29 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Get the cost entry bill objects with billing period before provided date."""
         return GCPCostEntryBill.objects.filter(billing_period_start__lte=date)
 
-    def get_gcp_crossover_range(
-        self,
-        start_date: datetime.date, end_date: datetime.date
-    ) -> tuple[datetime.date, datetime.date]:
-        """
-        Small method to get extended start and end dates when running GCP summary at a month boundary.
-        To catch cross over data we need to extend the start/end dates by a couple of days.
-        This logic allows us to catch both 2025-07-31 and 2025-09-01 with the invoice 202508.
+    # def get_gcp_crossover_range(
+    #     self,
+    #     start_date: datetime.date, end_date: datetime.date
+    # ) -> tuple[datetime.date, datetime.date]:
+    #     """
+    #     Small method to get extended start and end dates when running GCP summary at a month boundary.
+    #     To catch cross over data we need to extend the start/end dates by a couple of days.
+    #     This logic allows us to catch both 2025-07-31 and 2025-09-01 with the invoice 202508.
 
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
+    #     Args:
+    #         start_date (datetime.date) The date to start populating the table.
+    #         end_date (datetime.date) The date to end on.
 
-        Returns
-            (start_date, end_date)
-        """
-        month_start = DateHelper().month_start(start_date)
-        month_end = DateHelper().month_end(start_date)
-        if start_date == month_start:
-            start_date = month_start - relativedelta(days=3)
-        if end_date == month_end:
-            end_date = month_end + relativedelta(days=3)
-        return start_date, end_date
+    #     Returns
+    #         (start_date, end_date)
+    #     """
+    #     month_start = DateHelper().month_start(start_date)
+    #     month_end = DateHelper().month_end(start_date)
+    #     if start_date == month_start:
+    #         start_date = month_start - relativedelta(days=3)
+    #     if end_date == month_end:
+    #         end_date = month_end + relativedelta(days=3)
+    #     return start_date, end_date
 
     def populate_line_item_daily_summary_table_trino(
         self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month
@@ -148,17 +148,18 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             sql, sql_params=sql_params, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
         )
 
-    def fetch_invoice_months_and_dates(self, start_date, end_date, source_uuid):
-        """Get invoice months and valid dates from date ranges."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/gcp/get_invoice_months_and_dates.sql")
+    def fetch_invoice_month_dates(self, start_date, end_date, invoice_month, source_uuid):
+        """Get extended valid date range for given invoice_month and start/end."""
+        sql = pkgutil.get_data("masu.database", "trino_sql/gcp/get_invoice_month_dates.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
             "start_date": start_date,
             "end_date": end_date,
+            "invoice_month": invoice_month,
             "source_uuid": str(source_uuid),
         }
-        return self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref="get_invoice_months_and_dates")
+        return self._execute_trino_raw_sql_query(sql, sql_params=sql_params, log_ref="get_invoice_month_dates")
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""

@@ -52,9 +52,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        # This is needed to preserve dates for OCP
-        original_start_date = start_date
-        original_end_date = end_date
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -69,8 +66,11 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # The problem is being they are continuious reports (not month bound)
             # We need to update/insert for both invoice months when dates cross a boundry
             with schema_context(self._schema):
-                invoice_month = end_date.strftime("%Y%m")
-                start_date, end_date = accessor.get_gcp_crossover_range(start_date, end_date)
+                invoice_month = start_date.strftime("%Y%m")
+                # Dynamically lookup invoice period date range from trino data
+                invoice_dates = accessor.fetch_invoice_month_dates(
+                    start_date, end_date, invoice_month, self._provider.uuid
+                )
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
@@ -85,7 +85,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                         )
                     )
 
-                for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                for start, end in date_range_pair(invoice_dates[0], invoice_dates[1], step=settings.TRINO_DATE_STEP):
                     LOG.info(
                         log_json(
                             msg="updating GCP report summary tables from parquet",
@@ -118,7 +118,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill.summary_data_updated_datetime = timezone.now()
                 bill.save()
 
-        return original_start_date, original_end_date
+        return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
