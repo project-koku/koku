@@ -71,7 +71,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_trino"  # noqa: E501
     )
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.fetch_invoice_months_and_dates")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.fetch_invoice_month_dates")
     def test_update_daily_summary_tables(
         self, mock_month, mock_trino, mock_tag_update, mock_delete, mock_topo, mock_connect
     ):
@@ -80,7 +80,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
         invoice_month = start.strftime("%Y%m")
-        mock_month.return_value = [(invoice_month, start, end)]
+        mock_month.return_value = [(start, end)]
 
         for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
             expected_start, expected_end = s, e
@@ -95,7 +95,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=invoice_month)
+        start_return, end_return = self.updater.update_summary_tables(start, end)
         mock_delete.assert_called_with(
             self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )

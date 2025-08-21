@@ -427,7 +427,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
             )
-            expected_date_range = {"start": "2020-09-01", "end": "2020-09-22", "invoice_month": None}
+            expected_date_range = {"start": "2020-09-01", "end": "2020-09-22"}
             mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)

@@ -81,11 +81,16 @@ class GCPCostModelCostUpdater:
                     provider_uuid=self._provider.uuid,
                 )
             )
-            invoice_month_dates = accessor.fetch_invoice_months_and_dates(start_date, end_date, self._provider.uuid)
-            for invoice_month, start, end in invoice_month_dates:
-                accessor.populate_ui_summary_tables(start, end, self._provider.uuid, invoice_month, UI_SUMMARY_TABLES)
-                bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
-                with schema_context(self._schema):
-                    for bill in bills:
-                        bill.derived_cost_datetime = timezone.now()
-                        bill.save()
+            invoice_month = start_date.strftime("%Y%m")
+            invoice_dates = accessor.fetch_invoice_month_dates(
+                start_date, end_date, invoice_month, self._provider.uuid
+            )
+            invoice_start, invoice_end = invoice_dates[0]
+            accessor.populate_ui_summary_tables(
+                invoice_start, invoice_end, self._provider.uuid, invoice_month, UI_SUMMARY_TABLES
+            )
+            bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
+            with schema_context(self._schema):
+                for bill in bills:
+                    bill.derived_cost_datetime = timezone.now()
+                    bill.save()

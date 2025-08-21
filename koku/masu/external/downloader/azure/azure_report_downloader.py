@@ -156,7 +156,6 @@ def create_daily_archives(
     date_range = {
         "start": min(batch_date_range),
         "end": max(batch_date_range),
-        "invoice_month": None,
     }
     return daily_file_names, date_range
 

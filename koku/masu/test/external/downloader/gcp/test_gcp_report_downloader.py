@@ -213,7 +213,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         daily_file_names, date_range = create_daily_archives(
             "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
         )
-        expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+        expected_date_range = {"start": "2022-08-01", "end": "2022-08-01"}
         self.assertEqual(date_range, expected_date_range)
         self.assertIsInstance(daily_file_names, list)
         mock_s3.assert_called()
@@ -453,7 +453,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 context,
                 "ingress_reports",
             )
-            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
+            expected_date_range = {"start": "2022-08-01", "end": "2022-08-01"}
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
             mock_s3.assert_called()

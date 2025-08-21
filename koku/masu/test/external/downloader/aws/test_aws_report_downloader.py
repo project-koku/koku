@@ -694,7 +694,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
             )
-            expected_date_range = {"start": "2023-06-01", "end": "2023-06-01", "invoice_month": None}
+            expected_date_range = {"start": "2023-06-01", "end": "2023-06-01"}
             mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)
@@ -788,7 +788,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             daily_file_names, date_range = create_daily_archives(
                 "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
             )
-            expected_date_range = {"start": "2022-07-01", "end": "2022-07-01", "invoice_month": None}
+            expected_date_range = {"start": "2022-07-01", "end": "2022-07-01"}
             mock_copy.assert_called()
             self.assertEqual(date_range, expected_date_range)
             self.assertIsInstance(daily_file_names, list)

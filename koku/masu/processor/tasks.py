@@ -61,7 +61,6 @@ from masu.processor.worker_cache import rate_limit_tasks
 from masu.processor.worker_cache import WorkerCache
 from masu.util.common import get_latest_openshift_on_cloud_manifest
 from masu.util.common import set_summary_timestamp
-from masu.util.gcp.common import deduplicate_reports_for_gcp
 from reporting.ingress.models import IngressReports
 from reporting_common.models import CostUsageReportStatus
 from reporting_common.models import DelayedCeleryTasks
@@ -86,10 +85,6 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
                 schema_name = report.get("schema_name")
 
     reports_deduplicated = []
-    dedup_func_map = {
-        Provider.PROVIDER_GCP: deduplicate_reports_for_gcp,
-        Provider.PROVIDER_GCP_LOCAL: deduplicate_reports_for_gcp,
-    }
 
     kwargs = {}
     if schema_name:
@@ -97,30 +92,25 @@ def deduplicate_summary_reports(reports_to_summarize, manifest_list):
 
     LOG.info(log_json("summarize_reports", msg="deduplicating reports", **kwargs))
     for report_list in reports_by_source.values():
-        if report and report.get("provider_type") in dedup_func_map:
-            provider_type = report.get("provider_type")
-            dedup_func = dedup_func_map.get(provider_type)
-            reports_deduplicated.extend(dedup_func(report_list))
-        else:
-            starts = []
-            ends = []
-            for report in report_list:
-                if report.get("start") and report.get("end"):
-                    starts.append(report.get("start"))
-                    ends.append(report.get("end"))
-            start = min(starts) if starts != [] else None
-            end = max(ends) if ends != [] else None
-            reports_deduplicated.append(
-                {
-                    "manifest_id": report.get("manifest_id"),
-                    "tracing_id": report.get("tracing_id"),
-                    "schema_name": report.get("schema_name"),
-                    "provider_type": report.get("provider_type"),
-                    "provider_uuid": report.get("provider_uuid"),
-                    "start": start,
-                    "end": end,
-                }
-            )
+        starts = []
+        ends = []
+        for report in report_list:
+            if report.get("start") and report.get("end"):
+                starts.append(report.get("start"))
+                ends.append(report.get("end"))
+        start = min(starts) if starts != [] else None
+        end = max(ends) if ends != [] else None
+        reports_deduplicated.append(
+            {
+                "manifest_id": report.get("manifest_id"),
+                "tracing_id": report.get("tracing_id"),
+                "schema_name": report.get("schema_name"),
+                "provider_type": report.get("provider_type"),
+                "provider_uuid": report.get("provider_uuid"),
+                "start": start,
+                "end": end,
+            }
+        )
 
     LOG.info(
         log_json(
@@ -345,7 +335,6 @@ def get_report_files(  # noqa: C901
 
         if report_dict:
             context["file"] = report_dict["file"]
-            context["invoice_month"] = report_dict.get("invoice_month")
             LOG.info(log_json(tracing_id, msg="reports to be processed", context=context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
@@ -360,7 +349,6 @@ def get_report_files(  # noqa: C901
             "tracing_id": tracing_id,
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
-            "invoice_month": report_dict.get("invoice_month"),
             "metadata_start_date": report_dict.get("metadata_start_date"),
             "metadata_end_date": report_dict.get("metadata_end_date"),
         }
@@ -492,7 +480,6 @@ def summarize_reports(  # noqa: C901
             months = get_months_in_date_range(
                 start=report.get("start"),
                 end=report.get("end"),
-                invoice_month=report.get("invoice_month"),
                 report=True,
             )
             for month in months:
@@ -507,7 +494,6 @@ def summarize_reports(  # noqa: C901
                     queue_name=queue_name,
                     tracing_id=tracing_id,
                     manifest_list=manifest_list,
-                    invoice_month=month[2],
                 ).apply_async(queue=queue_name or fallback_queue)
 
 

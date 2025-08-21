@@ -36,16 +36,16 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
     @patch.object(DateHelper, "invoice_month_start")
     def test_update_summary_cost_model_costs(self, mock_invoice_month_start, mock_timezone_now, mock_accessor):
         """Test that the summary cost model update process works correctly."""
-        start_date = "2023-01-01"
-        end_date = "2023-01-31"
+        start_date = datetime(2023, 1, 1)
+        end_date = datetime(2023, 1, 31)
         test_now = datetime(2023, 1, 15)
 
         mock_bill_1 = MagicMock()
         mock_bill_2 = MagicMock()
         mock_bills = [mock_bill_1, mock_bill_2]
 
-        mock_accessor.return_value.__enter__.return_value.fetch_invoice_months_and_dates.return_value = [
-            ("202301", date(2023, 1, 1), date(2023, 1, 31))
+        mock_accessor.return_value.__enter__.return_value.fetch_invoice_month_dates.return_value = [
+            (date(2023, 1, 1), date(2023, 1, 31))
         ]
         mock_accessor.return_value.__enter__.return_value.bills_for_provider_uuid.return_value = mock_bills
 
@@ -58,8 +58,8 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
         mock_update_markup_cost.assert_called_once_with(start_date, end_date)
 
         mock_accessor.assert_called_once_with(self.schema)
-        mock_accessor.return_value.__enter__.return_value.fetch_invoice_months_and_dates.assert_called_once_with(
-            start_date, end_date, UUID(self.gcp_provider_uuid)
+        mock_accessor.return_value.__enter__.return_value.fetch_invoice_month_dates.assert_called_once_with(
+            start_date, end_date, start_date.strftime("%Y%m"), UUID(self.gcp_provider_uuid)
         )
         mock_accessor.return_value.__enter__.return_value.populate_ui_summary_tables.assert_called()
         mock_accessor.return_value.__enter__.return_value.bills_for_provider_uuid.assert_called()

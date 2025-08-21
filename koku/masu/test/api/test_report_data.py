@@ -28,7 +28,6 @@ class ReportDataTests(TestCase):
         self.dh = DateHelper()
         self.start_date_time = self.dh.today.date()
         self.start_date = self.start_date_time.strftime("%Y-%m-%d")
-        self.invoice = self.dh.gcp_find_invoice_months_in_date_range(self.dh.today, self.dh.tomorrow)[0]
 
         self.provider_type = Provider.PROVIDER_AWS_LOCAL
         p = Provider.objects.filter(type=self.provider_type).first()
@@ -63,7 +62,6 @@ class ReportDataTests(TestCase):
             self.dh.today.date(),
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=True,
-            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -91,7 +89,6 @@ class ReportDataTests(TestCase):
             self.dh.today.date(),
             queue_name=OCPQueue.DEFAULT,
             ocp_on_cloud=True,
-            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -119,7 +116,6 @@ class ReportDataTests(TestCase):
                 self.dh.today.date(),
                 queue_name=PriorityQueue.XL,
                 ocp_on_cloud=True,
-                invoice_month=None,
             )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -251,7 +247,6 @@ class ReportDataTests(TestCase):
                 end_date.date(),
                 queue_name=PriorityQueue.DEFAULT,
                 ocp_on_cloud=True,
-                invoice_month=None,
             )
         ]
 
@@ -265,7 +260,6 @@ class ReportDataTests(TestCase):
                     self.dh.today.date(),
                     queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
-                    invoice_month=None,
                 ),
                 call(
                     params["schema"],
@@ -275,7 +269,6 @@ class ReportDataTests(TestCase):
                     end_date.date(),
                     queue_name=PriorityQueue.DEFAULT,
                     ocp_on_cloud=True,
-                    invoice_month=None,
                 ),
             ]
 
@@ -310,7 +303,6 @@ class ReportDataTests(TestCase):
             self.dh.today.date(),
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
-            invoice_month=None,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -338,7 +330,6 @@ class ReportDataTests(TestCase):
             self.dh.today.date(),
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
-            invoice_month=self.invoice,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -367,12 +358,11 @@ class ReportDataTests(TestCase):
             self.dh.today.date(),
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
-            invoice_month=self.invoice,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_gcp_invoice_month(self, mock_update, _):
+    def test_get_report_data_gcp_with_end_date(self, mock_update, _):
         """Test the GET report_data endpoint."""
         end_date = self.dh.this_month_end.date().strftime("%Y-%m-%d")
         params = {
@@ -381,7 +371,6 @@ class ReportDataTests(TestCase):
             "end_date": end_date,
             "provider_uuid": self.gcp_provider_uuid,
             "ocp_on_cloud": "false",
-            "invoice_month": "202209",
         }
         expected_key = "Report Data Task IDs"
 
@@ -398,5 +387,4 @@ class ReportDataTests(TestCase):
             self.dh.this_month_end.date(),
             queue_name=PriorityQueue.DEFAULT,
             ocp_on_cloud=False,
-            invoice_month="202209",
         )
