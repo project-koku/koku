@@ -41,7 +41,6 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
-        invoice_month = params.get("invoice_month")
         # Set boolean for ocp_on_cloud based on param string
         ocp_on_cloud = params.get("ocp_on_cloud", "true").lower() == "true"
 
@@ -71,14 +70,6 @@ def report_data(request):
         if provider_schema != schema_name:
             errmsg = f"provider_uuid {provider_uuid} is not associated with schema {schema_name}."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
-
-        # For GCP invoice month summary periods
-        if not invoice_month:
-            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-                if end_date:
-                    invoice_month = end_date[0:4] + end_date[5:7]
-                else:
-                    invoice_month = start_date[0:4] + start_date[5:7]
 
         months = get_months_in_date_range(start=start_date, end=end_date)
 

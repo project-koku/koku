@@ -362,7 +362,7 @@ class ReportDataTests(TestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_gcp(self, mock_update, _):
+    def test_get_report_data_gcp_with_end_date(self, mock_update, _):
         """Test the GET report_data endpoint."""
         end_date = self.dh.this_month_end.date().strftime("%Y-%m-%d")
         params = {
