@@ -26,11 +26,11 @@ from masu.util import common as com_utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.aws.common import get_or_clear_daily_s3_by_date
 from masu.util.azure import common as utils
+from masu.util.azure.common import SUPPORTED_REPORT_TYPES
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 DATE_FORMAT = "%Y-%m-%d"
-SUPPORTED_REPORT_TYPES = ["ActualCost", "AmortizedCost"]
 
 
 class AzureReportDownloaderError(Exception):

@@ -19,6 +19,7 @@ from api.models import Provider
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
+from masu.util.azure.common import SUPPORTED_REPORT_TYPES
 
 
 class AzureProvider(ProviderInterface):
@@ -127,10 +128,23 @@ class AzureProvider(ProviderInterface):
             azure_client = AzureClientFactory(**credentials)
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group, storage_account)
-            if azure_service and not azure_service.describe_cost_management_exports():
-                key = ProviderErrors.AZURE_NO_REPORT_FOUND
-                message = ProviderErrors.AZURE_MISSING_EXPORT_MESSAGE
-                raise ValidationError(error_obj(key, message))
+            if azure_service:
+                export_reports = azure_service.describe_cost_management_exports()
+                if not export_reports:
+                    key = ProviderErrors.AZURE_NO_REPORT_FOUND
+                    message = ProviderErrors.AZURE_MISSING_EXPORT_MESSAGE
+                    raise ValidationError(error_obj(key, message))
+
+                report = export_reports[0]
+                report_type = report.get("type")
+
+                if report_type not in SUPPORTED_REPORT_TYPES:
+                    key = "AZURE_UNSUPPORTED_REPORT_TYPE"
+                    message = (
+                        f"Unsupported report type: '{report_type}'. " f"Supported types are: {SUPPORTED_REPORT_TYPES}."
+                    )
+                    raise ValidationError(error_obj(key, message))
+
         except AzureCostReportNotFound as costreport_err:
             key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))
