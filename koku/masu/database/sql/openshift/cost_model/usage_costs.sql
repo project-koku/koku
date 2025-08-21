@@ -19,14 +19,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     node,
     resource_id,
     pod_labels,
-    pod_usage_cpu_core_hours,
-    pod_request_cpu_core_hours,
-    pod_effective_usage_cpu_core_hours,
-    pod_limit_cpu_core_hours,
-    pod_usage_memory_gigabyte_hours,
-    pod_request_memory_gigabyte_hours,
-    pod_effective_usage_memory_gigabyte_hours,
-    pod_limit_memory_gigabyte_hours,
     node_capacity_cpu_cores,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabytes,
@@ -37,10 +29,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     persistentvolume,
     storageclass,
     volume_labels,
-    persistentvolumeclaim_capacity_gigabyte,
-    persistentvolumeclaim_capacity_gigabyte_months,
-    volume_request_storage_gigabyte_months,
-    persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
     cost_model_rate_type,
     cost_model_cpu_cost,
@@ -58,12 +46,12 @@ WITH cte_node_cost as (
         node_cpu_usage,
         node_mem_usage,
         CASE WHEN {{distribution}} = 'cpu' THEN
-            node_size_cpu * hours_used_cpu * {{cluster_hour_rate}}
+            node_size_cpu * hours_used_cpu * {{cluster_cost_per_hour}}
         ELSE
             0
         END as node_cluster_hour_cost_cpu_per_day,
         CASE WHEN {{distribution}} = 'memory' THEN
-            node_size_mem * hours_used_mem * {{cluster_hour_rate}}
+            node_size_mem * hours_used_mem * {{cluster_cost_per_hour}}
         ELSE
             0
         END as node_cluster_hour_cost_mem_per_day
@@ -101,14 +89,6 @@ SELECT uuid_generate_v4(),
     lids.node,
     max(lids.resource_id) as resource_id,
     lids.pod_labels,
-    NULL as pod_usage_cpu_core_hours,
-    NULL as pod_request_cpu_core_hours,
-    NULL as pod_effective_usage_cpu_core_hours,
-    NULL as pod_limit_cpu_core_hours,
-    NULL as pod_usage_memory_gigabyte_hours,
-    NULL as pod_request_memory_gigabyte_hours,
-    NULL as pod_effective_usage_memory_gigabyte_hours,
-    NULL as pod_limit_memory_gigabyte_hours,
     max(lids.node_capacity_cpu_cores) as node_capacity_cpu_cores,
     max(lids.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
     max(lids.node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
@@ -119,34 +99,30 @@ SELECT uuid_generate_v4(),
     max(lids.persistentvolume) as persistentvolume,
     max(lids.storageclass) as storageclass,
     lids.volume_labels,
-    NULL as persistentvolumeclaim_capacity_gigabyte,
-    NULL as persistentvolumeclaim_capacity_gigabyte_months,
-    NULL as volume_request_storage_gigabyte_months,
-    NULL as persistentvolumeclaim_usage_gigabyte_months,
     {{source_uuid}} as source_uuid,
     {{rate_type}} as cost_model_rate_type,
-    sum(coalesce(lids.pod_usage_cpu_core_hours, 0)) * {{cpu_usage_rate}}
-        + sum(coalesce(lids.pod_request_cpu_core_hours, 0)) * {{cpu_request_rate}}
-        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cpu_effective_rate}}
-        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{node_core_hour_rate}}
-        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cluster_core_hour_rate}}
+    sum(coalesce(lids.pod_usage_cpu_core_hours, 0)) * {{cpu_core_usage_per_hour}}
+        + sum(coalesce(lids.pod_request_cpu_core_hours, 0)) * {{cpu_core_request_per_hour}}
+        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cpu_core_effective_usage_per_hour}}
+        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{node_core_cost_per_hour}}
+        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cluster_core_cost_per_hour}}
         + coalesce((
             sum(lids.pod_effective_usage_cpu_core_hours::decimal)
             / nullif(max(cte_node_cost.node_cpu_usage::decimal), 0)
             * max(cte_node_cost.node_cluster_hour_cost_cpu_per_day::decimal)
           ), 0)
         as cost_model_cpu_cost,
-    sum(coalesce(lids.pod_usage_memory_gigabyte_hours, 0)) * {{memory_usage_rate}}
-        + sum(coalesce(lids.pod_request_memory_gigabyte_hours, 0)) * {{memory_request_rate}}
-        + sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0)) * {{memory_effective_rate}}
+    sum(coalesce(lids.pod_usage_memory_gigabyte_hours, 0)) * {{memory_gb_usage_per_hour}}
+        + sum(coalesce(lids.pod_request_memory_gigabyte_hours, 0)) * {{memory_gb_request_per_hour}}
+        + sum(coalesce(lids.pod_effective_usage_memory_gigabyte_hours, 0)) * {{memory_gb_effective_usage_per_hour}}
         + coalesce((
             sum(lids.pod_effective_usage_memory_gigabyte_hours::decimal)
             / nullif(max(cte_node_cost.node_mem_usage::decimal), 0)
             * max(cte_node_cost.node_cluster_hour_cost_mem_per_day::decimal)
           ), 0)
         as cost_model_memory_cost,
-    sum(coalesce(lids.persistentvolumeclaim_usage_gigabyte_months, 0)) * {{volume_usage_rate}}
-        + sum(coalesce(lids.volume_request_storage_gigabyte_months, 0)) * {{volume_request_rate}}
+    sum(coalesce(lids.persistentvolumeclaim_usage_gigabyte_months, 0)) * {{storage_gb_usage_per_month}}
+        + sum(coalesce(lids.volume_request_storage_gigabyte_months, 0)) * {{storage_gb_request_per_month}}
         as cost_model_volume_cost,
     NULL as monthly_cost_type,
     lids.cost_category_id,

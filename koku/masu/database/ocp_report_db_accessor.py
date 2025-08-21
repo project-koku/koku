@@ -649,27 +649,55 @@ GROUP BY partitions.year, partitions.month, partitions.source
         LOG.info(log_json(msg="populating tag costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
 
-    def populate_usage_costs(self, rate_type, rates, distribution, start_date, end_date, provider_uuid):
+    def populate_vm_usage_costs(
+        self, rate_type, vm_usage_rates, start_date, end_date, provider_uuid, report_period_id
+    ):
+        if not vm_usage_rates:
+            return
+        vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
+        vm_usage_metadata = {
+            metric_constants.OCP_VM_HOUR: {
+                "file_path": "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql",
+                "log_msg": "populating virtual machine hourly costs",
+                "metric_params": {"use_fractional_hours": vm_table_exists},
+            },
+            metric_constants.OCP_VM_CORE_HOUR: {
+                "file_path": "trino_sql/openshift/cost_model/hourly_vm_core.sql",
+                "log_msg": "populating virtual machine core hourly costs",
+            },
+        }
+        for metric_name, hourly_rate in vm_usage_rates.items():
+            metadata = vm_usage_metadata.get(metric_name)
+            if metric_name == metric_constants.OCP_VM_CORE_HOUR and not vm_table_exists:
+                continue
+            param_builder = BaseCostModelParams(
+                schema_name=self.schema,
+                start_date=start_date,
+                end_date=end_date,
+                source_uuid=provider_uuid,
+                report_period_id=report_period_id,
+            )
+            context_params = {"rate_type": rate_type, "hourly_rate": hourly_rate}
+            if metric_params := metadata.get("metric_params"):
+                context_params.update(metric_params)
+            sql_params = param_builder.build_parameters(context_params=context_params)
+            sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
+            LOG.info(log_json(msg=metadata["log_msg"], context=sql_params))
+            self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
+
+    def populate_usage_costs(
+        self, rate_type, rates, distribution, start_date, end_date, provider_uuid, report_period_id
+    ):
         """Update the reporting_ocpusagelineitem_daily_summary table with usage costs."""
         table_name = self._table_map["line_item_daily_summary"]
-        report_period = self.report_periods_for_provider_uuid(provider_uuid, start_date)
+
         ctx = {
             "schema": self.schema,
             "provider_uuid": provider_uuid,
             "start_date": start_date,
             "end_date": end_date,
-            "report_period": report_period,
+            "report_period": report_period_id,
         }
-        if not report_period:
-            LOG.info(
-                log_json(
-                    msg="no report period for OCP provider, skipping populate_usage_costs_new_columns update",
-                    context=ctx,
-                )
-            )
-            return
-        report_period_id = report_period.id
-
         if not rates:
             LOG.info(log_json(msg="removing usage costs", context=ctx))
             self.delete_line_item_daily_summary_entries_for_date_range_raw(
@@ -692,56 +720,14 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "schema": self.schema,
             "source_uuid": provider_uuid,
             "report_period_id": report_period_id,
-            "cpu_usage_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR, 0),
-            "cpu_request_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_REQUEST_HOUR, 0),
-            "cpu_effective_rate": rates.get(metric_constants.OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, 0),
-            "node_core_hour_rate": rates.get(metric_constants.OCP_NODE_CORE_HOUR, 0),
-            "cluster_core_hour_rate": rates.get(metric_constants.OCP_CLUSTER_CORE_HOUR, 0),
-            "cluster_hour_rate": rates.get(metric_constants.OCP_CLUSTER_HOUR, 0),
-            "memory_usage_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_USAGE_HOUR, 0),
-            "memory_request_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_REQUEST_HOUR, 0),
-            "memory_effective_rate": rates.get(metric_constants.OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, 0),
-            "volume_usage_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_USAGE_MONTH, 0),
-            "volume_request_rate": rates.get(metric_constants.OCP_METRIC_STORAGE_GB_REQUEST_MONTH, 0),
             "rate_type": rate_type,
             "distribution": distribution,
         }
+        for metric in metric_constants.COST_MODEL_USAGE_RATES:
+            sql_params[metric] = rates.get(metric, 0)
 
         LOG.info(log_json(msg=f"populating {rate_type} usage costs", context=ctx))
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="INSERT")
-
-        vm_table_exists = trino_table_exists(self.schema, "openshift_vm_usage_line_items")
-        vm_usage_metadata = {
-            metric_constants.OCP_VM_HOUR: {
-                "file_path": "trino_sql/openshift/cost_model/hourly_cost_virtual_machine.sql",
-                "log_msg": "populating virtual machine hourly costs",
-                "metric_params": {"use_fractional_hours": vm_table_exists},
-            },
-            metric_constants.OCP_VM_CORE_HOUR: {
-                "file_path": "trino_sql/openshift/cost_model/hourly_vm_core.sql",
-                "log_msg": "populating virtual machine core hourly costs",
-            },
-        }
-        for metric_name, metadata in vm_usage_metadata.items():
-            hourly_rate = rates.get(metric_name)
-            if metric_name == metric_constants.OCP_VM_CORE_HOUR and not vm_table_exists:
-                continue
-            if not hourly_rate:
-                continue
-            param_builder = BaseCostModelParams(
-                schema_name=self.schema,
-                start_date=start_date,
-                end_date=end_date,
-                source_uuid=provider_uuid,
-                report_period_id=report_period_id,
-            )
-            context_params = {"rate_type": rate_type, "hourly_rate": hourly_rate}
-            if metric_params := metadata.get("metric_params"):
-                context_params.update(metric_params)
-            sql_params = param_builder.build_parameters(context_params=context_params)
-            sql = pkgutil.get_data("masu.database", metadata["file_path"]).decode("utf-8")
-            LOG.info(log_json(msg=metadata["log_msg"], context=sql_params))
-            self._execute_trino_multipart_sql_query(sql, bind_params=sql_params)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id

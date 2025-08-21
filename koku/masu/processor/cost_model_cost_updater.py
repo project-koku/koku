@@ -69,8 +69,6 @@ class CostModelCostUpdater:
         if self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             return GCPCostModelCostUpdater(self._schema, self._provider)
 
-        return None
-
     def _format_dates(self, start_date, end_date):
         """Convert dates to strings for use in the updater."""
         if isinstance(start_date, datetime.date):
