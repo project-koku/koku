@@ -61,10 +61,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
 
         with GCPReportDBAccessor(self._schema) as accessor:
-            # Need these bills on the session to update dates after processing
-            # GCP has invoice months and these should align with bill ids
-            # The problem is being they are continuious reports (not month bound)
-            # We need to update/insert for both invoice months when dates cross a boundry
             with schema_context(self._schema):
                 invoice_month = start_date.strftime("%Y%m")
                 # Dynamically lookup invoice period date range from trino data

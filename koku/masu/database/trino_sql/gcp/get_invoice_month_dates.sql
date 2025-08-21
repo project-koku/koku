@@ -2,8 +2,20 @@ SELECT
     min(usage_start_time),
     max(usage_start_time)
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
-    WHERE usage_start_time >= {{start_date}}
-    AND usage_start_time <= {{end_date}}
+    WHERE
+    -- Logic to extended start and end dates when running GCP summary at a month boundary.
+    -- To catch cross over data we need to extend the start/end dates by a couple of days.
+    -- This logic allows us to catch both 2025-07-31 and 2025-09-01 with the invoice 202508.
+    usage_start_time >=
+    CASE
+        WHEN DAY(DATE({{start_date}})) = 1 THEN DATE({{start_date}}) - INTERVAL '3' DAY
+        ELSE DATE({{start_date}})
+    END
+    AND usage_start_time <=
+    CASE
+        WHEN LAST_DAY_OF_MONTH(DATE({{end_date}})) = DATE({{end_date}}) THEN DATE({{end_date}}) + INTERVAL '3' DAY
+        ELSE DATE({{end_date}})
+    END
     AND invoice_month = {{invoice_month}}
     AND source = {{source_uuid}}
     AND (
