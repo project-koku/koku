@@ -71,6 +71,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 invoice_dates = accessor.fetch_invoice_month_dates(
                     start_date, end_date, invoice_month, self._provider.uuid
                 )
+                invoice_start, invoice_end = invoice_dates[0]
                 bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month=invoice_month)
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
@@ -85,7 +86,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                         )
                     )
 
-                for start, end in date_range_pair(invoice_dates[0], invoice_dates[1], step=settings.TRINO_DATE_STEP):
+                for start, end in date_range_pair(invoice_start, invoice_end, step=settings.TRINO_DATE_STEP):
                     LOG.info(
                         log_json(
                             msg="updating GCP report summary tables from parquet",
