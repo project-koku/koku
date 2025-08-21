@@ -24,6 +24,7 @@ from api.provider.models import Provider
 from api.report.constants import AND_AWS_CATEGORY_PREFIX
 from api.report.constants import AND_TAG_PREFIX
 from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import EXACT_TAG_PREFIX
 from api.report.constants import OR_AWS_CATEGORY_PREFIX
 from api.report.constants import OR_TAG_PREFIX
 from api.report.constants import RESOLUTION_DAILY
@@ -357,7 +358,7 @@ class QueryParameters:
 
     def _set_tag_keys(self, query_params):
         """Set the valid tag keys"""
-        prefix_list = [TAG_PREFIX, OR_TAG_PREFIX, AND_TAG_PREFIX]
+        prefix_list = [TAG_PREFIX, OR_TAG_PREFIX, AND_TAG_PREFIX, EXACT_TAG_PREFIX]
         self.tag_keys = set()
         if self.report_type == "tags" or not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
             # we do not need to fetch the tags for tags report type.
