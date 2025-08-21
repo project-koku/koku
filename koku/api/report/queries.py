@@ -583,7 +583,8 @@ class ReportQueryHandler(QueryHandler):
             # of erroring on validation
             if len(list_) < 2 and logical_operator != "exact":
                 logical_operator = "or"
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
+            if list_ and (operator == "exact" or not ReportQueryHandler.has_wildcard(list_)):
+                # always add exact filters to the filter collection
                 if isinstance(filt, list):
                     for _filt in filt:
                         filt_filters = QueryFilterCollection()
