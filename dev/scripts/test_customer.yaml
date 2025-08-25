@@ -46,7 +46,7 @@ customer:
           resource_group:
             directory: ''
             export_name: 'azure-report'
-            type: 'invalid-report-type'
+            type: 'Usage' # invalid report type
           storage_account:
             local_dir: '/tmp/local_container'
             container: ''
