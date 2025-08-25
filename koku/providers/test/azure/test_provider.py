@@ -66,7 +66,9 @@ class AzureProviderTestCase(TestCase):
         }
         source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
         with patch("providers.azure.provider.AzureService") as MockHelper:
-            MockHelper.return_value.describe_cost_management_exports.return_value = ["report1"]
+            mock_return_value = [{"type": "ActualCost"}]
+            MockHelper.return_value.describe_cost_management_exports.return_value = mock_return_value
+
             obj = AzureProvider()
             self.assertTrue(obj.cost_usage_source_is_reachable(credentials, source_name))
 
