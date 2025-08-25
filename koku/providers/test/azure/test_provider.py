@@ -286,3 +286,27 @@ class AzureProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface = AzureProvider()
             provider_interface.is_file_reachable(self.source, self.files)
+
+    @patch("providers.azure.provider.AzureClientFactory")
+    def test_cost_usage_source_is_reachable_unsupported_type(self, _):
+        """Test that a ValidationError is raised for an unsupported report type."""
+        credentials = {
+            "subscription_id": FAKE.uuid4(),
+            "tenant_id": FAKE.uuid4(),
+            "client_id": FAKE.uuid4(),
+            "client_secret": FAKE.word(),
+        }
+        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
+        unsupported_type = "Usage"  # Not supported type
+
+        with patch("providers.azure.provider.AzureService") as MockHelper:
+            mock_return_value = [{"type": unsupported_type}]
+            MockHelper.return_value.describe_cost_management_exports.return_value = mock_return_value
+
+            azure_provider = AzureProvider()
+
+            with self.assertRaises(ValidationError) as exc:
+                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
+
+            expected_msg = f"Unsupported report type: '{unsupported_type}'"
+            self.assertIn(expected_msg, str(exc.exception))
