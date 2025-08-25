@@ -281,7 +281,8 @@ class TagQueryHandler(QueryHandler):
             logical_operator = operator
             if filter_value and len(filter_value) < 2 and logical_operator != "exact":
                 logical_operator = "or"
-            if filter_value and not TagQueryHandler.has_wildcard(filter_value):
+            if filter_value and (operator == "exact" or not TagQueryHandler.has_wildcard(filter_value)):
+                # always add exact filters to the filter collection
                 filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:
