@@ -51,6 +51,8 @@ INGRESS_REQUIRED_COLUMNS = {
 
 INGRESS_REQUIRED_ALT_COLUMNS = [["billingcurrencycode", "billingcurrency"], ["resourcegroup", "resourcegroupname"]]
 
+SUPPORTED_REPORT_TYPES = ["ActualCost", "AmortizedCost"]
+
 
 class AzureBlobExtension(Enum):
     manifest = "_manifest.json"
