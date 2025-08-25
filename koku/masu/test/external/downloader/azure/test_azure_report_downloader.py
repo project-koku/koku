@@ -160,7 +160,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.azure_credentials = self.azure_provider.authentication.credentials
         self.azure_data_source = self.azure_provider.billing_source.data_source
         self.storage_only_data_source = {
-            "resource_group": "group-test",
+            "resource_group": {"export_name": "group-test", "type": "ActualCost"},
             "storage_account": "account-test",
             "storage_only": True,
         }
@@ -453,7 +453,15 @@ class AzureReportDownloaderTest(MasuTestCase):
             return_value=start_date,
         ):
             create_daily_archives(
-                "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+                "trace_id",
+                "account",
+                self.azure_provider_uuid,
+                temp_path,
+                file,
+                manifest_id,
+                start_date,
+                None,
+                report_type="Usage",  # testing with an invalid type on purpose to trigger the error
             )
             mock_copy.assert_not_called()
 
@@ -474,7 +482,14 @@ class AzureReportDownloaderTest(MasuTestCase):
             return_value=start_date,
         ):
             daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+                "trace_id",
+                "account",
+                self.aws_provider_uuid,
+                temp_path,
+                file_name,
+                manifest_id,
+                start_date,
+                None,
             )
 
         for daily_file in daily_file_names:
