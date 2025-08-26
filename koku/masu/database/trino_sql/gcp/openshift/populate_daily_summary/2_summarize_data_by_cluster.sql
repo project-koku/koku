@@ -246,7 +246,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    pod_labels,
     resource_id,
     usage_start,
     usage_end,
@@ -296,18 +295,6 @@ SELECT pds.row_uuid,
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    CASE WHEN pds.pod_labels IS NOT NULL
-        THEN json_format(cast(
-            map_concat(
-                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-        ELSE json_format(cast(
-            map_concat(
-                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-    END as pod_labels,
     resource_id,
     usage_start,
     usage_end,
@@ -340,7 +327,18 @@ SELECT pds.row_uuid,
     node_capacity_cpu_core_hours,
     node_capacity_memory_gigabyte_hours,
     volume_labels,
-    tags,
+    CASE WHEN pds.pod_labels IS NOT NULL
+        THEN json_format(cast(
+            map_concat(
+                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+        ELSE json_format(cast(
+            map_concat(
+                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+    END as tags,
     cost_category_id,
     resource_id_matched,
     matched_tag,

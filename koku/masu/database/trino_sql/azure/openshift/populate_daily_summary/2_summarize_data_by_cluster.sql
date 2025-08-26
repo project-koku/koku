@@ -516,7 +516,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_pro
     currency,
     pretax_cost,
     markup_cost,
-    pod_labels,
     tags,
     resource_id_matched,
     matched_tag,
@@ -562,7 +561,6 @@ SELECT pds.row_uuid,
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
         ELSE pretax_cost / r.row_uuid_count * cast({{markup}} as decimal(24,9))
     END as markup_cost,
-    pds.pod_labels,
     CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
             map_concat(
