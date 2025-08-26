@@ -46,7 +46,6 @@ customer:
           resource_group:
             directory: ''
             export_name: 'azure-report'
-            type: 'Usage' # invalid report type
           storage_account:
             local_dir: '/tmp/local_container'
             container: ''
@@ -64,7 +63,6 @@ customer:
           resource_group:
             directory: ''
             export_name: 'azure-report-v2'
-            type: 'ActualCost'
           storage_account:
             local_dir: '/tmp/local_container'
             container: ''

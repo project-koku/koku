@@ -160,7 +160,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.azure_credentials = self.azure_provider.authentication.credentials
         self.azure_data_source = self.azure_provider.billing_source.data_source
         self.storage_only_data_source = {
-            "resource_group": {"export_name": "group-test", "type": "ActualCost"},
+            "resource_group": "group-test",
             "storage_account": "account-test",
             "storage_only": True,
         }

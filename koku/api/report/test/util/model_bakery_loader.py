@@ -278,11 +278,7 @@ class ModelBakeryDataLoader(DataLoader):
             "client_id": "33333333-3333-3333-3333-33333333",
             "client_secret": "MyPassW0rd!",
         }
-        billing_source = {
-            "resource_group": {"export_name": "resourcegroup1", "type": "ActualCost"},
-            "storage_account": "storageaccount1",
-        }
-
+        billing_source = {"resource_group": "resourcegroup1", "storage_account": "storageaccount1"}
         provider = self.create_provider(
             provider_type,
             credentials,
