@@ -21,6 +21,7 @@ from dateutil.relativedelta import relativedelta
 from faker import Faker
 
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
+from masu.external.downloader.azure.azure_service import AzureInvalidCostReport
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
 from masu.external.downloader.azure.azure_service import ResourceNotFoundError
@@ -641,3 +642,19 @@ class AzureServiceTest(MasuTestCase):
         self.assertTrue(result.endswith(".gz"))
         mock_cloud_storage_account.get_blob_client.assert_called_with("fake_container", "fake_key.csv.gz")
         mock_blob_client.download_blob.assert_called_once()
+
+    def test_check_report_type(self):
+        """Test the helper method _check_report_type."""
+        svc = self.get_mock_client()
+        unsupported_type = "Usage"
+        supported_type = "ActualCost"
+
+        with self.assertRaises(AzureInvalidCostReport) as exc:
+            svc._check_report_type(unsupported_type)
+
+        self.assertIn(f"Unsupported Azure report type: '{unsupported_type}'", str(exc.exception))
+
+        try:
+            svc._check_report_type(supported_type)
+        except AzureInvalidCostReport:
+            self.fail(f"'{supported_type}' was incorrectly flagged as an unsupported report type.")
