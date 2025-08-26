@@ -461,9 +461,8 @@ class AzureReportDownloaderTest(MasuTestCase):
                 manifest_id,
                 start_date,
                 None,
-                report_type="Usage",  # testing with an invalid type on purpose to trigger the error
             )
-            mock_copy.assert_not_called()
+            mock_copy.assert_called()
 
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_check_leading_zeros(self, mock_copy):
@@ -609,6 +608,7 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         self.assertIn("Unexpected error", str(context.exception))
 
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService.describe_cost_management_exports")
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
     @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
     @patch("masu.external.downloader.azure.azure_report_downloader.utils.get_local_file_name")
@@ -623,8 +623,10 @@ class AzureReportDownloaderTest(MasuTestCase):
         mock_get_local_file_name,
         mock_get_file_for_key,
         mock_client_factory,
+        mock_describe_exports,
     ):
         """Tests if the file download is successful when there is enough disk space."""
+        mock_describe_exports.return_value = [{"name": "valid_report"}]
         mock_get_exports_data_directory.return_value = "/fake_path"
         mock_get_local_file_name.return_value = "fake_local_file.csv"
         mock_get_file_for_key.return_value = Mock(etag="fake_etag", last_modified="2024-09-27")
@@ -648,10 +650,12 @@ class AzureReportDownloaderTest(MasuTestCase):
             suffix=None,
         )
 
+    @patch("masu.external.downloader.azure.azure_report_downloader.AzureService.describe_cost_management_exports")
     @patch("masu.external.downloader.azure.azure_service.AzureClientFactory")
     @patch("masu.external.downloader.azure.azure_service.AzureService.get_file_for_key")
-    def test_download_file_blob_not_found(self, mock_get_file_for_key, mock_client_factory):
+    def test_download_file_blob_not_found(self, mock_get_file_for_key, mock_client_factory, mock_describe_exports):
         """Tests if an exception is raised when the blob is not found."""
+        mock_describe_exports.return_value = [{"name": "valid_report"}]
         mock_get_file_for_key.side_effect = AzureCostReportNotFound("Blob not found")
 
         mock_client_factory.return_value = Mock()

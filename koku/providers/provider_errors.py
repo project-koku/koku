@@ -34,6 +34,7 @@ class ProviderErrors:
     AZURE_CREDENTAL_UNREACHABLE = "authentication.credentials.unreachable"
     AZURE_CLIENT_ERROR = "azure.exception"
     AZURE_REPORT_NOT_FOUND = "report.notfound"
+    AZURE_UNSUPPORTED_REPORT_TYPE = "report.unsupported"
 
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
     GCP_BUCKET_MISSING = "gcp.billing_source.bucket.missing"

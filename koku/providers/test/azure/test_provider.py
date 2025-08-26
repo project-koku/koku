@@ -12,6 +12,7 @@ from faker import Faker
 from rest_framework.serializers import ValidationError
 
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
+from masu.external.downloader.azure.azure_service import AzureInvalidCostReport
 from providers.azure.provider import AzureProvider
 from providers.provider_errors import ProviderErrors
 
@@ -297,16 +298,14 @@ class AzureProviderTestCase(TestCase):
             "client_secret": FAKE.word(),
         }
         source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
-        unsupported_type = "Usage"  # Not supported type
+        unsupported_type = "Usage"
 
         with patch("providers.azure.provider.AzureService") as MockHelper:
-            mock_return_value = [{"type": unsupported_type}]
-            MockHelper.return_value.describe_cost_management_exports.return_value = mock_return_value
-
+            error_msg = f"Unsupported report type: '{unsupported_type}'"
+            MockHelper.return_value.describe_cost_management_exports.side_effect = AzureInvalidCostReport(error_msg)
             azure_provider = AzureProvider()
 
             with self.assertRaises(ValidationError) as exc:
                 azure_provider.cost_usage_source_is_reachable(credentials, source_name)
-
-            expected_msg = f"Unsupported report type: '{unsupported_type}'"
-            self.assertIn(expected_msg, str(exc.exception))
+            self.assertIn(unsupported_type, str(exc.exception))
+            self.assertIn(ProviderErrors.AZURE_UNSUPPORTED_REPORT_TYPE, str(exc.exception))
