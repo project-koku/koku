@@ -125,8 +125,7 @@ class AzureServiceTest(MasuTestCase):
                 cost_management_client=Mock(
                     exports=Mock(
                         list=Mock(return_value=Mock(value=cost_exports)),
-                        # .cost_management_client.exports.get().value
-                        get=Mock(return_value=Mock(value=cost_export)),
+                        get=Mock(return_value=cost_export),
                     )
                 ),
                 # .cost_management_client.exports.get().value
@@ -234,7 +233,8 @@ class AzureServiceTest(MasuTestCase):
                 destination=Mock(
                     container=self.container_name, root_folder_path=self.export_directory, resource_id=resource_id
                 )
-            )
+            ),
+            definition=Mock(type="ActualCost"),
         )
 
         name_attr = PropertyMock(return_value=f"{self.container_name}_blob")
@@ -442,7 +442,8 @@ class AzureServiceTest(MasuTestCase):
                 destination=Mock(
                     container=self.container_name, root_folder_path=self.export_directory, resource_id=resource_id
                 )
-            )
+            ),
+            definition=Mock(type="ActualCost"),
         )
 
         name_attr = PropertyMock(return_value=f"{self.container_name}_blob")
