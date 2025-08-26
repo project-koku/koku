@@ -125,7 +125,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             manifest_id,
             start_date,
             self.context,
-            report_type=self.type,
         )
 
         msg = f"Download complete for {key}"
