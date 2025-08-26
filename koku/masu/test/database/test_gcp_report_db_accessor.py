@@ -137,12 +137,13 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.assertEqual(cost_entries.count(), 0)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
-    def test_fetch_invoice_months_and_dates(self, mock_trino):
-        """Test that we fetch invoice months and dates correctly querying Trino."""
-        start_date = self.dh.last_month_start.date()
+    def test_fetch_invoice_month_dates(self, mock_trino):
+        """Test that we fetch extended date range for given invoice month correctly querying Trino."""
+        start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
+        invoice_month = start_date.strftime("%Y%m")
 
-        self.accessor.fetch_invoice_months_and_dates(start_date, end_date, self.gcp_provider_uuid)
+        self.accessor.fetch_invoice_month_dates(start_date, end_date, invoice_month, self.gcp_provider_uuid)
         mock_trino.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_trino_raw_sql_query")
