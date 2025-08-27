@@ -165,7 +165,6 @@ def create_daily_archives(  # noqa C901
     date_range = {
         "start": min(dates),
         "end": max(dates),
-        "invoice_month": None,
     }
     return daily_file_names, date_range
 

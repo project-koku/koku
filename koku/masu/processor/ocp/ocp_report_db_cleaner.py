@@ -10,8 +10,8 @@ from api.common import log_json
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from reporting.models import EXPIRE_MANAGED_TABLES
 from reporting.models import PartitionedTable
+from reporting.models import TRINO_MANAGED_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -145,7 +145,7 @@ class OCPReportDBCleaner:
         LOG.debug(f"purge_expired_trino_partitions: {expired_date}, {simulate}")
 
         with OCPReportDBAccessor(self._schema) as accessor:
-            for table, source_column in EXPIRE_MANAGED_TABLES.items():
+            for table, source_column in TRINO_MANAGED_TABLES.items():
                 LOG.debug(f"{table}, {source_column}")
                 results = accessor.find_expired_trino_partitions(table, source_column, str(expired_date.date()))
                 if results:
