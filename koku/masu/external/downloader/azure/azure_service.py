@@ -76,7 +76,7 @@ class AzureService:
     def _check_report_type(self, report_type):
         """Helper function to validate the report type."""
         if report_type not in SUPPORTED_REPORT_TYPES:
-            msg = f"Unsupported Azure report type: '{report_type}'. " f"Supported types are: {SUPPORTED_REPORT_TYPES}"
+            msg = f"Unsupported Azure report type: '{report_type}'. Supported types are: {SUPPORTED_REPORT_TYPES}"
             LOG.warning(log_json(msg=msg, context=self.context))
             raise AzureInvalidCostReport(msg)
 
