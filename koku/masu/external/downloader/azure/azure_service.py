@@ -55,7 +55,6 @@ class AzureService:
         cloud="public",
         scope=None,
         export_name=None,
-        context=None,
     ):
         """Establish connection information."""
         self._resource_group_name = resource_group_name
@@ -63,7 +62,11 @@ class AzureService:
         self._factory = AzureClientFactory(
             subscription_id, tenant_id, client_id, client_secret, cloud, scope, export_name
         )
-        self.context = context or {}
+        self.context = {
+            "subscription_id": self._factory.subscription_id,
+            "resource_group_name": resource_group_name,
+            "storage_account_name": storage_account_name,
+        }
 
         if not self._factory.subscription_id:
             raise AzureServiceError("Azure Service missing subscription id.")
