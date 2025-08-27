@@ -15,9 +15,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.core.exceptions import ServiceRequestError
 from azure.storage.blob._models import BlobProperties
 
-from api.common import log_json
 from masu.util.azure.common import AzureBlobExtension
-from masu.util.azure.common import SUPPORTED_REPORT_TYPES
 from providers.azure.client import AzureClientFactory
 
 LOG = logging.getLogger(__name__)
@@ -31,12 +29,6 @@ class AzureServiceError(Exception):
 
 class AzureCostReportNotFound(Exception):
     """Raised when Azure cost report is not found."""
-
-    pass
-
-
-class AzureInvalidCostReport(Exception):
-    """Raise when an Azure report type is not supported."""
 
     pass
 
@@ -62,11 +54,6 @@ class AzureService:
         self._factory = AzureClientFactory(
             subscription_id, tenant_id, client_id, client_secret, cloud, scope, export_name
         )
-        self.context = {
-            "subscription_id": self._factory.subscription_id,
-            "resource_group_name": resource_group_name,
-            "storage_account_name": storage_account_name,
-        }
 
         if not self._factory.subscription_id:
             raise AzureServiceError("Azure Service missing subscription id.")
@@ -75,13 +62,6 @@ class AzureService:
 
         if not self._factory.credentials:
             raise AzureServiceError("Azure Service credentials are not configured.")
-
-    def _check_report_type(self, report_type):
-        """Helper function to validate the report type."""
-        if report_type not in SUPPORTED_REPORT_TYPES:
-            msg = f"Unsupported Azure report type: '{report_type}'. Supported types are: {SUPPORTED_REPORT_TYPES}"
-            LOG.warning(log_json(msg=msg, context=self.context))
-            raise AzureInvalidCostReport(msg)
 
     def _get_latest_blob(
         self, report_path: str, blobs: list[BlobProperties], extension: t.Optional[str] = None
@@ -248,11 +228,11 @@ class AzureService:
             try:
                 cost_management_client = self._factory.cost_management_client
                 report = cost_management_client.exports.get(scope, export_name)
-                self._check_report_type(report.definition.type)
                 report_def = {
                     "name": report.name,
                     "container": report.delivery_info.destination.container,
                     "directory": report.delivery_info.destination.root_folder_path,
+                    "type": report.definition.type,
                 }
                 export_reports.append(report_def)
             except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:
@@ -270,11 +250,11 @@ class AzureService:
             management_reports = cost_management_client.exports.list(scope)
             for report in management_reports.value:
                 if report.delivery_info.destination.resource_id == expected_resource_id:
-                    self._check_report_type(report.definition.type)
                     report_def = {
                         "name": report.name,
                         "container": report.delivery_info.destination.container,
                         "directory": report.delivery_info.destination.root_folder_path,
+                        "type": report.definition.type,
                     }
                     export_reports.append(report_def)
         except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:

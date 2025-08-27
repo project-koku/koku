@@ -111,6 +111,14 @@ def create_daily_archives(
     time_interval = pd.read_csv(local_file, nrows=0).columns.intersection(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
+    if time_interval not in ["Date", "date"]:
+        msg = (
+            "Unsupported Azure report schema version (V1) detected. "
+            "The report contains the 'UsageDateTime' column. "
+            "Please use a V2 report schema (which uses the 'Date' column)."
+        )
+        LOG.warning(log_json(msg=msg, context=context))
+        return [], {}
     try:
         with pd.read_csv(
             local_file,

@@ -17,7 +17,6 @@ from .client import AzureClientFactory
 from api.common import error_obj
 from api.models import Provider
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
-from masu.external.downloader.azure.azure_service import AzureInvalidCostReport
 from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.azure.azure_service import AzureServiceError
 
@@ -134,9 +133,6 @@ class AzureProvider(ProviderInterface):
                     key = ProviderErrors.AZURE_NO_REPORT_FOUND
                     message = ProviderErrors.AZURE_MISSING_EXPORT_MESSAGE
                     raise ValidationError(error_obj(key, message))
-        except AzureInvalidCostReport as costreport_err:
-            key = ProviderErrors.AZURE_UNSUPPORTED_REPORT_TYPE
-            raise ValidationError(error_obj(key, str(costreport_err)))
         except AzureCostReportNotFound as costreport_err:
             key = ProviderErrors.AZURE_BILLING_SOURCE_NOT_FOUND
             raise ValidationError(error_obj(key, str(costreport_err)))

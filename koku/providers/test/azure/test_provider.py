@@ -12,7 +12,6 @@ from faker import Faker
 from rest_framework.serializers import ValidationError
 
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
-from masu.external.downloader.azure.azure_service import AzureInvalidCostReport
 from providers.azure.provider import AzureProvider
 from providers.provider_errors import ProviderErrors
 
@@ -67,9 +66,7 @@ class AzureProviderTestCase(TestCase):
         }
         source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
         with patch("providers.azure.provider.AzureService") as MockHelper:
-            mock_return_value = [{"type": "ActualCost"}]
-            MockHelper.return_value.describe_cost_management_exports.return_value = mock_return_value
-
+            MockHelper.return_value.describe_cost_management_exports.return_value = ["report1"]
             obj = AzureProvider()
             self.assertTrue(obj.cost_usage_source_is_reachable(credentials, source_name))
 
@@ -287,25 +284,3 @@ class AzureProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface = AzureProvider()
             provider_interface.is_file_reachable(self.source, self.files)
-
-    @patch("providers.azure.provider.AzureClientFactory")
-    def test_cost_usage_source_is_reachable_unsupported_type(self, _):
-        """Test that a ValidationError is raised for an unsupported report type."""
-        credentials = {
-            "subscription_id": FAKE.uuid4(),
-            "tenant_id": FAKE.uuid4(),
-            "client_id": FAKE.uuid4(),
-            "client_secret": FAKE.word(),
-        }
-        source_name = {"resource_group": FAKE.word(), "storage_account": FAKE.word()}
-        unsupported_type = "Usage"
-
-        with patch("providers.azure.provider.AzureService") as MockHelper:
-            error_msg = f"Unsupported report type: '{unsupported_type}'"
-            MockHelper.return_value.describe_cost_management_exports.side_effect = AzureInvalidCostReport(error_msg)
-            azure_provider = AzureProvider()
-
-            with self.assertRaises(ValidationError) as exc:
-                azure_provider.cost_usage_source_is_reachable(credentials, source_name)
-            self.assertIn(unsupported_type, str(exc.exception))
-            self.assertIn(ProviderErrors.AZURE_UNSUPPORTED_REPORT_TYPE, str(exc.exception))

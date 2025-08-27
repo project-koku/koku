@@ -462,7 +462,7 @@ class AzureReportDownloaderTest(MasuTestCase):
                 start_date,
                 None,
             )
-            mock_copy.assert_called()
+            mock_copy.assert_not_called()
 
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_check_leading_zeros(self, mock_copy):
