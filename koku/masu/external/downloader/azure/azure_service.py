@@ -232,7 +232,6 @@ class AzureService:
                     "name": report.name,
                     "container": report.delivery_info.destination.container,
                     "directory": report.delivery_info.destination.root_folder_path,
-                    "type": report.definition.type,
                 }
                 export_reports.append(report_def)
             except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:
@@ -254,7 +253,6 @@ class AzureService:
                         "name": report.name,
                         "container": report.delivery_info.destination.container,
                         "directory": report.delivery_info.destination.root_folder_path,
-                        "type": report.definition.type,
                     }
                     export_reports.append(report_def)
         except (ClientAuthenticationError, ServiceRequestError, AzureException) as exc:

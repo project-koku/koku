@@ -465,6 +465,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ingress_reports=self.ingress_reports,
             suffix=self.compression,
         )
+
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
