@@ -49,7 +49,7 @@ from api.report.constants import URL_ENCODED_SAFE
 LOG = logging.getLogger(__name__)
 
 
-def strip_prefix(key, prefix):
+def strip_prefix(key, prefix=""):
     """Remove the query prefix from a key."""
     return key.replace(prefix, "").replace("and:", "").replace("or:", "").replace("exact:", "")
 
@@ -127,24 +127,24 @@ class ReportQueryHandler(QueryHandler):
     @cached_property
     def query_table_access_keys(self):
         """Return the access keys specific for selecting the query table."""
-        return set(self.parameters.get("access", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("access", {}).keys()}
 
     @cached_property
     def query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
-        return set(self.parameters.get("group_by", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("group_by", {}).keys()}
 
     @cached_property
     def query_table_filter_keys(self):
         """Return the filter keys specific for selecting the query table."""
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
+        filter_keys = {strip_prefix(key) for key in self.parameters.get("filter", {}).keys()}
         return filter_keys.difference(excluded_filters)
 
     @cached_property
     def query_table_exclude_keys(self):
         """Return the exclude keys specific for selecting the query table."""
-        return set(self.parameters.get("exclude", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("exclude", {}).keys()}
 
     @property
     def report_annotations(self):
