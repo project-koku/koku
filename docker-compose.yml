@@ -12,7 +12,7 @@ services:
     command: "echo 'Base Image Should Not Run'"
     depends_on:
       - db
-      - redis
+      - valkey
       - unleash
 
   koku-server:
@@ -38,7 +38,7 @@ services:
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
       - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
-      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_HOST=${REDIS_HOST-valkey}
       - REDIS_PORT=${REDIS_PORT-6379}
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
@@ -105,7 +105,7 @@ services:
       - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
       - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
       - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
-      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_HOST=${REDIS_HOST-valkey}
       - REDIS_PORT=${REDIS_PORT-6379}
       - RBAC_CACHE_TTL
       - PROMETHEUS_MULTIPROC_DIR=/tmp
@@ -162,7 +162,7 @@ services:
       - POSTGRES_SQL_SERVICE_PORT=5432
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_HOST=${REDIS_HOST-valkey}
       - REDIS_PORT=${REDIS_PORT-6379}
       - DEBUG_ATTACH=${DEBUG_ATTACH-False}
       - DEVELOPMENT=${DEVELOPMENT-True}
@@ -257,7 +257,7 @@ services:
       - DATABASE_PORT=5432
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_HOST=${REDIS_HOST-valkey}
       - REDIS_PORT=${REDIS_PORT-6379}
       - INSIGHTS_KAFKA_HOST=kafka
       - INSIGHTS_KAFKA_PORT=29092
@@ -314,7 +314,7 @@ services:
       - S3_ACCESS_KEY
       - S3_SECRET
       - AWS_SHARED_CREDENTIALS_FILE=${AWS_SHARED_CREDENTIALS_FILE-}
-      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_HOST=${REDIS_HOST-valkey}
       - REDIS_PORT=${REDIS_PORT-6379}
       - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
       - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
@@ -364,7 +364,7 @@ services:
       - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
       - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
       - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
-      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_HOST=${REDIS_HOST-valkey}
       - REDIS_PORT=${REDIS_PORT-6379}
       - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
       - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
@@ -414,7 +414,7 @@ services:
       - POSTGRES_SQL_SERVICE_PORT=5432
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_HOST=${REDIS_HOST-valkey}
       - REDIS_PORT=${REDIS_PORT-6379}
       - LOG_LEVEL=INFO
       - DJANGO_SETTINGS_MODULE=koku.settings
@@ -524,9 +524,15 @@ services:
       timeout: 30s
       retries: 10
 
-  redis:
-    container_name: koku_redis
-    image: redis:5.0.4
+  # redis:
+  #   container_name: koku_redis
+  #   image: redis:5.0.4
+  #   ports:
+  #     - 6379:6379
+
+  valkey:
+    container_name: koku_valkey
+    image: valkey/valkey:8.1.3
     ports:
       - 6379:6379
 
