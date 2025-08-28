@@ -395,23 +395,45 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
     def _update_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary usage costs."""
+
+        report_type_map = {
+            metric_constants.INFRASTRUCTURE_COST_TYPE: self._infra_rates,
+            metric_constants.SUPPLEMENTARY_COST_TYPE: self._supplementary_rates,
+        }
         with OCPReportDBAccessor(self._schema) as report_accessor:
-            report_accessor.populate_usage_costs(
-                metric_constants.INFRASTRUCTURE_COST_TYPE,
-                filter_dictionary(self._infra_rates, metric_constants.COST_MODEL_USAGE_RATES),
-                self._distribution,
-                start_date,
-                end_date,
-                self._provider.uuid,
-            )
-            report_accessor.populate_usage_costs(
-                metric_constants.SUPPLEMENTARY_COST_TYPE,
-                filter_dictionary(self._supplementary_rates, metric_constants.COST_MODEL_USAGE_RATES),
-                self._distribution,
-                start_date,
-                end_date,
-                self._provider.uuid,
-            )
+            report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+            if not report_period:
+                LOG.info(
+                    log_json(
+                        msg="no report period for OCP provider, skipping populate_usage_costs update",
+                        context={
+                            "schema": self._schema,
+                            "provider_uuid": self._provider.uuid,
+                            "start_date": start_date,
+                            "end_date": end_date,
+                        },
+                    )
+                )
+                return
+            report_period_id = report_period.id
+            for report_type, report_type_dict in report_type_map.items():
+                report_accessor.populate_usage_costs(
+                    report_type,
+                    filter_dictionary(report_type_dict, metric_constants.COST_MODEL_USAGE_RATES),
+                    self._distribution,
+                    start_date,
+                    end_date,
+                    self._provider.uuid,
+                    report_period_id,
+                )
+                report_accessor.populate_vm_usage_costs(
+                    report_type,
+                    filter_dictionary(report_type_dict, metric_constants.COST_MODEL_VM_USAGE_RATES),
+                    start_date,
+                    end_date,
+                    self._provider.uuid,
+                    report_period_id,
+                )
 
     def _update_markup_cost(self, start_date, end_date):
         """Populate markup costs for OpenShift.
