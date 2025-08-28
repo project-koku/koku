@@ -532,7 +532,7 @@ services:
 
   valkey:
     container_name: koku_valkey
-    image: valkey/valkey:8.1.3
+    image: valkey/valkey:7.2.10
     ports:
       - 6379:6379
 
