@@ -272,6 +272,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     days=days,
                 )
             )
+            # TODO: Add a check here to try to delete by month
             for day in days:
                 sql = f"""
                 DELETE FROM hive.{self.schema}.{table}
@@ -537,6 +538,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "start_date": start_date,
             "end_date": end_date,
             "report_period": report_period,
+            "cost_type": cost_type,
         }
         if not report_period:
             LOG.info(
