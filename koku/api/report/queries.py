@@ -188,7 +188,7 @@ class ReportQueryHandler(QueryHandler):
 
         try:
             query_table = self._mapper.views[report_type][report_group]
-            LOG.info(f"{report_group} for {report_type} has entry in views. Using {query_table}.")
+            LOG.debug(f"{report_group} for {report_type} has entry in views. Using {query_table}.")
         except KeyError:
             msg = f"{report_group} for {report_type} has no entry in views. Using the default."
             LOG.warning(msg)
