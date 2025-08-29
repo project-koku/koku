@@ -69,6 +69,7 @@ help:
 	@echo "  delete-trino                          Delete stale files/subdirectories from the trino data directory."
 	@echo "  delete-trino-data                     Delete old trino data from the Minio koku-bucket bucket."
 	@echo "  delete-redis-cache                    Flushes cache keys inside of the redis container."
+	@echo "  delete-valkey-cache                   Flushes cache keys inside of the valkey container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
@@ -177,6 +178,9 @@ delete-trino-data:
 
 delete-redis-cache:
 	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
+
+delete-valkey-cache:
+	$(DOCKER) exec -it koku_valkey valkey-cli flushall
 
 create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
@@ -347,7 +351,7 @@ docker-up-no-build: docker-up-db
 docker-up-min: docker-build docker-up-min-no-build
 
 docker-up-min-no-build: docker-host-dir-setup docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets
 docker-up-min-with-subs: docker-up-min
