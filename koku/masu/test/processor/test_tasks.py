@@ -495,20 +495,6 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files")
-    @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_report_dict_invoice_month(
-        self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
-    ):
-        """Test raising download exception is handled."""
-        expected_log = "'invoice_month': '202201'"
-        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP", "invoice_month": "202201"}
-        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            get_report_files(**self.get_report_args_gcp)
-            self.assertIn(expected_log, logger.output[0])
-
-    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked process error!"))
     def test_get_report_process_exception(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising processor exception is handled."""
@@ -904,7 +890,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.chain")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.fetch_invoice_months_and_dates")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.fetch_invoice_month_dates")
     def test_update_summary_tables_remove_expired_data_gcp(
         self, mock_month, mock_infra_map, mock_select_for_update, mock_chain, *args
     ):
@@ -917,8 +903,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         manifest_id = 1
         tracing_id = "1234"
 
-        invoice_month = start_date.strftime("%Y%m")
-        mock_month.return_value = [(invoice_month, start_date, end_date)]
+        mock_month.return_value = [(start_date, end_date)]
         update_summary_tables(
             self.schema,
             provider_type,
