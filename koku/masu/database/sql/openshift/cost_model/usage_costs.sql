@@ -104,8 +104,13 @@ SELECT uuid_generate_v4(),
     sum(coalesce(lids.pod_usage_cpu_core_hours, 0)) * {{cpu_core_usage_per_hour}}
         + sum(coalesce(lids.pod_request_cpu_core_hours, 0)) * {{cpu_core_request_per_hour}}
         + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cpu_core_effective_usage_per_hour}}
-        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{node_core_cost_per_hour}}
+        {%- if distribution == 'cpu' %}
+        + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{node_core_cost_per_hour}} -- (x/y) * y = x
         + sum(coalesce(lids.pod_effective_usage_cpu_core_hours, 0)) * {{cluster_core_cost_per_hour}}
+        {%- else %}
+        + sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * max(node_capacity_cpu_core_hours) * {{node_core_cost_per_hour}}
+        + sum(pod_effective_usage_memory_gigabyte_hours) / max(node_capacity_memory_gigabyte_hours) * max(node_capacity_cpu_core_hours) * {{cluster_core_cost_per_hour}}
+        {%- endif %}
         + coalesce((
             sum(lids.pod_effective_usage_cpu_core_hours::decimal)
             / nullif(max(cte_node_cost.node_cpu_usage::decimal), 0)
