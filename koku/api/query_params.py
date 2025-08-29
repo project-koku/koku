@@ -6,6 +6,7 @@
 import copy
 import logging
 import operator
+import re
 from collections import OrderedDict
 from functools import reduce
 from pprint import pformat
@@ -21,13 +22,10 @@ from rest_framework.serializers import ValidationError
 from api.models import Tenant
 from api.models import User
 from api.provider.models import Provider
-from api.report.constants import AND_AWS_CATEGORY_PREFIX
-from api.report.constants import AND_TAG_PREFIX
+from api.report.constants import AND_PREFIX
 from api.report.constants import AWS_CATEGORY_PREFIX
-from api.report.constants import EXACT_AWS_CATEGORY_PREFIX
-from api.report.constants import EXACT_TAG_PREFIX
-from api.report.constants import OR_AWS_CATEGORY_PREFIX
-from api.report.constants import OR_TAG_PREFIX
+from api.report.constants import EXACT_PREFIX
+from api.report.constants import OR_PREFIX
 from api.report.constants import RESOLUTION_DAILY
 from api.report.constants import RESOLUTION_MONTHLY
 from api.report.constants import TAG_PREFIX
@@ -37,6 +35,7 @@ from api.report.constants import TIME_SCOPE_VALUES_DAILY
 from api.report.constants import TIME_SCOPE_VALUES_MONTHLY
 from api.report.constants import URL_ENCODED_SAFE
 from api.report.queries import ReportQueryHandler
+from api.report.queries import strip_prefix
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.all.models import EnabledTagKeys
 from reporting.provider.all.models import TagMapping
@@ -359,12 +358,13 @@ class QueryParameters:
 
     def _set_tag_keys(self, query_params):
         """Set the valid tag keys"""
-        prefix_list = [TAG_PREFIX, OR_TAG_PREFIX, AND_TAG_PREFIX, EXACT_TAG_PREFIX]
+        prefix_regex = re.compile(rf"\[({AND_PREFIX}|{OR_PREFIX}|{EXACT_PREFIX})?{TAG_PREFIX}\w+\]")
         self.tag_keys = set()
-        if self.report_type == "tags" or not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
+        if self.report_type == "tags" or not prefix_regex.search(self.url_data):
             # we do not need to fetch the tags for tags report type.
             # we also do not need to fetch the tags if a tag prefix is not in the URL
             return
+
         with tenant_context(self.tenant):
             # Step 1: get enabled tag keys
             enabled_keys = EnabledTagKeys.objects.filter(provider_type__in=self.tag_providers).distinct()
@@ -382,10 +382,10 @@ class QueryParameters:
             if not isinstance(value, (dict, list)):
                 value = [value]
             for inner_key in value:
-                stripped_key = self._strip_prefix(inner_key, "tag", prefix_list)
+                stripped_key = strip_prefix(inner_key, TAG_PREFIX)
                 if stripped_key in self.tag_keys:
                     param_tag_keys.add(inner_key)
-            stripped_key = self._strip_prefix(key, "tag", prefix_list)
+            stripped_key = strip_prefix(key, TAG_PREFIX)
             if stripped_key in self.tag_keys:
                 param_tag_keys.add(key)
         self.tag_keys = param_tag_keys
@@ -397,8 +397,8 @@ class QueryParameters:
         to update the valid field names list. Any key added to this set
         will not a trigger the unsupport parameter or invalid value error.
         """
-        prefix_list = [AWS_CATEGORY_PREFIX, AND_AWS_CATEGORY_PREFIX, OR_AWS_CATEGORY_PREFIX, EXACT_AWS_CATEGORY_PREFIX]
-        if not any(f"[{prefix}" in self.url_data for prefix in prefix_list):
+        prefix_regex = re.compile(rf"\[({AND_PREFIX}|{OR_PREFIX}|{EXACT_PREFIX})?{AWS_CATEGORY_PREFIX}\w+\]")
+        if not prefix_regex.search(self.url_data):
             return
         enabled_category_keys = set()
         with tenant_context(self.tenant):
@@ -408,14 +408,14 @@ class QueryParameters:
         # Make sure keys passed in exist in the DB.
         for key, value in query_params.items():
             # Check key
-            stripped_key = self._strip_prefix(key, AWS_CATEGORY_PREFIX, prefix_list)
+            stripped_key = strip_prefix(key, AWS_CATEGORY_PREFIX)
             if stripped_key in enabled_category_keys:
                 self.aws_category_keys.add(stripped_key)
             # Check Values
             if not isinstance(value, (dict, list)):
                 value = [value]
             for inner_value in value:
-                stripped_value = self._strip_prefix(inner_value, AWS_CATEGORY_PREFIX, prefix_list)
+                stripped_value = strip_prefix(inner_value, AWS_CATEGORY_PREFIX)
                 if stripped_value in enabled_category_keys:
                     self.aws_category_keys.add(inner_value)
 

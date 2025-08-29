@@ -16,6 +16,7 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
+from typing import Pattern
 from urllib.parse import quote
 
 import ciso8601
@@ -42,38 +43,37 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from api.report.constants import AND_PREFIX
 from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import EXACT_PREFIX
+from api.report.constants import OR_PREFIX
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
 
 LOG = logging.getLogger(__name__)
 
 
-def strip_prefix(key, prefix):
+def strip_prefix(key: str, prefix: str = "") -> str:
     """Remove the query prefix from a key."""
-    return key.replace(prefix, "").replace("and:", "").replace("or:", "").replace("exact:", "")
+    return re.sub(rf"^({AND_PREFIX}|{OR_PREFIX}|{EXACT_PREFIX}|{re.escape(prefix)})", "", key)
 
 
-def _is_grouped_by_key(group_by, keys):
-    for key in keys:
-        for k in group_by:
-            if k.startswith(key):
-                return True
-
-
-def is_grouped_by_tag(parameters):
-    """Determine if grouped by tag."""
-    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["tag"])
+def _is_grouped_by_key(group_by: dict[str, list[str]], keys: Pattern[str]) -> bool:
+    return any(keys.match(key) for key in group_by.keys())
 
 
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
-    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["project", "and:project", "or:project"])
+    return _is_grouped_by_key(
+        parameters.parameters.get("group_by", {}), re.compile(rf"^({AND_PREFIX}|{OR_PREFIX})project")
+    )
 
 
 def is_grouped_by_node(parameters):
     """Determine if grouped by node."""
-    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), ["node", "and:node", "or:node"])
+    return _is_grouped_by_key(
+        parameters.parameters.get("group_by", {}), re.compile(rf"^({AND_PREFIX}|{OR_PREFIX})node")
+    )
 
 
 def check_if_valid_date_str(date_str):

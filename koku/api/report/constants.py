@@ -5,6 +5,9 @@
 """Constants file."""
 
 TAG_PREFIX = "tag:"
+AND_PREFIX = "and:"
+OR_PREFIX = "or:"
+EXACT_PREFIX = "exact:"
 AND_TAG_PREFIX = "and:tag:"
 OR_TAG_PREFIX = "or:tag:"
 EXACT_TAG_PREFIX = "exact:tag:"
