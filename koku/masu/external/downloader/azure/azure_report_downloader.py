@@ -113,8 +113,9 @@ def create_daily_archives(
     )[0]
     if time_interval not in ["Date", "date"]:
         msg = (
-            "Unsupported Azure report schema version (V1) detected. "
-            "Please use a V2 report schema (which uses the 'Date' column)."
+            "Unsupported Azure report schema (legacy version) detected. "
+            "The report contains the 'UsageDateTime' column, which indicates an outdated format. "
+            "Please use a modern report schema (which uses the 'Date' column)."
         )
         LOG.warning(log_json(msg=msg, context=context))
         return [], {}
