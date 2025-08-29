@@ -1,12 +1,9 @@
-{% if unattributed_storage %}
 DELETE FROM hive.{{schema | sqlsafe}}.managed_aws_openshift_disk_capacities_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}}
-{% endif %}
-;
+AND month = {{month}};
 
-{% if unattributed_storage %}
+
 -- Developer notes
 -- We can't use the aws_openshift_daily table to calcualte
 -- the capacity because it has already aggregated cost per
@@ -65,7 +62,6 @@ calculated_capacity AS (
 SELECT *
 FROM calculated_capacity
 WHERE capacity > 0
-{% endif %}
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp
@@ -74,105 +70,6 @@ AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}};
 
-{% if not unattributed_storage %}
--- Maintain tag matching logic for disk resources
--- until unattributed storage is released
--- FIXME: Remove this section when the unleash flag is removed
-INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp (
-    uuid,
-    usage_start,
-    resource_id,
-    product_code,
-    product_family,
-    instance_type,
-    usage_account_id,
-    availability_zone,
-    region,
-    unit,
-    usage_amount,
-    currency_code,
-    unblended_cost,
-    blended_cost,
-    savingsplan_effective_cost,
-    calculated_amortized_cost,
-    tags,
-    aws_cost_category,
-    matched_tag,
-    source,
-    ocp_source,
-    year,
-    month
-)
-WITH cte_enabled_tag_keys AS (
-    SELECT
-    CASE WHEN array_agg(key) IS NOT NULL
-        THEN array_union(ARRAY['openshift_cluster', 'openshift_node', 'openshift_project'], array_agg(key))
-        ELSE ARRAY['openshift_cluster', 'openshift_node', 'openshift_project']
-    END as enabled_keys
-    FROM postgres.{{schema | sqlsafe}}.reporting_enabledtagkeys
-    WHERE enabled = TRUE
-    AND provider_type = 'AWS'
-),
-cte_csi_volume_handles as (
-    SELECT distinct csi_volume_handle as csi_volume_handle
-            FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily as ocp
-            WHERE ocp.source = {{ocp_provider_uuid}}
-                AND ocp.year = {{year}}
-                AND ocp.month = {{month}}
-)
-SELECT aws.row_uuid as row_uuid,
-    aws.usage_start,
-    aws.resource_id,
-    aws.product_code,
-    aws.product_family,
-    aws.instance_type,
-    aws.usage_account_id,
-    aws.availability_zone,
-    aws.region,
-    aws.unit,
-    aws.usage_amount,
-    aws.currency_code,
-    aws.unblended_cost,
-    aws.blended_cost,
-    aws.savingsplan_effective_cost,
-    aws.calculated_amortized_cost,
-    aws.tags,
-    aws.costcategory as aws_cost_category,
-    aws.matched_tag,
-    {{cloud_provider_uuid}} as source,
-    {{ocp_provider_uuid}} as ocp_source,
-    max(aws.year) as year,
-    max(aws.month) as month
-FROM hive.{{schema | sqlsafe}}.managed_aws_openshift_daily_temp as aws
-CROSS JOIN cte_enabled_tag_keys as etk
-CROSS JOIN cte_csi_volume_handles as csi
-WHERE aws.source = {{cloud_provider_uuid}}
-    AND aws.year = {{year}}
-    AND aws.month = {{month}}
-    AND aws.lineitem_usagestartdate >= {{start_date}}
-    AND aws.lineitem_usagestartdate < date_add('day', 1, {{end_date}})
-    AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
-    AND matched_tag != ''
-    AND matched_tag is not null
-    AND resource_id_matched = True
-    AND strpos(aws.lineitem_resourceid, csi.csi_volume_handle) != 0
-    AND aws.source = {{cloud_provider_uuid}}
-    AND aws.ocp_source = {{ocp_provider_uuid}}
-GROUP BY aws.lineitem_usagestartdate,
-    aws.lineitem_resourceid,
-    aws.product_code,
-    aws.product_productfamily,
-    aws.product_instancetype,
-    aws.lineitem_availabilityzone,
-    aws.product_region,
-    aws.costcategory,
-    aws.tags,
-    aws.matched_tag
-{% endif %}
-;
-
-
-{% if unattributed_storage %}
 -- Storage disk resource id matching
 -- Algorhtim:
 -- (PV Capacity) / Disk Capacity * Cost of Disk
@@ -306,11 +203,8 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
     AND aws_disk.ocp_source = {{ocp_provider_uuid}}
-GROUP BY aws.row_uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels
-{% endif %}
-;
+GROUP BY aws.row_uuid, ocp.namespace, ocp.pod_labels, ocp.volume_labels;
 
-{% if unattributed_storage %}
 -- Unattributed Storage Cost:
 -- ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
 INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp (
@@ -436,9 +330,7 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND aws_disk.year = {{year}}
     AND aws_disk.month = {{month}}
     AND aws_disk.ocp_source = {{ocp_provider_uuid}}
-GROUP BY aws.row_uuid, aws.resource_id
-{% endif %}
-;
+GROUP BY aws.row_uuid, aws.resource_id;
 
 -- Direct resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_project_daily_summary_temp (

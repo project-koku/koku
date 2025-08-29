@@ -21,14 +21,6 @@ LOG = logging.getLogger(__name__)
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 
-def is_feature_unattributed_storage_enabled_azure(account):
-    """Should unattributed storage feature be enabled."""
-    unleash_flag = "cost-management.backend.unattributed_storage"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
-
-
 def is_purge_trino_files_enabled(account):  # pragma: no cover
     """Helper to determine if account is enabled for deleting trino files."""
     account = convert_account(account)
@@ -138,14 +130,6 @@ def check_group_by_limit(account, group_by_length):
         if group_by_length <= limit:
             return
     raise ValidationError({"group_by": (f"Cost Management supports a max of {limit} group_by options.")})
-
-
-def is_feature_unattributed_storage_enabled_aws(account):
-    """Should unattributed storage feature be enabled."""
-    unleash_flag = "cost-management.backend.unattributed_storage.aws"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
 
 
 def is_feature_cost_4403_ec2_compute_cost_enabled(account):  # pragma: no cover
