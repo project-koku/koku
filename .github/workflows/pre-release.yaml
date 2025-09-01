@@ -51,7 +51,7 @@ jobs:
         run: bash .github/scripts/get_description.sh
 
       - name: Set release body
-        uses: ncipollo/release-action@bcfe5470707e8832e12347755757cec0eb3c22af # v1.18.0
+        uses: ncipollo/release-action@b12185d71f4641bb1b1116dacae6b74e667f86e4 # v1.19.0
         with:
           bodyFile: release_body.md
           commit: ${{ github.event.inputs.commit }}
