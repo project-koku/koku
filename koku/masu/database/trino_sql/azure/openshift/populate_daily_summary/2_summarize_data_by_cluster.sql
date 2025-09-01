@@ -116,7 +116,7 @@ SELECT cast(uuid() as varchar) as row_uuid,
         WHEN max(persistentvolumeclaim) = ''
             THEN cast(NULL as varchar)
         ELSE ocp.pod_labels
-    END as pod_lables,
+    END as pod_labels,
     CASE
         WHEN max(persistentvolumeclaim) = ''
             THEN cast(NULL as varchar)
