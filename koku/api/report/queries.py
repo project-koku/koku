@@ -49,9 +49,9 @@ from api.report.constants import URL_ENCODED_SAFE
 LOG = logging.getLogger(__name__)
 
 
-def strip_prefix(key, prefix):
+def strip_prefix(key, prefix=""):
     """Remove the query prefix from a key."""
-    return key.replace(prefix, "").replace("and:", "").replace("or:", "")
+    return key.replace(prefix, "").replace("and:", "").replace("or:", "").replace("exact:", "")
 
 
 def _is_grouped_by_key(group_by, keys):
@@ -127,24 +127,24 @@ class ReportQueryHandler(QueryHandler):
     @cached_property
     def query_table_access_keys(self):
         """Return the access keys specific for selecting the query table."""
-        return set(self.parameters.get("access", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("access", {}).keys()}
 
     @cached_property
     def query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
-        return set(self.parameters.get("group_by", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("group_by", {}).keys()}
 
     @cached_property
     def query_table_filter_keys(self):
         """Return the filter keys specific for selecting the query table."""
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("filter", {}).keys())
+        filter_keys = {strip_prefix(key) for key in self.parameters.get("filter", {}).keys()}
         return filter_keys.difference(excluded_filters)
 
     @cached_property
     def query_table_exclude_keys(self):
         """Return the exclude keys specific for selecting the query table."""
-        return set(self.parameters.get("exclude", {}).keys())
+        return {strip_prefix(key) for key in self.parameters.get("exclude", {}).keys()}
 
     @property
     def report_annotations(self):
@@ -188,6 +188,7 @@ class ReportQueryHandler(QueryHandler):
 
         try:
             query_table = self._mapper.views[report_type][report_group]
+            LOG.debug(f"{report_group} for {report_type} has entry in views. Using {query_table}.")
         except KeyError:
             msg = f"{report_group} for {report_type} has no entry in views. Using the default."
             LOG.warning(msg)
@@ -509,11 +510,16 @@ class ReportQueryHandler(QueryHandler):
         for _filter in operator_filters:
             # Update the _filter to use the label column name
             _db_name = db_column + "__" + strip_prefix(_filter, prefix)
-            filt = {"field": _db_name, "operation": "icontains"}
+            if operator == "exact":
+                filt = {"field": _db_name, "operation": "exact"}
+            else:
+                filt = {"field": _db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(_filter, list())
             filter_ = self.parameters.get_filter(_filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
+            if list_ and (operator == "exact" or not ReportQueryHandler.has_wildcard(list_)):
+                # we should always add exact filters to the filter collection
+                # even if the list has wildcards. Though maybe a wildcard should be invalid for exact filters...
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, logical_operator=operator, **filt)
                     filter_collection.add(q_filter)
@@ -527,7 +533,9 @@ class ReportQueryHandler(QueryHandler):
         filter_list: list of filters from param's filter & group by
         prefix: prefix to be stripped from parameter keys
         """
-        standard_filters = [filt for filt in filter_list if "and:" not in filt and "or:" not in filt]
+        standard_filters = [
+            filt for filt in filter_list if "and:" not in filt and "or:" not in filt and "exact:" not in filt
+        ]
         for prefix_filter in standard_filters:
             # Update the _filter to use the label column name
             db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
@@ -550,6 +558,9 @@ class ReportQueryHandler(QueryHandler):
         filter_collection = self._set_operator_specific_prefix_based_filters(
             filter_collection, db_column, filter_list, "or", prefix
         )
+        filter_collection = self._set_operator_specific_prefix_based_filters(
+            filter_collection, db_column, filter_list, "exact", prefix
+        )
 
         return filter_collection
 
@@ -560,7 +571,7 @@ class ReportQueryHandler(QueryHandler):
         composed_filter = Q()
 
         for q_param, filt in fields.items():
-            q_param = operator + ":" + q_param
+            q_param = f"{operator}:{q_param}"
             group_by = self.parameters.get_group_by(q_param, list())
             if check_for_exclude:
                 list_ = self.parameters.get_exclude(q_param, list())
@@ -573,7 +584,8 @@ class ReportQueryHandler(QueryHandler):
             # of erroring on validation
             if len(list_) < 2 and logical_operator != "exact":
                 logical_operator = "or"
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
+            if list_ and (operator == "exact" or not ReportQueryHandler.has_wildcard(list_)):
+                # always add exact filters to the filter collection
                 if isinstance(filt, list):
                     for _filt in filt:
                         filt_filters = QueryFilterCollection()

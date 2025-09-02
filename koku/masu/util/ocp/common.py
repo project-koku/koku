@@ -49,6 +49,7 @@ class OCPReportTypes(Enum):
 
 
 OPERATOR_VERSIONS = {
+    "e53f9db7c6e7f995b6aa6100a580dae74162ac3c": "costmanagement-metrics-operator:4.0.0",
     "8e957a5b174639642809df0317b39593532d6fb7": "costmanagement-metrics-operator:3.3.2",
     "6b4d72a4a629527c1de086b416faf6d226fe587a": "costmanagement-metrics-operator:3.3.1",
     "8c10aa090b2be3d2aea7553ce2cb62e78844ce6f": "costmanagement-metrics-operator:3.3.0",
@@ -68,6 +69,7 @@ OPERATOR_VERSIONS = {
     "084bca2e1c48caab18c237453c17ceef61747fe2": "costmanagement-metrics-operator:1.1.3",
     "6f10d07e3af3ea4f073d4ffda9019d8855f52e7f": "costmanagement-metrics-operator:1.1.0",
     "fd764dcd7e9b993025f3e05f7cd674bb32fad3be": "costmanagement-metrics-operator:1.0.0",
+    "0dbe2ce263a19e05935023c46d20692213fdef90": "koku-metrics-operator:v4.0.0",
     "1dd2f05c51daa7487ea53b1f3f4894316b1759e1": "koku-metrics-operator:v3.3.2",
     "b0731873d0c54aa1d016b8b3463b29c23c9e852c": "koku-metrics-operator:v3.3.1",
     "1650a9fa9f353efee534dde6030ece40e6a9a1ee": "koku-metrics-operator:v3.3.0",
@@ -328,6 +330,26 @@ OCP_REPORT_TYPES = {
         "new_required_columns": {},
     },
 }
+
+# 1,000,000,000,000,000,000 is a reasonable value that should remove most anomalies from bad data
+THRESHOLD_MAP = {
+    1e18: [
+        "pod_usage_cpu_core_seconds",
+        "pod_request_cpu_core_seconds",
+        "pod_limit_cpu_core_seconds",
+        "node_capacity_cpu_core_seconds",
+        "pod_usage_memory_byte_seconds",
+        "pod_request_memory_byte_seconds",
+        "pod_limit_memory_byte_seconds",
+        "node_capacity_memory_byte_seconds",
+        "node_capacity_memory_bytes",
+        "persistentvolumeclaim_capacity_bytes",
+        "persistentvolumeclaim_capacity_byte_seconds",
+        "volume_request_storage_byte_seconds",
+        "persistentvolumeclaim_usage_byte_seconds",
+    ],
+}
+THRESHOLDS = {col: thresh for thresh, cols in THRESHOLD_MAP.items() for col in cols}
 
 
 ForceAwareDatetime = Annotated[

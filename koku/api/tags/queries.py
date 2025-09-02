@@ -253,16 +253,11 @@ class TagQueryHandler(QueryHandler):
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
+        exact_composed_filters = self._set_operator_specified_filters("exact")
         composed_filters = filters.compose()
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
-        category_list = (
-            self.parameters.get("category")
-            if self.parameters.get("category")
-            else self.parameters.get_filter("category")
-        )
-        if category_list:
-            composed_category_filters = self._build_namespace_filters_from_category_list(category_list)
-            if composed_category_filters:
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+        if category_list := self.parameters.get("category") or self.parameters.get_filter("category"):
+            if composed_category_filters := self._build_namespace_filters_from_category_list(category_list):
                 composed_filters = composed_filters & composed_category_filters
 
         LOG.debug(f"_get_filter: {composed_filters}")
@@ -281,12 +276,13 @@ class TagQueryHandler(QueryHandler):
         filters = QueryFilterCollection()
         composed_filter = Q()
         for filter_key in self.SUPPORTED_FILTERS:
-            operator_key = operator + ":" + filter_key
+            operator_key = f"{operator}:{filter_key}"
             filter_value = self.parameters.get_filter(operator_key)
             logical_operator = operator
-            if filter_value and len(filter_value) < 2:
+            if filter_value and len(filter_value) < 2 and logical_operator != "exact":
                 logical_operator = "or"
-            if filter_value and not TagQueryHandler.has_wildcard(filter_value):
+            if filter_value and (operator == "exact" or not TagQueryHandler.has_wildcard(filter_value)):
+                # always add exact filters to the filter collection
                 filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:

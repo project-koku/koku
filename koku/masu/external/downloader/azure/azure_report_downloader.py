@@ -112,7 +112,12 @@ def create_daily_archives(
         {"UsageDateTime", "Date", "date", "usagedatetime"}
     )[0]
     if time_interval not in ["Date", "date"]:
-        LOG.error(log_json(msg="Azure v1 reports not supported", context=context))
+        msg = (
+            "Unsupported Azure report schema (legacy version) detected. "
+            "The report contains the 'UsageDateTime' column, which indicates an outdated format. "
+            "Please use a modern report schema (which uses the 'Date' column)."
+        )
+        LOG.warning(log_json(msg=msg, context=context))
         return [], {}
     try:
         with pd.read_csv(
@@ -156,7 +161,6 @@ def create_daily_archives(
     date_range = {
         "start": min(batch_date_range),
         "end": max(batch_date_range),
-        "invoice_month": None,
     }
     return daily_file_names, date_range
 

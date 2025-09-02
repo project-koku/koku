@@ -20,7 +20,6 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ListPaginator
 from api.metrics import constants as metric_constants
 from api.metrics.serializers import QueryParamsSerializer
-from masu.processor import is_cost_6356_enabled
 
 
 @api_view(["GET"])  # noqa: C901

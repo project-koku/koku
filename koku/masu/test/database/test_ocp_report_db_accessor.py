@@ -973,38 +973,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 acc.populate_monthly_cost_sql("Fake", "", "", self.start_date, self.start_date, "", self.provider_uuid)
                 self.assertIn("Skipping populate_monthly_cost_sql update", logger.output[0])
 
-    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=False)
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=True)
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_usage_costs_vm_rate(self, mock_trino, mock_postgres, mock_trino_exists):
+    def test_populate_usage_costs_vm_rate(self, mock_trino, mock_trino_exists):
         """Test the populate vm hourly usage costs"""
         with self.accessor as acc:
-            acc.populate_usage_costs(
+            acc.populate_vm_usage_costs(
                 metric_constants.SUPPLEMENTARY_COST_TYPE,
                 {metric_constants.OCP_VM_HOUR: 1, metric_constants.OCP_VM_CORE_HOUR: 2},
-                metric_constants.DEFAULT_DISTRIBUTION_TYPE,
                 self.dh.this_month_start,
                 self.dh.this_month_end,
                 self.ocp_provider_uuid,
+                1,
             )
-            mock_postgres.assert_called()
             mock_trino.assert_called()
-
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
-    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_trino_multipart_sql_query")
-    def test_populate_usage_costs_without_vm_rate(self, mock_trino, mock_postgres):
-        """Test the populate vm hourly usage costs"""
-        with self.accessor as acc:
-            acc.populate_usage_costs(
-                metric_constants.SUPPLEMENTARY_COST_TYPE,
-                {},
-                metric_constants.DEFAULT_DISTRIBUTION_TYPE,
-                self.dh.this_month_start,
-                self.dh.this_month_end,
-                self.ocp_provider_uuid,
-            )
-            mock_postgres.assert_called()
-            mock_trino.assert_not_called()
 
     def test_populate_monthly_cost_tag_sql_no_report_period(self):
         """Test that updating monthly costs without a matching report period no longer throws an error"""
@@ -1013,15 +995,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
             with self.accessor as acc:
                 acc.populate_tag_cost_sql("", "", "", "", start_date, end_date, "", self.provider_uuid)
-                self.assertIn("no report period for OCP provider", logger.output[0])
-
-    def test_populate_usage_costs_new_columns_no_report_period(self):
-        """Test that updating new column usage costs without a matching report period no longer throws an error"""
-        start_date = "2000-01-01"
-        end_date = "2000-02-01"
-        with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
-            with self.accessor as acc:
-                acc.populate_usage_costs("", "", "cpu", start_date, end_date, self.provider_uuid)
                 self.assertIn("no report period for OCP provider", logger.output[0])
 
     def test_populate_distributed_cost_sql_no_report_period(self):
@@ -1200,3 +1173,42 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 {"cluster_id": "test", "cluster_alias": "test"},
             )
             mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=False)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test__populate_virtualization_ui_summary_table_no_trino_schema(self, mock_psql, mock_schema_exists):
+        """Test that sql is not run when the trino schema does not exist."""
+        with self.accessor as acc:
+            acc._populate_virtualization_ui_summary_table({})
+            mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, False])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test__populate_virtualization_ui_summary_table_no_trino_table(self, mock_psql, *args):
+        """Test that sql is not run when the trino table does not exist."""
+        with self.accessor as acc:
+            acc._populate_virtualization_ui_summary_table({})
+            mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, True])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query")
+    def test__populate_virtualization_ui_summary_table_no_sql_param(self, mock_psql, *args):
+        """Test that sql is not run when sql params are not provided."""
+        with self.accessor as acc:
+            acc._populate_virtualization_ui_summary_table({})
+            mock_psql.assert_not_called()
+
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists", return_value=[True, True])
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.schema_exists_trino", return_value=True)
+    @patch(
+        "masu.database.ocp_report_db_accessor.OCPReportDBAccessor._prepare_and_execute_raw_sql_query",
+        side_effect=Exception,
+    )
+    def test__populate_virtualization_ui_summary_table_all_true_raise_error(self, mock_psql, *args):
+        """Test that sql is run when all requirements are met. Test uses an exception to show that sql would be run."""
+        with self.accessor as acc:
+            with self.assertRaises(Exception):
+                acc._populate_virtualization_ui_summary_table({"start_date": "1970-01-01"})
+            mock_psql.assert_called()

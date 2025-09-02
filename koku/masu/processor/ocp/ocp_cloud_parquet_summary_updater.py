@@ -5,7 +5,6 @@
 """Updates report summary tables in the database."""
 import datetime
 import logging
-from decimal import Decimal
 
 from dateutil import parser
 from django.conf import settings
@@ -13,13 +12,11 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from api.common import log_json
-from api.metrics.constants import DEFAULT_DISTRIBUTION_TYPE
 from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
@@ -251,14 +248,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             aws_bill_ids = [bill.id for bill in aws_bills]
             current_aws_bill_id = aws_bill_ids[0]
             current_ocp_report_period_id = report_period.id
-
-        with CostModelDBAccessor(self._schema, aws_provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = Decimal(markup.get("value", 0)) / 100
-
-        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-
         # OpenShift on AWS
         sql_params = {
             "schema": self._schema,
@@ -281,8 +270,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     aws_provider_uuid,
                     current_ocp_report_period_id,
                     current_aws_bill_id,
-                    markup_value,
-                    distribution,
                 )
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end
@@ -495,14 +482,6 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
             gcp_bill_ids = [bill.id for bill in gcp_bills]
             current_gcp_bill_id = gcp_bill_ids[0]
             current_ocp_report_period_id = report_period.id
-
-        with CostModelDBAccessor(self._schema, gcp_provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            markup_value = Decimal(markup.get("value", 0)) / 100
-
-        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
-            distribution = cost_model_accessor.distribution_info.get("distribution_type", DEFAULT_DISTRIBUTION_TYPE)
-
         # OpenShift on GCP
         sql_params = {
             "schema": self._schema,
@@ -522,12 +501,9 @@ class OCPCloudParquetReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdater
                     start,
                     end,
                     openshift_provider_uuid,
-                    cluster_id,
                     gcp_provider_uuid,
                     current_ocp_report_period_id,
                     current_gcp_bill_id,
-                    markup_value,
-                    distribution,
                 )
                 sql_params["start_date"] = start
                 sql_params["end_date"] = end

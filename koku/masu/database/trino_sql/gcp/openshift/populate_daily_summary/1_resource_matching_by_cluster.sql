@@ -43,10 +43,19 @@ WITH cte_usage_date_partitions as (
     select
         year,
         month
-    from gcp_line_items_daily
+    from hive.{{schema | sqlsafe}}.gcp_line_items_daily
     where usage_start_time >= {{start_date}}
     AND usage_start_time <= {{end_date}}
     AND source = {{cloud_provider_uuid}}
+    AND (
+        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}})) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}})) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}})) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{start_date}}) - INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
+        OR
+        (year = CAST(EXTRACT(YEAR FROM DATE({{end_date}}) + INTERVAL '1' MONTH) AS VARCHAR) AND month = LPAD(CAST(EXTRACT(MONTH FROM DATE({{end_date}}) + INTERVAL '1' MONTH) AS VARCHAR), 2, '0'))
+    )
     group by year, month
 ),
 cte_gcp_resource_names AS (
@@ -156,7 +165,9 @@ SELECT gcp.row_uuid,
     array_join(filter(tag_matches.matched_tags, x -> STRPOS(labels, x ) != 0), ',') as matched_tag,
     gcp.source as source,
     {{ocp_provider_uuid}} as ocp_source,
-    gcp.year,
+    -- GCP has crossover data and some current year data can land in the previous year partition
+    -- The year partition needs to match usage_start_year for correct ocp/gcp correlation
+    CAST(FORMAT_DATETIME(usage_start_time, 'YYYY') AS VARCHAR(4)) AS year,
     -- GCP has crossover data and some current month data can land in the previous month partition
     -- The month partition needs to match usage_start_month for correct ocp/gcp correlation
     CAST(FORMAT_DATETIME(usage_start_time, 'MM') AS VARCHAR(2)) AS month,

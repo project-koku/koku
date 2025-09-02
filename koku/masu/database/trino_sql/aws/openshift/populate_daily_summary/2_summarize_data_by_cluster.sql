@@ -259,7 +259,7 @@ SELECT  cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedup
         WHEN max(ocp.persistentvolumeclaim) = ''
             THEN cast(NULL as varchar)
         ELSE ocp.pod_labels
-    END as pod_lables,
+    END as pod_labels,
     CASE
         WHEN max(ocp.persistentvolumeclaim) = ''
             THEN cast(NULL as varchar)
@@ -697,7 +697,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_proje
     markup_cost_savingsplan,
     calculated_amortized_cost,
     markup_cost_amortized,
-    pod_labels,
     tags,
     aws_cost_category,
     cost_category_id,
@@ -771,7 +770,6 @@ SELECT pds.row_uuid,
         THEN ({{pod_column | sqlsafe}} / nullif({{node_column | sqlsafe}}, 0)) * calculated_amortized_cost * cast({{markup}} as decimal(33,9))
         ELSE calculated_amortized_cost / aws_uuid_count * cast({{markup}} as decimal(33,9))
     END as markup_cost_amortized,
-    pds.pod_labels,
     CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
             map_concat(
@@ -834,7 +832,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpawscostlineitem_proje
     markup_cost_savingsplan,
     calculated_amortized_cost,
     markup_cost_amortized,
-    pod_labels,
+    tags,
     source,
     ocp_source,
     year,
@@ -873,7 +871,7 @@ SELECT
     max(savingsplan_effective_cost) * cast({{markup}} AS decimal(24,9)),
     max(calculated_amortized_cost),
     max(calculated_amortized_cost) * cast({{markup}} AS decimal(33,9)),
-    max(ocp.pod_labels),
+    max(aws.tags) as tags,
     max({{cloud_provider_uuid}}) AS source,
     max({{ocp_provider_uuid}}) AS ocp_source,
     max(cast(year(aws.usage_start) AS varchar)) AS year,

@@ -6,7 +6,6 @@
 import copy
 
 from api.models import Provider
-from masu.processor import is_cost_6356_enabled
 
 """Model for our cost model metric map."""
 OCP_METRIC_CPU_CORE_USAGE_HOUR = "cpu_core_usage_per_hour"
@@ -77,10 +76,13 @@ COST_MODEL_USAGE_RATES = (
     OCP_METRIC_STORAGE_GB_USAGE_MONTH,
     OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
     OCP_NODE_CORE_HOUR,
-    OCP_VM_HOUR,
-    OCP_VM_CORE_HOUR,
     OCP_CLUSTER_CORE_HOUR,
     OCP_CLUSTER_HOUR,
+)
+
+COST_MODEL_VM_USAGE_RATES = (
+    OCP_VM_HOUR,
+    OCP_VM_CORE_HOUR,
 )
 
 COST_MODEL_NODE_RATES = {
@@ -249,9 +251,6 @@ COST_MODEL_METRIC_MAP = {
         "label_measurement_unit": "project-month",
         "default_cost_type": "Infrastructure",
     },
-}
-
-UNLEASH_METRICS_COST_6356 = {
     "vm_core_cost_per_month": {
         "source_type": "OCP",
         "metric": "vm_core_cost_per_month",
@@ -273,8 +272,6 @@ UNLEASH_METRICS_COST_6356 = {
 
 def get_cost_model_metrics_map():
     map_copy = copy.deepcopy(COST_MODEL_METRIC_MAP)
-    if is_cost_6356_enabled():
-        map_copy |= copy.deepcopy(UNLEASH_METRICS_COST_6356)
     return map_copy
 
 

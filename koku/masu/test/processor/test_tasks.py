@@ -495,20 +495,6 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files")
-    @patch("masu.processor.tasks._process_report_file")
-    def test_get_report_files_report_dict_invoice_month(
-        self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
-    ):
-        """Test raising download exception is handled."""
-        expected_log = "'invoice_month': '202201'"
-        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP", "invoice_month": "202201"}
-        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            get_report_files(**self.get_report_args_gcp)
-            self.assertIn(expected_log, logger.output[0])
-
-    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked process error!"))
     def test_get_report_process_exception(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising processor exception is handled."""
@@ -899,12 +885,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
 
+    @patch("masu.util.common.trino_db.connect")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.chain")
     @patch("masu.database.report_manifest_db_accessor.CostUsageReportManifest.objects.select_for_update")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase._generate_ocp_infra_map_from_sql_trino")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.fetch_invoice_month_dates")
     def test_update_summary_tables_remove_expired_data_gcp(
-        self, mock_infra_map, mock_select_for_update, mock_chain, *args
+        self, mock_month, mock_infra_map, mock_select_for_update, mock_chain, *args
     ):
         """Test that the update summary table task runs for GCP."""
         mock_queryset = mock_select_for_update.return_value
@@ -915,7 +903,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         manifest_id = 1
         tracing_id = "1234"
 
-        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
+        mock_month.return_value = [(start_date, end_date)]
         update_summary_tables(
             self.schema,
             provider_type,
@@ -925,7 +913,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             tracing_id=tracing_id,
             manifest_id=manifest_id,
             synchronous=True,
-            invoice_month=invoice_month,
         )
         mock_chain.assert_called()
         mock_chain.return_value.apply_async.assert_called()
