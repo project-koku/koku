@@ -524,9 +524,9 @@ services:
       timeout: 30s
       retries: 10
 
-  # redis:
-  #   container_name: koku_redis
-  #   image: redis:5.0.4
+  redis:
+    container_name: koku_redis
+    image: redis:5.0.4
   #   ports:
   #     - 6379:6379
 

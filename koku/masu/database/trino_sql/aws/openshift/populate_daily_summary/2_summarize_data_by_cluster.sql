@@ -259,7 +259,7 @@ SELECT  cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedup
         WHEN max(ocp.persistentvolumeclaim) = ''
             THEN cast(NULL as varchar)
         ELSE ocp.pod_labels
-    END as pod_lables,
+    END as pod_labels,
     CASE
         WHEN max(ocp.persistentvolumeclaim) = ''
             THEN cast(NULL as varchar)
