@@ -10,6 +10,7 @@ WITH cte_array_agg_nodes AS (
 cte_cluster_info as (
     select
         format('"openshift_cluster": "%s"', json_extract_scalar(auth.credentials, '$.cluster_id')) AS cluster_id,
+        format('"api.openshift.com/name": "%s"', provider.name) AS rosa_cluster_name,
         format('"openshift_cluster": "%s"', provider.name) as cluster_alias
     from postgres.public.api_provider as provider
     inner join postgres.public.api_providerauthentication as auth
@@ -26,6 +27,10 @@ cte_tag_matches AS (
     UNION
 
     SELECT cluster_id from cte_cluster_info
+
+    UNION
+
+    SELECT rosa_cluster_name from cte_cluster_info
 
     UNION
 
