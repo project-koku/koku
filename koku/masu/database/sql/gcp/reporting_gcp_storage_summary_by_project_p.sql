@@ -41,8 +41,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcp_storage_summary_by_project_p (
         AND source_uuid = {{source_uuid}}
         AND (
             service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
-            OR LOWER(service_alias) LIKE '%pd %'
-            OR LOWER(service_alias) LIKE '%snapshot%'
+            OR LOWER(service_alias) LIKE '%%pd %%'
+            OR LOWER(service_alias) LIKE '%%snapshot%%'
         )
         AND invoice_month = {{invoice_month}}
     GROUP BY usage_start, project_id, project_name, account_id, invoice_month

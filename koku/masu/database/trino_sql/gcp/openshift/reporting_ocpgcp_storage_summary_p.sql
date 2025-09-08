@@ -44,8 +44,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_storage_summary_p (
         AND usage_start <= date_add('day', 1, {{end_date}})
         AND (
             service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
-            OR LOWER(service_alias) LIKE '%pd %'
-            OR LOWER(service_alias) LIKE '%snapshot%'
+            OR LOWER(service_alias) LIKE '%%pd %%'
+            OR LOWER(service_alias) LIKE '%%snapshot%%'
         )
     GROUP BY cluster_id,
         cluster_alias,
