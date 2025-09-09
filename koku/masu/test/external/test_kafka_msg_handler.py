@@ -27,6 +27,7 @@ import masu.external.kafka_msg_handler as msg_handler
 from common.queues import OCPQueue
 from kafka_utils.utils import UPLOAD_TOPIC
 from masu.config import Config
+from masu.external.kafka_msg_handler import EmptyPayloadFileError
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.processor.report_processor import ReportProcessorError
@@ -134,6 +135,23 @@ class MockKafkaConsumer:
         pass
 
 
+def fake_payload(payload_dir):
+    import tarfile
+    import io
+    import gzip
+
+    tar_bytes_io = io.BytesIO()
+    with tarfile.open(fileobj=tar_bytes_io, mode="w") as tar:
+        for file_path in payload_dir.iterdir():
+            if file_path.is_file():
+                tar.add(file_path, arcname=file_path.name)
+    tar_bytes_io.seek(0)
+    gz_bytes_io = io.BytesIO()
+    with gzip.GzipFile(fileobj=gz_bytes_io, mode="wb") as gz:
+        gz.write(tar_bytes_io.read())
+    return gz_bytes_io.getvalue()
+
+
 class KafkaMsgHandlerTest(MasuTestCase):
     """Test Cases for the Kafka msg handler."""
 
@@ -143,6 +161,9 @@ class KafkaMsgHandlerTest(MasuTestCase):
         logging.disable(logging.NOTSET)
 
         self.test_payload_file = Path("./koku/masu/test/data/ocp/payload2.tar.gz")
+
+        empty_file_payload_dir = Path("./koku/masu/test/data/ocp/empty-file-payload")
+        self.empty_file_payload = fake_payload(empty_file_payload_dir)
 
         with open("./koku/masu/test/data/ocp/payload.tar.gz", "rb") as payload_file:
             self.tarball_file = payload_file.read()
@@ -848,6 +869,33 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 shutil.rmtree(fake_dir)
                                 shutil.rmtree(fake_data_dir)
 
+    def test_extract_payload_empty_file_error(self):
+        """Test to verify extracting payload with empty file logs warning and continues processing."""
+        payload_url = "http://insights-upload.com/quarnantine/file_to_validate"
+        with requests_mock.mock() as m:
+            m.get(payload_url, content=self.empty_file_payload)
+
+            with tempfile.TemporaryDirectory() as fake_dir, tempfile.TemporaryDirectory() as fake_data_dir:
+                with (
+                    patch.object(Config, "INSIGHTS_LOCAL_REPORT_DIR", fake_dir),
+                    patch.object(Config, "TMP_DIR", fake_data_dir),
+                    patch(
+                        "masu.external.kafka_msg_handler.utils.get_source_and_provider_from_cluster_id",
+                        return_value=self.ocp_source,
+                    ),
+                    patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket"),
+                ):
+                    with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
+                        report_metas, manifest_uuid = msg_handler.extract_payload(
+                            payload_url,
+                            "test_request_id",
+                            "fake_identity",
+                            {"account": "1234", "org_id": "5678"},
+                        )
+                        # Verify that processing continues despite empty file
+                        self.assertIsNotNone(manifest_uuid)
+                        self.assertTrue(report_metas)
+
     @patch("masu.external.kafka_msg_handler.TarFile.extractall", side_effect=raise_OSError)
     def test_extract_bad_payload_not_tar(self, mock_extractall):
         """Test to verify extracting payload missing report files is not successful."""
@@ -1033,6 +1081,20 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 msg_handler.get_data_frame(file_path)
             except Exception:
                 self.fail(f"failed to read: {file_path}")
+
+    def test_get_data_frame_empty_file_error(self):
+        """Test get_data_frame raises EmptyPayloadFileError when file is empty."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Create an empty CSV file
+            empty_file_path = Path(tmp_dir, "empty_file.csv")
+            empty_file_path.touch()  # Creates empty file
+
+            # Test that EmptyPayloadFileError is raised
+            with self.assertRaises(EmptyPayloadFileError) as context:
+                msg_handler.get_data_frame(empty_file_path)
+
+            # Verify the error message
+            self.assertEqual(str(context.exception), "File is empty.")
 
     @patch("masu.external.kafka_msg_handler.os")
     @patch("masu.external.kafka_msg_handler.copy_local_report_file_to_s3_bucket")

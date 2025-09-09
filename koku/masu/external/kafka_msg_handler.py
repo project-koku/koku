@@ -70,10 +70,17 @@ class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
 
 
+class EmptyPayloadFileError(pd.errors.EmptyDataError):
+    """Empty payload file error."""
+
+
 def get_data_frame(file_path: os.PathLike):
     """read csv file into dataframe"""
     try:
         return pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
+    except pd.errors.EmptyDataError:
+        LOG.warning(f"File {file_path} is empty.")
+        raise EmptyPayloadFileError("File is empty.")
     except Exception as error:
         LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
         raise error
@@ -427,6 +434,9 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             current_meta["split_files"] = list(split_files)
             current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
+        except EmptyPayloadFileError:
+            msg = f"File {str(report_file)} is empty."
+            LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest.uuid, msg=msg, context=context))
