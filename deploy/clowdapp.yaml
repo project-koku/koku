@@ -4282,7 +4282,6 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_SUMMARY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -4475,7 +4474,6 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_SUMMARY_XL_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -4668,7 +4666,6 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
-      replicas: ${{WORKER_SUMMARY_PENALTY_REPLICAS}}
       webServices:
         private:
           enabled: false
@@ -6456,10 +6453,6 @@ parameters:
   name: WORKER_SUMMARY_TRIGGER_QUERY
   required: true
   value: koku:celery:summary_queue
-- displayName: Minimum replicas
-  name: WORKER_SUMMARY_REPLICAS
-  required: true
-  value: "2"
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_SUMMARY
   required: true
@@ -6503,10 +6496,6 @@ parameters:
   name: WORKER_SUMMARY_XL_TRIGGER_QUERY
   required: true
   value: koku:celery:summary_xl_queue
-- displayName: Minimum replicas
-  name: WORKER_SUMMARY_XL_REPLICAS
-  required: true
-  value: "2"
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_SUMMARY_XL
   required: true
@@ -6550,10 +6539,6 @@ parameters:
   name: WORKER_SUMMARY_PENALTY_TRIGGER_QUERY
   required: true
   value: koku:celery:summary_penalty_queue
-- displayName: Minimum replicas
-  name: WORKER_SUMMARY_PENALTY_REPLICAS
-  required: true
-  value: "2"
 - displayName: Memory Request
   name: MEMORY_REQUEST_WORKER_SUMMARY_PENALTY
   required: true

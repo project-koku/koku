@@ -5,7 +5,6 @@
     metadata:
       annotations:
         ignore-check.kube-linter.io/minimum-three-replicas: This deployment uses 1 pod at times for cost saving purposes
-    replicas: ${{WORKER_SUMMARY_PENALTY_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -228,13 +227,6 @@
     name: WORKER_SUMMARY_PENALTY_TRIGGER_QUERY
     required: true
     value: 'koku:celery:summary_penalty_queue'
-- op: add
-  path: /parameters/-
-  value:
-    displayName: Minimum replicas
-    name: WORKER_SUMMARY_PENALTY_REPLICAS
-    required: true
-    value: '2'
 - op: add
   path: /parameters/-
   value:
