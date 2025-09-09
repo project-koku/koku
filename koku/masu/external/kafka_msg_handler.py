@@ -80,9 +80,9 @@ def get_data_frame(file_path: os.PathLike):
     """read csv file into dataframe"""
     try:
         return pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
-    except pd.errors.EmptyDataError:
+    except pd.errors.EmptyDataError as error:
         LOG.warning(f"File {file_path} is empty.")
-        raise EmptyPayloadFileError("File is empty.")
+        raise EmptyPayloadFileError("File is empty.") from error
     except Exception as error:
         LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
         raise error
