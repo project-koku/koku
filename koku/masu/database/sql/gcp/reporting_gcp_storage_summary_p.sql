@@ -40,8 +40,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcp_storage_summary_p (
                 -- Gets Persistent Disk rows safely
                 service_alias = 'Compute Engine' AND
                 (
-                    LOWER(sku_alias) LIKE '%%pd %%' OR
-                    LOWER(sku_alias) LIKE '%%snapshot%%'
+                    sku_alias ILIKE '%% pd %%' OR
+                    sku_alias ILIKE '%%snapshot%%'
                 )
             )
         )

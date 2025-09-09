@@ -49,7 +49,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_storage_summary_p (
                 -- Gets Persistent Disk rows safely
                 service_alias = 'Compute Engine' AND
                 (
-                    LOWER(sku_alias) LIKE '%%pd %%' OR
+                    LOWER(sku_alias) LIKE '%% pd %%' OR
                     LOWER(sku_alias) LIKE '%%snapshot%%'
                 )
             )
