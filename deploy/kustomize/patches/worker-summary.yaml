@@ -181,6 +181,53 @@
           items:
             - key: gcp-credentials
               path: gcp-credentials.json
+    autoScaler:
+      maxReplicaCount: ${{WORKER_SUMMARY_MAX_REPLICAS}}
+      minReplicaCount: ${{WORKER_SUMMARY_MIN_REPLICAS}}
+      fallback:
+        failureThreshold: 3
+        replicas: ${{WORKER_SUMMARY_FALLBACK_REPLICAS}}
+        behavior: "currentReplicasIfHigher"
+      triggers:
+      - type: prometheus
+        metadata:
+          query: ${WORKER_SUMMARY_TRIGGER_QUERY}
+          threshold: ${WORKER_SUMMARY_TRIGGER_THRESHOLD}
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Minimum replicas
+    name: WORKER_SUMMARY_MIN_REPLICAS
+    required: true
+    value: '1'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Maximum replicas
+    name: WORKER_SUMMARY_MAX_REPLICAS
+    required: true
+    value: '10'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Fallback replicas
+    name: WORKER_SUMMARY_FALLBACK_REPLICAS
+    required: true
+    value: '3'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Trigger threshold
+    name: WORKER_SUMMARY_TRIGGER_THRESHOLD
+    required: true
+    value: '13.5'
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Trigger query
+    name: WORKER_SUMMARY_TRIGGER_QUERY
+    required: true
+    value: 'koku:celery:summary_queue'
 
 - op: add
   path: /parameters/-
