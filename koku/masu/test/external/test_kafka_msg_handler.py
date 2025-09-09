@@ -4,10 +4,13 @@
 #
 """Test the Kafka msg handler."""
 import copy
+import gzip
+import io
 import json
 import logging
 import os
 import shutil
+import tarfile
 import tempfile
 import uuid
 from datetime import date
@@ -136,9 +139,6 @@ class MockKafkaConsumer:
 
 
 def fake_payload(payload_dir):
-    import tarfile
-    import io
-    import gzip
 
     tar_bytes_io = io.BytesIO()
     with tarfile.open(fileobj=tar_bytes_io, mode="w") as tar:
