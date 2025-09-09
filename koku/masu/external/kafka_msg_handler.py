@@ -57,6 +57,8 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import CombinedChoices
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
 
@@ -435,6 +437,11 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
         except EmptyPayloadFileError:
+            CostUsageReportStatus.objects.get(report_name=report_file, manifest_id=manifest.manifest_id).update_status(
+                CombinedChoices.DONE
+            )
+            current_meta["process_complete"] = True
+            report_metas.append(current_meta)
             msg = f"File {str(report_file)} is empty."
             LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         except FileNotFoundError:
@@ -669,6 +676,9 @@ def process_messages(msg):
             ):
                 # we have not received all of the daily files yet, so don't process them
                 break
+            if report_meta.get("process_complete"):
+                # probably an empty file, so skip it
+                continue
             report_meta["process_complete"] = process_report(request_id, report_meta)
             LOG.info(
                 log_json(
