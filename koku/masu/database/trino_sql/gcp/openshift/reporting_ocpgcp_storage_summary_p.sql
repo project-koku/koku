@@ -42,7 +42,18 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_storage_summary_p (
         AND day in {{days | inclause}}
         AND usage_start >= {{start_date}}
         AND usage_start <= date_add('day', 1, {{end_date}})
-        AND service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
+        AND (
+            service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
+            OR
+            (
+                -- Gets Persistent Disk rows safely
+                service_alias = 'Compute Engine' AND
+                (
+                    LOWER(sku_alias) LIKE '%% pd %%' OR
+                    LOWER(sku_alias) LIKE '%%snapshot%%'
+                )
+            )
+        )
     GROUP BY cluster_id,
         cluster_alias,
         usage_start,
