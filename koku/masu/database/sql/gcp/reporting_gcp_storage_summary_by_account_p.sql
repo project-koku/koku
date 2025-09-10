@@ -35,7 +35,18 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcp_storage_summary_by_account_p (
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
-        AND service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
+        AND (
+            service_alias IN ('Filestore', 'Storage', 'Cloud Storage', 'Data Transfer')
+            OR
+            (
+                -- Gets Persistent Disk rows safely
+                service_alias = 'Compute Engine' AND
+                (
+                    sku_alias ILIKE '%% pd %%' OR
+                    sku_alias ILIKE '%%snapshot%%'
+                )
+            )
+        )
         AND invoice_month = {{invoice_month}}
     GROUP BY usage_start, account_id, invoice_month
 ;
