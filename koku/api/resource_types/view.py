@@ -18,6 +18,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
+from reporting.provider.models import TenantAPIProvider
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
@@ -33,6 +34,7 @@ class ResourceTypeView(APIView):
 
         tenant = get_tenant(request.user)
         with tenant_context(tenant):
+            has_integrations = TenantAPIProvider.objects.exists()
 
             aws_account_count = AWSCostSummaryByAccountP.objects.values("usage_account_id").distinct().count()
             gcp_account_count = GCPCostSummaryByAccountP.objects.values("account_id").distinct().count()
@@ -87,7 +89,7 @@ class ResourceTypeView(APIView):
                 "count": gcp_account_count,
             }
             gcp_project_dict = {
-                "value": "gcp.projects",
+                "value": "gcp.project",
                 "path": "/api/cost-management/v1/resource-types/gcp-projects/",
                 "count": gcp_project_count,
             }
@@ -107,6 +109,11 @@ class ResourceTypeView(APIView):
                 gcp_project_dict,
                 cost_model_dict,
             ]
+
+            if has_integrations:
+                settings_dict = {"value": "settings", "path": None, "count": 1}
+                data.append(settings_dict)
+
             paginator = ResourceTypePaginator(data, request)
 
             return paginator.get_paginated_response(data)
