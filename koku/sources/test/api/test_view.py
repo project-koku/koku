@@ -152,7 +152,7 @@ class SourcesViewTests(IamTestCase):
         regions = response.json()["data"]
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(set(regions).issubset(all_regions))
+        self.assertTrue(all_regions.issubset(set(regions)))
 
     def test_aws_s3_regions_pagination(self):
         """Test that the API response is paginated"""
