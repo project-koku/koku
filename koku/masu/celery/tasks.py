@@ -423,10 +423,6 @@ def out_of_order_source_delete_async(source_id):
             f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
         )
         return
-    # TODO re-enable this after stale demo sources are removed from stage
-    # if source.account_id in settings.DEMO_ACCOUNTS:
-    #     LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
-    #     return
     delete_source_helper(source)
 
 
@@ -438,10 +434,6 @@ def missing_source_delete_async(source_id):
     except Sources.DoesNotExist:
         LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
         return
-    # TODO re-enable this after stale demo sources are removed from stage
-    # if source.account_id in settings.DEMO_ACCOUNTS:
-    #     LOG.info(f"source `{source.source_id}` is a cost-demo source. skipping removal")
-    #     return
     delete_source_helper(source)
 
 
