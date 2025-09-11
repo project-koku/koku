@@ -53,6 +53,8 @@ class ResourceTypeView(APIView):
 
             cost_model_count = CostModel.objects.count()
 
+            settings_count = 1 if has_integrations else 0
+
             aws_account_dict = {
                 "value": "aws.account",
                 "path": "/api/cost-management/v1/resource-types/aws-accounts/",
@@ -98,6 +100,11 @@ class ResourceTypeView(APIView):
                 "path": "/api/cost-management/v1/resource-types/cost-models/",
                 "count": cost_model_count,
             }
+            settings_dict = {
+                "value": "settings",
+                "path": None,
+                "count": settings_count,
+            }
             data = [
                 aws_account_dict,
                 aws_org_unit_dict,
@@ -108,11 +115,8 @@ class ResourceTypeView(APIView):
                 gcp_account_dict,
                 gcp_project_dict,
                 cost_model_dict,
+                settings_dict,
             ]
-
-            if has_integrations:
-                settings_dict = {"value": "settings", "path": None, "count": 1}
-                data.append(settings_dict)
 
             paginator = ResourceTypePaginator(data, request)
 
