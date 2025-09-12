@@ -101,7 +101,6 @@ class ResourceTypeView(APIView):
             }
             settings_dict = {
                 "value": "settings",
-                "path": None,
                 "count": settings_count,
             }
             data = [
