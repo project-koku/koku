@@ -34,8 +34,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -146,9 +156,6 @@ objects:
             cpu: ${CPU_REQUEST_KOKU_READS}
             memory: ${MEMORY_REQUEST_KOKU_READS}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -160,12 +167,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -210,8 +211,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -327,9 +338,6 @@ objects:
             cpu: ${CPU_REQUEST_KOKU_WRITES}
             memory: ${MEMORY_REQUEST_KOKU_WRITES}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -338,12 +346,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -436,8 +438,18 @@ objects:
           value: ${TRINO_S3A_OR_S3}
         - name: KAFKA_CONNECT
           value: ${KAFKA_CONNECT}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -521,9 +533,6 @@ objects:
             cpu: ${CPU_REQUEST_LISTENER}
             memory: ${MEMORY_REQUEST_LISTENER}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-listener-data
         - mountPath: /etc/gcp
@@ -536,12 +545,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-listener-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -577,8 +580,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -703,9 +716,6 @@ objects:
             cpu: ${CPU_REQUEST_MASU}
             memory: ${MEMORY_REQUEST_MASU}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -714,12 +724,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -756,8 +760,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -861,9 +875,6 @@ objects:
             cpu: ${CPU_REQUEST_SCHEDULER}
             memory: ${MEMORY_REQUEST_SCHEDULER}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -872,12 +883,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -921,8 +926,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -1012,9 +1027,6 @@ objects:
             cpu: ${CPU_REQUEST_SOURCES_CLIENT}
             memory: ${MEMORY_REQUEST_SOURCES_CLIENT}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -1023,12 +1035,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1077,8 +1083,18 @@ objects:
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -1165,9 +1181,6 @@ objects:
             cpu: ${CPU_REQUEST_SOURCES_LISTENER}
             memory: ${MEMORY_REQUEST_SOURCES_LISTENER}
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
@@ -1176,12 +1189,6 @@ objects:
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1214,8 +1221,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -1332,9 +1349,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_CELERY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1347,12 +1361,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1385,8 +1393,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -1509,9 +1527,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_COST_MODEL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1524,12 +1539,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1562,8 +1571,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -1686,9 +1705,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_COST_MODEL_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1701,12 +1717,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1739,8 +1749,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -1863,9 +1883,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_COST_MODEL_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -1878,12 +1895,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -1928,8 +1939,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2056,9 +2077,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2071,12 +2089,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -2120,8 +2132,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2248,9 +2270,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2263,12 +2282,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -2312,8 +2325,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2440,9 +2463,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_DOWNLOAD_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2455,12 +2475,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -2492,8 +2506,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2618,9 +2642,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_OCP}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2633,12 +2654,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -2671,8 +2686,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2797,9 +2822,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_OCP_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2812,12 +2834,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -2850,8 +2866,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -2976,9 +3002,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_OCP_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -2991,12 +3014,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3029,8 +3046,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3161,9 +3188,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_PRIORITY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3176,12 +3200,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3214,8 +3232,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3346,9 +3374,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_PRIORITY_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3361,12 +3386,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3399,8 +3418,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3531,9 +3560,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_PRIORITY_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3546,12 +3572,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3584,8 +3604,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3708,9 +3738,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_REFRESH}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3723,12 +3750,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3761,8 +3782,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -3885,9 +3916,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_REFRESH_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -3900,12 +3928,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -3938,8 +3960,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4062,9 +4094,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_REFRESH_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4077,12 +4106,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4127,8 +4150,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4255,9 +4288,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4270,12 +4300,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4319,8 +4343,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4447,9 +4481,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_XL}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4462,12 +4493,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4511,8 +4536,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4639,9 +4674,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_SUMMARY_PENALTY}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4654,12 +4686,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4691,8 +4717,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4817,9 +4853,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_HCS}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4832,12 +4865,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -4866,8 +4893,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -4980,9 +5017,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_SUBS_EXTRACTION}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -4995,12 +5029,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -5029,8 +5057,18 @@ objects:
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
           value: ${TRINO_S3A_OR_S3}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: SOURCES_PSK
@@ -5141,9 +5179,6 @@ objects:
             memory: ${MEMORY_REQUEST_WORKER_SUBS_TRANSMISSION}
         terminationGracePeriodSeconds: 3600
         volumeMounts:
-        - mountPath: /etc/aws
-          name: aws-credentials
-          readOnly: true
         - mountPath: /var/tmp/masu/
           name: koku-worker-data
         - mountPath: /etc/gcp
@@ -5156,12 +5191,6 @@ objects:
           name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
-        - name: aws-credentials
-          secret:
-            items:
-            - key: aws-credentials
-              path: aws-credentials
-            secretName: koku-aws
         - name: gcp-credentials
           secret:
             items:
@@ -5187,8 +5216,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -5226,8 +5265,18 @@ objects:
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: SCHEMA_SUFFIX
           value: ${SCHEMA_SUFFIX}
         - name: TRINO_S3A_OR_S3
@@ -5398,8 +5447,6 @@ parameters:
   value: hccm-ros-eph-s3
 - name: S3_SUBS_BUCKET_NAME
   value: hccm-subs-eph-s3
-- name: AWS_SHARED_CREDENTIALS_FILE
-  value: /etc/aws/aws-credentials
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json

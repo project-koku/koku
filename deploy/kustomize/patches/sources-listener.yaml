@@ -45,8 +45,18 @@
               key: django-secret-key
               name: koku-secret
               optional: false
-        - name: AWS_SHARED_CREDENTIALS_FILE
-          value: ${AWS_SHARED_CREDENTIALS_FILE}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws_access_key_id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws_secret_access_key
+              name: koku-aws
+              optional: false
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: ${GOOGLE_APPLICATION_CREDENTIALS}
         - name: APP_POD_NAME
@@ -127,9 +137,6 @@
           cpu: ${CPU_LIMIT_SOURCES_LISTENER}
           memory: ${MEMORY_LIMIT_SOURCES_LISTENER}
       volumeMounts:
-      - name: aws-credentials
-        mountPath: /etc/aws
-        readOnly: true
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
@@ -138,12 +145,6 @@
       volumes:
       - name: tmp-data
         emptyDir: {}
-      - name: aws-credentials
-        secret:
-          items:
-          - key: aws-credentials
-            path: aws-credentials
-          secretName: koku-aws
       - name: gcp-credentials
         secret:
           secretName: koku-gcp
