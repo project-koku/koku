@@ -56,13 +56,13 @@ function _set_IQE_filter_expressions_for_smoke_labels() {
 
     local SMOKE_LABELS="$1"
     if grep -E "aws-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_ocp_for_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
     elif grep -E "azure-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_ocp_for_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
     elif grep -E "gcp-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_ocp_for_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
     elif grep -E "ocp-smoke-tests" <<< "$SMOKE_LABELS"; then
-        export IQE_FILTER_EXPRESSION="(test_api_ocp or test_api_cost_model_ocp or aws_ingest_single or aws_ingest_multi) and not ocp_on_gcp and not ocp_on_azure and not ocp_on_cloud"
+        export IQE_FILTER_EXPRESSION="(test_api_ocp or test_api_cost_model_ocp or aws_ingest_single or aws_ingest_multi) and not ocp_on_gcp and not ocp_on_azure and not ocp_on_cloud and not ocp_for_gcp and not ocp_for_azure"
         export IQE_MARKER_EXPRESSION="cost_smoke and not cost_exclude_ocp_smokes"
     elif grep -E "hot-fix-smoke-tests" <<< "$SMOKE_LABELS"; then
         export IQE_FILTER_EXPRESSION="test_api"
