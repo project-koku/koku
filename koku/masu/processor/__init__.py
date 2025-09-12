@@ -167,3 +167,11 @@ def is_status_api_update_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
+
+
+def is_feature_unattributed_storage_enabled_gcp(account):
+    """Should unattributed storage feature be enabled."""
+    unleash_flag = "cost-management.backend.unattributed_storage_gcp"
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
