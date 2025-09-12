@@ -18,6 +18,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
+from reporting.provider.models import TenantAPIProvider
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
@@ -32,8 +33,8 @@ class ResourceTypeView(APIView):
     def get(self, request, **kwargs):
 
         tenant = get_tenant(request.user)
-        with tenant_context(tenant):
 
+        with tenant_context(tenant):
             aws_account_count = AWSCostSummaryByAccountP.objects.values("usage_account_id").distinct().count()
             gcp_account_count = GCPCostSummaryByAccountP.objects.values("account_id").distinct().count()
             gcp_project_count = GCPCostSummaryByProjectP.objects.values("project_id").distinct().count()
@@ -50,6 +51,8 @@ class ResourceTypeView(APIView):
             ocp_project_count = OCPCostSummaryByProjectP.objects.values("namespace").distinct().count()
 
             cost_model_count = CostModel.objects.count()
+
+            settings_count = TenantAPIProvider.objects.count()
 
             aws_account_dict = {
                 "value": "aws.account",
@@ -87,7 +90,7 @@ class ResourceTypeView(APIView):
                 "count": gcp_account_count,
             }
             gcp_project_dict = {
-                "value": "gcp.projects",
+                "value": "gcp.project",
                 "path": "/api/cost-management/v1/resource-types/gcp-projects/",
                 "count": gcp_project_count,
             }
@@ -95,6 +98,10 @@ class ResourceTypeView(APIView):
                 "value": "cost_model",
                 "path": "/api/cost-management/v1/resource-types/cost-models/",
                 "count": cost_model_count,
+            }
+            settings_dict = {
+                "value": "settings",
+                "count": settings_count,
             }
             data = [
                 aws_account_dict,
@@ -106,6 +113,7 @@ class ResourceTypeView(APIView):
                 gcp_account_dict,
                 gcp_project_dict,
                 cost_model_dict,
+                settings_dict,
             ]
             paginator = ResourceTypePaginator(data, request)
 
