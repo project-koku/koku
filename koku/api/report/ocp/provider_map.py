@@ -1058,7 +1058,7 @@ class OCPProviderMap(ProviderMap):
     def cloud_infrastructure_cost_by_project(self):
         """Return ORM term for cloud infra costs by project."""
         return Sum(
-            Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
+            Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
             * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
         )
 
