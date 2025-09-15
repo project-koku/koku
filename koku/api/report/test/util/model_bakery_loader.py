@@ -378,6 +378,7 @@ class ModelBakeryDataLoader(DataLoader):
                 days = (end_date - start_date).days + 1
                 for i in range(days):
                     infra_raw_cost = random.random() * 100 if on_cloud else None
+                    project_infra_raw_cost = infra_raw_cost * random.random() if on_cloud else None
                     baker.make_recipe(  # Storage data_source
                         "api.report.test.util.ocp_usage_storage",
                         report_period=report_period,
@@ -387,6 +388,7 @@ class ModelBakeryDataLoader(DataLoader):
                         usage_end=start_date + timedelta(i),
                         source_uuid=provider.uuid,
                         infrastructure_raw_cost=infra_raw_cost,
+                        infrastructure_project_raw_cost=project_infra_raw_cost,
                     )
                     baker.make_recipe(  # Pod data_source
                         "api.report.test.util.ocp_usage_pod",
@@ -397,6 +399,7 @@ class ModelBakeryDataLoader(DataLoader):
                         usage_end=start_date + timedelta(i),
                         source_uuid=provider.uuid,
                         infrastructure_raw_cost=infra_raw_cost,
+                        infrastructure_project_raw_cost=project_infra_raw_cost,
                     )
                     if on_cloud:
                         # Network data comes from the cloud bill
