@@ -66,14 +66,14 @@ class OCPReportViewTest(IamTestCase):
             + cls.provider_map.cost_model_cost
         )
         cls.cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost
-            + cls.provider_map.markup_cost
+            cls.provider_map.cloud_infrastructure_cost_by_project
+            + cls.provider_map.markup_cost_by_project
             + cls.provider_map.cost_model_cost
         )
 
         cls.distributed_cost_term_by_project = (
-            cls.provider_map.cloud_infrastructure_cost
-            + cls.provider_map.markup_cost
+            cls.provider_map.cloud_infrastructure_cost_by_project
+            + cls.provider_map.markup_cost_by_project
             + cls.provider_map.cost_model_cost
             + cls.provider_map.distributed_platform_cost
             + cls.provider_map.distributed_unattributed_network_cost
@@ -732,8 +732,8 @@ class OCPReportViewTest(IamTestCase):
         last_month_end = self.dh.this_month_end - date_delta
 
         self.cost_term = (
-            self.provider_map.cloud_infrastructure_cost
-            + self.provider_map.markup_cost
+            self.provider_map.cloud_infrastructure_cost_by_project
+            + self.provider_map.markup_cost_by_project
             + self.provider_map.cost_model_cost
             + self.provider_map.distributed_platform_cost
             + self.provider_map.distributed_worker_cost
