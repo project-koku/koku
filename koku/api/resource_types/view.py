@@ -18,7 +18,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
-from reporting.provider.models import TenantAPIProvider
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
@@ -51,8 +50,6 @@ class ResourceTypeView(APIView):
             ocp_project_count = OCPCostSummaryByProjectP.objects.values("namespace").distinct().count()
 
             cost_model_count = CostModel.objects.count()
-
-            settings_count = TenantAPIProvider.objects.count()
 
             aws_account_dict = {
                 "value": "aws.account",
@@ -101,7 +98,7 @@ class ResourceTypeView(APIView):
             }
             settings_dict = {
                 "value": "settings",
-                "count": settings_count,
+                "available": 1,
             }
             data = [
                 aws_account_dict,
