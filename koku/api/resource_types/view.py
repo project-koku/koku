@@ -32,7 +32,6 @@ class ResourceTypeView(APIView):
     def get(self, request, **kwargs):
 
         tenant = get_tenant(request.user)
-
         with tenant_context(tenant):
             aws_account_count = AWSCostSummaryByAccountP.objects.values("usage_account_id").distinct().count()
             gcp_account_count = GCPCostSummaryByAccountP.objects.values("account_id").distinct().count()
