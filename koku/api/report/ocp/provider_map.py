@@ -220,20 +220,18 @@ class OCPProviderMap(ProviderMap):
                             "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": self.cost_model_supplementary_cost,
-                            "infra_raw": self.cloud_infrastructure_cost_by_project,
+                            "infra_raw": self.cloud_infrastructure_cost,
                             "infra_usage": self.cost_model_infrastructure_cost,
-                            "infra_markup": self.markup_cost_by_project,
-                            "infra_total": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
                             + self.cost_model_infrastructure_cost,
-                            "cost_raw": self.cloud_infrastructure_cost_by_project,
+                            "cost_raw": self.cloud_infrastructure_cost,
                             "cost_usage": self.cost_model_cost,
-                            "cost_markup": self.markup_cost_by_project,
-                            "cost_total": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
-                            + self.cost_model_cost,
-                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
                             + self.cost_model_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
@@ -250,20 +248,18 @@ class OCPProviderMap(ProviderMap):
                             "sup_usage": self.cost_model_supplementary_cost,
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": self.cost_model_supplementary_cost,
-                            "infra_raw": self.cloud_infrastructure_cost_by_project,
+                            "infra_raw": self.cloud_infrastructure_cost,
                             "infra_usage": self.cost_model_infrastructure_cost,
-                            "infra_markup": self.markup_cost_by_project,
-                            "infra_total": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
+                            "infra_markup": self.markup_cost,
+                            "infra_total": self.cloud_infrastructure_cost
+                            + self.markup_cost
                             + self.cost_model_infrastructure_cost,
-                            "cost_raw": self.cloud_infrastructure_cost_by_project,
+                            "cost_raw": self.cloud_infrastructure_cost,
                             "cost_usage": self.cost_model_cost,
-                            "cost_markup": self.markup_cost_by_project,
-                            "cost_total": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
-                            + self.cost_model_cost,
-                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
+                            "cost_markup": self.markup_cost,
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
                             + self.cost_model_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
@@ -283,11 +279,9 @@ class OCPProviderMap(ProviderMap):
                         },
                         "capacity_aggregate": {},
                         "delta_key": {
-                            "cost_total": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
-                            + self.cost_model_cost,
-                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
+                            "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
                             + self.cost_model_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
@@ -909,8 +903,8 @@ class OCPProviderMap(ProviderMap):
                         "delta_key": {
                             "request": Sum("pod_request_cpu_core_hours"),
                             "cost_total": self.cloud_infrastructure_cost + self.markup_cost + self.cost_model_cost,
-                            "cost_total_distributed": self.cloud_infrastructure_cost_by_project
-                            + self.markup_cost_by_project
+                            "cost_total_distributed": self.cloud_infrastructure_cost
+                            + self.markup_cost
                             + self.cost_model_cost
                             + self.distributed_platform_cost
                             + self.distributed_worker_cost
@@ -1055,24 +1049,8 @@ class OCPProviderMap(ProviderMap):
         )
 
     @cached_property
-    def cloud_infrastructure_cost_by_project(self):
-        """Return ORM term for cloud infra costs by project."""
-        return Sum(
-            Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
-            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-        )
-
-    @cached_property
     def markup_cost(self):
         """Return ORM term for cloud infra markup."""
-        return Sum(
-            Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-            * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
-        )
-
-    @cached_property
-    def markup_cost_by_project(self):
-        """Return ORM term for cloud infra markup by project."""
         return Sum(
             Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
             * Coalesce("infra_exchange_rate", Value(1, output_field=DecimalField()))
