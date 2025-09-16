@@ -15,6 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.report.gcp.provider_map import gcp_storage_conditional_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPGCPComputeSummaryP
 from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
@@ -438,12 +439,12 @@ class OCPGCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
                             {"field": "unit", "operation": "exact", "parameter": "gibibyte month"},
-                            {
-                                "field": "service_alias",
-                                "operation": "in",
-                                "parameter": ["Filestore", "Data Transfer", "Storage", "Cloud Storage"],
-                            },
                         ],
+                        "conditionals": {
+                            OCPGCPCostLineItemProjectDailySummaryP: {
+                                "filter_collection": gcp_storage_conditional_filter_collection(),
+                            },
+                        },
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],

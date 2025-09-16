@@ -15,6 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.query_filter import QueryFilterCollection
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
 from reporting.provider.gcp.models import GCPComputeSummaryP
@@ -31,6 +32,23 @@ from reporting.provider.gcp.models import GCPStorageSummaryByProjectP
 from reporting.provider.gcp.models import GCPStorageSummaryByRegionP
 from reporting.provider.gcp.models import GCPStorageSummaryByServiceP
 from reporting.provider.gcp.models import GCPStorageSummaryP
+
+
+def gcp_storage_conditional_filter_collection():
+    """Builds the GCP storage filters"""
+    storage_services = QueryFilterCollection()
+    storage_services.add(
+        field="service_alias", operation="in", parameter=["Filestore", "Data Transfer", "Storage", "Cloud Storage"]
+    )
+
+    compute_engine = QueryFilterCollection()
+    compute_engine.add(field="service_alias", operation="exact", parameter="Compute Engine")
+
+    sku_alias = QueryFilterCollection()
+    sku_alias.add(field="sku_alias", operation="icontains", parameter=" pd ")
+    sku_alias.add(field="sku_alias", operation="icontains", parameter=" snapshot ")
+    persistent_disk_composed = compute_engine.compose() & sku_alias.compose(logical_operator="or")
+    return storage_services.compose() | persistent_disk_composed
 
 
 class GCPProviderMap(ProviderMap):
@@ -434,14 +452,10 @@ class GCPProviderMap(ProviderMap):
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "conditionals": {
-                            GCPCostEntryLineItemDailySummary: {
-                                "filter": [
-                                    {
-                                        "field": "service_alias",
-                                        "operation": "in",
-                                        "parameter": ["Filestore", "Data Transfer", "Storage", "Cloud Storage"],
-                                    },
-                                ],
+                            "conditionals": {
+                                GCPCostEntryLineItemDailySummary: {
+                                    "filter_collection": gcp_storage_conditional_filter_collection(),
+                                },
                             },
                         },
                         "cost_units_key": "currency",
