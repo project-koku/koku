@@ -1723,3 +1723,36 @@ class TestRemoveStaleTenants(MasuTestCase):
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
             self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
+
+
+class UpdateCostModelCostsTest(MasuTestCase):
+    """Test cases for the update_cost_model_costs task."""
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_provider_does_not_exist(self, mock_updater):
+        """
+        Test that the task exits early if the provider UUID does not exist.
+        """
+        non_existent_uuid = str(uuid4())
+
+        with self.assertLogs("masu.processor.tasks", level="WARNING") as logger:
+            update_cost_model_costs(self.schema, non_existent_uuid)
+            self.assertIn(f"Provider with uuid {non_existent_uuid} not found", str(logger.output))
+        mock_updater.assert_not_called()
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_no_data_processed_yet(self, mock_updater):
+        """
+        Test that the task exits early if the provider has not processed data yet.
+        """
+        provider = self.aws_provider
+        provider.data_updated_timestamp = None
+        provider.save()
+
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_cost_model_costs(self.schema, provider.uuid)
+
+            self.assertIn(f"Skipping cost model update for source {provider.uuid}", str(logger.output))
+            self.assertIn("No data has been processed yet", str(logger.output))
+
+        mock_updater.assert_not_called()
