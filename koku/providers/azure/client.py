@@ -57,21 +57,13 @@ class AzureClientFactory:
         """Subscription ID property."""
         return self._subscription_id
 
-    def cloud_storage_account(self, resource_group_name, storage_account_name):
-        """Get a BlobServiceClient."""
-        storage_account_keys = self.storage_client.storage_accounts.list_keys(
-            resource_group_name, storage_account_name
-        )
-        # Add check for keys and a get value
-        key = storage_account_keys.keys[0]
+    def cloud_storage_account(self, storage_account_name):
+        """
+        Get a BlobServiceClient using RBAC (Role-Based Access Control).
+        """
+        account_url = f"https://{storage_account_name}.blob.core.windows.net"
 
-        connect_str = (
-            f"DefaultEndpointsProtocol=https;"
-            f"AccountName={storage_account_name};"
-            f"AccountKey={key.value};"
-            f"EndpointSuffix=core.windows.net"
-        )
-        return BlobServiceClient.from_connection_string(connect_str)
+        return BlobServiceClient(account_url, credential=self.credentials)
 
     @property
     def scope(self):
