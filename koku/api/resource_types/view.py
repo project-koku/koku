@@ -98,7 +98,8 @@ class ResourceTypeView(APIView):
             }
             settings_dict = {
                 "value": "settings",
-                "available": 1,
+                "path": "/api/cost-management/v1/settings/",
+                "count": 1,
             }
             data = [
                 aws_account_dict,
