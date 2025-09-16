@@ -58,7 +58,7 @@ class AzureService:
         if not self._factory.subscription_id:
             raise AzureServiceError("Azure Service missing subscription id.")
 
-        self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
+        self._cloud_storage_account = self._factory.cloud_storage_account(storage_account_name)
 
         if not self._factory.credentials:
             raise AzureServiceError("Azure Service credentials are not configured.")

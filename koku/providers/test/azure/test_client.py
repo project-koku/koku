@@ -91,7 +91,6 @@ class AzureClientFactoryTestCase(TestCase):
     def test_cloud_storage_account(self, mock_get_token):
         """Test the cloud_storage_account method."""
         subscription_id = FAKE.uuid4()
-        resource_group_name = FAKE.word()
         storage_account_name = FAKE.word()
         obj = AzureClientFactory(
             subscription_id=subscription_id,
@@ -101,7 +100,7 @@ class AzureClientFactoryTestCase(TestCase):
             cloud=random.choice(self.clouds),
         )
         with patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock):
-            cloud_account = obj.cloud_storage_account(resource_group_name, storage_account_name)
+            cloud_account = obj.cloud_storage_account(storage_account_name)
             self.assertTrue(isinstance(cloud_account, BlobServiceClient))
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
