@@ -917,6 +917,20 @@ def update_cost_model_costs(  # noqa: C901
         "start_date": start_date,
         "end_date": end_date,
     }
+
+    # check that provider exists and has data
+    skip_reason = None
+    if not (provider := Provider.objects.filter(uuid=provider_uuid).first()):
+        skip_reason = "Provider not found"
+    elif not provider.data_updated_timestamp:
+        skip_reason = "No data exists yet"
+
+    if skip_reason:
+        LOG.info(log_json(tracing_id, msg=f"Skipping cost model update. {skip_reason}.", context=context))
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        return
+
     LOG.info(log_json(tracing_id, msg="updating cost model costs", context=context))
 
     try:
