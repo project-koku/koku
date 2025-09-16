@@ -98,7 +98,7 @@ class ResourceTypeView(APIView):
             }
             settings_dict = {
                 "value": "settings",
-                "available": 1,
+                "count": 1,
             }
             data = [
                 aws_account_dict,
