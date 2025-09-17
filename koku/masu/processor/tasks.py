@@ -888,8 +888,8 @@ def update_cost_model_costs(  # noqa: C901
         LOG.info(
             log_json(
                 tracing_id,
-                msg=f"Skipping cost model update for source {provider_uuid}. No data has been processed yet.",
-                context={"schema": schema_name},
+                msg="Skipping cost model update. No data has been processed yet.",
+                context={"schema": schema_name, "provider_uuid": provider_uuid},
             )
         )
         return
