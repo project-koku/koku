@@ -883,13 +883,8 @@ def update_cost_model_costs(  # noqa: C901
 
     """
     # Check if provider exists and has processed data before attempting to lock the task
-    try:
-        provider = Provider.objects.get(uuid=provider_uuid)
-    except Provider.DoesNotExist:
-        LOG.warning(f"Provider with uuid {provider_uuid} not found. Skipping cost model update.")
-        return
-
-    if not provider.data_updated_timestamp:
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    if provider and not provider.data_updated_timestamp:
         LOG.info(
             log_json(
                 tracing_id,
