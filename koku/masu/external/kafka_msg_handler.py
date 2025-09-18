@@ -57,6 +57,8 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from masu.util.ocp import common as utils
 from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
+from reporting_common.states import CombinedChoices
 from reporting_common.states import ManifestState
 from reporting_common.states import ManifestStep
 
@@ -70,10 +72,17 @@ class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
 
 
+class EmptyPayloadFileError(pd.errors.EmptyDataError):
+    """Empty payload file error."""
+
+
 def get_data_frame(file_path: os.PathLike):
     """read csv file into dataframe"""
     try:
         return pd.read_csv(file_path, dtype=pd.StringDtype(storage="pyarrow"), on_bad_lines="warn")
+    except pd.errors.EmptyDataError as error:
+        LOG.warning(f"File {file_path} is empty.")
+        raise EmptyPayloadFileError("File is empty.") from error
     except Exception as error:
         LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
         raise error
@@ -427,6 +436,14 @@ def extract_payload(url, request_id, b64_identity, context):  # noqa: C901
             current_meta["split_files"] = list(split_files)
             current_meta["ocp_files_to_process"] = {file.stem: meta for file, meta in split_files.items()}
             report_metas.append(current_meta)
+        except EmptyPayloadFileError:
+            CostUsageReportStatus.objects.get(report_name=report_file, manifest_id=manifest.manifest_id).update_status(
+                CombinedChoices.DONE
+            )
+            current_meta["process_complete"] = True
+            report_metas.append(current_meta)
+            msg = f"File {str(report_file)} is empty."
+            LOG.warning(log_json(manifest.uuid, msg=msg, context=context))
         except FileNotFoundError:
             msg = f"File {str(report_file)} has not downloaded yet."
             LOG.debug(log_json(manifest.uuid, msg=msg, context=context))
@@ -659,6 +676,9 @@ def process_messages(msg):
             ):
                 # we have not received all of the daily files yet, so don't process them
                 break
+            if report_meta.get("process_complete"):
+                # probably an empty file, so skip it
+                continue
             report_meta["process_complete"] = process_report(request_id, report_meta)
             LOG.info(
                 log_json(

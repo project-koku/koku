@@ -1,13 +1,8 @@
-{% if unattributed_storage %}
 DELETE FROM hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND year = {{year}}
-AND month = {{month}}
-{% endif %}
-;
+AND month = {{month}};
 
-
-{% if unattributed_storage %}
 INSERT INTO hive.{{schema | sqlsafe}}.managed_azure_openshift_disk_capacities_temp (
     resource_id,
     capacity,
@@ -37,9 +32,7 @@ WHERE azure.date >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND azure.ocp_source = {{ocp_provider_uuid}}
     and azure.source = {{cloud_provider_uuid}}
     AND azure.resource_id_matched = True
-GROUP BY azure.resource_id, date(date)
-{% endif %}
-;
+GROUP BY azure.resource_id, date(date);
 
 DELETE FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
@@ -47,7 +40,6 @@ AND source = {{cloud_provider_uuid}}
 AND year = {{year}}
 AND month = {{month}};
 
-{% if unattributed_storage %}
 -- resource_id matching
 -- Storage disk resources:
 -- (PV’s Capacity) / Disk Capacity * Cost of Disk
@@ -163,12 +155,8 @@ SELECT cast(uuid() as varchar) as row_uuid,
         AND az_disk.year = {{year}}
         AND az_disk.month = {{month}}
         AND az_disk.ocp_source = {{ocp_provider_uuid}}
-    GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels
--- The endif needs to come before the ; when using sqlparse
-{% endif %}
-;
+    GROUP BY azure.row_uuid, ocp.namespace, ocp.data_source, ocp.pod_labels, ocp.volume_labels;
 
-{% if unattributed_storage %}
 -- Unallocated Cost: ((Disk Capacity - Sum(PV capacity) / Disk Capacity) * Cost of Disk
 INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (
     row_uuid,
@@ -281,9 +269,7 @@ SELECT cast(uuid() as varchar) as row_uuid, -- need a new uuid or it will dedupl
         AND ocp.namespace != 'Storage unattributed'
         AND az_disk.year = {{year}}
         AND az_disk.month = {{month}}
-    GROUP BY azure.row_uuid, ocp.data_source, azure.resource_id
-{% endif %}
-;
+    GROUP BY azure.row_uuid, ocp.data_source, azure.resource_id;
 
 -- Directly Pod resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpazurecostlineitem_project_daily_summary_temp (

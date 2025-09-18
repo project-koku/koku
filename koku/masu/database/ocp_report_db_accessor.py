@@ -537,6 +537,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
             "start_date": start_date,
             "end_date": end_date,
             "report_period": report_period,
+            "cost_type": cost_type,
         }
         if not report_period:
             LOG.info(
