@@ -1723,3 +1723,21 @@ class TestRemoveStaleTenants(MasuTestCase):
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
             self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
+
+
+class UpdateCostModelCostsTest(MasuTestCase):
+    """Test cases for the update_cost_model_costs task."""
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_setup_not_complete(self, mock_updater):
+        """
+        Test that the task exits early if provider setup is not complete.
+        """
+        provider = self.aws_provider
+        provider.setup_complete = False
+        provider.save()
+
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_cost_model_costs(self.schema, provider.uuid)
+            self.assertIn("Skipping cost model update. Provider setup is not complete.", str(logger.output))
+        mock_updater.assert_not_called()
