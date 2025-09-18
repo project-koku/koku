@@ -882,18 +882,6 @@ def update_cost_model_costs(  # noqa: C901
         None
 
     """
-    # Check if provider exists and has processed data before attempting to lock the task
-    provider = Provider.objects.filter(uuid=provider_uuid).first()
-    if provider and not provider.data_updated_timestamp:
-        LOG.info(
-            log_json(
-                tracing_id,
-                msg="Skipping cost model update. No data has been processed yet.",
-                context={"schema": schema_name, "provider_uuid": provider_uuid},
-            )
-        )
-        return
-
     task_name = "masu.processor.tasks.update_cost_model_costs"
     cache_args = [schema_name, provider_uuid, start_date, end_date]
     if not synchronous:

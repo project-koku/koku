@@ -87,7 +87,7 @@ class CostModelManager:
             except Provider.DoesNotExist:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
-                if provider.active:
+                if provider.active and provider.data_updated_timestamp:
                     schema_name = provider.customer.schema_name
                     fallback_queue = get_customer_queue(schema_name, PriorityQueue)
                     # Because this is triggered from the UI, we use the priority queue
