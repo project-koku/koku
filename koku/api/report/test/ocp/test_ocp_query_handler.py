@@ -1203,13 +1203,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for project in expected:
             ranking_map[project.get("project")] = count
             count += 1
-
-        print("*" * 50)
-        print(f"DEBUGGING FOR DATE: {yesterday}")
-        print("RANKING:", ranking_map)
-        print("API RETORNED:", data)
-        print("*" * 50)
-
         for element in data:
             previous = 0
             for project in element.get("projects"):
