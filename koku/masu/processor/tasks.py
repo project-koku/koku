@@ -884,13 +884,17 @@ def update_cost_model_costs(  # noqa: C901
     """
     provider = Provider.objects.filter(uuid=provider_uuid).first()
     if not provider:
-        LOG.warning(f"Provider with uuid {provider_uuid} not found. Skipping cost model update.")
+        LOG.warning(
+            log_json(
+                msg="Provider not found. Skipping cost model update.",
+                context={"schema": schema_name, "provider_uuid": provider_uuid},
+            )
+        )
         return
 
     if not provider.setup_complete:
         LOG.info(
             log_json(
-                tracing_id,
                 msg="Skipping cost model update. Provider setup is not complete.",
                 context={"schema": schema_name, "provider_uuid": provider_uuid},
             )
