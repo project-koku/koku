@@ -133,10 +133,20 @@ def trigger_ocp_on_cloud_summary(
             )
         )
         return
-    updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
     ocp_on_cloud_infra_map = None
     try:
+        updater = ReportSummaryUpdater(schema, provider_uuid, manifest_id, tracing_id)
         ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="possible source/provider delete during processing - halting OCP on cloud processing",
+                context=context,
+            ),
+            exc_info=ex,
+        )
+        return
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(log_json(tracing_id, msg=f"failed to correlate OpenShift metrics: error: {ex}", context=context))
     if not ocp_on_cloud_infra_map:
@@ -681,7 +691,24 @@ def delete_openshift_on_cloud_data(
     tracing_id=None,
 ):
     """Clear existing data from tables for date range."""
-    updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+    context = {
+        "schema": schema_name,
+        "provider_uuid": infrastructure_provider_uuid,
+        "table_name": table_name,
+        "operation": operation,
+    }
+    try:
+        updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+    except ReportSummaryUpdaterProviderNotFoundError as ex:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                msg="possible source/provider delete during processing - halting OCP on cloud delete processing",
+                context=context,
+            ),
+            exc_info=ex,
+        )
+        return
 
     if operation == TRUNCATE_TABLE:
         updater._ocp_cloud_updater.truncate_summary_table_data(table_name)
