@@ -317,7 +317,6 @@ class ReportQueryHandler(QueryHandler):
         fields = self._mapper._provider_map.get("filters")
 
         access_filters = QueryFilterCollection()
-
         special_q_objects = Q()
 
         aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
@@ -335,24 +334,24 @@ class ReportQueryHandler(QueryHandler):
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             exclude_ = self.parameters.get_exclude(q_param, list())
-
             partial_list = self.parameters.get_filter(q_param, list())
             exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
-
-            if partial_list and exact_list:
+            if partial_list or exact_list:
                 or_collection = QueryFilterCollection()
-                for item in partial_list:
-                    or_collection.add(QueryFilter(parameter=item, **filt))
-                exact_filt = filt.copy() if isinstance(filt, dict) else filt[0].copy()
-                if not isinstance(exact_filt, list):
-                    exact_filt["operation"] = "exact"
-                for item in exact_list:
-                    or_collection.add(QueryFilter(parameter=item, **exact_filt))
-
-                special_q_objects &= or_collection.compose(logical_operator="or")
+                if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
+                    for item in partial_list:
+                        or_collection.add(QueryFilter(parameter=item, **filt))
+                if exact_list:
+                    exact_filt = filt.copy() if isinstance(filt, dict) else filt[0].copy()
+                    if not isinstance(exact_filt, list):
+                        exact_filt["operation"] = "exact"
+                    for item in exact_list:
+                        or_collection.add(QueryFilter(parameter=item, **exact_filt))
+                if or_collection:
+                    special_q_objects &= or_collection.compose(logical_operator="or")
                 continue
 
-            list_ = list(set(group_by + partial_list))
+            list_ = list(set(group_by))
 
             if isinstance(filt, list):
                 for _filt in filt:
