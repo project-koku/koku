@@ -22,6 +22,8 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from masu.processor import GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
+from masu.processor import is_feature_flag_enabled_by_account
 from masu.processor import is_tag_processing_disabled
 from masu.processor.parquet.summary_sql_metadata import SummarySqlMetadata
 from reporting.provider.all.models import EnabledTagKeys
@@ -310,6 +312,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        enable_unattributed_storage = is_feature_flag_enabled_by_account(
+            self.schema, GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
+        )
         sql_metadata = SummarySqlMetadata(
             self.schema,
             openshift_provider_uuid,
@@ -322,7 +327,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
         managed_path = "trino_sql/gcp/openshift/populate_daily_summary/"
         prepare_sql, prepare_params = sql_metadata.prepare_template(
-            f"{managed_path}/0_prepare_daily_summary_tables.sql"
+            f"{managed_path}/0_prepare_daily_summary_tables.sql", {"unattributed_storage": enable_unattributed_storage}
         )
         LOG.info(log_json(msg="Preparing tables for OCP on GCP flow", **prepare_params))
         self._execute_trino_multipart_sql_query(prepare_sql, bind_params=prepare_params)
@@ -338,6 +343,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/1_resource_matching_by_cluster.sql",
             {
                 "matched_tag_array": self.find_openshift_keys_expected_values(sql_metadata),
+                "unattributed_storage": enable_unattributed_storage,
             },
         )
         LOG.info(log_json(msg="Resource matching for OCP on GCP flow", **resource_matching_params))
@@ -347,6 +353,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             f"{managed_path}/2_summarize_data_by_cluster.sql",
             {
                 **sql_metadata.build_cost_model_params(),
+                "unattributed_storage": enable_unattributed_storage,
             },
         )
         LOG.info(log_json(msg="executing data transformations for ocp on gcp daily summary", **daily_summary_params))

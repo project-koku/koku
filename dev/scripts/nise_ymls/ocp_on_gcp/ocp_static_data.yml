@@ -33,6 +33,7 @@ generators:
                   storage_class: pd-standard
                   volume_request_gig: 20
                   labels: label_environment:ruby|label_app:fall|label_version:red|label_storageclass:banana
+                  csi_volume_handle: projects/billion-sandwich-555777888/zones/us-central1/disk/test_40_capacity
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: fall_pod_name1_data
@@ -62,6 +63,7 @@ generators:
                   volume_name: pvc-volume_2
                   storage_class: pd-standard
                   volume_request_gig: 20
+                  csi_volume_handle: projects/billion-sandwich-555777888/zones/us-central1/disk/test_50_capacity
                   labels: label_environment:ruby|label_app:snowdown|label_version:red|label_storageclass:watermelon
                   volume_claims:
                   - volume_claim:

@@ -355,10 +355,6 @@ class QueryHandler:
         end_filter = QueryFilter(field="usage_start", operation="lte", parameter=end.date())
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
-        # COST-3043
-        filter_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter", [])
-        for conditional_filter in filter_list:
-            filters.add(**conditional_filter)
         return filters
 
     def filter_to_order_by(self, parameters):  # noqa: C901

@@ -153,6 +153,7 @@ OCP_ON_AZURE_PERSPECTIVES = (
 TRINO_MANAGED_TABLES = {
     "reporting_ocpusagelineitem_daily_summary": "source",
     "managed_gcp_openshift_daily_temp": "ocp_source",
+    "managed_gcp_openshift_disk_capacities_temp": "ocp_source",
     "managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp": "ocp_source",
     "managed_reporting_ocpgcpcostlineitem_project_daily_summary": "ocp_source",
     "managed_aws_openshift_daily_temp": "ocp_source",

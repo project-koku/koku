@@ -15,6 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.report.gcp.filter_collection import gcp_storage_conditional_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
 from reporting.provider.gcp.models import GCPComputeSummaryP
@@ -434,14 +435,12 @@ class GCPProviderMap(ProviderMap):
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "conditionals": {
-                            GCPCostEntryLineItemDailySummary: {
-                                "filter": [
-                                    {
-                                        "field": "service_alias",
-                                        "operation": "in",
-                                        "parameter": ["Filestore", "Data Transfer", "Storage", "Cloud Storage"],
-                                    },
-                                ],
+                            "conditionals": {
+                                GCPCostEntryLineItemDailySummary: {
+                                    "filter_collection": lambda: gcp_storage_conditional_filter_collection(
+                                        schema_name
+                                    ),
+                                },
                             },
                         },
                         "cost_units_key": "currency",
