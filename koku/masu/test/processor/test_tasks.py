@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 import time
+import uuid
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
@@ -1794,11 +1795,23 @@ class UpdateCostModelCostsTest(MasuTestCase):
     """Test cases for the update_cost_model_costs task."""
 
     @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_provider_not_found(self, mock_updater):
+        """
+        Test that the task exits early if the provider UUID is not found.
+        """
+        non_existent_uuid = str(uuid.uuid4())
+        with self.assertLogs("masu.processor.tasks", level="WARNING") as logger:
+            update_cost_model_costs(self.schema, non_existent_uuid)
+            self.assertIn("Provider not found. Skipping cost model update.", str(logger.output))
+        mock_updater.assert_not_called()
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
     def test_update_cost_model_costs_setup_not_complete(self, mock_updater):
         """
         Test that the task exits early if provider setup is not complete.
         """
         provider = self.aws_provider
+        original_setup_complete = provider.setup_complete
         provider.setup_complete = False
         provider.save()
 
@@ -1806,3 +1819,5 @@ class UpdateCostModelCostsTest(MasuTestCase):
             update_cost_model_costs(self.schema, provider.uuid)
             self.assertIn("Skipping cost model update. Provider setup is not complete.", str(logger.output))
         mock_updater.assert_not_called()
+        provider.setup_complete = original_setup_complete
+        provider.save()
