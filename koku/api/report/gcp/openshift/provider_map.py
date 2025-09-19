@@ -15,7 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
-from api.report.gcp.provider_map import gcp_storage_conditional_filter_collection
+from api.report.gcp.filter_collection import gcp_storage_conditional_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPGCPComputeSummaryP
 from reporting.models import OCPGCPCostLineItemProjectDailySummaryP
@@ -442,7 +442,7 @@ class OCPGCPProviderMap(ProviderMap):
                         ],
                         "conditionals": {
                             OCPGCPCostLineItemProjectDailySummaryP: {
-                                "filter_collection": gcp_storage_conditional_filter_collection(),
+                                "filter_collection": lambda: gcp_storage_conditional_filter_collection(schema_name),
                             },
                         },
                         "cost_units_key": "currency",

@@ -20,6 +20,15 @@ LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
+GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
+
+
+def is_feature_flag_enabled_by_account(account, feature_flag):  # pragma: no cover
+    """Generic method for checking if a feature flag is enabled."""
+    account = convert_account(account)
+    context = {"schema": account}
+    return UNLEASH_CLIENT.is_enabled(feature_flag, context)
+
 
 def is_purge_trino_files_enabled(account):  # pragma: no cover
     """Helper to determine if account is enabled for deleting trino files."""
@@ -167,11 +176,3 @@ def is_status_api_update_enabled(account):  # pragma: no cover
     account = convert_account(account)
     context = {"schema": account}
     return UNLEASH_CLIENT.is_enabled("cost-management.backend.is_status_api_update_enabled", context)
-
-
-def is_feature_unattributed_storage_enabled_gcp(account):
-    """Should unattributed storage feature be enabled."""
-    unleash_flag = "cost-management.backend.unattributed_storage_gcp"
-    account = convert_account(account)
-    context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(unleash_flag, context, fallback_development_true)
