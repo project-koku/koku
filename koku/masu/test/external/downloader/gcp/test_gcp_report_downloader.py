@@ -281,13 +281,20 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_scan_start_setup_not_complete(self):
         """Test scan start provider setup is not complete"""
+        provider = self.gcp_provider
+        original_setup_complete = provider.setup_complete
+        original_timestamp = provider.data_updated_timestamp
+        provider.setup_complete = False
+        provider.data_updated_timestamp = None
+        provider.save()
         downloader = self.downloader
-        if self.gcp_provider.setup_complete:
-            self.gcp_provider.setup_complete = False
         months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
         expected_scan_start = self.dh.today.date() - relativedelta(months=months_delta)
         expected_scan_start = expected_scan_start.replace(day=1)
         self.assertEqual(downloader.scan_start, expected_scan_start)
+        provider.setup_complete = original_setup_complete
+        provider.data_updated_timestamp = original_timestamp
+        provider.save()
 
     def test_retrieve_current_manifests_mapping(self):
         """Test retrieving existing manifests mapping given bill_date and provider"""

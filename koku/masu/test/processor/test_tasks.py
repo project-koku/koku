@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 import time
+import uuid
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
@@ -198,6 +199,8 @@ class ProcessReportFileTests(MasuTestCase):
 
         mock_proc = mock_processor()
         mock_stats.get.return_value = mock_stats
+        self.aws_provider.setup_complete = False
+        self.aws_provider.save()
         self.aws_provider.refresh_from_db()
         self.assertFalse(self.aws_provider.setup_complete)
 
@@ -208,7 +211,8 @@ class ProcessReportFileTests(MasuTestCase):
         mock_stats.set_completed_datetime.assert_called()
         self.aws_provider.refresh_from_db()
         self.assertTrue(self.aws_provider.setup_complete)
-        shutil.rmtree(report_dir)
+        if os.path.exists(report_dir):
+            shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
@@ -1785,3 +1789,35 @@ class TestRemoveStaleTenants(MasuTestCase):
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
             self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
+
+
+class UpdateCostModelCostsTest(MasuTestCase):
+    """Test cases for the update_cost_model_costs task."""
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_provider_not_found(self, mock_updater):
+        """
+        Test that the task exits early if the provider UUID is not found.
+        """
+        non_existent_uuid = str(uuid.uuid4())
+        with self.assertLogs("masu.processor.tasks", level="WARNING") as logger:
+            update_cost_model_costs(self.schema, non_existent_uuid)
+            self.assertIn("Provider not found. Skipping cost model update.", str(logger.output))
+        mock_updater.assert_not_called()
+
+    @patch("masu.processor.tasks.CostModelCostUpdater")
+    def test_update_cost_model_costs_setup_not_complete(self, mock_updater):
+        """
+        Test that the task exits early if provider setup is not complete.
+        """
+        provider = self.aws_provider
+        original_setup_complete = provider.setup_complete
+        provider.setup_complete = False
+        provider.save()
+
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_cost_model_costs(self.schema, provider.uuid)
+            self.assertIn("Skipping cost model update. Provider setup is not complete.", str(logger.output))
+        mock_updater.assert_not_called()
+        provider.setup_complete = original_setup_complete
+        provider.save()

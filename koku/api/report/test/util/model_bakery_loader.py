@@ -128,6 +128,7 @@ class ModelBakeryDataLoader(DataLoader):
                 "authentication__credentials": credentials,
                 "customer": self.customer,
                 "data_updated_timestamp": timezone.now(),
+                "setup_complete": True,
             }
 
             if provider_type == Provider.PROVIDER_OCP:
