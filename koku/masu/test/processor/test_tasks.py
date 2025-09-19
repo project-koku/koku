@@ -198,6 +198,8 @@ class ProcessReportFileTests(MasuTestCase):
 
         mock_proc = mock_processor()
         mock_stats.get.return_value = mock_stats
+        self.aws_provider.setup_complete = False
+        self.aws_provider.save()
         self.aws_provider.refresh_from_db()
         self.assertFalse(self.aws_provider.setup_complete)
 
@@ -208,7 +210,8 @@ class ProcessReportFileTests(MasuTestCase):
         mock_stats.set_completed_datetime.assert_called()
         self.aws_provider.refresh_from_db()
         self.assertTrue(self.aws_provider.setup_complete)
-        shutil.rmtree(report_dir)
+        if os.path.exists(report_dir):
+            shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")
