@@ -3308,12 +3308,12 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:2bbbfb90a05349684ca5d26170c1798f5f0aff25a20fc90fde6e47eec7d60f2a",
-                "sha256:422a3157ff60adda82517ef9db6c56470bb53d86ff25c05f1ec0fc834d6fdf31"
+                "sha256:0d51712a3f2b74a686d3cb13a9818e291af7b758d52e36409e9b5acdcfc7fae5",
+                "sha256:96a2bb19aa3bea396ed6fb0f1908e475523e3b75a7a26dabc9ffe3e85f7b44ae"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.11'",
-            "version": "==5.1.14"
+            "version": "==5.1.15"
         },
         "kombu": {
             "hashes": [
