@@ -286,7 +286,8 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        exact_composed_filters = self._set_operator_specified_filters("exact")
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -298,10 +299,11 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
+        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
         return composed_filters
 
     def _get_search_filter(self, filters):  # noqa C901
@@ -323,50 +325,59 @@ class ReportQueryHandler(QueryHandler):
             aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
 
+        if self._category:
+            category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
+        composed_exclusions = None
 
         for q_param, filt in fields.items():
+            access = self.parameters.get_access(q_param, list())
+            group_by = self.parameters.get_group_by(q_param, list())
+            exclude_ = self.parameters.get_exclude(q_param, list())
             filter_ = self.parameters.get_filter(q_param, list())
-            list_ = list(set(filter_))  # uniquify the list
-            standard_list = list_
-            exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
-            use_composition_key = bool(standard_list and exact_list)
-            if not ReportQueryHandler.has_wildcard(standard_list):
-                if isinstance(filt, list):
-                    for _filt in filt:
-                        for item in standard_list:
-                            final_filt = copy.deepcopy(_filt)
-                            if use_composition_key:
-                                final_filt["composition_key"] = final_filt["field"]
-                            q_filter = QueryFilter(parameter=item, **final_filt)
-                            filters.add(q_filter)
-                else:
-                    for item in standard_list:
-                        final_filt = copy.deepcopy(filt)
-                        if use_composition_key:
-                            final_filt["composition_key"] = final_filt["field"]
-                        q_filter = QueryFilter(parameter=item, **final_filt)
-                        filters.add(q_filter)
-
+            list_ = list(set(group_by + filter_))  # uniquify the list
             if isinstance(filt, list):
                 for _filt in filt:
-                    for item in exact_list:
-                        final_filt = copy.deepcopy(_filt)
-                        if use_composition_key:
-                            final_filt["composition_key"] = final_filt["field"]
-                        q_filter = QueryFilter(parameter=item, **final_filt)
-                        q_filter.operation = "exact"
-                        filters.add(q_filter)
+                    if not ReportQueryHandler.has_wildcard(list_):
+                        for item in list_:
+                            q_filter = QueryFilter(parameter=item, **_filt)
+                            filters.add(q_filter)
+                    for item in exclude_:
+                        exclude_filter = QueryFilter(parameter=item, **_filt)
+                        exclusion.add(exclude_filter)
             else:
-                for item in exact_list:
-                    final_filt = copy.deepcopy(filt)
-                    if use_composition_key:
-                        final_filt["composition_key"] = final_filt["field"]
-                    q_filter = QueryFilter(parameter=item, **final_filt)
-                    q_filter.operation = "exact"
-                    filters.add(q_filter)
-
+                list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
+                if not ReportQueryHandler.has_wildcard(list_):
+                    for item in list_:
+                        if self._category:
+                            if any([item in cat for cat in self._category]):
+                                q_cat_filter = QueryFilter(
+                                    parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                                )
+                                category_filters.add(q_cat_filter)
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            else:
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            composed_category_filters = category_filters.compose(logical_operator="or")
+                        else:
+                            q_filter = QueryFilter(parameter=item, **filt)
+                            filters.add(q_filter)
+                exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
+                for item in exclude_:
+                    if self._category:
+                        if any([item in cat for cat in self._category]):
+                            exclude_cat_filter = QueryFilter(
+                                parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                            )
+                            exclusion.add(exclude_cat_filter)
+                    exclude_filter = QueryFilter(parameter=item, **filt)
+                    exclusion.add(exclude_filter)
+            if access:
+                access_filt = copy.deepcopy(filt)
+                self.set_access_filters(access, access_filt, access_filters)
         composed_exclusions = exclusion.compose(logical_operator="or")
         self.query_exclusions = self._check_for_operator_specific_exclusions(composed_exclusions)
         provider_map_exclusions = self._provider_map_conditional_exclusions()
@@ -553,56 +564,120 @@ class ReportQueryHandler(QueryHandler):
 
         return filter_collection
 
+    def _should_process_prefixed_list(self, prefixed_list, operator):
+        """Check if the prefixed list should be processed."""
+        if not prefixed_list:
+            return False
+        return operator == "exact" or not ReportQueryHandler.has_wildcard(prefixed_list)
+
+    def _add_filters_to_collection(self, collection, values, filt_config, q_param):
+        """Adds QueryFilter objects to a collection from a list of values."""
+        if not values:
+            return False
+
+        if isinstance(filt_config, list):
+            for _filt in filt_config:
+                for item in values:
+                    collection.add(QueryFilter(parameter=item, logical_operator="or", **_filt))
+        else:
+            custom_list = self._build_custom_filter_list(q_param, filt_config.get("custom"), values)
+            for item in custom_list:
+                collection.add(QueryFilter(parameter=item, logical_operator="or", **filt_config))
+        return True
+
+    def _compose_list_based_filters(self, filter_collection):
+        """Compose filters for list-based configurations (e.g. cluster)."""
+        or_composed = Q()
+        grouped_by_field = defaultdict(QueryFilterCollection)
+        for qf in filter_collection:
+            grouped_by_field[qf.field].add(qf)
+
+        for field_coll in grouped_by_field.values():
+            or_composed |= field_coll.compose(logical_operator="or")
+        return or_composed
+
+    def _handle_standalone_partial_filters(self, fields, processed_params, check_for_exclude=False):
+        """Handles partial filters that did not have a corresponding exact filter."""
+        composed_filter = Q()
+        if check_for_exclude:
+            return composed_filter
+
+        for q_param, filt in fields.items():
+            if q_param in processed_params:
+                continue
+
+            partial_list = self.parameters.get_filter(q_param, list())
+            if partial_list:
+                partial_filters = QueryFilterCollection()
+                self._add_filters_to_collection(partial_filters, partial_list, filt, q_param)
+                if isinstance(filt, list):
+                    composed_filter &= self._compose_list_based_filters(partial_filters)
+                else:
+                    composed_filter &= partial_filters.compose(logical_operator="or")
+        return composed_filter
+
+    def _process_single_field_filter(self, q_param, filt, operator, check_for_exclude):
+        """Processes all filter variations for a single field and returns a Q object."""
+        field_specific_filters = QueryFilterCollection()
+        param_values_found = False
+        partial_processed = False
+        composed_q = Q()
+
+        # 1. Handle the prefixed operator (e.g., exact:node)
+        if check_for_exclude:
+            prefixed_list = self.parameters.get_exclude(f"{operator}:{q_param}", list())
+        else:
+            prefixed_list = list(
+                set(
+                    self.parameters.get_group_by(f"{operator}:{q_param}", [])
+                    + self.parameters.get_filter(f"{operator}:{q_param}", [])
+                )
+            )
+
+        if self._should_process_prefixed_list(prefixed_list, operator):
+            filt_config = filt[0] if isinstance(filt, list) else filt.copy()
+            if not isinstance(filt, list) and operator == "exact":
+                filt_config["operation"] = "exact"
+            if self._add_filters_to_collection(field_specific_filters, prefixed_list, filt_config, q_param):
+                param_values_found = True
+
+        # 2. If it's an exact filter, also check for a corresponding partial-match filter
+        if operator == "exact" and not check_for_exclude:
+            partial_list = self.parameters.get_filter(q_param, list())
+            if self._add_filters_to_collection(field_specific_filters, partial_list, filt, q_param):
+                param_values_found = True
+                partial_processed = True
+
+        # 3. If we found any filters for this field, compose them
+        if param_values_found:
+            if isinstance(filt, list):
+                composed_q = self._compose_list_based_filters(field_specific_filters)
+            else:
+                composed_q = field_specific_filters.compose(logical_operator="or")
+
+        return composed_q, partial_processed
+
     def _set_operator_specified_filters(self, operator, check_for_exclude=False):
         """Set any filters using AND instead of OR."""
         fields = self._mapper._provider_map.get("filters")
-        filters = QueryFilterCollection()
         composed_filter = Q()
+        processed_params = set()
 
         for q_param, filt in fields.items():
-            q_param = f"{operator}:{q_param}"
-            group_by = self.parameters.get_group_by(q_param, list())
-            if check_for_exclude:
-                list_ = self.parameters.get_exclude(q_param, list())
-            else:
-                filter_ = self.parameters.get_filter(q_param, list())
-                list_ = list(set(group_by + filter_))  # uniquify the list
-            logical_operator = operator
-            # This is a flexibilty feature allowing a user to set
-            # a single and: value and still get a result instead
-            # of erroring on validation
-            if len(list_) < 2 and logical_operator != "exact":
-                logical_operator = "or"
-            if list_ and (operator == "exact" or not ReportQueryHandler.has_wildcard(list_)):
-                # always add exact filters to the filter collection
-                if isinstance(filt, list):
-                    for _filt in filt:
-                        filt_filters = QueryFilterCollection()
-                        for item in list_:
-                            q_filter = QueryFilter(parameter=item, logical_operator=logical_operator, **_filt)
-                            filt_filters.add(q_filter)
-                        # List filter are a complex mix of and/or logic
-                        # Each filter in the list must be ORed together
-                        # regardless of the operator on the item in the filter
-                        # Ex:
-                        # (OR:
-                        #     (AND:
-                        #         ('cluster_alias__icontains', 'ni'),
-                        #         ('cluster_alias__icontains', 'se')
-                        #     ),
-                        #     (AND:
-                        #         ('cluster_id__icontains', 'ni'),
-                        #         ('cluster_id__icontains', 'se')
-                        #     )
-                        # )
-                        composed_filter = composed_filter | filt_filters.compose()
-                else:
-                    list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
-                    for item in list_:
-                        q_filter = QueryFilter(parameter=item, logical_operator=logical_operator, **filt)
-                        filters.add(q_filter)
-        if filters:
-            composed_filter = composed_filter & filters.compose()
+            param_key = f"{operator}:{q_param}"
+            if param_key in processed_params:
+                continue
+
+            field_q, partial_processed = self._process_single_field_filter(q_param, filt, operator, check_for_exclude)
+            composed_filter &= field_q
+            processed_params.add(param_key)
+            if partial_processed:
+                processed_params.add(q_param)
+
+        # Handle standalone partial filters
+        if operator == "exact":
+            composed_filter &= self._handle_standalone_partial_filters(fields, processed_params, check_for_exclude)
+
         return composed_filter
 
     def _get_filter(self, delta=False):
