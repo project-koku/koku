@@ -1644,9 +1644,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         expected_end_date = end_date.strftime("%Y-%m-%d")
         task_name = "masu.processor.tasks.update_cost_model_costs"
         cache_args = [self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date]
-        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
-        provider.setup_complete = True
-        provider.save()
 
         mock_updater.side_effect = ReportProcessorError
         with self.assertRaises(ReportProcessorError):
