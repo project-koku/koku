@@ -336,22 +336,26 @@ class ReportQueryHandler(QueryHandler):
             exclude_ = self.parameters.get_exclude(q_param, list())
             partial_list = self.parameters.get_filter(q_param, list())
             exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
-            if partial_list or exact_list:
+            special_handling_params = ["node", "cluster"]
+            if q_param in special_handling_params and (partial_list or exact_list):
                 or_collection = QueryFilterCollection()
+                filt_list = filt if isinstance(filt, list) else [filt]
                 if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
                     for item in partial_list:
-                        or_collection.add(QueryFilter(parameter=item, **filt))
+                        for f in filt_list:  # Iterate through each config
+                            or_collection.add(QueryFilter(parameter=item, **f))
+                # Add exact filters if they exist
                 if exact_list:
-                    exact_filt = filt.copy() if isinstance(filt, dict) else filt[0].copy()
-                    if not isinstance(exact_filt, list):
-                        exact_filt["operation"] = "exact"
                     for item in exact_list:
-                        or_collection.add(QueryFilter(parameter=item, **exact_filt))
+                        for f in filt_list:  # Iterate through each config
+                            exact_filt = f.copy()
+                            exact_filt["operation"] = "exact"
+                            or_collection.add(QueryFilter(parameter=item, **exact_filt))
                 if or_collection:
                     special_q_objects &= or_collection.compose(logical_operator="or")
                 continue
 
-            list_ = list(set(group_by))
+            list_ = list(set(group_by + partial_list))
 
             if isinstance(filt, list):
                 for _filt in filt:
