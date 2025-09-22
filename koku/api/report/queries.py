@@ -284,8 +284,9 @@ class ReportQueryHandler(QueryHandler):
             )
 
         composed_filters = filter_collection.compose()
+        and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = composed_filters & or_composed_filters
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -295,13 +296,32 @@ class ReportQueryHandler(QueryHandler):
     def _check_for_operator_specific_exclusions(self, composed_filters):
         """Check for operator specific filters for exclusions."""
         # Tag exclusion filters are added to the self.query_filter. COST-3199
-        or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = composed_filters & or_composed_filters
+        and_composed_filters = self._set_operator_specified_filters("and", True)
+        or_composed_filters = self._set_operator_specified_filters("or", True)
+        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & or_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
         else:
-            composed_filters = or_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
         return composed_filters
+
+    def _is_simple_text_filter(self, filt_config):
+        """
+        Checks if a filter configuration represents a simple text-based filter
+        that supports 'icontains' and has no custom business logic.
+        """
+        # Handles cases like 'cluster' where the config is a list of dictionaries.
+        # We assume it's simple if the first configuration in the list is simple.
+        if isinstance(filt_config, list):
+            if not filt_config:
+                return False
+            filt_config = filt_config[0]
+
+        # A filter is simple if its default operation is 'icontains' and it has no 'custom' key.
+        is_text_search = filt_config.get("operation") == "icontains"
+        has_no_custom_logic = "custom" not in filt_config
+
+        return is_text_search and has_no_custom_logic
 
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
@@ -312,7 +332,6 @@ class ReportQueryHandler(QueryHandler):
             (QueryFilterCollection): populated collection of query filters
 
         """
-        # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
 
         access_filters = QueryFilterCollection()
@@ -322,12 +341,7 @@ class ReportQueryHandler(QueryHandler):
         if aws_use_or_operator:
             aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
-
-        if self._category:
-            category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
-        composed_category_filters = None
-        composed_exclusions = None
 
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
@@ -335,8 +349,8 @@ class ReportQueryHandler(QueryHandler):
             exclude_ = self.parameters.get_exclude(q_param, list())
             partial_list = self.parameters.get_filter(q_param, list())
             exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
-            special_handling_params = ["node", "cluster"]
-            if q_param in special_handling_params and (partial_list or exact_list):
+
+            if self._is_simple_text_filter(filt) and (partial_list or exact_list):
                 or_collection = QueryFilterCollection()
                 filt_list = filt if isinstance(filt, list) else [filt]
                 if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
@@ -360,40 +374,17 @@ class ReportQueryHandler(QueryHandler):
                 for _filt in filt:
                     if not ReportQueryHandler.has_wildcard(list_):
                         for item in list_:
-                            q_filter = QueryFilter(parameter=item, **_filt)
-                            filters.add(q_filter)
+                            filters.add(QueryFilter(parameter=item, **_filt))
                     for item in exclude_:
-                        exclude_filter = QueryFilter(parameter=item, **_filt)
-                        exclusion.add(exclude_filter)
+                        exclusion.add(QueryFilter(parameter=item, **_filt))
             else:
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
                     for item in list_:
-                        if self._category:
-                            if any([item in cat for cat in self._category]):
-                                q_cat_filter = QueryFilter(
-                                    parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
-                                )
-                                category_filters.add(q_cat_filter)
-                                q_filter = QueryFilter(parameter=item, **filt)
-                                category_filters.add(q_filter)
-                            else:
-                                q_filter = QueryFilter(parameter=item, **filt)
-                                category_filters.add(q_filter)
-                            composed_category_filters = category_filters.compose(logical_operator="or")
-                        else:
-                            q_filter = QueryFilter(parameter=item, **filt)
-                            filters.add(q_filter)
+                        filters.add(QueryFilter(parameter=item, **filt))
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
-                    if self._category:
-                        if any([item in cat for cat in self._category]):
-                            exclude_cat_filter = QueryFilter(
-                                parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
-                            )
-                            exclusion.add(exclude_cat_filter)
-                    exclude_filter = QueryFilter(parameter=item, **filt)
-                    exclusion.add(exclude_filter)
+                    exclusion.add(QueryFilter(parameter=item, **filt))
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
@@ -403,8 +394,7 @@ class ReportQueryHandler(QueryHandler):
         if provider_map_exclusions:
             self.query_exclusions = self.query_exclusions | provider_map_exclusions
         composed_filters = self._check_for_operator_specific_filters(filters)
-        if composed_category_filters:
-            composed_filters = composed_filters & composed_category_filters
+
         composed_filters &= special_q_objects
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
