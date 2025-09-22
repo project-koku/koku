@@ -352,6 +352,8 @@ class ReportQueryHandler(QueryHandler):
             partial_list = self.parameters.get_filter(q_param, list())
             exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
 
+            # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
+            # The 'continue' prevents duplicate processing.
             if self._is_simple_text_filter(filt) and (partial_list or exact_list):
                 or_collection = QueryFilterCollection()
                 filt_list = filt if isinstance(filt, list) else [filt]
