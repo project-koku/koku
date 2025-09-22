@@ -43,6 +43,7 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
+from api.report.constants import FILTERS_WITH_EXACT_SUPPORT
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
 
@@ -304,23 +305,6 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
 
-    def _is_simple_text_filter(self, filt_config):
-        """
-        Checks if a filter configuration represents a simple text-based filter
-        that supports 'icontains' and has no custom business logic.
-        """
-        # Handles cases like 'cluster' where the config is a list of dictionaries.
-        # We assume it's simple if the first configuration in the list is simple.
-        if isinstance(filt_config, list):
-            if not filt_config:
-                return False
-            filt_config = filt_config[0]
-
-        # A filter is simple if its default operation is 'icontains' and it has no 'custom' key.
-        is_text_search = filt_config.get("operation") == "icontains"
-        has_no_custom_logic = "custom" not in filt_config
-        return is_text_search and has_no_custom_logic
-
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
 
@@ -354,7 +338,7 @@ class ReportQueryHandler(QueryHandler):
 
             # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
             # The 'continue' prevents duplicate processing.
-            if self._is_simple_text_filter(filt) and (partial_list or exact_list):
+            if q_param in FILTERS_WITH_EXACT_SUPPORT and (partial_list or exact_list):
                 or_collection = QueryFilterCollection()
                 filt_list = filt if isinstance(filt, list) else [filt]
                 if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
