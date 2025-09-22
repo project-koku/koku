@@ -330,6 +330,7 @@ class ReportQueryHandler(QueryHandler):
             (QueryFilterCollection): populated collection of query filters
 
         """
+        # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
         special_q_objects = Q()
@@ -368,7 +369,7 @@ class ReportQueryHandler(QueryHandler):
                 continue
 
             filter_ = self.parameters.get_filter(q_param, list())
-            list_ = list(set(group_by + filter_))
+            list_ = list(set(group_by + filter_))  # uniquify the list
             if isinstance(filt, list):
                 for _filt in filt:
                     if not ReportQueryHandler.has_wildcard(list_):
