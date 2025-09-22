@@ -332,17 +332,18 @@ class ReportQueryHandler(QueryHandler):
         """
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
+
         access_filters = QueryFilterCollection()
         special_q_objects = Q()
         aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
         if aws_use_or_operator:
             aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
+
         if self._category:
             category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
-        composed_exclusions = None
 
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
@@ -374,9 +375,11 @@ class ReportQueryHandler(QueryHandler):
                 for _filt in filt:
                     if not ReportQueryHandler.has_wildcard(list_):
                         for item in list_:
-                            filters.add(QueryFilter(parameter=item, **_filt))
+                            q_filter = QueryFilter(parameter=item, **_filt)
+                            filters.add(q_filter)
                     for item in exclude_:
-                        exclusion.add(QueryFilter(parameter=item, **_filt))
+                        exclude_filter = QueryFilter(parameter=item, **_filt)
+                        exclusion.add(exclude_filter)
             else:
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
@@ -394,7 +397,8 @@ class ReportQueryHandler(QueryHandler):
                                 category_filters.add(q_filter)
                             composed_category_filters = category_filters.compose(logical_operator="or")
                         else:
-                            filters.add(QueryFilter(parameter=item, **filt))
+                            q_filter = QueryFilter(parameter=item, **filt)
+                            filters.add(q_filter)
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
                     if self._category:
@@ -403,11 +407,11 @@ class ReportQueryHandler(QueryHandler):
                                 parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
                             )
                             exclusion.add(exclude_cat_filter)
-                    exclusion.add(QueryFilter(parameter=item, **filt))
+                    exclude_filter = QueryFilter(parameter=item, **filt)
+                    exclusion.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
-
         composed_exclusions = exclusion.compose(logical_operator="or")
         self.query_exclusions = self._check_for_operator_specific_exclusions(composed_exclusions)
         provider_map_exclusions = self._provider_map_conditional_exclusions()
@@ -419,6 +423,7 @@ class ReportQueryHandler(QueryHandler):
 
         composed_filters &= special_q_objects
 
+        # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
         if aws_use_or_operator and aws_or_filter_collections:
             composed_filters = aws_or_filter_collections & composed_filters
