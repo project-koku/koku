@@ -298,11 +298,10 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
-        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
 
     def _is_simple_text_filter(self, filt_config):
@@ -320,7 +319,6 @@ class ReportQueryHandler(QueryHandler):
         # A filter is simple if its default operation is 'icontains' and it has no 'custom' key.
         is_text_search = filt_config.get("operation") == "icontains"
         has_no_custom_logic = "custom" not in filt_config
-
         return is_text_search and has_no_custom_logic
 
     def _get_search_filter(self, filters):  # noqa C901
@@ -333,15 +331,17 @@ class ReportQueryHandler(QueryHandler):
 
         """
         fields = self._mapper._provider_map.get("filters")
-
         access_filters = QueryFilterCollection()
         special_q_objects = Q()
-
         aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
         if aws_use_or_operator:
             aws_or_filter_collections = filters.compose()
             filters = QueryFilterCollection()
+        if self._category:
+            category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
+        composed_category_filters = None
+        composed_exclusions = None
 
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
@@ -357,7 +357,6 @@ class ReportQueryHandler(QueryHandler):
                     for item in partial_list:
                         for f in filt_list:  # Iterate through each config
                             or_collection.add(QueryFilter(parameter=item, **f))
-                # Add exact filters if they exist
                 if exact_list:
                     for item in exact_list:
                         for f in filt_list:  # Iterate through each config
@@ -368,8 +367,8 @@ class ReportQueryHandler(QueryHandler):
                     special_q_objects &= or_collection.compose(logical_operator="or")
                 continue
 
-            list_ = list(set(group_by + partial_list))
-
+            filter_ = self.parameters.get_filter(q_param, list())
+            list_ = list(set(group_by + filter_))
             if isinstance(filt, list):
                 for _filt in filt:
                     if not ReportQueryHandler.has_wildcard(list_):
@@ -381,22 +380,44 @@ class ReportQueryHandler(QueryHandler):
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
                 if not ReportQueryHandler.has_wildcard(list_):
                     for item in list_:
-                        filters.add(QueryFilter(parameter=item, **filt))
+                        if self._category:
+                            if any([item in cat for cat in self._category]):
+                                q_cat_filter = QueryFilter(
+                                    parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                                )
+                                category_filters.add(q_cat_filter)
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            else:
+                                q_filter = QueryFilter(parameter=item, **filt)
+                                category_filters.add(q_filter)
+                            composed_category_filters = category_filters.compose(logical_operator="or")
+                        else:
+                            filters.add(QueryFilter(parameter=item, **filt))
                 exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
+                    if self._category:
+                        if any([item in cat for cat in self._category]):
+                            exclude_cat_filter = QueryFilter(
+                                parameter=item, **{"field": "cost_category__name", "operation": "icontains"}
+                            )
+                            exclusion.add(exclude_cat_filter)
                     exclusion.add(QueryFilter(parameter=item, **filt))
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
+
         composed_exclusions = exclusion.compose(logical_operator="or")
         self.query_exclusions = self._check_for_operator_specific_exclusions(composed_exclusions)
         provider_map_exclusions = self._provider_map_conditional_exclusions()
         if provider_map_exclusions:
             self.query_exclusions = self.query_exclusions | provider_map_exclusions
         composed_filters = self._check_for_operator_specific_filters(filters)
+        if composed_category_filters:
+            composed_filters = composed_filters & composed_category_filters
 
         composed_filters &= special_q_objects
-        # Additional filter[] specific options to consider.
+
         multi_field_or_composed_filters = self._set_or_filters()
         if aws_use_or_operator and aws_or_filter_collections:
             composed_filters = aws_or_filter_collections & composed_filters
