@@ -211,8 +211,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_stats.set_completed_datetime.assert_called()
         self.aws_provider.refresh_from_db()
         self.assertTrue(self.aws_provider.setup_complete)
-        if os.path.exists(report_dir):
-            shutil.rmtree(report_dir)
+        shutil.rmtree(report_dir)
 
     @patch("masu.processor._tasks.process.ReportProcessor")
     @patch("masu.processor._tasks.process.CostUsageReportStatus.objects")

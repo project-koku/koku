@@ -733,10 +733,8 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         os.remove(temp_path)
 
-    @patch("masu.util.aws.common.get_s3_objects_not_matching_metadata")
-    def test_create_daily_archives_dates_out_of_range(self, mock_get_s3_objects):
+    def test_create_daily_archives_dates_out_of_range(self):
         """Test that we correctly create daily archive files."""
-        mock_get_s3_objects.return_value = []
         file = "2023-06-01"
         file_name = f"{file}.csv"
         manifest_id = self.aws_manifest_id
@@ -746,14 +744,8 @@ class AWSReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
 
         start_date = self.dh.this_month_start.replace(year=2023, month=9).date()
-        context = {
-            "account": "account",
-            "provider_uuid": self.aws_provider_uuid,
-            "s3_filename": file_name,
-            "provider_type": Provider.PROVIDER_AWS,
-        }
         daily_file_names, date_range = create_daily_archives(
-            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, context
+            "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
         )
         self.assertEqual(date_range, {})
         self.assertEqual(daily_file_names, [])

@@ -4,6 +4,7 @@
 #
 """Update Cost Model Cost info for report summary tables."""
 import datetime
+import logging
 
 import ciso8601
 
@@ -17,6 +18,8 @@ from masu.processor.aws.aws_cost_model_cost_updater import AWSCostModelCostUpdat
 from masu.processor.azure.azure_cost_model_cost_updater import AzureCostModelCostUpdater
 from masu.processor.gcp.gcp_cost_model_cost_updater import GCPCostModelCostUpdater
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdater
+
+LOG = logging.getLogger(__name__)
 
 
 class CostModelCostUpdaterError(Exception):
@@ -58,6 +61,10 @@ class CostModelCostUpdater:
 
         """
         if not self._provider:
+            return None
+
+        if not self._provider.setup_complete:
+            LOG.debug("Provider setup is not complete, skipping cost model cost updater")
             return None
 
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
