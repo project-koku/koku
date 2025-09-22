@@ -283,7 +283,6 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Test scan start provider setup is not complete"""
         provider = self.gcp_provider
         provider.setup_complete = False
-        provider.data_updated_timestamp = None
         provider.save()
         downloader = self.downloader
         months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
