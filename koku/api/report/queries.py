@@ -284,9 +284,8 @@ class ReportQueryHandler(QueryHandler):
             )
 
         composed_filters = filter_collection.compose()
-        and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        composed_filters = composed_filters & or_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -296,12 +295,12 @@ class ReportQueryHandler(QueryHandler):
     def _check_for_operator_specific_exclusions(self, composed_filters):
         """Check for operator specific filters for exclusions."""
         # Tag exclusion filters are added to the self.query_filter. COST-3199
-        and_composed_filters = self._set_operator_specified_filters("and", True)
-        or_composed_filters = self._set_operator_specified_filters("or", True)
+        or_composed_filters = self._set_operator_specified_filters("or")
+        composed_filters = composed_filters & or_composed_filters
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+            composed_filters = composed_filters & or_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters
+            composed_filters = or_composed_filters
         return composed_filters
 
     def _get_search_filter(self, filters):  # noqa C901
