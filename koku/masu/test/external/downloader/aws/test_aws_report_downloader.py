@@ -735,6 +735,10 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     def test_create_daily_archives_dates_out_of_range(self):
         """Test that we correctly create daily archive files."""
+        provider = Provider.objects.get(uuid=self.aws_provider_uuid)
+        provider.setup_complete = False
+        provider.save()
+
         file = "2023-06-01"
         file_name = f"{file}.csv"
         manifest_id = self.aws_manifest_id
