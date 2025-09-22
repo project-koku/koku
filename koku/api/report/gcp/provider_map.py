@@ -437,9 +437,7 @@ class GCPProviderMap(ProviderMap):
                         "conditionals": {
                             "conditionals": {
                                 GCPCostEntryLineItemDailySummary: {
-                                    "filter_collection": lambda: gcp_storage_conditional_filter_collection(
-                                        schema_name
-                                    ),
+                                    "filter_collection": gcp_storage_conditional_filter_collection(schema_name),
                                 },
                             },
                         },

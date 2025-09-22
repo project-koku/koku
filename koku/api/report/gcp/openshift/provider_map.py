@@ -442,7 +442,7 @@ class OCPGCPProviderMap(ProviderMap):
                         ],
                         "conditionals": {
                             OCPGCPCostLineItemProjectDailySummaryP: {
-                                "filter_collection": lambda: gcp_storage_conditional_filter_collection(schema_name),
+                                "filter_collection": gcp_storage_conditional_filter_collection(schema_name),
                             },
                         },
                         "cost_units_key": "currency",
