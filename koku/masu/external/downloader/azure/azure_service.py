@@ -58,7 +58,7 @@ class AzureService:
         if not self._factory.subscription_id:
             raise AzureServiceError("Azure Service missing subscription id.")
 
-        self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
+        # self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
 
         if not self._factory.credentials:
             raise AzureServiceError("Azure Service credentials are not configured.")
@@ -90,7 +90,7 @@ class AzureService:
             raise AzureCostReportNotFound(message)
 
         try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
+            container_client = self._factory.container_client(self._storage_account_name, container_name)
             blobs = list(container_client.list_blobs(name_starts_with=report_path))
         except (ClientAuthenticationError, ServiceRequestError, AzureException) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
@@ -125,7 +125,7 @@ class AzureService:
 
     def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
         try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
+            container_client = self._factory.container_client(self._storage_account_name, container_name)
             blob_names = list(container_client.list_blobs(name_starts_with=starts_with))
         except (
             ClientAuthenticationError,
@@ -202,7 +202,8 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
+            container_client = self._factory.container_client(self._storage_account_name, container_name)
+            blob_client = container_client.get_blob_client(key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
         except (

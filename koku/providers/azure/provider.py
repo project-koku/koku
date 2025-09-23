@@ -124,9 +124,9 @@ class AzureProvider(ProviderInterface):
                 scope=scope,
                 export_name=export_name,
             )
-            azure_client = AzureClientFactory(**credentials)
-            storage_accounts = azure_client.storage_client.storage_accounts
-            storage_account = storage_accounts.get_properties(resource_group, storage_account)
+            # azure_client = AzureClientFactory(**credentials)
+            # storage_accounts = azure_client.storage_client.storage_accounts
+            # storage_account = storage_accounts.get_properties(resource_group, storage_account)
             if azure_service and not azure_service.describe_cost_management_exports():
                 key = ProviderErrors.AZURE_NO_REPORT_FOUND
                 message = ProviderErrors.AZURE_MISSING_EXPORT_MESSAGE
@@ -187,7 +187,7 @@ class AzureProvider(ProviderInterface):
 
     def is_file_reachable(self, source, reports_list):
         """Verify that report files are accessible in Azure."""
-        resource_group = source.billing_source.data_source.get("resource_group")
+        # resource_group = source.billing_source.data_source.get("resource_group")
         storage_account = source.billing_source.data_source.get("storage_account")
         subscription_id = source.authentication.credentials.get("subscription_id")
         tenant_id = source.authentication.credentials.get("tenant_id")
@@ -195,11 +195,13 @@ class AzureProvider(ProviderInterface):
         client_secret = source.authentication.credentials.get("client_secret")
         try:
             azure_client = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-            storage_client = azure_client.cloud_storage_account(resource_group, storage_account)
+            # storage_client = azure_client.cloud_storage_account(resource_group, storage_account)
             for report in reports_list:
                 container_name = report.split("/")[0]
                 report_key = report.split(f"{container_name}/")[-1]
-                blob_client = storage_client.get_blob_client(container_name, report_key)
+                container_client = azure_client.container_client(storage_account, container_name)
+                blob_client = container_client.get_blob_client(report_key)
+                # blob_client = storage_client.get_blob_client(container_name, report_key)
                 if not blob_client.exists():
                     internal_message = f"File {report_key} could not be found within container {container_name}."
                     key = ProviderErrors.AZURE_REPORT_NOT_FOUND

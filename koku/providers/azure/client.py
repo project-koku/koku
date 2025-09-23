@@ -6,9 +6,11 @@
 from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.storage import StorageManagementClient
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import ContainerClient
 
 from koku.settings import AZURE_COST_MGMT_CLIENT_API_VERSION
+
+# from azure.storage.blob import BlobServiceClient
 
 
 class AzureClientFactory:
@@ -57,21 +59,26 @@ class AzureClientFactory:
         """Subscription ID property."""
         return self._subscription_id
 
-    def cloud_storage_account(self, resource_group_name, storage_account_name):
-        """Get a BlobServiceClient."""
-        storage_account_keys = self.storage_client.storage_accounts.list_keys(
-            resource_group_name, storage_account_name
-        )
-        # Add check for keys and a get value
-        key = storage_account_keys.keys[0]
+    def container_client(self, storage_account_name: str, container_name: str) -> ContainerClient:
+        """Get container client with subscription and credentials."""
+        account_url = f"https://{storage_account_name}.blob.core.windows.net"
+        return ContainerClient(account_url, container_name, self.credentials)
 
-        connect_str = (
-            f"DefaultEndpointsProtocol=https;"
-            f"AccountName={storage_account_name};"
-            f"AccountKey={key.value};"
-            f"EndpointSuffix=core.windows.net"
-        )
-        return BlobServiceClient.from_connection_string(connect_str)
+    # def cloud_storage_account(self, resource_group_name, storage_account_name):
+    #     """Get a BlobServiceClient."""
+    #     storage_account_keys = self.storage_client.storage_accounts.list_keys(
+    #         resource_group_name, storage_account_name
+    #     )
+    #     # Add check for keys and a get value
+    #     key = storage_account_keys.keys[0]
+
+    #     connect_str = (
+    #         f"DefaultEndpointsProtocol=https;"
+    #         f"AccountName={storage_account_name};"
+    #         f"AccountKey={key.value};"
+    #         f"EndpointSuffix=core.windows.net"
+    #     )
+    #     return BlobServiceClient.from_connection_string(connect_str)
 
     @property
     def scope(self):
