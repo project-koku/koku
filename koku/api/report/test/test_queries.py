@@ -671,3 +671,32 @@ class ReportQueryHandlerTest(IamTestCase):
         excluded_filters = [f"{prefix}excluded", f"{prefix}exclude"]
         result_exclusions = handler._set_prefix_based_exclusions(column_name, excluded_filters, prefix)
         assertSameQ(result_exclusions, expected_exclusion_composed)
+
+    @patch("api.report.queries.QueryFilter")
+    def test_get_search_filter_handles_exact_only_filter(self, mock_query_filter):
+        """
+        Test that the special handling block in _get_search_filter correctly
+        processes a filter that only has an 'exact:' parameter by creating a
+        QueryFilter with the 'exact' operation.
+        """
+        url = "?filter[exact:node]=test-node"
+        params = self.mocked_query_params(url, self.mock_view)
+        mapper = {
+            "filter": [{}],
+            "filters": {"node": {"field": "node", "operation": "icontains"}},
+        }
+        handler = create_test_handler(params, mapper=mapper)
+        handler._get_filter()
+        found_correct_call = False
+        for call_obj in mock_query_filter.call_args_list:
+            call_kwargs = call_obj.kwargs
+            if (
+                call_kwargs.get("parameter") == "test-node"
+                and call_kwargs.get("field") == "node"
+                and call_kwargs.get("operation") == "exact"
+            ):
+                found_correct_call = True
+                break
+        self.assertTrue(
+            found_correct_call, msg="A call to QueryFilter with the correct 'exact' operation was not found."
+        )

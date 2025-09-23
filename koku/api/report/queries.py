@@ -336,6 +336,11 @@ class ReportQueryHandler(QueryHandler):
             partial_list = self.parameters.get_filter(q_param, list())
             exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
 
+            if partial_list and not isinstance(partial_list, list):
+                partial_list = [partial_list]
+            if exact_list and not isinstance(exact_list, list):
+                exact_list = [exact_list]
+
             # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
             # The 'continue' prevents duplicate processing.
             if q_param in FILTERS_WITH_EXACT_SUPPORT and (partial_list or exact_list):
