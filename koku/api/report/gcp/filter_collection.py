@@ -2,9 +2,11 @@
 # Copyright 2025 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import logging
+
 from api.query_filter import QueryFilterCollection
-from masu.processor import GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
-from masu.processor import is_feature_flag_enabled_by_account
+
+LOG = logging.getLogger(__name__)
 
 
 def gcp_storage_conditional_filter_collection(schema_name):
@@ -14,12 +16,6 @@ def gcp_storage_conditional_filter_collection(schema_name):
     storage_services.add(
         field="service_alias", operation="in", parameter=["Filestore", "Data Transfer", "Storage", "Cloud Storage"]
     )
-    unattributed_stroage_enabled = is_feature_flag_enabled_by_account(
-        schema_name, GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
-    )
-    if not unattributed_stroage_enabled:
-        return storage_services.compose()
-
     compute_engine = QueryFilterCollection()
     compute_engine.add(field="service_alias", operation="exact", parameter="Compute Engine")
 
