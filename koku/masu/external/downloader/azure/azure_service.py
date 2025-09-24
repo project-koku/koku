@@ -4,7 +4,6 @@
 #
 """Azure Service helpers."""
 import logging
-import typing as t
 from tempfile import NamedTemporaryFile
 
 from azure.common import AzureException
@@ -64,8 +63,8 @@ class AzureService:
             raise AzureServiceError("Azure Service credentials are not configured.")
 
     def _get_latest_blob(
-        self, report_path: str, blobs: list[BlobProperties], extension: t.Optional[str] = None
-    ) -> t.Optional[BlobProperties]:
+        self, report_path: str, blobs: list[BlobProperties], extension: str | None = None
+    ) -> BlobProperties | None:
         latest_blob = None
         for blob in blobs:
             if extension and not blob.name.endswith(extension):
@@ -79,7 +78,7 @@ class AzureService:
         self,
         report_path: str,
         container_name: str,
-        extension: t.Optional[str] = None,
+        extension: str | None = None,
     ) -> BlobProperties:
         """Get the latest file with the specified extension from given storage account container."""
 
@@ -90,7 +89,10 @@ class AzureService:
             raise AzureCostReportNotFound(message)
 
         try:
-            container_client = self._factory.container_client(self._storage_account_name, container_name)
+            cloud_storage_account = self._factory.cloud_storage_account(
+                self._resource_group_name, self._storage_account_name
+            )
+            container_client = cloud_storage_account.get_container_client(container_name)
             blobs = list(container_client.list_blobs(name_starts_with=report_path))
         except (ClientAuthenticationError, ServiceRequestError, AzureException) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
@@ -125,7 +127,10 @@ class AzureService:
 
     def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
         try:
-            container_client = self._factory.container_client(self._storage_account_name, container_name)
+            cloud_storage_account = self._factory.cloud_storage_account(
+                self._resource_group_name, self._storage_account_name
+            )
+            container_client = cloud_storage_account.get_container_client(container_name)
             blob_names = list(container_client.list_blobs(name_starts_with=starts_with))
         except (
             ClientAuthenticationError,
@@ -202,8 +207,10 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            container_client = self._factory.container_client(self._storage_account_name, container_name)
-            blob_client = container_client.get_blob_client(key)
+            cloud_storage_account = self._factory.cloud_storage_account(
+                self._resource_group_name, self._storage_account_name
+            )
+            blob_client = cloud_storage_account.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
         except (
