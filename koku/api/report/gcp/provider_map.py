@@ -435,10 +435,8 @@ class GCPProviderMap(ProviderMap):
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "conditionals": {
-                            "conditionals": {
-                                GCPCostEntryLineItemDailySummary: {
-                                    "filter_collection": gcp_storage_conditional_filter_collection(schema_name),
-                                },
+                            GCPCostEntryLineItemDailySummary: {
+                                "filter_collection": gcp_storage_conditional_filter_collection(schema_name),
                             },
                         },
                         "cost_units_key": "currency",
