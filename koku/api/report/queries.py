@@ -348,16 +348,18 @@ class ReportQueryHandler(QueryHandler):
             partial_list = self.parameters.get_filter(q_param, list())
             exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
 
-            if not isinstance(partial_list, list):
-                partial_list = [partial_list]
-            if not isinstance(exact_list, list):
-                exact_list = [exact_list]
-
             # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
             # The 'continue' prevents duplicate processing.
-            if self._is_simple_text_filter(filt) and (partial_list or exact_list):
+            # Exclude fields that have special handling or complex business logic
+            excluded_fields = ["org_unit_id", "infrastructure"]
+            if self._is_simple_text_filter(filt) and (partial_list or exact_list) and q_param not in excluded_fields:
                 or_collection = QueryFilterCollection()
                 filt_list = filt if isinstance(filt, list) else [filt]
+                # Ensure lists
+                if not isinstance(partial_list, list):
+                    partial_list = [partial_list] if partial_list else []
+                if not isinstance(exact_list, list):
+                    exact_list = [exact_list] if exact_list else []
                 if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
                     for item in partial_list:
                         for f in filt_list:  # Iterate through each config

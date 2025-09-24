@@ -54,14 +54,10 @@ class AWSProviderMap(ProviderMap):
                 # This is to make sure that the date range generator uses usage_start for >= and <= comparisions
                 "end_date": "usage_start",
                 "filters": {
-                    "account": [
-                        {
-                            "field": "account_alias__account_alias",
-                            "operation": "icontains",
-                            "composition_key": "account_filter",
-                        },
-                        {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
-                    ],
+                    "account": {
+                        "field": "account_alias__account_alias",
+                        "operation": "icontains",
+                    },  # Make this a simple dictionary
                     "service": {"field": "product_code", "operation": "icontains"},
                     "az": {"field": "availability_zone", "operation": "icontains"},
                     "region": {"field": "region", "operation": "icontains"},
