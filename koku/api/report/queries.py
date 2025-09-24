@@ -43,7 +43,6 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
 from api.report.constants import AWS_CATEGORY_PREFIX
-from api.report.constants import FILTERS_WITH_EXACT_SUPPORT
 from api.report.constants import TAG_PREFIX
 from api.report.constants import URL_ENCODED_SAFE
 
@@ -343,7 +342,7 @@ class ReportQueryHandler(QueryHandler):
 
             # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
             # The 'continue' prevents duplicate processing.
-            if q_param in FILTERS_WITH_EXACT_SUPPORT and (partial_list or exact_list):
+            if partial_list or exact_list:
                 or_collection = QueryFilterCollection()
                 filt_list = filt if isinstance(filt, list) else [filt]
                 if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
