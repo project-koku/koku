@@ -313,7 +313,6 @@ class ReportQueryHandler(QueryHandler):
                 return False
             return all(config.get("operation") == "icontains" and "custom" not in config for config in filt_config)
 
-        # Lógica original para dicionário único
         is_text_search = filt_config.get("operation") == "icontains"
         has_no_custom_logic = "custom" not in filt_config
         return is_text_search and has_no_custom_logic
