@@ -59,12 +59,14 @@ WITH cte_usage_date_partitions as (
     group by year, month
 ),
 cte_gcp_resource_names AS (
-    SELECT DISTINCT resource_name
+    SELECT resource_name,
+        resource_global_name
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     JOIN cte_usage_date_partitions AS ym ON gcp.year = ym.year AND gcp.month = ym.month
     WHERE source = {{cloud_provider_uuid}}
         AND usage_start_time >= {{start_date}}
         AND usage_start_time < date_add('day', 1, {{end_date}})
+    GROUP BY resource_name, resource_global_name
 ),
 cte_array_agg_nodes AS (
     SELECT DISTINCT node
@@ -99,6 +101,7 @@ cte_matchable_resource_names AS (
         ON (
             (volumes.persistentvolume != '' AND strpos(resource_names.resource_name, volumes.persistentvolume) != 0)
             OR (volumes.csi_volume_handle != '' AND strpos(resource_names.resource_name, volumes.csi_volume_handle) != 0)
+            OR (volumes.csi_volume_handle != '' AND strpos(resource_names.resource_global_name, volumes.csi_volume_handle) != 0)
         )
 ),
 cte_agg_tags AS (

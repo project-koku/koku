@@ -399,6 +399,8 @@ class ReportQueryHandler(QueryHandler):
                 composed_filters = composed_filters & composed_access_filters
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
+        if conditional_filters := self._provider_map_conditional_filters():
+            composed_filters = composed_filters & conditional_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
         LOG.debug(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
@@ -418,6 +420,23 @@ class ReportQueryHandler(QueryHandler):
         for exclusion in exclude_list:
             exclusions.add(**exclusion)
         return exclusions.compose()
+
+    def _provider_map_conditional_filters(self):
+        """
+        Uses the provider_map conditionls to add filters to a query in certain scenarios.
+
+        Such as when we fall back to the daily summary table and need to apply certain filters.
+        """
+        filter_collection = (
+            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter_collection", [])
+        )
+        if filter_collection:
+            return filter_collection
+        conditional_filters = QueryFilterCollection()
+        filters_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter", [])
+        for filter_dict in filters_list:
+            conditional_filters.add(**filter_dict)
+        return conditional_filters.compose()
 
     def _set_or_filters(self, or_filter=None):
         """Create a composed filter collection of ORed filters.
