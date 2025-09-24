@@ -57,7 +57,7 @@ class AWSProviderMap(ProviderMap):
                     "account": {
                         "field": "account_alias__account_alias",
                         "operation": "icontains",
-                    },  # Make this a simple dictionary
+                    },
                     "service": {"field": "product_code", "operation": "icontains"},
                     "az": {"field": "availability_zone", "operation": "icontains"},
                     "region": {"field": "region", "operation": "icontains"},
