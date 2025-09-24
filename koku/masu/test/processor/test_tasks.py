@@ -51,6 +51,7 @@ from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.tasks import autovacuum_tune_schema
+from masu.processor.tasks import delete_openshift_on_cloud_data
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import mark_manifest_complete
 from masu.processor.tasks import normalize_table_options
@@ -60,6 +61,7 @@ from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import remove_expired_trino_partitions
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
+from masu.processor.tasks import trigger_ocp_on_cloud_summary
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_openshift_on_cloud
@@ -196,6 +198,8 @@ class ProcessReportFileTests(MasuTestCase):
 
         mock_proc = mock_processor()
         mock_stats.get.return_value = mock_stats
+        self.aws_provider.setup_complete = False
+        self.aws_provider.save()
         self.aws_provider.refresh_from_db()
         self.assertFalse(self.aws_provider.setup_complete)
 
@@ -1254,6 +1258,66 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 end_date,
                 synchronous=True,
             )
+
+    @patch("masu.processor.tasks.LOG")
+    def test_trigger_ocp_on_cloud_summary_provider_not_found_error(self, mock_log):
+        """Test that trigger_ocp_on_cloud_summary handles ReportSummaryUpdaterProviderNotFoundError."""
+        # Setup
+        context = {"test": "context"}
+        schema = self.schema
+        provider_uuid = str(uuid4())  # Use random UUID that doesn't exist in DB
+        manifest_id = 1
+        tracing_id = "test-tracing-id"
+        start_date = self.dh.today
+        end_date = self.dh.today
+
+        # Call the function - this will naturally raise ReportSummaryUpdaterProviderNotFoundError
+        result = trigger_ocp_on_cloud_summary(
+            context, schema, provider_uuid, manifest_id, tracing_id, start_date, end_date
+        )
+
+        # Assertions
+        self.assertIsNone(result)  # Function should return None (early exit)
+        mock_log.warning.assert_called_once()
+
+        # Check that the warning log was called with correct parameters
+        call_args = mock_log.warning.call_args
+        self.assertIn("possible source/provider delete during processing", call_args[0][0]["message"])
+        self.assertEqual(call_args[1]["exc_info"].__class__, ReportSummaryUpdaterProviderNotFoundError)
+
+    @patch("masu.processor.tasks.LOG")
+    def test_delete_openshift_on_cloud_data_provider_not_found_error(self, mock_log):
+        """Test that delete_openshift_on_cloud_data handles ReportSummaryUpdaterProviderNotFoundError."""
+        # Setup
+        schema_name = self.schema
+        infrastructure_provider_uuid = str(uuid4())  # Use random UUID that doesn't exist in DB
+        start_date = self.dh.today
+        end_date = self.dh.today
+        table_name = "test_table"
+        operation = "DELETE_TABLE"
+        manifest_id = 1
+        tracing_id = "test-tracing-id"
+
+        # Call the function - this will naturally raise ReportSummaryUpdaterProviderNotFoundError
+        result = delete_openshift_on_cloud_data(
+            schema_name,
+            infrastructure_provider_uuid,
+            start_date,
+            end_date,
+            table_name,
+            operation,
+            manifest_id=manifest_id,
+            tracing_id=tracing_id,
+        )
+
+        # Assertions
+        self.assertIsNone(result)  # Function should return None (early exit)
+        mock_log.warning.assert_called_once()
+
+        # Check that the warning log was called with correct parameters
+        call_args = mock_log.warning.call_args
+        self.assertIn("possible source/provider delete during processing", call_args[0][0]["message"])
+        self.assertEqual(call_args[1]["exc_info"].__class__, ReportSummaryUpdaterProviderNotFoundError)
 
 
 class TestMarkManifestCompleteTask(MasuTestCase):
