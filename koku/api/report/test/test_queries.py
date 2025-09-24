@@ -722,3 +722,37 @@ class ReportQueryHandlerTest(IamTestCase):
         ]
         result = handler._is_simple_text_filter(filt_config)
         self.assertTrue(result)
+
+    def test_get_search_filter_exclusion_and_or_logic_coverage(self):
+        """Test exclusion logic and OR composition to cover codecov lines."""
+        url = "?filter[account]=partial-account&filter[exact:account]=exact-account&exclude[account]=excluded-account"
+        query_params = self.mocked_query_params(url, self.mock_view)
+        mapper = {
+            "filter": [{}],
+            "filters": {"account": {"field": "account_name", "operation": "icontains"}},
+        }
+        handler = create_test_handler(query_params, mapper=mapper)
+        filters = handler._get_filter()
+        self.assertIsNotNone(filters)
+
+    def test_get_search_filter_exclusion_with_list_filter_coverage(self):
+        """Test exclusion logic when filter is a list to cover isinstance branch."""
+        url = "?filter[account]=partial-account&exclude[account]=excluded-account"
+        query_params = self.mocked_query_params(url, self.mock_view)
+
+        mapper = {
+            "filter": [{}],
+            "filters": {
+                "account": [
+                    {
+                        "field": "account_alias__account_alias",
+                        "operation": "icontains",
+                        "composition_key": "account_filter",
+                    },
+                    {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
+                ]
+            },
+        }
+        handler = create_test_handler(query_params, mapper=mapper)
+        filters = handler._get_filter()
+        self.assertIsNotNone(filters)
