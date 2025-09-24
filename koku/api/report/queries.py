@@ -304,6 +304,18 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
 
+    def _is_simple_text_filter(self, filt_config):
+        """
+        Checks if a filter supports 'icontains' and has no custom business logic, like infrastructure, org_unit.
+        """
+        if isinstance(filt_config, list):
+            if not filt_config:
+                return False
+            filt_config = filt_config[0]
+        is_text_search = filt_config.get("operation") == "icontains"
+        has_no_custom_logic = "custom" not in filt_config
+        return is_text_search and has_no_custom_logic
+
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
 
@@ -327,6 +339,7 @@ class ReportQueryHandler(QueryHandler):
             category_filters = QueryFilterCollection()
         exclusion = QueryFilterCollection()
         composed_category_filters = None
+        composed_exclusions = None
 
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
@@ -335,14 +348,9 @@ class ReportQueryHandler(QueryHandler):
             partial_list = self.parameters.get_filter(q_param, list())
             exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
 
-            if partial_list and not isinstance(partial_list, list):
-                partial_list = [partial_list]
-            if exact_list and not isinstance(exact_list, list):
-                exact_list = [exact_list]
-
             # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
             # The 'continue' prevents duplicate processing.
-            if partial_list or exact_list:
+            if self._is_simple_text_filter(filt) and (partial_list or exact_list):
                 or_collection = QueryFilterCollection()
                 filt_list = filt if isinstance(filt, list) else [filt]
                 if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
@@ -357,6 +365,15 @@ class ReportQueryHandler(QueryHandler):
                             or_collection.add(QueryFilter(parameter=item, **exact_filt))
                 if or_collection:
                     special_q_objects &= or_collection.compose(logical_operator="or")
+                exclude_ = self.parameters.get_exclude(q_param, list())
+                if exclude_:
+                    if isinstance(filt, list):
+                        for _filt in filt:
+                            for item in exclude_:
+                                exclusion.add(QueryFilter(parameter=item, **_filt))
+                    else:
+                        for item in exclude_:
+                            exclusion.add(QueryFilter(parameter=item, **filt))
                 continue
 
             filter_ = self.parameters.get_filter(q_param, list())

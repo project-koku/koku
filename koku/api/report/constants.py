@@ -33,28 +33,3 @@ TIME_SCOPE_UNITS_MONTHLY = "month"
 TIME_SCOPE_UNITS_DAILY = "day"
 RESOLUTION_MONTHLY = "monthly"
 RESOLUTION_DAILY = "daily"
-# Defines the set of query parameters that are eligible for the special
-# OR-logic that combines a partial match
-# (e.g., `filter[node]=...`) with an exact match (`filter[exact:node]=...`).
-FILTERS_WITH_EXACT_SUPPORT = {
-    "account",
-    "service",
-    "az",
-    "region",
-    "product_family",
-    "instance_type",
-    "operating_system",
-    "instance",
-    "subscription_guid",
-    "service_name",
-    "resource_location",
-    "gcp_project",
-    "category",
-    "project",
-    "cluster",
-    "persistentvolumeclaim",
-    "storageclass",
-    "pod",
-    "node",
-    "vm_name",
-}
