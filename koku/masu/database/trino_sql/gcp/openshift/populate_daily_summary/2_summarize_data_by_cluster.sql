@@ -1,3 +1,52 @@
+{% if unattributed_storage %}
+DELETE FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp
+WHERE ocp_source = {{ocp_provider_uuid}}
+AND source = {{cloud_provider_uuid}}
+AND year = {{year}}
+AND month = {{month}}
+{% endif %}
+;
+
+{% if unattributed_storage %}
+INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp (
+    resource_global_name,
+    resource_name,
+    capacity,
+    usage_start,
+    source,
+    ocp_source,
+    year,
+    month
+)
+SELECT
+    gcp.resource_global_name,
+    gcp.resource_name,
+    sum(gcp.usage_amount) / 1073741824.0 / (3600 * 24) as capacity,
+    date(gcp.usage_start_time),
+    {{cloud_provider_uuid}} as source,
+    {{ocp_provider_uuid}} as ocp_source,
+    {{year}} as year,
+    {{month}} as month
+FROM hive.{{schema | sqlsafe}}.gcp_line_items as gcp
+WHERE gcp.resource_global_name in (
+        SELECT temp.resource_global_name as resource_global_name
+        FROM hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as temp
+        WHERE temp.resource_global_name LIKE '%/disk/%'
+        AND temp.service_description = 'Compute Engine'
+        AND lower(temp.sku_description) LIKE '% pd %'
+        AND temp.year = {{year}}
+        AND temp.month = {{month}}
+        AND temp.source = {{cloud_provider_uuid}}
+        AND temp.ocp_source = {{ocp_provider_uuid}}
+        GROUP BY temp.resource_global_name
+    )
+    AND month = {{month}}
+    AND year = {{year}}
+    AND source = {{cloud_provider_uuid}}
+GROUP BY gcp.resource_global_name, gcp.resource_name, date(gcp.usage_start_time)
+{% endif %}
+;
+
 DELETE FROM hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_project_daily_summary_temp
 WHERE ocp_source = {{ocp_provider_uuid}}
 AND source = {{cloud_provider_uuid}}
@@ -97,6 +146,10 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
         AND (
             (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
             OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
+            {%- if unattributed_storage -%}
+            OR (ocp.csi_volume_handle != '' AND strpos(gcp.resource_global_name, ocp.csi_volume_handle) != 0)
+            OR (ocp.csi_volume_handle != '' AND strpos(gcp.resource_name, ocp.csi_volume_handle) != 0)
+            {% endif %}
         )
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
