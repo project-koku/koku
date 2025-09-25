@@ -313,7 +313,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
         enable_unattributed_storage = is_feature_flag_enabled_by_account(
-            self.schema, GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG
+            self.schema, GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG, dev_fallback=True
         )
         sql_metadata = SummarySqlMetadata(
             self.schema,
