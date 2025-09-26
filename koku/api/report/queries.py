@@ -304,7 +304,7 @@ class ReportQueryHandler(QueryHandler):
             composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
 
-    def _is_simple_text_filter(self, filt_config):
+    def _is_icontains_supported(self, filt_config):
         """
         Checks if a filter supports 'icontains' and has no custom business logic, like infrastructure, org_unit.
         """
@@ -316,6 +316,36 @@ class ReportQueryHandler(QueryHandler):
         is_text_search = filt_config.get("operation") == "icontains"
         has_no_custom_logic = "custom" not in filt_config
         return is_text_search and has_no_custom_logic
+
+    def _handle_exact_partial_filter_combination(self, q_param, filt, partial_list, exact_list):
+        """
+        Handles the combination of exact and partial filters on the same field by joining them with OR logic.
+        This fixes the bug where exact+partial filters were incorrectly combined with AND operator.
+        """
+        exact_collection = QueryFilterCollection()
+        filt_list = filt if isinstance(filt, list) else [filt]
+
+        # Ensure lists
+        if not isinstance(partial_list, list):
+            partial_list = [partial_list] if partial_list else []
+        if not isinstance(exact_list, list):
+            exact_list = [exact_list] if exact_list else []
+
+        # Add partial match filters
+        if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
+            for item in partial_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_collection.add(QueryFilter(parameter=item, **f))
+
+        # Add exact match filters
+        if exact_list:
+            for item in exact_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_filt = f.copy()
+                    exact_filt["operation"] = "exact"
+                    exact_collection.add(QueryFilter(parameter=item, **exact_filt))
+
+        return exact_collection
 
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
@@ -353,26 +383,12 @@ class ReportQueryHandler(QueryHandler):
             # The 'continue' prevents duplicate processing.
             # Exclude fields that have special handling or complex business logic
             excluded_fields = ["org_unit_id", "infrastructure"]
-            if self._is_simple_text_filter(filt) and (partial_list or exact_list) and q_param not in excluded_fields:
-                or_collection = QueryFilterCollection()
-                filt_list = filt if isinstance(filt, list) else [filt]
-                # Ensure lists
-                if not isinstance(partial_list, list):
-                    partial_list = [partial_list] if partial_list else []
-                if not isinstance(exact_list, list):
-                    exact_list = [exact_list] if exact_list else []
-                if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
-                    for item in partial_list:
-                        for f in filt_list:  # Iterate through each config
-                            or_collection.add(QueryFilter(parameter=item, **f))
-                if exact_list:
-                    for item in exact_list:
-                        for f in filt_list:  # Iterate through each config
-                            exact_filt = f.copy()
-                            exact_filt["operation"] = "exact"
-                            or_collection.add(QueryFilter(parameter=item, **exact_filt))
-                if or_collection:
-                    special_q_objects &= or_collection.compose(logical_operator="or")
+            if self._is_icontains_supported(filt) and (partial_list or exact_list) and q_param not in excluded_fields:
+                exact_collection = self._handle_exact_partial_filter_combination(
+                    q_param, filt, partial_list, exact_list
+                )
+                if exact_collection:
+                    special_q_objects &= exact_collection.compose(logical_operator="or")
                 exclude_ = self.parameters.get_exclude(q_param, list())
                 if exclude_:
                     if isinstance(filt, list):

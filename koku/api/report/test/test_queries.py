@@ -701,8 +701,8 @@ class ReportQueryHandlerTest(IamTestCase):
             found_correct_call, msg="A call to QueryFilter with the correct 'exact' operation was not found."
         )
 
-    def test_is_simple_text_filter_edge_cases(self):
-        """Test _is_simple_text_filter edge cases including empty list."""
+    def test_is_icontains_supported_edge_cases(self):
+        """Test _is_icontains_supported edge cases including empty list."""
         url = "?filter[node]=test"
         query_params = self.mocked_query_params(url, self.mock_view)
         mapper = {
@@ -712,7 +712,7 @@ class ReportQueryHandlerTest(IamTestCase):
         handler = create_test_handler(query_params, mapper=mapper)
 
         # Test empty list case - covers: if not filt_config: return False
-        result = handler._is_simple_text_filter([])
+        result = handler._is_icontains_supported([])
         self.assertFalse(result)
 
         # Test list with simple filters (should return True)
@@ -720,7 +720,7 @@ class ReportQueryHandlerTest(IamTestCase):
             {"field": "field1", "operation": "icontains"},
             {"field": "field2", "operation": "icontains"},
         ]
-        result = handler._is_simple_text_filter(filt_config)
+        result = handler._is_icontains_supported(filt_config)
         self.assertTrue(result)
 
     def test_get_search_filter_exclusion_and_or_logic_coverage(self):
