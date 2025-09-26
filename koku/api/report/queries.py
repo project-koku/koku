@@ -286,8 +286,7 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        exact_composed_filters = self._set_operator_specified_filters("exact")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -299,12 +298,54 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
-        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
+
+    def _is_icontains_supported(self, filt_config):
+        """
+        Checks if a filter supports 'icontains' and has no custom business logic, like infrastructure, org_unit.
+        """
+        if isinstance(filt_config, list):
+            if not filt_config:
+                return False
+            return all(config.get("operation") == "icontains" and "custom" not in config for config in filt_config)
+
+        is_text_search = filt_config.get("operation") == "icontains"
+        has_no_custom_logic = "custom" not in filt_config
+        return is_text_search and has_no_custom_logic
+
+    def _handle_exact_partial_filter_combination(self, q_param, filt, partial_list, exact_list):
+        """
+        Handles the combination of exact and partial filters on the same field by joining them with OR logic.
+        This fixes the bug where exact+partial filters were incorrectly combined with AND operator.
+        """
+        exact_collection = QueryFilterCollection()
+        filt_list = filt if isinstance(filt, list) else [filt]
+
+        # Ensure lists
+        if not isinstance(partial_list, list):
+            partial_list = [partial_list] if partial_list else []
+        if not isinstance(exact_list, list):
+            exact_list = [exact_list] if exact_list else []
+
+        # Add partial match filters
+        if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
+            for item in partial_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_collection.add(QueryFilter(parameter=item, **f))
+
+        # Add exact match filters
+        if exact_list:
+            for item in exact_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_filt = f.copy()
+                    exact_filt["operation"] = "exact"
+                    exact_collection.add(QueryFilter(parameter=item, **exact_filt))
+
+        return exact_collection
 
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
@@ -319,7 +360,7 @@ class ReportQueryHandler(QueryHandler):
         fields = self._mapper._provider_map.get("filters")
 
         access_filters = QueryFilterCollection()
-
+        special_q_objects = Q()
         aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
         if aws_use_or_operator:
             aws_or_filter_collections = filters.compose()
@@ -335,6 +376,30 @@ class ReportQueryHandler(QueryHandler):
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             exclude_ = self.parameters.get_exclude(q_param, list())
+            partial_list = self.parameters.get_filter(q_param, list())
+            exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
+
+            # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
+            # The 'continue' prevents duplicate processing.
+            # Exclude fields that have special handling or complex business logic
+            excluded_fields = ["org_unit_id", "infrastructure"]
+            if self._is_icontains_supported(filt) and (partial_list or exact_list) and q_param not in excluded_fields:
+                exact_collection = self._handle_exact_partial_filter_combination(
+                    q_param, filt, partial_list, exact_list
+                )
+                if exact_collection:
+                    special_q_objects &= exact_collection.compose(logical_operator="or")
+                exclude_ = self.parameters.get_exclude(q_param, list())
+                if exclude_:
+                    if isinstance(filt, list):
+                        for _filt in filt:
+                            for item in exclude_:
+                                exclusion.add(QueryFilter(parameter=item, **_filt))
+                    else:
+                        for item in exclude_:
+                            exclusion.add(QueryFilter(parameter=item, **filt))
+                continue
+
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if isinstance(filt, list):
@@ -386,6 +451,9 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = self._check_for_operator_specific_filters(filters)
         if composed_category_filters:
             composed_filters = composed_filters & composed_category_filters
+
+        composed_filters &= special_q_objects
+
         # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
         if aws_use_or_operator and aws_or_filter_collections:

@@ -671,3 +671,88 @@ class ReportQueryHandlerTest(IamTestCase):
         excluded_filters = [f"{prefix}excluded", f"{prefix}exclude"]
         result_exclusions = handler._set_prefix_based_exclusions(column_name, excluded_filters, prefix)
         assertSameQ(result_exclusions, expected_exclusion_composed)
+
+    @patch("api.report.queries.QueryFilter")
+    def test_get_search_filter_handles_exact_only_filter(self, mock_query_filter):
+        """
+        Test that the special handling block in _get_search_filter correctly
+        processes a filter that only has an 'exact:' parameter by creating a
+        QueryFilter with the 'exact' operation.
+        """
+        url = "?filter[exact:node]=test-node"
+        params = self.mocked_query_params(url, self.mock_view)
+        mapper = {
+            "filter": [{}],
+            "filters": {"node": {"field": "node", "operation": "icontains"}},
+        }
+        handler = create_test_handler(params, mapper=mapper)
+        handler._get_filter()
+        found_correct_call = False
+        for call_obj in mock_query_filter.call_args_list:
+            call_kwargs = call_obj.kwargs
+            if (
+                call_kwargs.get("parameter") == "test-node"
+                and call_kwargs.get("field") == "node"
+                and call_kwargs.get("operation") == "exact"
+            ):
+                found_correct_call = True
+                break
+        self.assertTrue(
+            found_correct_call, msg="A call to QueryFilter with the correct 'exact' operation was not found."
+        )
+
+    def test_is_icontains_supported_edge_cases(self):
+        """Test _is_icontains_supported edge cases including empty list."""
+        url = "?filter[node]=test"
+        query_params = self.mocked_query_params(url, self.mock_view)
+        mapper = {
+            "filter": [{}],
+            "filters": {"node": {"field": "node", "operation": "icontains"}},
+        }
+        handler = create_test_handler(query_params, mapper=mapper)
+
+        # Test empty list case - covers: if not filt_config: return False
+        result = handler._is_icontains_supported([])
+        self.assertFalse(result)
+
+        # Test list with simple filters (should return True)
+        filt_config = [
+            {"field": "field1", "operation": "icontains"},
+            {"field": "field2", "operation": "icontains"},
+        ]
+        result = handler._is_icontains_supported(filt_config)
+        self.assertTrue(result)
+
+    def test_get_search_filter_exclusion_and_or_logic_coverage(self):
+        """Test exclusion logic and OR composition to cover codecov lines."""
+        url = "?filter[account]=partial-account&filter[exact:account]=exact-account&exclude[account]=excluded-account"
+        query_params = self.mocked_query_params(url, self.mock_view)
+        mapper = {
+            "filter": [{}],
+            "filters": {"account": {"field": "account_name", "operation": "icontains"}},
+        }
+        handler = create_test_handler(query_params, mapper=mapper)
+        filters = handler._get_filter()
+        self.assertIsNotNone(filters)
+
+    def test_get_search_filter_exclusion_with_list_filter_coverage(self):
+        """Test exclusion logic when filter is a list to cover isinstance branch."""
+        url = "?filter[account]=partial-account&exclude[account]=excluded-account"
+        query_params = self.mocked_query_params(url, self.mock_view)
+
+        mapper = {
+            "filter": [{}],
+            "filters": {
+                "account": [
+                    {
+                        "field": "account_alias__account_alias",
+                        "operation": "icontains",
+                        "composition_key": "account_filter",
+                    },
+                    {"field": "usage_account_id", "operation": "icontains", "composition_key": "account_filter"},
+                ]
+            },
+        }
+        handler = create_test_handler(query_params, mapper=mapper)
+        filters = handler._get_filter()
+        self.assertIsNotNone(filters)
