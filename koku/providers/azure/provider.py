@@ -192,7 +192,7 @@ class AzureProvider(ProviderInterface):
         client_secret = source.authentication.credentials.get("client_secret")
         try:
             azure_client = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-            storage_client = azure_client.cloud_storage_account(resource_group, storage_account)
+            storage_client = azure_client.blob_service_client(resource_group, storage_account)
             for report in reports_list:
                 container_name = report.split("/")[0]
                 report_key = report.split(f"{container_name}/")[-1]

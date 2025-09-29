@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Client Configuration."""
+import logging
+
 from azure.core.exceptions import HttpResponseError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
@@ -10,6 +12,9 @@ from azure.mgmt.storage import StorageManagementClient
 from azure.storage.blob import BlobServiceClient
 
 from koku.settings import AZURE_COST_MGMT_CLIENT_API_VERSION
+
+
+LOG = logging.getLogger(__name__)
 
 
 class AzureClientFactory:
@@ -58,7 +63,7 @@ class AzureClientFactory:
         """Subscription ID property."""
         return self._subscription_id
 
-    def cloud_storage_account(self, resource_group_name, storage_account_name):
+    def blob_service_client(self, resource_group_name, storage_account_name):
         """Get a BlobServiceClient."""
         try:
             storage_account_keys = self.storage_client.storage_accounts.list_keys(
@@ -75,10 +80,12 @@ class AzureClientFactory:
             )
             return BlobServiceClient.from_connection_string(connect_str)
         except HttpResponseError as httpError:
-            if httpError.status_code == 403:
-                account_url = f"https://{storage_account_name}.blob.core.windows.net"
-                return BlobServiceClient(account_url, self.credentials)
-            # raise AzureServiceError(f"Unable to get cloud storage account. Error: {e}")
+            LOG.warning(
+                "falling back to non storage account key access: "
+                f"unable to list storage account keys: {httpError.message}"
+            )
+            account_url = f"https://{storage_account_name}.blob.core.windows.net"
+            return BlobServiceClient(account_url, self.credentials)
 
     @property
     def scope(self):
