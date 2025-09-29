@@ -943,12 +943,14 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     resource_id=node[1],
                     node_capacity_cpu_cores=node[2],
                     node_role=node[3],
+                    architecture=node[4],
                     cluster=cluster,
                 )
-            # if the node entry already exists but does not have a role assigned, update the node role
-            elif not tmp_node.node_role:
+
+            if not tmp_node.node_role or not tmp_node.architecture:
                 tmp_node.node_role = node[3]
-                tmp_node.save()
+                tmp_node.architecture = node[4]
+                tmp_node.save(update_fields=["node_role", "architecture"])
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
@@ -1009,7 +1011,8 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
                     WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
                     ELSE 'worker'
-                END) as node_role
+                END) as node_role,
+                lower(json_extract_scalar(max(node_labels), '$.kubernetes_io_arch')) as arch
             FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
             LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
                 ON ocp.node = nl.node
