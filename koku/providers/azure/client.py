@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Client Configuration."""
+from azure.core.exceptions import HttpResponseError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.storage import StorageManagementClient
+from azure.storage.blob import BlobClient
 from azure.storage.blob import BlobServiceClient
 from azure.storage.blob import ContainerClient
 
@@ -58,25 +60,34 @@ class AzureClientFactory:
         """Subscription ID property."""
         return self._subscription_id
 
-    def container_client(self, storage_account_name: str, container_name: str) -> ContainerClient:
+    def blob_client(self, storage_account_name: str, container_name: str, blob_name: str) -> BlobClient:
         """Get container client with subscription and credentials."""
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
-        return ContainerClient(account_url, container_name, self.credentials)
+        return BlobClient(account_url, container_name, blob_name, credential=self.credentials)
 
     def cloud_storage_account(self, resource_group_name, storage_account_name):
         """Get a BlobServiceClient."""
-        # storage_account_keys = self.storage_client.storage_accounts.list_keys(
-        #     resource_group_name, storage_account_name
-        # )
-        # # Add check for keys and a get value
-        # key = storage_account_keys.keys[0]
+        try:
+            storage_account_keys = self.storage_client.storage_accounts.list_keys(
+                resource_group_name, storage_account_name
+            )
+            # Add check for keys and a get value
+            key = storage_account_keys.keys[0]
 
-        # connect_str = (
-        #     f"DefaultEndpointsProtocol=https;"
-        #     f"AccountName={storage_account_name};"
-        #     f"AccountKey={key.value};"
-        #     f"EndpointSuffix=core.windows.net"
-        # )
+            connect_str = (
+                f"DefaultEndpointsProtocol=https;"
+                f"AccountName={storage_account_name};"
+                f"AccountKey={key.value};"
+                f"EndpointSuffix=core.windows.net"
+            )
+            return BlobServiceClient.from_connection_string(connect_str)
+        except HttpResponseError as httpError:
+            if httpError.status_code == 403:
+                account_url = f"https://{storage_account_name}.blob.core.windows.net"
+                return BlobServiceClient(account_url, self.credentials)
+            # raise AzureServiceError(f"Unable to get cloud storage account. Error: {e}")
+
+    def container_client(self, storage_account_name: str, container_name: str) -> ContainerClient:
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
         return BlobServiceClient(account_url, self.credentials)
 
