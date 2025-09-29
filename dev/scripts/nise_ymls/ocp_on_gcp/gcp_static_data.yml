@@ -143,6 +143,30 @@ generators:
       currency: USD
       location.region: us-west1-a
       labels: [{"environment": "ruby", "app":"snowdown", "version":"red", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+  - PersistentDiskGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: .10
+      region: us-central1
+      currency: USD
+      capacity: 40
+      disk_id: test_40_capacity
+  - PersistentDiskGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 1
+      region: us-central1
+      currency: USD
+      capacity: 50
+      disk_id: test_50_capacity
+  - PersistentDiskGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 2
+      region: us-central1
+      currency: USD
+      capacity: 100
+      disk_id: test_100_capacity
 
 projects:
   -
