@@ -258,7 +258,7 @@ class AzureServiceTest(MasuTestCase):
         type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
         svc = self.get_mock_client(blob_list=[mock_blob])
-        svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error
+        svc._blob_service_client.get_container_client.side_effect = throw_azure_http_error
         with self.assertRaises(AzureCostReportNotFound):
             svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
@@ -271,7 +271,7 @@ class AzureServiceTest(MasuTestCase):
         type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
         svc = self.get_mock_client(blob_list=[mock_blob])
-        svc._cloud_storage_account.get_container_client.side_effect = throw_azure_http_error_403
+        svc._blob_service_client.get_container_client.side_effect = throw_azure_http_error_403
         with self.assertRaises(AzureCostReportNotFound):
             svc.get_latest_cost_export_for_path(report_path, self.container_name)
 
@@ -487,7 +487,7 @@ class AzureServiceTest(MasuTestCase):
         type(mock_blob).name = name_attr  # kludge to set name attribute on Mock
 
         svc = self.get_mock_client(blob_list=[mock_blob])
-        svc._cloud_storage_account.get_container_client.side_effect = ResourceNotFoundError("Oops!")
+        svc._blob_service_client.get_container_client.side_effect = ResourceNotFoundError("Oops!")
         with self.assertRaises(AzureCostReportNotFound):
             svc.get_latest_cost_export_for_path(report_path, self.container_name)
 

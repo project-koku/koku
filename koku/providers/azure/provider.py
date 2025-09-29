@@ -192,11 +192,11 @@ class AzureProvider(ProviderInterface):
         client_secret = source.authentication.credentials.get("client_secret")
         try:
             azure_client = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-            storage_client = azure_client.blob_service_client(resource_group, storage_account)
+            blob_service_client = azure_client.blob_service_client(resource_group, storage_account)
             for report in reports_list:
                 container_name = report.split("/")[0]
                 report_key = report.split(f"{container_name}/")[-1]
-                blob_client = storage_client.get_blob_client(container_name, report_key)
+                blob_client = blob_service_client.get_blob_client(container_name, report_key)
                 if not blob_client.exists():
                     internal_message = f"File {report_key} could not be found within container {container_name}."
                     key = ProviderErrors.AZURE_REPORT_NOT_FOUND

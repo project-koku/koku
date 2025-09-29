@@ -57,7 +57,7 @@ class AzureService:
         if not self._factory.subscription_id:
             raise AzureServiceError("Azure Service missing subscription id.")
 
-        self._cloud_storage_account = self._factory.blob_service_client(resource_group_name, storage_account_name)
+        self._blob_service_client = self._factory.blob_service_client(resource_group_name, storage_account_name)
 
         if not self._factory.credentials:
             raise AzureServiceError("Azure Service credentials are not configured.")
@@ -89,7 +89,7 @@ class AzureService:
             raise AzureCostReportNotFound(message)
 
         try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
+            container_client = self._blob_service_client.get_container_client(container_name)
             blobs = list(container_client.list_blobs(name_starts_with=report_path))
         except (ClientAuthenticationError, ServiceRequestError, AzureException) as error:
             raise AzureServiceError("Failed to download file. Error: ", str(error))
@@ -124,7 +124,7 @@ class AzureService:
 
     def _list_blobs(self, starts_with: str, container_name: str) -> list[BlobProperties]:
         try:
-            container_client = self._cloud_storage_account.get_container_client(container_name)
+            container_client = self._blob_service_client.get_container_client(container_name)
             blob_names = list(container_client.list_blobs(name_starts_with=starts_with))
         except (
             ClientAuthenticationError,
@@ -201,7 +201,7 @@ class AzureService:
             file_path = temp_file.name
 
         try:
-            blob_client = self._cloud_storage_account.get_blob_client(container_name, key)
+            blob_client = self._blob_service_client.get_blob_client(container_name, key)
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
         except (
