@@ -7,9 +7,7 @@ from azure.core.exceptions import HttpResponseError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.storage import StorageManagementClient
-from azure.storage.blob import BlobClient
 from azure.storage.blob import BlobServiceClient
-from azure.storage.blob import ContainerClient
 
 from koku.settings import AZURE_COST_MGMT_CLIENT_API_VERSION
 
@@ -60,11 +58,6 @@ class AzureClientFactory:
         """Subscription ID property."""
         return self._subscription_id
 
-    def blob_client(self, storage_account_name: str, container_name: str, blob_name: str) -> BlobClient:
-        """Get container client with subscription and credentials."""
-        account_url = f"https://{storage_account_name}.blob.core.windows.net"
-        return BlobClient(account_url, container_name, blob_name, credential=self.credentials)
-
     def cloud_storage_account(self, resource_group_name, storage_account_name):
         """Get a BlobServiceClient."""
         try:
@@ -86,10 +79,6 @@ class AzureClientFactory:
                 account_url = f"https://{storage_account_name}.blob.core.windows.net"
                 return BlobServiceClient(account_url, self.credentials)
             # raise AzureServiceError(f"Unable to get cloud storage account. Error: {e}")
-
-    def container_client(self, storage_account_name: str, container_name: str) -> ContainerClient:
-        account_url = f"https://{storage_account_name}.blob.core.windows.net"
-        return BlobServiceClient(account_url, self.credentials)
 
     @property
     def scope(self):
