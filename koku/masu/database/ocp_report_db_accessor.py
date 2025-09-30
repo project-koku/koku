@@ -946,6 +946,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
                     architecture=node[4],
                     cluster=cluster,
                 )
+                continue
 
             if not tmp_node.node_role or not tmp_node.architecture:
                 tmp_node.node_role = node[3]
