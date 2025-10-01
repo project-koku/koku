@@ -4,7 +4,6 @@
 #
 """Management capabilities for Provider functionality."""
 import logging
-import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -225,13 +224,7 @@ class ProviderManager:
             base_additional_context["operator_certified"] = self.manifest.operator_certified
             latest_version = utils.get_latest_operator_version()
             current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
-            base_additional_context["operator_update_available"] = current_version != latest_version
-            if current_version != latest_version:
-                # If the operator has autoupgrade enabled the hash record might ahead of our code.
-                # In this case we should assume the operator is running the latest version
-                is_hash = bool(re.fullmatch(r"[0-9a-fA-F]{40}", current_version))
-                if is_hash:
-                    base_additional_context["operator_update_available"] = False
+            base_additional_context["operator_update_available"] = current_version < latest_version
             try:
                 is_supported = Version(current_version) >= Version("4.0.0")
             except InvalidVersion:
