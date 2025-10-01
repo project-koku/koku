@@ -805,9 +805,13 @@ def clear_s3_files(
     csv_s3_path, provider_uuid, start_date, metadata_key, manifest_id, context, request_id, invoice_month=None
 ):
     """Clear s3 files for daily archive processing"""
+    # Handle case where context might be None
+    if context is None:
+        context = {}
+
     account = context.get("account")
     # This fixes local providers s3/minio paths for deletes
-    provider_type = context.get("provider_type").strip("-local")
+    provider_type = context.get("provider_type", "").strip("-local") if context.get("provider_type") else ""
     parquet_path_s3 = get_path_prefix(account, provider_type, provider_uuid, start_date, "parquet")
     parquet_daily_path_s3 = get_path_prefix(
         account, provider_type, provider_uuid, start_date, "parquet", report_type="raw", daily=True
