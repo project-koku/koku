@@ -46,6 +46,34 @@ class FilterSerializerValidationTest(TestCase):
         self.assertIn("not supported", error_message)
         self.assertIn("org_unit_id", error_message)
 
+    def test_unsupported_exact_infrastructure_filter_validation(self):
+        """Test that the infrastructure case in unsupported_exact_filters is covered."""
+        from api.report.aws.serializers import AWSFilterSerializer
+
+        # Since infrastructure is not in AWS _opfields, we patch it temporarily
+        # This covers the infrastructure case in unsupported_exact_filters line 254
+        original_opfields = AWSFilterSerializer._opfields
+        try:
+            # Add infrastructure to the allowed fields for this test
+            AWSFilterSerializer._opfields = original_opfields + ("infrastructure",)
+
+            filter_data = {"exact:infrastructure": ["EC2-Instance"]}
+            serializer = AWSFilterSerializer(data=filter_data)
+
+            with self.assertRaises(ValidationError) as context:
+                serializer.is_valid(raise_exception=True)
+
+            # Verify the error is for the exact filter
+            self.assertIn("exact:infrastructure", context.exception.detail)
+            error_message = str(context.exception.detail["exact:infrastructure"][0])
+            self.assertIn("exact:", error_message)
+            self.assertIn("not supported", error_message)
+            self.assertIn("infrastructure", error_message)
+
+        finally:
+            # Restore original _opfields
+            AWSFilterSerializer._opfields = original_opfields
+
 
 class ExcludeSerializerTest(TestCase):
     """Tests for the exclude serializer."""
