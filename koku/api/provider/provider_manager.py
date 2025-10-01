@@ -231,7 +231,7 @@ class ProviderManager:
                 # In this case we should assume the operator is running the latest version
                 is_hash = bool(re.fullmatch(r"[0-9a-fA-F]{40}", current_version))
                 if is_hash:
-                    base_additional_context["operator_update_available"] = True
+                    base_additional_context["operator_update_available"] = False
             try:
                 is_supported = Version(current_version) >= Version("4.0.0")
             except InvalidVersion:
