@@ -47,27 +47,26 @@ class FilterSerializerValidationTest(TestCase):
         self.assertIn("org_unit_id", error_message)
 
     def test_unsupported_exact_infrastructure_filter_validation(self):
-        """Test that exact:infrastructure validation logic is covered (covers line 254)."""
-        # Test the validation logic directly by creating minimal data
-        # that would trigger the exact:infrastructure check in lines 250-257
+        """Test that exact:infrastructure raises ValidationError and executes line 254."""
+        from api.report.serializers import FilterSerializer
+        from rest_framework import serializers
 
-        # Simulate the validation logic that would be executed
-        data = {"exact:infrastructure": ["test-value"]}
+        # Create a real serializer that has "infrastructure" in _opfields to force validation
+        class TestInfrastructureFilterSerializer(FilterSerializer):
+            _opfields = ("infrastructure",)  # Include infrastructure to pass field validation
+            infrastructure = serializers.CharField(required=False)
 
-        # This simulates the validation logic from lines 250-257 in serializers.py
-        unsupported_exact_filters = ["org_unit_id", "infrastructure"]
-        validation_errors = {}
+        # Test with exact:infrastructure to trigger line 254 validation
+        filter_data = {"exact:infrastructure": ["aws"]}
+        serializer = TestInfrastructureFilterSerializer(data=filter_data)
 
-        for key in data:
-            if key.startswith("exact:"):
-                base_key = key.split(":", 1)[1]
-                if base_key in unsupported_exact_filters:
-                    # This line specifically covers line 254-256 in serializers.py
-                    validation_errors[key] = f"The 'exact:' operator is not supported for the '{base_key}' filter."
+        # This should execute line 254 in serializers.py and raise ValidationError
+        with self.assertRaises(ValidationError) as context:
+            serializer.is_valid(raise_exception=True)
 
-        # Verify that the validation logic detected the unsupported filter
-        self.assertIn("exact:infrastructure", validation_errors)
-        error_message = validation_errors["exact:infrastructure"]
+        # Verify the error comes from line 254 validation
+        self.assertIn("exact:infrastructure", context.exception.detail)
+        error_message = str(context.exception.detail["exact:infrastructure"][0])
         self.assertIn("exact:", error_message)
         self.assertIn("not supported", error_message)
         self.assertIn("infrastructure", error_message)
