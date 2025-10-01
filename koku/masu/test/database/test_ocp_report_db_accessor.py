@@ -544,7 +544,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         csi_volume_handles = ["csi1", "csi2"]
         projects = ["project_1", "project_2"]
         roles = ["master", "worker"]
-        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
+        arches = ["arm64", "amd64"]
+        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles, arches)
         mock_get_pvcs.return_value = zip(volumes, pvcs, csi_volume_handles)
         mock_get_projects.return_value = projects
         mock_table.return_value = True
@@ -602,7 +603,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         csi_volume_handles = ["csi1", "csi2"]
         projects = ["project_1", "project_2"]
         roles = ["master", "worker"]
-        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
+        arches = ["arm64", "amd63"]
+        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles, arches)
         mock_get_pvcs.return_value = zip(volumes, pvcs, csi_volume_handles)
         mock_get_projects.return_value = projects
         mock_table.return_value = True
@@ -676,7 +678,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_node_table_update_role(self):
         """Test that populating the node table for an entry that previously existed fills the node role correctly."""
-        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
+        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker", "arm64"]
         cluster_id = str(uuid.uuid4())
         cluster_alias = "node_role_test"
         with self.accessor as acc:
@@ -690,6 +692,28 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
             )
             self.assertEqual(node.node_role, node_info[3])
+
+    def test_populate_node_table_update_arch(self):
+        """Test that populating the node table for an entry that previously existed fills the arch correctly."""
+        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker", "arm64"]
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "node_role_test"
+        with self.accessor as acc:
+            cluster = acc.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+            node = OCPNode.objects.create(
+                node=node_info[0],
+                resource_id=node_info[1],
+                node_capacity_cpu_cores=node_info[2],
+                cluster=cluster,
+                node_role=node_info[3],
+            )
+            self.assertEqual(node.node_role, node_info[3])
+            self.assertIsNone(node.architecture)
+            acc.populate_node_table(cluster, [node_info])
+            node = OCPNode.objects.get(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            )
+            self.assertEqual(node.architecture, node_info[4])
 
     def test_populate_cluster_table_update_cluster_alias(self):
         """Test updating cluster alias for entry in the cluster table."""
@@ -722,7 +746,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_node_table_second_time_no_change(self):
         """Test that populating the node table for an entry a second time does not duplicate entries."""
-        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
+        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker", "arm64"]
         cluster_id = str(uuid.uuid4())
         cluster_alias = "node_role_test"
         with self.accessor as acc:
