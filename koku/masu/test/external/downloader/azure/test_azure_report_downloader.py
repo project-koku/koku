@@ -403,8 +403,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(result.get("compression"), compression)
         self.assertIsNotNone(result.get("files"))
 
+    @patch("masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_value=False)
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives_alt_columns(self, mock_copy):
+    def test_create_daily_archives_alt_columns(self, mock_copy, _):
         """Test that we correctly create daily archive files with alt columns."""
         file = "azure_version_2"
         file_name = f"{file}.csv"
@@ -425,7 +426,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             return_value=start_date,
         ):
             daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+                "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, {}
             )
             expected_date_range = {"start": "2020-09-01", "end": "2020-09-22"}
             mock_copy.assert_called()
@@ -437,8 +438,9 @@ class AzureReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
             os.remove(temp_path)
 
+    @patch("masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_value=False)
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives(self, mock_copy):
+    def test_create_daily_archives(self, mock_copy, _):
         """Test that we correctly create daily archive files."""
         file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
         file_name = f"{file}.csv"
@@ -453,12 +455,13 @@ class AzureReportDownloaderTest(MasuTestCase):
             return_value=start_date,
         ):
             create_daily_archives(
-                "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+                "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, {}
             )
             mock_copy.assert_not_called()
 
+    @patch("masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_value=False)
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives_check_leading_zeros(self, mock_copy):
+    def test_create_daily_archives_check_leading_zeros(self, mock_copy, _):
         """Check that the leading zeros are kept when downloading."""
         file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
         file_name = f"{file}.csv"
@@ -474,7 +477,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             return_value=start_date,
         ):
             daily_file_names, date_range = create_daily_archives(
-                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, None
+                "trace_id", "account", self.aws_provider_uuid, temp_path, file_name, manifest_id, start_date, {}
             )
 
         for daily_file in daily_file_names:
@@ -487,8 +490,9 @@ class AzureReportDownloaderTest(MasuTestCase):
 
         os.remove(temp_path)
 
+    @patch("masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_value=False)
     @patch("masu.external.downloader.azure.azure_report_downloader.copy_local_report_file_to_s3_bucket")
-    def test_create_daily_archives_dates_out_of_range(self, mock_copy):
+    def test_create_daily_archives_dates_out_of_range(self, mock_copy, _):
         """Test that we correctly create daily archive files."""
         file = "costreport_a243c6f2-199f-4074-9a2c-40e671cf1584"
         file_name = f"{file}.csv"
@@ -500,14 +504,15 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_daily_files = []
         start_date = self.dh.this_month_start.replace(year=2020, month=7).date()
         daily_file_names, date_range = create_daily_archives(
-            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, {}
         )
         expected_date_range = {}
         self.assertEqual(date_range, expected_date_range)
         self.assertIsInstance(daily_file_names, list)
         self.assertEqual(daily_file_names, expected_daily_files)
 
-    def test_create_daily_archives_empty_frames(self):
+    @patch("masu.external.downloader.azure.azure_report_downloader.check_provider_setup_complete", return_value=False)
+    def test_create_daily_archives_empty_frames(self, _):
         """Test that we correctly create daily archive files."""
         file = "empty_frame"
         file_name = f"{file}.csv"
@@ -519,7 +524,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_daily_files = []
         start_date = self.dh.this_month_start.replace(year=2020, month=7).date()
         daily_file_names, date_range = create_daily_archives(
-            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, None
+            "trace_id", "account", self.azure_provider_uuid, temp_path, file, manifest_id, start_date, {}
         )
         expected_date_range = {}
         self.assertEqual(date_range, expected_date_range)
