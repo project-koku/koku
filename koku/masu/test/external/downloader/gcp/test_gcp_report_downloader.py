@@ -211,7 +211,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         ]
         start_date = self.dh.this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, {}
         )
         expected_date_range = {"start": "2022-08-01", "end": "2022-08-01"}
         self.assertEqual(date_range, expected_date_range)
@@ -234,7 +234,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
         start_date = self.dh.this_month_start
         daily_file_names, _ = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, [temp_path], None, start_date, {}
         )
         for daily_file in daily_file_names:
             with open(daily_file) as file:
@@ -252,7 +252,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             err_msg = "unable to create daily archives from: fake"
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(CreateDailyArchivesError, err_msg):
-                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", None)
+                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", None, "fake", {})
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
