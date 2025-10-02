@@ -225,7 +225,9 @@ class ProviderManager:
             latest_version = utils.get_latest_operator_version()
             current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
             try:
-                base_additional_context["operator_update_available"] = Version(current_version) < Version(latest_version)
+                base_additional_context["operator_update_available"] = Version(current_version) < Version(
+                    latest_version
+                )
                 is_supported = Version(current_version) >= Version("4.0.0")
             except InvalidVersion:
                 base_additional_context["operator_update_available"] = False
