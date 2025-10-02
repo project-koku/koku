@@ -47,7 +47,7 @@ class FilterSerializerValidationTest(TestCase):
         self.assertIn("org_unit_id", error_message)
 
     def test_unsupported_exact_infrastructure_filter_validation(self):
-        """Test that exact:infrastructure raises ValidationError and executes line 254."""
+        """Test that exact:infrastructure raises ValidationError in unsupported_exact_filters."""
         from api.report.serializers import FilterSerializer
         from rest_framework import serializers
 
@@ -56,15 +56,12 @@ class FilterSerializerValidationTest(TestCase):
             _opfields = ("infrastructure",)  # Include infrastructure to pass field validation
             infrastructure = serializers.CharField(required=False)
 
-        # Test with exact:infrastructure to trigger line 254 validation
         filter_data = {"exact:infrastructure": ["aws"]}
         serializer = TestInfrastructureFilterSerializer(data=filter_data)
 
-        # This should execute line 254 in serializers.py and raise ValidationError
         with self.assertRaises(ValidationError) as context:
             serializer.is_valid(raise_exception=True)
 
-        # Verify the error comes from line 254 validation
         self.assertIn("exact:infrastructure", context.exception.detail)
         error_message = str(context.exception.detail["exact:infrastructure"][0])
         self.assertIn("exact:", error_message)
