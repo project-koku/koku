@@ -54,6 +54,36 @@ def strip_prefix(key, prefix=""):
     return key.replace(prefix, "").replace("and:", "").replace("or:", "").replace("exact:", "")
 
 
+def get_base_key(filter_key):
+    """Extract base key from filter by removing operator prefixes."""
+    for operator in ["exact:", "and:", "or:"]:
+        if operator in filter_key:
+            return filter_key.replace(operator, "")
+    return filter_key
+
+
+def group_filters_by_base_key(filter_list):
+    """Group filters by their base key, categorizing by operator type."""
+    filter_groups = {}
+
+    for filt in filter_list:
+        base_key = get_base_key(filt)
+
+        if base_key not in filter_groups:
+            filter_groups[base_key] = {"standard": [], "exact": [], "and": [], "or": []}
+
+        if "exact:" in filt:
+            filter_groups[base_key]["exact"].append(filt)
+        elif "and:" in filt:
+            filter_groups[base_key]["and"].append(filt)
+        elif "or:" in filt:
+            filter_groups[base_key]["or"].append(filt)
+        else:
+            filter_groups[base_key]["standard"].append(filt)
+
+    return filter_groups
+
+
 def _is_grouped_by_key(group_by, keys):
     for key in keys:
         for k in group_by:
@@ -618,37 +648,14 @@ class ReportQueryHandler(QueryHandler):
                     filter_collection.add(q_filter)
         return filter_collection
 
-    def _handle_exact_partial_tag_filter_combination(self, db_column, filter_list, prefix):  # noqa C901
+    def _handle_exact_partial_tag_filter_combination(self, db_column, filter_list, prefix):
         """
-        Handles the combination of exact and partial tag filters on the same field by joining them with OR logic.
-        This extends the existing fix for regular fields to work with tag filters.
+        Handles the combination of exact and partial tag filters by joining them with OR logic.
+        Simplified version using utility functions.
         """
-        # Group filters by their base key (without prefixes like "exact:")
-        filter_groups = {}
+        # Group filters by their base key using utility function
+        filter_groups = group_filters_by_base_key(filter_list)
 
-        for filt in filter_list:
-            # Extract the base key (e.g., "tag:version" from both "exact:tag:version" and "tag:version")
-            base_key = filt
-            if "exact:" in filt:
-                base_key = filt.replace("exact:", "")
-            elif "and:" in filt:
-                base_key = filt.replace("and:", "")
-            elif "or:" in filt:
-                base_key = filt.replace("or:", "")
-
-            if base_key not in filter_groups:
-                filter_groups[base_key] = {"standard": [], "exact": [], "and": [], "or": []}
-
-            if "exact:" in filt:
-                filter_groups[base_key]["exact"].append(filt)
-            elif "and:" in filt:
-                filter_groups[base_key]["and"].append(filt)
-            elif "or:" in filt:
-                filter_groups[base_key]["or"].append(filt)
-            else:
-                filter_groups[base_key]["standard"].append(filt)
-
-        # Find groups that have both exact and partial filters
         combined_filter_collections = []
         remaining_filters = []
 
@@ -660,32 +667,29 @@ class ReportQueryHandler(QueryHandler):
             if standard_filters and exact_filters:
                 combined_collection = QueryFilterCollection()
 
-                # Add standard (partial) filters
-                for prefix_filter in standard_filters:
+                # Process all filters (standard and exact) for this base key
+                for prefix_filter in standard_filters + exact_filters:
                     db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
-                    filt = {"field": db_name, "operation": "icontains"}
                     group_by = self.parameters.get_group_by(prefix_filter, list())
                     filter_ = self.parameters.get_filter(prefix_filter, list())
                     list_ = list(set(group_by + filter_))  # uniquify the list
-                    if filter_ and ReportQueryHandler.has_wildcard(filter_):
-                        filt = {"field": db_column, "operation": "has_key"}
-                        q_filter = QueryFilter(parameter=strip_prefix(prefix_filter, prefix), **filt)
-                        combined_collection.add(q_filter)
-                    elif list_ and not ReportQueryHandler.has_wildcard(list_):
-                        for item in list_:
-                            q_filter = QueryFilter(parameter=item, **filt)
-                            combined_collection.add(q_filter)
 
-                # Add exact filters
-                for exact_filter in exact_filters:
-                    db_name = db_column + "__" + strip_prefix(exact_filter, prefix)
-                    filt = {"field": db_name, "operation": "exact"}
-                    group_by = self.parameters.get_group_by(exact_filter, list())
-                    filter_ = self.parameters.get_filter(exact_filter, list())
-                    list_ = list(set(group_by + filter_))  # uniquify the list
-                    if list_:
+                    # Determine operation and field based on filter type
+                    if "exact:" in prefix_filter:
+                        filt = {"field": db_name, "operation": "exact"}
+                        logical_operator = "exact"
+                    elif filter_ and ReportQueryHandler.has_wildcard(filter_):
+                        filt = {"field": db_column, "operation": "has_key"}
+                        logical_operator = None
+                        list_ = [strip_prefix(prefix_filter, prefix)]
+                    else:
+                        filt = {"field": db_name, "operation": "icontains"}
+                        logical_operator = None
+
+                    # Add filters to collection
+                    if list_ and not ("exact:" not in prefix_filter and ReportQueryHandler.has_wildcard(list_)):
                         for item in list_:
-                            q_filter = QueryFilter(parameter=item, logical_operator="exact", **filt)
+                            q_filter = QueryFilter(parameter=item, logical_operator=logical_operator, **filt)
                             combined_collection.add(q_filter)
 
                 if combined_collection:
@@ -696,81 +700,57 @@ class ReportQueryHandler(QueryHandler):
 
         return combined_filter_collections, remaining_filters
 
-    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list, prefix):  # noqa C901
-        """Create and set colon prefixed filters.
+    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list, prefix):
+        """Create and set colon prefixed filters. Simplified version using utility functions."""
 
-        filter_collection: FilterCollection
-        db_column: column to use to build filter
-        filter_list: list of filters from param's filter & group by
-        prefix: prefix to be stripped from parameter keys
-        """
+        # Quick check for exact+partial combinations using utility function
+        filter_groups = group_filters_by_base_key(filter_list)
+        has_exact_partial_combination = any(group["standard"] and group["exact"] for group in filter_groups.values())
 
-        # Check if we have exact+partial combinations that need special OR handling
-        has_exact_partial_combination = False
-        exact_filters = [f for f in filter_list if "exact:" in f]
-        standard_filters = [f for f in filter_list if "exact:" not in f and "and:" not in f and "or:" not in f]
-
-        if exact_filters and standard_filters:
-            # Group filters by their base key to check for exact+partial combinations
-            filter_groups = {}
-            for filt in filter_list:
-                base_key = filt
-                if "exact:" in filt:
-                    base_key = filt.replace("exact:", "")
-                elif "and:" in filt:
-                    base_key = filt.replace("and:", "")
-                elif "or:" in filt:
-                    base_key = filt.replace("or:", "")
-
-                if base_key not in filter_groups:
-                    filter_groups[base_key] = {"standard": [], "exact": []}
-
-                if "exact:" in filt:
-                    filter_groups[base_key]["exact"].append(filt)
-                elif "and:" not in filt and "or:" not in filt:
-                    filter_groups[base_key]["standard"].append(filt)
-
-            # Check if we have any base key that has both exact and standard filters
-            for base_key, group in filter_groups.items():
-                if group["standard"] and group["exact"]:
-                    has_exact_partial_combination = True
-                    break
-
-        # Only use the new logic if we have actual exact+partial combinations
+        # Only use the complex logic if we have actual exact+partial combinations
         if has_exact_partial_combination:
-            # Handle exact+partial filter combinations with OR logic for tag filters
             combined_collections, remaining_filters = self._handle_exact_partial_tag_filter_combination(
                 db_column, filter_list, prefix
             )
 
             # Add combined OR collections to the main filter collection
             for combined_collection in combined_collections:
-                # Create a combined Q object with OR logic and add it to the main collection
                 combined_q = combined_collection.compose(logical_operator="or")
                 if combined_q:
-                    # Add this as a single filter that represents the combined OR condition
                     filter_collection._combined_or_conditions = getattr(
                         filter_collection, "_combined_or_conditions", []
                     )
                     filter_collection._combined_or_conditions.append(combined_q)
 
-            # Process remaining filters normally
             filters_to_process = remaining_filters
         else:
-            # Use original logic for all filters if no exact+partial combinations exist
+            # Use simple logic for all filters if no exact+partial combinations exist
             filters_to_process = filter_list
 
-        # Process standard filters
+        # Process standard filters using existing logic
+        self._process_standard_filters(filter_collection, db_column, filters_to_process, prefix)
+
+        # Process operator-specific filters
+        for operator in ["and", "or", "exact"]:
+            filter_collection = self._set_operator_specific_prefix_based_filters(
+                filter_collection, db_column, filters_to_process, operator, prefix
+            )
+
+        return filter_collection
+
+    def _process_standard_filters(self, filter_collection, db_column, filters_to_process, prefix):
+        """Process standard filters without operator prefixes."""
         standard_filters = [
-            filt for filt in filters_to_process if "and:" not in filt and "or:" not in filt and "exact:" not in filt
+            filt for filt in filters_to_process if not any(filt.startswith(op) for op in ["and:", "or:", "exact:"])
         ]
+
         for prefix_filter in standard_filters:
-            # Update the _filter to use the label column name
             db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
             filt = {"field": db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(prefix_filter, list())
             filter_ = self.parameters.get_filter(prefix_filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
+
             if filter_ and ReportQueryHandler.has_wildcard(filter_):
                 filt = {"field": db_column, "operation": "has_key"}
                 q_filter = QueryFilter(parameter=strip_prefix(prefix_filter, prefix), **filt)
@@ -779,18 +759,6 @@ class ReportQueryHandler(QueryHandler):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filter_collection.add(q_filter)
-
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filters_to_process, "and", prefix
-        )
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filters_to_process, "or", prefix
-        )
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filters_to_process, "exact", prefix
-        )
-
-        return filter_collection
 
     def _set_operator_specified_filters(self, operator, check_for_exclude=False):
         """Set any filters using AND instead of OR."""
