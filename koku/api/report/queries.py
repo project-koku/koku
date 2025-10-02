@@ -651,7 +651,6 @@ class ReportQueryHandler(QueryHandler):
     def _handle_exact_partial_tag_filter_combination(self, db_column, filter_list, prefix):
         """
         Handles the combination of exact and partial tag filters by joining them with OR logic.
-        Simplified version using utility functions.
         """
         # Group filters by their base key using utility function
         filter_groups = group_filters_by_base_key(filter_list)
