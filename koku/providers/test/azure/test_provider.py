@@ -276,7 +276,7 @@ class AzureProviderTestCase(TestCase):
         provider_interface.is_file_reachable(self.source, self.files)
         mock_azure_client.cloud_storage_account.get_blob_client.assert_called
 
-    @patch("providers.azure.client.AzureClientFactory")
+    @patch("providers.azure.provider.AzureClientFactory")
     def test_is_file_reachable_authentication_error(self, mock_azure_client):
         """Test ingress file check azure authentication error."""
         err_msg = "Azure Error"
