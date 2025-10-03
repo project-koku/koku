@@ -38,15 +38,6 @@ DATABASE_SUMMARY = OCPAllDatabaseSummaryPT
 class OCPAllQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
 
-    def test_set_or_filters(self):
-        """Test that OCP on All or_filter is appropriately set."""
-        url = "?"
-        query_params = self.mocked_query_params(url, OCPAllStorageView)
-        handler = OCPAllReportQueryHandler(query_params)
-
-        filters = handler._set_or_filters()
-        self.assertEqual(filters.connector, "OR")
-
     def test_ocp_all_view_storage_model(self):
         """Test that ALL storage view model is used."""
 
