@@ -23,11 +23,14 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 GCP_UNATTRIBUTED_STORAGE_UNLEASH_FLAG = "cost-management.backend.unattributed_storage_gcp"
 
 
-def is_feature_flag_enabled_by_account(account, feature_flag):  # pragma: no cover
+def is_feature_flag_enabled_by_account(account, feature_flag, dev_fallback=False):  # pragma: no cover
     """Generic method for checking if a feature flag is enabled."""
     account = convert_account(account)
     context = {"schema": account}
-    return UNLEASH_CLIENT.is_enabled(feature_flag, context)
+    if dev_fallback:
+        return UNLEASH_CLIENT.is_enabled(feature_flag, context, fallback_development_true)
+    else:
+        return UNLEASH_CLIENT.is_enabled(feature_flag, context)
 
 
 def is_purge_trino_files_enabled(account):  # pragma: no cover
