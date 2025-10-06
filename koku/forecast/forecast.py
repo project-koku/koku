@@ -15,6 +15,7 @@ from functools import reduce
 import numpy as np
 import statsmodels.api as sm
 from django.conf import settings
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import DecimalField
@@ -433,7 +434,11 @@ class Forecast:
         if not isinstance(filt, list):
             filt = [filt]
         for _filt in filt:
-            check_field_type = self.cost_summary_table._meta.get_field(_filt.get("field", "")).get_internal_type()
+            check_field_type = None
+            try:
+                check_field_type = self.cost_summary_table._meta.get_field(_filt["field"]).get_internal_type()
+            except FieldDoesNotExist:
+                pass
             _filt["operation"] = "contains" if check_field_type == "ArrayField" else "in"
             q_filter = QueryFilter(parameter=access, **_filt)
             filters.add(q_filter)
