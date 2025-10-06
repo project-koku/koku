@@ -430,14 +430,12 @@ class Forecast:
         returns:
             None
         """
-        if isinstance(filt, list):
-            for _filt in filt:
-                _filt["operation"] = "in"
-                q_filter = QueryFilter(parameter=access, **_filt)
-                filters.add(q_filter)
-        else:
-            filt["operation"] = "in"
-            q_filter = QueryFilter(parameter=access, **filt)
+        if not isinstance(filt, list):
+            filt = [filt]
+        for _filt in filt:
+            check_field_type = self.cost_summary_table._meta.get_field(_filt.get("field", "")).get_internal_type()
+            _filt["operation"] = "contains" if check_field_type == "ArrayField" else "in"
+            q_filter = QueryFilter(parameter=access, **_filt)
             filters.add(q_filter)
 
 

@@ -403,7 +403,9 @@ class QueryHandler:
         returns:
             None
         """
-        for _filt in filt if isinstance(filt, list) else [filt]:
+        if not isinstance(filt, list):
+            filt = [filt]
+        for _filt in filt:
             check_field_type = None
             try:
                 if hasattr(self, "query_table"):
