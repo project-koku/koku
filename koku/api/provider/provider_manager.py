@@ -224,10 +224,13 @@ class ProviderManager:
             base_additional_context["operator_certified"] = self.manifest.operator_certified
             latest_version = utils.get_latest_operator_version()
             current_version = self.manifest.operator_version.split(":")[-1].lstrip("v")
-            base_additional_context["operator_update_available"] = current_version != latest_version
             try:
+                base_additional_context["operator_update_available"] = Version(current_version) < Version(
+                    latest_version
+                )
                 is_supported = Version(current_version) >= Version("4.0.0")
             except InvalidVersion:
+                base_additional_context["operator_update_available"] = False
                 is_supported = False
             base_additional_context["vm_cpu_core_cost_model_support"] = is_supported
         return base_additional_context

@@ -398,7 +398,7 @@ build_gcp_data() {
       trigger_ocp_ingest "$_ocp_ingest_name" "$_ocp_payload"
   done
 
-  nise_report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local"
+  nise_report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local" -r
   nise_report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0" -r
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
