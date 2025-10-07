@@ -75,10 +75,8 @@ class ReportParquetProcessorBase:
         except TrinoQueryError as err:
             LOG.error(err)
         except Exception as err:
-            # Captures HttpError and other unhandled errors
             if "404" in str(err) and "Query not found" in str(err):
                 LOG.warning(f"Trino query not found (404) - likely temporary: {err}")
-                # Re-raise as a custom exception to allow retry at the higher level
                 raise TrinoQueryNotFoundError(str(err)) from err
             else:
                 LOG.error(f"Unexpected error in _execute_trino_sql: {err}")

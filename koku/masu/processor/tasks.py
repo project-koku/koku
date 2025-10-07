@@ -398,7 +398,6 @@ def get_report_files(  # noqa: C901
                         context=context,
                     )
                 )
-                # Re-raise to trigger automatic retry
                 raise processing_error
 
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
