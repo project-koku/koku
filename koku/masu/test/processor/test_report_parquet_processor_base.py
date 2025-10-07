@@ -15,6 +15,7 @@ from django.test.utils import override_settings
 from api.common import log_json
 from koku.cache import build_trino_schema_exists_key
 from koku.cache import build_trino_table_exists_key
+from koku.trino_database import TrinoQueryNotFoundError
 from masu.processor.report_parquet_processor_base import PostgresSummaryTableError
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.test import MasuTestCase
@@ -219,3 +220,12 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         with self.assertLogs(self.log_base, level="INFO") as logger:
             self.processor.create_schema()
             self.assertIn(expected_log, logger.output)
+
+    @patch("trino.dbapi.connect")
+    def test_execute_trino_sql_404_error(self, mock_connect):
+        """Test that 404 Query not found errors raise TrinoQueryNotFoundError."""
+        mock_cursor = mock_connect.return_value.__enter__.return_value.cursor.return_value
+        mock_cursor.execute.side_effect = Exception("HttpError: error 404: b'Error 404 Not Found: Query not found'")
+
+        with self.assertRaises(TrinoQueryNotFoundError):
+            self.processor._execute_trino_sql("SELECT 1", "test_schema")
