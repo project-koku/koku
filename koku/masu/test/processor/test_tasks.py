@@ -587,25 +587,26 @@ class TestProcessorTasks(MasuTestCase):
         is_string_404 = "404" in string_error and "Query not found" in string_error
         self.assertTrue(is_string_404)
 
-    def test_trino_404_error_detection_logic(self):
-        """Test the 404 error detection logic for coverage."""
-        error = TrinoQueryNotFoundError("404 Query not found")
-        isinstance_check = isinstance(error, TrinoQueryNotFoundError)
-        self.assertTrue(isinstance_check)
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch(
+        "masu.processor.tasks._process_report_file",
+        side_effect=ReportProcessorError(
+            "Unknown processor error: error 404: b'Error 404 Not Found: Query not found'"
+        ),
+    )
+    def test_get_report_files_trino_404(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
+        """Test coverage for TrinoQueryNotFoundError handling in get_report_files."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
+        with self.assertLogs("masu.processor.tasks", level="WARNING") as logger:
+            try:
+                get_report_files(**self.get_report_args)
+            except ReportProcessorError:
+                pass
 
-        string_check = "404" in str(error) and "Query not found" in str(error)
-        self.assertTrue(string_check)
-
-        combined_check = isinstance(error, TrinoQueryNotFoundError) or (
-            "404" in str(error) and "Query not found" in str(error)
-        )
-        self.assertTrue(combined_check)
-
-        from masu.processor.report_processor import ReportProcessorError
-
-        report_error = ReportProcessorError("404 Query not found")
-        string_only_check = "404" in str(report_error) and "Query not found" in str(report_error)
-        self.assertTrue(string_only_check)
+            retry_log_found = any("Trino 404 error - retrying" in log for log in logger.output)
+            self.assertTrue(retry_log_found, f"Retry log not found in: {logger.output}")
 
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
