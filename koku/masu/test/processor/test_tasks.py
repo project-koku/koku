@@ -33,7 +33,6 @@ from api.models import Provider
 from common.queues import SummaryQueue
 from koku.cache import CacheEnum
 from koku.middleware import KokuTenantMiddleware
-from koku.trino_database import TrinoQueryNotFoundError
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -574,18 +573,6 @@ class TestProcessorTasks(MasuTestCase):
             expected = "skipping validation, disabled for schema"
             found = any(expected in log for log in logger.output)
             self.assertTrue(found)
-
-    def test_trino_query_not_found_error_detection(self):
-        """Test that TrinoQueryNotFoundError is properly detected for retry."""
-        error = TrinoQueryNotFoundError("404 Query not found")
-        is_404_error = isinstance(error, TrinoQueryNotFoundError) or (
-            "404" in str(error) and "Query not found" in str(error)
-        )
-        self.assertTrue(is_404_error)
-
-        string_error = "404 Query not found"
-        is_string_404 = "404" in string_error and "Query not found" in string_error
-        self.assertTrue(is_string_404)
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")

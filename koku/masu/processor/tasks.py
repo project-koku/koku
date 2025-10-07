@@ -271,7 +271,7 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
     name="masu.processor.tasks.get_report_files",
     queue=DownloadQueue.DEFAULT,
     bind=True,
-    autoretry_for=(ReportProcessorError, TrinoQueryNotFoundError),
+    autoretry_for=(TrinoQueryNotFoundError,),
     max_retries=settings.MAX_UPDATE_RETRIES,
     retry_backoff=True,
     retry_backoff_max=600,
@@ -387,9 +387,7 @@ def get_report_files(  # noqa: C901
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             # Check if it's a Trino 404 error that can be retried
-            if isinstance(processing_error, TrinoQueryNotFoundError) or (
-                "404" in str(processing_error) and "Query not found" in str(processing_error)
-            ):
+            if "404" in str(processing_error) and "Query not found" in str(processing_error):
                 LOG.warning(
                     log_json(
                         tracing_id,
@@ -398,7 +396,7 @@ def get_report_files(  # noqa: C901
                         context=context,
                     )
                 )
-                raise processing_error
+                raise TrinoQueryNotFoundError(str(processing_error)) from processing_error
 
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
