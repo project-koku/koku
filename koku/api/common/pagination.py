@@ -11,7 +11,6 @@ from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
 
 from api import API_VERSION
-from api.utils import DateHelper
 
 PATH_INFO = "PATH_INFO"
 LOG = logging.getLogger(__name__)
@@ -194,6 +193,8 @@ class ReportPagination(StandardResultsSetPagination):
 class ForecastListPaginator(ListPaginator):
     """A paginator that applies a default limit based on days in month."""
 
+    default_limit = 100
+
     def __init__(self, data_set, request, cost_type=None):
         """Initialize the paginator."""
         self.cost_type = cost_type
@@ -202,8 +203,6 @@ class ForecastListPaginator(ListPaginator):
         self.count = len(data_set)
         self.limit = self.get_limit(self.request)
         self.offset = self.get_offset(self.request)
-
-        self.default_limit = DateHelper().this_month_end.day
 
     def get_paginated_response(self, data):
         """Override pagination output."""
