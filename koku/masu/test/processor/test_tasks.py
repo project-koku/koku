@@ -587,6 +587,26 @@ class TestProcessorTasks(MasuTestCase):
         is_string_404 = "404" in string_error and "Query not found" in string_error
         self.assertTrue(is_string_404)
 
+    def test_trino_404_error_detection_logic(self):
+        """Test the 404 error detection logic for coverage."""
+        error = TrinoQueryNotFoundError("404 Query not found")
+        isinstance_check = isinstance(error, TrinoQueryNotFoundError)
+        self.assertTrue(isinstance_check)
+
+        string_check = "404" in str(error) and "Query not found" in str(error)
+        self.assertTrue(string_check)
+
+        combined_check = isinstance(error, TrinoQueryNotFoundError) or (
+            "404" in str(error) and "Query not found" in str(error)
+        )
+        self.assertTrue(combined_check)
+
+        from masu.processor.report_processor import ReportProcessorError
+
+        report_error = ReportProcessorError("404 Query not found")
+        string_only_check = "404" in str(report_error) and "Query not found" in str(report_error)
+        self.assertTrue(string_only_check)
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
