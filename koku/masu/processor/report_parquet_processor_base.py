@@ -21,6 +21,7 @@ from koku.cache import build_trino_table_exists_key
 from koku.cache import get_value_from_cache
 from koku.cache import set_value_in_cache
 from koku.pg_partition import get_or_create_partition
+from koku.trino_database import TrinoQueryNotFoundError
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 from reporting.models import TenantAPIProvider
@@ -73,6 +74,15 @@ class ReportParquetProcessorBase:
                 LOG.error(err)
         except TrinoQueryError as err:
             LOG.error(err)
+        except Exception as err:
+            # Captures HttpError and other unhandled errors
+            if "404" in str(err) and "Query not found" in str(err):
+                LOG.warning(f"Trino query not found (404) - likely temporary: {err}")
+                # Re-raise as a custom exception to allow retry at the higher level
+                raise TrinoQueryNotFoundError(str(err)) from err
+            else:
+                LOG.error(f"Unexpected error in _execute_trino_sql: {err}")
+                raise err
 
         return rows
 

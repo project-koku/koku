@@ -34,6 +34,7 @@ from common.queues import RefreshQueue
 from common.queues import SummaryQueue
 from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
+from koku.trino_database import TrinoQueryNotFoundError
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
@@ -266,7 +267,16 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
     return already_processed
 
 
-@celery_app.task(name="masu.processor.tasks.get_report_files", queue=DownloadQueue.DEFAULT, bind=True)  # noqa: C901
+@celery_app.task(
+    name="masu.processor.tasks.get_report_files",
+    queue=DownloadQueue.DEFAULT,
+    bind=True,
+    autoretry_for=(ReportProcessorError, TrinoQueryNotFoundError),
+    max_retries=settings.MAX_UPDATE_RETRIES,
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+)  # noqa: C901
 def get_report_files(  # noqa: C901
     self,
     customer_name,
@@ -376,6 +386,21 @@ def get_report_files(  # noqa: C901
             )
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
+            # Check if it's a Trino 404 error that can be retried
+            if isinstance(processing_error, TrinoQueryNotFoundError) or (
+                "404" in str(processing_error) and "Query not found" in str(processing_error)
+            ):
+                LOG.warning(
+                    log_json(
+                        tracing_id,
+                        msg=f"Trino 404 error - retrying (attempt {self.request.retries + 1}/"
+                        f"{settings.MAX_UPDATE_RETRIES})",
+                        context=context,
+                    )
+                )
+                # Re-raise to trigger automatic retry
+                raise processing_error
+
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             LOG.error(log_json(tracing_id, msg=f"Report processing error: {processing_error}", context=context))
             ReportManifestDBAccessor().update_manifest_state(
