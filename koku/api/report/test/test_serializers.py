@@ -25,6 +25,50 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 
 
+class FilterSerializerValidationTest(TestCase):
+    """Test exact filter validation in serializers."""
+
+    def test_unsupported_exact_filter_validation(self):
+        """Test that unsupported exact: filters raise ValidationError."""
+        from api.report.aws.serializers import AWSFilterSerializer
+
+        # Test that exact:org_unit_id raises ValidationError
+        # Covers: base_key = key.split(":", 1)[1] and validation logic
+        filter_data = {"exact:org_unit_id": ["OU_001"]}
+        serializer = AWSFilterSerializer(data=filter_data)
+
+        with self.assertRaises(ValidationError) as context:
+            serializer.is_valid(raise_exception=True)
+
+        # Verify the error is for the exact filter
+        self.assertIn("exact:org_unit_id", context.exception.detail)
+        error_message = str(context.exception.detail["exact:org_unit_id"][0])
+        self.assertIn("not supported", error_message)
+        self.assertIn("org_unit_id", error_message)
+
+    def test_unsupported_exact_infrastructure_filter_validation(self):
+        """Test that exact:infrastructure raises ValidationError in unsupported_exact_filters."""
+        from api.report.serializers import FilterSerializer
+        from rest_framework import serializers
+
+        # Create a real serializer that has "infrastructure" in _opfields to force validation
+        class TestInfrastructureFilterSerializer(FilterSerializer):
+            _opfields = ("infrastructure",)  # Include infrastructure to pass field validation
+            infrastructure = serializers.CharField(required=False)
+
+        filter_data = {"exact:infrastructure": ["aws"]}
+        serializer = TestInfrastructureFilterSerializer(data=filter_data)
+
+        with self.assertRaises(ValidationError) as context:
+            serializer.is_valid(raise_exception=True)
+
+        self.assertIn("exact:infrastructure", context.exception.detail)
+        error_message = str(context.exception.detail["exact:infrastructure"][0])
+        self.assertIn("exact:", error_message)
+        self.assertIn("not supported", error_message)
+        self.assertIn("infrastructure", error_message)
+
+
 class ExcludeSerializerTest(TestCase):
     """Tests for the exclude serializer."""
 
