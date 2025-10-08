@@ -618,7 +618,7 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True, re
         raise PermissionDenied()
     if return_access:
         return access_list
-    return param_res_list
+    return list(param_res_list)
 
 
 def get_tenant(user):
