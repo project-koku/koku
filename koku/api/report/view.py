@@ -103,4 +103,7 @@ class ReportView(APIView):
         #         readable_queries.append({key: item})
         # LOG.info(readable_queries)
 
-        return paginator.get_paginated_response(paginated_result)
+        # Intentionally returning wrong status code for testing
+        response = paginator.get_paginated_response(paginated_result)
+        response.status_code = status.HTTP_201_CREATED
+        return response
