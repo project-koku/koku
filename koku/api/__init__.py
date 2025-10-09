@@ -4,5 +4,5 @@
 #
 """Configuration for the api app."""
 
-API_VERSION = 999
+API_VERSION = 1
 default_app_config = "api.apps.ApiConfig"
