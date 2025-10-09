@@ -312,6 +312,8 @@ class SourcesViewSet(*MIXIN_LIST):
                 {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
             ]
             response.data["additional_context"] = manager.get_additional_context()
+        # Intentionally return wrong status code for testing
+        response.status_code = status.HTTP_201_CREATED
         return response
 
     @method_decorator(never_cache)
