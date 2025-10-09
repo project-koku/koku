@@ -84,7 +84,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/aws/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/aws/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "start_date": start_date,
@@ -110,7 +110,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_awscostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/aws/reporting_awscostentrylineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -133,7 +133,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_awstags_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/reporting_awstags_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
@@ -141,7 +141,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_category_summary_table(self, bill_ids, start_date, end_date):
         """Populate the category key values table."""
         table_name = self._table_map["category_summary"]
-        sql = pkgutil.get_data("masu.database", "sql/reporting_awscategory_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/reporting_awscategory_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
@@ -149,7 +149,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/aws/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/aws/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
@@ -163,7 +163,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"trino_sql/aws/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -304,7 +304,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the OCP infra costs in daily summary tables after populating the project table via trino."""
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
+        sql = pkgutil.get_data(
+            "masu.database", "sql/aws/openshift/reporting_ocpaws_ocp_infrastructure_back_populate.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,
@@ -324,7 +326,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
         }
         # Tag Summary
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpawstags_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpawstags_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_aws_tags_summary"], sql, sql_params)
         # Tag Mapping
@@ -412,7 +414,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags(self, aws_bill_id):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "sql/aws/openshift/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": aws_bill_id, "schema": self.schema}
         sql, bind_params = self.prepare_query(sql, sql_params)
@@ -427,7 +429,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, aws_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpaws_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/aws/openshift/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)
@@ -493,7 +495,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         LOG.info(log_json(msg=msg, context=context))
 
-        sql = pkgutil.get_data("masu.database", f"trino_sql/{table_name}.sql")
+        sql = pkgutil.get_data("masu.database", f"trino_sql/aws/{table_name}.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,

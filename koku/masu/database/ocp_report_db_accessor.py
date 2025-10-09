@@ -53,7 +53,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
     #  Empty string will put a path seperator on the end
-    OCP_ON_ALL_SQL_PATH = os.path.join("sql", "openshift", "all", "")
+    OCP_ON_ALL_SQL_PATH = os.path.join("sql", "openshift", "all", "ui_summary", "")
 
     def __init__(self, schema):
         """Establish the database connection.
@@ -95,7 +95,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
         }
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
@@ -145,7 +145,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
         self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
         # populate vm UI table
-        sql = pkgutil.get_data("masu.database", f"sql/openshift/{VM_UI_SUMMARY_TABLE}.sql")
+        sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{VM_UI_SUMMARY_TABLE}.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
 
@@ -357,7 +357,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpusagelineitem_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "uuid": source,
@@ -403,7 +403,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg=f"updating {table_name}", context=ctx))
-        self._execute_processing_script("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql", sql_params)
+        self._execute_processing_script(
+            "masu.database", "sql/openshift/reporting_ocpusagepodlabel_summary.sql", sql_params
+        )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
     def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
@@ -419,7 +421,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg=f"updating {table_name}", context=ctx))
-        self._execute_processing_script("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql", sql_params)
+        self._execute_processing_script(
+            "masu.database", "sql/openshift/reporting_ocpstoragevolumelabel_summary.sql", sql_params
+        )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
