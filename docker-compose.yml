@@ -65,16 +65,17 @@ services:
       - TAG_ENABLED_LIMIT=${TAG_ENABLED_LIMIT-200}
       - DELAYED_TASK_TIME=${DELAYED_TASK_TIME-20}
       - DELAYED_TASK_POLLING_MINUTES=${DELAYED_TASK_POLLING_MINUTES-5}
+      - DEVELOPMENT_IDENTITY
     ports:
       - 8000:8000
       - 8001:9000
     volumes:
-      - './koku:/koku/koku'
-      - './dev/containers/unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './run_server.sh:/koku/run_server.sh'
-      - './dev/credentials:/etc/credentials'
+      - "./koku:/koku/koku"
+      - "./dev/containers/unleash:/koku/.unleash"
+      - "./db_functions:/koku/db_functions"
+      - "./scripts:/koku/scripts"
+      - "./run_server.sh:/koku/run_server.sh"
+      - "./dev/credentials:/etc/credentials"
     depends_on:
       - koku-base
 
@@ -139,12 +140,12 @@ services:
       - 5042:8000
       - 5001:9000
     volumes:
-      - './koku:/koku/koku'
-      - './dev/containers/unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './run_server.sh:/koku/run_server.sh'
-      - './dev/credentials:/etc/credentials'
+      - "./koku:/koku/koku"
+      - "./dev/containers/unleash:/koku/.unleash"
+      - "./db_functions:/koku/db_functions"
+      - "./scripts:/koku/scripts"
+      - "./run_server.sh:/koku/run_server.sh"
+      - "./dev/credentials:/etc/credentials"
     depends_on:
       - koku-base
 
@@ -221,34 +222,46 @@ services:
       - 6001-6020:9000
       - 5678:5678
     volumes:
-      - './koku:/koku/koku'
-      - './dev/containers/unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './testing:/testing'
-      - './testing/local_providers/azure_local:/tmp/local_container'
-      - './testing/local_providers/aws_local:/tmp/local_bucket'
-      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
-      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
-      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
-      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
-      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
-      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
-      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
-      - './testing/local_providers/gcp_local/:/tmp/gcp_local_bucket'
-      - './testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0'
-      - './testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
-      - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
-      - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
-      - './dev/credentials:/etc/credentials'
+      - "./koku:/koku/koku"
+      - "./dev/containers/unleash:/koku/.unleash"
+      - "./db_functions:/koku/db_functions"
+      - "./scripts:/koku/scripts"
+      - "./testing:/testing"
+      - "./testing/local_providers/azure_local:/tmp/local_container"
+      - "./testing/local_providers/aws_local:/tmp/local_bucket"
+      - "./testing/local_providers/aws_local_0:/tmp/local_bucket_0"
+      - "./testing/local_providers/aws_local_1:/tmp/local_bucket_1"
+      - "./testing/local_providers/aws_local_2:/tmp/local_bucket_2"
+      - "./testing/local_providers/aws_local_3:/tmp/local_bucket_3"
+      - "./testing/local_providers/aws_local_4:/tmp/local_bucket_4"
+      - "./testing/local_providers/aws_local_5:/tmp/local_bucket_5"
+      - "./testing/local_providers/insights_local:/var/tmp/masu/insights_local"
+      - "./testing/local_providers/gcp_local/:/tmp/gcp_local_bucket"
+      - "./testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0"
+      - "./testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1"
+      - "./testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2"
+      - "./testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3"
+      - "./dev/credentials:/etc/credentials"
     depends_on:
-        - koku-base
+      - koku-base
 
   koku-listener:
     container_name: koku_listener
     image: koku_base
     working_dir: /koku/
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'listener']
+    entrypoint:
+      [
+        "watchmedo",
+        "auto-restart",
+        "--directory=./koku",
+        "--pattern=*.py",
+        "--ignore-patterns=*test*",
+        "--recursive",
+        "--",
+        "python",
+        "koku/manage.py",
+        "listener",
+      ]
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -286,10 +299,10 @@ services:
     ports:
       - 7001-7020:9000
     volumes:
-      - './koku:/koku/koku'
-      - './dev/containers/unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
+      - "./koku:/koku/koku"
+      - "./dev/containers/unleash:/koku/.unleash"
+      - "./db_functions:/koku/db_functions"
+      - "./scripts:/koku/scripts"
     depends_on:
       - koku-base
 
@@ -297,7 +310,25 @@ services:
     container_name: subs_worker
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'subs_extraction,subs_transmission']
+    entrypoint:
+      [
+        "watchmedo",
+        "auto-restart",
+        "--directory=./",
+        "--pattern=*.py",
+        "--ignore-patterns=*test*",
+        "--recursive",
+        "--",
+        "celery",
+        "-A",
+        "koku",
+        "worker",
+        "--without-gossip",
+        "-l",
+        "info",
+        "-Q",
+        "subs_extraction,subs_transmission",
+      ]
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -339,11 +370,11 @@ services:
     ports:
       - 7021:9000
     volumes:
-      - './koku:/koku/koku'
-      - './dev/containers/unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './dev/credentials:/etc/credentials'
+      - "./koku:/koku/koku"
+      - "./dev/containers/unleash:/koku/.unleash"
+      - "./db_functions:/koku/db_functions"
+      - "./scripts:/koku/scripts"
+      - "./dev/credentials:/etc/credentials"
     depends_on:
       - koku-base
 
@@ -352,7 +383,19 @@ services:
     image: koku_base
     restart: on-failure:25
     working_dir: /koku/
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'sources']
+    entrypoint:
+      [
+        "watchmedo",
+        "auto-restart",
+        "--directory=./koku",
+        "--pattern=*.py",
+        "--ignore-patterns=*test*",
+        "--recursive",
+        "--",
+        "python",
+        "koku/manage.py",
+        "sources",
+      ]
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
       - SOURCES=True
@@ -397,11 +440,11 @@ services:
       - 4000:8000
       - 4001:9000
     volumes:
-      - './koku:/koku/koku'
-      - './dev/containers/unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './dev/credentials:/etc/credentials'
+      - "./koku:/koku/koku"
+      - "./dev/containers/unleash:/koku/.unleash"
+      - "./db_functions:/koku/db_functions"
+      - "./scripts:/koku/scripts"
+      - "./dev/credentials:/etc/credentials"
     depends_on:
       - koku-base
 
@@ -410,7 +453,7 @@ services:
     hostname: koku_beat
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
+    entrypoint: ["celery", "-A", "koku", "beat", "-l", "info"]
     environment:
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
@@ -433,14 +476,14 @@ services:
       - UNLEASH_TOKEN=${UNLEASH_TOKEN:?}
       - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
-      - './koku:/koku/koku'
-      - './dev/containers/unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
+      - "./koku:/koku/koku"
+      - "./dev/containers/unleash:/koku/.unleash"
+      - "./db_functions:/koku/db_functions"
+      - "./scripts:/koku/scripts"
     depends_on:
-        - koku-base
+      - koku-base
 
-### Utilities
+  ### Utilities
 
   db:
     container_name: koku-db
@@ -551,8 +594,8 @@ services:
     container_name: pgAdmin
     image: dpage/pgadmin4
     environment:
-    - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL-postgres@local.dev}
-    - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD-postgres}
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL-postgres@local.dev}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD-postgres}
     ports:
       - "${PGADMIN_PORT-8432}:80"
     volumes:
@@ -561,8 +604,8 @@ services:
   grafana:
     container_name: koku_grafana
     build:
-        context: grafana
-        dockerfile: Dockerfile-grafana
+      context: grafana
+      dockerfile: Dockerfile-grafana
     ports:
       - 3001:3000
     depends_on:
@@ -586,7 +629,7 @@ services:
     ports:
       - 4242:4242
     volumes:
-      - './dev/containers/unleash:/.unleash'
+      - "./dev/containers/unleash:/.unleash"
     depends_on:
       db:
         condition: service_healthy
