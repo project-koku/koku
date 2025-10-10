@@ -1233,41 +1233,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
 
-    def populate_unit_test_tag_data(self, report_period_ids, start_date, end_date):
-        """
-        This method allows us to maintain our tag logic.
-        """
-        # Remove disabled keys from the tags field.
-        self.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
-        self.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
-        table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_remove_disabled_tags.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_ids": report_period_ids,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
-    def populate_unit_test_virt_ui_table(self, report_period_ids, start_date, end_date, source_uuid):
-        """
-        This method populates the vm table
-        """
-        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_virt_ui.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_ids": report_period_ids,
-            "schema": self.schema,
-            "pod_request_cpu_core_hours": 1,
-            "pod_request_mem_core_hours": 4,
-            "source_uuid": source_uuid,
-        }
-        self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params)
-
     def populate_tag_based_costs(self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params):
         """Populate the tag based costs.
 
