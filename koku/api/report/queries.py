@@ -487,11 +487,7 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = self._check_for_operator_specific_filters(filters)
         if composed_category_filters:
             composed_filters = composed_filters & composed_category_filters
-
         composed_filters &= special_q_objects
-
-        # Additional filter[] specific options to consider.
-        multi_field_or_composed_filters = self._set_or_filters()
         if aws_use_or_operator and aws_or_filter_collections:
             composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
@@ -501,8 +497,8 @@ class ReportQueryHandler(QueryHandler):
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
-        if multi_field_or_composed_filters:
-            composed_filters = composed_filters & multi_field_or_composed_filters
+        if report_type_composed_filters := self._mapper._report_type_map.get("composed_filters", []):
+            composed_filters = composed_filters & report_type_composed_filters
         if conditional_filters := self._provider_map_conditional_filters():
             composed_filters = composed_filters & conditional_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
@@ -531,34 +527,18 @@ class ReportQueryHandler(QueryHandler):
 
         Such as when we fall back to the daily summary table and need to apply certain filters.
         """
-        filter_collection = (
-            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter_collection", [])
+        composed_filters = (
+            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("composed_filters", [])
         )
-        if filter_collection:
-            return filter_collection
+        if composed_filters:
+            return composed_filters
         conditional_filters = QueryFilterCollection()
         filters_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter", [])
         for filter_dict in filters_list:
             conditional_filters.add(**filter_dict)
         return conditional_filters.compose()
 
-    def _set_or_filters(self, or_filter=None):
-        """Create a composed filter collection of ORed filters.
-
-        This is designed to handle specific cases in the provider_map
-        not to accomodate user input via the API.
-
-        """
-        filters = QueryFilterCollection()
-        if not or_filter:
-            or_filter = self._mapper._report_type_map.get("or_filter", [])
-        for filt in or_filter:
-            q_filter = QueryFilter(**filt)
-            filters.add(q_filter)
-
-        return filters.compose(logical_operator="or")
-
-    def _set_prefix_based_exclusions(self, db_column, exclude_filters, prefix):
+    def _set_prefix_based_exclusions(self, db_column, exclude_filters, prefix):  # noqa C901
         """Creates exclusion fitlers for prefixed parameter keys
         that allow null returns.
 
@@ -615,7 +595,10 @@ class ReportQueryHandler(QueryHandler):
                 _filter_list.append(empty_json_filter)
             # We use OR here for our non ocp tables because the  keys will not live in the
             # same json structure.
-            _exclusion_composed = self._set_or_filters(_filter_list)
+            or_exclude_filters = QueryFilterCollection()
+            for filt in _filter_list:
+                or_exclude_filters.add(QueryFilter(**filt))
+            _exclusion_composed = or_exclude_filters.compose(logical_operator="or")
         if _exclusion_composed and null_composed:
             _exclusion_composed = _exclusion_composed | null_composed
         return _exclusion_composed
