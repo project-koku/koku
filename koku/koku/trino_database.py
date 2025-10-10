@@ -108,6 +108,10 @@ class TrinoHiveMetastoreError(KokuTrinoError):
     """Hive Metastore errors raised by Trino"""
 
 
+class TrinoQueryNotFoundError(KokuTrinoError):
+    """Query not found (404) errors from Trino - typically temporary"""
+
+
 def extract_context_from_sql_params(sql_params: dict[str, t.Any]) -> dict[str, t.Any]:
     ctx = {}
     if sql_params is None:
