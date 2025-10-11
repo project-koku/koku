@@ -89,7 +89,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_azurecostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/azure/reporting_azurecostentrylineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -113,7 +113,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_azuretags_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/azure/reporting_azuretags_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
@@ -163,7 +163,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
         }
         # Tag summary
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazuretags_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/azure/openshift/reporting_ocpazuretags_summary.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(self._table_map["ocp_on_azure_tags_summary"], sql, sql_params)
         # Tag Mapping
@@ -181,7 +181,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/azure/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/azure/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "start_date": start_date,
@@ -194,7 +194,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ocp_on_azure_ui_summary_tables(self, sql_params, tables=OCPAZURE_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/azure/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/azure/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
 
@@ -208,7 +208,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"trino_sql/azure/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -338,7 +338,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags(self, azure_bill_id):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "sql/azure/openshift/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": azure_bill_id, "schema": self.schema}
         sql, bind_params = self.prepare_query(sql, sql_params)
@@ -353,7 +353,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, azure_source_uuid, ocp_source_uuids, start_date, end_date, **kwargs
     ):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpazure_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/azure/openshift/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         days = self.date_helper.list_days(start_date, end_date)
@@ -379,7 +379,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the OCP on Azure and OCP daily summary tables. after populating the project table via trino."""
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpazure_ocp_infrastructure_back_populate.sql")
+        sql = pkgutil.get_data(
+            "masu.database", "sql/azure/openshift/reporting_ocpazure_ocp_infrastructure_back_populate.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,

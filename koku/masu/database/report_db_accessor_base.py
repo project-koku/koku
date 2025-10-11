@@ -297,7 +297,7 @@ class ReportDBAccessorBase:
         matched_tag_params = sql_metadata.build_params(
             ["schema", "start_date", "end_date", "month", "year", "matched_tag_strs", "ocp_provider_uuid"]
         )
-        matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/ocp_special_matched_tags.sql")
+        matched_tags_sql = pkgutil.get_data("masu.database", "trino_sql/openshift/ocp_special_matched_tags.sql")
         matched_tags_sql = matched_tags_sql.decode("utf-8")
         LOG.info(log_json(msg="Finding expected values for openshift special tags", **matched_tag_params))
         matched_tags_result = self._execute_trino_multipart_sql_query(matched_tags_sql, bind_params=matched_tag_params)

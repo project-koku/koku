@@ -5,7 +5,7 @@ Our cost model allows user to distribute the their costs bassed of the CPU or me
 
 ### How We Calculate
 
-During data processing we add in additional rows to represent the [worker unallocated](https://github.com/project-koku/koku/blob/main/koku/masu/database/trino_sql/reporting_ocpusagelineitem_daily_summary.sql) cost. These rows are added under the project name `Worker unallocated` during the OCP daily summary table creation. Formula:
+During data processing we add in additional rows to represent the [worker unallocated](https://github.com/project-koku/koku/blob/main/koku/masu/database/trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql) cost. These rows are added under the project name `Worker unallocated` during the OCP daily summary table creation. Formula:
 ```
 unallocated_worker_cost = capacity - effective usage
 ```

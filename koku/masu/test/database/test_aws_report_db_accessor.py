@@ -310,7 +310,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         report_period_id = 1
         start_date = self.dh.this_month_start
         end_date = self.dh.today
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpaws_ocp_infrastructure_back_populate.sql")
+        sql = pkgutil.get_data(
+            "masu.database", "sql/aws/openshift/reporting_ocpaws_ocp_infrastructure_back_populate.sql"
+        )
         sql = sql.decode("utf-8")
         sql_params = {
             "schema": self.schema,

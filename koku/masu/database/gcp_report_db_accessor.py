@@ -59,7 +59,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, invoice_month, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/gcp/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/gcp/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "start_date": start_date,
@@ -105,7 +105,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/gcp/reporting_gcpcostentrylineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
         sql_params = {
@@ -141,7 +141,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]
 
-        sql = pkgutil.get_data("masu.database", "sql/reporting_gcptags_summary.sql")
+        sql = pkgutil.get_data("masu.database", "sql/gcp/reporting_gcptags_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
@@ -373,7 +373,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         for invoice_month in invoice_month_list:
             for table_name in tables:
                 sql_params["invoice_month"] = invoice_month
-                sql = pkgutil.get_data("masu.database", f"sql/gcp/openshift/{table_name}.sql")
+                sql = pkgutil.get_data("masu.database", f"sql/gcp/openshift/ui_summary/{table_name}.sql")
                 sql = sql.decode("utf-8")
                 self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
@@ -387,7 +387,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         days_tup = tuple(str(day.day) for day in days)
 
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"trino_sql/gcp/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             sql_params = {
                 "schema": self.schema,
@@ -431,7 +431,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id):
-        sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": gcp_bill_id, "schema": self.schema}
         sql, bind_params = self.prepare_query(sql, sql_params)
@@ -527,7 +527,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         sql = pkgutil.get_data(
             "masu.database",
-            "sql/reporting_ocpgcp_ocp_infrastructure_back_populate.sql",
+            "sql/gcp/openshift/reporting_ocpgcp_ocp_infrastructure_back_populate.sql",
         )
         sql = sql.decode("utf-8")
         sql_params = {
