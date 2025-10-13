@@ -103,7 +103,7 @@ SOURCE_TYPE_MAP = {
     Provider.PROVIDER_OCP: "OpenShift Container Platform",
     Provider.PROVIDER_AWS: "Amazon Web Services",
     Provider.PROVIDER_AZURE: "Microsoft Azure",
-    Provider.PROVIDER_GCP: "Google Cloud Platform",
+    Provider.PROVIDER_GCP: "Google Cloud",
 }
 
 COST_MODEL_METRIC_MAP = {
