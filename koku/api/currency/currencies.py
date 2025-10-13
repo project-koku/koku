@@ -79,6 +79,12 @@ CURRENCIES = [
         "description": "JPY (\u00a5) - Japanese Yen",
     },
     {
+        "code": "NGN",
+        "name": "Nigerian Naira",
+        "symbol": "\u20a6",
+        "description": "NGN (\u20a6) - Nigerian Naira",
+    },
+    {
         "code": "NOK",
         "name": "Norwegian Krone",
         "symbol": "NOK",
