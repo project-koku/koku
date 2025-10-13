@@ -149,7 +149,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_
     resource_global_name varchar,
     resource_name varchar,
     capacity integer,
-    usage_start timestamp,
     source varchar,
     ocp_source varchar,
     year varchar,

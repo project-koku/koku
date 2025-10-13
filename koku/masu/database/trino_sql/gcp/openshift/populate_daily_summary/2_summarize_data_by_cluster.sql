@@ -12,7 +12,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp
     resource_global_name,
     resource_name,
     capacity,
-    usage_start,
     source,
     ocp_source,
     year,
@@ -21,8 +20,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp
 SELECT
     gcp.resource_global_name,
     gcp.resource_name,
-    sum(gcp.usage_amount) / 1073741824.0 / (3600 * 24) as capacity,
-    date(gcp.usage_start_time),
+    max(gcp.usage_amount) / 1073741824.0 / 3600 as capacity,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
     {{year}} as year,
@@ -45,12 +43,14 @@ WHERE gcp.resource_global_name in (
         AND temp.source = {{cloud_provider_uuid}}
         AND temp.ocp_source = {{ocp_provider_uuid}}
         AND temp.usage_amount > 0
+        AND ocp.interval_start >= {{start_date}}
+        AND ocp.interval_start < date_add('day', 1, {{end_date}})
         GROUP BY temp.resource_global_name
     )
     AND month = {{month}}
     AND year = {{year}}
     AND source = {{cloud_provider_uuid}}
-GROUP BY gcp.resource_global_name, gcp.resource_name, date(gcp.usage_start_time)
+GROUP BY gcp.resource_global_name, gcp.resource_name
 {% endif %}
 ;
 
@@ -103,7 +103,12 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     year,
     month
 )
-SELECT cast(uuid() as varchar) as row_uuid,
+SELECT
+    CASE
+        WHEN max(gcp_disk.capacity) < max(ocp.persistentvolumeclaim_capacity_gigabyte) or max(gcp_disk.capacity) = 0
+        THEN gcp.row_uuid -- deduplicate if not using cost ratio
+        ELSE cast(uuid() as varchar)
+    END AS row_uuid,
     max(ocp.cluster_id) as cluster_id,
     max(ocp.cluster_alias) as cluster_alias,
     max(ocp.data_source),
@@ -163,8 +168,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
         AND gcp.month = lpad(ocp.month, 2, '0')
         AND gcp.year = ocp.year
 JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp as gcp_disk
-    ON  gcp_disk.usage_start = gcp.usage_start
-        AND gcp_disk.resource_global_name = gcp.resource_global_name
+    ON  gcp_disk.resource_global_name = gcp.resource_global_name
         AND gcp_disk.year = gcp.year
         AND gcp_disk.month = gcp.month
         AND gcp_disk.source = gcp.source
