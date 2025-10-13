@@ -329,8 +329,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
         AND gcp.month = lpad(ocp.month, 2, '0')
         AND gcp.year = ocp.year
 JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_disk_capacities_temp as gcp_disk
-    ON  gcp_disk.usage_start = gcp.usage_start
-        AND gcp_disk.resource_global_name = gcp.resource_global_name
+    ON gcp_disk.resource_global_name = gcp.resource_global_name
         AND gcp_disk.year = gcp.year
         AND gcp_disk.month = gcp.month
         AND gcp_disk.source = gcp.source
@@ -447,7 +446,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
             (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
-            OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
+            -- OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
         )
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
