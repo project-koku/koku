@@ -112,7 +112,11 @@ SELECT
     max(ocp.cluster_id) as cluster_id,
     max(ocp.cluster_alias) as cluster_alias,
     max(ocp.data_source),
-    ocp.namespace,
+    CASE
+        WHEN max(persistentvolumeclaim) = ''
+            THEN 'Storage unattributed'
+        ELSE max(namespace)
+    END as namespace,
     max(ocp.node) as node,
     max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
     max(nullif(ocp.persistentvolume, '')) as persistentvolume,
@@ -217,6 +221,7 @@ INSERT INTO hive.{{schema | sqlsafe}}.managed_reporting_ocpgcpcostlineitem_proje
     sku_alias,
     region,
     unit,
+    usage_amount,
     currency,
     invoice_month,
     credit_amount,
@@ -239,13 +244,12 @@ WITH cte_total_pv_capacity as (
     SELECT
         gcp_resource_name,
         SUM(combined_requests.capacity) as total_pv_capacity,
-        count(distinct cluster_id) as cluster_count
+        count(distinct persistentvolume) as pv_count
     FROM (
         SELECT
             ocp.persistentvolume,
             max(ocp.persistentvolumeclaim_capacity_gigabyte) as capacity,
-            gcp.resource_global_name as gcp_resource_name,
-            ocp.cluster_id
+            gcp.resource_global_name as gcp_resource_name
         FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
             ON (gcp.usage_start = ocp.usage_start)
@@ -260,7 +264,7 @@ WITH cte_total_pv_capacity as (
             AND gcp.year = {{year}}
             AND gcp.month = {{month}}
             AND gcp.resource_id_matched = True
-        GROUP BY ocp.persistentvolume, gcp.resource_global_name, ocp.cluster_id
+        GROUP BY ocp.persistentvolume, gcp.resource_global_name
     ) as combined_requests group by gcp_resource_name
 )
 SELECT cast(uuid() as varchar) as row_uuid,
@@ -287,22 +291,23 @@ SELECT cast(uuid() as varchar) as row_uuid,
     max(gcp.sku_alias) as sku_alias,
     max(nullif(gcp.region, '')) as region,
     max(gcp.unit) as unit,
+    0 as usage_amount,
     max(gcp.currency) as currency,
     max(gcp.invoice_month) as invoice_month,
     CASE
         WHEN max(gcp_disk.capacity) < max(pv_cap.total_pv_capacity) or max(gcp_disk.capacity) = 0
         THEN max(0)
-        ELSE (max(gcp_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(gcp_disk.capacity) * max(gcp.credit_amount) / max(pv_cap.cluster_count)
+        ELSE (max(gcp_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(gcp_disk.capacity) * max(gcp.credit_amount) / max(pv_cap.pv_count)
     END as credit_amount,
     CASE
         WHEN max(gcp_disk.capacity) < max(pv_cap.total_pv_capacity) or max(gcp_disk.capacity) = 0
         THEN max(0)
-        ELSE (max(gcp_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(gcp_disk.capacity) * max(gcp.unblended_cost) / max(pv_cap.cluster_count)
+        ELSE (max(gcp_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(gcp_disk.capacity) * max(gcp.unblended_cost) / max(pv_cap.pv_count)
     END as unblended_cost,
     CASE
         WHEN max(gcp_disk.capacity) < max(pv_cap.total_pv_capacity) or max(gcp_disk.capacity) = 0
         THEN max(0)
-        ELSE (max(gcp_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(gcp_disk.capacity) * max(gcp.unblended_cost * {{markup | sqlsafe}}) / max(pv_cap.cluster_count)
+        ELSE (max(gcp_disk.capacity) - max(pv_cap.total_pv_capacity)) / max(gcp_disk.capacity) * max(gcp.unblended_cost * {{markup | sqlsafe}}) / max(pv_cap.pv_count)
     END as markup_cost,
     sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
