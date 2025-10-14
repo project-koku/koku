@@ -693,7 +693,7 @@ def process_messages(msg):
                 valid_report_meta = report_meta
         process_complete = report_metas_complete(report_metas)
         # Use valid_report_meta if available, otherwise fall back to the last report_meta
-        summary_report_meta = valid_report_meta if valid_report_meta is not None else report_meta
+        summary_report_meta = valid_report_meta or report_meta
         if summary_task_id := summarize_manifest(summary_report_meta, tracing_id):
             LOG.info(log_json(tracing_id, msg=f"Summarization celery uuid: {summary_task_id}"))
 
