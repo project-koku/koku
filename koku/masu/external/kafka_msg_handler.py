@@ -670,6 +670,7 @@ def process_messages(msg):
     request_id = value.get("request_id", "no_request_id")
     tracing_id = manifest_uuid or request_id
     if report_metas:
+        valid_report_meta = None
         for report_meta in report_metas:
             if report_meta.get("daily_reports") and len(report_meta.get("files")) != MANIFEST_ACCESSOR.number_of_files(
                 report_meta.get("manifest_id")
@@ -687,8 +688,13 @@ def process_messages(msg):
                     ocp_files_to_process=report_meta.get("ocp_files_to_process"),
                 )
             )
+            # Keep track of a valid report_meta for summarization
+            if valid_report_meta is None:
+                valid_report_meta = report_meta
         process_complete = report_metas_complete(report_metas)
-        if summary_task_id := summarize_manifest(report_meta, tracing_id):
+        # Use valid_report_meta if available, otherwise fall back to the last report_meta
+        summary_report_meta = valid_report_meta if valid_report_meta is not None else report_meta
+        if summary_task_id := summarize_manifest(summary_report_meta, tracing_id):
             LOG.info(log_json(tracing_id, msg=f"Summarization celery uuid: {summary_task_id}"))
 
     if status and not settings.DEBUG:
