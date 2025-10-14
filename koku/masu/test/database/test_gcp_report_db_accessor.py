@@ -313,21 +313,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
-    def test_populate_ocp_gcp_ui_summary_tables(self, mock_sql):
-        """Test that we construst our SQL and query using Trino."""
-        start_date = self.dh.this_month_start.date()
-        end_date = self.dh.this_month_end.date()
-        summary_sql_params = {
-            "schema": self.schema,
-            "start_date": start_date,
-            "end_date": end_date,
-            "gcp_source_uuid": self.gcp_provider_uuid,
-            "ocp_source_uuid": self.ocp_on_gcp_ocp_provider,
-        }
-        self.accessor.populate_ocp_on_gcp_ui_summary_tables(summary_sql_params)
-        mock_sql.assert_called()
-
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
     def test_populate_ocp_on_gcp_tag_information_assert_call(self, mock_trino):
         """Test that we construst our SQL and execute our query."""
         report_period_id = 1

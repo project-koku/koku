@@ -53,7 +53,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
     #  Empty string will put a path seperator on the end
-    OCP_ON_ALL_SQL_PATH = os.path.join("sql", "openshift", "all", "")
+    OCP_ON_ALL_SQL_PATH = os.path.join("sql", "openshift", "all", "ui_summary", "")
 
     def __init__(self, schema):
         """Establish the database connection.
@@ -95,7 +95,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source_uuid": source_uuid,
         }
         for table_name in tables:
-            sql = pkgutil.get_data("masu.database", f"sql/openshift/{table_name}.sql")
+            sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{table_name}.sql")
             sql = sql.decode("utf-8")
             self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params, operation="DELETE/INSERT")
 
@@ -145,7 +145,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         populate_temp_table_sql = populate_temp_table_sql.decode("utf8")
         self._execute_trino_multipart_sql_query(populate_temp_table_sql, bind_params=sql_params)
         # populate vm UI table
-        sql = pkgutil.get_data("masu.database", f"sql/openshift/{VM_UI_SUMMARY_TABLE}.sql")
+        sql = pkgutil.get_data("masu.database", f"sql/openshift/ui_summary/{VM_UI_SUMMARY_TABLE}.sql")
         sql = sql.decode("utf-8")
         self._prepare_and_execute_raw_sql_query(VM_UI_SUMMARY_TABLE, sql, sql_params, operation="DELETE/INSERT")
 
@@ -357,7 +357,7 @@ GROUP BY partitions.year, partitions.month, partitions.source
         days_tup = tuple(str(day.day) for day in days)
         self.delete_ocp_hive_partition_by_day(days_tup, source, year, month)
 
-        sql = pkgutil.get_data("masu.database", "trino_sql/reporting_ocpusagelineitem_daily_summary.sql")
+        sql = pkgutil.get_data("masu.database", "trino_sql/openshift/reporting_ocpusagelineitem_daily_summary.sql")
         sql = sql.decode("utf-8")
         sql_params = {
             "uuid": source,
@@ -403,7 +403,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg=f"updating {table_name}", context=ctx))
-        self._execute_processing_script("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql", sql_params)
+        self._execute_processing_script(
+            "masu.database", "sql/openshift/reporting_ocpusagepodlabel_summary.sql", sql_params
+        )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
     def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
@@ -419,7 +421,9 @@ GROUP BY partitions.year, partitions.month, partitions.source
         }
         ctx = self.extract_context_from_sql_params(sql_params)
         LOG.info(log_json(msg=f"updating {table_name}", context=ctx))
-        self._execute_processing_script("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql", sql_params)
+        self._execute_processing_script(
+            "masu.database", "sql/openshift/reporting_ocpstoragevolumelabel_summary.sql", sql_params
+        )
         LOG.info(log_json(msg=f"finished updating {table_name}", context=ctx))
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
@@ -1228,41 +1232,6 @@ GROUP BY partitions.year, partitions.month, partitions.source
         minim = parse(str(minim)) if minim else datetime.datetime(start_date.year, start_date.month, start_date.day)
         maxim = parse(str(maxim)) if maxim else datetime.datetime(end_date.year, end_date.month, end_date.day)
         return minim, maxim
-
-    def populate_unit_test_tag_data(self, report_period_ids, start_date, end_date):
-        """
-        This method allows us to maintain our tag logic.
-        """
-        # Remove disabled keys from the tags field.
-        self.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
-        self.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
-        table_name = self._table_map["line_item_daily_summary"]
-        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_remove_disabled_tags.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_ids": report_period_ids,
-            "schema": self.schema,
-        }
-        self._prepare_and_execute_raw_sql_query(table_name, sql, sql_params)
-
-    def populate_unit_test_virt_ui_table(self, report_period_ids, start_date, end_date, source_uuid):
-        """
-        This method populates the vm table
-        """
-        sql = pkgutil.get_data("masu.database", "trino_sql/test/ocp/mimic_virt_ui.sql")
-        sql = sql.decode("utf-8")
-        sql_params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "report_period_ids": report_period_ids,
-            "schema": self.schema,
-            "pod_request_cpu_core_hours": 1,
-            "pod_request_mem_core_hours": 4,
-            "source_uuid": source_uuid,
-        }
-        self._prepare_and_execute_raw_sql_query("reporting_ocp_vm_summary_p", sql, sql_params)
 
     def populate_tag_based_costs(self, start_date, end_date, provider_uuid, metric_to_tag_params_map, cluster_params):
         """Populate the tag based costs.
