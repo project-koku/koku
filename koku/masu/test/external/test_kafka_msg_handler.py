@@ -139,7 +139,6 @@ class MockKafkaConsumer:
 
 
 def fake_payload(payload_dir):
-
     tar_bytes_io = io.BytesIO()
     with tarfile.open(fileobj=tar_bytes_io, mode="w") as tar:
         for file_path in payload_dir.iterdir():
@@ -477,6 +476,129 @@ class KafkaMsgHandlerTest(MasuTestCase):
                                 test.get("expected_fn")(msg, test, confirmation_mock)
                                 test.get("processing_fn")(msg, test, process_report_mock)
 
+    def test_process_messages_empty_file_handling(self):
+        """Test process_message handles empty files correctly when selecting report_meta for summarization."""
+        base_report_meta = {
+            "schema_name": "test_schema",
+            "manifest_id": "1",
+            "provider_uuid": uuid.uuid4(),
+            "provider_type": "OCP",
+            "compression": "UNCOMPRESSED",
+            "files": ["/path/to/file.csv"],
+            "date": datetime.today(),
+            "current_file": "test_file.csv",
+        }
+
+        test_matrix = [
+            {
+                "name": "last_report_meta_is_empty_file",
+                "description": "Last report_meta is empty, should use earlier valid one for summarization",
+                "report_metas": [
+                    base_report_meta.copy(),  # Valid file
+                    {**base_report_meta.copy(), "process_complete": True},  # Empty file
+                ],
+                "expected_summarize_meta_index": 0,  # Should use first (valid) report_meta
+                "expected_process_calls": 1,  # Only the first file should be processed
+            },
+            {
+                "name": "multiple_empty_files_at_end",
+                "description": "Multiple empty files at end, should use valid one from middle",
+                "report_metas": [
+                    base_report_meta.copy(),  # Valid file
+                    {**base_report_meta.copy(), "current_file": "valid2.csv"},  # Valid file
+                    {**base_report_meta.copy(), "process_complete": True, "current_file": "empty1.csv"},  # Empty
+                    {**base_report_meta.copy(), "process_complete": True, "current_file": "empty2.csv"},  # Empty
+                ],
+                "expected_summarize_meta_index": 0,  # Should use first valid report_meta
+                "expected_process_calls": 2,  # Both valid files should be processed
+            },
+            {
+                "name": "all_files_are_empty",
+                "description": "All files are empty, should fallback to last report_meta",
+                "report_metas": [
+                    {**base_report_meta.copy(), "process_complete": True, "current_file": "empty1.csv"},
+                    {**base_report_meta.copy(), "process_complete": True, "current_file": "empty2.csv"},
+                ],
+                "expected_summarize_meta_index": 1,  # Should fallback to last report_meta
+                "expected_process_calls": 0,  # No files should be processed (all are empty)
+            },
+            {
+                "name": "no_empty_files",
+                "description": "No empty files, existing behavior should work",
+                "report_metas": [
+                    base_report_meta.copy(),
+                    {**base_report_meta.copy(), "current_file": "valid2.csv"},
+                ],
+                "expected_summarize_meta_index": 0,  # Should use first valid report_meta
+                "expected_process_calls": 2,  # Both files should be processed (no empty files)
+            },
+            {
+                "name": "empty_file_in_middle",
+                "description": "Empty file in middle, should use first valid one",
+                "report_metas": [
+                    base_report_meta.copy(),  # Valid
+                    {**base_report_meta.copy(), "process_complete": True, "current_file": "empty.csv"},  # Empty
+                    {**base_report_meta.copy(), "current_file": "valid2.csv"},  # Valid
+                ],
+                "expected_summarize_meta_index": 0,  # Should use first valid report_meta
+                "expected_process_calls": 2,  # Both valid files should be processed (empty file skipped)
+            },
+        ]
+
+        for test in test_matrix:
+            with self.subTest(test=test["name"]):
+                msg = MockMessage(
+                    topic="platform.upload.announce",
+                    offset=5,
+                    url="https://insights-upload.com/myfile",
+                    value_dict={
+                        "request_id": "1",
+                        "account": "10001",
+                        "category": "tar",
+                        "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
+                    },
+                )
+
+                # Expected report_meta that should be passed to summarize_manifest
+                expected_report_meta = test["report_metas"][test["expected_summarize_meta_index"]]
+
+                with (
+                    patch(
+                        "masu.external.kafka_msg_handler.handle_message",
+                        return_value=(msg_handler.SUCCESS_CONFIRM_STATUS, test["report_metas"], self.manifest_id),
+                    ),
+                    patch("masu.external.kafka_msg_handler.process_report", return_value=True) as mock_process,
+                    patch("masu.external.kafka_msg_handler.report_metas_complete", return_value=True),
+                    patch(
+                        "masu.external.kafka_msg_handler.summarize_manifest", return_value=uuid.uuid4()
+                    ) as mock_summarize,
+                    patch("masu.external.kafka_msg_handler.send_confirmation"),
+                ):
+                    msg_handler.process_messages(msg)
+
+                    # Verify summarize_manifest was called with the expected report_meta
+                    mock_summarize.assert_called_once()
+                    actual_report_meta = mock_summarize.call_args[0][0]
+
+                    # Compare the report_meta that was passed to summarize_manifest
+                    self.assertEqual(
+                        actual_report_meta.get("current_file"),
+                        expected_report_meta.get("current_file"),
+                        f"Test '{test['name']}': Expected summarize_manifest to be called with "
+                        f"report_meta for file '{expected_report_meta.get('current_file')}' "
+                        f"but got '{actual_report_meta.get('current_file')}'",
+                    )
+
+                    # Verify process_report was called for non-empty files only
+                    expected_process_calls = test["expected_process_calls"]
+                    self.assertEqual(
+                        mock_process.call_count,
+                        expected_process_calls,
+                        f"Test '{test['name']}': Expected process_report to be called "
+                        f"{expected_process_calls} times but was called "
+                        f"{mock_process.call_count} times",
+                    )
+
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
@@ -486,7 +608,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
             self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.SUCCESS_CONFIRM_STATUS, None, None))
 
-        # Verify that when extract_payload is not successful with 'hccm' message that FAILURE_CONFIRM_STATUS is returned
+        # Verify that when extract_payload is not successful with 'hccm' message
+        # that FAILURE_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=msg_handler.KafkaMsgHandlerError):
             self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None, None))
 
