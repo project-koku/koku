@@ -449,7 +449,7 @@ JOIN hive.{{schema | sqlsafe}}.managed_gcp_openshift_daily_temp as gcp
     ON gcp.usage_start = ocp.usage_start
         AND (
             (strpos(gcp.resource_name, ocp.node) != 0 AND ocp.data_source='Pod')
-            -- OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
+            OR (strpos(gcp.resource_name, ocp.persistentvolume) != 0 AND ocp.data_source='Storage')
         )
 WHERE ocp.source = {{ocp_provider_uuid}}
     AND ocp.year = {{year}}
