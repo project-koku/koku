@@ -803,10 +803,7 @@ class ReportQueryHandler(QueryHandler):
             (Dict): query filter dictionary
 
         """
-        if "gcp_filters" in dir(self._mapper) and self._mapper.gcp_filters:
-            filters = super()._get_gcp_filter(delta)
-        else:
-            filters = super()._get_filter(delta)
+        filters = super()._get_filter(delta)
 
         # set up filters for instance-type and storage queries.
         for filter_map in self._mapper._report_type_map.get("filter"):
