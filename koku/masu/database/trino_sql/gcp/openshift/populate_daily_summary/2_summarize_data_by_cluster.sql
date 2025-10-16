@@ -153,9 +153,17 @@ SELECT
         THEN max(gcp.unblended_cost * {{markup | sqlsafe}})
         ELSE max(ocp.persistentvolumeclaim_capacity_gigabyte) / max(gcp_disk.capacity) * max(gcp.unblended_cost * {{markup | sqlsafe}})
     END as markup_cost,
-    ocp.volume_labels,
+    CASE
+        WHEN max(persistentvolumeclaim) = ''
+            THEN cast(NULL as varchar)
+        ELSE ocp.volume_labels
+    END as volume_labels,
     max(gcp.labels) as tags,
-    max(ocp.cost_category_id) as cost_category_id,
+    CASE
+        WHEN max(ocp.persistentvolumeclaim) = ''
+            THEN NULL
+        ELSE max(ocp.cost_category_id)
+    END as cost_category_id,
     TRUE as resource_id_matched,
     {{cloud_provider_uuid}} as source,
     {{ocp_provider_uuid}} as ocp_source,
@@ -183,7 +191,7 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days_tup | inclause}}
     AND (ocp.csi_volume_handle IS NOT NULL AND ocp.csi_volume_handle != '')
-    AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+    AND ocp.persistentvolume is not null
     AND gcp.ocp_source = {{ocp_provider_uuid}}
     AND gcp.source = {{cloud_provider_uuid}}
     AND gcp.year = {{year}}
@@ -345,7 +353,7 @@ WHERE ocp.source = {{ocp_provider_uuid}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN {{days_tup | inclause}}
     AND (ocp.csi_volume_handle IS NOT NULL AND ocp.csi_volume_handle != '')
-    AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+    AND ocp.persistentvolume is not null
     AND gcp.ocp_source = {{ocp_provider_uuid}}
     AND gcp.source = {{cloud_provider_uuid}}
     AND gcp.year = {{year}}
