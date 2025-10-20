@@ -488,8 +488,4 @@ class GCPProviderMap(ProviderMap):
                 ("account",): GCPNetworkSummaryP,
             },
         }
-        # I needed a way to identify gcp in the parent class in queries.py so that
-        # way we could filter off of invoice month instead of usage dates for
-        # monthly time scope values.
-        self.gcp_filters = True
         super().__init__(provider, report_type, schema_name)
