@@ -549,37 +549,37 @@ CREATE INDEX idx_aws_tags
 ┌─────────────────────────────────────────────────────────────┐
 │  AWS S3 Bucket (Customer)                                   │
 │  ├── cost-report/                                           │
-│  │   ├── 20250101-20250201/                                │
-│  │   │   ├── report-Manifest.json                          │
-│  │   │   ├── report-00001.csv.gz  (10GB uncompressed)     │
-│  │   │   └── report-00002.csv.gz                           │
+│  │   ├── 20250101-20250201/                                 │
+│  │   │   ├── report-Manifest.json                           │
+│  │   │   ├── report-00001.csv.gz  (10GB uncompressed)       │
+│  │   │   └── report-00002.csv.gz                            │
 └────────────────┬────────────────────────────────────────────┘
                  │ 1. Download
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  MASU Download Worker (/tmp/)                               │
-│  ├── report-00001.csv.gz  → decompress → report-00001.csv  │
-│  │   (Process with Pandas in 200k row chunks)              │
-│  └── Split by date from identity/TimeInterval column       │
+│  ├── report-00001.csv.gz  → decompress → report-00001.csv   │
+│  │   (Process with Pandas in 200k row chunks)               │
+│  └── Split by date from identity/TimeInterval column        │
 └────────────────┬────────────────────────────────────────────┘
                  │ 2. Create Daily Archives
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  MinIO/S3 - CSV Storage                                     │
 │  org1234567/aws/csv/                                        │
-│  ├── 2025-01-01_manifestid-123_batch-0.csv (100MB)         │
-│  ├── 2025-01-01_manifestid-123_batch-1.csv                 │
-│  ├── 2025-01-02_manifestid-123_batch-0.csv                 │
-│  └── ... (30 days × multiple batches)                      │
+│  ├── 2025-01-01_manifestid-123_batch-0.csv (100MB)          │
+│  ├── 2025-01-01_manifestid-123_batch-1.csv                  │
+│  ├── 2025-01-02_manifestid-123_batch-0.csv                  │
+│  └── ... (30 days × multiple batches)                       │
 └────────────────┬────────────────────────────────────────────┘
                  │ 3. Convert to Parquet
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  MASU Parquet Processor                                     │
-│  ├── Read CSV chunks (200k rows)                           │
-│  ├── Apply type conversions (dates, decimals, booleans)    │
-│  ├── Write Parquet files (~10MB each)                      │
-│  └── Upload with partition metadata                        │
+│  ├── Read CSV chunks (200k rows)                            │
+│  ├── Apply type conversions (dates, decimals, booleans)     │
+│  ├── Write Parquet files (~10MB each)                       │
+│  └── Upload with partition metadata                         │
 └────────────────┬────────────────────────────────────────────┘
                  │ 4. Store Parquet
                  ▼
@@ -589,48 +589,48 @@ CREATE INDEX idx_aws_tags
 │  └── source=abc-123/                                        │
 │      └── year=2025/                                         │
 │          └── month=01/                                      │
-│              ├── day_0.parquet (10MB, columnar)            │
+│              ├── day_0.parquet (10MB, columnar)             │
 │              ├── day_1.parquet                              │
-│              └── ... (compressed 10x vs CSV)               │
+│              └── ... (compressed 10x vs CSV)                │
 └────────────────┬────────────────────────────────────────────┘
                  │ 5. Summarize
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Trino Query Engine                                         │
-│  ├── CREATE TABLE aws_line_items_daily (Hive metastore)   │
-│  ├── SELECT ... FROM hive.org1234567.aws_line_items_daily  │
-│  │   WHERE year='2025' AND month='01'                      │
-│  │   GROUP BY date, account, product, region, tags         │
-│  ├── Apply filters (partition pruning)                     │
-│  ├── Read only needed columns (columnar)                   │
-│  ├── Aggregate millions of rows → thousands of summary rows│
-│  └── INSERT INTO postgres.reporting_*_daily_summary        │
+│  ├── CREATE TABLE aws_line_items_daily (Hive metastore)     │
+│  ├── SELECT ... FROM hive.org1234567.aws_line_items_daily   │
+│  │   WHERE year='2025' AND month='01'                       │
+│  │   GROUP BY date, account, product, region, tags          │
+│  ├── Apply filters (partition pruning)                      │
+│  ├── Read only needed columns (columnar)                    │
+│  ├── Aggregate millions of rows → thousands of summary rows │
+│  └── INSERT INTO postgres.reporting_*_daily_summary         │
 └────────────────┬────────────────────────────────────────────┘
                  │ 6. Store Summary
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  PostgreSQL Database                                        │
 │  org1234567 schema                                          │
-│  ├── reporting_awscostentrylineitem_daily_summary          │
-│  │   ├── 2025_01 partition (indexed, queryable)           │
-│  │   │   - 10M line items → 100k summary rows             │
-│  │   │   - Aggregated by day + dimensions                 │
-│  │   │   - Markup costs applied                           │
-│  │   │   - Tags filtered to enabled keys only            │
-│  │   └── 2025_02 partition                                 │
-│  ├── reporting_aws_cost_summary (UI table)                 │
-│  ├── reporting_aws_storage_summary (UI table)              │
-│  └── reporting_awstags_summary                             │
+│  ├── reporting_awscostentrylineitem_daily_summary           │
+│  │   ├── 2025_01 partition (indexed, queryable)             │
+│  │   │   - 10M line items → 100k summary rows               │
+│  │   │   - Aggregated by day + dimensions                   │
+│  │   │   - Markup costs applied                             │
+│  │   │   - Tags filtered to enabled keys only               │
+│  │   └── 2025_02 partition                                  │
+│  ├── reporting_aws_cost_summary (UI table)                  │
+│  ├── reporting_aws_storage_summary (UI table)               │
+│  └── reporting_awstags_summary                              │
 └────────────────┬────────────────────────────────────────────┘
                  │ 7. API Queries
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Koku API (Django)                                          │
-│  GET /api/cost-management/v1/reports/aws/costs/            │
-│  ├── Query daily_summary table                             │
-│  ├── Apply filters, grouping, ordering                     │
-│  ├── Cache results in Redis                                │
-│  └── Return JSON response                                  │
+│  GET /api/cost-management/v1/reports/aws/costs/             │
+│  ├── Query daily_summary table                              │
+│  ├── Apply filters, grouping, ordering                      │
+│  ├── Cache results in Redis                                 │
+│  └── Return JSON response                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
