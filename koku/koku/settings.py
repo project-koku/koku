@@ -426,20 +426,23 @@ DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
 LOGGING_FILE = ENVIRONMENT.get_value("DJANGO_LOG_FILE", default=DEFAULT_LOG_FILE)
 
 if CW_AWS_ACCESS_KEY_ID:
-    cw_client = boto3.client("logs", **CLOUDWATCH_CREDENTIALS)
-    POD_NAME = ENVIRONMENT.get_value("APP_POD_NAME", default="local")
-    LOGGING_HANDLERS += ["watchtower"]
-    WATCHTOWER_HANDLER = {
-        "level": KOKU_LOGGING_LEVEL,
-        "formatter": LOGGING_FORMATTER,
-        "class": "watchtower.CloudWatchLogHandler",
-        "log_group_name": CW_LOG_GROUP,
-        "log_stream_name": POD_NAME,
-        "use_queues": False,
-        "boto3_client": cw_client,
-        "create_log_group": False,
-        "create_log_stream": True,  # will create stream if it does not exist
-    }
+    try:
+        cw_client = boto3.client("logs", **CLOUDWATCH_CREDENTIALS)
+        POD_NAME = ENVIRONMENT.get_value("APP_POD_NAME", default="local")
+        LOGGING_HANDLERS += ["watchtower"]
+        WATCHTOWER_HANDLER = {
+            "level": KOKU_LOGGING_LEVEL,
+            "formatter": LOGGING_FORMATTER,
+            "class": "watchtower.CloudWatchLogHandler",
+            "log_group_name": CW_LOG_GROUP,
+            "log_stream_name": POD_NAME,
+            "use_queues": False,
+            "boto3_client": cw_client,
+            "create_log_group": False,
+            "create_log_stream": True,  # will create stream if it does not exist
+        }
+    except Exception as e:
+        print(f"Cloudwatch not configured, possible AWS outage! Falling back to console logging. Error: {e}")
 else:
     print("CloudWatch not configured.")
 
