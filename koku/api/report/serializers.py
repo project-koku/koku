@@ -247,6 +247,14 @@ class FilterSerializer(BaseSerializer):
             (ValidationError): if filter inputs are invalid
 
         """
+        unsupported_exact_filters = ["org_unit_id", "infrastructure"]
+        for key in data:
+            if key.startswith("exact:"):
+                base_key = key.split(":", 1)[1]
+                if base_key in unsupported_exact_filters:
+                    raise serializers.ValidationError(
+                        {key: f"The 'exact:' operator is not supported for the '{base_key}' filter."}
+                    )
         handle_invalid_fields(self, data)
         resolution = data.get("resolution")
         time_scope_value = data.get("time_scope_value")

@@ -15,7 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
-from api.report.gcp.filter_collection import gcp_storage_conditional_filter_collection
+from api.report.filter_collection import gcp_storage_conditional_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
 from reporting.provider.gcp.models import GCPComputeSummaryP
@@ -436,7 +436,7 @@ class GCPProviderMap(ProviderMap):
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "conditionals": {
                             GCPCostEntryLineItemDailySummary: {
-                                "filter_collection": gcp_storage_conditional_filter_collection(schema_name),
+                                "composed_filters": gcp_storage_conditional_filter_collection(),
                             },
                         },
                         "cost_units_key": "currency",
@@ -488,8 +488,4 @@ class GCPProviderMap(ProviderMap):
                 ("account",): GCPNetworkSummaryP,
             },
         }
-        # I needed a way to identify gcp in the parent class in queries.py so that
-        # way we could filter off of invoice month instead of usage dates for
-        # monthly time scope values.
-        self.gcp_filters = True
         super().__init__(provider, report_type, schema_name)

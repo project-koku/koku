@@ -321,42 +321,6 @@ class QueryHandler:
 
         return filters
 
-    def _get_gcp_filter(self, delta=False):
-        """Create dictionary for filter parameters for GCP.
-
-        GCP filtering is a little different because we need the invoice
-        month filter, and pad the time range to include cross over data.
-
-        Args:
-            delta (Boolean): Construct timeframe for delta
-        Returns:
-            (Dict): query filter dictionary
-        """
-        filters = QueryFilterCollection()
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-            invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-            invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
-            # We add a 5 day buffer to the start & end here
-            # to handle cross over data. We may want to change
-            # this to an env in the future
-            if self.parameters.get_filter("time_scope_value") and self.time_scope_value in [-1, -2, -3]:
-                start = self.dh.n_days_ago(start, 5)
-                end = self.dh.n_days_ahead(end, 5)
-
-        invoice_filter = QueryFilter(field="invoice_month", operation="in", parameter=invoice_months)
-        filters.add(invoice_filter)
-        start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
-        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=end.date())
-        filters.add(query_filter=start_filter)
-        filters.add(query_filter=end_filter)
-        return filters
-
     def filter_to_order_by(self, parameters):  # noqa: C901
         """Remove group_by[NAME]=* and replace it with group_by[NAME]=X.
 
@@ -403,7 +367,9 @@ class QueryHandler:
         returns:
             None
         """
-        for _filt in filt if isinstance(filt, list) else [filt]:
+        if not isinstance(filt, list):
+            filt = [filt]
+        for _filt in filt:
             check_field_type = None
             try:
                 if hasattr(self, "query_table"):

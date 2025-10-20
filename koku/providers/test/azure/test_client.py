@@ -7,6 +7,7 @@ import random
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from azure.core.exceptions import HttpResponseError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.storage import StorageManagementClient
@@ -36,7 +37,7 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        self.assertTrue(isinstance(obj, AzureClientFactory))
+        self.assertIsInstance(obj, AzureClientFactory)
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_costmanagement_client(self, mock_get_token):
@@ -48,7 +49,7 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        self.assertTrue(isinstance(obj.cost_management_client, CostManagementClient))
+        self.assertIsInstance(obj.cost_management_client, CostManagementClient)
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_credentials(self, mock_get_token):
@@ -60,7 +61,7 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        self.assertTrue(isinstance(obj._credentials, ClientSecretCredential))
+        self.assertIsInstance(obj._credentials, ClientSecretCredential)
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_storage_client(self, mock_get_token):
@@ -72,7 +73,7 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        self.assertTrue(isinstance(obj.storage_client, StorageManagementClient))
+        self.assertIsInstance(obj.storage_client, StorageManagementClient)
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_subscription_id(self, mock_get_token):
@@ -85,7 +86,7 @@ class AzureClientFactoryTestCase(TestCase):
             client_secret=FAKE.word(),
             cloud=random.choice(self.clouds),
         )
-        self.assertTrue(obj.subscription_id, subscription_id)
+        self.assertEqual(obj.subscription_id, subscription_id)
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_cloud_storage_account(self, mock_get_token):
@@ -102,7 +103,36 @@ class AzureClientFactoryTestCase(TestCase):
         )
         with patch("providers.azure.client.AzureClientFactory.storage_client", new_callable=PropertyMock):
             cloud_account = obj.blob_service_client(resource_group_name, storage_account_name)
-            self.assertTrue(isinstance(cloud_account, BlobServiceClient))
+            self.assertIsInstance(cloud_account, BlobServiceClient)
+
+    def test_blob_service_client_resource_not_found(self):
+        """Test the blob_service_client method when the resource is not found."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        with patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client:
+            mock_storage_client.storage_accounts.list_keys.side_effect = HttpResponseError("Oops!")
+            with self.assertRaises(HttpResponseError):
+                obj.blob_service_client(FAKE.word(), FAKE.word())
+
+    def test_blob_service_client_list_keys_auth_error(self):
+        """Test the blob_service_client method when the list keys auth error is raised."""
+        obj = AzureClientFactory(
+            subscription_id=FAKE.uuid4(),
+            tenant_id=FAKE.uuid4(),
+            client_id=FAKE.uuid4(),
+            client_secret=FAKE.word(),
+            cloud=random.choice(self.clouds),
+        )
+        with patch("providers.azure.client.AzureClientFactory.storage_client") as mock_storage_client:
+            err = "does not have authorization to perform action 'Microsoft.Storage/storageAccounts/listKeys/action'"
+            mock_storage_client.storage_accounts.list_keys.side_effect = HttpResponseError(err)
+            cloud_account = obj.blob_service_client(FAKE.word(), FAKE.word())
+            self.assertIsInstance(cloud_account, BlobServiceClient)
 
     @patch("providers.azure.client.ClientSecretCredential.get_token")
     def test_scope_and_export_name(self, mock_get_token):

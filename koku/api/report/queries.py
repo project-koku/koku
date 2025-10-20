@@ -54,6 +54,36 @@ def strip_prefix(key, prefix=""):
     return key.replace(prefix, "").replace("and:", "").replace("or:", "").replace("exact:", "")
 
 
+def get_base_key(filter_key):
+    """Extract base key from filter by removing operator prefixes."""
+    for operator in ["exact:", "and:", "or:"]:
+        if operator in filter_key:
+            return filter_key.replace(operator, "")
+    return filter_key
+
+
+def group_filters_by_base_key(filter_list):
+    """Group filters by their base key, categorizing by operator type."""
+    filter_groups = {}
+
+    for filt in filter_list:
+        base_key = get_base_key(filt)
+
+        if base_key not in filter_groups:
+            filter_groups[base_key] = {"standard": [], "exact": [], "and": [], "or": []}
+
+        if "exact:" in filt:
+            filter_groups[base_key]["exact"].append(filt)
+        elif "and:" in filt:
+            filter_groups[base_key]["and"].append(filt)
+        elif "or:" in filt:
+            filter_groups[base_key]["or"].append(filt)
+        else:
+            filter_groups[base_key]["standard"].append(filt)
+
+    return filter_groups
+
+
 def _is_grouped_by_key(group_by, keys):
     for key in keys:
         for k in group_by:
@@ -286,8 +316,13 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = filter_collection.compose()
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-        exact_composed_filters = self._set_operator_specified_filters("exact")
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+
+        # Apply combined OR conditions from exact+partial tag filter combinations
+        if hasattr(filter_collection, "_combined_or_conditions"):
+            for combined_or_condition in filter_collection._combined_or_conditions:
+                composed_filters = composed_filters & combined_or_condition
+
         if tag_exclusion_composed:
             composed_filters = composed_filters & tag_exclusion_composed
         if aws_category_exclusion_composed:
@@ -299,12 +334,54 @@ class ReportQueryHandler(QueryHandler):
         # Tag exclusion filters are added to the self.query_filter. COST-3199
         and_composed_filters = self._set_operator_specified_filters("and", True)
         or_composed_filters = self._set_operator_specified_filters("or", True)
-        exact_composed_filters = self._set_operator_specified_filters("exact", True)
         if composed_filters:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
         else:
-            composed_filters = and_composed_filters & or_composed_filters & exact_composed_filters
+            composed_filters = and_composed_filters & or_composed_filters
         return composed_filters
+
+    def _is_icontains_supported(self, filt_config):
+        """
+        Checks if a filter supports 'icontains' and has no custom business logic, like infrastructure, org_unit.
+        """
+        if isinstance(filt_config, list):
+            if not filt_config:
+                return False
+            return all(config.get("operation") == "icontains" and "custom" not in config for config in filt_config)
+
+        is_text_search = filt_config.get("operation") == "icontains"
+        has_no_custom_logic = "custom" not in filt_config
+        return is_text_search and has_no_custom_logic
+
+    def _handle_exact_partial_filter_combination(self, q_param, filt, partial_list, exact_list):
+        """
+        Handles the combination of exact and partial filters on the same field by joining them with OR logic.
+        This fixes the bug where exact+partial filters were incorrectly combined with AND operator.
+        """
+        exact_collection = QueryFilterCollection()
+        filt_list = filt if isinstance(filt, list) else [filt]
+
+        # Ensure lists
+        if not isinstance(partial_list, list):
+            partial_list = [partial_list] if partial_list else []
+        if not isinstance(exact_list, list):
+            exact_list = [exact_list] if exact_list else []
+
+        # Add partial match filters
+        if partial_list and not ReportQueryHandler.has_wildcard(partial_list):
+            for item in partial_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_collection.add(QueryFilter(parameter=item, **f))
+
+        # Add exact match filters
+        if exact_list:
+            for item in exact_list:
+                for f in filt_list:  # Iterate through each config
+                    exact_filt = f.copy()
+                    exact_filt["operation"] = "exact"
+                    exact_collection.add(QueryFilter(parameter=item, **exact_filt))
+
+        return exact_collection
 
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
@@ -319,7 +396,7 @@ class ReportQueryHandler(QueryHandler):
         fields = self._mapper._provider_map.get("filters")
 
         access_filters = QueryFilterCollection()
-
+        special_q_objects = Q()
         aws_use_or_operator = self.parameters.parameters.get("aws_use_or_operator", False)
         if aws_use_or_operator:
             aws_or_filter_collections = filters.compose()
@@ -335,6 +412,30 @@ class ReportQueryHandler(QueryHandler):
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
             exclude_ = self.parameters.get_exclude(q_param, list())
+            partial_list = self.parameters.get_filter(q_param, list())
+            exact_list = self.parameters.get_filter(f"exact:{q_param}", list())
+
+            # Fixes the 'partial' + 'exact' filter bug by joining them with OR instead of AND.
+            # The 'continue' prevents duplicate processing.
+            # Exclude fields that have special handling or complex business logic
+            excluded_fields = ["org_unit_id", "infrastructure"]
+            if self._is_icontains_supported(filt) and (partial_list or exact_list) and q_param not in excluded_fields:
+                exact_collection = self._handle_exact_partial_filter_combination(
+                    q_param, filt, partial_list, exact_list
+                )
+                if exact_collection:
+                    special_q_objects &= exact_collection.compose(logical_operator="or")
+                exclude_ = self.parameters.get_exclude(q_param, list())
+                if exclude_:
+                    if isinstance(filt, list):
+                        for _filt in filt:
+                            for item in exclude_:
+                                exclusion.add(QueryFilter(parameter=item, **_filt))
+                    else:
+                        for item in exclude_:
+                            exclusion.add(QueryFilter(parameter=item, **filt))
+                continue
+
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if isinstance(filt, list):
@@ -386,8 +487,7 @@ class ReportQueryHandler(QueryHandler):
         composed_filters = self._check_for_operator_specific_filters(filters)
         if composed_category_filters:
             composed_filters = composed_filters & composed_category_filters
-        # Additional filter[] specific options to consider.
-        multi_field_or_composed_filters = self._set_or_filters()
+        composed_filters &= special_q_objects
         if aws_use_or_operator and aws_or_filter_collections:
             composed_filters = aws_or_filter_collections & composed_filters
         if access_filters:
@@ -397,8 +497,8 @@ class ReportQueryHandler(QueryHandler):
             else:
                 composed_access_filters = access_filters.compose()
                 composed_filters = composed_filters & composed_access_filters
-        if multi_field_or_composed_filters:
-            composed_filters = composed_filters & multi_field_or_composed_filters
+        if report_type_composed_filters := self._mapper._report_type_map.get("composed_filters", []):
+            composed_filters = composed_filters & report_type_composed_filters
         if conditional_filters := self._provider_map_conditional_filters():
             composed_filters = composed_filters & conditional_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
@@ -427,34 +527,18 @@ class ReportQueryHandler(QueryHandler):
 
         Such as when we fall back to the daily summary table and need to apply certain filters.
         """
-        filter_collection = (
-            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter_collection", [])
+        composed_filters = (
+            self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("composed_filters", [])
         )
-        if filter_collection:
-            return filter_collection
+        if composed_filters:
+            return composed_filters
         conditional_filters = QueryFilterCollection()
         filters_list = self._mapper.report_type_map.get("conditionals", {}).get(self.query_table, {}).get("filter", [])
         for filter_dict in filters_list:
             conditional_filters.add(**filter_dict)
         return conditional_filters.compose()
 
-    def _set_or_filters(self, or_filter=None):
-        """Create a composed filter collection of ORed filters.
-
-        This is designed to handle specific cases in the provider_map
-        not to accomodate user input via the API.
-
-        """
-        filters = QueryFilterCollection()
-        if not or_filter:
-            or_filter = self._mapper._report_type_map.get("or_filter", [])
-        for filt in or_filter:
-            q_filter = QueryFilter(**filt)
-            filters.add(q_filter)
-
-        return filters.compose(logical_operator="or")
-
-    def _set_prefix_based_exclusions(self, db_column, exclude_filters, prefix):
+    def _set_prefix_based_exclusions(self, db_column, exclude_filters, prefix):  # noqa C901
         """Creates exclusion fitlers for prefixed parameter keys
         that allow null returns.
 
@@ -511,7 +595,10 @@ class ReportQueryHandler(QueryHandler):
                 _filter_list.append(empty_json_filter)
             # We use OR here for our non ocp tables because the  keys will not live in the
             # same json structure.
-            _exclusion_composed = self._set_or_filters(_filter_list)
+            or_exclude_filters = QueryFilterCollection()
+            for filt in _filter_list:
+                or_exclude_filters.add(QueryFilter(**filt))
+            _exclusion_composed = or_exclude_filters.compose(logical_operator="or")
         if _exclusion_composed and null_composed:
             _exclusion_composed = _exclusion_composed | null_composed
         return _exclusion_composed
@@ -544,24 +631,108 @@ class ReportQueryHandler(QueryHandler):
                     filter_collection.add(q_filter)
         return filter_collection
 
-    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list, prefix):
-        """Create and set colon prefixed filters.
-
-        filter_collection: FilterCollection
-        db_column: column to use to build filter
-        filter_list: list of filters from param's filter & group by
-        prefix: prefix to be stripped from parameter keys
+    def _handle_exact_partial_tag_filter_combination(self, db_column, filter_list, prefix):
         """
+        Handles the combination of exact and partial tag filters by joining them with OR logic.
+        """
+        # Group filters by their base key using utility function
+        filter_groups = group_filters_by_base_key(filter_list)
+
+        combined_filter_collections = []
+        remaining_filters = []
+
+        for base_key, group in filter_groups.items():
+            standard_filters = group["standard"]
+            exact_filters = group["exact"]
+
+            # If we have both standard and exact filters for the same key, combine them with OR logic
+            if standard_filters and exact_filters:
+                combined_collection = QueryFilterCollection()
+
+                # Process all filters (standard and exact) for this base key
+                for prefix_filter in standard_filters + exact_filters:
+                    db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
+                    group_by = self.parameters.get_group_by(prefix_filter, list())
+                    filter_ = self.parameters.get_filter(prefix_filter, list())
+                    list_ = list(set(group_by + filter_))  # uniquify the list
+
+                    # Determine operation and field based on filter type
+                    if "exact:" in prefix_filter:
+                        filt = {"field": db_name, "operation": "exact"}
+                        logical_operator = "exact"
+                    elif filter_ and ReportQueryHandler.has_wildcard(filter_):
+                        filt = {"field": db_column, "operation": "has_key"}
+                        logical_operator = None
+                        list_ = [strip_prefix(prefix_filter, prefix)]
+                    else:
+                        filt = {"field": db_name, "operation": "icontains"}
+                        logical_operator = None
+
+                    # Add filters to collection
+                    if list_ and not ("exact:" not in prefix_filter and ReportQueryHandler.has_wildcard(list_)):
+                        for item in list_:
+                            q_filter = QueryFilter(parameter=item, logical_operator=logical_operator, **filt)
+                            combined_collection.add(q_filter)
+
+                if combined_collection:
+                    combined_filter_collections.append(combined_collection)
+            else:
+                # No combination needed, add to remaining filters to process normally
+                remaining_filters.extend(standard_filters + exact_filters + group["and"] + group["or"])
+
+        return combined_filter_collections, remaining_filters
+
+    def _set_prefix_based_filters(self, filter_collection, db_column, filter_list, prefix):
+        """Create and set colon prefixed filters. Simplified version using utility functions."""
+
+        # Quick check for exact+partial combinations using utility function
+        filter_groups = group_filters_by_base_key(filter_list)
+        has_exact_partial_combination = any(group["standard"] and group["exact"] for group in filter_groups.values())
+
+        # Only use the complex logic if we have actual exact+partial combinations
+        if has_exact_partial_combination:
+            combined_collections, remaining_filters = self._handle_exact_partial_tag_filter_combination(
+                db_column, filter_list, prefix
+            )
+
+            # Add combined OR collections to the main filter collection
+            for combined_collection in combined_collections:
+                combined_q = combined_collection.compose(logical_operator="or")
+                if combined_q:
+                    filter_collection._combined_or_conditions = getattr(
+                        filter_collection, "_combined_or_conditions", []
+                    )
+                    filter_collection._combined_or_conditions.append(combined_q)
+
+            filters_to_process = remaining_filters
+        else:
+            # Use simple logic for all filters if no exact+partial combinations exist
+            filters_to_process = filter_list
+
+        # Process standard filters using existing logic
+        self._process_standard_filters(filter_collection, db_column, filters_to_process, prefix)
+
+        # Process operator-specific filters
+        for operator in ["and", "or", "exact"]:
+            filter_collection = self._set_operator_specific_prefix_based_filters(
+                filter_collection, db_column, filters_to_process, operator, prefix
+            )
+
+        return filter_collection
+
+    def _process_standard_filters(self, filter_collection, db_column, filters_to_process, prefix):
+        """Process standard filters without operator prefixes."""
         standard_filters = [
-            filt for filt in filter_list if "and:" not in filt and "or:" not in filt and "exact:" not in filt
+            filt for filt in filters_to_process if not any(filt.startswith(op) for op in ["and:", "or:", "exact:"])
         ]
+
         for prefix_filter in standard_filters:
-            # Update the _filter to use the label column name
             db_name = db_column + "__" + strip_prefix(prefix_filter, prefix)
             filt = {"field": db_name, "operation": "icontains"}
             group_by = self.parameters.get_group_by(prefix_filter, list())
             filter_ = self.parameters.get_filter(prefix_filter, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
+
             if filter_ and ReportQueryHandler.has_wildcard(filter_):
                 filt = {"field": db_column, "operation": "has_key"}
                 q_filter = QueryFilter(parameter=strip_prefix(prefix_filter, prefix), **filt)
@@ -570,18 +741,6 @@ class ReportQueryHandler(QueryHandler):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filter_collection.add(q_filter)
-
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filter_list, "and", prefix
-        )
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filter_list, "or", prefix
-        )
-        filter_collection = self._set_operator_specific_prefix_based_filters(
-            filter_collection, db_column, filter_list, "exact", prefix
-        )
-
-        return filter_collection
 
     def _set_operator_specified_filters(self, operator, check_for_exclude=False):
         """Set any filters using AND instead of OR."""
@@ -644,10 +803,7 @@ class ReportQueryHandler(QueryHandler):
             (Dict): query filter dictionary
 
         """
-        if "gcp_filters" in dir(self._mapper) and self._mapper.gcp_filters:
-            filters = super()._get_gcp_filter(delta)
-        else:
-            filters = super()._get_filter(delta)
+        filters = super()._get_filter(delta)
 
         # set up filters for instance-type and storage queries.
         for filter_map in self._mapper._report_type_map.get("filter"):

@@ -574,6 +574,27 @@ class TestProcessorTasks(MasuTestCase):
             found = any(expected in log for log in logger.output)
             self.assertTrue(found)
 
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch(
+        "masu.processor.tasks._process_report_file",
+        side_effect=ReportProcessorError(
+            "Unknown processor error: error 404: b'Error 404 Not Found: Query not found'"
+        ),
+    )
+    def test_get_report_files_trino_404(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
+        """Test coverage for TrinoQueryNotFoundError handling in get_report_files."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
+        with self.assertLogs("masu.processor.tasks", level="WARNING") as logger:
+            try:
+                get_report_files(**self.get_report_args)
+            except ReportProcessorError:
+                pass
+
+            retry_log_found = any("Trino 404 error - retrying" in log for log in logger.output)
+            self.assertTrue(retry_log_found, f"Retry log not found in: {logger.output}")
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""

@@ -14,6 +14,7 @@ from django.db.models import Value
 from django.db.models.functions import Coalesce
 
 from api.models import Provider
+from api.report.filter_collection import ocp_all_storage_filter_collection
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAllComputeSummaryPT
 from reporting.models import OCPAllCostLineItemDailySummaryP
@@ -370,18 +371,8 @@ class OCPAllProviderMap(ProviderMap):
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
-                        "filter": [
-                            {"field": "unit", "operation": "in", "parameter": ["GB-Mo", "gibibyte month"]},
-                        ],
-                        "or_filter": [
-                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},  # all
-                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},  # all
-                            {
-                                "field": "product_code",
-                                "operation": "in",
-                                "parameter": ["Filestore", "Data Transfer"],
-                            },  # GCP Specific
-                        ],
+                        "filter": [{}],
+                        "composed_filters": ocp_all_storage_filter_collection(),
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
@@ -491,15 +482,7 @@ class OCPAllProviderMap(ProviderMap):
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{}],
-                        "or_filter": [
-                            {"field": "product_family", "operation": "icontains", "parameter": "Storage"},
-                            {"field": "product_code", "operation": "icontains", "parameter": "Storage"},
-                            {
-                                "field": "product_code",
-                                "operation": "in",
-                                "parameter": ["Filestore", "Data Transfer"],
-                            },  # GCP Specific
-                        ],
+                        "composed_filters": ocp_all_storage_filter_collection(),
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",

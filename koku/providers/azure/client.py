@@ -80,6 +80,9 @@ class AzureClientFactory:
             )
             return BlobServiceClient.from_connection_string(connect_str)
         except HttpResponseError as httpError:
+            err = "does not have authorization to perform action 'Microsoft.Storage/storageAccounts/listKeys/action'"
+            if err not in httpError.message:
+                raise httpError
             LOG.warning(
                 "falling back to non storage account key access: "
                 f"unable to list storage account keys: {httpError.message}"
