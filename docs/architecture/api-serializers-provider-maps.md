@@ -1119,7 +1119,58 @@ class AWSNewReportViewTest(IamTestCase):
 
 ### Step 8: Update OpenAPI Spec
 
-The OpenAPI spec is auto-generated from the views and serializers, but you may need to add documentation strings:
+The OpenAPI spec must be **manually updated** when adding new endpoints. The spec is located at `docs/specs/openapi.json`.
+
+Add your new endpoint to the spec:
+
+```json
+{
+  "paths": {
+    "/reports/aws/new-report/": {
+      "get": {
+        "summary": "Get new report data",
+        "description": "Returns aggregated cost and usage data for custom metrics.",
+        "operationId": "getAWSNewReport",
+        "tags": ["Reports"],
+        "parameters": [
+          {
+            "name": "filter[custom_field]",
+            "in": "query",
+            "description": "Filter by custom field",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_by[custom_field]",
+            "in": "query",
+            "description": "Group by custom field",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+You should also add helpful docstrings to your view class for developer reference:
 
 ```python
 class AWSNewReportView(AWSView):
