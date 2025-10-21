@@ -40,22 +40,22 @@ The Koku API uses a layered architecture where serializers, provider maps, query
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         HTTP Request                                     │
+│                         HTTP Request                                    │
 │                    GET /api/v1/reports/aws/costs/                       │
 │                    ?group_by[account]=*&filter[region]=us-east-1        │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                          URL Router                                      │
+│                          URL Router                                     │
 │                      (koku/api/urls.py)                                 │
-│   Routes to: AWSCostView (report/aws/view.py)                          │
+│   Routes to: AWSCostView (report/aws/view.py)                           │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                      ReportView (Base View)                             │
-│                     (report/view.py)                                     │
+│                     (report/view.py)                                    │
 │  Properties:                                                            │
 │  - provider = Provider.PROVIDER_AWS                                     │
 │  - report = "costs"                                                     │
@@ -109,7 +109,7 @@ The Koku API uses a layered architecture where serializers, provider maps, query
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                 Django ORM Query Execution                              │
-│  - Selects from: AWSCostSummaryP, AWSCostSummaryByAccountP, etc.       │
+│  - Selects from: AWSCostSummaryP, AWSCostSummaryByAccountP, etc.        │
 │  - Applies filters, aggregations, groupings                             │
 │  - Returns QuerySet                                                     │
 └──────────────────────────────┬──────────────────────────────────────────┘
@@ -119,7 +119,7 @@ The Koku API uses a layered architecture where serializers, provider maps, query
 │                    Query Handler Processing                             │
 │  - Formats data into API response structure                             │
 │  - Applies pagination                                                   │
-│  - Adds metadata (total, filter, group_by, order_by)                   │
+│  - Adds metadata (total, filter, group_by, order_by)                    │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
                                ▼
@@ -278,7 +278,7 @@ _opfields = ("account", "service", "region")
 Example API usage:
 ```
 ?filter[and:account]=123456&filter[and:account]=789012  # Intersection
-?filter[or:account]=123456&filter[or:account]=789012   # Union
+?filter[or:account]=123456&filter[or:account]=789012    # Union
 ?filter[exact:account]=123456                           # Exact match (no partial)
 ```
 
